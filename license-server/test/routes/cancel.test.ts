@@ -16,7 +16,6 @@ import { createSlidingWindowLimiter } from "../../src/ratelimit";
 import type { Env } from "../../src/types";
 import {
   CANCEL_LINK_TTL_MINUTES,
-  UNRESOLVED_POLICY,
   handleCancelConfirm,
   handleCancelEmailLink,
   handleCancelRequest,
@@ -24,6 +23,14 @@ import {
   type CancellationPolicy,
 } from "../../src/routes/cancel";
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
+
+/** The state before the owner ruling: nothing recorded. Defined here, not
+ * exported from the source, so no shipped code can fall back to it. */
+const UNRECORDED_POLICY: CancellationPolicy = {
+  remainingTrialAccess: null,
+  refundPolicyApplies: false,
+  cardGateOpen: false,
+};
 
 const SUB_ID = "sub_live";
 const KEY = "payload.signature";
@@ -252,7 +259,7 @@ describe("the unresolved trial policy refuses the trial screen, with its reason"
     );
     const res = await handleCancelState(post({ license_key: KEY }), e, limiter, {
       provider: trialing,
-      policy: UNRESOLVED_POLICY,
+      policy: UNRECORDED_POLICY,
     });
     expect(res.status).toBe(409);
     const body = (await res.json()) as { ok: boolean; refusals: string[]; alternative_route: string };
@@ -283,7 +290,7 @@ describe("the unresolved trial policy refuses the trial screen, with its reason"
     await seedPaidLicence(e);
     const res = await handleCancelState(post({ license_key: KEY }), e, limiter, {
       provider: workingProvider(),
-      policy: UNRESOLVED_POLICY,
+      policy: UNRECORDED_POLICY,
     });
     expect(res.status).toBe(200);
   });

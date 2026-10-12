@@ -27,7 +27,7 @@
  * rendered as what it is: we cannot confirm this subscription's state well
  * enough to show a trial cancellation screen, and here is the route that
  * works without us. The remaining-trial-access sentence has two possible
- * answers and nobody has chosen one (see `UNRESOLVED_POLICY`), so this module
+ * answers and nobody has chosen one (see `CURRENT_POLICY`), so this module
  * cannot show either — and it does NOT substitute the paid copy, which would
  * tell a trial subscriber their "paid access continues", a sentence that is
  * false twice over.
@@ -36,6 +36,7 @@
 import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { pageHeaders } from "./storefront";
+import { formatInstantUtc } from "../email/resend";
 import {
   handleCancelConfirm,
   handleCancelEmailLink,
@@ -47,6 +48,12 @@ import type { BillingProvider } from "../billing/subscription";
 import type { PromiseAuthorisation } from "../promises";
 
 /** Escaped for interpolation. Customer-supplied data never reaches HTML raw. */
+/** An instant, readable and labelled UTC, with the exact ISO value kept in the
+ * markup and shown beside it. The readable form never stands alone. */
+function timeTag(iso: string): string {
+  return `<time datetime="${esc(iso)}"><strong>${esc(formatInstantUtc(iso))}</strong></time> (${esc(iso)})`;
+}
+
 function esc(text: string): string {
   return text
     .replace(/&/g, "&amp;")
@@ -169,6 +176,7 @@ interface OutcomePayload {
   readonly outcome?: string;
   readonly confirmed_at?: string;
   readonly paid_access_ends_at?: string | null;
+  readonly trial_access_until?: string | null;
   readonly request_id?: string;
   readonly request_recorded_at?: string;
   readonly received_at?: string;
@@ -294,16 +302,20 @@ affected.</p>`,
       ? ""
       : screen.trialAccess.kind === "continues_until"
         ? `<p>You can continue using your trial until
-<strong>${esc(screen.trialAccess.untilIso)}</strong>.</p>`
+${timeTag(screen.trialAccess.untilIso)}.</p>`
         : `<p>Your trial lesson access will end when the cancellation is
 complete.</p>`;
 
   const lead =
     screen.action === null
-      ? `<p>Your subscription will not renew. Nothing further is needed.</p>`
+      ? screen.trialAccess !== null
+        ? `<p>Your Bede trial will not convert to a paid subscription.</p>
+${trialAccessSentence}`
+        : `<p>Your subscription will not renew. Nothing further is needed.</p>`
       : trial
         ? `<p>Cancelling will stop your trial from converting to a paid
-subscription, so the scheduled subscription charge will not be made.</p>
+subscription, so the scheduled subscription charge will not be made. It does
+not restart or extend the trial.</p>
 ${trialAccessSentence}`
         : `<p>Cancelling renewal stops the next charge. Your paid access
 continues to the end of the period you have already paid for.</p>
@@ -355,6 +367,7 @@ export async function handleCancelConfirmPage(
   deps: {
     provider?: BillingProvider;
     policy?: CancellationPolicy;
+    authorisation?: PromiseAuthorisation;
     sendConfirmation?: (input: { to: string; subject: string; html: string }) => Promise<void>;
   } = {},
 ): Promise<Response> {
@@ -368,6 +381,22 @@ a minute, or <a href="/cancel">send a request without signing in</a>.</p>`, 429)
   const body = (await res.json()) as OutcomePayload;
   const claims = body.claims;
   if (claims === undefined) return cannotConfirmPage(res.status);
+
+  if (claims.mayShowSuccess && body.trial_access_until) {
+    return page(
+      "Your Bede trial will not convert",
+      `<h1>Your Bede trial will not convert to a paid subscription.</h1>
+<p>You can continue using your trial until ${timeTag(body.trial_access_until)}.</p>
+<p>Cancelling does not restart or extend the trial.</p>
+<dl><dt>Confirmed</dt><dd>${esc(body.confirmed_at ?? "")}</dd></dl>
+<p>${
+  claims.mayClaimEmailSent
+    ? "We have sent a confirmation to the address on your account."
+    : "We could not send a confirmation email. Your cancellation is confirmed regardless — this page is your record of it."
+}</p>
+<p><a href="/cancel">Back</a></p>`,
+    );
+  }
 
   if (claims.mayShowSuccess) {
     const endsAt = body.paid_access_ends_at;

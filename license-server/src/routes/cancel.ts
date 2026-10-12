@@ -36,10 +36,10 @@ import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { describe, describeOutcome, alternativeRouteMayAsk } from "../cancellation";
-import { NOTHING_PROMISED, type PromiseAuthorisation } from "../promises";
+import { ADOPTED_PROMISES, type PromiseAuthorisation, mayPromise } from "../promises";
 import { cancellationConfirmedEmail, createResendClient } from "../email/resend";
 import { storefrontUrl } from "../config";
-import type { RemainingTrialAccess } from "../cancellation";
+import type { OriginalExpiryRule, RemainingTrialAccess } from "../cancellation";
 import { maskEmail, record as recordBillingEvent } from "../audit/billing_events";
 import type { ActorKind } from "../audit/billing_events";
 import {
@@ -58,27 +58,29 @@ export const CANCEL_LINK_TTL_MINUTES = 60;
  * the caller so an unresolved decision refuses a screen rather than acquiring
  * a default here — see `cancellation.ts`. */
 export interface CancellationPolicy {
-  readonly remainingTrialAccess: RemainingTrialAccess | null;
+  readonly remainingTrialAccess: RemainingTrialAccess | OriginalExpiryRule | null;
   readonly refundPolicyApplies: boolean;
   readonly cardGateOpen: boolean;
 }
 
 /**
- * The policy as it stands today: nothing decided.
+ * The policy as it stands today.
  *
- * `remainingTrialAccess` null is what makes the trial-cancellation screen
- * refuse to render, which is the intended behaviour until the decision is
- * recorded — see docs/PAYMENTS_AND_CANCELLATION.md §8. `refundPolicyApplies`
+ * `remainingTrialAccess` is the owner's ruling of 2026-10-12: cancelling a
+ * trial prevents its conversion to a paid subscription, and existing trial
+ * access continues until that subscription's own original trial expiry. It is
+ * a RULE here and a date only after `verifiedStateFrom` resolves it against
+ * the subscription, because the expiry is a per-subscription fact. The ruling
+ * is two flips by design: this value and `ADOPTED_PROMISES.retained_trial_access`.
+ *
+ * Everything else is still unresolved and stays shut: `refundPolicyApplies`
  * false shows no refund link, because there is no approved guarantee to link
- * to and inventing one would be worse than omitting it. `cardGateOpen` false
- * keeps payment-method management off every screen, so this surface cannot
- * become a second, earlier route to card collection.
- *
- * Stated here as one named value rather than three literals at a call site,
- * so recording a decision is one edit in a place that explains itself.
+ * to, and `cardGateOpen` false keeps payment-method management off every
+ * screen, so this surface cannot become a second, earlier route to card
+ * collection.
  */
-export const UNRESOLVED_POLICY: CancellationPolicy = {
-  remainingTrialAccess: null,
+export const CURRENT_POLICY: CancellationPolicy = {
+  remainingTrialAccess: { kind: "continues_until_original_expiry" },
   refundPolicyApplies: false,
   cardGateOpen: false,
 };
@@ -258,7 +260,7 @@ export async function handleCancelState(
   const read = await provider.read(ref.subscriptionId);
   if (read === null) return providerUnavailable();
 
-  const policy = deps.policy ?? UNRESOLVED_POLICY;
+  const policy = deps.policy ?? CURRENT_POLICY;
   const state = verifiedStateFrom({
     subscription: read.subscription,
     openInvoices: read.openInvoices,
@@ -268,7 +270,7 @@ export async function handleCancelState(
   // state than shown a cancel button that will do nothing.
   if (state === null) return providerUnavailable();
 
-  const described = describe(state, deps.authorisation ?? NOTHING_PROMISED);
+  const described = describe(state, deps.authorisation ?? ADOPTED_PROMISES);
   if (!described.ok) {
     // A refusal is reported as a refusal, with its reasons. The caller renders
     // "we couldn't confirm" and the alternative route — never a screen with a
@@ -297,6 +299,7 @@ export async function handleCancelConfirm(
   deps: {
     provider?: BillingProvider;
     policy?: CancellationPolicy;
+    authorisation?: PromiseAuthorisation;
     /** Test seam for the confirmation send. Production builds the real client. */
     sendConfirmation?: (input: { to: string; subject: string; html: string }) => Promise<void>;
   } = {},
@@ -370,10 +373,26 @@ export async function handleCancelConfirm(
     );
   }
 
-  const paidAccessEndsAtIso =
-    typeof updated.current_period_end === "number" && updated.current_period_end > 0
-      ? new Date(updated.current_period_end * 1000).toISOString()
+  // Retained trial access: stated only for a trial, only when the policy and
+  // the promise are both in place, and only from the expiry the provider just
+  // read back. The date is never taken from the request, and a missing one
+  // means the sentence is not said at all.
+  const policy = deps.policy ?? CURRENT_POLICY;
+  const trialAccessUntilIso =
+    updated.status === "trialing" &&
+    policy.remainingTrialAccess?.kind === "continues_until_original_expiry" &&
+    mayPromise("retained_trial_access", deps.authorisation ?? ADOPTED_PROMISES) &&
+    typeof updated.trial_end === "number" &&
+    updated.trial_end > 0
+      ? new Date(updated.trial_end * 1000).toISOString()
       : null;
+
+  const paidAccessEndsAtIso =
+    updated.status === "trialing"
+      ? null
+      : typeof updated.current_period_end === "number" && updated.current_period_end > 0
+        ? new Date(updated.current_period_end * 1000).toISOString()
+        : null;
 
   const recordId = crypto.randomUUID();
   await env.DB.prepare(
@@ -402,6 +421,7 @@ export async function handleCancelConfirm(
     const { subject, html } = cancellationConfirmedEmail({
       confirmedAtIso: nowIso,
       paidAccessEndsAtIso,
+      trialAccessUntilIso,
       reference: recordId,
       storefrontUrl: storefrontUrl(env),
     });
@@ -438,6 +458,7 @@ export async function handleCancelConfirm(
     outcome: "confirmed",
     confirmed_at: nowIso,
     paid_access_ends_at: paidAccessEndsAtIso,
+    trial_access_until: trialAccessUntilIso,
     claims: describeOutcome({
       kind: "confirmed",
       confirmedAtIso: nowIso,

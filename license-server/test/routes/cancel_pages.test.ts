@@ -25,9 +25,17 @@ import {
   handleCancelRequestPage,
   handleCancelViewPage,
 } from "../../src/routes/cancel_pages";
-import { UNRESOLVED_POLICY, type CancellationPolicy } from "../../src/routes/cancel";
+import { type CancellationPolicy } from "../../src/routes/cancel";
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
 import { NOTHING_PROMISED, unresolvedPromisesIn } from "../../src/promises";
+
+/** The state before the owner ruling: nothing recorded. Defined here, not
+ * exported from the source, so no shipped code can fall back to it. */
+const UNRECORDED_POLICY: CancellationPolicy = {
+  remainingTrialAccess: null,
+  refundPolicyApplies: false,
+  cardGateOpen: false,
+};
 
 const SUB_ID = "sub_live";
 const KEY = "payload.signature";
@@ -161,7 +169,7 @@ describe("the paid screen", () => {
     await seed(e);
     const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
       provider: provider(),
-      policy: UNRESOLVED_POLICY,
+      policy: UNRECORDED_POLICY,
     });
     expect(res.status).toBe(200);
     const html = await res.text();
@@ -191,7 +199,7 @@ describe("the paid screen", () => {
     await seed(e);
     const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
       provider: provider(),
-      policy: UNRESOLVED_POLICY,
+      policy: UNRECORDED_POLICY,
     });
     const html = await res.text();
     expect(html).not.toMatch(/refund eligibility/i);
@@ -235,7 +243,7 @@ describe("the trial screen, with the policy unresolved", () => {
     await seed(e);
     const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
       provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
-      policy: UNRESOLVED_POLICY,
+      policy: UNRECORDED_POLICY,
     });
     expect(res.status).toBe(409);
     const html = await res.text();
@@ -251,7 +259,7 @@ describe("the trial screen, with the policy unresolved", () => {
     await seed(e);
     const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
       provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
-      policy: UNRESOLVED_POLICY,
+      policy: UNRECORDED_POLICY,
     });
     const html = await res.text();
     expect(html).not.toMatch(/paid access continues/i);
@@ -298,6 +306,7 @@ describe("the trial screen, with the policy unresolved", () => {
         refundPolicyApplies: false,
         cardGateOpen: false,
       },
+      authorisation: NOTHING_PROMISED,
     });
     expect(res.status).toBe(409);
     const html = await res.text();

@@ -59,6 +59,9 @@ export interface OpenInvoice {
 /** Which phase the subscription is actually in, read back from the provider. */
 export type BillingPhase =
   | "authorized_trial"
+  /** A trial whose conversion is already cancelled: renewal is off, access
+   * continues to the original trial expiry. */
+  | "trial_conversion_cancelled"
   | "paid_active"
   | "paid_renewal_cancelled";
 
@@ -67,6 +70,13 @@ export type BillingPhase =
 export type RemainingTrialAccess =
   | { readonly kind: "continues_until"; readonly untilIso: string }
   | { readonly kind: "ends_on_cancellation" };
+
+/** The adopted rule, before it is resolved against a subscription: access
+ * continues until THAT subscription's own original trial expiry. A rule and
+ * not a date, because a date is a per-subscription fact. */
+export interface OriginalExpiryRule {
+  readonly kind: "continues_until_original_expiry";
+}
 
 export interface VerifiedBillingState {
   readonly phase: BillingPhase;
@@ -204,6 +214,21 @@ export function describe(
         }
       }
       break;
+    case "trial_conversion_cancelled":
+      // Nothing is charged, so only the access boundary is load-bearing, and
+      // it must be the same authoritative expiry the trial screen showed.
+      if (!isInstant(state.paidAccessEndsAtIso)) refusals.push("trial_end");
+      if (state.remainingTrialAccess === null) {
+        refusals.push("remaining_trial_access_policy_not_recorded");
+      } else if (state.remainingTrialAccess.kind === "continues_until") {
+        if (!isInstant(state.remainingTrialAccess.untilIso)) {
+          refusals.push("remaining_trial_access_until");
+        }
+        if (!mayPromise("retained_trial_access", authorisation)) {
+          refusals.push("retained_trial_access_not_authorised");
+        }
+      }
+      break;
     case "paid_active":
       if (!isInstant(state.paidAccessEndsAtIso)) refusals.push("paid_access_end");
       if (!isInstant(state.nextRenewalAtIso)) refusals.push("next_renewal_date");
@@ -219,6 +244,24 @@ export function describe(
   if (refusals.length > 0) return { ok: false, refusals };
 
   const hasOpenInvoice = state.openInvoices.length > 0;
+
+  if (state.phase === "trial_conversion_cancelled") {
+    return {
+      ok: true,
+      screen: {
+        screen: "renewal_already_cancelled",
+        action: null,
+        mayManagePaymentMethod: false,
+        mayViewInvoices: false,
+        mayShowRefundLink: state.refundPolicyApplies,
+        mayClaimNoFurtherCharges: !hasOpenInvoice,
+        invoicesNeedingReview: state.openInvoices,
+        // The boundary a repeat visit must show unchanged.
+        trialAccess: state.remainingTrialAccess,
+        billingAlwaysReachable: true,
+      },
+    };
+  }
 
   if (state.phase === "paid_renewal_cancelled") {
     return {

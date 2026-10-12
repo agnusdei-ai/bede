@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
+  ADOPTED_PROMISES,
   NOTHING_PROMISED,
   UNRESOLVED_PROMISES,
   mayPromise,
@@ -174,18 +175,30 @@ describe("nothing in the shipped source can construct one", () => {
       .replace(/^\s*\/\/.*$/gm, "");
   }
 
-  it("never builds a `continues_until` trial-access policy", () => {
+  it("builds a `continues_until` trial-access policy in exactly one place", () => {
     // That variant IS the retained-trial-access promise, expressed as data.
+    // The owner adopted it on 2026-10-12, so it may now be constructed, but
+    // only where a per-subscription expiry can be read back: the one resolver
+    // in `billing/subscription.ts`. Anywhere else a literal date would be a
+    // static promise made to every customer.
     //
-    // DECLARING it and CONSTRUCTING it are different acts, and only the
-    // second makes a promise: `cancellation.ts` must keep the variant in its
-    // union so the path is ready for the moment the policy is recorded, while
-    // no shipped file may build one. The `readonly` lookbehind is what tells
-    // the two apart — a type member reads `readonly kind: "continues_until";`
-    // and an object literal reads `kind: "continues_until",`.
-    for (const file of sourceFiles("../src/")) {
-      expect(codeOf(file), file).not.toMatch(/(?<!readonly )kind:\s*["']continues_until["']/);
-    }
+    // DECLARING it and CONSTRUCTING it are different acts. The `readonly`
+    // lookbehind tells them apart: a type member reads
+    // `readonly kind: "continues_until";` and an object literal reads
+    // `kind: "continues_until",`.
+    const builders = sourceFiles("../src/").filter((file) =>
+      /(?<!readonly )kind:\s*["']continues_until["']/.test(codeOf(file)),
+    );
+    expect(builders.map((f) => f.replace(/^.*\/src\/+/, ""))).toEqual(["billing/subscription.ts"]);
+  });
+
+  it("the resolver uses the provider's trial_end and never the period end", () => {
+    // A fallback to `current_period_end` would show a date that is not the
+    // expiry the customer was promised.
+    const code = codeOf(fileURLToPath(new URL("../src/billing/subscription.ts", import.meta.url)));
+    expect(code).toMatch(/untilIso:\s*trialEnd\s*\?\?\s*""/);
+    expect(code).not.toMatch(/untilIso:[^}]*periodEnd/);
+    expect(code).not.toMatch(/trialEnd\s*\?\?\s*periodEnd/);
   });
 
   it("but the variant is still DECLARED, so the path is ready", () => {
@@ -202,7 +215,7 @@ describe("nothing in the shipped source can construct one", () => {
     }
   });
 
-  it("never authorises a promise outside NOTHING_PROMISED", () => {
+  it("authorises only the adopted promise, and only inside promises.ts", () => {
     for (const file of sourceFiles("../src/")) {
       if (file.endsWith("/promises.ts")) continue; // the declaration itself
       const code = codeOf(file);
@@ -210,6 +223,12 @@ describe("nothing in the shipped source can construct one", () => {
         expect(code, file).not.toMatch(new RegExp(`${promise}:\\s*true`));
       }
     }
+    // The adopted set is exactly the owner's ruling: one promise, no more.
+    expect(ADOPTED_PROMISES).toEqual({
+      community_downgrade: false,
+      immediate_refund: false,
+      retained_trial_access: true,
+    });
   });
 
   it("the default really is all-false, read from the value itself", () => {

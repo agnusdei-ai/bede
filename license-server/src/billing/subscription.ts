@@ -22,7 +22,14 @@
 import Stripe from "stripe";
 import type { Env } from "../types";
 import type { BillingCadence } from "../license/entitlements";
-import type { BillingPhase, Money, OpenInvoice, VerifiedBillingState } from "../cancellation";
+import type {
+  BillingPhase,
+  Money,
+  OpenInvoice,
+  OriginalExpiryRule,
+  RemainingTrialAccess,
+  VerifiedBillingState,
+} from "../cancellation";
 
 /** Only the fields this module reads, so a test can state a subscription
  * instead of constructing Stripe's own object. */
@@ -86,7 +93,9 @@ function cadenceFromInterval(interval: string | null): BillingCadence | null {
  */
 export function phaseOf(sub: SubscriptionSnapshot): BillingPhase | null {
   if (sub.status !== "active" && sub.status !== "trialing") return null;
-  if (sub.cancel_at_period_end) return "paid_renewal_cancelled";
+  if (sub.cancel_at_period_end) {
+    return sub.status === "trialing" ? "trial_conversion_cancelled" : "paid_renewal_cancelled";
+  }
   return sub.status === "trialing" ? "authorized_trial" : "paid_active";
 }
 
@@ -118,7 +127,7 @@ function money(sub: SubscriptionSnapshot): Money | null {
 export function verifiedStateFrom(input: {
   readonly subscription: SubscriptionSnapshot;
   readonly openInvoices: readonly InvoiceSnapshot[];
-  readonly remainingTrialAccess: VerifiedBillingState["remainingTrialAccess"];
+  readonly remainingTrialAccess: RemainingTrialAccess | OriginalExpiryRule | null;
   readonly refundPolicyApplies: boolean;
   readonly cardGateOpen: boolean;
 }): VerifiedBillingState | null {
@@ -133,12 +142,26 @@ export function verifiedStateFrom(input: {
   const periodEnd = instantFromUnix(sub.current_period_end);
   const trialEnd = instantFromUnix(sub.trial_end);
 
+  const onTrial = phase === "authorized_trial" || phase === "trial_conversion_cancelled";
+  // Resolve the adopted rule against THIS subscription. The original trial
+  // expiry is Stripe's `trial_end` and nothing else: no fallback to the period
+  // end, because a fallback would show a date that is not the expiry the
+  // customer was promised. An absent value yields an unreadable instant, which
+  // `describe` refuses by name rather than rendering a guess.
+  const rule = input.remainingTrialAccess;
+  const resolved: RemainingTrialAccess | null =
+    rule !== null && rule.kind === "continues_until_original_expiry"
+      ? onTrial
+        ? { kind: "continues_until", untilIso: trialEnd ?? "" }
+        : null
+      : rule;
+
   return {
     phase,
     planName: sub.plan_nickname,
     cadence: cadenceFromInterval(sub.interval),
-    paidAccessEndsAtIso: trialing ? (trialEnd ?? periodEnd) : periodEnd,
-    nextRenewalAtIso: trialing ? (trialEnd ?? periodEnd) : periodEnd,
+    paidAccessEndsAtIso: trialing ? trialEnd : periodEnd,
+    nextRenewalAtIso: trialing ? trialEnd : periodEnd,
     nextCharge: money(sub),
     openInvoices: input.openInvoices.map(
       (inv): OpenInvoice => ({
@@ -148,7 +171,7 @@ export function verifiedStateFrom(input: {
       }),
     ),
     providerConfirmed: true,
-    remainingTrialAccess: input.remainingTrialAccess,
+    remainingTrialAccess: resolved,
     refundPolicyApplies: input.refundPolicyApplies,
     cardGateOpen: input.cardGateOpen,
   };

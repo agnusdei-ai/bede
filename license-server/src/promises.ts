@@ -63,6 +63,24 @@ export const NOTHING_PROMISED: PromiseAuthorisation = {
   retained_trial_access: false,
 };
 
+/**
+ * The authorisation this deployment actually runs on.
+ *
+ * Exactly one promise is authorised, by the owner's ruling of 2026-10-12:
+ * cancelling a trial prevents its conversion to a paid subscription, and the
+ * trial access that already exists continues until the original trial expiry.
+ * Cancellation neither restarts nor extends the trial. Nothing else is
+ * authorised: `community_downgrade` and `immediate_refund` stay false until
+ * their own rulings. `NOTHING_PROMISED` remains as the all-false baseline the
+ * pure decision layer defaults to, so a caller that does not pass this cannot
+ * make the promise by accident.
+ */
+export const ADOPTED_PROMISES: PromiseAuthorisation = {
+  community_downgrade: false,
+  immediate_refund: false,
+  retained_trial_access: true,
+};
+
 export function mayPromise(
   promise: UnresolvedPromise,
   authorisation: PromiseAuthorisation = NOTHING_PROMISED,

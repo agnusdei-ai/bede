@@ -200,17 +200,48 @@ export function trialEndingEmail(input: {
  * that cancelling renewal does not itself refund the current payment — which
  * exists precisely so a customer does not assume the opposite.
  */
+/** A readable form of an instant, always in UTC and always labelled so. The
+ * exact ISO value is shown beside it, so the readable form can never be the
+ * only statement of when access ends. */
+export function formatInstantUtc(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}, ${hh}:${mm} UTC`;
+}
+
 export function cancellationConfirmedEmail(input: {
   /** The instant the provider confirmed it. */
   readonly confirmedAtIso: string;
   /** Authoritative end of already-paid access, or null when we do not have
    * one we can stand behind. */
   readonly paidAccessEndsAtIso: string | null;
+  /** The subscription's own original trial expiry, set ONLY for a verified
+   * trial cancellation under the adopted retained-access ruling. Null for a
+   * paid renewal, and null whenever the expiry was not read back. */
+  readonly trialAccessUntilIso?: string | null;
   /** The ledger/request reference, so a support enquiry and our own record
    * meet. */
   readonly reference: string;
   readonly storefrontUrl: string;
 }): { subject: string; html: string } {
+  if (input.trialAccessUntilIso) {
+    const until = input.trialAccessUntilIso;
+    return {
+      subject: "Your Bede trial will not convert to a paid subscription",
+      html: [
+        "<p>Your Bede trial will not convert to a paid subscription.</p>",
+        `<p>You can continue using your trial until <strong>${escapeHtml(formatInstantUtc(until))}</strong> (${escapeHtml(until)}).</p>`,
+        "<p>Cancelling does not restart or extend the trial.</p>",
+        `<p><strong>Cancellation confirmed:</strong> ${escapeHtml(input.confirmedAtIso)}</p>`,
+        `<p><strong>Reference:</strong> ${escapeHtml(input.reference)}</p>`,
+        `<p>Your account: <a href="${escapeHtml(input.storefrontUrl)}">${escapeHtml(input.storefrontUrl)}</a></p>`,
+        "<p>&mdash; The Bede team</p>",
+      ].join("\n"),
+    };
+  }
   return {
     subject: "Your Bede renewal is cancelled",
     html: [

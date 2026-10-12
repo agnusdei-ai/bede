@@ -108,12 +108,13 @@ made, and the default is that it cannot:
 | --- | --- | --- |
 | `community_downgrade` | Access drops to Community rather than to nothing | No |
 | `immediate_refund` | Money comes back, now or automatically | No |
-| `retained_trial_access` | Trial lessons continue after cancelling | No |
+| `retained_trial_access` | Trial lessons continue to the original expiry after cancelling | **Yes** (owner ruling 2026-10-12) |
 
 Two halves, because a predicate only helps code that asks it:
 
-- **`mayPromise()`** gates code. `NOTHING_PROMISED` is the value the product
-  runs on, and flipping an entry is the single edit when a policy is recorded.
+- **`mayPromise()`** gates code. `ADOPTED_PROMISES` is the value the product
+  runs on: exactly `retained_trial_access` is true. `NOTHING_PROMISED` remains
+  the all-false baseline the pure decision layer defaults to.
 - **`unresolvedPromisesIn()`** reads rendered text and names which promise it
   found, because when a promise appears it appears in **copy**. The suites run
   it over every email and the storefront.
@@ -125,9 +126,10 @@ by recognising the negation, not by narrowing the pattern: a narrower one
 would also stop catching "we will refund you". Scanning is per sentence, so a
 disclaimer cannot shelter a promise in the paragraph beside it.
 
-Two source scans close the route that changes no copy at all: no shipped file
-may construct a `continues_until` trial-access policy or set
-`refundPolicyApplies: true`. **Declaring** the variant and **constructing** it
+Two source scans close the route that changes no copy at all: exactly one
+shipped file (`billing/subscription.ts`, which reads the per-subscription
+`trial_end`) may construct a `continues_until` trial-access policy, and none
+may set `refundPolicyApplies: true`. **Declaring** the variant and **constructing** it
 are different acts and only the second makes a promise, so the union keeps the
 variant — a guard asserts that too, since deleting it would make the policy
 unimplementable rather than unmade, and nothing else would notice.
@@ -137,12 +139,10 @@ unimplementable rather than unmade, and nothing else would notice.
 | Open | Blocks |
 | --- | --- |
 | The two Stripe `price_id`s | Scenarios 1, 9, 17 |
-| Remaining trial access after cancellation | Scenario 10's copy |
 | Grace period for a failed renewal | Scenario 3 |
 | Refund terms | Scenario 11, and the `immediate_refund` authorisation |
 | Community eligibility after paid access ends | The `community_downgrade` authorisation |
 | Billing-boundary remediation | Scenario 6's operator procedure |
-| Remaining trial access after cancellation | Scenario 10's screen, and conversion launch |
 | Where consent records live, and for how long | Scenario 9 |
 
 ## 5. Evidence to assemble before the engagement

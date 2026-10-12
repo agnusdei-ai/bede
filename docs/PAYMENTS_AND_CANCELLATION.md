@@ -374,21 +374,28 @@ exact duration only once enforcement matches it.
 
 ### Decisions still needed
 
-0. **Remaining trial access after a cancellation** — continues to the trial's
-   own end, or ends when the cancellation completes. Until recorded, the
-   trial-cancellation screen refuses to render rather than picking one.
-   **Recommended and not adopted (2026-10-12):** preserve access to the
-   original expiry, rather than penalising a cancellation with an immediate
-   cutoff. Both branches are built and tested; the shipped default still
-   refuses, so nothing renders until the ruling is made.
+0. **Remaining trial access after a cancellation — ADOPTED (owner ruling,
+   2026-10-12).** Cancelling prevents the trial-to-subscription conversion and
+   its scheduled first charge. Existing trial access continues until the
+   subscription's own original trial expiry. Cancellation does not restart or
+   extend the trial, grants no paid capability, and implies nothing about
+   trial communications or post-expiry Community access (both still open).
 
-   **Adopting it is two flips, not one, and that is deliberate.** The policy
-   value (`remainingTrialAccess: {kind: "continues_until", untilIso}`) and the
-   promise authorisation (`retained_trial_access`) are the same decision seen
-   twice: *"you can continue using your trial until X"* IS the
-   retained-trial-access promise, expressed as data. `describe()` refuses a
-   recorded policy whose promise is unauthorised — a half-made decision earns
-   the same refusal as an unmade one — so neither half can ship alone.
+   **Implementation is recorded separately from the adoption.** It was two
+   flips, deliberately: the policy (`CURRENT_POLICY.remainingTrialAccess`, a
+   *rule*, `continues_until_original_expiry`) and the promise
+   (`ADOPTED_PROMISES.retained_trial_access`). The rule is resolved to a date
+   per subscription in `billing/subscription.ts` from Stripe's `trial_end`
+   only. There is no fallback to the period end, and an absent `trial_end`
+   refuses the screen by name rather than guessing. The date is never taken
+   from a request. Approved copy: *"Your Bede trial will not convert to a paid
+   subscription. You can continue using your trial until [expiry]."* It is
+   shown as readable UTC with the exact ISO value beside it, and only after
+   the provider confirms the change; a pending request, or an unauthorised
+   promise, says nothing of it. A repeat visit shows the same boundary on the
+   already-cancelled screen (`trial_conversion_cancelled`). An email failure
+   clears only the "we sent a confirmation" sentence.
+
 1. **No cadence selected by the day-2 notice.** Suppressing the conversion
    notice and letting the trial lapse is the safe default; the alternative is
    a selection prompt carrying no terms, with the 24-hour clock starting at

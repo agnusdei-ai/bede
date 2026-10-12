@@ -168,6 +168,17 @@ every access log and `Referer` header between here and the customer. A test
 asserts no rendered link contains the key and that the dispatcher offers no
 GET on the credential-bearing paths.
 
+**The policy's VALUE reaches the screen, which it did not at first.**
+`remainingTrialAccess` was a required input that gated the trial screen and
+whose value reached nothing: the description did not carry it, so the renderer
+could not have said the sentence even once a ruling was recorded, and adopting
+one would have changed nothing a customer reads. That is the
+`bayesian_update`-unpassed-`params` shape — a value required by the only path
+that should consume it, unreachable from that path — and it was found by
+someone recommending a ruling rather than by a test. `ScreenDescription`
+carries `trialAccess` now, the page renders the sentence the description names,
+and both branches have real copy.
+
 **The trial screen refuses today, and the refusal is rendered as what it is**
 — we could not confirm this subscription's state well enough to show a screen,
 nothing has been changed, and here is the route that works without us. It does
@@ -366,6 +377,18 @@ exact duration only once enforcement matches it.
 0. **Remaining trial access after a cancellation** — continues to the trial's
    own end, or ends when the cancellation completes. Until recorded, the
    trial-cancellation screen refuses to render rather than picking one.
+   **Recommended and not adopted (2026-10-12):** preserve access to the
+   original expiry, rather than penalising a cancellation with an immediate
+   cutoff. Both branches are built and tested; the shipped default still
+   refuses, so nothing renders until the ruling is made.
+
+   **Adopting it is two flips, not one, and that is deliberate.** The policy
+   value (`remainingTrialAccess: {kind: "continues_until", untilIso}`) and the
+   promise authorisation (`retained_trial_access`) are the same decision seen
+   twice: *"you can continue using your trial until X"* IS the
+   retained-trial-access promise, expressed as data. `describe()` refuses a
+   recorded policy whose promise is unauthorised — a half-made decision earns
+   the same refusal as an unmade one — so neither half can ship alone.
 1. **No cadence selected by the day-2 notice.** Suppressing the conversion
    notice and letting the trial lapse is the safe default; the alternative is
    a selection prompt carrying no terms, with the 24-hour clock starting at
@@ -375,10 +398,14 @@ exact duration only once enforcement matches it.
    terms the customer was never shown.
 3. **Grace period length** for a failed renewal, and whether lessons continue
    through it. Today Stripe's dunning window is the de facto answer, by
-   accident rather than decision.
+   accident rather than decision — and explicitly **no default is taken from
+   a recommendation**: this needs a stated duration, a ruling on lessons
+   during it, and an expiry after it.
 4. **Remediation** when our own delay causes a renewal charge after a timely
    cancellation request.
-5. **Refund guarantee** that works for both cadences. Cancellation of renewal
+5. **Refund guarantee** that works for both cadences. No default is taken
+   here either: eligibility, refundable amount, the request window, and the
+   treatment of any guide or coaching element all need explicit values. Cancellation of renewal
    and refunding a payment stay separate actions, and refund eligibility is
    never inferred from a cancellation. Annual-only wording must not travel
    into a monthly checkout.

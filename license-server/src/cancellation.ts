@@ -37,6 +37,7 @@
  */
 
 import type { BillingCadence } from "./license/entitlements";
+import { NOTHING_PROMISED, mayPromise, type PromiseAuthorisation } from "./promises";
 
 /** An amount as the provider reports it: minor units plus its currency, never
  * a pre-formatted string. Formatting is the renderer's job and currencies
@@ -115,6 +116,20 @@ export interface ScreenDescription {
    * an unconditional "nothing further will be charged" claim. */
   readonly mayClaimNoFurtherCharges: boolean;
   readonly invoicesNeedingReview: readonly OpenInvoice[];
+  /**
+   * What the trial screen may say about access after cancelling, or null on a
+   * screen where the question does not arise.
+   *
+   * **This field exists because requiring the policy was not the same as
+   * using it.** `remainingTrialAccess` was a required INPUT that gated the
+   * trial screen, and its value reached nothing: the description did not
+   * carry it, so the renderer could not have said the sentence even once the
+   * policy was recorded, and adopting a ruling would have changed nothing a
+   * customer sees. The same shape as `bayesian_update` never passing
+   * `params` — a value required by the only path that should consume it, and
+   * unreachable from that path.
+   */
+  readonly trialAccess: RemainingTrialAccess | null;
   /** Always true. See the module note on why this is stated rather than
    * assumed. */
   readonly billingAlwaysReachable: true;
@@ -143,7 +158,20 @@ function isMoney(value: Money | null): boolean {
  * problem rather than the first — when the state cannot support an honest
  * screen.
  */
-export function describe(state: VerifiedBillingState): Described {
+export function describe(
+  state: VerifiedBillingState,
+  /**
+   * Which promises this deployment may make. Defaults to none, so a caller
+   * that does not think about it cannot accidentally authorise one.
+   *
+   * It is here because the trial-access POLICY and the retained-trial-access
+   * PROMISE are the same decision seen twice: `continues_until` IS the
+   * promise, expressed as data. Recording one without authorising the other
+   * is a half-made decision, and the honest answer to a half-made decision
+   * is the same refusal as to an unmade one.
+   */
+  authorisation: PromiseAuthorisation = NOTHING_PROMISED,
+): Described {
   const refusals: string[] = [];
 
   // Nothing may be stated as fact about a subscription we did not read back.
@@ -162,11 +190,18 @@ export function describe(state: VerifiedBillingState): Described {
       // would be choosing the policy by shipping it.
       if (state.remainingTrialAccess === null) {
         refusals.push("remaining_trial_access_policy_not_recorded");
-      } else if (
-        state.remainingTrialAccess.kind === "continues_until" &&
-        !isInstant(state.remainingTrialAccess.untilIso)
-      ) {
-        refusals.push("remaining_trial_access_until");
+      } else if (state.remainingTrialAccess.kind === "continues_until") {
+        if (!isInstant(state.remainingTrialAccess.untilIso)) {
+          refusals.push("remaining_trial_access_until");
+        }
+        // The policy and the promise are one decision. Saying "you can
+        // continue using your trial until X" IS the retained-trial-access
+        // promise, so a recorded policy that has not been authorised as a
+        // promise is half-made, and a half-made decision earns the same
+        // refusal as an unmade one.
+        if (!mayPromise("retained_trial_access", authorisation)) {
+          refusals.push("retained_trial_access_not_authorised");
+        }
       }
       break;
     case "paid_active":
@@ -199,6 +234,8 @@ export function describe(state: VerifiedBillingState): Described {
         mayShowRefundLink: state.refundPolicyApplies,
         mayClaimNoFurtherCharges: !hasOpenInvoice,
         invoicesNeedingReview: state.openInvoices,
+        // The question does not arise once a renewal is already cancelled.
+        trialAccess: null,
         billingAlwaysReachable: true,
       },
     };
@@ -217,6 +254,9 @@ export function describe(state: VerifiedBillingState): Described {
       mayShowRefundLink: state.refundPolicyApplies,
       mayClaimNoFurtherCharges: !hasOpenInvoice,
       invoicesNeedingReview: state.openInvoices,
+      // Non-null only on the trial screen, and only a value the refusals
+      // above have already cleared.
+      trialAccess: trial ? state.remainingTrialAccess : null,
       billingAlwaysReachable: true,
     },
   };

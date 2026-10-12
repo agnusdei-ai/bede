@@ -11,6 +11,7 @@
  */
 
 import { describe as suite, expect, it } from "vitest";
+import { NOTHING_PROMISED } from "../src/promises";
 import {
   ALTERNATIVE_ROUTE_FIELDS,
   FORBIDDEN_ALTERNATIVE_ROUTE_FIELDS,
@@ -100,14 +101,60 @@ suite("the unresolved trial-access policy disables its own path", () => {
     expect(got.refusals).toContain("remaining_trial_access_policy_not_recorded");
   });
 
-  it("renders once either answer is recorded", () => {
-    for (const policy of [
-      { kind: "ends_on_cancellation" } as const,
-      { kind: "continues_until", untilIso: "2026-10-19T00:00:00.000Z" } as const,
-    ]) {
-      const got = describe(authorizedTrial({ remainingTrialAccess: policy }));
-      expect(got.ok).toBe(true);
-    }
+  it("renders once `ends_on_cancellation` is recorded — it promises nothing", () => {
+    const got = describe(authorizedTrial({ remainingTrialAccess: { kind: "ends_on_cancellation" } }));
+    expect(got.ok).toBe(true);
+    if (!got.ok) throw new Error("unreachable");
+    expect(got.screen.trialAccess).toEqual({ kind: "ends_on_cancellation" });
+  });
+
+  it("refuses `continues_until` while the promise is unauthorised", () => {
+    // The policy and the promise are ONE decision seen twice: "you can
+    // continue using your trial until X" IS the retained-trial-access
+    // promise, expressed as data. Recording the policy without authorising
+    // the promise is half-made, and a half-made decision earns the same
+    // refusal as an unmade one.
+    const got = describe(
+      authorizedTrial({
+        remainingTrialAccess: { kind: "continues_until", untilIso: "2026-10-19T00:00:00.000Z" },
+      }),
+    );
+    expect(got.ok).toBe(false);
+    if (got.ok) throw new Error("unreachable");
+    expect(got.refusals).toContain("retained_trial_access_not_authorised");
+  });
+
+  it("renders `continues_until` once BOTH halves are decided, and carries the date", () => {
+    // The adoption path, proven end to end without adopting anything: the
+    // default authorisation is still all-false, and this case supplies one.
+    const got = describe(
+      authorizedTrial({
+        remainingTrialAccess: { kind: "continues_until", untilIso: "2026-10-19T00:00:00.000Z" },
+      }),
+      { ...NOTHING_PROMISED, retained_trial_access: true },
+    );
+    expect(got.ok).toBe(true);
+    if (!got.ok) throw new Error("unreachable");
+    expect(got.screen.trialAccess).toEqual({
+      kind: "continues_until",
+      untilIso: "2026-10-19T00:00:00.000Z",
+    });
+  });
+
+  it("the recorded policy REACHES the description, which it did not before", () => {
+    // `remainingTrialAccess` was a required input that gated the trial screen
+    // and whose value reached nothing — so a ruling could have been adopted
+    // and changed nothing a customer sees. The same shape as
+    // `bayesian_update` never passing `params`.
+    const got = describe(authorizedTrial({ remainingTrialAccess: { kind: "ends_on_cancellation" } }));
+    if (!got.ok) throw new Error("unreachable");
+    expect(got.screen.trialAccess).not.toBeNull();
+    // And the question does not arise on the other two screens.
+    const paid = describe(paidActive());
+    const done = describe(paidActive({ phase: "paid_renewal_cancelled" }));
+    if (!paid.ok || !done.ok) throw new Error("unreachable");
+    expect(paid.screen.trialAccess).toBeNull();
+    expect(done.screen.trialAccess).toBeNull();
   });
 
   it("refuses a continues_until policy with no readable date", () => {

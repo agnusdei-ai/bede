@@ -44,6 +44,7 @@ import {
   type CancellationPolicy,
 } from "./cancel";
 import type { BillingProvider } from "../billing/subscription";
+import type { PromiseAuthorisation } from "../promises";
 
 /** Escaped for interpolation. Customer-supplied data never reaches HTML raw. */
 function esc(text: string): string {
@@ -152,6 +153,13 @@ interface ScreenPayload {
       readonly dateIso: string;
       readonly status: string;
     }[];
+    /** What this screen may say about trial access after cancelling. Null
+     * where the question does not arise. The page renders the sentence the
+     * DESCRIPTION names; it does not know which policy is in force. */
+    readonly trialAccess:
+      | { readonly kind: "ends_on_cancellation" }
+      | { readonly kind: "continues_until"; readonly untilIso: string }
+      | null;
   };
   readonly refusals?: readonly string[];
   readonly alternative_route?: string;
@@ -243,7 +251,11 @@ export async function handleCancelViewPage(
   request: Request,
   env: Env,
   limiter: SlidingWindowLimiter,
-  deps: { provider?: BillingProvider; policy?: CancellationPolicy } = {},
+  deps: {
+    provider?: BillingProvider;
+    policy?: CancellationPolicy;
+    authorisation?: PromiseAuthorisation;
+  } = {},
 ): Promise<Response> {
   const { req, fields } = await asJsonRequest(request);
   const res = await handleCancelState(req, env, limiter, deps);
@@ -273,12 +285,26 @@ affected.</p>`,
       ? "Renewal is cancelled"
       : "Cancel renewal";
 
+  // The remaining-trial-access sentence, chosen by the description rather than
+  // by this module. Both branches are real copy for a real ruling; which one
+  // is reachable is decided in `cancellation.ts`, which refuses the screen
+  // entirely while the ruling is unmade.
+  const trialAccessSentence =
+    screen.trialAccess === null
+      ? ""
+      : screen.trialAccess.kind === "continues_until"
+        ? `<p>You can continue using your trial until
+<strong>${esc(screen.trialAccess.untilIso)}</strong>.</p>`
+        : `<p>Your trial lesson access will end when the cancellation is
+complete.</p>`;
+
   const lead =
     screen.action === null
       ? `<p>Your subscription will not renew. Nothing further is needed.</p>`
       : trial
         ? `<p>Cancelling will stop your trial from converting to a paid
-subscription, so the scheduled subscription charge will not be made.</p>`
+subscription, so the scheduled subscription charge will not be made.</p>
+${trialAccessSentence}`
         : `<p>Cancelling renewal stops the next charge. Your paid access
 continues to the end of the period you have already paid for.</p>
 <p>Cancelling renewal does not automatically refund your current payment.</p>`;

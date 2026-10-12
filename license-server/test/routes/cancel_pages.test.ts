@@ -27,7 +27,7 @@ import {
 } from "../../src/routes/cancel_pages";
 import { UNRESOLVED_POLICY, type CancellationPolicy } from "../../src/routes/cancel";
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
-import { unresolvedPromisesIn } from "../../src/promises";
+import { NOTHING_PROMISED, unresolvedPromisesIn } from "../../src/promises";
 
 const SUB_ID = "sub_live";
 const KEY = "payload.signature";
@@ -256,6 +256,53 @@ describe("the trial screen, with the policy unresolved", () => {
     const html = await res.text();
     expect(html).not.toMatch(/paid access continues/i);
     expect(html).not.toMatch(/Cancel renewal/);
+  });
+
+  it("says what happens to trial access, once that is decided", async () => {
+    // Before this, `remainingTrialAccess` gated the screen and its VALUE
+    // reached nothing — so adopting a ruling would have changed no sentence a
+    // customer reads. Both branches are exercised here as INPUTS; neither is
+    // adopted, and the shipped default still refuses.
+    const e = env();
+    await seed(e);
+
+    const ends = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
+      provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
+      policy: TRIAL_DECIDED,
+    });
+    expect(await ends.text()).toMatch(/trial lesson access will end when the cancellation is\s+complete/i);
+
+    const continues = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
+      provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
+      policy: {
+        remainingTrialAccess: { kind: "continues_until", untilIso: "2026-10-19T00:00:00.000Z" },
+        refundPolicyApplies: false,
+        cardGateOpen: false,
+      },
+      authorisation: { ...NOTHING_PROMISED, retained_trial_access: true },
+    });
+    const html = await continues.text();
+    expect(html).toMatch(/continue using your trial until/i);
+    expect(html).toContain("2026-10-19T00:00:00.000Z");
+  });
+
+  it("refuses the continues-until copy while the promise is unauthorised", async () => {
+    // The policy and the promise are one decision. A recorded policy with an
+    // unauthorised promise is half-made, and renders no sentence at all.
+    const e = env();
+    await seed(e);
+    const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
+      provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
+      policy: {
+        remainingTrialAccess: { kind: "continues_until", untilIso: "2026-10-19T00:00:00.000Z" },
+        refundPolicyApplies: false,
+        cardGateOpen: false,
+      },
+    });
+    expect(res.status).toBe(409);
+    const html = await res.text();
+    expect(html).not.toMatch(/continue using your trial/i);
+    expect(html).toMatch(/couldn’t confirm your subscription/i);
   });
 
   it("renders its own distinct copy once the policy IS recorded", async () => {

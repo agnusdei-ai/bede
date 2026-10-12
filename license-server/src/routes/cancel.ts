@@ -36,6 +36,7 @@ import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { describe, describeOutcome, alternativeRouteMayAsk } from "../cancellation";
+import { NOTHING_PROMISED, type PromiseAuthorisation } from "../promises";
 import { cancellationConfirmedEmail, createResendClient } from "../email/resend";
 import { storefrontUrl } from "../config";
 import type { RemainingTrialAccess } from "../cancellation";
@@ -231,7 +232,15 @@ export async function handleCancelState(
   request: Request,
   env: Env,
   limiter: SlidingWindowLimiter,
-  deps: { provider?: BillingProvider; policy?: CancellationPolicy } = {},
+  deps: {
+    provider?: BillingProvider;
+    policy?: CancellationPolicy;
+    /** Which promises this deployment may make. Defaults to none — see
+     * `src/promises.ts`. Threaded to `describe` because the trial-access
+     * policy and the retained-trial-access promise are one decision, and the
+     * screen must not be able to say half of it. */
+    authorisation?: PromiseAuthorisation;
+  } = {},
 ): Promise<Response> {
   const ip = clientIp(request);
   if (!limiter.check(ip, RATE_LIMITS.cancel)) {
@@ -259,7 +268,7 @@ export async function handleCancelState(
   // state than shown a cancel button that will do nothing.
   if (state === null) return providerUnavailable();
 
-  const described = describe(state);
+  const described = describe(state, deps.authorisation ?? NOTHING_PROMISED);
   if (!described.ok) {
     // A refusal is reported as a refusal, with its reasons. The caller renders
     // "we couldn't confirm" and the alternative route — never a screen with a

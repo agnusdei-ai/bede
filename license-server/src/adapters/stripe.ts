@@ -36,6 +36,10 @@ const HANDLED_EVENT_TYPES = new Set<string>([
   "invoice.paid",
   // The subscription reached its scheduled end — access stops.
   "customer.subscription.deleted",
+  // Observation only: record the original trial boundary on creation, and
+  // notice when the provider later moves it or cancels behind our back.
+  "customer.subscription.created",
+  "customer.subscription.updated",
   // A payment attempt failed — revoke only once dunning is exhausted.
   "invoice.payment_failed",
 ]);
@@ -149,6 +153,35 @@ function normalizeEvent(event: Stripe.Event): PaymentEvent {
         provider: "stripe",
         price_id: priceIdFromMetadata(sub.metadata),
         term_end: null,
+      };
+    }
+    case "customer.subscription.created":
+    case "customer.subscription.updated": {
+      const sub = event.data.object as Stripe.Subscription;
+      const previous = (event.data as { previous_attributes?: Record<string, unknown> })
+        .previous_attributes;
+      return {
+        external_event_id: event.id,
+        type:
+          event.type === "customer.subscription.created"
+            ? "subscription_snapshot_created"
+            : "subscription_snapshot_updated",
+        customer_email: sub.metadata?.["customer_email"] ?? "",
+        external_customer_id:
+          typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? "",
+        external_subscription_id: sub.id,
+        tier: "core",
+        seats: 6,
+        provider: "stripe",
+        price_id: priceIdFromMetadata(sub.metadata),
+        term_end: null,
+        snapshot: {
+          status: sub.status,
+          trial_end: isoFromUnix(sub.trial_end),
+          cancel_at_period_end: sub.cancel_at_period_end === true,
+          cancel_flag_turned_on:
+            sub.cancel_at_period_end === true && previous?.["cancel_at_period_end"] === false,
+        },
       };
     }
     case "invoice.payment_failed": {

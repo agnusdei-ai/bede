@@ -40,6 +40,7 @@ import { ADOPTED_PROMISES, type PromiseAuthorisation, mayPromise } from "../prom
 import { cancellationConfirmedEmail, createResendClient } from "../email/resend";
 import { storefrontUrl } from "../config";
 import type { OriginalExpiryRule, RemainingTrialAccess } from "../cancellation";
+import { checkBoundary, loadBoundary } from "../billing/boundary";
 import { maskEmail, record as recordBillingEvent } from "../audit/billing_events";
 import type { ActorKind } from "../audit/billing_events";
 import {
@@ -264,6 +265,7 @@ export async function handleCancelState(
   const state = verifiedStateFrom({
     subscription: read.subscription,
     openInvoices: read.openInvoices,
+    recordedTrialBoundaryIso: await loadBoundary(env.DB, ref.subscriptionId),
     ...policy,
   });
   // Not a live cancellable subscription. Better told we cannot confirm its
@@ -378,13 +380,24 @@ export async function handleCancelConfirm(
   // read back. The date is never taken from the request, and a missing one
   // means the sentence is not said at all.
   const policy = deps.policy ?? CURRENT_POLICY;
+  // Said only if the provider's trial end still equals the boundary recorded
+  // when we first saw this subscription. A moved boundary withholds the
+  // sentence and nothing else: the cancellation above already took effect.
+  const recordedBoundary = await loadBoundary(env.DB, ref.subscriptionId);
+  const boundaryHolds =
+    checkBoundary(
+      recordedBoundary,
+      typeof updated.trial_end === "number" && updated.trial_end > 0
+        ? new Date(updated.trial_end * 1000).toISOString()
+        : null,
+    ) === "consistent";
   const trialAccessUntilIso =
+    boundaryHolds &&
+    recordedBoundary !== null &&
     updated.status === "trialing" &&
     policy.remainingTrialAccess?.kind === "continues_until_original_expiry" &&
-    mayPromise("retained_trial_access", deps.authorisation ?? ADOPTED_PROMISES) &&
-    typeof updated.trial_end === "number" &&
-    updated.trial_end > 0
-      ? new Date(updated.trial_end * 1000).toISOString()
+    mayPromise("retained_trial_access", deps.authorisation ?? ADOPTED_PROMISES)
+      ? new Date(Date.parse(recordedBoundary)).toISOString()
       : null;
 
   const paidAccessEndsAtIso =

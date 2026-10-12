@@ -24,7 +24,11 @@ export type PaymentEventType =
   | "subscription_created"
   | "subscription_renewed"
   | "subscription_cancelled"
-  | "payment_failed";
+  | "payment_failed"
+  /** Observation only: a subscription now exists. Never issues or revokes. */
+  | "subscription_snapshot_created"
+  /** Observation only: a subscription changed. Never issues or revokes. */
+  | "subscription_snapshot_updated";
 
 export type PaymentProvider = "stripe";
 
@@ -54,6 +58,17 @@ export interface PaymentEvent {
   /** payment_failed only: true when Stripe will not retry again — the
    * event-local signal that dunning is exhausted and revocation is due. */
   readonly past_dunning?: boolean;
+
+  /** `subscription_snapshot_*` only: what the provider says the subscription
+   * is, plus whether THIS event flipped `cancel_at_period_end` on (read from
+   * the provider's own `previous_attributes`, so a repeated unrelated update
+   * is not mistaken for a new cancellation). */
+  readonly snapshot?: {
+    readonly status: string;
+    readonly trial_end: string | null;
+    readonly cancel_at_period_end: boolean;
+    readonly cancel_flag_turned_on: boolean;
+  };
 }
 
 /** Provider registration surface. One adapter per payment provider; exactly

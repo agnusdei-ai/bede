@@ -396,6 +396,32 @@ exact duration only once enforcement matches it.
    already-cancelled screen (`trial_conversion_cancelled`). An email failure
    clears only the "we sent a confirmation" sentence.
 
+   **"Original" is anchored, not re-read (PR-A).** Stripe's `trial_end` is
+   mutable, and a second read after a change simply returns the new value, so
+   re-reading proves nothing about immutability. `subscription_boundaries`
+   (migration 0007) holds the boundary written at first sight from
+   `customer.subscription.created`, by `on conflict do nothing`, and nothing in
+   `src/` updates or deletes it. The sentence uses the RECORDED value and is
+   said only while the live `trial_end` still equals it; `not_recorded` and
+   `changed` are refused by name (`trial_boundary_not_recorded`,
+   `trial_boundary_changed`), the cancellation itself still goes through, and
+   the alternative request route is still offered. A disagreement arriving by
+   `customer.subscription.updated` is a ledger finding (`trial_boundary_changed`,
+   outcome `failed`), never a correction. **Limit:** first sight is trusted, so a
+   boundary altered before this service saw the subscription becomes the
+   "original". Closing that is conversion's job: it must SET `trial_end` from
+   the signed trial clock and record it in the same step, so first sight is the
+   original. That cross-check against the signed expiry is deliberately not here,
+   because nothing links a no-card trial licence to a subscription until
+   conversion exists.
+
+   **Why a revocation now names its cause.** `webhooks.ts` routed a payment
+   failure past dunning and a subscription ending into one `revoke` and
+   recorded neither. `access_state.ts` classifies the cause for the ledger
+   (`scheduled_end_after_cancellation`, `payment_failed_past_dunning`,
+   `subscription_ended_unrecorded_cancel`). It changes no access behaviour and
+   adopts no grace period.
+
 1. **No cadence selected by the day-2 notice.** Suppressing the conversion
    notice and letting the trial lapse is the safe default; the alternative is
    a selection prompt carrying no terms, with the 24-hour clock starting at

@@ -16,6 +16,7 @@ import type { Env } from "../../src/types";
 import { handleCancelConfirmPage, handleCancelViewPage } from "../../src/routes/cancel_pages";
 import { handleCancelConfirm, handleCancelState } from "../../src/routes/cancel";
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
+import { recordBoundary } from "../../src/billing/boundary";
 import { ADOPTED_PROMISES, NOTHING_PROMISED, unresolvedPromisesIn } from "../../src/promises";
 
 const SUB_ID = "sub_live";
@@ -81,6 +82,12 @@ async function seed(e: Env): Promise<void> {
   )
     .bind(TRIAL_END_ISO, SUB_ID, KEY, "2026-10-12")
     .run();
+  // First sight of the subscription records the original boundary.
+  await recordBoundary(e.DB, {
+    subscriptionId: SUB_ID,
+    trialEndIso: TRIAL_END_ISO,
+    source: "subscription_created_event",
+  });
 }
 
 function form(fields: Record<string, string>): Request {
@@ -276,5 +283,77 @@ describe("the promise scanner agrees with the adoption", () => {
     expect(unresolvedPromisesIn(html, NOTHING_PROMISED)).toContain("retained_trial_access");
     // Under the adopted set, that promise is allowed and NOTHING ELSE appears.
     expect(unresolvedPromisesIn(html, ADOPTED_PROMISES)).toEqual([]);
+  });
+});
+
+describe("the boundary check on the cancellation path", () => {
+  async function seedWithoutBoundary(e: Env): Promise<void> {
+    await e.DB.prepare(`insert into customers (id, email, created_at) values (?, ?, ?)`)
+      .bind("cust_1", EMAIL, "2026-10-12")
+      .run();
+    await e.DB.prepare(
+      `insert into licenses (id, customer_id, tier, seats, max_activations, status,
+                             valid_until, payment_provider, external_subscription_id,
+                             license_key, created_at)
+       values ('lic_1', 'cust_1', 'core', 6, 2, 'active', ?, 'stripe', ?, ?, ?)`,
+    )
+      .bind(TRIAL_END_ISO, SUB_ID, KEY, "2026-10-12")
+      .run();
+  }
+
+  it("no recorded boundary: the screen is refused by name, never guessed", async () => {
+    const e = env();
+    await seedWithoutBoundary(e);
+    const res = await handleCancelState(json({ license_key: KEY }), e, limiter, { provider: provider(trial()) });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { refusals: string[] }).refusals).toContain("trial_boundary_not_recorded");
+  });
+
+  it("a provider trial_end that moved after recording is refused as CHANGED", async () => {
+    const e = env();
+    await seed(e); // records TRIAL_END_ISO
+    const moved = trial({ trial_end: TRIAL_END + 30 * 86_400 });
+    const res = await handleCancelState(json({ license_key: KEY }), e, limiter, { provider: provider(moved) });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { refusals: string[] }).refusals).toContain("trial_boundary_changed");
+  });
+
+  it("the page for a moved boundary offers the alternative route and says nothing about retained access", async () => {
+    const e = env();
+    await seed(e);
+    const moved = trial({ trial_end: TRIAL_END + 30 * 86_400 });
+    const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, { provider: provider(moved) });
+    const html = await res.text();
+    expect(html).not.toMatch(/continue using your trial/i);
+    expect(html).toContain("/cancel/request");
+  });
+
+  it("confirm still CANCELS when the boundary moved, and withholds only the sentence", async () => {
+    const e = env();
+    await seed(e);
+    const p = provider(trial({ trial_end: TRIAL_END + 30 * 86_400 }));
+    const sent: { html: string }[] = [];
+    const body = (await (
+      await handleCancelConfirm(json({ license_key: KEY }), e, limiter, {
+        provider: p,
+        sendConfirmation: async (m) => void sent.push(m),
+      })
+    ).json()) as { outcome: string; trial_access_until: string | null };
+    expect(body.outcome).toBe("confirmed");
+    expect(p.writes).toBe(1);
+    expect(body.trial_access_until).toBeNull();
+    expect(sent[0]!.html).not.toMatch(/continue using your trial/i);
+  });
+
+  it("the date promised is the RECORDED original even when the provider read is identical", async () => {
+    const e = env();
+    await seed(e);
+    const body = (await (
+      await handleCancelConfirm(json({ license_key: KEY }), e, limiter, {
+        provider: provider(trial()),
+        sendConfirmation: async () => {},
+      })
+    ).json()) as { trial_access_until: string };
+    expect(body.trial_access_until).toBe(TRIAL_END_ISO);
   });
 });

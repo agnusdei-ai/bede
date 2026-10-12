@@ -192,12 +192,17 @@ describe("nothing in the shipped source can construct one", () => {
     expect(builders.map((f) => f.replace(/^.*\/src\/+/, ""))).toEqual(["billing/subscription.ts"]);
   });
 
-  it("the resolver uses the provider's trial_end and never the period end", () => {
-    // A fallback to `current_period_end` would show a date that is not the
-    // expiry the customer was promised.
+  it("the resolver shows the RECORDED boundary, never a live or period-end value", () => {
+    // Re-reading the provider is not immutability. The date a customer is
+    // promised is the one written down at first sight, shown only when the live
+    // value still agrees; a fallback to the period end, or to the live value
+    // alone, would display a date nobody recorded.
     const code = codeOf(fileURLToPath(new URL("../src/billing/subscription.ts", import.meta.url)));
-    expect(code).toMatch(/untilIso:\s*trialEnd\s*\?\?\s*""/);
-    expect(code).not.toMatch(/untilIso:[^}]*periodEnd/);
+    expect(code).toMatch(/checkBoundary\(input\.recordedTrialBoundaryIso,\s*trialEnd\)/);
+    const block = code.slice(code.indexOf('kind: "continues_until"'));
+    const untilExpr = block.slice(0, block.indexOf("}"));
+    expect(untilExpr).toMatch(/recordedTrialBoundaryIso/);
+    expect(untilExpr).not.toMatch(/periodEnd|trialEnd/);
     expect(code).not.toMatch(/trialEnd\s*\?\?\s*periodEnd/);
   });
 

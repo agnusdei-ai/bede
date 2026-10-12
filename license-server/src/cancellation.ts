@@ -37,6 +37,7 @@
  */
 
 import type { BillingCadence } from "./license/entitlements";
+import type { BoundaryCheck } from "./billing/boundary";
 import { NOTHING_PROMISED, mayPromise, type PromiseAuthorisation } from "./promises";
 
 /** An amount as the provider reports it: minor units plus its currency, never
@@ -95,6 +96,10 @@ export interface VerifiedBillingState {
   /** True only when this state was read back FROM the provider in this
    * request. Never set optimistically. */
   readonly providerConfirmed: boolean;
+  /** For a trial phase: how the live provider trial end compares with the
+   * boundary RECORDED when the subscription was first seen. Null off a trial.
+   * The retained-access sentence is said only on `consistent`. */
+  readonly trialBoundary: BoundaryCheck | null;
   /** The recorded policy for remaining trial access. Null until decided. */
   readonly remainingTrialAccess: RemainingTrialAccess | null;
   /** True when an approved refund guarantee applies to this subscription.
@@ -163,6 +168,13 @@ function isMoney(value: Money | null): boolean {
   );
 }
 
+/** The named reason a trial screen is refused on the boundary check. A null
+ * check on a trial phase is a caller that did not look, which fails closed as
+ * "not recorded". */
+function boundaryRefusal(check: BoundaryCheck | null): string {
+  return check === "changed" ? "trial_boundary_changed" : "trial_boundary_not_recorded";
+}
+
 /**
  * Which screen to render, and what it may assert. Refuses — naming every
  * problem rather than the first — when the state cannot support an honest
@@ -198,6 +210,9 @@ export function describe(
       if (!isMoney(state.nextCharge)) refusals.push("first_charge_amount");
       // The unresolved policy, as a hard refusal. Rendering either sentence
       // would be choosing the policy by shipping it.
+      if (state.trialBoundary !== "consistent") {
+        refusals.push(boundaryRefusal(state.trialBoundary));
+      }
       if (state.remainingTrialAccess === null) {
         refusals.push("remaining_trial_access_policy_not_recorded");
       } else if (state.remainingTrialAccess.kind === "continues_until") {
@@ -218,6 +233,9 @@ export function describe(
       // Nothing is charged, so only the access boundary is load-bearing, and
       // it must be the same authoritative expiry the trial screen showed.
       if (!isInstant(state.paidAccessEndsAtIso)) refusals.push("trial_end");
+      if (state.trialBoundary !== "consistent") {
+        refusals.push(boundaryRefusal(state.trialBoundary));
+      }
       if (state.remainingTrialAccess === null) {
         refusals.push("remaining_trial_access_policy_not_recorded");
       } else if (state.remainingTrialAccess.kind === "continues_until") {

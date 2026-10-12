@@ -120,6 +120,13 @@ live-mode keys.
    | `invoice.paid` | A renewal payment succeeded — extend the license's `valid_until` by one year |
    | `invoice.payment_failed` | A renewal payment failed — Stripe's own retry schedule (Smart Retries) takes over |
    | `customer.subscription.deleted` | Stripe gave up dunning, or the family cancelled — revoke the license |
+   | `customer.subscription.created` | Observation only — records the subscription's original trial boundary on first sight |
+   | `customer.subscription.updated` | Observation only — notices a moved trial end or a cancel flag turning on; writes the audit ledger, never a licence row |
+
+   The last two are **new**: an endpoint created before they existed must be
+   edited to add them. Without them nothing breaks, but no trial boundary is
+   ever recorded, so the retained-access sentence on the trial cancellation
+   screen is (correctly) refused as `trial_boundary_not_recorded`.
 
    Configure the retry schedule in the Stripe dashboard's subscription
    settings; revocation happens when Stripe finally cancels an unpaid
@@ -226,6 +233,11 @@ one moment a family is deciding whether to continue. Set it so the link is
 specific.
 
 ### After any schema change
+
+`migrations/0007_subscription_boundaries.sql` adds `subscription_boundaries`
+(the recorded original trial boundary). The cancellation routes read it, so a
+deployment must apply it before they run; a missing table fails the read
+loudly rather than skipping the boundary check.
 
 `migrations/0004_cancellation.sql` adds the two tables the cancellation routes
 need (`cancel_tokens`, `cancellation_requests`), so a deployment that applied

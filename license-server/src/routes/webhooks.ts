@@ -37,6 +37,9 @@ import {
   type Logger,
 } from "../license/issue";
 import { createResendClient, licenseDeliveryEmail } from "../email/resend";
+import { record as recordBillingEvent } from "../audit/billing_events";
+import { checkBoundary, loadBoundary, recordBoundary } from "../billing/boundary";
+import { revocationCause } from "../access_state";
 
 function consoleLogger(): Logger {
   return {
@@ -168,9 +171,89 @@ export async function handleStripeWebhook(req: Request, env: Env): Promise<Respo
       break;
     }
     case "subscription_cancelled":
-    case "payment_failed":
-      await revokeLicenseForEvent({ db: env.DB, event, logger });
+    case "payment_failed": {
+      const outcome = await revokeLicenseForEvent({ db: env.DB, event, logger });
+      if (outcome.revoked) {
+        // Name WHY, so the audit can tell a customer's cancellation running
+        // out from a payment failure from a subscription that ended with no
+        // cancellation on record. Behaviour is unchanged; only the ledger
+        // learns the cause.
+        const prior = await env.DB.prepare(
+          `select 1 as hit from billing_events
+           where subscription_id = ? and outcome = 'confirmed'
+             and action in ('renewal_cancelled', 'provider_cancel_observed') limit 1`,
+        )
+          .bind(event.external_subscription_id)
+          .first<{ hit: number }>();
+        await recordBillingEvent(env.DB, {
+          action: "license_revoked",
+          actorKind: "provider_webhook",
+          subscriptionId: event.external_subscription_id,
+          outcome: "confirmed",
+          providerDetail: revocationCause({
+            eventType: event.type,
+            cancellationRecorded: prior !== null,
+          }),
+        });
+      }
       break;
+    }
+    case "subscription_snapshot_created": {
+      // Observation only. Writes the original trial boundary on first sight
+      // and nothing else: no licence row is touched, no entitlement moves.
+      const trialEnd = event.snapshot?.trial_end ?? null;
+      if (trialEnd !== null) {
+        const recorded = await recordBoundary(env.DB, {
+          subscriptionId: event.external_subscription_id,
+          trialEndIso: trialEnd,
+          source: "subscription_created_event",
+        });
+        if (recorded === "recorded") {
+          await recordBillingEvent(env.DB, {
+            action: "trial_boundary_recorded",
+            actorKind: "provider_webhook",
+            subscriptionId: event.external_subscription_id,
+            outcome: "confirmed",
+            providerDetail: `original_trial_end=${new Date(trialEnd).toISOString()}`,
+          });
+        }
+      }
+      break;
+    }
+    case "subscription_snapshot_updated": {
+      // Observation only. A disagreement with the recorded boundary is a
+      // finding for the ledger, never a correction: the recorded value is not
+      // rewritten, and no licence row is touched.
+      const recordedBoundary = await loadBoundary(env.DB, event.external_subscription_id);
+      if (recordedBoundary !== null) {
+        const verdict = checkBoundary(recordedBoundary, event.snapshot?.trial_end ?? null);
+        if (verdict === "changed") {
+          await recordBillingEvent(env.DB, {
+            action: "trial_boundary_changed",
+            actorKind: "provider_webhook",
+            subscriptionId: event.external_subscription_id,
+            outcome: "failed",
+            providerDetail: `recorded=${recordedBoundary} observed=${event.snapshot?.trial_end ?? "none"}`,
+          });
+        }
+      }
+      if (event.snapshot?.cancel_flag_turned_on === true) {
+        // The provider says the cancel flag just turned on. That is an
+        // OBSERVATION, not an attribution: it is also the echo of our own
+        // cancel route, and the two can arrive in either order, so this cannot
+        // say who did it. What it adds is the provider's own confirmation, and
+        // — when no `renewal_cancelled` row exists — evidence of a cancellation
+        // made outside our routes.
+        await recordBillingEvent(env.DB, {
+          action: "provider_cancel_observed",
+          actorKind: "provider_webhook",
+          subscriptionId: event.external_subscription_id,
+          outcome: "confirmed",
+          providerDetail: `status=${event.snapshot.status}`,
+        });
+      }
+      break;
+    }
   }
 
   return Response.json({

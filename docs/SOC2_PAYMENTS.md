@@ -66,7 +66,7 @@ sample would be drawn from.
 | 1 | New purchase | Signature verified before any write; price must be a configured entitlement or nothing is issued | `webhook_events` claim; ledger `license_issued` | Built; no price configured |
 | 2 | Renewal | Term taken from the renewal's own price, never a constant; `valid_until` only moves forward | Ledger `license_renewed` + provider detail | Built |
 | 3 | Failed renewal, retries pending | Dunning does not revoke while the provider will retry | Ledger `license_revoked` absent until dunning exhausted | Built; **grace policy undecided** |
-| 4 | Dunning exhausted | Revocation on the provider's own "no further attempt" signal | Ledger `license_revoked` | Built |
+| 4 | Dunning exhausted | Revocation on the provider's own "no further attempt" signal | Ledger `license_revoked`, `provider_detail` names the cause (`payment_failed_past_dunning`, `scheduled_end_after_cancellation` or `subscription_ended_unrecorded_cancel`) | Built |
 | 5 | Cancellation of renewal | Write, then read back; three tiers; period-end not immediate | Ledger `renewal_cancelled` with `actor_kind`; `cancellation_requests` | Built |
 | 6 | Cancellation the provider did not confirm | Recorded as `pending`, never reported as success | Ledger `renewal_cancelled`/`pending` + request id | Built |
 | 7 | Cancellation by someone who cannot authenticate | Tier 3 records the request; touches no provider | Ledger `cancellation_requested`, actor `customer_unauthenticated` | Built |
@@ -133,6 +133,13 @@ may set `refundPolicyApplies: true`. **Declaring** the variant and **constructin
 are different acts and only the second makes a promise, so the union keeps the
 variant — a guard asserts that too, since deleting it would make the policy
 unimplementable rather than unmade, and nothing else would notice.
+
+Observation rows the webhook path now writes, none of which touches a licence:
+`trial_boundary_recorded` (first sight of a subscription's original trial end),
+`trial_boundary_changed` (outcome `failed`: the provider's value no longer
+equals the recorded one), and `provider_cancel_observed` (the provider reports
+the cancel flag turning on; an observation, not an attribution, since it is
+also the echo of our own cancel route).
 
 ## 4. What is still open, and what each blocks
 

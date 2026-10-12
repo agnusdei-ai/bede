@@ -33,6 +33,7 @@ function paidActive(over: Partial<VerifiedBillingState> = {}): VerifiedBillingSt
     nextCharge: USD(214_900),
     openInvoices: [],
     providerConfirmed: true,
+    trialBoundary: null,
     remainingTrialAccess: null,
     refundPolicyApplies: false,
     cardGateOpen: true,
@@ -44,6 +45,7 @@ function authorizedTrial(over: Partial<VerifiedBillingState> = {}): VerifiedBill
   return {
     ...paidActive(),
     phase: "authorized_trial",
+    trialBoundary: "consistent",
     paidAccessEndsAtIso: "2026-10-19T00:00:00.000Z",
     nextRenewalAtIso: "2026-10-19T00:00:00.000Z",
     remainingTrialAccess: { kind: "ends_on_cancellation" },

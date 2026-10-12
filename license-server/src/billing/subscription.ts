@@ -22,6 +22,7 @@
 import Stripe from "stripe";
 import type { Env } from "../types";
 import type { BillingCadence } from "../license/entitlements";
+import { checkBoundary, type BoundaryCheck } from "./boundary";
 import type {
   BillingPhase,
   Money,
@@ -128,6 +129,10 @@ export function verifiedStateFrom(input: {
   readonly subscription: SubscriptionSnapshot;
   readonly openInvoices: readonly InvoiceSnapshot[];
   readonly remainingTrialAccess: RemainingTrialAccess | OriginalExpiryRule | null;
+  /** The boundary recorded when the subscription was first seen, or null when
+   * none was. Required: a caller that forgets it cannot silently skip the
+   * check. */
+  readonly recordedTrialBoundaryIso: string | null;
   readonly refundPolicyApplies: boolean;
   readonly cardGateOpen: boolean;
 }): VerifiedBillingState | null {
@@ -148,11 +153,24 @@ export function verifiedStateFrom(input: {
   // end, because a fallback would show a date that is not the expiry the
   // customer was promised. An absent value yields an unreadable instant, which
   // `describe` refuses by name rather than rendering a guess.
+  //
+  // The date shown is the RECORDED original, not the live value, and only when
+  // the two agree. Re-reading the provider is not immutability: a moved
+  // `trial_end` would otherwise be displayed as though it were the original.
+  const boundary: BoundaryCheck | null = onTrial
+    ? checkBoundary(input.recordedTrialBoundaryIso, trialEnd)
+    : null;
   const rule = input.remainingTrialAccess;
   const resolved: RemainingTrialAccess | null =
     rule !== null && rule.kind === "continues_until_original_expiry"
       ? onTrial
-        ? { kind: "continues_until", untilIso: trialEnd ?? "" }
+        ? {
+            kind: "continues_until",
+            untilIso:
+              boundary === "consistent" && input.recordedTrialBoundaryIso !== null
+                ? new Date(Date.parse(input.recordedTrialBoundaryIso)).toISOString()
+                : "",
+          }
         : null
       : rule;
 
@@ -171,6 +189,7 @@ export function verifiedStateFrom(input: {
       }),
     ),
     providerConfirmed: true,
+    trialBoundary: boundary,
     remainingTrialAccess: resolved,
     refundPolicyApplies: input.refundPolicyApplies,
     cardGateOpen: input.cardGateOpen,

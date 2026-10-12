@@ -22,6 +22,7 @@ import {
   handleCancelState,
   type CancellationPolicy,
 } from "../../src/routes/cancel";
+import { recordBoundary } from "../../src/billing/boundary";
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
 
 /** The state before the owner ruling: nothing recorded. Defined here, not
@@ -271,6 +272,11 @@ describe("the unresolved trial policy refuses the trial screen, with its reason"
   it("renders the trial screen once the decision is recorded", async () => {
     const e = env();
     await seedPaidLicence(e);
+    await recordBoundary(e.DB, {
+      subscriptionId: SUB_ID,
+      trialEndIso: new Date(FUTURE * 1000).toISOString(),
+      source: "subscription_created_event",
+    });
     const res = await handleCancelState(post({ license_key: KEY }), e, limiter, {
       provider: workingProvider(
         snapshot({ status: "trialing", trial_end: FUTURE, current_period_end: FUTURE }),

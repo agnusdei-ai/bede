@@ -44,7 +44,14 @@ export type BillingAction =
   | "trial_issued"
   | "cancellation_requested"
   | "renewal_cancelled"
-  | "cancellation_link_issued";
+  | "cancellation_link_issued"
+  /** The original trial boundary was written down (first sight). */
+  | "trial_boundary_recorded"
+  /** The provider's trial end no longer equals the recorded original. */
+  | "trial_boundary_changed"
+  /** The provider reports the cancel flag turned on. An observation, not an
+   * attribution: it is also the echo of our own cancel route. */
+  | "provider_cancel_observed";
 
 /** On whose authority. Closed for the reason in the module note. */
 export type ActorKind =

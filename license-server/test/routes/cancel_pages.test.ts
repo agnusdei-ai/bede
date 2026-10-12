@@ -25,6 +25,7 @@ import {
   handleCancelRequestPage,
   handleCancelViewPage,
 } from "../../src/routes/cancel_pages";
+import { recordBoundary } from "../../src/billing/boundary";
 import { type CancellationPolicy } from "../../src/routes/cancel";
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
 import { NOTHING_PROMISED, unresolvedPromisesIn } from "../../src/promises";
@@ -107,6 +108,14 @@ function unconfirming(): BillingProvider {
       return snapshot({ cancel_at_period_end: false });
     },
   };
+}
+
+async function seedBoundary(e: Env): Promise<void> {
+  await recordBoundary(e.DB, {
+    subscriptionId: SUB_ID,
+    trialEndIso: new Date(FUTURE * 1000).toISOString(),
+    source: "subscription_created_event",
+  });
 }
 
 async function seed(e: Env): Promise<void> {
@@ -273,6 +282,7 @@ describe("the trial screen, with the policy unresolved", () => {
     // adopted, and the shipped default still refuses.
     const e = env();
     await seed(e);
+    await seedBoundary(e);
 
     const ends = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
       provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
@@ -317,6 +327,7 @@ describe("the trial screen, with the policy unresolved", () => {
   it("renders its own distinct copy once the policy IS recorded", async () => {
     const e = env();
     await seed(e);
+    await seedBoundary(e);
     const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
       provider: provider(snapshot({ status: "trialing", trial_end: FUTURE })),
       policy: TRIAL_DECIDED,

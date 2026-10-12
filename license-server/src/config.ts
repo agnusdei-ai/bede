@@ -49,8 +49,18 @@ export function familyAnnualEntitlement(): EntitlementConfig | null {
  * follows a dead link at the moment they are deciding whether to continue
  * has been failed worse than one sent somewhere slightly less specific.
  * `agnusdei.ai` is where the plans are published either way.
+ *
+ * **The trailing slashes come off without a regex, deliberately.** This was
+ * `.replace(/\/+$/, "")`, which CodeQL flagged as a polynomial regular
+ * expression on uncontrolled data — an anchored `+` backtracks quadratically
+ * over a long run of slashes. The input is an operator's own `vars` value
+ * rather than anything a visitor supplies, so the practical risk here was
+ * low; it is fixed as written anyway, because the cost is three lines and
+ * "that input is trusted" is an argument that stops being true the first
+ * time someone reuses the helper. A loop cannot backtrack.
  */
 export function storefrontUrl(env: Pick<Env, "PUBLIC_BASE_URL">): string {
-  const configured = (env.PUBLIC_BASE_URL ?? "").trim().replace(/\/+$/, "");
+  let configured = (env.PUBLIC_BASE_URL ?? "").trim();
+  while (configured.endsWith("/")) configured = configured.slice(0, -1);
   return configured.length > 0 ? configured : "https://agnusdei.ai";
 }

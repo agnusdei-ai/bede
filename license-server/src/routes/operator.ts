@@ -20,6 +20,7 @@ import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { configuredEntitlements, storefrontUrl } from "../config";
+import { maskEmail, record as recordBillingEvent } from "../audit/billing_events";
 import { mintPaidLicenseKey, upsertCustomer } from "../license/issue";
 import { createResendClient, licenseDeliveryEmail, trialDeliveryEmail } from "../email/resend";
 import { trialExpiresDate, plausibleEmail } from "./trial";
@@ -139,6 +140,18 @@ async function revokeLicense(env: Env, licenseId: string): Promise<Response> {
       .prepare("update licenses set status = 'revoked' where id = ?")
       .bind(licenseId)
       .run();
+    // Only the real transition is recorded. A re-revoke changes nothing, and
+    // a ledger row for a no-op would read to an auditor as a second
+    // revocation that never happened.
+    await recordBillingEvent(env.DB, {
+      action: "license_revoked",
+      // The authority here is an operator token, not a customer. That
+      // distinction is the whole reason the column exists.
+      actorKind: "operator",
+      licenseId,
+      outcome: "confirmed",
+      providerDetail: "operator API revoke",
+    });
   }
   // Idempotent on re-revoke — the end state, not the transition, is the answer.
   return Response.json({ id: licenseId, status: "revoked" });
@@ -225,6 +238,18 @@ async function compLicense(req: Request, env: Env): Promise<Response> {
     )
     .bind(licenseId, customerId, entitlement.tier, entitlement.seats, entitlement.maxActivations, validUntil, licenseKey, nowIso)
     .run();
+
+  // Recorded BEFORE the email: the entitlement exists either way, and a comp
+  // whose delivery failed is still a licence that was issued. Recording after
+  // the send would lose exactly the rows an auditor would ask about.
+  await recordBillingEvent(env.DB, {
+    action: "license_issued",
+    actorKind: "operator",
+    actorDetail: maskEmail(email),
+    licenseId,
+    outcome: "confirmed",
+    providerDetail: "complimentary licence, operator API",
+  });
 
   const template = licenseDeliveryEmail({ planName: OPERATOR_PLAN_NAME, licenseKey });
   try {

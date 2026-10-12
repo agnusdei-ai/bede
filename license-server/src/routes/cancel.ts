@@ -37,6 +37,8 @@ import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { describe, describeOutcome, alternativeRouteMayAsk } from "../cancellation";
 import type { RemainingTrialAccess } from "../cancellation";
+import { maskEmail, record as recordBillingEvent } from "../audit/billing_events";
+import type { ActorKind } from "../audit/billing_events";
 import {
   providerConfigured,
   stripeProvider,
@@ -172,11 +174,21 @@ async function identify(
   db: D1Database,
   body: Record<string, unknown>,
   nowIso: string,
-): Promise<SubscriptionRef | null> {
+): Promise<(SubscriptionRef & { actorKind: ActorKind }) | null> {
+  // The ledger needs WHICH tier proved the request, not merely that one did:
+  // the same change on an emailed link and on a held licence key is the same
+  // change on different authority, and that distinction is most of what the
+  // authorisation control is.
   const token = str(body, "token");
-  if (token !== null) return subscriptionForToken(db, token, nowIso);
+  if (token !== null) {
+    const ref = await subscriptionForToken(db, token, nowIso);
+    return ref === null ? null : { ...ref, actorKind: "customer_email_link" };
+  }
   const licenseKey = str(body, "license_key");
-  if (licenseKey !== null) return subscriptionForLicenseKey(db, licenseKey);
+  if (licenseKey !== null) {
+    const ref = await subscriptionForLicenseKey(db, licenseKey);
+    return ref === null ? null : { ...ref, actorKind: "customer_license_key" };
+  }
   return null;
 }
 
@@ -311,6 +323,18 @@ export async function handleCancelConfirm(
     )
       .bind(requestId, nowIso, ref.email, ref.licenseId, "provider did not confirm the change")
       .run();
+    await recordBillingEvent(env.DB, {
+      action: "renewal_cancelled",
+      actorKind: ref.actorKind,
+      actorDetail: maskEmail(ref.email),
+      licenseId: ref.licenseId,
+      subscriptionId: ref.subscriptionId,
+      // An attempted change that did not take is as much a fact as one that
+      // did, and the audit has to see it.
+      outcome: "pending",
+      providerDetail: "provider did not confirm the change",
+      requestId,
+    });
     return Response.json(
       {
         ok: false,
@@ -349,6 +373,16 @@ export async function handleCancelConfirm(
       `cancel_at_period_end set on ${updated.id}`,
     )
     .run();
+
+  await recordBillingEvent(env.DB, {
+    action: "renewal_cancelled",
+    actorKind: ref.actorKind,
+    actorDetail: maskEmail(ref.email),
+    licenseId: ref.licenseId,
+    subscriptionId: ref.subscriptionId,
+    outcome: "confirmed",
+    providerDetail: `cancel_at_period_end set on ${updated.id}`,
+  });
 
   return Response.json({
     ok: true,
@@ -424,6 +458,18 @@ export async function handleCancelRequest(
     .bind(requestId, nowIso, normalizeEmail(email), str(body, "name"), reference, matched?.licenseId ?? null)
     .run();
 
+  await recordBillingEvent(env.DB, {
+    action: "cancellation_requested",
+    // Recorded as unauthenticated on purpose: the authority here is weaker
+    // than either other tier, and a ledger that hid that would overstate
+    // what was proven.
+    actorKind: "customer_unauthenticated",
+    actorDetail: maskEmail(email),
+    licenseId: matched?.licenseId ?? null,
+    outcome: "pending",
+    requestId,
+  });
+
   return Response.json(
     {
       ok: true,
@@ -486,6 +532,13 @@ export async function handleCancelEmailLink(
       .bind(await hashToken(token), row.license_id, nowIso, expiresAt)
       .run();
     if (deps.send) await deps.send(email, token);
+    await recordBillingEvent(env.DB, {
+      action: "cancellation_link_issued",
+      actorKind: "customer_email_link",
+      actorDetail: maskEmail(email),
+      licenseId: row.license_id,
+      outcome: "confirmed",
+    });
   }
 
   return Response.json(

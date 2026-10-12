@@ -117,3 +117,31 @@ describe("the storefront link an email carries", () => {
     expect(storefrontUrl({ PUBLIC_BASE_URL: "   " })).toBe("https://agnusdei.ai");
   });
 });
+
+describe("the trailing-slash strip cannot be made to backtrack", () => {
+  it("handles a long run of slashes in linear time", () => {
+    // CodeQL flagged the original `.replace(/\/+$/, "")` as a polynomial
+    // regular expression. The loop that replaced it cannot backtrack; this
+    // pins the behaviour rather than the implementation, so a future rewrite
+    // back to an anchored-quantifier regex still has to pass a case the old
+    // one chokes on.
+    //
+    // The probe has to make the pattern FAIL, which is the expensive path. A
+    // long run of slashes at the very END matches on the first attempt and is
+    // fast even for the bad regex — a first version of this test used exactly
+    // that input and passed against the defect it was written to catch. One
+    // trailing character that cannot match is what forces `\/+` to retry from
+    // every start position, which is the quadratic behaviour CodeQL named.
+    const pathological = "https://licensing.agnusdei.ai" + "/".repeat(60_000) + "a";
+    const started = Date.now();
+    // Nothing to strip, so the value comes back as it went in.
+    expect(storefrontUrl({ PUBLIC_BASE_URL: pathological })).toBe(pathological);
+    expect(Date.now() - started).toBeLessThan(1_000);
+  });
+
+  it("still strips the ordinary single trailing slash", () => {
+    expect(storefrontUrl({ PUBLIC_BASE_URL: "https://x.test/" })).toBe("https://x.test");
+    expect(storefrontUrl({ PUBLIC_BASE_URL: "https://x.test///" })).toBe("https://x.test");
+    expect(storefrontUrl({ PUBLIC_BASE_URL: "///" })).toBe("https://agnusdei.ai");
+  });
+});

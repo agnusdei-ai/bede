@@ -194,7 +194,7 @@ A trial is a signed license with an expiry and nothing else:
 
 ```bash
 python scripts/issue_license.py --tier trial \
-    --licensee "trial-a1b2c3" --seats 6 --days 30 \
+    --licensee "trial-a1b2c3" --seats 6 --days 7 \
     --private-key ~/.bede-license-private.pem
 ```
 
@@ -202,7 +202,8 @@ python scripts/issue_license.py --tier trial \
 a trial that cannot expire is not a trial. [Entry 29](DECISIONS.md) sanctions
 exactly this shape — *"a signed-license tier only, verified by
 `core/licensing.py`, expiring, and carrying no commercial meaning"* — while
-forbidding a fourth *commercial* tier. So a 30-day trial is in scope; a
+forbidding a fourth *commercial* tier. So the trial (7 days — decision 36) is
+in scope; a
 "Trial Membership" alongside Family/Co-op/Network is not.
 
 **What makes it end is `main.py`'s `_refresh_license_once`, and before that

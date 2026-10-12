@@ -16,6 +16,22 @@
  *   365-day membership -> 36.5, capped to 30   (today's behaviour, unchanged)
  *   30-day trial       -> 3, floored to 7      (warns at day 23, not day 0)
  *   60-day key         -> 6, floored to 7
+ *   7-day trial        -> 1, floored to 3      (warns at day 4, not day 0)
+ *
+ * **That last row is a fix, not an extra example.** Decision 36 cut the
+ * trial from 30 days to 7, and a floor of `MIN_NOTICE_DAYS` (7) is then equal
+ * to the entire term: `days_remaining` is 7 on the issue date, so the card
+ * read "needs attention" from the minute the trial started and opened itself
+ * on arrival — precisely the defect described above, reintroduced by a shorter
+ * term rather than by a flat threshold. A floor can only ever be a floor while
+ * it is smaller than the term it floors.
+ *
+ * So when the term is no longer than `MIN_NOTICE_DAYS`, the floor becomes
+ * `URGENT_DAYS` — itself clamped to `term - 1`, because `URGENT_DAYS` (3) is
+ * no more a floor for a three-day key than seven was for a seven-day one. On a one-week trial that is the honest shape: there
+ * is no relaxed heads-up phase to have, and every day on which the warning
+ * appears is a day to act — so `soon` simply never fires for such a term and
+ * `urgent` covers the last three days. Nothing at 14 days or above moves.
  *
  * `urgent` is deliberately separate from `soon`: it is what justifies opening
  * the card on arrival rather than leaving a chip to be noticed, and it is
@@ -31,6 +47,12 @@ export const MIN_NOTICE_DAYS = 7
 export const MAX_NOTICE_DAYS = 30
 export const URGENT_DAYS = 3
 export const NOTICE_FRACTION_OF_TERM = 0.1
+
+/** At or below this term, `MIN_NOTICE_DAYS` would be >= the whole term and so
+ * could not act as a floor at all; `URGENT_DAYS` is used instead. Equal to
+ * `MIN_NOTICE_DAYS` rather than a second tunable number, because that IS the
+ * condition — a floor stops being one exactly when it reaches the term. */
+export const SHORT_TERM_DAYS = MIN_NOTICE_DAYS
 
 export type LicenseUrgency = 'none' | 'soon' | 'urgent' | 'expired'
 
@@ -55,7 +77,14 @@ export function noticeWindowDays(status: LicenseStatus): number {
   const term = termDays(status)
   if (term === null) return MAX_NOTICE_DAYS
   const proportional = Math.round(term * NOTICE_FRACTION_OF_TERM)
-  return Math.min(MAX_NOTICE_DAYS, Math.max(MIN_NOTICE_DAYS, proportional))
+  // The floor must stay strictly below the term, or it stops being a floor and
+  // the card warns from day zero again. `URGENT_DAYS` is small enough for a
+  // week but not for a three-day key, so it is itself clamped to `term - 1`.
+  // At a term of 1 there is no silent day to leave and warning immediately is
+  // the correct answer rather than a defect.
+  const floor =
+    term <= SHORT_TERM_DAYS ? Math.max(1, Math.min(URGENT_DAYS, term - 1)) : MIN_NOTICE_DAYS
+  return Math.min(MAX_NOTICE_DAYS, Math.max(floor, proportional))
 }
 
 export function licenseUrgency(status: LicenseStatus): LicenseUrgency {

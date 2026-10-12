@@ -13,7 +13,7 @@
  *   activate, different install at cap     409 {"error":"activation_cap_reached"} — the casual-copy case
  *   activate/validate, revoked row         410 {"error":"revoked"} on activate; 200 {"status":"revoked"} on validate
  *   no row for the key                     200 {"status":"unknown"} — the legacy fail-open invariant
- *   trial row (active)                     200 {"status":"unknown"} — the signed 30-day expiry IS the trial's authority
+ *   trial row (active)                     200 {"status":"unknown"} — the signed expiry IS the trial's authority
  *   malformed body                         400 {"error":"invalid_request"}
  *
  * Two invariants carry the design:
@@ -154,7 +154,7 @@ async function activateCore(req: Request, env: Env): Promise<Response> {
     return Response.json({ error: "revoked" }, { status: 410 });
   }
   if (row.tier === "trial") {
-    // Trials' authority is the signed 30-day expiry — the server defers.
+    // Trials' authority is the signed expiry — the server defers.
     return unknownResponse();
   }
 

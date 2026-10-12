@@ -1226,12 +1226,18 @@ email arrives with a new license key, log in with the parent password, open
 current license (who it's for, how many students, when it renews) and a box
 to paste the new key into. Press **Apply** and it takes effect right away.
 
-If you are on the 30-day free trial, you will get one email inside the final
-week telling you the date it ends and what happens then. No card was taken when
-the trial started, so nothing is charged automatically and continuing is
-something you choose. When a trial ends without a key, Bede stops tutoring —
-but you can still sign in, and nothing on your machine is deleted: your
-family's work lives on your own computer, not ours.
+If you are on the **7-day free trial**, you will get one email a couple of days
+in, telling you the date it ends and what happens then.
+
+**No card is taken to start a trial, and none is kept on file.** So nothing can
+be charged while you are trying Bede out. If you decide to continue, you
+subscribe deliberately — you go and do it, we do not do it for you — and
+subscribing does mean giving a card and agreeing to a charge that repeats until
+you cancel. The plan and the price are shown before you pay.
+
+When a trial ends without a key, Bede stops tutoring — but you can still sign
+in, and nothing on your machine is deleted: your family's work lives on your
+own computer, not ours.
 
 If a license ever lapses before you renew, Bede pauses tutoring and says
 why, but your login and the License card keep working, so pasting the new

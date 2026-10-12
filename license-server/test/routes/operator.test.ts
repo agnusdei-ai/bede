@@ -12,6 +12,7 @@ import { handleOperator } from "../../src/routes/operator";
 import { createSlidingWindowLimiter } from "../../src/ratelimit";
 import { mintTrialLicenseKey } from "../../src/license/issue";
 import type { Env } from "../../src/types";
+import { TRIAL_DAYS } from "../../src/license/issue";
 import { createTestD1 } from "../helpers/d1sqlite";
 import { VECTOR } from "../vectors/cross-language";
 
@@ -215,7 +216,7 @@ describe("POST /operator/licenses/:id/resend", () => {
     const response = await handleOperator(opRequest("/operator/licenses/lic_trial/resend", env, "POST"), env, createSlidingWindowLimiter());
     expect(response.status).toBe(200);
     const email = sendSpy.mock.calls[0]![0] as unknown as { to: string; subject: string; html: string };
-    expect(email.subject).toContain("30-day free trial");
+    expect(email.subject).toContain(`${TRIAL_DAYS}-day free trial`);
     expect(email.html).toContain(`LICENSE_KEY=${trialKey}`);
   });
 

@@ -30,8 +30,8 @@ export interface IssuedLicense {
   readonly seats: number;
   readonly maxActivations: number;
   readonly status: "active" | "revoked";
-  /** ISO-8601; null for trials (launch scope has none — trials are a later
-   * staged task with a SIGNED 30-day expiry instead). */
+  /** ISO-8601; null for trials — a trial's authority is the SIGNED
+   * `TRIAL_DAYS` expiry in its payload, not a server row. */
   readonly validUntil: string | null;
   readonly paymentProvider: "stripe";
   readonly externalCustomerId: string;
@@ -52,10 +52,21 @@ export function utcDate(offsetDays = 0): string {
  * — "long nominal signed expiry"). */
 export const NOMINAL_PAID_EXPIRY_YEARS = 5;
 
-/** The trial's baked-in signed expiry: 30 days (the spec's trial lock —
- * "trials must expire, so here the signed payload _is_ the authority"). No
- * server row extends it — every server path defers to this date. */
-export const TRIAL_DAYS = 30;
+/** The trial's baked-in signed expiry: **7 days** (decision 36, the
+ * owner supersession of 2026-10-12; it was 30 until then). The spec's trial
+ * lock still holds — "trials must expire, so here the signed payload _is_
+ * the authority" — and no server row extends it; every server path defers to
+ * this date.
+ *
+ * Shortening the term is not a one-constant change, because two notice
+ * windows were sized against the old one and BOTH break at 7:
+ * `reminders.ts`'s window was 7 days before expiry, which on a 7-day trial is
+ * the whole trial (it fired on the first cron run, saying "your trial is
+ * ending" on day 0 — it still FIRED, which is why it looked fine), and
+ * `homeschool-tutor/src/utils/licenseUrgency.ts`'s 7-day floor made the
+ * in-app warning light from the minute of issue. Both are fixed alongside
+ * this; see each file. */
+export const TRIAL_DAYS = 7;
 
 function plusYearsIso(dateIso: string, years: number): string {
   const parts = dateIso.split("-");

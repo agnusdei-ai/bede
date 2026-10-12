@@ -74,7 +74,7 @@ export interface LicensePayloadFields {
   /** The customer email the key was issued to. */
   licensee: string;
   /** Signed tier: "core" for the annual Family membership, "trial" for the
-   * self-serve 30-day trial — both in core/licensing.py's frozen vocabulary. */
+   * self-serve trial — both in core/licensing.py's frozen vocabulary. */
   tier: "core" | "trial";
   /** Household seat cap: 6 children. */
   seats: number;

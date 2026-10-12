@@ -48,7 +48,7 @@ export default {
   /**
    * The daily trial-ending reminder (wrangler.jsonc's cron trigger).
    *
-   * Cessation is NOT here and needs nothing: a trial's 30-day expiry is signed
+   * Cessation is NOT here and needs nothing: a trial's expiry is SIGNED
    * into the key, and the family instance enforces it offline via
    * `core/licensing.py` + `main.py`'s daily re-evaluation + `LicenseGate`. This
    * job only tells a family it is coming, so a failure here costs a courtesy

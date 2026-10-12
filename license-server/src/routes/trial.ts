@@ -45,6 +45,18 @@ export function trialExpiresDate(licenseKey: string): string | null {
   return typeof expires === "string" && /^\d{4}-\d{2}-\d{2}$/.test(expires) ? expires : null;
 }
 
+/** The signed ISSUED date a trial key carries, or null when it does not
+ * decode. `reminders.ts` needs this rather than inferring the day of a trial
+ * from the current `TRIAL_DAYS`: keys signed before decision 36 carry a 30-day
+ * term, so subtracting today's term from their remaining days puts them at
+ * the wrong day of their own trial. The payload has always carried `issued`;
+ * nothing was reading it. */
+export function trialIssuedDate(licenseKey: string): string | null {
+  const payload = decodeLicensePayload(licenseKey);
+  const issued = payload?.["issued"];
+  return typeof issued === "string" && /^\d{4}-\d{2}-\d{2}$/.test(issued) ? issued : null;
+}
+
 /** Whether any of the customer's trial rows still carries unexpired signed
  * time. ISO dates compare correctly as strings. */
 function hasActiveTrial(expiryDates: (string | null)[], todayIso: string): boolean {
@@ -97,7 +109,7 @@ async function trialCore(req: Request, env: Env): Promise<Response> {
     return Response.json({ status: "already_active", expires: activeExpiry });
   }
 
-  // Mint the trial: tier "trial", 30-day baked-in signed expiry, no
+  // Mint the trial: tier "trial", TRIAL_DAYS-day baked-in signed expiry, no
   // valid_until (the server defers on trials — one authority per kind),
   // payment_provider "none". Seats 6: the trial IS the product, same
   // household cap as paid.

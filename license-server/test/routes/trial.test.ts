@@ -1,6 +1,6 @@
 /**
  * POST /v1/trial — the no-card abuse surface. One ACTIVE trial per email
- * (normalized — case/whitespace cannot double-issue); the signed 30-day
+ * (normalized — case/whitespace cannot double-issue); the signed 7-day
  * expiry IS the trial's authority (nothing server-side extends it); the
  * strictest per-IP bucket of the three endpoints; the email renders the
  * key. Expired trials are exercised with a directly minted key whose
@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 describe("POST /v1/trial", () => {
-  it("issues a trial: signed 30-day expiry baked into the payload, row recorded, key emailed", async () => {
+  it("issues a trial: signed 7-day expiry baked into the payload, row recorded, key emailed", async () => {
     const env = makeEnv();
     const response = await handleTrial(trialRequest({ email: "family@example.com" }), env, createSlidingWindowLimiter());
     expect(response.status).toBe(200);
@@ -81,7 +81,8 @@ describe("POST /v1/trial", () => {
     expect(sendSpy).toHaveBeenCalledTimes(1);
     const email = sendSpy.mock.calls[0]![0] as unknown as { to: string; subject: string; html: string };
     expect(email.to).toBe("family@example.com");
-    expect(email.subject).toContain("30-day free trial");
+    // Read from TRIAL_DAYS rather than restated, so the term lives in one place.
+    expect(email.subject).toContain(`${TRIAL_DAYS}-day free trial`);
     // The key itself rides ONLY in the email (the response deliberately does
     // not echo it back); the wire-format extraction above already matched it.
     expect(email.html).toContain(`LICENSE_KEY=${licenseKey}`);
@@ -181,7 +182,7 @@ describe("POST /v1/trial", () => {
       issuedDate: utcDate(-40),
     });
     const decoded = decodeLicensePayload(expiredKey);
-    expect(decoded!.expires).toBe(utcDate(-10)); // genuinely expired, genuinely signed
+    expect(decoded!.expires).toBe(utcDate(-40 + TRIAL_DAYS)); // genuinely expired, genuinely signed
     await env.DB.prepare("insert into customers (id, email, created_at) values ('cus_old', 'family@example.com', ?)")
       .bind(`${utcDate(-40)}T00:00:00Z`)
       .run();

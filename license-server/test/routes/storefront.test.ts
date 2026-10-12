@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { storefrontPage, handleStorefront, handleFamilyAnnualCheckout } from "../../src/routes/storefront";
 import { createSlidingWindowLimiter } from "../../src/ratelimit";
 import { familyAnnualEntitlement } from "../../src/config";
+import { TRIAL_DAYS } from "../../src/license/issue";
 import type { Env } from "../../src/types";
 
 const { createSessionSpy } = vi.hoisted(() => ({ createSessionSpy: vi.fn<() => Promise<{ url: string | null }>>() }));
@@ -110,11 +111,37 @@ describe("GET / — the storefront page", () => {
       ["monthly price", /\$([\d,]+)<span class="per">\/month<\/span>/g, (m: RegExpMatchArray) => `$${m[1]}/month`],
       ["annual saving", /save \$\d+/g, identity],
       ["child cap", /Up to \w+ children/g, identity],
-      ["trial length", /\d+-day free trial/g, identity],
     ] as const) {
       expect(page).toContain(publishedFigure(label, pattern, build));
     }
     expect(page).toContain("no card required");
+  });
+
+  /**
+   * The trial LENGTH is not a price, so launch.html is not its authority.
+   *
+   * It is `TRIAL_DAYS` — a number signed into every trial key and enforced
+   * offline by `core/licensing.py`, so the page cannot be right and the code
+   * wrong; only the page can be stale. Pinning it the other way round (which
+   * this test did until register entry 39 cut the term to 7) meant the
+   * published page could hold the storefront to a term the product no longer
+   * grants, and the failure read as a storefront bug.
+   *
+   * So the direction is reversed for this one figure: the storefront renders
+   * `TRIAL_DAYS`, and launch.html must AGREE with it. That is what caught
+   * launch.html still advertising 30 days the moment the term changed, which
+   * is a live false claim to a prospective family rather than an internal
+   * drift.
+   */
+  it("renders the trial term from TRIAL_DAYS, and launch.html agrees with it", () => {
+    const page = storefrontPage();
+    expect(page).toContain(`${TRIAL_DAYS}-day free trial`);
+
+    const published = [...PUBLISHED.matchAll(/(\d+)-day free trial/g)].map((m) => Number(m[1]));
+    expect(published.length, "launch.html should advertise the trial exactly once").toBe(1);
+    expect(published[0], "launch.html advertises a trial term the product does not grant").toBe(
+      TRIAL_DAYS,
+    );
   });
 
   it("carries exactly ONE subscribe CTA — /checkout/family-annual — and no processor picker", () => {

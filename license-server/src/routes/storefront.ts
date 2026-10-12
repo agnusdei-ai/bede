@@ -9,7 +9,7 @@
  *
  * Copy discipline (the spec's storefront rule): this page reproduces the
  * PUBLISHED figures verbatim and invents nothing — $2,149/year (save $239
- * vs monthly), up to six children, one household price, 30-day free trial
+ * vs monthly), up to six children, one household price, the free trial
  * with no card — exactly what demo/public/launch.html and site/faq already
  * state. No monthly/Co-op/Network cards here: those keep selling through
  * the manual runbook (the launch-catalog lock), and a price this page
@@ -30,6 +30,7 @@ import type { Env } from "../types";
 import type { SlidingWindowLimiter } from "../ratelimit";
 import { RATE_LIMITS, clientIp, rateLimitedResponse } from "../ratelimit";
 import { familyAnnualEntitlement } from "../config";
+import { TRIAL_DAYS } from "../license/issue";
 
 /** Security headers for the rendered page — the storefront is the one
  * internet-facing HTML surface this Worker serves, so it carries the same
@@ -148,11 +149,11 @@ export function storefrontPage(): string {
 
   <section class="card" aria-labelledby="trial-heading">
     <h2 id="trial-heading">Try it first</h2>
-    <p class="alt">30-day free trial — no card required.</p>
+    <p class="alt">${TRIAL_DAYS}-day free trial — no card required to start.</p>
     <form id="trial-form" class="stack" novalidate>
       <label for="trial-email" class="how">Email the trial key goes to</label>
       <input id="trial-email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
-      <button class="cta" id="trial-submit" type="submit">Start 30-day free trial</button>
+      <button class="cta" id="trial-submit" type="submit">Start ${TRIAL_DAYS}-day free trial</button>
     </form>
     <div id="trial-result" class="result" role="status"></div>
   </section>

@@ -6,6 +6,7 @@ import {
   MIN_NOTICE_DAYS,
   MAX_NOTICE_DAYS,
   URGENT_DAYS,
+  SHORT_TERM_DAYS,
 } from './licenseUrgency'
 import type { LicenseStatus } from '../types'
 
@@ -75,6 +76,41 @@ describe('noticeWindowDays', () => {
     expect(noticeWindowDays(status({ expires: '2026-06-01', days_remaining: 20 }))).toBe(
       MAX_NOTICE_DAYS,
     )
+  })
+})
+
+describe('a term no longer than a week', () => {
+  /**
+   * The same defect, reintroduced by a shorter TERM rather than a flat
+   * threshold — register entry 39 cut the trial from 30 days to 7.
+   *
+   * `MIN_NOTICE_DAYS` is 7, so on a 7-day trial the floor equalled the whole
+   * term: `days_remaining` is 7 on the issue date, the card read "needs
+   * attention" from minute one and opened itself on arrival. A floor is only a
+   * floor while it is smaller than what it floors.
+   */
+  it('does not warn for the whole of a 7-day trial', () => {
+    const window = noticeWindowDays(term(7, 7))
+    expect(window).toBeLessThan(7)
+    expect(window).toBe(URGENT_DAYS)
+    // Day 0 of the trial is silent, which is the entire point.
+    expect(licenseUrgency(term(7, 7))).toBe('none')
+    expect(licenseUrgency(term(7, 5))).toBe('none')
+  })
+
+  it('warns in a 7-day trial last three days, and calls them urgent', () => {
+    // There is no relaxed heads-up phase in a one-week trial, so `soon` never
+    // fires for such a term and `urgent` covers the days that matter.
+    expect(licenseUrgency(term(7, 3))).toBe('urgent')
+    expect(licenseUrgency(term(7, 1))).toBe('urgent')
+    expect(licenseUrgency(term(7, 0))).toBe('expired')
+  })
+
+  it('leaves every term above a week exactly where it was', () => {
+    expect(SHORT_TERM_DAYS).toBe(MIN_NOTICE_DAYS)
+    expect(noticeWindowDays(term(14, 10))).toBe(MIN_NOTICE_DAYS)
+    expect(noticeWindowDays(term(30, 25))).toBe(MIN_NOTICE_DAYS)
+    expect(noticeWindowDays(term(365, 200))).toBe(MAX_NOTICE_DAYS)
   })
 })
 

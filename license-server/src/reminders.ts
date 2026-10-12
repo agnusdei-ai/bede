@@ -2,39 +2,66 @@
  * Telling a family their trial is ending, once, before it does.
  *
  * **What this is NOT responsible for.** Cessation needs no code and gets none
- * here. A trial licence carries a signed, baked-in 30-day `expires`;
+ * here. A trial licence carries a signed, baked-in `TRIAL_DAYS` expiry;
  * `core/licensing.py`'s `is_expired` is `expires < date.today()`;
  * `main.py`'s `_periodic_license_refresh` recomputes that verdict daily so it
  * takes effect on an instance nobody restarts; and `LicenseGate` then refuses
  * every path but `/auth/`, `/mfa/`, `/admin/license` and `/health`. That chain
  * is already built, already tested, and works with no network at all — a
- * self-hosted instance that never reaches this server still stops on day 31.
+ * self-hosted instance that never reaches this server still stops on day 8.
  *
- * **So a failed reminder must never extend a trial, and cannot.** The expiry is
+ * **So a failed notice must never extend a trial, and cannot.** The expiry is
  * inside the signed payload. Nothing in this file can move it, which is the
  * property that makes a best-effort courtesy email safe to run unattended.
  *
- * **Why an email at all, when the app already warns.**
- * `homeschool-tutor/src/utils/licenseUrgency.ts` sizes its in-app warning at
- * 10% of the licence term floored at `MIN_NOTICE_DAYS` (7) — so a 30-day trial
- * warns from day 23 and `LicenseSettings` opens itself. But an in-app chip only
- * fires if somebody opens the parent screen, and a trial about to lapse is
- * exactly when nobody does. `REMINDER_WINDOW_DAYS` is 7 to match that floor, so
- * the email and the chip appear together instead of contradicting each other.
+ * **The timing is a day OF the trial now, not a window before expiry, and
+ * that change is the whole point of this file's rewrite.** It was
+ * `REMINDER_WINDOW_DAYS = 7` — days remaining — sized to match
+ * `licenseUrgency.ts`'s floor back when a trial ran 30 days. Register entry 39
+ * cut the trial to 7, and a 7-days-remaining window on a 7-day trial is the
+ * ENTIRE trial: `daysUntil` is 7 on day 0, so the notice fired on the first
+ * cron run after issuance, headed "your trial is ending", about a trial the
+ * family had not used yet. It still fired, which is exactly why it looked
+ * fine — the defect is in the content and the meaning, not in whether
+ * anything was sent.
  *
- * **This is a courtesy, not the only notice.** `trialDeliveryEmail` already
- * states the end date and says plainly that nothing will auto-charge and the
- * app will ask for a key. A family is told the terms at issuance; this is a
- * second chance to act on them.
+ * `NOTICE_DAY_OF_TRIAL` is therefore counted FORWARD from issuance, and is
+ * derived from the signed expiry rather than a second stored date, so it
+ * cannot disagree with the authority the client enforces.
+ *
+ * **Why day 2 of 7**, and the arithmetic that rules out the obvious
+ * alternatives: entry 39 requires 24 hours of notice BEFORE a card is
+ * requested, and conversion at the end of day 7. A notice at the 24-hour
+ * limit — day 6 — leaves a card-collection window of a single instant, which
+ * is not a window. Day 0 or 1 shares a calendar date with issuance, and since
+ * everything here is date-granular the 24-hour interval then cannot be
+ * verified from what was stored. Day 2 gives days 3 to 7 to act and keeps the
+ * interval checkable. One constant, stated here so moving it is a decision
+ * rather than a discovery.
+ *
+ * **`sent_at` is a full ISO timestamp, not a date.** Entry 39's card-collection
+ * gate has to answer "have 24 hours elapsed since the notice", and a
+ * `YYYY-MM-DD` cannot answer that. Recording the real instant now is the
+ * foundation that gate needs; this file does not implement the gate itself.
+ *
+ * **This is not yet entry 39's §3 pre-card notice**, and must not be mistaken
+ * for it. That notice has to state the plan, the cadence, the exact recurring
+ * amount and currency, when the first charge lands, and how to cancel before
+ * it. Three of those are unresolved (see entry 39), so what this sends is the
+ * honest subset: the real end date, that lessons stop, and that continuing is
+ * a subscription the family chooses. The old copy's blanket "nothing will
+ * auto-charge" is GONE — entry 39 §2 forbids retaining it, and under a
+ * converting trial it would be false.
  */
 
 import type { Env } from "./types";
 import { createResendClient, trialEndingEmail } from "./email/resend";
 import { trialExpiresDate } from "./routes/trial";
+import { TRIAL_DAYS } from "./license/issue";
 
-/** Matches `licenseUrgency.ts`'s `MIN_NOTICE_DAYS` — the least notice anyone
- * can act on, and what a 30-day term resolves to there. */
-export const REMINDER_WINDOW_DAYS = 7;
+/** Which day OF the trial the notice goes out, counted forward from issuance.
+ * See the module docstring for why 2 rather than 0, 1 or 6. */
+export const NOTICE_DAY_OF_TRIAL = 2;
 
 /** A bound on one run, so a pathological row count cannot turn a scheduled
  * job into an unbounded scan. The expiry lives inside the signed key, so SQL
@@ -50,20 +77,32 @@ export function daysUntil(expires: string, today: string): number {
   return Math.round((end - now) / 86_400_000);
 }
 
+/** Which day of the trial `today` is, derived from the signed expiry and the
+ * fixed term — 0 on the issue date, `TRIAL_DAYS` on the expiry date. */
+export function trialDayOf(expires: string, today: string): number {
+  const left = daysUntil(expires, today);
+  return Number.isNaN(left) ? Number.NaN : TRIAL_DAYS - left;
+}
+
 /**
- * Whether a trial expiring on `expires` should be reminded today.
+ * Whether a trial expiring on `expires` should get its notice today.
  *
- * Inside the window and not yet past. An ALREADY-expired trial gets nothing:
- * the product has stopped, so an email headed "your trial is ending" would be
- * both wrong and late. Whether to send a separate after-the-fact note is a
- * product decision nobody has made, and inventing one here would be an unruled
- * policy becoming a fact — so this sends only the one reminder that was asked
- * for.
+ * On or after `NOTICE_DAY_OF_TRIAL` and not yet past the expiry. "On or
+ * after" rather than "exactly on" deliberately: a missed cron run (an
+ * outage, a deploy) must not silently cost a family their only notice, and
+ * the `trial_reminders` primary key already makes a second send impossible,
+ * so a catch-up is free and a drop is not.
+ *
+ * An ALREADY-expired trial gets nothing: the product has stopped, so an email
+ * headed "your trial is ending" would be both wrong and late. Whether to send
+ * a separate after-the-fact note is a product decision nobody has made, and
+ * inventing one here would be an unruled policy becoming a fact.
  */
 export function dueForReminder(expires: string, today: string): boolean {
   const left = daysUntil(expires, today);
   if (Number.isNaN(left)) return false;
-  return left >= 0 && left <= REMINDER_WINDOW_DAYS;
+  if (left < 0) return false;
+  return trialDayOf(expires, today) >= NOTICE_DAY_OF_TRIAL;
 }
 
 export interface ReminderRun {
@@ -126,7 +165,9 @@ export async function sendDueTrialReminders(
       `insert into trial_reminders (license_id, sent_at) values (?, ?)
          on conflict do nothing`,
     )
-      .bind(row.id, today)
+      // A full instant, not `today`: entry 39's card-collection gate has to
+      // answer "have 24 hours elapsed since the notice", which a date cannot.
+      .bind(row.id, new Date().toISOString())
       .run();
     if ((claim.meta?.changes ?? 1) === 0) continue; // someone else has it
 

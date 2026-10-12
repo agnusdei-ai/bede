@@ -97,7 +97,7 @@ async function trialCore(req: Request, env: Env): Promise<Response> {
     return Response.json({ status: "already_active", expires: activeExpiry });
   }
 
-  // Mint the trial: tier "trial", 30-day baked-in signed expiry, no
+  // Mint the trial: tier "trial", TRIAL_DAYS-day baked-in signed expiry, no
   // valid_until (the server defers on trials — one authority per kind),
   // payment_provider "none". Seats 6: the trial IS the product, same
   // household cap as paid.

@@ -3,7 +3,7 @@
  *
  * The property that matters most is a NEGATIVE one and is asserted first:
  * nothing in this file can extend a trial. Cessation is carried by the signed
- * 30-day expiry plus the family instance's own daily re-evaluation, so a cron
+ * signed expiry plus the family instance's own daily re-evaluation, so a cron
  * that never runs, or a Resend outage that never clears, must cost a courtesy
  * email and nothing else.
  */
@@ -11,11 +11,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestD1 } from "./helpers/d1sqlite";
 import type { Env } from "../src/types";
 import {
-  REMINDER_WINDOW_DAYS,
+  NOTICE_DAY_OF_TRIAL,
+  trialDayOf,
   daysUntil,
   dueForReminder,
   sendDueTrialReminders,
 } from "../src/reminders";
+import { TRIAL_DAYS } from "../src/license/issue";
 
 type SentEmail = { to: string; subject: string; html: string };
 const { sendSpy } = vi.hoisted(() => ({
@@ -73,9 +75,33 @@ async function seedTrial(
 
 beforeEach(() => sendSpy.mockReset());
 
-describe("the reminder window", () => {
-  it("matches licenseUrgency.ts's MIN_NOTICE_DAYS floor", () => {
-    expect(REMINDER_WINDOW_DAYS).toBe(7);
+describe("the trial term and the notice point", () => {
+  /** Register entry 39's acceptance criterion, stated as one assertion. */
+  it("expires in exactly 7 days", () => {
+    expect(TRIAL_DAYS).toBe(7);
+  });
+
+  it("sends the notice on day 2 of the trial, not a window before expiry", () => {
+    expect(NOTICE_DAY_OF_TRIAL).toBe(2);
+  });
+
+  /**
+   * The arithmetic entry 39 turns on, asserted rather than trusted.
+   *
+   * 24 hours of notice must elapse before a card is requested, and conversion
+   * lands at the end of the trial — so the earliest card day is
+   * NOTICE_DAY + 1, and the window runs to TRIAL_DAYS. A notice at the 24-hour
+   * limit (day 6 of 7) leaves a window of a single instant, which is why the
+   * notice day is not simply "as late as allowed".
+   */
+  it("leaves a card-collection window of at least a day after the 24-hour notice", () => {
+    const earliestCardDay = NOTICE_DAY_OF_TRIAL + 1;
+    expect(earliestCardDay).toBeLessThanOrEqual(TRIAL_DAYS);
+    expect(TRIAL_DAYS - NOTICE_DAY_OF_TRIAL).toBeGreaterThanOrEqual(1);
+    // And it is not day 0/1, where the notice shares a calendar date with
+    // issuance and the 24-hour interval stops being checkable from what was
+    // stored.
+    expect(NOTICE_DAY_OF_TRIAL).toBeGreaterThanOrEqual(2);
   });
 
   it("counts whole days and goes negative past the expiry", () => {
@@ -84,16 +110,36 @@ describe("the reminder window", () => {
     expect(daysUntil("2026-10-10", TODAY)).toBe(-1);
   });
 
-  it("sends inside the window, including the final day", () => {
-    expect(dueForReminder("2026-10-18", TODAY)).toBe(true);
-    expect(dueForReminder(TODAY, TODAY)).toBe(true);
+  it("reads the day OF the trial from the signed expiry", () => {
+    expect(trialDayOf("2026-10-18", TODAY)).toBe(0); // issued today
+    expect(trialDayOf("2026-10-16", TODAY)).toBe(2);
+    expect(trialDayOf(TODAY, TODAY)).toBe(TRIAL_DAYS); // expiry day
   });
 
-  it("sends nothing before the window or after the expiry", () => {
-    expect(dueForReminder("2026-10-19", TODAY)).toBe(false);
-    expect(dueForReminder("2026-11-09", TODAY)).toBe(false);
-    // Already over: the product has stopped, so "your trial is ending" would
-    // be both wrong and late. An after-the-fact note is an unruled decision.
+  it("sends nothing on day 0 or day 1 — the defect the old window had", () => {
+    // Under `left <= REMINDER_WINDOW_DAYS` (7) these were BOTH due, so the
+    // notice went out on the first cron run after issuance headed "your trial
+    // is ending", about a trial nobody had used. It still fired, which is why
+    // it looked fine.
+    expect(dueForReminder("2026-10-18", TODAY)).toBe(false); // day 0
+    expect(dueForReminder("2026-10-17", TODAY)).toBe(false); // day 1
+  });
+
+  it("sends from day 2 onward, including the expiry day itself", () => {
+    expect(dueForReminder("2026-10-16", TODAY)).toBe(true); // day 2
+    expect(dueForReminder("2026-10-12", TODAY)).toBe(true); // day 6
+    expect(dueForReminder(TODAY, TODAY)).toBe(true); // day 7, expires today
+  });
+
+  it("catches up rather than dropping a notice a missed cron run skipped", () => {
+    // "On or after" day 2, not "exactly on": an outage or a deploy must not
+    // cost a family their only notice, and the trial_reminders primary key
+    // already makes a second send impossible.
+    expect(dueForReminder("2026-10-13", TODAY)).toBe(true); // day 5
+  });
+
+  it("sends nothing once the trial has already expired", () => {
+    // The product has stopped; "your trial is ending" would be wrong and late.
     expect(dueForReminder("2026-10-10", TODAY)).toBe(false);
   });
 
@@ -145,7 +191,7 @@ describe("sending", () => {
     expect((runs[0]?.sent ?? 0) + (runs[1]?.sent ?? 0)).toBe(1);
   });
 
-  it("says the end date and the consequence, and repeats that nothing auto-charges", async () => {
+  it("says the end date and the consequence, and never claims nothing auto-charges", async () => {
     const env = makeEnv();
     await seedTrial(env, { id: "lic-1", email: "a@example.com", expires: "2026-10-15" });
     await sendDueTrialReminders(env, TODAY);
@@ -154,7 +200,12 @@ describe("sending", () => {
     expect(call.to).toBe("a@example.com");
     expect(call.html).toContain("2026-10-15");
     expect(call.html).toMatch(/Lessons stop/i);
-    expect(call.html).toMatch(/auto-charge/i);
+    // Entry 39 §2: the blanket never-auto-charges promise must NOT be
+    // retained, because the trial now converts once a card is provided and
+    // the recurring charge authorized. What stays is the narrow true fact.
+    expect(call.html).not.toMatch(/auto-charge/i);
+    expect(call.html).toMatch(/No card is on file/i);
+    expect(call.html).toMatch(/authorize a recurring charge/i);
     // Never implies the family's work is destroyed — it is on their machine.
     expect(call.html).toMatch(/nothing on your machine is deleted/i);
   });

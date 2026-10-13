@@ -5,9 +5,10 @@ constitution-governed AI companion for classical instruction. It belongs
 to the Agnus Dei product family, *beside* Portal and optional Locuto,
 not inside either one.
 
-**Release posture:** narrow, complete first family use case; no claim
-that Bede has already demonstrated equivalent or superior educational
-outcomes to Kumon, a classical school, a live tutor, or a co-op.
+**Release posture:** narrow, complete first family use case that
+reduces the homeschool educator's preparation, instructional support,
+diagnostic review, and follow-up burden while retaining human authority.
+No claim of independent instructional replacement is implied.
 
 ## The one job the foundation must do
 
@@ -49,84 +50,61 @@ screen with the student selected.
 The parent-led pathway is real instruction, not an anonymous demo or
 throwaway preview. It can produce saved student academic evidence.
 
-## Differentiation, not borrowed prestige
+## Educator-first operating model — the reason Bede exists
 
-Kumon's published approach emphasizes individual learning levels,
-small-step exercises, independent work, and instructor oversight.
-Its tablet product includes assigned practice and instructor feedback.
-Bede should measure against those *operational* dimensions without
-copying worksheets, claiming accreditation, or reporting invented
-learning gains.
+**Bede is a supportive teaching system, not a replacement for a
+homeschool parent, classical instructor, or classroom community.**
+Its value is reducing complex, repetitive instructional workload
+while preserving the educator's voice, discernment, and oversight.
 
-Bede's intended educational distinction is different: a **classical
-conversation** around books and ideas, careful questioning, oral and
-written narration, reasoning, history, sciences and the arts, with
-mathematics and literacy foundations where appropriate. Families
-remain the educational authority. Technology follows pedagogy and
-children never receive judgments of faith, virtue or aptitude.
+The initial usable workflow has five concrete responsibilities:
 
-### Competitor evidence: Acton, Alpha, and Kumon (checked October 13, 2026)
+| Educator's demanding work | Bede's operating responsibility | Educator keeps authority |
+| --- | --- | --- |
+| Assemble and revisit a lesson | Reuse approved subjects, focus, books, and resumable lesson context | Select and approve curriculum and session focus |
+| Lead individual tutoring while attending to other responsibilities | Conduct bounded Socratic dialogue, read/narrate, scaffold academic questions and practice | Set pace, intervene, redirect, or stop |
+| Track what work the learner actually completed | Record encrypted narration/academic activity and existing diagnostic observations | Correct context and interpret the evidence |
+| Review diagnostic and external assessment information | Offer math diagnostics, mastery estimates with uncertainty, and parent-only DIBELS/classical educator-entered evidence | Administer external instruments separately and decide the next educational action |
+| Prepare the next sitting | Surface progress and relevant prior work; suggest but never impose an instructional adjustment | Approve the next lesson and respond to the learner |
 
-Three models are relevant, but they do not deliver equivalent products:
+This is a **workload-reduction and teacher-augmentation model**, built around
+classical books, narration, Socratic questioning, reasoning and continuity.
+AI is not an independent instructor with authority over a child. It does
+not infer character, virtue, faith, aptitude, or a learning-style identity.
 
-- **Kumon** offers personalized math/reading progression, small-step
-  independent worksheets, and instructor review. Some centers offer
-  Kumon Connect, a digital worksheet experience. A sample official local
-  center in Paloma Creek advertises $160 per subject per month, plus
-  enrollment/materials fees. Prices vary by independently owned center.
-  Sources: https://www.kumon.com/how-kumon-works and
-  https://www.kumon.com/paloma-creek/aboutcenter.
-- **Acton Academy** uses learner-driven mixed-age studios, human
-  Socratic guides, independent technology-based mastery work, and
-  hands-on quests. Its model does not prescribe a single AI tutoring
-  agent across campuses; at least one campus names Khan Academy,
-  Beast Academy, and Lexia among tools it has used. The official
-  Dripping Springs campus lists $13,860 annual tuition starting Fall
-  2025. Acton is also a school community, not merely instructional
-  software. Sources: https://actonacademy.org/model/,
-  https://www.actonacademyfrisco.com/faq/, and
-  https://actonds.org/faq-5143-3496.
-- **Alpha School** explicitly deploys a mastery-based **AI tutor** in
-  its TimeBack learning platform, with human guides, progress tracking,
-  and two-hour academic blocks. Austin lists $40,000 tuition.
-  Alpha's published learning acceleration results are **Alpha's own
-  claims**, not independently replicated outcomes for Bede or proof
-  of a head-to-head advantage. Sources:
-  https://alpha.school/faq/,
-  https://alpha.school/blog/introducing-timeback-the-next-evolution-of-alphas-model/,
-  and https://alpha.school/locations/.
+### What a supportable foundation must demonstrate
 
-**Proposed Bede distinction:** classical inquiry across books,
-narration, history, arts, theology and foundational subjects, with a
-constitution-governed AI teaching companion, parent-controlled lesson
-selection, and student-scoped academic evidence. Do not reproduce
-Kumon's proprietary worksheets, Acton's studio community, or Alpha's
-motivation economy. Do not claim equivalence to their full-day school
-or human mentorship offerings.
+Use an educator-completed full-day and second-day rehearsal, not just
+component tests:
 
-**Economics must be validated:** full school tuition cannot be treated
-as the same product cost as supplemental AI tutoring. Before publishing
-"lower cost per learning outcome," measure and report Bede subscription
-price, hardware amortization, model inference, support/operations,
-parent time, supplementary books, and real academic progress from
-independent measures. Annual **purchase price** could be lower than a
-private campus, but **outcome-adjusted cost** has not been demonstrated.
+1. An adult can prepare and start a real lesson quickly from approved
+   settings without touching source code.
+2. The student experiences accurate, age-appropriate classical dialogue.
+3. Bede preserves academic observations, respecting source and consent
+   boundaries; it does not claim external DIBELS scores were AI-administered.
+4. The educator can see academic evidence, distinguish observations from
+   inferred diagnostics, and make a next-step decision.
+5. The student returns for another lesson with approved continuity.
+6. A normal support operator can install, update, restore, and troubleshoot
+   the declared supported deployment using written instructions.
 
-Fair comparisons require separately defined baselines:
-- **Operational:** an adult can set up the lesson, help a child start,
-  see recorded academic work, and return next time without developer help.
-- **Quality:** independent educators evaluate factual accuracy,
-  appropriate Socratic prompts, source honesty, and usefulness of
-  follow-up suggestions against predeclared rubrics.
-- **Outcomes:** compare independent transfer tasks and observed academic
-  development over time, with informed family consent and qualified
-  assessment review. A benchmark is not a causal efficacy study.
-- **Supportability:** document the supported deployment, backup, reset,
-  model cost, failure handling, and an escalation procedure before
-  selling it as a generally available service.
+The outcomes to measure are **educator preparation/review minutes saved,
+successful lesson completion, diagnostic accuracy and traceability,
+parent satisfaction with the assistance, support incidents, and system
+cost per active student**. Academic learning outcomes are assessed
+independently; do not automatically equate saved staff time with
+increased student achievement.
 
-No comparative superiority claim is authorized by the existence of
-a feature, an automated test, or an attractive interface.
+### Market context, without substituting a competitor's business model
+
+Kumon, Acton Academy, and Alpha School illustrate different approaches
+to learner progression, guide support, and technology-assisted
+instruction. They are useful *research references* for deciding what
+educators expect, but they are not Bede's product architecture,
+curriculum, or claims of equivalent school provision. Bede is designed
+to complement human classical instruction and lower its operational
+burden. Keep comparative claims limited to outcomes and costs
+supported by an appropriate, like-for-like evaluation.
 
 ## Deliberate startup exclusions
 
@@ -160,8 +138,8 @@ supported stack**:
 - A second ordinary teaching day works from persisted student settings.
 - Real-device accessibility, installation, backup/restore, and restart
   rehearsals completed on the supported platform.
-- Evidence and educational efficacy claims have human review, not just
-  CI passes.
+- Educator workload measures, diagnostic interpretation, and any
+  educational efficacy claims have human review, not just CI passes.
 
 **Current engineering evidence:** functional single-subject launch code
 and invocation regression tests. CI, device rehearsals, and independent

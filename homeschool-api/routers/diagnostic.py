@@ -17,6 +17,7 @@ from services.diagnostic.language_exposure import get_language_summary
 from services.diagnostic.literacy import get_literacy_summary
 from services.diagnostic.music import get_music_summary
 from services.diagnostic_demo import get_mastery_summary_demo
+from services.assessment_interop import EducatorAssessmentInput
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 
@@ -252,6 +253,55 @@ async def get_adaptive_recommendation_history(
     return await parent_recommendation_history(
         db, student_name, days=since_days, limit=limit,
     )
+
+
+@router.get("/assessment-frameworks")
+async def get_assessment_frameworks(
+    auth: dict = Depends(require_parent),
+) -> list[dict]:
+    """Safe framework metadata, never proprietary forms or benchmark tables."""
+    from services.assessment_interop import frameworks_catalog
+    return frameworks_catalog()
+
+
+@router.get("/{student_name}/assessment-records")
+async def get_educator_assessment_records(
+    student_name: str,
+    limit: int = Query(default=60, ge=1, le=100),
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Parent-confidential imported evidence, isolated from Bede mastery."""
+    from services.assessment_interop import list_assessments
+    return await list_assessments(db, student_name, limit=limit)
+
+
+@router.post("/{student_name}/assessment-records", status_code=201)
+async def create_educator_assessment_record(
+    student_name: str,
+    payload: "EducatorAssessmentInput",
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Record an independently administered result. Never score DIBELS."""
+    from services.assessment_interop import record_assessment
+    try:
+        return await record_assessment(db, student_name, payload)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+
+@router.delete("/{student_name}/assessment-records/{record_id}", status_code=204)
+async def delete_educator_assessment_record(
+    student_name: str,
+    record_id: int,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Correct an incorrect educator-entered result without changing history."""
+    from services.assessment_interop import delete_assessment
+    if not await delete_assessment(db, student_name, record_id):
+        raise HTTPException(status_code=404, detail="Assessment record not found")
 
 
 @router.get("/{student_name}/activity")

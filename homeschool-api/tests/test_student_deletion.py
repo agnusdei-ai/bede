@@ -125,6 +125,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("lesson_bookmarks", LessonBookmark),
         ("skill_activity_log", SkillActivityLog),
         ("adaptive_instruction_traces", AdaptiveInstructionTrace),
+        ("educator_assessment_evidence", EducatorAssessmentEvidence),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),

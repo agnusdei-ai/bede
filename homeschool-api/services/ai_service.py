@@ -4542,15 +4542,16 @@ async def stream_tutor_response(
     # A fresh read each turn lets Bede alter his approach after recorded work.
     # The public demo has no persistent student ledger, so it stays unchanged.
     adaptive_instruction_note = ""
+    adaptive_decision = None
     if db is not None and subject == Subject.mathematics:
         try:
             from services.adaptive_learning import (
                 load_recent_math_work, render_instruction, select_instruction,
             )
             work = await load_recent_math_work(db, config.student_name)
-            move = select_instruction(work, config.grade_stage.value)
+            adaptive_decision = select_instruction(work, config.grade_stage.value)
             adaptive_instruction_note = render_instruction(
-                move, parent_focus=bool(config.lesson_focus or config.current_unit),
+                adaptive_decision, parent_focus=bool(config.lesson_focus or config.current_unit),
             )
         except Exception as exc:
             log.warning("Adaptive instruction unavailable: %s", type(exc).__name__)
@@ -4565,6 +4566,22 @@ async def stream_tutor_response(
         music_vector=music_vector, music_evidence_count=music_evidence_count,
         adaptive_instruction_note=adaptive_instruction_note,
     )
+
+    # Stage 2: a recorded recommendation is evidence that a controlled
+    # instruction was INCLUDED in the prompt, NOT evidence the model acted
+    # on it or that it improved student learning. The write is deduplicated
+    # by policy/source work and uses the existing student encryption key.
+    # Missing trace data never blocks a child's tutoring turn.
+    if db is not None and adaptive_decision is not None and adaptive_instruction_note:
+        try:
+            from services.adaptive_evidence import record_prompt_recommendation
+            await record_prompt_recommendation(
+                db, config.student_name, adaptive_decision,
+                parent_focus=bool(config.lesson_focus or config.current_unit),
+            )
+        except Exception as exc:
+            log.warning("Adaptive recommendation trace unavailable: %s", type(exc).__name__)
+
     system = [
         {
             "type": "text",

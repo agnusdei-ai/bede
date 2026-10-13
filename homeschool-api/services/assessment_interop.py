@@ -137,6 +137,9 @@ def _render(row, record: dict) -> dict:
             quality_flags.append("review_reported_unit")
         if record.get("reported_band") and record["reported_band"] not in OFFICIAL_RISK_BANDS:
             quality_flags.append("legacy_benchmark_label")
+    if record.get("score_unit") == "percent" and record.get("score") is not None:
+        if record["score"] > 100:
+            quality_flags.append("reported_percent_out_of_range")
     return {
         "quality_flags": quality_flags,
         "id": row.id,

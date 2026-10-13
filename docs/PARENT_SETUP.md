@@ -1416,6 +1416,15 @@ Bede tutors. Setup instructions and the full reasoning are in
   This simply shows which languages your child has responded to most confidently
   so far, since it's meant as a signal for you, not a curriculum Bede is walking
   through.
+- **How Bede adjusts a math lesson:** after a completed math task, Bede can use the
+  existing encrypted work ledger to choose a different *way of asking*: a smaller
+  question, a concrete example, less scaffolding, a gentle review, or a new
+  application. This is a quiet teaching adjustment in the next turn, not a
+  new score, a change to your chosen curriculum, or a claim that a particular
+  technique has been proven to improve learning. Your lesson focus and the
+  child's actual response always take priority. Bede does not store an
+  additional copy of your child's answers for this feature. See
+  [Adaptive Learning Intelligence](ADAPTIVE_LEARNING_INTELLIGENCE.md).
 - **End-of-session summary** (shown after a session ends, and optionally emailed to
   you): highlights, narrations, areas to revisit, tomorrow's suggestion, and a
   virtue observed. If your child worked on Mathematics that session, and the

@@ -106,6 +106,10 @@ async def _seed_all_tables(db, student_name: str):
         student_name=student_name, fingerprint=f"test-{student_name}",
         detail_enc=encrypt_json({"status": "recommended_in_prompt"}),
     ))
+    db.add(EducatorAssessmentEvidence(
+        student_name=student_name, framework="classical",
+        detail_enc=encrypt_json({"framework": "classical"}),
+    ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     await db.commit()
 

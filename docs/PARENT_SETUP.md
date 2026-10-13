@@ -1154,6 +1154,26 @@ mistake, remove the erroneous entry and create a replacement. All records
 are encrypted and included in student-data deletion. Read the full scope and
 limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
 
+### Teach one approved subject now
+
+On **Today's Pod**, select **Teach one subject now** in the student's
+card. Choose one subject from the plan you have already approved and
+optionally write a short focus (for example, "Read the next page and
+narrate the story"). Select **Begin parent-led lesson** to open the
+normal Bede tutoring session on your own device with the learner present.
+You can return to that student's existing academic observations through
+**Review academic evidence**.
+
+This is a real lesson, not a sandbox test. Bede may record approved
+academic observations as he ordinarily does. The temporary single-subject
+session **does not change the student's saved schedule or the tablet
+link**. If you want to change the future plan, use **Edit Pod** in
+Setup and review and save those changes there. For tests that should
+not generate student records, use the separate Parent Sandbox.
+
+See [Bede Classical Core](BEDE_CLASSICAL_CORE.md) for the narrow
+supported first-release workflow and its limits.
+
 ## 6. Getting each child onto their own tablet
 
 **First, each new device needs to trust your server's certificate**: a

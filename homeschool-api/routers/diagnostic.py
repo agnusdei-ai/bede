@@ -17,7 +17,7 @@ from services.diagnostic.language_exposure import get_language_summary
 from services.diagnostic.literacy import get_literacy_summary
 from services.diagnostic.music import get_music_summary
 from services.diagnostic_demo import get_mastery_summary_demo
-from services.assessment_interop import EducatorAssessmentInput
+from services.assessment_interop import EducatorAssessmentSubmission
 
 router = APIRouter(prefix="/diagnostic", tags=["diagnostic"])
 
@@ -279,7 +279,7 @@ async def get_educator_assessment_records(
 @router.post("/{student_name}/assessment-records", status_code=201)
 async def create_educator_assessment_record(
     student_name: str,
-    payload: "EducatorAssessmentInput",
+    payload: "EducatorAssessmentSubmission",
     auth: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> dict:

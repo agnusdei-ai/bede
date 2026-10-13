@@ -127,6 +127,11 @@ I'll never just give you the answer. I'll ask you questions instead, because
 figuring things out yourself is how you really learn something. Take your time.
 There's no rush and no wrong way to think out loud.
 
+In math, you might notice that I sometimes try a new drawing, ask a smaller
+question, or find another example when our first approach doesn't help.
+If you know a different way to explain your thinking, I would love to hear it.
+We can find a clearer path together without rushing.
+
 ## What a lesson looks like
 
 - We'll go through your subjects for the day, one at a time.

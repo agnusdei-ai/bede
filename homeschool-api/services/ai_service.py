@@ -3151,6 +3151,7 @@ async def _build_subject_prompt(
     time_remaining_seconds: Optional[int] = None,
     music_vector: Optional[dict] = None,
     music_evidence_count: int = 0,
+    adaptive_instruction_note: str = "",
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -3253,7 +3254,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -4536,6 +4537,24 @@ async def stream_tutor_response(
     if db is not None and subject in _MUSIC_CHECKIN_SUBJECTS:
         music_vector, music_evidence_count = await _load_music_vector_readonly(db, config.student_name)
 
+    # Bounded, evidence-derived instructional strategy: read ONLY the existing
+    # encrypted math work ledger, and never issue a new curriculum decision.
+    # A fresh read each turn lets Bede alter his approach after recorded work.
+    # The public demo has no persistent student ledger, so it stays unchanged.
+    adaptive_instruction_note = ""
+    if db is not None and subject == Subject.mathematics:
+        try:
+            from services.adaptive_learning import (
+                load_recent_math_work, render_instruction, select_instruction,
+            )
+            work = await load_recent_math_work(db, config.student_name)
+            move = select_instruction(work, config.grade_stage.value)
+            adaptive_instruction_note = render_instruction(
+                move, parent_focus=bool(config.lesson_focus or config.current_unit),
+            )
+        except Exception as exc:
+            log.warning("Adaptive instruction unavailable: %s", type(exc).__name__)
+
     # Two-block system prompt: static block is prompt-cached across turns and subjects;
     # subject block changes per subject and is sent fresh each time.
     subject_prompt_text = await _build_subject_prompt(
@@ -4544,6 +4563,7 @@ async def stream_tutor_response(
         locale=locale, bookmark=bookmark,
         time_remaining_seconds=time_remaining_seconds,
         music_vector=music_vector, music_evidence_count=music_evidence_count,
+        adaptive_instruction_note=adaptive_instruction_note,
     )
     system = [
         {

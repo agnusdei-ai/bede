@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { useSessionStore } from '../store/sessionStore'
+import i18n from '../i18n'
 import type { SessionConfig } from '../types'
 import PodDashboard from './PodDashboard'
 
@@ -26,6 +27,7 @@ const student: SessionConfig = {
 }
 
 beforeEach(() => {
+  i18n.changeLanguage('en')
   sessionStorage.clear()
   act(() => {
     useSessionStore.getState().logout()

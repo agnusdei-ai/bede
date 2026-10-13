@@ -64,7 +64,7 @@ async def test_recommendation_is_encrypted_student_scoped_and_deduplicated(db_se
     rows = (await db_session.execute(select(AdaptiveInstructionTrace))).scalars().all()
     assert len(rows) == 1
     assert rows[0].student_name == "Sam"
-    assert rows[0].fingerprint == recommendation_fingerprint(selected)
+    assert rows[0].fingerprint == recommendation_fingerprint(selected, parent_focus=True)
     assert b"Sam" not in rows[0].detail_enc
     assert b"smaller_step" not in rows[0].detail_enc
 

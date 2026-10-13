@@ -576,6 +576,28 @@ class AdaptiveInstructionTrace(Base):
     )
 
 
+class EducatorAssessmentEvidence(Base):
+    """
+    Encrypted, student-scoped, educator-entered external assessment evidence.
+    Unlike Bede diagnostics it is NOT used for mastery model calibration.
+    Scores and attribution live only in per-student-key ciphertext. Deletion
+    and crypto-shredding are handled by services/student_deletion.py.
+    """
+    __tablename__ = "educator_assessment_evidence"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    framework: Mapped[str] = mapped_column(String(30), nullable=False)
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class SessionTranscript(Base):
     """Encrypted full session transcript saved at session end for parent review."""
     __tablename__ = "session_transcripts"

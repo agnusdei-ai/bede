@@ -372,6 +372,7 @@ compared to transcripts.
 | `mastery_profiles.profile_enc` | Skill-mastery vector | **T3** | Per-student key + AAD ✅ | Reached |
 | `diagnostic_evidence_log.delta_enc` | Probe deltas | **T3** | Per-student key + AAD ✅ | Reached |
 | `adaptive_instruction_traces.detail_enc` | Versioned academic teaching recommendations, source activity identifiers and reason codes; never child words | **T3** | Per-student key + AAD ✅ | Reached — deletion covered |
+| `educator_assessment_evidence.detail_enc` | External assessment scores, source names, and classical academic observations; educator-entered, not independently validated | **T3** | Per-student key + AAD ✅ | Reached — deletion covered |
 | `audit_log.event_enc` | Security event records | **T4** | Shared key + AAD ✅ | Reached. **Deliberately NOT per-student** — the audit log must survive a student's deletion, per `core/audit.py`'s own design note; crypto-shredding it per student would destroy the security record along with the data |
 | `learner_behavior_checks.count_enc` | Adaptation counter | **T4** | Per-student key + AAD ✅ | Exceeds the T4 target deliberately: the row is `student_name`-scoped and dies with the student, so keying it per student costs nothing and makes it shreddable too |
 | `api_usage_events` | Token counts | **T4** | No encrypted column (counts only) | Unchanged — nothing to bind |

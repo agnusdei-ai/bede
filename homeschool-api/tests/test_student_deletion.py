@@ -20,6 +20,7 @@ from core.config import settings
 from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
+    EducatorAssessmentEvidence,
     Base,
     DiagnosticEvidenceLog,
     LearnerBehaviorCheck,
@@ -105,6 +106,10 @@ async def _seed_all_tables(db, student_name: str):
         student_name=student_name, fingerprint=f"test-{student_name}",
         detail_enc=encrypt_json({"status": "recommended_in_prompt"}),
     ))
+    db.add(EducatorAssessmentEvidence(
+        student_name=student_name, framework="classical",
+        detail_enc=encrypt_json({"framework": "classical"}),
+    ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     await db.commit()
 
@@ -120,6 +125,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("lesson_bookmarks", LessonBookmark),
         ("skill_activity_log", SkillActivityLog),
         ("adaptive_instruction_traces", AdaptiveInstructionTrace),
+        ("educator_assessment_evidence", EducatorAssessmentEvidence),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),

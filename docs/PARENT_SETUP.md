@@ -1136,6 +1136,24 @@ only appears at all if the deployment has feedback collection turned on; if
 you don't see it, that's why.) You can always share feedback later too, any
 time, from the message-bubble icon in a session's own header.
 
+### Record a DIBELS or classical assessment result
+
+Open **Pod Dashboard → Progress** and choose a student. Under Bede's own
+academic diagnostics, find **Educator assessment records**. Choose DIBELS
+8th Edition, a classical observation, or another independently administered
+assessment. Enter the actual date, measure, source, and score *as shown
+by the educator's report*. For DIBELS, only enter a benchmark classification
+if it is already stated on that report. Bede does not administer DIBELS,
+generate a score, reproduce test questions, or calculate a benchmark.
+
+For classical work (such as oral narration or translation), record whether
+the task was completed unaided, with a hint, or with help. This does not
+grade character or faith. These entries appear in parent-only Progress
+alongside, but NEVER inside, Bede's own mastery estimates. To correct a
+mistake, remove the erroneous entry and create a replacement. All records
+are encrypted and included in student-data deletion. Read the full scope and
+limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
+
 ## 6. Getting each child onto their own tablet
 
 **First, each new device needs to trust your server's certificate**: a

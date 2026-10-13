@@ -955,3 +955,69 @@ export async function buildLearnerProfile(
   if (!res.ok) throw new Error(`Failed to build learner profile for ${studentName}`)
   return res.json()
 }
+
+
+// ── Parent-entered external & classical assessment evidence ─────────────────
+// Never merge these values into Bede's diagnostic mastery engine. Scores
+// and benchmark categories are reported by the educator, not computed here.
+export type EducatorAssessmentFramework = 'dibels8' | 'classical' | 'external_other'
+export type EducatorAssessmentAssistance = 'unaided' | 'with_a_hint' | 'with_help'
+export type EducatorAssessmentBand = 'at_or_above_benchmark' | 'below_benchmark' | 'well_below_benchmark' | 'not_reported'
+export type EducatorAssessmentScoreUnit = 'count' | 'correct_per_minute' | 'percent' | 'points' | 'other'
+
+export interface EducatorAssessmentInput {
+  framework: EducatorAssessmentFramework
+  measure: string
+  assessed_on: string
+  source_name: string
+  score?: number | null
+  score_unit?: EducatorAssessmentScoreUnit | null
+  reported_band?: EducatorAssessmentBand | null
+  assistance?: EducatorAssessmentAssistance | null
+}
+
+export interface EducatorAssessmentRecord extends EducatorAssessmentInput {
+  id: number
+  student_name: string
+  created_at: string
+  record_status: 'educator_entered_unverified'
+}
+
+export async function fetchEducatorAssessments(
+  token: string, studentName: string,
+): Promise<EducatorAssessmentRecord[]> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/assessment-records`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!res.ok) throw new Error('Could not load educator-entered assessments')
+  return res.json()
+}
+
+export async function saveEducatorAssessment(
+  token: string, studentName: string, payload: EducatorAssessmentInput,
+): Promise<EducatorAssessmentRecord> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/assessment-records`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    },
+  )
+  if (!res.ok) throw new Error('Could not save assessment. Check the fields and try again.')
+  return res.json()
+}
+
+export async function removeEducatorAssessment(
+  token: string, studentName: string, id: number,
+): Promise<void> {
+  const res = await fetch(
+    `${BASE}/diagnostic/${encodeURIComponent(studentName)}/assessment-records/${id}`,
+    { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
+  )
+  if (!res.ok) throw new Error('Could not remove assessment')
+}

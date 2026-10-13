@@ -5,6 +5,7 @@ import type { TFunction } from 'i18next'
 import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
+import EducatorAssessments from '../components/EducatorAssessments'
 import SubjectCoverage from '../components/SubjectCoverage'
 import MasteryOverview from '../components/MasteryOverview'
 import type { MasteryArea } from '../components/MasteryOverview'
@@ -897,6 +898,10 @@ export default function Progress() {
                 removing rather than restyling. Every area's own detail is
                 still here, one tap into its row. */}
             <MasteryOverview areas={masteryAreas} loading={loading} studentName={activeStudent} />
+            {/* Instructor-entered measures are NOT incorporated into these
+                diagnostic mastery estimates. They remain independently
+                sourced evidence, subject to parent review and correction. */}
+            <EducatorAssessments token={token} studentName={activeStudent} />
             <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}

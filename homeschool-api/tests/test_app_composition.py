@@ -109,6 +109,12 @@ GUARDS = {
     # A child's instructional recommendation history is parent-confidential,
     # just like the work ledger it references. Never widen to require_auth.
     ('GET', '/diagnostic/{student_name}/adaptive-learning'): 'require_parent',
+    # Assessment results are confidential even when supplied by a parent:
+    # never widen these to a child or demo role.
+    ('GET', '/diagnostic/assessment-frameworks'): 'require_parent',
+    ('GET', '/diagnostic/{student_name}/assessment-records'): 'require_parent',
+    ('POST', '/diagnostic/{student_name}/assessment-records'): 'require_parent',
+    ('DELETE', '/diagnostic/{student_name}/assessment-records/{record_id}'): 'require_parent',
     # Which scheduled subjects are actually getting taught. Parent-only
     # for the same reason the ledger is: a child shown "you have not done
     # History in three weeks" has been handed a reproach.

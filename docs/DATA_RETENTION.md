@@ -45,6 +45,7 @@ years and nothing here assumes otherwise.
 | `diagnostic_evidence_log` | Derived probe deltas (skill_id, prior→posterior, probe_id, model_used, timestamp — never a transcript or probe text) feeding both the vector above and the end-of-session Math Skill Growth report; on by default (`DIAGNOSTIC_EVIDENCE_LOG_ENABLED`) |
 | `skill_activity_log` | Encrypted events describing completed academic work, including the support needed; never child answers |
 | `adaptive_instruction_traces` | Encrypted, deduplicated teaching-method recommendations and references to source work events, for parent review; not proof that the model delivered the method or caused learning |
+| `educator_assessment_evidence` | Educator-entered external assessment scores and classical work observations, with provenance; scores do not feed Bede's diagnostic mastery model |
 | `session_transcripts` | The full encrypted session transcript, for parent review |
 | `api_usage_events` | Per-call token counts (student-scoped rows only — see below) |
 

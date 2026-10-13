@@ -218,6 +218,14 @@
     "neverMind": "Mejor no"
   },
   "podDashboard": {
+    "prepareFocusedLesson": "Enseñar una materia ahora",
+    "focusedLessonExplanation": "Elija una materia del plan aprobado de hoy. Bede usará las configuraciones y las observaciones académicas existentes del estudiante.",
+    "lessonSubject": "Materia de esta lección",
+    "lessonFocus": "Objetivo de hoy (opcional)",
+    "lessonFocusPlaceholder": "p. ej., Leer el capítulo 3 y narrar lo sucedido",
+    "lessonPrivacyNote": "Sesión guiada por el adulto en este dispositivo, con el estudiante presente. Es una lección real: pueden guardarse registros académicos. El plan habitual de la tableta no cambiará. Para practicar sin guardar datos del estudiante, use la Zona de pruebas.",
+    "beginFocusedLesson": "Comenzar la lección guiada",
+    "reviewEvidence": "Revisar la evidencia académica",
     "noStudentsTitle": "No hay estudiantes configurados",
     "noStudentsBody": "Primero configura el grupo de hoy.",
     "goToSetup": "Ir a Configuración",

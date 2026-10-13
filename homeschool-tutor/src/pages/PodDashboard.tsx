@@ -1,18 +1,29 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
-import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical, Trash2, AlertTriangle } from 'lucide-react'
+import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical, Trash2, AlertTriangle, BookOpen } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import { fetchNarrationAssessments, fetchLearnerProfile, deleteStudentData } from '../services/api'
 import { SUBJECTS } from '../types'
-import type { SessionConfig } from '../types'
+import type { SessionConfig, Subject } from '../types'
 import { subjectLabel } from '../utils/subjectLabel'
+import { prepareFocusedLesson } from '../utils/focusedLesson'
 
 export default function PodDashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { podStudents, setPodStudents, logout, token } = useSessionStore()
+  const { podStudents, setPodStudents, setSessionConfig, startSession, logout, token } = useSessionStore()
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  const startParentLedLesson = (student: SessionConfig, subject: Subject, parentFocus: string) => {
+    const lesson = prepareFocusedLesson(student, subject, parentFocus)
+    if (!lesson) return
+    // Only the currently signed-in parent begins this session here. Child
+    // tablets still fetch the unchanged, persisted daily plan themselves.
+    setSessionConfig(lesson)
+    startSession()
+    navigate('/session')
+  }
 
   const handleDeleted = (studentName: string) => {
     setPodStudents(podStudents.filter((s) => s.student_name !== studentName))
@@ -144,6 +155,8 @@ export default function PodDashboard() {
             <StudentPodCard
               key={student.student_name}
               student={student}
+              onStartLesson={(subject, focus) => startParentLedLesson(student, subject, focus)}
+              onViewEvidence={() => navigate(`/progress?student=${encodeURIComponent(student.student_name)}`)}
               onRequestDelete={() => setDeleteTarget(student.student_name)}
             />
           ))}
@@ -257,13 +270,20 @@ function DeleteStudentModal({
 
 function StudentPodCard({
   student,
+  onStartLesson,
+  onViewEvidence,
   onRequestDelete,
 }: {
   student: SessionConfig
+  onStartLesson: (subject: Subject, focus: string) => void
+  onViewEvidence: () => void
   onRequestDelete: () => void
 }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
+  const [preparing, setPreparing] = useState(false)
+  const [chosenSubject, setChosenSubject] = useState<Subject>(student.subjects[0] ?? 'living_books')
+  const [lessonFocus, setLessonFocus] = useState(student.lesson_focus ?? '')
 
   const sessionUrl = `${window.location.origin}/session?student=${encodeURIComponent(student.student_name)}`
 
@@ -333,6 +353,69 @@ function StudentPodCard({
 
       {/* Actions */}
       <div className="px-5 pb-5 mt-auto space-y-2">
+        <button
+          type="button"
+          onClick={() => setPreparing((open) => !open)}
+          aria-expanded={preparing}
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-sage-300 bg-sage-50 text-sage-800 text-sm font-semibold hover:bg-sage-100 transition-colors"
+        >
+          <BookOpen size={15} /> {t('podDashboard.prepareFocusedLesson')}
+        </button>
+        {preparing && (
+          <form
+            className="rounded-xl border border-sage-200 bg-parchment-50 p-3 space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault()
+              onStartLesson(chosenSubject, lessonFocus)
+            }}
+          >
+            <p className="text-xs text-gray-600">{t('podDashboard.focusedLessonExplanation')}</p>
+            <div>
+              <label htmlFor={`lesson-subject-${student.student_name}`} className="text-xs font-semibold text-gray-700">
+                {t('podDashboard.lessonSubject')}
+              </label>
+              <select
+                id={`lesson-subject-${student.student_name}`}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 text-sm"
+                value={student.subjects.includes(chosenSubject) ? chosenSubject : (student.subjects[0] ?? '')}
+                onChange={(e) => setChosenSubject(e.target.value as Subject)}
+              >
+                {student.subjects.map((subject) => (
+                  <option key={subject} value={subject}>{subjectLabel(t, subject)}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor={`lesson-focus-${student.student_name}`} className="text-xs font-semibold text-gray-700">
+                {t('podDashboard.lessonFocus')}
+              </label>
+              <input
+                id={`lesson-focus-${student.student_name}`}
+                maxLength={300}
+                type="text"
+                value={lessonFocus}
+                onChange={(e) => setLessonFocus(e.target.value)}
+                placeholder={t('podDashboard.lessonFocusPlaceholder')}
+                className="mt-1 w-full rounded-lg border border-gray-200 bg-white p-2 text-sm"
+              />
+            </div>
+            <p className="text-xs text-gray-500">{t('podDashboard.lessonPrivacyNote')}</p>
+            <button
+              disabled={!student.subjects.includes(chosenSubject)}
+              type="submit"
+              className="w-full rounded-xl bg-navy-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:bg-navy-600"
+            >
+              {t('podDashboard.beginFocusedLesson')}
+            </button>
+          </form>
+        )}
+        <button
+          type="button"
+          onClick={onViewEvidence}
+          className="flex items-center justify-center gap-2 w-full py-2 text-xs text-navy-700 hover:underline"
+        >
+          <BarChart2 size={14} /> {t('podDashboard.reviewEvidence')}
+        </button>
         <a
           href={sessionUrl}
           target="_blank"

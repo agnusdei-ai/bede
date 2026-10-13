@@ -218,6 +218,14 @@
     "neverMind": "Never mind"
   },
   "podDashboard": {
+    "prepareFocusedLesson": "Teach one subject now",
+    "focusedLessonExplanation": "Choose a subject already in today's approved plan. Bede will use the learner's existing settings and academic evidence.",
+    "lessonSubject": "Subject for this lesson",
+    "lessonFocus": "Today's focus (optional)",
+    "lessonFocusPlaceholder": "e.g., Read chapter 3 and narrate what happened",
+    "lessonPrivacyNote": "Parent-led on this device, with the learner present. This is a real lesson: academic records may be saved. The student's usual tablet schedule will not change. For a practice chat without student records, use Sandbox.",
+    "beginFocusedLesson": "Begin parent-led lesson",
+    "reviewEvidence": "Review academic evidence",
     "noStudentsTitle": "No Students Configured",
     "noStudentsBody": "Set up today's pod first.",
     "goToSetup": "Go to Setup",

@@ -641,6 +641,8 @@
     "walnut": "Walnut"
   },
   "assessmentStudio": {
+    "psfCorrection": "The University of Oregon corrected Grade 1 PSF scoring materials in September 2026. Check the updated official materials before transcribing older results.",
+    "officialNews": "Official update",
     "assessedGrade": "Grade shown on assessment",
     "chooseGrade": "Choose grade",
     "assessmentWindow": "Assessment window",

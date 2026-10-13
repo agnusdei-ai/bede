@@ -28,11 +28,32 @@ CLASSICAL_MEASURES = frozenset({
     "oral_narration", "oral_examination", "composition",
     "translation", "observation", "applied_work",
 })
+DIBELS_UNITS = {
+    **{measure: "correct_per_minute" for measure in (
+        "LNF", "PSF", "NWF_CLS", "NWF_WRC", "WRF", "ORF_WC"
+    )},
+    "ORF_ACCURACY": "percent",
+    "MAZE": "points",
+    "COMPOSITE": "points",
+}
+DIBELS_GRADES = frozenset({"K", "1", "2", "3", "4", "5", "6", "7", "8"})
+DIBELS_WINDOWS = frozenset({
+    "beginning_of_year", "middle_of_year", "end_of_year", "progress_monitoring",
+})
+OFFICIAL_RISK_BANDS = frozenset({
+    "core_negligible_risk", "core_minimal_risk",
+    "strategic_some_risk", "intensive_at_risk", "not_reported",
+})
+
 Framework = Literal["dibels8", "classical", "external_other"]
 Assistance = Literal["unaided", "with_a_hint", "with_help"]
 ReportedBand = Literal[
     "at_or_above_benchmark", "below_benchmark",
     "well_below_benchmark", "not_reported",
+    # University of Oregon DIBELS 8 color / instructional-support categories.
+    # Older generic labels remain valid for *reading* existing records.
+    "core_negligible_risk", "core_minimal_risk",
+    "strategic_some_risk", "intensive_at_risk",
 ]
 ScoreUnit = Literal["count", "correct_per_minute", "percent", "points", "other"]
 
@@ -50,6 +71,12 @@ class EducatorAssessmentInput(BaseModel):
     score_unit: Optional[ScoreUnit] = None
     reported_band: Optional[ReportedBand] = None
     assistance: Optional[Assistance] = None
+    # Optional in the reader to preserve educator-entered records created
+    # before the grade/assessment-window capture was supported.
+    assessed_grade: Optional[Literal["K", "1", "2", "3", "4", "5", "6", "7", "8"]] = None
+    assessment_window: Optional[Literal[
+        "beginning_of_year", "middle_of_year", "end_of_year", "progress_monitoring",
+    ]] = None
 
     @model_validator(mode="after")
     def check_framework_contract(self):
@@ -77,13 +104,41 @@ class EducatorAssessmentInput(BaseModel):
         return self
 
 
+class EducatorAssessmentSubmission(EducatorAssessmentInput):
+    """Stricter new-write contract; old encrypted records remain readable."""
+
+    @model_validator(mode="after")
+    def check_report_fidelity(self):
+        if self.framework == "dibels8":
+            if self.assessed_grade is None or self.assessment_window is None:
+                raise ValueError("DIBELS entries require reported grade and testing window")
+            if self.score_unit != DIBELS_UNITS[self.measure]:
+                raise ValueError("Reported score unit does not match the selected DIBELS measure")
+            if self.reported_band is not None and self.reported_band not in OFFICIAL_RISK_BANDS:
+                raise ValueError("Use official DIBELS risk categories from the source report")
+        if self.score_unit == "percent" and self.score is not None and self.score > 100:
+            raise ValueError("Percentage cannot exceed 100")
+        return self
+
+
 def _aad(student_name: str) -> bytes:
     from core.encryption import student_aad
     return student_aad("educator_assessment_evidence", "detail_enc", student_name)
 
 
 def _render(row, record: dict) -> dict:
+    quality_flags = []
+    if record["framework"] == "dibels8":
+        if not record.get("assessed_grade"):
+            quality_flags.append("missing_assessed_grade")
+        if not record.get("assessment_window"):
+            quality_flags.append("missing_assessment_window")
+        if record.get("score_unit") != DIBELS_UNITS.get(record["measure"]):
+            quality_flags.append("review_reported_unit")
+        if record.get("reported_band") and record["reported_band"] not in OFFICIAL_RISK_BANDS:
+            quality_flags.append("legacy_benchmark_label")
     return {
+        "quality_flags": quality_flags,
         "id": row.id,
         "student_name": row.student_name,
         "created_at": row.created_at.replace(tzinfo=timezone.utc).isoformat()
@@ -94,6 +149,9 @@ def _render(row, record: dict) -> dict:
 
 
 async def record_assessment(db, student_name: str, entry: EducatorAssessmentInput) -> dict:
+    # Validate even on direct service invocation, not only via the HTTP API.
+    # Do not rewrite or delete older, legitimately recorded family evidence.
+    entry = EducatorAssessmentSubmission.model_validate(entry.model_dump(mode="json"))
     from core import student_keys
     from core.database import StudentConfig, EducatorAssessmentEvidence
     from core.encryption import encrypt_json
@@ -166,6 +224,10 @@ def frameworks_catalog() -> list[dict]:
             "label": "DIBELS 8th Edition",
             "kind": "external_standardized",
             "supported_measures": sorted(DIBELS_MEASURES),
+            "measure_units": DIBELS_UNITS,
+            "grades": sorted(DIBELS_GRADES),
+            "windows": sorted(DIBELS_WINDOWS),
+            "reported_bands": sorted(OFFICIAL_RISK_BANDS),
             "administration": "external_only",
             "interpretation": "educator_supplied_only",
         },

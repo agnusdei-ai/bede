@@ -228,6 +228,15 @@ export default function EducatorAssessments({
               </div>
             </div>
           )}
+          {framework === 'dibels8' && measure === 'PSF' && assessedGrade === '1' && (
+            <p className="text-xs text-amber-800">
+              {t('assessmentStudio.psfCorrection')}
+              {' '}<a href="https://dibels.uoregon.edu/news" target="_blank"
+                rel="noopener noreferrer" className="underline">
+                {t('assessmentStudio.officialNews')}
+              </a>
+            </p>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="assessment-date" className="label">{t('assessmentStudio.date')}</label>
@@ -261,17 +270,22 @@ export default function EducatorAssessments({
                     required className={inputStyle} value={score} onChange={(e) => setScore(e.target.value)} />
                 </div>
                 <div>
-                  <label htmlFor="assessment-unit" className="label">{t('assessmentStudio.unit')}</label>
                   {framework === 'dibels8'
-                    ? <p id="assessment-unit" className="mt-1 text-sm text-gray-700">
-                        {t('assessmentStudio.unit_' + unitForMeasure, { defaultValue: unitForMeasure ?? '' })}
-                      </p>
-                    : <select id="assessment-unit" className={inputStyle} value={scoreUnit}
+                    ? <>
+                        <span className="label">{t('assessmentStudio.unit')}</span>
+                        <p className="mt-1 text-sm text-gray-700">
+                          {t('assessmentStudio.unit_' + unitForMeasure, { defaultValue: unitForMeasure ?? '' })}
+                        </p>
+                      </>
+                    : <>
+                        <label htmlFor="assessment-unit" className="label">{t('assessmentStudio.unit')}</label>
+                        <select id="assessment-unit" className={inputStyle} value={scoreUnit}
                         onChange={(e) => setScoreUnit(e.target.value as EducatorAssessmentScoreUnit)}>
                         {UNITS.map((unit) => <option key={unit} value={unit}>
                           {t('assessmentStudio.unit_' + unit)}
                         </option>)}
-                      </select>}
+                        </select>
+                      </>}
                 </div>
               </div>
               {framework === 'dibels8' && (

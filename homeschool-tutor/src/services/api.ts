@@ -964,6 +964,26 @@ export type EducatorAssessmentFramework = 'dibels8' | 'classical' | 'external_ot
 export type EducatorAssessmentAssistance = 'unaided' | 'with_a_hint' | 'with_help'
 export type EducatorAssessmentBand = 'at_or_above_benchmark' | 'below_benchmark' | 'well_below_benchmark' | 'not_reported'
 export type EducatorAssessmentScoreUnit = 'count' | 'correct_per_minute' | 'percent' | 'points' | 'other'
+export type DibelsGrade = 'K' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'
+export type DibelsWindow = 'beginning_of_year' | 'middle_of_year' | 'end_of_year' | 'progress_monitoring'
+export interface AssessmentFrameworkMetadata {
+  id: EducatorAssessmentFramework
+  label: string
+  supported_measures: string[]
+  measure_units?: Record<string, EducatorAssessmentScoreUnit>
+  grades?: DibelsGrade[]
+  windows?: DibelsWindow[]
+  reported_bands?: EducatorAssessmentBand[]
+  administration: string
+  interpretation: string
+}
+export async function fetchAssessmentFrameworks(token: string): Promise<AssessmentFrameworkMetadata[]> {
+  const res = await fetch(`${BASE}/diagnostic/assessment-frameworks`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load the current assessment framework catalog')
+  return res.json()
+}
 
 export interface EducatorAssessmentInput {
   framework: EducatorAssessmentFramework
@@ -974,6 +994,8 @@ export interface EducatorAssessmentInput {
   score_unit?: EducatorAssessmentScoreUnit | null
   reported_band?: EducatorAssessmentBand | null
   assistance?: EducatorAssessmentAssistance | null
+  assessed_grade?: DibelsGrade | null
+  assessment_window?: DibelsWindow | null
 }
 
 export interface EducatorAssessmentRecord extends EducatorAssessmentInput {
@@ -981,6 +1003,7 @@ export interface EducatorAssessmentRecord extends EducatorAssessmentInput {
   student_name: string
   created_at: string
   record_status: 'educator_entered_unverified'
+  quality_flags: string[]
 }
 
 export async function fetchEducatorAssessments(

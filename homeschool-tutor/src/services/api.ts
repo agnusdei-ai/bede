@@ -962,7 +962,16 @@ export async function buildLearnerProfile(
 // and benchmark categories are reported by the educator, not computed here.
 export type EducatorAssessmentFramework = 'dibels8' | 'classical' | 'external_other'
 export type EducatorAssessmentAssistance = 'unaided' | 'with_a_hint' | 'with_help'
-export type EducatorAssessmentBand = 'at_or_above_benchmark' | 'below_benchmark' | 'well_below_benchmark' | 'not_reported'
+export type EducatorAssessmentBand =
+  | 'not_reported'
+  | 'core_negligible_risk'
+  | 'core_minimal_risk'
+  | 'strategic_some_risk'
+  | 'intensive_at_risk'
+  // Pre-upgrade labels retained to display older records accurately.
+  | 'at_or_above_benchmark'
+  | 'below_benchmark'
+  | 'well_below_benchmark'
 export type EducatorAssessmentScoreUnit = 'count' | 'correct_per_minute' | 'percent' | 'points' | 'other'
 export type DibelsGrade = 'K' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'
 export type DibelsWindow = 'beginning_of_year' | 'middle_of_year' | 'end_of_year' | 'progress_monitoring'

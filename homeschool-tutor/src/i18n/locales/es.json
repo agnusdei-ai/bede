@@ -641,6 +641,8 @@
     "walnut": "Nogal"
   },
   "assessmentStudio": {
+    "psfCorrection": "La Universidad de Oregón corrigió los materiales de calificación de PSF de primer grado en septiembre de 2026. Revise los materiales oficiales actualizados antes de transcribir resultados anteriores.",
+    "officialNews": "Actualización oficial",
     "assessedGrade": "Grado indicado en la evaluación",
     "chooseGrade": "Seleccionar grado",
     "assessmentWindow": "Período de evaluación",

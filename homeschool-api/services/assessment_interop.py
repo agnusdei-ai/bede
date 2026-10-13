@@ -96,11 +96,15 @@ class EducatorAssessmentInput(BaseModel):
                 raise ValueError("Record only the factual assistance observed")
             if self.score is not None or self.score_unit is not None or self.reported_band is not None:
                 raise ValueError("Classical observations do not use external scores or benchmarks")
+            if self.assessed_grade is not None or self.assessment_window is not None:
+                raise ValueError("DIBELS report fields do not apply to classical observations")
         else:
             if self.score is None or self.score_unit is None:
                 raise ValueError("Enter both the externally reported score and its unit")
             if self.assistance is not None or self.reported_band is not None:
                 raise ValueError("Unsupported interpretation for an unregistered external framework")
+            if self.assessed_grade is not None or self.assessment_window is not None:
+                raise ValueError("DIBELS report fields do not apply to other external frameworks")
         return self
 
 

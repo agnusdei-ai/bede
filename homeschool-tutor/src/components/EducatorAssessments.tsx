@@ -2,30 +2,19 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ClipboardList, Plus, Trash2 } from 'lucide-react'
 import {
-  fetchEducatorAssessments, removeEducatorAssessment, saveEducatorAssessment,
+  fetchEducatorAssessments, fetchAssessmentFrameworks,
+  removeEducatorAssessment, saveEducatorAssessment,
 } from '../services/api'
 import type {
   EducatorAssessmentAssistance, EducatorAssessmentBand,
   EducatorAssessmentFramework, EducatorAssessmentRecord,
-  EducatorAssessmentScoreUnit,
+  EducatorAssessmentScoreUnit, AssessmentFrameworkMetadata, DibelsGrade, DibelsWindow,
 } from '../services/api'
 
-// These labels mirror the backend allowlist. They describe the external
-// educator's REPORT, never administer DIBELS or infer published cut scores.
-const DIBELS_MEASURES = [
-  'LNF', 'PSF', 'NWF_CLS', 'NWF_WRC', 'WRF',
-  'ORF_WC', 'ORF_ACCURACY', 'MAZE', 'COMPOSITE',
-] as const
-const CLASSICAL_MEASURES = [
-  'oral_narration', 'oral_examination', 'composition', 'translation',
-  'observation', 'applied_work',
-] as const
+// The backend catalog is authoritative for current framework measures,
+// required units, grades and risk-band options. Do not copy those rules here.
 const UNITS: EducatorAssessmentScoreUnit[] = [
   'count', 'correct_per_minute', 'percent', 'points', 'other',
-]
-const BANDS: EducatorAssessmentBand[] = [
-  'not_reported', 'at_or_above_benchmark', 'below_benchmark',
-  'well_below_benchmark',
 ]
 const ASSISTANCE: EducatorAssessmentAssistance[] = [
   'unaided', 'with_a_hint', 'with_help',
@@ -45,6 +34,7 @@ export default function EducatorAssessments({
 }) {
   const { t } = useTranslation()
   const [records, setRecords] = useState<EducatorAssessmentRecord[]>([])
+  const [catalog, setCatalog] = useState<AssessmentFrameworkMetadata[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [expanded, setExpanded] = useState(false)
@@ -57,29 +47,56 @@ export default function EducatorAssessments({
   const [scoreUnit, setScoreUnit] = useState<EducatorAssessmentScoreUnit>('correct_per_minute')
   const [band, setBand] = useState<EducatorAssessmentBand>('not_reported')
   const [assistance, setAssistance] = useState<EducatorAssessmentAssistance>('unaided')
+  const [assessedGrade, setAssessedGrade] = useState<DibelsGrade | ''>('')
+  const [assessmentWindow, setAssessmentWindow] = useState<DibelsWindow | ''>('')
 
   useEffect(() => {
     let active = true
     setLoading(true)
     setRecords([])
+    setCatalog([])
     setMessage('')
-    fetchEducatorAssessments(token, studentName)
-      .then((rows) => { if (active) setRecords(rows) })
+    Promise.all([
+      fetchEducatorAssessments(token, studentName),
+      fetchAssessmentFrameworks(token),
+    ])
+      .then(([rows, definitions]) => {
+        if (active) {
+          setRecords(rows)
+          setCatalog(definitions)
+        }
+      })
       .catch(() => { if (active) setMessage(t('assessmentStudio.loadError')) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [token, studentName, t])
 
+  const dibels = catalog.find((item) => item.id === 'dibels8')
+  const chosenFramework = catalog.find((item) => item.id === framework)
+  const validMeasure = chosenFramework?.supported_measures.includes(measure) ?? false
+  const unitForMeasure = dibels?.measure_units?.[measure]
+  const effectiveUnit = framework === 'dibels8' ? unitForMeasure : scoreUnit
+  const measureOptions = chosenFramework?.supported_measures ?? []
+  const bands = dibels?.reported_bands ?? []
+
   const changeFramework = (next: EducatorAssessmentFramework) => {
     setFramework(next)
-    setMeasure(next === 'dibels8' ? 'ORF_WC' : next === 'classical' ? 'oral_narration' : '')
+    const options = catalog.find((item) => item.id === next)?.supported_measures ?? []
+    setMeasure(next === 'external_other' ? '' : next === 'dibels8' && options.includes('ORF_WC')
+      ? 'ORF_WC' : options[0] ?? '')
     setScore('')
     setBand('not_reported')
+    setAssessedGrade('')
+    setAssessmentWindow('')
   }
 
   const save = async () => {
-    if (saving || !sourceName.trim() || !measure.trim() ||
-        (framework !== 'classical' && (!score.trim() || !Number.isFinite(Number(score))))) {
+    if (saving || !catalog.length || !sourceName.trim() || !measure.trim() ||
+        (framework !== 'external_other' && !validMeasure) ||
+        (framework === 'dibels8' && (!assessedGrade || !assessmentWindow || !unitForMeasure)) ||
+        (framework !== 'classical' && (!score.trim() ||
+          !Number.isFinite(Number(score)) ||
+          (effectiveUnit === 'percent' && Number(score) > 100)))) {
       setMessage(t('assessmentStudio.requiredError'))
       return
     }
@@ -95,8 +112,12 @@ export default function EducatorAssessments({
           ? { assistance }
           : {
             score: Number(score),
-            score_unit: scoreUnit,
-            ...(framework === 'dibels8' ? { reported_band: band } : {}),
+            score_unit: effectiveUnit,
+            ...(framework === 'dibels8' ? {
+              assessed_grade: assessedGrade as DibelsGrade,
+              assessment_window: assessmentWindow as DibelsWindow,
+              reported_band: band,
+            } : {}),
           }),
       })
       setRecords((prev) => [result, ...prev])
@@ -141,7 +162,8 @@ export default function EducatorAssessments({
             <p className="text-xs text-gray-500 mt-1">{t('assessmentStudio.description')}</p>
           </div>
         </div>
-        <button type="button" onClick={() => { setExpanded(!expanded); setMessage('') }}
+        <button type="button" disabled={!catalog.length}
+          onClick={() => { setExpanded(!expanded); setMessage('') }}
           aria-expanded={expanded}
           className="inline-flex items-center gap-1.5 rounded-lg bg-navy-50 px-3 py-2 text-sm font-medium text-navy-800">
           <Plus size={15} /> {t('assessmentStudio.add')}
@@ -174,7 +196,7 @@ export default function EducatorAssessments({
                   value={measure} onChange={(e) => setMeasure(e.target.value)} />
               : <select id="assessment-measure" className={inputStyle} value={measure}
                   onChange={(e) => setMeasure(e.target.value)}>
-                  {(framework === 'dibels8' ? DIBELS_MEASURES : CLASSICAL_MEASURES).map((key) => (
+                  {measureOptions.map((key) => (
                     <option key={key} value={key}>
                       {t('assessmentStudio.measure_' + key)}
                     </option>
@@ -182,6 +204,30 @@ export default function EducatorAssessments({
                 </select>
             }
           </div>
+          {framework === 'dibels8' && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="dibels-grade" className="label">{t('assessmentStudio.assessedGrade')}</label>
+                <select id="dibels-grade" required className={inputStyle}
+                  value={assessedGrade} onChange={(e) => setAssessedGrade(e.target.value as DibelsGrade)}>
+                  <option value="">{t('assessmentStudio.chooseGrade')}</option>
+                  {(dibels?.grades ?? []).map((grade) => (
+                    <option value={grade} key={grade}>{grade}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="dibels-window" className="label">{t('assessmentStudio.assessmentWindow')}</label>
+                <select id="dibels-window" required className={inputStyle}
+                  value={assessmentWindow} onChange={(e) => setAssessmentWindow(e.target.value as DibelsWindow)}>
+                  <option value="">{t('assessmentStudio.chooseWindow')}</option>
+                  {(dibels?.windows ?? []).map((window) => (
+                    <option key={window} value={window}>{t('assessmentStudio.window_' + window)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="assessment-date" className="label">{t('assessmentStudio.date')}</label>
@@ -210,17 +256,22 @@ export default function EducatorAssessments({
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="assessment-score" className="label">{t('assessmentStudio.reportedScore')}</label>
-                  <input id="assessment-score" type="number" min={0} max={1000000} step="any"
+                  <input id="assessment-score" type="number" min={0}
+                    max={effectiveUnit === 'percent' ? 100 : 1000000} step="any"
                     required className={inputStyle} value={score} onChange={(e) => setScore(e.target.value)} />
                 </div>
                 <div>
                   <label htmlFor="assessment-unit" className="label">{t('assessmentStudio.unit')}</label>
-                  <select id="assessment-unit" className={inputStyle} value={scoreUnit}
-                    onChange={(e) => setScoreUnit(e.target.value as EducatorAssessmentScoreUnit)}>
-                    {UNITS.map((unit) => <option key={unit} value={unit}>
-                      {t('assessmentStudio.unit_' + unit)}
-                    </option>)}
-                  </select>
+                  {framework === 'dibels8'
+                    ? <p id="assessment-unit" className="mt-1 text-sm text-gray-700">
+                        {t('assessmentStudio.unit_' + unitForMeasure, { defaultValue: unitForMeasure ?? '' })}
+                      </p>
+                    : <select id="assessment-unit" className={inputStyle} value={scoreUnit}
+                        onChange={(e) => setScoreUnit(e.target.value as EducatorAssessmentScoreUnit)}>
+                        {UNITS.map((unit) => <option key={unit} value={unit}>
+                          {t('assessmentStudio.unit_' + unit)}
+                        </option>)}
+                      </select>}
                 </div>
               </div>
               {framework === 'dibels8' && (
@@ -228,7 +279,7 @@ export default function EducatorAssessments({
                   <label htmlFor="assessment-band" className="label">{t('assessmentStudio.reportedBand')}</label>
                   <select id="assessment-band" className={inputStyle} value={band}
                     onChange={(e) => setBand(e.target.value as EducatorAssessmentBand)}>
-                    {BANDS.map((value) => <option key={value} value={value}>
+                    {bands.map((value) => <option key={value} value={value}>
                       {t('assessmentStudio.band_' + value)}
                     </option>)}
                   </select>
@@ -270,6 +321,20 @@ export default function EducatorAssessments({
                           {t('assessmentStudio.asReported')}: {t('assessmentStudio.band_' + record.reported_band)}
                         </p>
                       )}
+                    {record.framework === 'dibels8' && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {record.assessed_grade ?? t('assessmentStudio.gradeUnrecorded')}
+                        {' · '}
+                        {record.assessment_window
+                          ? t('assessmentStudio.window_' + record.assessment_window)
+                          : t('assessmentStudio.windowUnrecorded')}
+                      </p>
+                    )}
+                    {record.quality_flags?.length > 0 && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        {t('assessmentStudio.reviewOlderRecord')}
+                      </p>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">{t('assessmentStudio.unverified')}</p>
                   </div>
                   <button type="button" onClick={() => void remove(record.id)}

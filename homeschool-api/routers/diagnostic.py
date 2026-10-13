@@ -238,6 +238,22 @@ async def get_subject_coverage(
     return to_payload(coverage)
 
 
+@router.get("/{student_name}/adaptive-learning")
+async def get_adaptive_recommendation_history(
+    student_name: str,
+    since_days: int = 90,
+    limit: int = 40,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Parent-only instructional recommendation history, not an efficacy grade."""
+    from services.adaptive_evidence import parent_recommendation_history
+
+    return await parent_recommendation_history(
+        db, student_name, days=since_days, limit=limit,
+    )
+
+
 @router.get("/{student_name}/activity")
 async def get_student_activity(
     student_name: str,

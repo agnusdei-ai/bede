@@ -43,6 +43,8 @@ years and nothing here assumes otherwise.
 | `lesson_bookmarks` | One short, internal, Bede-authored resume-point note per subject — where that subject left off, for continuity into the next session (see `CLAUDE.md`'s "Lesson continuity (bookmarks)" note). Never shown in the app; not a tracked metric |
 | `mastery_profiles` | The math skill-mastery vector (IRT/CDM/KST — see `docs/diagnostic/`) |
 | `diagnostic_evidence_log` | Derived probe deltas (skill_id, prior→posterior, probe_id, model_used, timestamp — never a transcript or probe text) feeding both the vector above and the end-of-session Math Skill Growth report; on by default (`DIAGNOSTIC_EVIDENCE_LOG_ENABLED`) |
+| `skill_activity_log` | Encrypted events describing completed academic work, including the support needed; never child answers |
+| `adaptive_instruction_traces` | Encrypted, deduplicated teaching-method recommendations and references to source work events, for parent review; not proof that the model delivered the method or caused learning |
 | `session_transcripts` | The full encrypted session transcript, for parent review |
 | `api_usage_events` | Per-call token counts (student-scoped rows only — see below) |
 
@@ -174,6 +176,26 @@ not to substitute for one. If you operate this for other families (a
 co-op/parish `coop`-tier license, say), get your own legal review before
 relying on anything here as a compliance statement.
 
+
+## Adaptive teaching recommendations (`adaptive_instruction_traces`)
+
+When the mathematical tutoring controller selects a recommendation from the
+existing work ledger, Bede can store one encrypted, student-scoped record
+describing the policy version, skill, teaching method, source work event IDs,
+and whether a parent directed the lesson. Identical recommendations from the
+same work evidence are deduplicated. No child words, model prompt text, or
+student grading claims are stored.
+
+The parent-only `GET /diagnostic/{student_name}/adaptive-learning` endpoint
+displays recommendations and any subsequently recorded completed work in the
+same skill. It must never state that a recommendation was definitely used by
+the model or that it caused later improvement. Later work may be absent
+from the bounded view; this is not a failed learning event.
+
+The records are retained in the family's self-hosted database until the
+student is deleted, like the work ledger. `delete_all_student_data()`
+removes them with the same transaction and per-student cryptographic
+key destruction; the public demo never creates this table's records.
 
 ## The work ledger (`skill_activity_log`)
 

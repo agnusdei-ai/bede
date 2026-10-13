@@ -1425,6 +1425,13 @@ Bede tutors. Setup instructions and the full reasoning are in
   child's actual response always take priority. Bede does not store an
   additional copy of your child's answers for this feature. See
   [Adaptive Learning Intelligence](ADAPTIVE_LEARNING_INTELLIGENCE.md).
+  If you want to inspect the methods the tutoring engine recommended, the
+  parent-authenticated API at
+  `GET /diagnostic/{student_name}/adaptive-learning` returns a bounded,
+  factual history of suggestions and any later work in the same math skill.
+  This is an advanced diagnostic endpoint, not yet a new Progress-page card.
+  A recommendation is *not* a guarantee that Bede used it or that it
+  improved learning. These records are removed when you delete the student.
 - **End-of-session summary** (shown after a session ends, and optionally emailed to
   you): highlights, narrations, areas to revisit, tomorrow's suggestion, and a
   virtue observed. If your child worked on Mathematics that session, and the

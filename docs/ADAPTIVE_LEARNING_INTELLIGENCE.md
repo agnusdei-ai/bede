@@ -47,11 +47,39 @@ No new database table, model provider, network access, or background agent
 is created. Existing student deletion also deletes the evidence backing
 these teaching moves. If retrieval fails, the lesson proceeds normally.
 
+## Stage 2: encrypted recommendation evidence trail
+
+The parent-authenticated API endpoint
+`GET /diagnostic/{student_name}/adaptive-learning` now provides a bounded
+history of Bede's versioned mathematical teaching recommendations. Each
+record includes the selected skill, policy, reason code, and identifiers of
+the encrypted completed-work observations that prompted the recommendation.
+Repeated turns on the same observations are deduplicated.
+
+The endpoint optionally displays the earliest *later recorded completion*
+for the same skill from the existing limited work-history window. This is
+not a new grade. It is an observation that followed a prompt containing
+an instructional recommendation. It does NOT demonstrate that the model
+actually used the recommended method, that the student encountered it,
+or that the recommendation caused subsequent learning. Missing subsequent
+work is unknown, not failure.
+
+The trace table is encrypted under the per-student key, deleted with the
+student's other records, never persisted for the public demo, and never
+stores raw student content. The implementation includes tests for real
+tutoring invocation, student separation, encryption, corruption handling,
+deduplication, timing, and deletion. A Progress page card is not built.
+
+This is **observation instrumentation**, not an experimentally validated
+intervention optimizer. Full effectiveness claims need randomized or
+otherwise carefully controlled evaluation with independent educator labels.
+
 ## What is not yet built
 
-- A full closed-loop teaching-experiment ledger linking a specific
-  pedagogical intervention to independently scored subsequent work,
-  with consent/retention boundaries and a non-causal initial report.
+- A verified-delivery intervention ledger linking the teaching move the
+  model actually used to independently scored subsequent academic work
+  and educator-reviewed outcomes. The Stage 2 recommendation record is
+  only a prerequisite for that richer research-grade capability.
 - Multi-subject teaching strategies beyond math, supported by subject-
   specific, independently validated evidence.
 - Verified content retrieval, citation-enforced assessment, model/rubric
@@ -118,10 +146,11 @@ security. Those require actual runtime tests and independent evaluation.
 
 ## Follow-on build order
 
-- **Stage 2 — Evidence and intervention telemetry:** add an append-only,
-  per-student encrypted, deletion-covered intervention record with stable
-  linkage to later observed work, educator corrections, and explicit
-  uncertainty. Preserve privacy; do not store raw answers again.
+- **Stage 2 — Evidence and intervention telemetry:** a parent-readable,
+  encrypted and deletion-covered record of recommendations and later
+  work is implemented. Verified instructional delivery, independent
+  assessment, educator correction, and consent-bound research telemetry
+  are still needed before interpreting policy effectiveness.
 - **Stage 3 — Multi-subject and source-trust agents:** authorize bounded
   evidence retrieval, vetted lesson alternatives, independent content
   checks, and the existing parent approval flow.

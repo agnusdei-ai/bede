@@ -19,6 +19,7 @@ from sqlalchemy.pool import StaticPool
 from core.config import settings
 from core.database import (
     ApiUsageEvent,
+    AdaptiveInstructionTrace,
     Base,
     DiagnosticEvidenceLog,
     LearnerBehaviorCheck,
@@ -100,6 +101,10 @@ async def _seed_all_tables(db, student_name: str):
         student_name=student_name, subject_area="mathematics", skill_id="oa.division_facts",
         completed_at=now, detail_enc=encrypt_json({"skill_id": "oa.division_facts"}),
     ))
+    db.add(AdaptiveInstructionTrace(
+        student_name=student_name, fingerprint=f"test-{student_name}",
+        detail_enc=encrypt_json({"status": "recommended_in_prompt"}),
+    ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     await db.commit()
 
@@ -114,6 +119,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("learner_behavior_check", LearnerBehaviorCheck),
         ("lesson_bookmarks", LessonBookmark),
         ("skill_activity_log", SkillActivityLog),
+        ("adaptive_instruction_traces", AdaptiveInstructionTrace),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),

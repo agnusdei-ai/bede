@@ -111,7 +111,7 @@ describe('parent-entered DIBELS 8 report fidelity', () => {
       ],
     }])
     render(<EducatorAssessments token="parent-token" studentName="Alex" />)
-    await waitFor(() => expect(screen.getByText(/Older report needs source review/)).toBeTruthy())
+    await waitFor(() => expect(screen.getByText(/Older record needs source review/)).toBeTruthy())
     expect(screen.getByText(/Older reading report/)).toBeTruthy()
     expect(screen.getByText(/Below benchmark/)).toBeTruthy()
   })

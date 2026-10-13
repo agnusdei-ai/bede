@@ -29,11 +29,12 @@ _MAX_REPORT = 40
 _REPORT_DAYS = 90
 
 
-def recommendation_fingerprint(decision: InstructionalDecision) -> str:
+def recommendation_fingerprint(decision: InstructionalDecision, *, parent_focus: bool = False) -> str:
     """Stable de-duplication for repeat prompts from identical work history."""
     body = [
         decision.policy_version, decision.skill_id, decision.method,
         decision.reason_code, list(decision.evidence_event_ids),
+        bool(parent_focus),
     ]
     return hashlib.sha256(json.dumps(body, separators=(",", ":")).encode("utf-8")).hexdigest()
 
@@ -62,7 +63,7 @@ async def record_prompt_recommendation(
             or any(not isinstance(i, int) or i <= 0 for i in decision.evidence_event_ids)):
         return False
 
-    fingerprint = recommendation_fingerprint(decision)
+    fingerprint = recommendation_fingerprint(decision, parent_focus=parent_focus)
     try:
         existing = (await db.execute(
             select(AdaptiveInstructionTrace.id).where(

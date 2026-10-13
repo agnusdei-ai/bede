@@ -46,7 +46,7 @@ class EducatorAssessmentInput(BaseModel):
     measure: str = Field(min_length=1, max_length=85)
     assessed_on: date
     source_name: str = Field(min_length=2, max_length=120)
-    score: Optional[float] = Field(default=None, ge=0, le=1_000_000)
+    score: Optional[float] = Field(default=None, ge=0, le=1_000_000, allow_inf_nan=False)
     score_unit: Optional[ScoreUnit] = None
     reported_band: Optional[ReportedBand] = None
     assistance: Optional[Assistance] = None

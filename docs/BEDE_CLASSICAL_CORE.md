@@ -65,6 +65,53 @@ mathematics and literacy foundations where appropriate. Families
 remain the educational authority. Technology follows pedagogy and
 children never receive judgments of faith, virtue or aptitude.
 
+### Competitor evidence: Acton, Alpha, and Kumon (checked October 13, 2026)
+
+Three models are relevant, but they do not deliver equivalent products:
+
+- **Kumon** offers personalized math/reading progression, small-step
+  independent worksheets, and instructor review. Some centers offer
+  Kumon Connect, a digital worksheet experience. A sample official local
+  center in Paloma Creek advertises $160 per subject per month, plus
+  enrollment/materials fees. Prices vary by independently owned center.
+  Sources: https://www.kumon.com/how-kumon-works and
+  https://www.kumon.com/paloma-creek/aboutcenter.
+- **Acton Academy** uses learner-driven mixed-age studios, human
+  Socratic guides, independent technology-based mastery work, and
+  hands-on quests. Its model does not prescribe a single AI tutoring
+  agent across campuses; at least one campus names Khan Academy,
+  Beast Academy, and Lexia among tools it has used. The official
+  Dripping Springs campus lists $13,860 annual tuition starting Fall
+  2025. Acton is also a school community, not merely instructional
+  software. Sources: https://actonacademy.org/model/,
+  https://www.actonacademyfrisco.com/faq/, and
+  https://actonds.org/faq-5143-3496.
+- **Alpha School** explicitly deploys a mastery-based **AI tutor** in
+  its TimeBack learning platform, with human guides, progress tracking,
+  and two-hour academic blocks. Austin lists $40,000 tuition.
+  Alpha's published learning acceleration results are **Alpha's own
+  claims**, not independently replicated outcomes for Bede or proof
+  of a head-to-head advantage. Sources:
+  https://alpha.school/faq/,
+  https://alpha.school/blog/introducing-timeback-the-next-evolution-of-alphas-model/,
+  and https://alpha.school/locations/.
+
+**Proposed Bede distinction:** classical inquiry across books,
+narration, history, arts, theology and foundational subjects, with a
+constitution-governed AI teaching companion, parent-controlled lesson
+selection, and student-scoped academic evidence. Do not reproduce
+Kumon's proprietary worksheets, Acton's studio community, or Alpha's
+motivation economy. Do not claim equivalence to their full-day school
+or human mentorship offerings.
+
+**Economics must be validated:** full school tuition cannot be treated
+as the same product cost as supplemental AI tutoring. Before publishing
+"lower cost per learning outcome," measure and report Bede subscription
+price, hardware amortization, model inference, support/operations,
+parent time, supplementary books, and real academic progress from
+independent measures. Annual **purchase price** could be lower than a
+private campus, but **outcome-adjusted cost** has not been demonstrated.
+
 Fair comparisons require separately defined baselines:
 - **Operational:** an adult can set up the lesson, help a child start,
   see recorded academic work, and return next time without developer help.

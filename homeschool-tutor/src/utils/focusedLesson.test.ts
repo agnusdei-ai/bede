@@ -16,7 +16,7 @@ const student: SessionConfig = {
   ],
   voice_required: true,
   learning_support: ['Use smaller questions'],
-  term_mastery_topics: { literacy: ['Narration'] },
+  term_mastery_topics: { reading_literature: ['Narration'] },
 }
 
 describe('parent-led focused lesson', () => {

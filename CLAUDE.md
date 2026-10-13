@@ -819,6 +819,22 @@ The governing distinction: **Bede scores the WORK PRODUCT, never the child.** "T
 
 **Bede Classical Core — parent-led focused lesson invocation:** `homeschool-tutor/src/utils/focusedLesson.ts` derives a temporary `SessionConfig` from an existing parent-approved subject without changing the saved pod configuration. `PodDashboard` lets the authenticated parent choose one preapproved subject, optionally set today's focus, and invoke the REAL `useSessionStore.startSession()` → `TutorSession` path. `Review academic evidence` links back to the existing Progress route for that student. Other student settings, learning supports, constitution, and normal evidence handling are retained. The student's tablet route still fetches the original server-side plan. This is real instruction and may generate student academic records; do not describe it as a demo. `focusedLesson.test.ts` and `PodDashboard.focusedLesson.test.tsx` pin the approved-subject boundary, immutable saved plan, and live call-site invocation. See `docs/BEDE_CLASSICAL_CORE.md` for the supportable startup boundary and independently evidenced comparison to in-person learning systems.
 
+**DIBELS 8 assessment data-quality contract (report provenance, no inferred norms):**
+`services/assessment_interop.py` now keeps historical `EducatorAssessmentInput`
+records readable while `EducatorAssessmentSubmission` requires new educator
+submissions to specify the source report's grade and assessment window, the
+canonical measure-specific unit (for example, ORF accuracy as a percentage),
+and only exact official support/risk band labels if transcribed. Scores and
+norms are *not* independently calculated. `frameworks_catalog()` is the
+runtime source of truth for measure/unit mapping and selection choices used
+by `EducatorAssessments.tsx`; the view flags legacy missing metadata and
+unit/band mismatches without silently altering existing records. The official
+2026 DIBELS reporting correction for Grade 1 PSF is linked in UI and
+`docs/ASSESSMENT_INTEROPERABILITY.md`. Tests cover grade/window requirements,
+bounded percentages, legacy ciphertext continuity, real parent UI invocation,
+and parent-only access. This is integrity of **reported** evidence, not a
+claim that Bede administers or validates standardized tests.
+
 **Parent-entered assessment interoperability (DIBELS 8 + classical evidence):** `services/assessment_interop.py` validates strictly bounded educator-supplied evidence with three frameworks: DIBELS 8, classical academic observations, and other externally reported measures. No DIBELS test items, proprietary norms, administration protocols, model-calculated benchmarks, grade normalization, or inference about the child is generated or stored. `core/database.py` adds `EducatorAssessmentEvidence`, with T3 student-key encryption and `student_deletion.py` crypto-shred coverage. Parent-only `routers/diagnostic.py` CRUD calls serve `homeschool-tutor/src/components/EducatorAssessments.tsx`, embedded independently alongside the existing Diagnostic mastery cards in Progress. English and Spanish use matching `assessmentStudio` labels. External evidence is not ingested into diagnostic mastery, model prompts, or child-facing scores. `tests/test_assessment_interop.py` pins validation, ciphertext, isolation, real API invocation and authorization. See `docs/ASSESSMENT_INTEROPERABILITY.md` for exact limits and official DIBELS conditions.
 
 **Stage 2 adaptive teaching evidence trail — suggestion, not an efficacy verdict:** `core/database.py` adds `AdaptiveInstructionTrace`, an encrypted student-key-scoped, hash-deduplicated record with immutable policy/reason/skill/source-work IDs and `status="recommended_in_prompt"`. `services/adaptive_evidence.py` records it from the *actual* `stream_tutor_response()` prompt-building path, where it belongs, and reads a bounded parent history through `GET /diagnostic/{student_name}/adaptive-learning` with `require_parent`. The read may link later completed work (timestamp + same skill) but labels it temporal evidence, never verified delivery of a teaching move or proof of causal improvement. This is a data trail for subsequent independent evaluations, not an evaluator. Repeat turns from the same evidence do not generate duplicate records. Student deletion and key shredding cover the new table, while the public demo has no such history. See `tests/test_adaptive_evidence.py` and `docs/ADAPTIVE_LEARNING_INTELLIGENCE.md`.

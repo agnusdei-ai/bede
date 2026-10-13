@@ -228,7 +228,10 @@ describe('ElevationPrompt — coalescing concurrent calls', () => {
 
     // Only one modal, even though two calls both needed elevation.
     await screen.findByText('Confirm your password')
-    expect(fetchMfaStatus).toHaveBeenCalledTimes(1)
+    // The modal render and MFA status-effect invocation are separate
+    // asynchronous React commits. Wait for the actual effect rather than
+    // racing its start; keep the strict single-request invariant.
+    await waitFor(() => expect(fetchMfaStatus).toHaveBeenCalledTimes(1))
 
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))

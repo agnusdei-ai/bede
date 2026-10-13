@@ -1142,8 +1142,12 @@ Open **Pod Dashboard → Progress** and choose a student. Under Bede's own
 academic diagnostics, find **Educator assessment records**. Choose DIBELS
 8th Edition, a classical observation, or another independently administered
 assessment. Enter the actual date, measure, source, and score *as shown
-by the educator's report*. For DIBELS, only enter a benchmark classification
-if it is already stated on that report. Bede does not administer DIBELS,
+by the educator's report*. For DIBELS, select the **grade and testing
+window on that report**; the appropriate reporting unit is filled in
+for the chosen measure. Enter a risk category only when the source report
+states it. Records entered before these fields were required remain
+visible, with a review warning if information is missing or inconsistent.
+Bede will not invent missing information. Bede does not administer DIBELS,
 generate a score, reproduce test questions, or calculate a benchmark.
 
 For classical work (such as oral narration or translation), record whether

@@ -18,7 +18,7 @@ from routers.diagnostic import (
     get_educator_assessment_records, get_assessment_frameworks,
 )
 from services.assessment_interop import (
-    EducatorAssessmentInput, delete_assessment, frameworks_catalog,
+    EducatorAssessmentInput, EducatorAssessmentSubmission, delete_assessment, frameworks_catalog,
     list_assessments, record_assessment,
 )
 
@@ -46,7 +46,8 @@ def dibels(**overrides):
     args = dict(
         framework="dibels8", measure="ORF_WC", assessed_on=date(2026, 10, 10),
         source_name="Educator's independent DIBELS 8 report", score=86,
-        score_unit="correct_per_minute", reported_band="below_benchmark",
+        score_unit="correct_per_minute", reported_band="strategic_some_risk",
+        assessed_grade="4", assessment_window="middle_of_year",
     )
     args.update(overrides)
     return EducatorAssessmentInput(**args)
@@ -67,6 +68,10 @@ def test_catalog_has_no_proprietary_material_or_cut_scores():
     assert [e["id"] for e in x] == ["dibels8", "classical", "external_other"]
     assert x[0]["interpretation"] == "educator_supplied_only"
     assert "ORF_WC" in x[0]["supported_measures"]
+    assert x[0]["measure_units"]["ORF_ACCURACY"] == "percent"
+    assert x[0]["measure_units"]["COMPOSITE"] == "points"
+    assert "strategic_some_risk" in x[0]["reported_bands"]
+    assert "middle_of_year" in x[0]["windows"]
     assert "oral_narration" in x[1]["supported_measures"]
     assert not any("cut_score" in entry for entry in x)
 
@@ -100,9 +105,11 @@ async def test_encrypted_roundtrip_and_student_isolation(db):
     assert recorded["record_status"] == "educator_entered_unverified"
     row = (await db.execute(select(EducatorAssessmentEvidence))).scalar_one()
     assert b"86" not in row.detail_enc
-    assert b"below_benchmark" not in row.detail_enc
+    assert b"strategic_some_risk" not in row.detail_enc
     assert b"ORF_WC" not in row.detail_enc
+    assert b"middle_of_year" not in row.detail_enc
     assert "ORF_WC" in str(await list_assessments(db, "Alice"))
+    assert (await list_assessments(db, "Alice"))[0]["quality_flags"] == []
     assert await list_assessments(db, "Bob") == []
 
 
@@ -169,4 +176,72 @@ async def test_real_route_invocation_records_data(db):
     await delete_educator_assessment_record(
         "Alice", record["id"], auth={"role": "parent"}, db=db,
     )
+    assert await list_assessments(db, "Alice") == []
+
+
+@pytest.mark.parametrize("values", [
+    {"assessed_grade": None},
+    {"assessment_window": None},
+    {"score_unit": "percent"},
+    {"reported_band": "below_benchmark"},
+    {"measure": "ORF_ACCURACY", "score_unit": "percent", "score": 101},
+    {"measure": "ORF_ACCURACY", "score_unit": "correct_per_minute"},
+    {"measure": "COMPOSITE", "score_unit": "correct_per_minute"},
+    {"measure": "MAZE", "score_unit": "correct_per_minute"},
+])
+def test_new_dibels_results_reject_missing_or_mismatched_provenance(values):
+    with pytest.raises(ValidationError):
+        EducatorAssessmentSubmission.model_validate(dibels(**values).model_dump(mode="json"))
+
+
+@pytest.mark.parametrize("measure,unit,score", [
+    ("ORF_ACCURACY", "percent", 96.5),
+    ("ORF_WC", "correct_per_minute", 88),
+    ("COMPOSITE", "points", 287),
+    ("MAZE", "points", 19),
+    ("PSF", "correct_per_minute", 42),
+])
+def test_correctly_reported_dibels_measure_units(measure, unit, score):
+    e = dibels(measure=measure, score_unit=unit, score=score)
+    assert EducatorAssessmentSubmission.model_validate(e.model_dump(mode="json")).score == score
+
+
+@pytest.mark.asyncio
+async def test_legacy_dibels_records_remain_readable_and_flagged_for_review(db):
+    # Earlier releases stored genuine educator-reported data without a
+    # tested grade, window, or normalized benchmark label. Never silently
+    # erase those records merely because the NEW submission contract improved.
+    from core import student_keys
+    from core.encryption import student_aad
+    old = EducatorAssessmentInput(
+        framework="dibels8", measure="ORF_WC", assessed_on=date(2026, 10, 10),
+        source_name="Older educator report", score=90,
+        score_unit="count", reported_band="below_benchmark",
+    )
+    key = await student_keys.get_or_create(db, "Alice")
+    db.add(EducatorAssessmentEvidence(
+        student_name="Alice",
+        framework="dibels8",
+        detail_enc=encrypt_json(
+            old.model_dump(mode="json"),
+            student_aad("educator_assessment_evidence", "detail_enc", "Alice"),
+            key,
+        ),
+    ))
+    await db.commit()
+    rows = await list_assessments(db, "Alice")
+    assert len(rows) == 1
+    assert rows[0]["record_status"] == "educator_entered_unverified"
+    assert set(rows[0]["quality_flags"]) == {
+        "missing_assessed_grade", "missing_assessment_window",
+        "review_reported_unit", "legacy_benchmark_label",
+    }
+    assert rows[0]["reported_band"] == "below_benchmark"
+    assert rows[0]["score"] == 90
+
+
+@pytest.mark.asyncio
+async def test_service_cannot_bypass_new_submission_quality_checks(db):
+    with pytest.raises(ValidationError):
+        await record_assessment(db, "Alice", dibels(assessment_window=None))
     assert await list_assessments(db, "Alice") == []

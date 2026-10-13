@@ -20,6 +20,7 @@ from core.config import settings
 from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
+    EducatorAssessmentEvidence,
     Base,
     DiagnosticEvidenceLog,
     LearnerBehaviorCheck,

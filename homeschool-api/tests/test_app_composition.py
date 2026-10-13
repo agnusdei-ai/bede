@@ -106,6 +106,9 @@ GUARDS = {
     ('GET', '/diagnostic/pod/activity'): 'require_parent',
     ('GET', '/diagnostic/summary'): '_require_diagnostic_quota',
     ('GET', '/diagnostic/{student_name}/activity'): 'require_parent',
+    # Adaptive recommendations and later work are a student's private
+    # academic history. The child/demo roles must not inspect these events.
+    ('GET', '/diagnostic/{student_name}/adaptive-learning'): 'require_parent',
     # Which scheduled subjects are actually getting taught. Parent-only
     # for the same reason the ledger is: a child shown "you have not done
     # History in three weeks" has been handed a reproach.

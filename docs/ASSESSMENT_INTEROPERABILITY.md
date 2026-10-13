@@ -11,9 +11,13 @@ or proof of standardized-test interoperability with vendor systems.
    Bede's own mastery diagnostic.
 3. Select **DIBELS 8th Edition**, **Classical observation**, or **Other external
    assessment**. Enter the date, measure, and where the result came from.
-4. For DIBELS and other external reports, enter the **score and its unit
-   exactly as supplied by the educator/report**. For DIBELS, optionally enter
-   a benchmark classification **only when the original report supplies it**.
+4. For DIBELS 8, choose the **grade and assessment window stated by the report**.
+   Bede displays the expected **measure-specific unit** (oral reading
+   accuracy is a percentage, oral reading words correct is per minute, and
+   composites and Maze are reported as points). Enter the score **exactly
+   as independently reported**, not a score calculated by Bede. For other
+   external assessments, choose the unit shown in the source report.
+   Record a DIBELS risk category only when the original report supplies it.
 5. For classical observations, record how a task was completed:
    independently, with a hint, or with help. Never score virtue or character.
 6. Review the source-labeled records in the same card. The parent may remove
@@ -33,9 +37,34 @@ not test administration, automatic scoring, or benchmark calculation.
 
 Recognized DIBELS result labels: LNF, PSF, NWF-CLS, NWF-WRC, WRF, ORF
 words correct, ORF accuracy, Maze, and the educator-provided composite.
-The educator explicitly selects a unit for each entered numerical score.
-The app does not decide which measures apply to a grade or testing window.
-Those decisions belong to the trained assessor using the official guide.
+For **new** DIBELS entries, Bede now requires reported grade (K–8) and
+assessment window (beginning, middle, end of year, or progress monitoring).
+The measure-specific unit is taken from the validated backend framework
+catalog rather than a user-selectable unit list. The four official
+instructional-support categories are Core/Negligible Risk (blue),
+Core/Minimal Risk (green), Strategic/Some Risk (yellow), and
+Intensive/At Risk (red). Parents may also choose "not reported."
+These are educator-entered labels, not classifications calculated by Bede.
+
+Existing encrypted entries from the earlier release remain readable.
+Records missing the grade/window or containing older generic labels
+or unit inconsistencies are **flagged for source review**, not silently
+rewritten, deleted, or substituted with guessed values. Correct them by
+reviewing the original report, removing the old record and re-entering
+a verified result. Never infer a grade, date, period or benchmark band.
+
+The app does not decide which measures apply to a grade or testing
+window; a trained assessor follows the official guide. This is a
+provenance and data-entry integrity check, not standardized
+administration or psychometric interpretation.
+
+**2026 source freshness:** The University of Oregon revised its
+administration-and-scoring guide July 1, 2026 without changing scoring
+rules. On September 17, 2026, it reported that certain Grade 1 PSF
+scoring materials contained incorrect phoneme counts and published
+corrected materials. Educators recording Grade 1 PSF results should
+verify the official corrected materials, especially if working from
+older copies. See https://dibels.uoregon.edu/news.
 
 Official source: https://dibels.uoregon.edu/materials/dibels
 
@@ -69,9 +98,14 @@ and safe cross-framework interpretation.
   `GET /diagnostic/{student_name}/assessment-records`,
   `POST /diagnostic/{student_name}/assessment-records`,
   `DELETE /diagnostic/{student_name}/assessment-records/{record_id}`.
-- Input contract: `services/assessment_interop.py`,
-  `EducatorAssessmentInput`, `extra="forbid"` to reject raw answer/
-  item fields and unrecognized scoring metadata.
+- Input contract: `services/assessment_interop.py` keeps a legacy-safe
+  `EducatorAssessmentInput` reader and a stricter
+  `EducatorAssessmentSubmission` for **new writes**. The new-write
+  validator checks measure/unit correspondence, reported grade, testing
+  window, nonfinite or impossible percentages, and official risk labels.
+  `extra="forbid"` rejects raw answer/item fields and unrecognized
+  scoring metadata. Invalid historical content cannot be silently
+  promoted to new evidence.
 - Storage: additive `educator_assessment_evidence` table, student-scoped
   authenticated encryption under the existing student key and AAD.
   An external framework identifier is indexed in plaintext for schema
@@ -83,6 +117,8 @@ and safe cross-framework interpretation.
 - Access: parent only, enforced in the assembled-app route guard matrix;
   no demo or child-role access. The panel is shown only in Progress.
 - Locales: English and Spanish use matching assessmentStudio keys.
+  The parent UI fetches the framework's allowed measures and reporting
+  units from the server, rather than maintaining a second divergent list.
 - Tests: strict input validation, database encryption, student isolation,
   tampering exclusion, deletion, parent-only dependencies, real API invocation,
   and existing student-deletion regression.

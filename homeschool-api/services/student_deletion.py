@@ -66,6 +66,7 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("skill_activity_log", SkillActivityLog),
         ("adaptive_instruction_traces", AdaptiveInstructionTrace),
+        ("educator_assessment_evidence", EducatorAssessmentEvidence),
         ("session_transcripts", SessionTranscript),
         ("api_usage_events", ApiUsageEvent),
     ):

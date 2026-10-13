@@ -92,7 +92,7 @@ def test_parent_directed_curriculum_always_out_ranks_strategy():
     assert "NEVER redirect" in note
     assert "same skill" in note
     assert "parent-approved lesson" in note
-    assert "make the learner feel tested" in note
+    assert "without making the learner feel tested" in note
 
 
 def test_policy_contains_no_raw_answer_score_or_student_personal_information():

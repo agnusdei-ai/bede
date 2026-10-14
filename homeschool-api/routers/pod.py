@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import license_state
+from core import license_state, licensing
 from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings

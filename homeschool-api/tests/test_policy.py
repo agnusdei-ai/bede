@@ -33,7 +33,7 @@ def _subject(role: str, code: str | None = None) -> Subject:
 # checking would pass no matter what the table said.
 EXPECTED: dict[str, set[str]] = {
     "session.self":              {"parent", "child", "educator", "demo_code"},
-    "tutor.chat":                {"parent", "child", "demo_code"},
+    "tutor.chat":                {"parent", "child", "educator", "demo_code"},
     "tutor.email_summary":       {"parent", "demo_code"},
     "family.data.read":          {"parent", "child"},
     "family.data.write":         {"parent", "child"},

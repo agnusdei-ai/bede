@@ -84,6 +84,8 @@ export default function PodDashboard() {
         >
           {t('podDashboard.goToSetup')}
         </button>
+        <button onClick={() => navigate('/classroom-setup')} type="button"
+          className="text-sm text-navy-700 underline">Import a classical class roster</button>
       </div>
     )
   }
@@ -111,6 +113,10 @@ export default function PodDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button type="button" onClick={() => navigate('/classroom-setup')}
+              className="text-sm text-navy-700 border border-navy-200 rounded-lg px-3 py-2">
+              Instructors &amp; rosters
+            </button>
             <button
               onClick={() => navigate('/progress')}
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-navy-700 border border-navy-200 hover:bg-navy-50 rounded-lg transition-colors"

@@ -346,6 +346,23 @@ LOCUTO_IPC_ENABLED=true
 
 then restart the stack.
 
+## Campus location licensing (manual organizational pilot)
+
+The institution-neutral campus offer is $3,500/month **per physical
+school location**, unlimited *enrolled learner* seats at that location;
+hardware and inference capacity are distinct. A signed
+`campus_location` key carries its explicit unlimited-at-location
+entitlement and an expiring term, not an arbitrarily high numeric
+seat count. The receiving deployment MUST set `BEDE_LOCATION_ID`
+to the exact identifier signed into the key. A mismatch is rejected
+rather than provisioned at another location.
+
+See [Campus Location Pricing](CAMPUS_LOCATION_PRICING.md) and
+[Mac mini Bundles](MAC_MINI_BUNDLES.md) for operator commands,
+separately invoiced hardware, service boundaries, and the required
+capacity/security qualification. Stripe checkout for this SKU is not
+yet integrated.
+
 ## Licensing
 
 Once `PRODUCTION=true`, Bede requires a valid license. A license is a

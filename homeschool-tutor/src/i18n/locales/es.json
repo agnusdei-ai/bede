@@ -277,6 +277,7 @@
     "trialDaysLeft_one": "Prueba — queda {{count}} día",
     "trialDaysLeft_other": "Prueba — quedan {{count}} días",
     "trialExpired": "Prueba vencida",
+    "campusLocationLicense": "Suscripción por sede educativa",
     "coopLicense": "Membresía de Cooperativa o Red",
     "coreLicense": "Membresía Familiar",
     "checkingStatus": "Verificando el estado del sistema…",

@@ -145,6 +145,12 @@ async def _require_live_session(request: Request, payload: dict) -> dict:
     this answers "is this session still real". Only demo codes are tracked
     server-side — parent/child tokens are stateless JWTs with no server-side
     session to check (see routers/auth.py's logout)."""
+    if payload.get("role") == "educator":
+        from core.database import AsyncSessionLocal
+        from services.educator_access import live_educator
+        async with AsyncSessionLocal() as session:
+            await live_educator(session, payload)
+        return payload
     if payload.get("role") != "demo_code":
         return payload
     code = payload.get("code", "")
@@ -183,6 +189,17 @@ async def require_auth(
     rejecting known-bad ones case by case is what closes that."""
     payload = await _validate_token(request, credentials)
     await _authorize(request, payload, "session.self")
+    return await _require_live_session(request, payload)
+
+
+async def require_educator(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Teacher identity plus live credential-version check. Roster access
+    is always checked again for the specifically requested student."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "educator.roster")
     return await _require_live_session(request, payload)
 
 

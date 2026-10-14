@@ -19,7 +19,6 @@ from core.credential_hash import hash_secret, verify_secret
 from core.database import ClassicalEducator, EducatorRosterAssignment, StudentConfig
 from core.encryption import aad_for, decrypt_json, encrypt_json
 
-MAX_CLASS_ROSTER = 90
 LOCUTO_POD_MIN = 3
 LOCUTO_POD_MAX = 10
 _USERNAME = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
@@ -168,8 +167,8 @@ async def assign_class_roster(db, educator_id: str, configs: list) -> dict:
     if account is None:
         raise HTTPException(status_code=404, detail="Educator not found")
     names = [c.student_name for c in configs]
-    if not 1 <= len(names) <= MAX_CLASS_ROSTER:
-        raise ValueError(f"Class roster must have 1–{MAX_CLASS_ROSTER} students")
+    if not names:
+        raise ValueError("A class roster must contain at least one student")
     if len(set(names)) != len(names):
         raise ValueError("Duplicate learner names in the roster")
     from core import license_state

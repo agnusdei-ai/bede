@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core.config import settings
 from core.database import ClassicalEducator, EducatorPasskeyInvitation, get_db
-from core.deps import require_elevated_parent
+from core.deps import require_elevated_parent, require_educator
 from core.middleware import compute_fingerprint
 from core.security import create_access_token
 from models.schemas import TokenResponse
@@ -196,3 +196,41 @@ async def login_verify(
     )
     log_event_nowait(AuditEvent.AUTH_SUCCESS, role="educator", success=True, **ctx)
     return TokenResponse(access_token=token, role="educator")
+
+
+@router.get("/credentials")
+async def my_passkeys(auth: dict = Depends(require_educator),
+                      db: AsyncSession = Depends(get_db)):
+    """Own account only; no public keys, secrets or unrelated educators."""
+    from core.database import EducatorWebAuthnCredential
+    rows = (await db.execute(
+        select(EducatorWebAuthnCredential)
+        .where(EducatorWebAuthnCredential.educator_id == auth["sub"])
+        .where(EducatorWebAuthnCredential.enabled.is_(True))
+        .order_by(EducatorWebAuthnCredential.created_at)
+    )).scalars().all()
+    return [{"id": row.credential_id, "created_at": row.created_at.isoformat()}
+            for row in rows]
+
+
+@router.post("/credentials/{credential_id}/revoke")
+async def revoke_my_passkey(
+    credential_id: str, auth: dict = Depends(require_educator),
+    db: AsyncSession = Depends(get_db),
+):
+    """Only a UV-verified current session can revoke its own key."""
+    _enabled()
+    if auth.get("auth_method") != "webauthn_uv":
+        raise HTTPException(status_code=403, detail="Verified passkey required")
+    from core.database import EducatorWebAuthnCredential
+    rows = (await db.execute(
+        select(EducatorWebAuthnCredential.credential_id)
+        .where(EducatorWebAuthnCredential.educator_id == auth["sub"])
+        .where(EducatorWebAuthnCredential.enabled.is_(True))
+    )).scalars().all()
+    if credential_id not in rows:
+        raise HTTPException(status_code=404, detail="Credential is not active")
+    if len(rows) <= 1:
+        raise HTTPException(status_code=409, detail="Cannot revoke your last passkey. Contact your school administrator for supervised recovery.")
+    await passkeys.revoke_credential(db, auth["sub"], credential_id)
+    return {"revoked": True, "all_previous_sessions_invalidated": True}

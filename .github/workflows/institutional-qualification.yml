@@ -1,0 +1,89 @@
+name: Institutional ordered qualification
+
+# Additional staged qualification; the existing backend/frontend regression
+# and CodeQL workflows remain independent hard gates and are not bypassed.
+on:
+  pull_request:
+    paths:
+      - 'homeschool-api/core/campus_policy.py'
+      - 'homeschool-api/core/educator_enrollment_policy.py'
+      - 'homeschool-api/tests/test_campus_policy.py'
+      - 'homeschool-api/tests/test_educator_enrollment_policy.py'
+      - 'homeschool-tutor/src/institutional/**'
+      - '.github/workflows/institutional-qualification.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy-tests:
+    name: 1 - Pure campus and enrollment policy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install reproducible Python test dependencies
+        working-directory: homeschool-api
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Execute applicable policy tests
+        working-directory: homeschool-api
+        run: |
+          set -euo pipefail
+          tests=()
+          for file in tests/test_campus_policy.py tests/test_educator_enrollment_policy.py; do
+            if test -f "$file"; then tests+=("$file"); fi
+          done
+          if (( ${#tests[@]} == 0 )); then
+            echo "No new policy module in this PR; other stages still apply."
+          else
+            python -m pytest -q "${tests[@]}"
+          fi
+
+  educator-ui-tests:
+    name: 2 - Type-check and educator storyboard interactions
+    needs: policy-tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: homeschool-tutor/package-lock.json
+      - name: Install pinned frontend dependencies
+        working-directory: homeschool-tutor
+        run: npm ci
+      - name: Type-check educator application
+        working-directory: homeschool-tutor
+        run: npx tsc --noEmit
+      - name: Run available educator visual workflow tests
+        working-directory: homeschool-tutor
+        run: |
+          set -euo pipefail
+          tests=()
+          for file in src/institutional/ValorEducatorPreview.test.tsx src/institutional/EducatorPasskeyStoryboard.test.tsx; do
+            if test -f "$file"; then tests+=("$file"); fi
+          done
+          if (( ${#tests[@]} == 0 )); then
+            echo "No institutional UX scenario tests present; full frontend regression remains mandatory."
+          else
+            npx vitest run "${tests[@]}"
+          fi
+
+  complete:
+    name: 3 - Institutional staged checks completed
+    needs: [policy-tests, educator-ui-tests]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Ensure prerequisite checks succeeded
+        env:
+          POLICY_RESULT: ${{ needs.policy-tests.result }}
+          UI_RESULT: ${{ needs.educator-ui-tests.result }}
+        run: |
+          test "$POLICY_RESULT" = success
+          test "$UI_RESULT" = success
+          echo "Staged checks passed. Full regression, CodeQL, real WebAuthn, and owner acceptance are separate gates."

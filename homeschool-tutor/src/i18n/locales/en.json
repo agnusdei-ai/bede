@@ -277,6 +277,7 @@
     "trialDaysLeft_one": "Trial — {{count}} day left",
     "trialDaysLeft_other": "Trial — {{count}} days left",
     "trialExpired": "Trial expired",
+    "campusLocationLicense": "Campus Location Subscription",
     "coopLicense": "Co-op or Network Membership",
     "coreLicense": "Family Membership",
     "checkingStatus": "Checking system status…",

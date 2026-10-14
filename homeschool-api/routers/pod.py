@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import license_state
+from core import license_state, licensing
 from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
@@ -69,7 +69,7 @@ async def save_pod_configs(
         existing_names = {row[0] for row in result.all()}
         new_names = {config.student_name for config in req.configs}
         total_seats_used = len(existing_names | new_names)
-        if total_seats_used > license_info.seats:
+        if not licensing.permits_learner_count(license_info, total_seats_used):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(

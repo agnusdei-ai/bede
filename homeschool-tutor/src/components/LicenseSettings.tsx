@@ -125,8 +125,11 @@ export default function LicenseSettings({ token }: { token: string }) {
             <div className="text-sm text-gray-600 space-y-1">
               <p>
                 <span className="font-medium text-gray-800">{licenseTierLabel(status.tier, t)}</span> for{' '}
-                <span className="font-medium text-gray-800">{status.licensee}</span> · {status.seats} student
-                {status.seats === 1 ? '' : 's'}
+                <span className="font-medium text-gray-800">{status.licensee}</span>
+                {status.unlimited_learners
+                  ? <> · Unlimited enrolled learners at one licensed location
+                      {status.location_id ? ` (${status.location_id})` : ''}</>
+                  : <> · {status.seats} student{status.seats === 1 ? '' : 's'}</>}
               </p>
               <p className="text-xs text-gray-500">
                 {status.expires

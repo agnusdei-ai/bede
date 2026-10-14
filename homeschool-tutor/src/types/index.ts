@@ -525,9 +525,11 @@ export interface LicenseStatus {
   required: boolean
   source: 'db' | 'env' | 'none'
   problem: string | null
-  tier?: 'trial' | 'core' | 'coop'
+  tier?: 'trial' | 'core' | 'coop' | 'campus_location'
   licensee?: string
-  seats?: number
+  seats?: number | null
+  unlimited_learners?: boolean
+  location_id?: string | null
   issued?: string
   expires?: string | null
   days_remaining?: number | null

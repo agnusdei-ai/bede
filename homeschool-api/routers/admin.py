@@ -61,6 +61,8 @@ def _license_status_payload() -> dict | None:
             "tier": s.info.tier,
             "licensee": s.info.licensee,
             "seats": s.info.seats,
+            "unlimited_learners": s.info.unlimited_learners,
+            "location_id": s.info.location_id,
             # `issued` is here so the parent UI can size its own warning
             # against the license's TERM rather than a fixed number of days.
             # A 30-day trial and a 365-day membership need different notice
@@ -107,6 +109,11 @@ async def apply_license(
         info = licensing.verify_license(key)
     except licensing.InvalidLicenseError as exc:
         raise HTTPException(status_code=422, detail=f"That license key is not valid: {exc}") from exc
+    if not licensing.location_matches(info, settings.bede_location_id):
+        raise HTTPException(
+            status_code=422,
+            detail="The signed campus license location does not match BEDE_LOCATION_ID on this deployment.",
+        )
     if info.is_expired:
         raise HTTPException(
             status_code=422,

@@ -43,12 +43,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--tier", required=True, choices=["trial", "core", "coop"])
+    parser.add_argument("--tier", required=True, choices=["trial", "core", "coop", "campus_location"])
     parser.add_argument(
         "--licensee", required=True,
         help="Family/organization name (or an opaque trial id) shown in the parent dashboard",
     )
-    parser.add_argument("--seats", type=int, default=10, help="Max students in the pod (default 10)")
+    parser.add_argument("--seats", type=int, default=None, help="Max students (legacy tiers default 10; forbidden for campus_location)")
+    parser.add_argument("--location-id", default=None,
+                        help="Unique operator-assigned physical location ID; required for campus_location")
     parser.add_argument(
         "--days", type=int, default=None,
         help="Expires N days from today — required for --tier trial, optional otherwise (omit for perpetual)",
@@ -61,8 +63,23 @@ def main() -> None:
 
     if args.tier == "trial" and args.days is None:
         parser.error("--days is required for --tier trial — a trial must expire")
-    if args.seats < 1:
-        parser.error("--seats must be at least 1")
+    if args.days is not None and args.days < 1:
+        parser.error("--days must be positive")
+    if args.tier == "campus_location":
+        from core.licensing import _LOCATION_ID
+        if args.seats is not None:
+            parser.error("campus_location uses an explicit unlimited learner entitlement; do not pass --seats")
+        if not args.location_id or not _LOCATION_ID.fullmatch(args.location_id):
+            parser.error("campus_location requires --location-id (3–64 letters/digits/dot/underscore/hyphen)")
+        if args.days is None:
+            parser.error("campus_location requires --days so the paid term expires")
+    else:
+        if args.location_id is not None:
+            parser.error("--location-id only applies to campus_location")
+        if args.seats is None:
+            args.seats = 10
+        if args.seats < 1:
+            parser.error("--seats must be at least 1")
 
     key = ECC.import_key(Path(args.private_key).read_text())
 
@@ -73,7 +90,8 @@ def main() -> None:
         "id": str(uuid.uuid4()),
         "licensee": args.licensee,
         "tier": args.tier,
-        "seats": args.seats,
+        **({"learner_scope": "unlimited_at_location", "location_id": args.location_id}
+           if args.tier == "campus_location" else {"seats": args.seats}),
         "issued": issued.isoformat(),
         "expires": expires.isoformat() if expires else None,
     }
@@ -84,7 +102,9 @@ def main() -> None:
 
     print(f"Licensee:  {args.licensee}")
     print(f"Tier:      {args.tier}")
-    print(f"Seats:     {args.seats}")
+    print(f"Seats:     {'unlimited enrolled learners' if args.tier == 'campus_location' else args.seats}")
+    if args.tier == "campus_location":
+        print(f"Location:  {args.location_id}")
     print(f"Issued:    {issued.isoformat()}")
     print(f"Expires:   {expires.isoformat() if expires else 'never'}")
     print()

@@ -150,9 +150,18 @@ def _candidate(license_text: Optional[str]) -> Optional[licensing.LicenseInfo]:
     if not license_text:
         return None
     try:
-        return licensing.verify_license(license_text)
+        info = licensing.verify_license(license_text)
+        if not licensing.location_matches(info, _configured_location_id()):
+            return None
+        return info
     except licensing.InvalidLicenseError:
         return None
+
+
+def _configured_location_id() -> str:
+    # Lazy import keeps license-state tests independent of settings setup.
+    from core.config import settings
+    return settings.bede_location_id
 
 
 def refresh(
@@ -266,8 +275,9 @@ def refresh(
         log.critical("LICENSE REQUIRED: %s (instance is gated until a valid key is applied)", problem)
     elif chosen is not None:
         log.info(
-            "License active: %s for %r (%d seats, source=%s%s)",
-            chosen.tier, chosen.licensee, chosen.seats, source,
+            "License active: %s for %r (%s learners, source=%s%s)",
+            chosen.tier, chosen.licensee,
+            "unlimited at signed location" if chosen.unlimited_learners else chosen.seats, source,
             f", expires {chosen.expires.isoformat()}" if chosen.expires else "",
         )
     if report is not None and report.status != "unknown":

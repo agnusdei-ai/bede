@@ -29,13 +29,16 @@ do not imply Apple endorses Bede.
 
 - Hardware is sold as an **optional, separate purchase** from any Bede
   software or organizational subscription.
-- Proposed Bede software offers: $25 per learner **per month**, or
-  $3,500 **per organization per month** for an unlimited learner-seat
-  commercial offer. These are pricing intentions, not enforced billing.
-- The current signed Bede license verifier **only supports numeric seat
-  counts**. The unlimited-seat commercial entitlement still requires
-  a separately tested signed-license change before it can be sold as an
-  enforced software feature. Hardware SKUs never change authorization.
+- Bede software offers: $25 per learner **per month**, or **$3,500 per
+  physical school location per month** for unlimited *enrolled learner*
+  seats at that signed location. Every additional branch/location
+  needs its own subscription and signed campus-location license.
+- The campus location licensing path uses an **explicit Ed25519-signed
+  unlimited-at-location claim and signed location identifier**;
+  an arbitrary high numeric seat count is never used. Operator issuance
+  requires a paid-through expiry and the destination host's matching
+  BEDE_LOCATION_ID. Automated Stripe billing for this new SKU is not
+  yet connected. Hardware SKUs never change authorization.
 - **Unlimited registered learners is not unlimited simultaneous local
   model inference.** The campus appliance has no published concurrent
   tutor count until a real installed system meets the tested target.

@@ -21,7 +21,7 @@ from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from routers import admin, auth, catalog, diagnostic, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, diagnostic, educators, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,

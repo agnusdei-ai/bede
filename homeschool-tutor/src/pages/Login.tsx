@@ -283,7 +283,7 @@ export default function Login() {
 
         {/* Role toggle */}
         <div className="flex rounded-lg border border-navy-200 overflow-hidden mb-6">
-          {(['parent', 'child', 'educator'] as const).map((r) => (
+          {(educatorMode ? ['parent', 'educator'] as const : ['parent', 'child'] as const).map((r) => (
             <button
               key={r}
               onClick={() => { setRole(r); setCredential('') }}

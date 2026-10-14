@@ -29,5 +29,6 @@ doc["services"]["caddy"]["ports"] = ["127.0.0.1:80:80", "127.0.0.1:443:443"]
 shutil.copy2(root / "Caddyfile", out / "Caddyfile")
 shutil.copy2(root / "packaging" / "bundle" / "start.sh", out / "start.sh")
 shutil.copy2(root / "packaging" / "bundle" / "README.md", out / "README.md")
+shutil.copy2(root / "packaging" / "bundle" / ".env.example", out / ".env.example")
 (out / "RELEASE").write_text(sha + "\n")
 print(f"Built operator-only bundle at {out} for {sha}")

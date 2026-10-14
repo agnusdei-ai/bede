@@ -31,7 +31,10 @@ class EducatorProvisionRequest(BaseModel):
 
 
 class ClassRosterRequest(BaseModel):
-    configs: list[SessionConfig] = Field(min_length=1, max_length=90)
+    # Technical size bound only, not a licensing or school-class maximum.
+    # The negotiated institution/child limit is enforced from the signed
+    # Bede entitlement when roster assignments are committed.
+    configs: list[SessionConfig] = Field(min_length=1, max_length=1000)
 
 
 @router.get("/accounts")

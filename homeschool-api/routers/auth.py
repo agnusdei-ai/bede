@@ -228,6 +228,9 @@ async def educator_login(
     db: AsyncSession = Depends(get_db),
 ):
     """Independent educator password + TOTP. Never grants parent privileges."""
+    # Institutional educators must use verified WebAuthn UV. The former
+    # password+TOTP endpoint is intentionally retired, not an emergency path.
+    raise HTTPException(status_code=410, detail="Educator sign-in requires a verified passkey")
     from services.educator_access import authenticate_educator
     if settings.is_demo_deployment or not settings.educator_pilot_enabled:
         raise HTTPException(status_code=403, detail="Educator pilot is not enabled")

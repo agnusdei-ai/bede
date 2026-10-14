@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "full_every_days": 30,
+  "incremental_retention_days": 30,
+  "archive_after_days": 31,
+  "archive_retention_days": 365,
+  "archive_tier": "operator_selected",
+  "restore_target_hours": 12,
+  "offsite_copy_required": true,
+  "verified_restore_before_expiry": true
+}

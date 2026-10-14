@@ -12,8 +12,16 @@ permissions:
   contents: read
 jobs:
   package:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -27,23 +35,26 @@ jobs:
           set -euo pipefail
           prefix="ghcr.io/agnusdei-ai/bede"
           sha="${GITHUB_SHA}"
-          docker build -t "${prefix}-api:sha-${sha}" -f homeschool-api/Dockerfile homeschool-api
-          docker build -t "${prefix}-ui:sha-${sha}" -f homeschool-tutor/Dockerfile homeschool-tutor
-          docker build -t "${prefix}-trust:sha-${sha}" -f scripts/trust_service/Dockerfile scripts/trust_service
-          docker build -t "${prefix}-wizard:sha-${sha}" -f scripts/setup_wizard/Dockerfile .
+          arch="${{ matrix.arch }}"
+          test "$(docker info --format '{{.Architecture}}')" = "$arch" || { echo "Native runner architecture mismatch"; exit 1; }
+          docker build -t "${prefix}-api:sha-${sha}-${arch}" -f homeschool-api/Dockerfile homeschool-api
+          docker build -t "${prefix}-ui:sha-${sha}-${arch}" -f homeschool-tutor/Dockerfile homeschool-tutor
+          docker build -t "${prefix}-trust:sha-${sha}-${arch}" -f scripts/trust_service/Dockerfile scripts/trust_service
+          docker build -t "${prefix}-wizard:sha-${sha}-${arch}" -f scripts/setup_wizard/Dockerfile .
       - name: Generate source-free installer and seal embedded images
         env:
           RELEASE_SHA: ${{ github.sha }}
+          RELEASE_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
           python packaging/build_operator_bundle.py
           docker pull postgres:16-alpine
           docker pull caddy:2-alpine
           docker save -o dist/bede-operator/images.tar \
-            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA} \
-            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA} \
-            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA} \
-            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA} \
+            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine
           chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
@@ -56,16 +67,17 @@ jobs:
               assert 'image' in config['services'][name]
               assert 'build' not in config['services'][name]
           assert '127.0.0.1:443:443' in config['services']['caddy']['ports']
+          assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
           for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
           cd dist
-          tar -czf bede-operator-${GITHUB_SHA}.tar.gz bede-operator
-          sha256sum bede-operator-${GITHUB_SHA}.tar.gz > bede-operator-${GITHUB_SHA}.tar.gz.sha256
+          tar -czf bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator
+          sha256sum bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
       - name: Publish installer archive as a downloadable workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bede-operator-${{ github.sha }}
+          name: bede-operator-${{ github.sha }}-${{ matrix.arch }}
           path: |
             dist/bede-operator-*.tar.gz
             dist/bede-operator-*.sha256

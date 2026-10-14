@@ -25,6 +25,7 @@ by a *different* tier/seat count than what was actually issued.
 """
 import base64
 import json
+import re
 from dataclasses import dataclass
 from datetime import date
 from functools import lru_cache
@@ -41,7 +42,9 @@ PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
 MCowBQYDK2VwAyEABpTf5ffiiNf0OItRYP3R2pLb7ij/KtNOS73WPBq57N4=
 -----END PUBLIC KEY-----"""
 
-_VALID_TIERS = {"trial", "core", "coop"}
+# Signed license vocabulary only; separate from commercial pricing tiers.
+_VALID_TIERS = {"trial", "core", "coop", "campus_location"}
+_LOCATION_ID = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{2,63}$")
 
 
 class InvalidLicenseError(Exception):
@@ -60,9 +63,15 @@ class LicenseInfo:
     license_id: str
     licensee: str
     tier: str
-    seats: int
+    seats: Optional[int]
     issued: date
     expires: Optional[date]
+    location_id: Optional[str] = None
+
+    @property
+    def unlimited_learners(self) -> bool:
+        # Only a specifically signed campus-location license grants this.
+        return self.tier == "campus_location" and self.seats is None and self.location_id is not None
 
     @property
     def is_expired(self) -> bool:
@@ -109,11 +118,30 @@ def verify_license(license_str: str) -> LicenseInfo:
         tier = payload["tier"]
         if tier not in _VALID_TIERS:
             raise InvalidLicenseError(f"unknown license tier {tier!r}")
-        seats = int(payload["seats"])
         issued = date.fromisoformat(payload["issued"])
         expires = date.fromisoformat(payload["expires"]) if payload.get("expires") else None
         license_id = str(payload["id"])
         licensee = str(payload["licensee"])
+        if not license_id.strip() or not licensee.strip():
+            raise InvalidLicenseError("license identifier and licensee are required")
+        if tier == "campus_location":
+            if "seats" in payload or payload.get("learner_scope") != "unlimited_at_location":
+                raise InvalidLicenseError("campus license must explicitly sign unlimited learners without a numeric cap")
+            location_id = payload.get("location_id")
+            if not isinstance(location_id, str) or not _LOCATION_ID.fullmatch(location_id):
+                raise InvalidLicenseError("campus license needs a valid signed location identifier")
+            if expires is None or expires <= issued:
+                raise InvalidLicenseError("campus license must have a paid-through expiry date")
+            seats = None
+        else:
+            # Prevent a legacy tier silently upgrading itself when someone
+            # introduces an extra signed string field to the payload.
+            if "learner_scope" in payload or "location_id" in payload:
+                raise InvalidLicenseError("legacy license cannot carry campus learner entitlements")
+            seats = payload["seats"]
+            if isinstance(seats, bool) or not isinstance(seats, int) or seats < 1:
+                raise InvalidLicenseError("legacy license requires a positive integer learner cap")
+            location_id = None
     except InvalidLicenseError:
         raise
     except Exception as exc:
@@ -126,6 +154,7 @@ def verify_license(license_str: str) -> LicenseInfo:
         seats=seats,
         issued=issued,
         expires=expires,
+        location_id=location_id,
     )
 
 

@@ -276,7 +276,8 @@ def refresh(
     elif chosen is not None:
         log.info(
             "License active: %s for %r (%s learners, source=%s%s)",
-            chosen.tier, chosen.licensee, chosen.seats, source,
+            chosen.tier, chosen.licensee,
+            "unlimited at signed location" if chosen.unlimited_learners else chosen.seats, source,
             f", expires {chosen.expires.isoformat()}" if chosen.expires else "",
         )
     if report is not None and report.status != "unknown":

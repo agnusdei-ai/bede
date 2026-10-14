@@ -41,6 +41,8 @@ export default function Login() {
 
   useEffect(() => {
     fetchAvailableLocales().then(setAvailableLocales)
+    fetchEducatorPilotMode().then(value => setEducatorMode(value.enabled))
+      .catch(() => setEducatorMode(false))
   }, [])
 
   // Consumed in an effect rather than a useState initializer on purpose:

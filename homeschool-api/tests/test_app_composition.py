@@ -87,6 +87,7 @@ GUARDS = {
     ('POST', '/auth/logout'): 'require_auth',
     ('GET', '/auth/recovery/methods'): 'PUBLIC',
     ('POST', '/auth/educator-login'): 'PUBLIC',
+    ('GET', '/auth/educator-mode'): 'PUBLIC',
     ('POST', '/auth/recovery/reset-password'): 'require_parent_recovery',
     ('POST', '/auth/recovery/verify'): 'PUBLIC',
     ('POST', '/auth/recovery/webauthn/options'): 'PUBLIC',

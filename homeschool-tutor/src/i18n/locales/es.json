@@ -273,6 +273,7 @@
     "voicesEnrolled_other": "{{count}} voces registradas",
     "usageEstimateTooltip": "Estimación con tu propia clave de la API de Anthropic — consulta console.anthropic.com para la facturación exacta",
     "usageEstimate": "${{cost}} uso de IA (est.)",
+    "campusLicenseTooltip": "Licencia para {{licensee}} — alumnos matriculados ilimitados en la sede {{location}}",
     "licenseTooltip": "Licenciado a {{licensee}} — {{seats}} cupos de estudiantes",
     "trialDaysLeft_one": "Prueba — queda {{count}} día",
     "trialDaysLeft_other": "Prueba — quedan {{count}} días",

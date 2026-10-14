@@ -267,6 +267,34 @@ class VoiceProfile(Base):
     )
 
 
+class ClassicalEducator(Base):
+    """Independently authenticated teacher. No parent/admin privileges.
+
+    TOTP secret encrypted at rest; password is verify-only salted KDF.
+    A disabled account or version change immediately invalidates JWTs.
+    """
+    __tablename__ = "classical_educators"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, index=True, nullable=False)
+    password_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    password_salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    totp_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    credential_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_totp_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class EducatorRosterAssignment(Base):
+    """An explicit authorization edge, not a tenant-wide searchable roster."""
+    __tablename__ = "educator_roster_assignments"
+
+    educator_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+
+
 class StudentConfig(Base):
     """Per-student session configuration saved by parent before each pod session."""
     __tablename__ = "student_configs"

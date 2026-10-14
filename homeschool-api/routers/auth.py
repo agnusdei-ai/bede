@@ -434,7 +434,11 @@ async def validate_token(
         )
         raise HTTPException(status_code=401, detail="Session fingerprint mismatch — please log in again")
 
+    if payload.get("role") == "child" and settings.educator_pilot_enabled:
+        raise HTTPException(status_code=403, detail="Classroom pilot requires an authorized educator")
     if payload.get("role") == "educator":
+        if not settings.educator_pilot_enabled:
+            raise HTTPException(status_code=403, detail="Educator pilot not enabled")
         from services.educator_access import live_educator
         await live_educator(db, payload)
     return {"role": payload.get("role"), "valid": True}

@@ -132,3 +132,22 @@ async def test_key_revocation_invalidates_current_session_version(db):
     assert await runtime.revoke_credential(db, a["id"], row.credential_id)
     assert not row.enabled
     assert not await runtime.revoke_credential(db, a["id"], row.credential_id)
+
+
+def test_exact_organizational_bootstrap_mailboxes_are_not_wildcard_domains(monkeypatch):
+    monkeypatch.setattr(settings, "educator_institution_email_domain", "")
+    monkeypatch.setattr(
+        settings, "educator_bootstrap_emails",
+        "info@agnusdei.ai,kristian@adaptcloud.io",
+    )
+    assert invites._normalize_email(" INFO@AGNUSDEI.AI ") == "info@agnusdei.ai"
+    assert invites._normalize_email("kristian@adaptcloud.io") == "kristian@adaptcloud.io"
+    with pytest.raises(ValueError):
+        invites._normalize_email("other@agnusdei.ai")
+    with pytest.raises(ValueError):
+        invites._normalize_email("another@adaptcloud.io")
+    with pytest.raises(ValueError):
+        invites._normalize_email("info@agnusdei.ai.attacker.example")
+    monkeypatch.setattr(settings, "educator_bootstrap_emails", "")
+    with pytest.raises(ValueError):
+        invites._normalize_email("info@agnusdei.ai")

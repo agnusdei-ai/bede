@@ -55,7 +55,7 @@ def test_both_apple_silicon_skus_are_consistent_with_current_specs(sku):
     lambda r: r.update(runtime_version=""),
     lambda r: r.update(observed_peak_concurrent_sessions=4),
     lambda r: r.update(turns=r["turns"][:2]),
-    lambda r: r["turns"][0].update(time_to_first_token_ms=100000, complete_turn_ms=100000),
+    lambda r: [t.update(time_to_first_token_ms=100000, complete_turn_ms=100000) for t in r["turns"][:6]],
     lambda r: r["turns"][0].update(success=False),
     lambda r: r.update(peak_unified_memory_fraction=0.92),
     lambda r: r["workflow_checks"].update(educator_mfa_and_revocation=False),

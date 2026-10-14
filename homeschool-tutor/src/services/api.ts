@@ -1191,6 +1191,19 @@ export const invitePasskeyInstructor = (token: string, username: string, institu
   educatorApi<{ sent: boolean; username: string }>('/auth/educator-passkey/invite',
     token, 'POST', { username, institutional_email })
 
+export interface EducatorPasskeySummary {
+  id: string
+  created_at: string
+}
+
+export const fetchMyEducatorPasskeys = (token: string) =>
+  educatorApi<EducatorPasskeySummary[]>('/auth/educator-passkey/credentials', token)
+
+export const revokeMyEducatorPasskey = (token: string, id: string) =>
+  educatorApi<{ revoked: boolean; all_previous_sessions_invalidated: boolean }>(
+    `/auth/educator-passkey/credentials/${encodeURIComponent(id)}/revoke`, token, 'POST',
+  )
+
 export const fetchInstructors = (token: string) =>
   educatorApi<InstructorAccount[]>('/educators/accounts', token)
 

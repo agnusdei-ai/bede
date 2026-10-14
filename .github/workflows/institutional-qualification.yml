@@ -37,7 +37,8 @@ jobs:
             if test -f "$file"; then tests+=("$file"); fi
           done
           if (( ${#tests[@]} == 0 )); then
-            echo "No new policy module in this PR; other stages still apply."
+            echo "No new policy module in this PR; running baseline authorization policy tests."
+            python -m pytest -q tests/test_policy.py
           else
             python -m pytest -q "${tests[@]}"
           fi
@@ -68,7 +69,8 @@ jobs:
             if test -f "$file"; then tests+=("$file"); fi
           done
           if (( ${#tests[@]} == 0 )); then
-            echo "No institutional UX scenario tests present; full frontend regression remains mandatory."
+            echo "No institutional UX scenario tests present; running complete frontend tests."
+            npm test
           else
             npx vitest run "${tests[@]}"
           fi

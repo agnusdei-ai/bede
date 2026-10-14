@@ -1,0 +1,38 @@
+# Double-click via the packaged Bede Setup shortcut on Windows.
+# Runs entirely from the extracted installer folder; no Git or source checkout.
+$ErrorActionPreference = 'Stop'
+Set-Location $PSScriptRoot
+function Stop-Install([string]$msg) { throw "Bede installation incomplete: $msg" }
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Stop-Install 'Install and start Docker Desktop first.' }
+& docker info *> $null
+if ($LASTEXITCODE -ne 0) { Stop-Install 'Docker Desktop must be running.' }
+if (!(Test-Path 'images.tar')) { Stop-Install 'The self-contained application image archive is missing.' }
+if (!(Test-Path 'WIZARD_IMAGE')) { Stop-Install 'The setup wizard image reference is missing.' }
+& docker load -i images.tar
+if ($LASTEXITCODE -ne 0) { Stop-Install 'Could not load the included application images.' }
+if (!(Test-Path '.env')) {
+  $wizard = (Get-Content WIZARD_IMAGE -Raw).Trim()
+  Start-Process 'http://localhost:8765'
+  $mountPath = (Get-Location).Path
+  & docker run --rm -p '127.0.0.1:8765:8765' --mount "type=bind,src=$mountPath,dst=/repo" $wizard
+  if ($LASTEXITCODE -ne 0 -or !(Test-Path '.env')) { Stop-Install 'The browser wizard was not completed.' }
+}
+& docker compose --env-file .env -f compose.yaml config --quiet
+if ($LASTEXITCODE -ne 0) { Stop-Install 'The saved configuration was rejected.' }
+& docker compose --env-file .env -f compose.yaml up -d --no-build --pull never
+if ($LASTEXITCODE -ne 0) { Stop-Install 'The Bede containers did not start.' }
+# Certificate issuance is triggered locally, then verification is done with
+# the exported CA. Never consider the bootstrap probe a passed health check.
+& curl.exe -k -s --max-time 5 https://localhost/api/health *> $null
+$verified = $false
+for ($i=0; $i -lt 45; $i++) {
+  & docker compose --env-file .env -f compose.yaml exec -T caddy cat /data/caddy/pki/authorities/local/root.crt 2>$null | Out-File -Encoding ascii 'bede-root-ca.crt'
+  if (Test-Path 'bede-root-ca.crt') {
+    & curl.exe -fsS --max-time 5 --cacert bede-root-ca.crt https://localhost/api/health *> $null
+    if ($LASTEXITCODE -eq 0) { $verified=$true; break }
+  }
+  Start-Sleep -Seconds 2
+}
+if (-not $verified) { Stop-Install 'HTTPS or the API failed verification. Review Docker Desktop container logs.' }
+Write-Host 'Bede is running with verified HTTPS at https://localhost.'
+Start-Process 'https://localhost'

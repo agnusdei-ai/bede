@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from core.deps import require_educator, require_elevated_parent
+from core.deps import require_educator, require_elevated_parent, require_parent
 from models.schemas import SessionConfig
 from services.assessment_interop import EducatorAssessmentSubmission
 from services.educator_access import (
@@ -32,6 +32,32 @@ class EducatorProvisionRequest(BaseModel):
 
 class ClassRosterRequest(BaseModel):
     configs: list[SessionConfig] = Field(min_length=1, max_length=90)
+
+
+@router.get("/accounts")
+async def list_authorized_instructors(
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    from sqlalchemy import func, select
+    from core.database import ClassicalEducator, EducatorRosterAssignment
+    counts = (await db.execute(
+        select(EducatorRosterAssignment.educator_id,
+               func.count(EducatorRosterAssignment.student_name))
+        .group_by(EducatorRosterAssignment.educator_id)
+    )).all()
+    count_map = dict(counts)
+    instructors = (await db.execute(
+        select(ClassicalEducator).order_by(ClassicalEducator.username)
+    )).scalars().all()
+    return [{"id": e.id, "username": e.username, "enabled": e.enabled,
+             "learner_count": count_map.get(e.id, 0)} for e in instructors]
+
+
+@router.get("/me/assessment-frameworks")
+async def my_frameworks(auth: dict = Depends(require_educator)) -> list[dict]:
+    from services.assessment_interop import frameworks_catalog
+    return frameworks_catalog()
 
 
 @router.post("/accounts", status_code=201)

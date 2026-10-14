@@ -1,5 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { describe, it, expect, afterEach } from 'vitest'
+
+afterEach(() => cleanup())
 import ValorEducatorPreview from './ValorEducatorPreview'
 
 describe('Valor educator design review', () => {

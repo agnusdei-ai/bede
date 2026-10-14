@@ -218,6 +218,7 @@
     "neverMind": "Never mind"
   },
   "podDashboard": {
+    "licensedRosterCapacity": "Licensed learner capacity: {{enrolled}} of {{capacity}} seats",
     "prepareFocusedLesson": "Teach one subject now",
     "focusedLessonExplanation": "Choose a subject already in today's approved plan. Bede will use the learner's existing settings and academic evidence.",
     "lessonSubject": "Subject for this lesson",

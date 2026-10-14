@@ -71,15 +71,8 @@ async def add_educator(
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Elevated parent provisions password+TOTP once; no mail or shared secret logs."""
-    if not settings.educator_pilot_enabled:
-        raise HTTPException(status_code=409, detail="Enable the educator pilot on this instance first")
-    try:
-        result = await provision_educator(db, payload.username, payload.password)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    response.headers["Cache-Control"] = "no-store"
-    return result
+    """Never provision a reusable educator password or authenticator secret."""
+    raise HTTPException(status_code=410, detail="Educator accounts require Bede-admin-approved passkey invitations")
 
 
 @router.put("/accounts/{educator_id}/roster")

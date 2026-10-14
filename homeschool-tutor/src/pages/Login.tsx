@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
 import { Globe, Lock, User, Star, Mic } from 'lucide-react'
-import { login, educatorLogin, fetchEducatorPilotMode, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
+import { login, educatorPasskeyLogin, fetchEducatorPilotMode, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
 import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
@@ -19,7 +19,6 @@ export default function Login() {
   const { t, i18n } = useTranslation()
   const [role, setRole] = useState<'parent' | 'child' | 'educator'>('parent')
   const [educatorUsername, setEducatorUsername] = useState('')
-  const [educatorCode, setEducatorCode] = useState('')
   const [educatorMode, setEducatorMode] = useState(false)
   const [credential, setCredential] = useState('')
   const [error, setError] = useState('')
@@ -110,7 +109,7 @@ export default function Login() {
     setLoading(true)
     try {
       const result = role === 'educator'
-        ? await educatorLogin(educatorUsername, credential, educatorCode, selectedLocale)
+        ? await educatorPasskeyLogin(educatorUsername)
         : await login(role, credential, selectedLocale)
 
       if (role === 'parent') {
@@ -127,7 +126,6 @@ export default function Login() {
 
       if (role === 'educator') {
         setAuth(result.accessToken, 'educator', selectedLocale)
-        setEducatorCode('')
         setCredential('')
         navigate('/classroom')
         return
@@ -153,7 +151,9 @@ export default function Login() {
       setPendingToken(token)
       setPhase('voice-verify')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      setError(err instanceof DOMException && err.name === 'NotAllowedError'
+        ? 'Passkey prompt was canceled. You can try again without an account lockout.'
+        : err instanceof Error ? err.message : 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -310,7 +310,7 @@ export default function Login() {
                 onChange={(e) => setEducatorUsername(e.target.value)} />
             </div>
           )}
-          <div>
+          {role !== 'educator' && <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               {role === 'child' ? t('login.labelStudentPin') : t('login.labelParentPassword')}
             </label>
@@ -326,16 +326,15 @@ export default function Login() {
                 required
               />
             </div>
-          </div>
+          </div>}
 
           {role === 'educator' && (
-            <label className="block text-sm font-medium text-gray-700">
-              Authenticator code (required)
-              <input type="text" inputMode="numeric" pattern="[0-9]{6}" required
-                autoComplete="one-time-code"
-                value={educatorCode} onChange={(e) => setEducatorCode(e.target.value)}
-                className="mt-1 block w-full border rounded-lg px-3 py-2.5" />
-            </label>
+            <p className="text-sm text-sage-700" role="note">
+              Use the passkey enrolled through your school invitation.
+              Your device will request its local biometric or PIN verification.
+              Bede never receives that PIN. If your key is lost, ask your
+              authorized school administrator for a recovery invitation.
+            </p>
           )}
 
           {role === 'parent' && (
@@ -366,10 +365,10 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading || !credential || (role === 'educator' && (!educatorUsername.trim() || educatorCode.length !== 6))}
+            disabled={loading || (role === 'educator' ? !educatorUsername.trim() : !credential)}
             className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : role === 'educator' ? 'Enter Educator Desk' : t('login.submitChild')}
+            {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : role === 'educator' ? 'Continue with passkey' : t('login.submitChild')}
           </button>
         </form>
 

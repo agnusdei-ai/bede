@@ -36,7 +36,9 @@ jobs:
           prefix="ghcr.io/agnusdei-ai/bede"
           sha="${GITHUB_SHA}"
           arch="${{ matrix.arch }}"
-          test "$(docker info --format '{{.Architecture}}')" = "$arch" || { echo "Native runner architecture mismatch"; exit 1; }
+          detected="$(docker info --format '{{.Architecture}}')"
+          case "$detected" in x86_64|amd64) detected=amd64 ;; aarch64|arm64) detected=arm64 ;; esac
+          test "$detected" = "$arch" || { echo "Native runner architecture mismatch: $detected vs $arch"; exit 1; }
           docker build -t "${prefix}-api:sha-${sha}-${arch}" -f homeschool-api/Dockerfile homeschool-api
           docker build -t "${prefix}-ui:sha-${sha}-${arch}" -f homeschool-tutor/Dockerfile homeschool-tutor
           docker build -t "${prefix}-trust:sha-${sha}-${arch}" -f scripts/trust_service/Dockerfile scripts/trust_service

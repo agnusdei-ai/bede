@@ -50,7 +50,7 @@ function RequireAuth({
     return <Navigate to={`/?returnTo=${returnTo}`} replace />
   }
   if (allowedRole && role !== allowedRole) {
-    return <Navigate to={role === 'parent' ? '/setup' : '/session'} replace />
+    return <Navigate to={role === 'parent' ? '/setup' : role === 'educator' ? '/classroom' : '/session'} replace />
   }
   return <>{children}</>
 }

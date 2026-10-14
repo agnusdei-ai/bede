@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.config import settings
 from core.deps import require_educator, require_elevated_parent, require_parent
 from models.schemas import SessionConfig
 from services.assessment_interop import EducatorAssessmentSubmission
@@ -71,6 +72,8 @@ async def add_educator(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Elevated parent provisions password+TOTP once; no mail or shared secret logs."""
+    if not settings.educator_pilot_enabled:
+        raise HTTPException(status_code=409, detail="Enable the educator pilot on this instance first")
     try:
         result = await provision_educator(db, payload.username, payload.password)
     except ValueError as exc:
@@ -87,6 +90,8 @@ async def set_class_roster(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Only elevated parent/operator grants assignments or creates a pupil."""
+    if not settings.educator_pilot_enabled:
+        raise HTTPException(status_code=409, detail="Enable the educator pilot on this instance first")
     try:
         return await assign_class_roster(db, educator_id, payload.configs)
     except ValueError as exc:

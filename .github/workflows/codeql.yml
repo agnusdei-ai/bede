@@ -51,6 +51,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: codeql-sarif-${{ matrix.language }}
-          path: ../results/
+          path: ${{ github.workspace }}/../results/
           if-no-files-found: warn
           retention-days: 30

@@ -330,6 +330,8 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
 
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
+        if settings.educator_pilot_enabled:
+            raise HTTPException(status_code=403, detail="Classroom pilot requires an authorized educator")
         if not hmac.compare_digest(req.credential, settings.child_pin):
             # Escalating delay, not a lockout — see core/child_throttle.py
             # for why copying parent_lockout's fixed-threshold refusal here

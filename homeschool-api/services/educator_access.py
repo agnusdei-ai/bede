@@ -174,7 +174,15 @@ async def assign_class_roster(db, educator_id: str, configs: list) -> dict:
     from core import license_state
     limit = license_state.effective_info()
     existing = set((await db.execute(select(StudentConfig.student_name))).scalars().all())
-    if limit is not None and len(existing | set(names)) > limit.seats:
+    # The new signed campus_location tier explicitly grants unlimited
+    # *enrolled* learners at the configured location. Its seats field is None;
+    # do not compare int > None or pretend a 90-person classroom roster limit
+    # is the campus-wide student licensing cap.
+    requested_total = len(existing | set(names))
+    if limit is not None and not (
+        getattr(limit, "unlimited_learners", False)
+        or (isinstance(limit.seats, int) and requested_total <= limit.seats)
+    ):
         raise HTTPException(status_code=403, detail="Student seat limit reached")
     # Resolve keys BEFORE adding config rows/roster links. Student key
     # creation currently commits its own transaction, so no roster

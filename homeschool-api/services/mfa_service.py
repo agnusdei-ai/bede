@@ -167,11 +167,50 @@ async def build_authentication_options(db: AsyncSession) -> str | None:
     return webauthn.options_to_json(options)
 
 
+async def build_elevation_authentication_options(db: AsyncSession, jti: str) -> str | None:
+    """WebAuthn challenge for ONE authenticated parent's management elevation.
+
+    Uses existing enrolled credentials but NEVER the global login challenge.
+    The challenge must be consumed by this same parent JWT's session id.
+    """
+    if not webauthn_enabled() or not jti:
+        return None
+    result = await db.execute(select(ParentSecurityKey.credential_enc))
+    rows = result.all()
+    if not rows:
+        return None
+    allow = [
+        PublicKeyCredentialDescriptor(id=base64url_to_bytes(decrypt_json(blob, _WEBAUTHN_AAD)["credential_id"]))
+        for (blob,) in rows
+    ]
+    options = webauthn.generate_authentication_options(
+        rp_id=settings.webauthn_rp_id,
+        allow_credentials=allow,
+        user_verification=UserVerificationRequirement.REQUIRED,
+    )
+    from core.mfa_challenge import set_elevation_challenge
+    set_elevation_challenge(jti, options.challenge)
+    return webauthn.options_to_json(options)
+
+
+async def verify_elevation_authentication(db: AsyncSession, jti: str, credential_json: str) -> bool:
+    from core.mfa_challenge import pop_elevation_challenge
+    challenge = pop_elevation_challenge(jti)
+    if not challenge:
+        return False
+    return await _verify_authentication_with_challenge(db, credential_json, challenge)
+
+
 async def verify_authentication(db: AsyncSession, credential_json: str) -> bool:
     challenge = pop_authenticate_challenge()
     if not challenge:
         return False
+    return await _verify_authentication_with_challenge(db, credential_json, challenge)
 
+
+async def _verify_authentication_with_challenge(
+    db: AsyncSession, credential_json: str, challenge: bytes,
+) -> bool:
     try:
         parsed = json.loads(credential_json) if isinstance(credential_json, str) else credential_json
         raw_id = parsed["rawId"]

@@ -27,7 +27,8 @@ jobs:
     permissions:
       contents: read
       actions: read
-      security-events: write
+    # Private repo has no Code Security entitlement for SARIF API uploads.
+    # Keep CodeQL running and enforce local SARIF severity instead.
     strategy:
       fail-fast: false
       matrix:
@@ -41,3 +42,20 @@ jobs:
       - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4
         with:
           category: '/language:${{ matrix.language }}'
+          upload: never
+          output: ../results
+      - name: Enforce CodeQL security findings
+        run: python3 scripts/check_codeql_sarif.py ../results
+      - name: Stage CodeQL results outside checkout
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/codeql-sarif"
+          cp ../results/*.sarif "$RUNNER_TEMP/codeql-sarif/"
+      - name: Preserve CodeQL scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: ${{ runner.temp }}/codeql-sarif/
+          if-no-files-found: warn
+          retention-days: 30

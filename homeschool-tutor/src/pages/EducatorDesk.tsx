@@ -41,6 +41,7 @@ export default function EducatorDesk() {
   const [source, setSource] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence'>('roster')
 
   useEffect(() => {
     if (!token) return
@@ -148,6 +149,18 @@ export default function EducatorDesk() {
           }}><LogOut size={16}/> Sign out</button>
         </header>
 
+        <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
+          {(['roster', 'lesson', 'evidence'] as const).map((step, index) => (
+            <button key={step} type="button"
+              aria-current={journeyStep === step ? 'step' : undefined}
+              onClick={() => setJourneyStep(step)}
+              className={journeyStep === step
+                ? 'rounded-lg bg-navy-700 px-3 py-2 text-sm text-white'
+                : 'rounded-lg border px-3 py-2 text-sm text-navy-800'}>
+              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Teach with Bede' : 'Learning evidence'}
+            </button>
+          ))}
+        </nav>
         <section className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
           <p className="text-xs text-gray-500">{roster.length} assigned learners. Only the parent/operator can enroll or remove learners.</p>
@@ -158,12 +171,14 @@ export default function EducatorDesk() {
               </option>)}
             </select>
           </label>
+          {activeConfig && <button type="button" onClick={() => setJourneyStep('lesson')}
+            className="rounded-lg bg-navy-700 px-4 py-2 text-white">Plan lesson</button>}
           {!roster.length && <p className="text-sm text-gray-600">No learners are assigned yet. Ask the parent/operator to authorize a class roster.</p>}
         </section>
 
         {activeConfig && (
           <>
-            <section className="bg-white border rounded-2xl p-4 space-y-3">
+            <section aria-label="Guided lesson" hidden={journeyStep !== 'lesson'} className="bg-white border rounded-2xl p-4 space-y-3">
               <h2 className="font-semibold flex items-center gap-2"><BookOpen size={18}/> Classical tutoring</h2>
               <p className="text-xs text-gray-600">This starts the real tutor with the parent-approved curriculum and protections. Your short focus applies to this session only.</p>
               <label className="block text-sm">Approved subject
@@ -184,7 +199,7 @@ export default function EducatorDesk() {
               </button>
             </section>
 
-            <section className="bg-white border rounded-2xl p-4 space-y-3">
+            <section aria-label="Learner evidence" hidden={journeyStep !== 'evidence'} className="bg-white border rounded-2xl p-4 space-y-3">
               <h2 className="font-semibold flex items-center gap-2"><ClipboardCheck size={18}/> Periodic DIBELS 8 evidence</h2>
               <p className="text-sm text-gray-600">Total independently reported DIBELS entries: {progress?.total_dibels_records ?? '—'}. Bede academic work observations in selected period: {workTotal ?? '—'}.</p>
               <p className="text-xs text-gray-600">These figures are educator-entered, unverified by Bede. Changes between compatible measures are descriptive; they do not establish that Bede caused a learning gain. DIBELS test administration and scoring remain outside Bede.</p>
@@ -220,7 +235,7 @@ export default function EducatorDesk() {
               <p className="text-xs text-gray-500">*Difference from the preceding result for the same DIBELS measure, grade and unit only. A score difference alone is not a causal learning-efficacy estimate.</p>
             </section>
 
-            <section className="bg-white border rounded-2xl p-4 space-y-3">
+            <section aria-label="External assessment recording" hidden={journeyStep !== 'evidence'} className="bg-white border rounded-2xl p-4 space-y-3">
               <h2 className="font-semibold flex items-center gap-2"><ShieldCheck size={18}/> Record an official DIBELS 8 result</h2>
               <p className="text-xs text-gray-600">Transcribe an independently administered assessment report. Never enter test questions, passages, answers, or other proprietary materials.</p>
               <div className="grid sm:grid-cols-2 gap-3">

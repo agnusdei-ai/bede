@@ -287,6 +287,10 @@ class Settings(BaseSettings):
     # Single-family credentials (set via env — never hardcoded in code)
     parent_password: str = "change-me-parent"
     child_pin: str = "0000"
+    # Explicit operator opt-in. Bede's legacy shared child PIN is NOT safe
+    # across unrelated institutional learners. Classroom pilot mode disables
+    # child-PIN sessions and requires supervised, MFA-authenticated educators.
+    educator_pilot_enabled: bool = False
 
     # ── Public demo mode (optional) ────────────────────────────────────────────
     # Empty by default: the public demo is entirely disabled unless a

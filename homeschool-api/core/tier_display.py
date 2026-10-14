@@ -41,6 +41,7 @@ _TIER_LABELS = {
     "trial": "Trial",
     "core": "Family Membership",
     "coop": "Co-op or Network Membership",
+    "campus_location": "Campus Location Subscription",
 }
 
 

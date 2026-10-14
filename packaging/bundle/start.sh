@@ -24,10 +24,18 @@ fi
 chmod 600 .env
 docker compose --env-file .env -f compose.yaml config --quiet || fail "Invalid setup configuration"
 docker compose --env-file .env -f compose.yaml up -d --no-build --pull never || fail "Bede containers did not start"
-# Extract trusted root and verify the real HTTPS endpoint; do not bypass TLS.
-docker compose --env-file .env -f compose.yaml exec -T caddy \
-  cat /data/caddy/pki/authorities/local/root.crt > bede-root-ca.crt \
-  || fail "The Bede HTTPS authority did not initialize"
+# Trigger Caddy's local certificate issuance on the loopback interface.
+# This first probe is NOT security validation; the final health test below
+# validates against the root CA exported from this instance.
+curl --silent --max-time 5 --insecure https://localhost/api/health >/dev/null 2>&1 || true
+ready=0
+for attempt in $(seq 1 30); do
+  if docker compose --env-file .env -f compose.yaml exec -T caddy \
+    cat /data/caddy/pki/authorities/local/root.crt > bede-root-ca.crt 2>/dev/null \
+    && [[ -s bede-root-ca.crt ]]; then ready=1; break; fi
+  sleep 2
+done
+[[ "$ready" = 1 ]] || fail "The Bede HTTPS authority did not initialize"
 chmod 600 bede-root-ca.crt
 ok=0
 for attempt in $(seq 1 45); do

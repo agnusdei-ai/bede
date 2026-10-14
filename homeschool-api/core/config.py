@@ -560,6 +560,10 @@ class Settings(BaseSettings):
     # below) — an offline-verifiable certificate issued by scripts/issue_license.py.
     # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
     license_key: str = ""
+    # Required to ACTIVATE a signed campus_location offer, even if the key
+    # itself is valid. One opaque operator-assigned ID per physical school
+    # location; different branches must have different IDs and licenses.
+    bede_location_id: str = ""
 
     # ── License server (optional) ───────────────────────────────────────────
     # Base URL of the license server (the checkout/issuance service). When

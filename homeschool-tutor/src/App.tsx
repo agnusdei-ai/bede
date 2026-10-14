@@ -39,7 +39,7 @@ function RequireAuth({
   allowedRole,
 }: {
   children: React.ReactNode
-  allowedRole?: 'parent' | 'child'
+  allowedRole?: 'parent' | 'child' | 'educator'
 }) {
   const { token, role } = useSessionStore()
   const location = useLocation()

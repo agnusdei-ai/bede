@@ -494,7 +494,15 @@ export default function ParentSetup() {
                       ? 'text-amber-700 font-medium'
                       : ''
                   }`}
-                  title={t('parentSetup.licenseTooltip', { licensee: systemStatus.license.licensee, seats: systemStatus.license.seats })}
+                  title={systemStatus.license.unlimited_learners
+                    ? t('parentSetup.campusLicenseTooltip', {
+                        licensee: systemStatus.license.licensee,
+                        location: systemStatus.license.location_id,
+                      })
+                    : t('parentSetup.licenseTooltip', {
+                        licensee: systemStatus.license.licensee,
+                        seats: systemStatus.license.seats,
+                      })}
                 >
                   {systemStatus.license.tier === 'trial' &&
                   systemStatus.license.days_remaining != null &&

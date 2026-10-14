@@ -109,6 +109,11 @@ async def apply_license(
         info = licensing.verify_license(key)
     except licensing.InvalidLicenseError as exc:
         raise HTTPException(status_code=422, detail=f"That license key is not valid: {exc}") from exc
+    if not licensing.location_matches(info, settings.bede_location_id):
+        raise HTTPException(
+            status_code=422,
+            detail="The signed campus license location does not match BEDE_LOCATION_ID on this deployment.",
+        )
     if info.is_expired:
         raise HTTPException(
             status_code=422,

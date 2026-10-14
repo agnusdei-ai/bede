@@ -1144,6 +1144,12 @@ async function educatorApi<T>(path: string, token: string, method = 'GET', body?
   return res.status === 204 ? undefined as T : res.json()
 }
 
+export async function fetchEducatorPilotMode(): Promise<{ enabled: boolean; shared_child_pin_disabled: boolean }> {
+  const res = await fetch(`${BASE}/auth/educator-mode`)
+  if (!res.ok) return { enabled: false, shared_child_pin_disabled: false }
+  return res.json()
+}
+
 export async function educatorLogin(
   username: string, password: string, totp: string, locale?: string,
 ): Promise<LoginResult> {

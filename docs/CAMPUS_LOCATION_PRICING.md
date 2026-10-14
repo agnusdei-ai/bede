@@ -1,6 +1,6 @@
 # Bede — organizational location subscriptions
 
-**Commercial offer decision (October 2026): $3,500 USD per month per
+> **Valor founding-school promotion (Fall 2026–Spring 2027):** Eligible founding-school campus memberships are offered at **$2,700 USD per campus per month**, with unlimited enrolled learner seats at that campus and a 12-month contractual commitment. This promotional rate is binding for the signed subscription term, including months after Spring 2027. See [VALOR_PRICING.md](VALOR_PRICING.md). The $3,500/location figure below refers to the separate general campus-location offer and does **not** supersede the approved Valor founding promotion. The $950 fixed pilot and $25/learner/month options also remain available under their respective terms.\n\n**Commercial offer decision (October 2026): $3,500 USD per month per
 physical school location, unlimited enrolled learner seats at that
 location.** This supersedes earlier wording of "$3,500 per organization"
 that could incorrectly license multiple locations on one subscription.

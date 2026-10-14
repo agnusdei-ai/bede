@@ -223,8 +223,8 @@ async def educator_login(
 ):
     """Independent educator password + TOTP. Never grants parent privileges."""
     from services.educator_access import authenticate_educator
-    if settings.is_demo_deployment:
-        raise HTTPException(status_code=403, detail="Educator login unavailable on public demo")
+    if settings.is_demo_deployment or not settings.educator_pilot_enabled:
+        raise HTTPException(status_code=403, detail="Educator pilot is not enabled")
     if req.locale not in SUPPORTED_LOCALES:
         raise HTTPException(status_code=422, detail="Unsupported language")
     payload = await authenticate_educator(db, req.username, req.password, req.totp)

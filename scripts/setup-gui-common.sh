@@ -49,7 +49,7 @@ info "Opening the setup wizard in your browser..."
 # the wizard (which otherwise runs as root inside the container) writes
 # .env owned by root, and chmod 600 on a root-owned file then locks YOU
 # out of your own .env (caught by production-regression.yml's CI run).
-docker run --rm -p 8765:8765 -e HOST_LAN_IP="$LAN_IP" -v "$(pwd)":/repo \
+docker run --rm -p 127.0.0.1:8765:8765 -e HOST_LAN_IP="$LAN_IP" -v "$(pwd)":/repo \
   --user "$(id -u):$(id -g)" bede-setup-wizard
 
 if [[ ! -f .env ]]; then
@@ -64,8 +64,10 @@ DEADLINE=$((SECONDS + 90))
 until curl -skf https://localhost/api/health >/dev/null 2>&1; do
   if [[ $SECONDS -ge $DEADLINE ]]; then
     echo ""
-    echo "Bede is taking longer than expected to start. Run 'make logs' to see what's happening."
-    break
+    echo "Bede did not pass its startup health check."
+    echo "Open Docker Desktop > Containers > Bede > api > Logs for details."
+    echo "The setup is NOT verified; please do not enter real learner information."
+    error "Bede startup health check failed."
   fi
   sleep 2
 done

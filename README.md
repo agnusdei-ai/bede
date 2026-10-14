@@ -6,6 +6,32 @@ Claude (the Bede persona) tutors via Socratic dialogue, agentic tools, and
 subject-specific personas. All student data is AES-256-GCM encrypted at rest;
 voice biometrics authenticate children at session start.
 
+## Install Bede (no developer commands required)
+
+Use the **Bede Setup** installer for your operating system. The normal
+operator journey is: launch the installer, complete the browser wizard,
+verify HTTPS and system health, then enroll the administrator.
+
+- **Windows:** launch the built `Bede Setup.exe` release and choose
+  **Bede Setup** in the Start Menu.
+- **macOS:** launch `setup-gui.command` from an extracted Bede checkout
+  (or use the signed/notarized installer when one is published).
+- **Linux:** use the reviewed `packaging/unix/install.sh` installer;
+  desktop packaging remains a release task.
+
+Bede checks Docker availability, starts its browser-based configuration
+wizard, and confirms the application health check. A failed check is
+**not** a successful installation. The wizard is available only on local
+loopback while configuring secrets.
+
+For controlled Valor owner enrollment, use a **dedicated test host** with
+synthetic learner data. Do not enroll real school learners before
+institutional tenant isolation and educator WebAuthn qualification pass.
+See [production setup](docs/PRODUCTION_SETUP.md) for operating guidance.
+
+Developer commands such as `make setup` or direct Compose invocation are
+**advanced support paths only**, not the default customer experience.
+
 ## Where to go next
 
 | I want to... | Read |

@@ -185,6 +185,20 @@ async def chat(
         # name/grade they set once at /auth/demo-code are theirs to make.
         req.session_config = await _demo_session_config(auth.get("code"))
         db = None
+    elif role == "educator":
+        # An educator must not be able to swap student_name or inject a
+        # different curriculum in the request body. Check assignment FIRST,
+        # then reload the authoritative, parent-approved saved SessionConfig.
+        from routers.educators import my_student_config
+        saved = await my_student_config(
+            req.session_config.student_name, auth=auth, db=db,
+        )
+        if req.current_subject not in saved.subjects:
+            raise HTTPException(
+                status_code=403,
+                detail="Subject not included in approved learner plan",
+            )
+        req.session_config = saved
 
     demo_quota_exceeded = False
     if is_demo_code:

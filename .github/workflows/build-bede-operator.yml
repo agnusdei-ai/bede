@@ -1,5 +1,9 @@
 name: Bede self-contained operator bundle
 on:
+  pull_request:
+    paths:
+      - 'packaging/**'
+      - '.github/workflows/build-bede-operator.yml'
   workflow_dispatch:
   push:
     tags:

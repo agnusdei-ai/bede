@@ -132,7 +132,7 @@ _POLICY: dict[str, frozenset[str]] = {
     # Tutoring. Every authenticated role may chat; the demo's session config
     # is substituted server-side rather than trusted from the client, which
     # is an input-handling concern in routers/tutor.py, not an authz one.
-    "tutor.chat": frozenset({"parent", "child", "demo_code"}),
+    "tutor.chat": frozenset({"parent", "child", "educator", "demo_code"}),
     # Emailing a session summary is parent-or-demo, NOT child — a child
     # should not be able to send mail to an arbitrary address.
     "tutor.email_summary": frozenset({"parent", "demo_code"}),

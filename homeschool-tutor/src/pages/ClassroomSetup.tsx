@@ -5,9 +5,9 @@ import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig } from '../types'
 import {
   assignInstructorRoster, disableInstructor, fetchEducatorPilotMode, fetchInstructors,
-  provisionInstructor,
+  invitePasskeyInstructor,
 } from '../services/api'
-import type { InstructorAccount, InstructorProvisioned, LocutoCapacity } from '../services/api'
+import type { InstructorAccount, LocutoCapacity } from '../services/api'
 
 function parseRoster(text: string): SessionConfig[] {
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
@@ -44,8 +44,7 @@ export default function ClassroomSetup() {
   const [educators, setEducators] = useState<InstructorAccount[]>([])
   const [pilotMode, setPilotMode] = useState(false)
   const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [oneTime, setOneTime] = useState<InstructorProvisioned | null>(null)
+  const [institutionalEmail, setInstitutionalEmail] = useState('')
   const [selectedId, setSelectedId] = useState('')
   const [rosterText, setRosterText] = useState('')
   const [capacity, setCapacity] = useState<LocutoCapacity | null>(null)
@@ -78,16 +77,16 @@ export default function ClassroomSetup() {
     if (!token || busy) return
     setBusy(true)
     setMessage('')
-    setOneTime(null)
     try {
-      const result = await provisionInstructor(token, username, password)
-      setOneTime(result)
-      setPassword('')
+      const result = await invitePasskeyInstructor(token, username, institutionalEmail)
       setUsername('')
-      await refresh()
-      setSelectedId(result.id)
+      setInstitutionalEmail('')
+      setMessage(`Passkey invitation sent to the school mailbox for ${result.username}.`)
+      const rows = await fetchInstructors(token)
+      setEducators(rows)
+      setSelectedId(rows.find(e => e.username === result.username)?.id ?? rows[0]?.id ?? '')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not provision instructor')
+      setMessage(error instanceof Error ? error.message : 'Could not deliver passkey invitation')
     } finally {
       setBusy(false)
     }
@@ -97,7 +96,6 @@ export default function ClassroomSetup() {
     if (!token || !selectedId || busy) return
     setBusy(true)
     setMessage('')
-    setOneTime(null)
     try {
       const parsed = parseRoster(rosterText)
       const result = await assignInstructorRoster(token, selectedId, parsed)
@@ -117,8 +115,7 @@ export default function ClassroomSetup() {
     setBusy(true)
     try {
       await disableInstructor(token, selectedId)
-      setOneTime(null)
-      setMessage('Instructor disabled; existing tokens are revoked')
+        setMessage('Instructor disabled; existing tokens are revoked')
       await refresh()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Could not disable instructor')
@@ -146,30 +143,21 @@ export default function ClassroomSetup() {
 
         <section className="bg-white border rounded-2xl p-5 space-y-3">
           <h2 className="font-semibold flex items-center gap-2"><ShieldCheck size={18}/> Add an instructor</h2>
-          <p className="text-xs text-gray-600">Requires elevated parent confirmation. Provide the password and authenticator enrollment details directly to the authorized adult, not through a class chat.</p>
+          <p className="text-xs text-gray-600">Requires a strongly authenticated Bede administrator using a registered passkey. A one-use enrollment invitation is delivered only to the approved school mailbox. No password or TOTP secret is shared.</p>
           <label className="block text-sm">Instructor username
             <input autoComplete="off" value={username} onChange={e => setUsername(e.target.value)}
               className="mt-1 block border rounded-lg p-2 w-full" placeholder="instructor.name" />
           </label>
-          <label className="block text-sm">One-time initial password (14+ characters)
-            <input type="password" autoComplete="new-password" value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="mt-1 block border rounded-lg p-2 w-full"/>
+          <label className="block text-sm">Verified school-affiliated email
+            <input type="email" autoComplete="off" value={institutionalEmail}
+              onChange={e => setInstitutionalEmail(e.target.value)}
+              className="mt-1 block border rounded-lg p-2 w-full"
+              placeholder="teacher@school.example" />
           </label>
-          <button type="button" disabled={!pilotMode || busy || username.trim().length < 3 || password.length < 14}
+          <button type="button" disabled={!pilotMode || busy || username.trim().length < 3 || !institutionalEmail.includes('@')}
             onClick={() => void enroll()} className="bg-navy-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
-            <UserPlus size={15} className="inline mr-1"/> Provision MFA account
+            <UserPlus size={15} className="inline mr-1"/> Send passkey invitation
           </button>
-          {oneTime && (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm space-y-2">
-              <p className="font-semibold">Show once: authenticator setup for {oneTime.username}</p>
-              <p>Authenticator secret: <code className="break-all">{oneTime.totp_secret}</code></p>
-              <p className="break-all text-xs">Authenticator URI: {oneTime.totp_provisioning_uri}</p>
-              <p>Store this securely with the instructor. It will not be shown again.</p>
-              <button type="button" onClick={() => setOneTime(null)}
-                className="text-sm underline">Dismiss secret from screen</button>
-            </div>
-          )}
         </section>
 
         <section className="bg-white border rounded-2xl p-5 space-y-3">

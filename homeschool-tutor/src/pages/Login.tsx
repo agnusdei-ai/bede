@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
 import { Globe, Lock, User, Star, Mic } from 'lucide-react'
-import { login, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
+import { login, educatorLogin, fetchAvailableLocales, fetchStudentConfig, type AvailableLocale, type LoginResult, type MfaMethod } from '../services/api'
 import { unlockSpeechForSession } from '../hooks/useTextToSpeech'
 import { useSessionStore } from '../store/sessionStore'
 import VoiceVerification from '../components/VoiceVerification'
@@ -17,7 +17,9 @@ type Phase = 'login' | 'voice-verify' | 'parent-mfa' | 'account-recovery'
 
 export default function Login() {
   const { t, i18n } = useTranslation()
-  const [role, setRole] = useState<'parent' | 'child'>('parent')
+  const [role, setRole] = useState<'parent' | 'child' | 'educator'>('parent')
+  const [educatorUsername, setEducatorUsername] = useState('')
+  const [educatorCode, setEducatorCode] = useState('')
   const [credential, setCredential] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -104,7 +106,9 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const result = await login(role, credential, selectedLocale)
+      const result = role === 'educator'
+        ? await educatorLogin(educatorUsername, credential, educatorCode, selectedLocale)
+        : await login(role, credential, selectedLocale)
 
       if (role === 'parent') {
         if (result.mfaRequired) {
@@ -115,6 +119,14 @@ export default function Login() {
         }
         setAuth(result.accessToken, 'parent', selectedLocale)
         navigate(parentTarget)
+        return
+      }
+
+      if (role === 'educator') {
+        setAuth(result.accessToken, 'educator', selectedLocale)
+        setEducatorCode('')
+        setCredential('')
+        navigate('/classroom')
         return
       }
 
@@ -268,7 +280,7 @@ export default function Login() {
 
         {/* Role toggle */}
         <div className="flex rounded-lg border border-navy-200 overflow-hidden mb-6">
-          {(['parent', 'child'] as const).map((r) => (
+          {(['parent', 'child', 'educator'] as const).map((r) => (
             <button
               key={r}
               onClick={() => { setRole(r); setCredential('') }}
@@ -278,16 +290,26 @@ export default function Login() {
             >
               {r === 'parent'
                 ? <span className="flex items-center justify-center gap-1.5"><User size={13} /> {t('login.roleParent')}</span>
-                : <span className="flex items-center justify-center gap-1.5"><Star size={13} /> {t('login.roleChild')}</span>
+                : r === 'child'
+                  ? <span className="flex items-center justify-center gap-1.5"><Star size={13} /> {t('login.roleChild')}</span>
+                  : <span className="flex items-center justify-center gap-1.5"><User size={13} /> Classical Educator</span>
               }
             </button>
           ))}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {role === 'educator' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="educator-username">Instructor username</label>
+              <input id="educator-username" className="w-full border rounded-lg px-3 py-2.5 text-sm"
+                autoComplete="username" required value={educatorUsername}
+                onChange={(e) => setEducatorUsername(e.target.value)} />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {role === 'parent' ? t('login.labelParentPassword') : t('login.labelStudentPin')}
+              {role === 'child' ? t('login.labelStudentPin') : t('login.labelParentPassword')}
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -295,13 +317,23 @@ export default function Login() {
                 type="password"
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
-                placeholder={role === 'parent' ? t('login.placeholderPassword') : t('login.placeholderPin')}
+                placeholder={role === 'child' ? t('login.placeholderPin') : t('login.placeholderPassword')}
                 inputMode={role === 'child' ? 'numeric' : 'text'}
                 className="w-full pl-9 pr-4 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-400"
                 required
               />
             </div>
           </div>
+
+          {role === 'educator' && (
+            <label className="block text-sm font-medium text-gray-700">
+              Authenticator code (required)
+              <input type="text" inputMode="numeric" pattern="[0-9]{6}" required
+                autoComplete="one-time-code"
+                value={educatorCode} onChange={(e) => setEducatorCode(e.target.value)}
+                className="mt-1 block w-full border rounded-lg px-3 py-2.5" />
+            </label>
+          )}
 
           {role === 'parent' && (
             <button
@@ -331,10 +363,10 @@ export default function Login() {
 
           <button
             type="submit"
-            disabled={loading || !credential}
+            disabled={loading || !credential || (role === 'educator' && (!educatorUsername.trim() || educatorCode.length !== 6))}
             className="w-full py-3 bg-navy-500 text-white rounded-lg font-medium hover:bg-navy-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : t('login.submitChild')}
+            {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : role === 'educator' ? 'Enter Educator Desk' : t('login.submitChild')}
           </button>
         </form>
 

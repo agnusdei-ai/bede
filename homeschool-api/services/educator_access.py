@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select
 
 from core import student_keys
+from core.config import settings
 from core.credential_hash import hash_secret, verify_secret
 from core.database import ClassicalEducator, EducatorRosterAssignment, StudentConfig
 from core.encryption import aad_for, decrypt_json, encrypt_json
@@ -115,6 +116,8 @@ async def authenticate_educator(db, username: str, password: str, totp: str) -> 
 
 
 async def live_educator(db, token: dict) -> ClassicalEducator:
+    if settings.educator_pilot_enabled and token.get("auth_method") != "webauthn_uv":
+        raise HTTPException(status_code=401, detail="Educator passkey verification is required")
     if token.get("role") != "educator" or not token.get("sub"):
         raise HTTPException(status_code=403, detail="Educator access required")
     row = await db.get(ClassicalEducator, token["sub"])

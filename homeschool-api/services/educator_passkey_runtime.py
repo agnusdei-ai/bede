@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 import webauthn
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from webauthn.helpers import bytes_to_base64url
 from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria, PublicKeyCredentialDescriptor,
     ResidentKeyRequirement, UserVerificationRequirement,
@@ -108,11 +109,11 @@ async def verify_registration(db: AsyncSession, educator_id: str,
         expected_origin=settings.webauthn_origin,
         require_user_verification=True,
     )
-    credential_id = webauthn.bytes_to_base64url(verified.credential_id)
+    credential_id = bytes_to_base64url(verified.credential_id)
     if await db.get(EducatorWebAuthnCredential, credential_id):
         raise ValueError("This passkey credential is already registered")
     record = {
-        "public_key": webauthn.bytes_to_base64url(verified.credential_public_key),
+        "public_key": bytes_to_base64url(verified.credential_public_key),
         "sign_count": verified.sign_count,
     }
     db.add(EducatorWebAuthnCredential(

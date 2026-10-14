@@ -150,9 +150,18 @@ def _candidate(license_text: Optional[str]) -> Optional[licensing.LicenseInfo]:
     if not license_text:
         return None
     try:
-        return licensing.verify_license(license_text)
+        info = licensing.verify_license(license_text)
+        if not licensing.location_matches(info, _configured_location_id()):
+            return None
+        return info
     except licensing.InvalidLicenseError:
         return None
+
+
+def _configured_location_id() -> str:
+    # Lazy import keeps license-state tests independent of settings setup.
+    from core.config import settings
+    return settings.bede_location_id
 
 
 def refresh(

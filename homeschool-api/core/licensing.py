@@ -84,6 +84,25 @@ class LicenseInfo:
         return (self.expires - date.today()).days
 
 
+def location_matches(info: LicenseInfo, configured_location_id: str) -> bool:
+    """One signed campus key belongs to one configured physical location.
+
+    Offline Ed25519 verification prevents payload tampering; a contract and
+    optional activation service govern cross-device cloning, which offline
+    certificates alone cannot prevent.
+    """
+    if not info.unlimited_learners:
+        return True
+    return bool(configured_location_id) and info.location_id == configured_location_id
+
+
+def permits_learner_count(info: LicenseInfo, total_learners: int) -> bool:
+    """One policy for family Pod and delegated educator roster enrollment."""
+    if not isinstance(total_learners, int) or total_learners < 0:
+        return False
+    return info.unlimited_learners or (info.seats is not None and total_learners <= info.seats)
+
+
 def _b64url_decode(s: str) -> bytes:
     padding = "=" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s + padding)

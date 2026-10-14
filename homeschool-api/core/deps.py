@@ -148,6 +148,8 @@ async def _require_live_session(request: Request, payload: dict) -> dict:
     server-side — parent/child tokens are stateless JWTs with no server-side
     session to check (see routers/auth.py's logout)."""
     if payload.get("role") == "educator":
+        if not settings.educator_pilot_enabled:
+            raise HTTPException(status_code=403, detail="Educator pilot not enabled")
         from core.database import AsyncSessionLocal
         from services.educator_access import live_educator
         async with AsyncSessionLocal() as session:

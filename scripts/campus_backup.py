@@ -27,7 +27,7 @@ CHUNK_SIZE = 1024 * 1024
 def _key(secret: str, salt: bytes) -> bytes:
     if len(secret) < 20:
         raise ValueError("Backup passphrase must be at least 20 characters")
-    return hashlib.scrypt(secret.encode(), salt=salt, n=2**15, r=8, p=1, dklen=32)
+    return hashlib.scrypt(secret.encode(), salt=salt, n=2**15, r=8, p=1, dklen=32, maxmem=128 * 1024 * 1024)
 
 
 def encrypt_stream(src, dest, secret: str) -> None:

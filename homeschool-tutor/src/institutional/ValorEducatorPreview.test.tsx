@@ -1,0 +1,23 @@
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { describe, it, expect, afterEach } from 'vitest'
+
+afterEach(() => cleanup())
+import ValorEducatorPreview from './ValorEducatorPreview'
+
+describe('Valor educator design review', () => {
+  it('labels fictional data and does not claim production access', () => {
+    render(<ValorEducatorPreview />)
+    expect(screen.getByText(/Design review only/)).toBeTruthy()
+    expect(screen.getByText(/PROTOTYPE \/ FICTIONAL DATA/)).toBeTruthy()
+  })
+  it('moves between lesson examples and evidence without student rankings', () => {
+    render(<ValorEducatorPreview />)
+    fireEvent.click(screen.getAllByRole('button', { name: /Lesson companion/i })[0])
+    expect(screen.getByText('The art of a good question')).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: /View sample question/i })[0])
+    expect(screen.getByText(/What in the assigned reading/)).toBeTruthy()
+    fireEvent.click(screen.getAllByRole('button', { name: /Learning evidence/i })[0])
+    expect(screen.getByText('Explain a passage in your own words')).toBeTruthy()
+    expect(screen.queryByText(/leaderboard/i)).toBeNull()
+  })
+})

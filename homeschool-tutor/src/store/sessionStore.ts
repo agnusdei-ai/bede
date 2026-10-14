@@ -52,7 +52,7 @@ interface SessionState {
   // reset to null on logout so the next login starts from the toggle's own
   // default again, not whatever the last person picked.
   locale: string | null
-  setAuth: (token: string, role: 'parent' | 'child', locale?: string) => void
+  setAuth: (token: string, role: 'parent' | 'child' | 'educator', locale?: string) => void
   logout: () => void
 
   // Pod — all students configured for today's session (parent's device)

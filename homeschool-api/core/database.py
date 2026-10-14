@@ -287,6 +287,40 @@ class ClassicalEducator(Base):
     last_totp_step: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+
+class EducatorWebAuthnCredential(Base):
+    """Verified passkey public key and counters, tied to a specific educator.
+
+    The encrypted public-key record is AAD-bound to credential ID. No private
+    authenticator secrets or local operating-system PINs are stored by Bede.
+    """
+    __tablename__ = "educator_webauthn_credentials"
+
+    credential_id: Mapped[str] = mapped_column(String(512), primary_key=True)
+    educator_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    credential_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+
+
+class EducatorWebAuthnChallenge(Base):
+    """Durable, one-use, short-lived WebAuthn ceremony challenge.
+
+    Challenge bytes are public nonces. Database compare-and-set on consumed
+    prevents replay across concurrent API workers.
+    """
+    __tablename__ = "educator_webauthn_challenges"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    educator_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    ceremony: Mapped[str] = mapped_column(String(16), nullable=False)
+    challenge: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+
 class EducatorRosterAssignment(Base):
     """An explicit authorization edge, not a tenant-wide searchable roster."""
     __tablename__ = "educator_roster_assignments"

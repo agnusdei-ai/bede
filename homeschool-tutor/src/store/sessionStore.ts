@@ -45,7 +45,7 @@ export function deriveLocalDate(date: Date): string {
 interface SessionState {
   // Auth
   token: string | null
-  role: 'parent' | 'child' | null
+  role: 'parent' | 'child' | 'educator' | null
   // Chosen at the login screen itself (Login.tsx's English/Español toggle),
   // per-login rather than per-student — see docs/LOCALIZATION.md. Persisted
   // so a page refresh mid-session doesn't silently fall back to English;

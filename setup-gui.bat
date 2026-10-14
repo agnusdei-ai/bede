@@ -46,7 +46,7 @@ start "" cmd /c "timeout /t 2 >nul & start http://localhost:8765"
 
 REM Foreground on purpose — returns once the wizard container exits, which
 REM it does itself right after a successful submission.
-docker run --rm -p 8765:8765 -e HOST_LAN_IP=%LAN_IP% -v "%cd%":/repo bede-setup-wizard
+docker run --rm -p 127.0.0.1:8765:8765 -e HOST_LAN_IP=%LAN_IP% -v "%cd%":/repo bede-setup-wizard
 
 if not exist .env (
   echo Setup wasn't completed ^(no configuration was saved^). Run this again when you're ready.
@@ -65,8 +65,11 @@ if not errorlevel 1 goto healthy
 set /a TRIES+=1
 if %TRIES% geq 45 (
   echo.
-  echo Bede is taking longer than expected to start. Run "make logs" to see what's happening.
-  goto done
+  echo Bede startup health verification failed. The instance is NOT ready.
+  echo Open Docker Desktop, select the Bede API container, and review Logs.
+  echo Do not enter real learner information.
+  pause
+  exit /b 1
 )
 timeout /t 2 >nul
 goto healthcheck

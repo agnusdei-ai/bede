@@ -86,6 +86,7 @@ GUARDS = {
     ('POST', '/auth/login'): 'PUBLIC',
     ('POST', '/auth/logout'): 'require_auth',
     ('GET', '/auth/recovery/methods'): 'PUBLIC',
+    ('POST', '/auth/educator-login'): 'PUBLIC',
     ('POST', '/auth/recovery/reset-password'): 'require_parent_recovery',
     ('POST', '/auth/recovery/verify'): 'PUBLIC',
     ('POST', '/auth/recovery/webauthn/options'): 'PUBLIC',
@@ -125,6 +126,19 @@ GUARDS = {
     # about themselves. See services/lesson_planner.py.
     ('GET', '/diagnostic/{student_name}/plan'): 'require_parent',
     ('GET', '/diagnostic/{student_name}/summary'): 'require_parent',
+    # Distinct educator role: no administrator rights, and every child
+    # read/write also verifies a parent-approved SQL roster assignment.
+    ('POST', '/educators/accounts'): 'require_elevated_parent',
+    ('PUT', '/educators/accounts/{educator_id}/roster'): 'require_elevated_parent',
+    ('POST', '/educators/accounts/{educator_id}/disable'): 'require_elevated_parent',
+    ('GET', '/educators/me/roster'): 'require_educator',
+    ('GET', '/educators/me/locuto-capacity'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/config'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/assessments'): 'require_educator',
+    ('POST', '/educators/me/students/{student_name}/assessments'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/activity'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/diagnostic'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/dibels-progress'): 'require_educator',
     ('POST', '/feedback'): 'require_auth',
     ('GET', '/feedback/enabled'): 'PUBLIC',
     ('POST', '/mfa/change-password'): 'require_parent',

@@ -38,6 +38,7 @@ EXPECTED: dict[str, set[str]] = {
     "family.data.read":          {"parent", "child"},
     "family.data.write":         {"parent", "child"},
     "admin.manage":              {"parent"},
+    "educator.roster":          {"educator"},
     "admin.privileged":          {"parent"},
     "sandbox.parent_chat":       {"parent"},
     "sandbox.demo_preview":      {"demo_code"},

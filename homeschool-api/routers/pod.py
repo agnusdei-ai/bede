@@ -69,7 +69,7 @@ async def save_pod_configs(
         existing_names = {row[0] for row in result.all()}
         new_names = {config.student_name for config in req.configs}
         total_seats_used = len(existing_names | new_names)
-        if total_seats_used > license_info.seats:
+        if not licensing.permits_learner_count(license_info, total_seats_used):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(

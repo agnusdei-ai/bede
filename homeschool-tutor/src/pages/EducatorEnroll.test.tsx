@@ -30,7 +30,7 @@ afterEach(() => cleanup())
 describe('school educator passkey invitation journey', () => {
   it('fails closed when the one-time school invitation is missing', async () => {
     renderPage()
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/missing or invalid/i))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/missing or invalid/i))
     expect(screen.getByRole('button', { name: /Enroll passkey/i }).hasAttribute('disabled')).toBe(true)
   })
 
@@ -49,7 +49,7 @@ describe('school educator passkey invitation journey', () => {
     educatorPasskeyEnroll.mockRejectedValue(new DOMException('Canceled', 'NotAllowedError'))
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: /Enroll passkey/i }))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/canceled/i)
+    expect((await screen.findByRole('alert')).textContent).toMatch(/canceled/i)
     expect(screen.getByRole('button', { name: /Enroll passkey/i }).hasAttribute('disabled')).toBe(false)
   })
 })

@@ -121,6 +121,20 @@ def select_instruction(
     ]
     if not valid:
         return None
+    # Deduplicate by durable ledger event identity. An offline sync or
+    # duplicated input row is not a second independent completion and must
+    # not falsely trigger transfer or representation-change recommendations.
+    unique = []
+    seen_ids: set[int] = set()
+    for item in sorted(valid, key=lambda w: (_utc(w.completed_at), w.event_id), reverse=True):
+        if not isinstance(item.event_id, int) or item.event_id <= 0:
+            continue
+        if item.event_id not in seen_ids:
+            seen_ids.add(item.event_id)
+            unique.append(item)
+    valid = unique
+    if not valid:
+        return None
     # The most recent skill preserves conversational continuity; it is never
     # allowed to silently reorder the parent's own curriculum.
     valid.sort(key=lambda item: (_utc(item.completed_at), item.event_id), reverse=True)

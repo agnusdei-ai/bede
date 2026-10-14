@@ -75,6 +75,23 @@ no customers yet that costs nothing; after your first sale it is a migration.
 
 ---
 
+## Institution-neutral campus location offer
+
+The approved organizational price is **$3,500 per physical school location
+per month, unlimited enrolled learner seats at that location**, with
+Mac mini hardware priced and sold separately. The $25/learner/month
+option remains distinct. A group of locations buys one subscription
+and signed location entitlement **per location**, not one blanket
+organization-wide license. The current license-server Stripe catalog
+does NOT automatically sell or issue campus-location licenses.
+
+For a manually invoiced campus pilot, assign a unique opaque
+location ID to the physical site, set `BEDE_LOCATION_ID` on that
+site's Bede API, and issue a signed expiring `campus_location`
+certificate using `--location-id` and `--days`, without `--seats`.
+See [Campus Location Pricing](CAMPUS_LOCATION_PRICING.md) for commands,
+limitations, fair disclosure, and release gates.
+
 ## Fulfilling one order
 
 ### 1. Take the money, outside this repository

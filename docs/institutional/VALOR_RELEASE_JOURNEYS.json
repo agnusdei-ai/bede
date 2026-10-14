@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "release_status": "blocked_pending_runtime_qualification",
+  "owner_usability_sessions": {
+    "min": 1,
+    "max": 5,
+    "external_participants_required": false
+  },
+  "institutional_pilot_is_separate_engagement": true,
+  "journeys": [
+    {
+      "id": "admin_passkey",
+      "surface": "identity",
+      "status": "blocked",
+      "required_tests": [
+        "webauthn_challenge_replay",
+        "origin_rp_uv",
+        "revoked_credential",
+        "admin_recovery_without_email_bypass"
+      ]
+    },
+    {
+      "id": "campus_tenancy",
+      "surface": "authorization",
+      "status": "blocked",
+      "required_tests": [
+        "cross_campus_read_denied",
+        "cross_campus_write_denied",
+        "cross_campus_export_denied",
+        "membership_revocation"
+      ]
+    },
+    {
+      "id": "roster_import",
+      "surface": "onboarding",
+      "status": "blocked",
+      "required_tests": [
+        "import_preview_validation",
+        "idempotent_upsert",
+        "guardian_consent",
+        "license_enforcement",
+        "rollback"
+      ]
+    },
+    {
+      "id": "teacher_ai",
+      "surface": "instruction",
+      "status": "blocked",
+      "required_tests": [
+        "approved_sources_only",
+        "teacher_approval_required",
+        "prompt_injection_denied",
+        "unassigned_learner_denied"
+      ]
+    },
+    {
+      "id": "evidence_ledger",
+      "surface": "reporting",
+      "status": "blocked",
+      "required_tests": [
+        "append_only",
+        "tamper_detection",
+        "superseding_correction",
+        "source_provenance"
+      ]
+    },
+    {
+      "id": "assessment_import",
+      "surface": "reporting",
+      "status": "blocked",
+      "required_tests": [
+        "measure_grade_unit_consistency",
+        "source_flagging",
+        "no_causal_claims"
+      ]
+    },
+    {
+      "id": "parent_access",
+      "surface": "privacy",
+      "status": "blocked",
+      "required_tests": [
+        "guardian_verification",
+        "own_learner_only",
+        "revocation",
+        "parent_materials_review"
+      ]
+    },
+    {
+      "id": "appliance",
+      "surface": "operations",
+      "status": "blocked",
+      "required_tests": [
+        "tested_concurrency",
+        "restore",
+        "offline_dataflow",
+        "upgrade_rollback",
+        "network_isolation"
+      ]
+    },
+    {
+      "id": "school_offboarding",
+      "surface": "operations",
+      "status": "blocked",
+      "required_tests": [
+        "staff_deprovision",
+        "credential_revocation",
+        "export_retention_policy",
+        "campus_scope"
+      ]
+    }
+  ],
+  "connectors": [
+    {
+      "id": "schoolaxis",
+      "category": "admissions",
+      "evidence": "publicly_named",
+      "api_status": "unverified",
+      "release_requirement": "optional",
+      "data_policy": "no access without school authorization"
+    },
+    {
+      "id": "jupiter_ed",
+      "category": "school_portal",
+      "evidence": "publicly_linked",
+      "api_status": "unverified",
+      "release_requirement": "optional",
+      "data_policy": "no records without a school contract"
+    },
+    {
+      "id": "identity_provider",
+      "category": "staff_identity",
+      "evidence": "not_verified",
+      "api_status": "discovery",
+      "release_requirement": "passkey_local_can_substitute",
+      "data_policy": "school directory verification for recovery"
+    },
+    {
+      "id": "sis",
+      "category": "roster_system_of_record",
+      "evidence": "not_verified",
+      "api_status": "discovery",
+      "release_requirement": "signed_csv_can_substitute",
+      "data_policy": "minimize identifiers and restrict retention"
+    },
+    {
+      "id": "mdm",
+      "category": "managed_devices",
+      "evidence": "not_verified",
+      "api_status": "discovery",
+      "release_requirement": "manual_device_setup_can_substitute",
+      "data_policy": "no silent device management"
+    },
+    {
+      "id": "email",
+      "category": "invitation_recovery_notice",
+      "evidence": "institutional_domain_required",
+      "api_status": "provider_selection_pending",
+      "release_requirement": "required_for_email_based_invitations",
+      "data_policy": "no student data in mail"
+    },
+    {
+      "id": "learning_content",
+      "category": "curriculum",
+      "evidence": "school_owner_approval_required",
+      "api_status": "discovery",
+      "release_requirement": "approved_local_content_can_substitute",
+      "data_policy": "licenses and attribution must be verified"
+    },
+    {
+      "id": "state_reporting",
+      "category": "texas_accountability",
+      "evidence": "not_verified",
+      "api_status": "out_of_scope",
+      "release_requirement": "not_required",
+      "data_policy": "never claim state reporting integration"
+    }
+  ]
+}

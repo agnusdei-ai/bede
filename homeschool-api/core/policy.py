@@ -146,6 +146,9 @@ _POLICY: dict[str, frozenset[str]] = {
     # boundary exists in the table rather than being implied by which
     # endpoints happen to use which guard.
     "admin.manage": frozenset({"parent"}),
+    # Narrow, independently authenticated education role. NOT a family
+    # identity: every student read additionally checks assignment in SQL.
+    "educator.roster": frozenset({"educator"}),
 
     # The privileged subset of the management plane (P8). Same role, but
     # additionally requires a recent re-authentication — see

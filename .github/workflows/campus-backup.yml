@@ -20,4 +20,4 @@ jobs:
         working-directory: homeschool-api
         run: pip install --require-hashes -r requirements-dev.lock.txt
       - name: Synthetic encrypted backup qualification
-        run: PYTHONPATH=. python -m pytest -q homeschool-api/tests/test_campus_encrypted_backup.py
+        run: PYTHONPATH=homeschool-api:. python -m pytest -q homeschool-api/tests/test_campus_encrypted_backup.py

@@ -67,3 +67,28 @@ def totp_step_already_used(step: int) -> bool:
 def mark_totp_step_used(step: int) -> None:
     global _last_totp_step
     _last_totp_step = step
+
+
+# Session-bound elevation challenges. Separating these from the login
+# challenge prevents a parallel login ceremony from consuming a parent's
+# security-key step-up or allowing a different parent JWT to replay it.
+# This single-family appliance supports ONE API worker during the pilot;
+# shared DB/Redis challenge storage is required before multi-worker release.
+_elevation_challenges: dict[str, tuple[bytes, float]] = {}
+
+
+def set_elevation_challenge(jti: str, challenge: bytes) -> None:
+    if not jti or not challenge:
+        raise ValueError("An authenticated parent session and challenge are required")
+    now = time.time()
+    for key, (_, expiry) in list(_elevation_challenges.items()):
+        if now > expiry:
+            del _elevation_challenges[key]
+    _elevation_challenges[jti] = (challenge, now + _CHALLENGE_TTL_SECONDS)
+
+
+def pop_elevation_challenge(jti: str) -> bytes | None:
+    if not jti:
+        return None
+    current = _elevation_challenges.pop(jti, None)
+    return _pop(current)

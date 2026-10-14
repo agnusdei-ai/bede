@@ -46,11 +46,16 @@ jobs:
           output: ../results
       - name: Enforce CodeQL security findings
         run: python3 scripts/check_codeql_sarif.py ../results
+      - name: Stage CodeQL results outside checkout
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/codeql-sarif"
+          cp ../results/*.sarif "$RUNNER_TEMP/codeql-sarif/"
       - name: Preserve CodeQL scan results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: codeql-sarif-${{ matrix.language }}
-          path: ${{ github.workspace }}/../results/
+          path: ${{ runner.temp }}/codeql-sarif/
           if-no-files-found: warn
           retention-days: 30

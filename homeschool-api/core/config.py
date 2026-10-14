@@ -293,6 +293,9 @@ class Settings(BaseSettings):
     educator_pilot_enabled: bool = False
     # School-owned domain. Blank disables educator passkey invitation delivery.
     educator_institution_email_domain: str = ""
+    # Exact owner-approved organizational addresses for synthetic pilot setup.
+    # Comma-separated; empty by default. Not a campus entitlement or login grant.
+    educator_bootstrap_emails: str = ""
     # Signed campus entitlement binds this instance to its physical location.
     bede_location_id: str = ""
 

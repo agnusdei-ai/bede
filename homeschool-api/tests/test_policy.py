@@ -21,7 +21,7 @@ from core.policy import (
     known_actions,
 )
 
-ALL_ROLES = ["parent", "child", "demo_code", "parent_pending", "parent_recovery"]
+ALL_ROLES = ["parent", "child", "educator", "demo_code", "parent_pending", "parent_recovery"]
 
 
 def _subject(role: str, code: str | None = None) -> Subject:

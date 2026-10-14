@@ -293,6 +293,8 @@ class Settings(BaseSettings):
     educator_pilot_enabled: bool = False
     # School-owned domain. Blank disables educator passkey invitation delivery.
     educator_institution_email_domain: str = ""
+    # Signed campus entitlement binds this instance to its physical location.
+    bede_location_id: str = ""
 
     # ── Public demo mode (optional) ────────────────────────────────────────────
     # Empty by default: the public demo is entirely disabled unless a

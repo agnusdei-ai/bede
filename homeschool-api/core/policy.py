@@ -127,7 +127,7 @@ _ALLOW = Decision(allowed=True)
 # separating anything that isn't already separated here.
 _POLICY: dict[str, frozenset[str]] = {
     # Anything a fully-authenticated session may do about itself.
-    "session.self": frozenset({"parent", "child", "demo_code"}),
+    "session.self": frozenset({"parent", "child", "educator", "demo_code"}),
 
     # Tutoring. Every authenticated role may chat; the demo's session config
     # is substituted server-side rather than trusted from the client, which

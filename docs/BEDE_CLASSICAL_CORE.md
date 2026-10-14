@@ -106,6 +106,22 @@ to complement human classical instruction and lower its operational
 burden. Keep comparative claims limited to outcomes and costs
 supported by an appropriate, like-for-like evaluation.
 
+## Organizational student capacity is not a messaging group size
+
+The parent Pod Dashboard now displays **licensed student seats** from
+the effective signed Bede license, via the parent-only
+`GET /pod/roster-capacity` endpoint. Locuto's organizational entitlements
+are negotiated per account and distinguish `max_children` from adult
+`max_seats`; the 10-person Locuto messaging Pod cap must **never** be
+reused as an organizational classroom roster cap. The current runtime
+does not verify Locuto entitlements; do not infer extra licensed
+student capacity from a client-provided Locuto limit.
+
+See [Classroom Roster Entitlements](CLASSROOM_ROSTER_ENTITLEMENTS.md).
+Different-family educator logins, consented roster assignment and
+per-student diagnostic permissions require a separate security-reviewed
+milestone before academic institutional pilots.
+
 ## Deliberate startup exclusions
 
 - No central Portal table of students, diagnostics, tutoring transcripts,

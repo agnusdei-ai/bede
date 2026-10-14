@@ -1053,3 +1053,28 @@ export async function removeEducatorAssessment(
   )
   if (!res.ok) throw new Error('Could not remove assessment')
 }
+
+
+// ── Classroom/household roster capacity from the signed Bede license ───
+// Locuto's v1 10-person *messaging* Pod cap never caps the number of
+// enrolled learners in a school. Organizational Locuto entitlement
+// synchronization is not implemented; the API explicitly says so.
+export interface RosterCapacity {
+  schema_version: 1
+  enrolled_students: number
+  licensed_children: number | null
+  remaining_licensed_children: number | null
+  capacity_authority: 'signed_bede_license' | 'no_active_signed_student_limit'
+  locuto_organization_max_children: null
+  locuto_entitlement_verified: false
+  locuto_messaging_pod_max_members: number
+  messaging_limit_applies_to_student_roster: false
+  roster_scope: 'one_installation'
+}
+export async function fetchRosterCapacity(token: string): Promise<RosterCapacity> {
+  const res = await fetch(`${BASE}/pod/roster-capacity`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not load roster capacity')
+  return res.json()
+}

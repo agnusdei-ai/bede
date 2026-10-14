@@ -22,7 +22,7 @@ from routers.educators import (
 )
 from services.assessment_interop import EducatorAssessmentSubmission, record_assessment
 from services.educator_access import (
-    MAX_CLASS_ROSTER, assign_class_roster, authenticate_educator,
+    assign_class_roster, authenticate_educator,
     disable_educator, live_educator, locuto_pod_plan, provision_educator,
     require_assignment, roster_configs,
 )

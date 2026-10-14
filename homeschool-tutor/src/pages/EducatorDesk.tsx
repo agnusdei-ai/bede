@@ -8,9 +8,10 @@ import {
   fetchInstructorRoster, fetchInstructorLocutoCapacity,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
   fetchInstructorActivity, saveInstructorAssessment,
+  fetchMyEducatorPasskeys, revokeMyEducatorPasskey,
 } from '../services/api'
 import type {
-  AssessmentFrameworkMetadata, DibelsProgress, DibelsGrade,
+  AssessmentFrameworkMetadata, DibelsProgress, DibelsGrade, EducatorPasskeySummary,
   DibelsWindow, EducatorAssessmentBand, LocutoCapacity,
 } from '../services/api'
 
@@ -41,6 +42,8 @@ export default function EducatorDesk() {
   const [source, setSource] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [passkeys, setPasskeys] = useState<EducatorPasskeySummary[]>([])
+  const [showPasskeys, setShowPasskeys] = useState(false)
   const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence'>('roster')
 
   useEffect(() => {
@@ -59,6 +62,31 @@ export default function EducatorDesk() {
     }).catch(() => { if (active) setMessage('Could not load assigned class roster') })
     return () => { active = false }
   }, [token])
+
+  useEffect(() => {
+    if (!token) return
+    let active = true
+    fetchMyEducatorPasskeys(token).then(keys => {
+      if (active) setPasskeys(keys)
+    }).catch(() => {
+      if (active) setMessage('Could not verify your enrolled passkeys')
+    })
+    return () => { active = false }
+  }, [token])
+
+  const removePasskey = async (id: string) => {
+    if (!token || passkeys.length < 2 || !window.confirm('Revoke this passkey and end all existing sessions?')) return
+    setBusy(true)
+    try {
+      await revokeMyEducatorPasskey(token, id)
+      logout()
+      navigate('/')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not revoke passkey')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const activeConfig = roster.find((cfg) => cfg.student_name === student)
   const dibels = catalog.find((entry) => entry.id === 'dibels8')
@@ -148,6 +176,30 @@ export default function EducatorDesk() {
             navigate('/')
           }}><LogOut size={16}/> Sign out</button>
         </header>
+
+        <section className="rounded-xl border bg-white p-3 space-y-3" aria-label="Account security">
+          <button type="button" onClick={() => setShowPasskeys(value => !value)}
+            className="text-sm font-semibold text-navy-800 underline">
+            {showPasskeys ? 'Hide passkey settings' : 'Manage my passkeys'}
+          </button>
+          {showPasskeys && (
+            <div className="space-y-2 text-sm">
+              <p>Only registered passkeys can sign in. Your device PIN or biometric never goes to Bede.</p>
+              {passkeys.map(key => (
+                <div key={key.id} className="flex flex-wrap justify-between gap-2 border-t py-2">
+                  <span>Passkey enrolled {new Date(key.created_at).toLocaleDateString()}</span>
+                  <button type="button" disabled={busy || passkeys.length < 2}
+                    onClick={() => void removePasskey(key.id)}
+                    className="text-red-700 underline disabled:opacity-40">Revoke passkey</button>
+                </div>
+              ))}
+              <p className="text-xs text-gray-600">
+                You cannot remove your last active passkey. Ask your authorized school administrator
+                for supervised recovery if all passkeys are lost.
+              </p>
+            </div>
+          )}
+        </section>
 
         <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
           {(['roster', 'lesson', 'evidence'] as const).map((step, index) => (

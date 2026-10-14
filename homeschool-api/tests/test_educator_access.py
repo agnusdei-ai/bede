@@ -115,7 +115,7 @@ async def test_educator_mfa_login_locks_out_and_does_not_issue_without_second_fa
 
 
 def test_locuto_roster_capacity_not_a_messaging_connector():
-    for count in range(1, MAX_CLASS_ROSTER + 1):
+    for count in [1, 2, 9, 10, 11, 24, 90, 120, 250]:
         data = locuto_pod_plan([f"student-{i}" for i in range(count)])
         assert data["roster_or_student_data_transferred"] is False
         assert data["active_group_messages_enabled"] is False

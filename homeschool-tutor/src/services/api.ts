@@ -1078,3 +1078,131 @@ export async function fetchRosterCapacity(token: string): Promise<RosterCapacity
   if (!res.ok) throw new Error('Could not load roster capacity')
   return res.json()
 }
+
+
+// ── Standalone Classical Educator pilot ───────────────────────────────────
+// This is NOT a parent session and never inherits admin permissions.
+export interface InstructorAccount {
+  id: string
+  username: string
+  enabled: boolean
+  learner_count: number
+}
+export interface InstructorProvisioned {
+  id: string
+  username: string
+  totp_secret: string
+  totp_provisioning_uri: string
+  security_notice: string
+}
+export interface LocutoCapacity {
+  provider: string
+  integration_status: 'planning_only_not_connected'
+  active_group_messages_enabled: false
+  roster_or_student_data_transferred: false
+  maximum_members: number
+  minimum_members: number
+  groups: Array<{ learner_count: number; member_count_including_educator: number }>
+}
+export interface DibelsProgress {
+  source: string
+  cannot_establish_causal_learning_efficacy: true
+  data_quality: string
+  automatic_benchmark_scoring: false
+  total_dibels_records: number
+  records_excluded_from_comparison: number
+  series: Array<{
+    measure: string
+    assessed_grade: string
+    unit: string
+    same_instrument_same_grade_only: true
+    points: Array<{
+      date: string
+      assessment_window: string | null
+      score_as_reported: number
+      difference_from_previous_same_grade_measure: number | null
+      risk_category_as_reported: string | null
+      source: string
+      record_id: number
+    }>
+  }>
+}
+
+async function educatorApi<T>(path: string, token: string, method = 'GET', body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}))
+    throw new Error(detail.detail || 'Educator request failed')
+  }
+  return res.status === 204 ? undefined as T : res.json()
+}
+
+export async function educatorLogin(
+  username: string, password: string, totp: string, locale?: string,
+): Promise<LoginResult> {
+  const res = await fetch(`${BASE}/auth/educator-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password, totp, locale: locale ?? 'en' }),
+  })
+  if (!res.ok) throw new Error('Invalid educator login or authenticator code')
+  return toLoginResult(await res.json())
+}
+
+export const fetchInstructors = (token: string) =>
+  educatorApi<InstructorAccount[]>('/educators/accounts', token)
+
+export const provisionInstructor = (token: string, username: string, password: string) =>
+  educatorApi<InstructorProvisioned>(
+    '/educators/accounts', token, 'POST', { username, password },
+  )
+
+export const assignInstructorRoster = (token: string, educatorId: string, configs: SessionConfig[]) =>
+  educatorApi<{ learner_count: number; new_learner_count: number; messaging: LocutoCapacity }>(
+    `/educators/accounts/${encodeURIComponent(educatorId)}/roster`,
+    token, 'PUT', { configs },
+  )
+
+export const disableInstructor = (token: string, educatorId: string) =>
+  educatorApi<void>(
+    `/educators/accounts/${encodeURIComponent(educatorId)}/disable`, token, 'POST',
+  )
+
+export const fetchInstructorRoster = (token: string) =>
+  educatorApi<SessionConfig[]>('/educators/me/roster', token)
+
+export const fetchInstructorLocutoCapacity = (token: string) =>
+  educatorApi<LocutoCapacity>('/educators/me/locuto-capacity', token)
+
+export const fetchInstructorFrameworks = (token: string) =>
+  educatorApi<AssessmentFrameworkMetadata[]>('/educators/me/assessment-frameworks', token)
+
+export const fetchInstructorDibelsProgress = (token: string, student: string) =>
+  educatorApi<DibelsProgress>(
+    `/educators/me/students/${encodeURIComponent(student)}/dibels-progress`, token,
+  )
+
+export const fetchInstructorAssessments = (token: string, student: string) =>
+  educatorApi<EducatorAssessmentRecord[]>(
+    `/educators/me/students/${encodeURIComponent(student)}/assessments`, token,
+  )
+
+export const saveInstructorAssessment = (
+  token: string, student: string, payload: EducatorAssessmentInput,
+) =>
+  educatorApi<EducatorAssessmentRecord>(
+    `/educators/me/students/${encodeURIComponent(student)}/assessments`,
+    token, 'POST', payload,
+  )
+
+export const fetchInstructorActivity = (token: string, student: string) =>
+  educatorApi<{ total: number; skills: unknown[] }>(
+    `/educators/me/students/${encodeURIComponent(student)}/activity`, token,
+  )

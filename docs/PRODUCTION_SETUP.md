@@ -11,6 +11,20 @@ setup — see `docs/DEMO_HOSTING.md`. Don't use the steps below for a public
 demo; don't use the demo's approach (a cloud platform) for your family's
 real instance — the two have different security models on purpose.
 
+## Bede Mac mini classroom and campus bundles
+
+The separate-purchase Apple Silicon appliance configurations are documented
+in [Mac mini bundles](MAC_MINI_BUNDLES.md). The current targets are an
+M6 Mac mini with 32 GB / 1 TB for smaller teaching groups and an M5 Pro
+Mac mini with 64 GB / 4 TB for campus-managed deployments.
+
+These hardware specifications alone do NOT establish how many simultaneous
+Bede tutors the device can run. The exact local macOS model runtime,
+safety-moderation behavior, latency, background load, and recovery must
+pass measured, target-device checks before a campus capacity is promised.
+The existing signed seat license remains authoritative; a separate
+purchase never enables unlimited seats by itself.
+
 ## First-time setup
 
 Three ways to do this — same result, different experience:

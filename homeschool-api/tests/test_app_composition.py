@@ -128,9 +128,11 @@ GUARDS = {
     ('GET', '/diagnostic/{student_name}/summary'): 'require_parent',
     # Distinct educator role: no administrator rights, and every child
     # read/write also verifies a parent-approved SQL roster assignment.
+    ('GET', '/educators/accounts'): 'require_parent',
     ('POST', '/educators/accounts'): 'require_elevated_parent',
     ('PUT', '/educators/accounts/{educator_id}/roster'): 'require_elevated_parent',
     ('POST', '/educators/accounts/{educator_id}/disable'): 'require_elevated_parent',
+    ('GET', '/educators/me/assessment-frameworks'): 'require_educator',
     ('GET', '/educators/me/roster'): 'require_educator',
     ('GET', '/educators/me/locuto-capacity'): 'require_educator',
     ('GET', '/educators/me/students/{student_name}/config'): 'require_educator',

@@ -18,6 +18,8 @@ const PodDashboard = lazy(() => import('./pages/PodDashboard'))
 const Progress = lazy(() => import('./pages/Progress'))
 const Sandbox = lazy(() => import('./pages/Sandbox'))
 const TutorSession = lazy(() => import('./pages/TutorSession'))
+const EducatorDesk = lazy(() => import('./pages/EducatorDesk'))
+const ClassroomSetup = lazy(() => import('./pages/ClassroomSetup'))
 
 function RouteFallback() {
   return (

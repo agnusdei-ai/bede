@@ -61,6 +61,8 @@ def _license_status_payload() -> dict | None:
             "tier": s.info.tier,
             "licensee": s.info.licensee,
             "seats": s.info.seats,
+            "unlimited_learners": s.info.unlimited_learners,
+            "location_id": s.info.location_id,
             # `issued` is here so the parent UI can size its own warning
             # against the license's TERM rather than a fixed number of days.
             # A 30-day trial and a 365-day membership need different notice

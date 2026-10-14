@@ -4,7 +4,18 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import pytest
-from scripts.campus_backup import encrypt_stream, decrypt_stream, verified_backup, backup, restore
+import importlib.util
+
+_module_path = Path(__file__).resolve().parents[2] / "scripts" / "campus_backup.py"
+_spec = importlib.util.spec_from_file_location("bede_campus_backup", _module_path)
+assert _spec is not None and _spec.loader is not None
+_backup = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_backup)
+encrypt_stream = _backup.encrypt_stream
+decrypt_stream = _backup.decrypt_stream
+verified_backup = _backup.verified_backup
+backup = _backup.backup
+restore = _backup.restore
 
 SECRET = "owner-controlled-test-passphrase-not-a-real-secret"
 

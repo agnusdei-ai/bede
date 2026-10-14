@@ -321,6 +321,23 @@ class EducatorWebAuthnChallenge(Base):
     consumed: Mapped[bool] = mapped_column(default=False, nullable=False)
 
 
+class EducatorPasskeyInvitation(Base):
+    """A school-email delivered, one-time recovery/enrollment capability.
+
+    The token is never stored in plaintext or exposed by an API response;
+    presentation of the link only permits a UV-verified WebAuthn registration.
+    """
+    __tablename__ = "educator_passkey_invitations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    educator_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    email_digest: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    token_digest: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used: Mapped[bool] = mapped_column(default=False, nullable=False)
+    recovery: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+
 class EducatorRosterAssignment(Base):
     """An explicit authorization edge, not a tenant-wide searchable roster."""
     __tablename__ = "educator_roster_assignments"

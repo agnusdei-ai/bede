@@ -587,6 +587,7 @@ app.include_router(catalog.router)
 app.include_router(sandbox.router)
 app.include_router(feedback.router)
 app.include_router(diagnostic.router)
+app.include_router(educators.router)
 
 
 # Bounds the probe itself. Without a timeout, a connection that hangs rather

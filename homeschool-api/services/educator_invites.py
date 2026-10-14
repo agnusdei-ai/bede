@@ -18,7 +18,6 @@ from sqlalchemy import select, update
 from core.config import settings
 from core.database import ClassicalEducator, EducatorPasskeyInvitation, EducatorWebAuthnCredential
 from services.email_service import email_configured, send_email
-from services.educator_passkey_runtime import revoke_credential
 
 INVITATION_TTL = timedelta(minutes=10)
 
@@ -68,7 +67,7 @@ async def issue_invitation(db, educator_id: str, email: str, *, recovery: bool =
     db.add(ticket)
     # We never hand the token to an administrator; it is delivered only to
     # the mailbox. A failure to send discards the invitation transaction.
-    url = settings.webauthn_origin.rstrip("/") + "/educator-enroll?ticket=" + ticket.id + "&token=" + token
+    url = settings.webauthn_origin.rstrip("/") + "/educator-enroll#ticket=" + ticket.id + "&token=" + token
     body = ("<p>An authorized Bede school administrator requested a passkey "
             "enrollment or recovery.</p><p><a href='" + html.escape(url, quote=True) +
             "'>Enroll your passkey</a></p><p>This link expires after ten minutes. "

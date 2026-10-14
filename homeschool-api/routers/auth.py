@@ -208,6 +208,12 @@ async def available_locales():
     return {"locales": [{"code": settings.locale, "name": SUPPORTED_LOCALES[settings.locale]}]}
 
 
+@router.get("/educator-mode")
+async def educator_mode() -> dict:
+    return {"enabled": bool(settings.educator_pilot_enabled and not settings.is_demo_deployment),
+            "shared_child_pin_disabled": bool(settings.educator_pilot_enabled)}
+
+
 class EducatorLoginRequest(BaseModel):
     username: str = Field(min_length=3, max_length=80)
     password: str = Field(min_length=1, max_length=256)

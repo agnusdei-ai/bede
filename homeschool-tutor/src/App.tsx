@@ -19,6 +19,7 @@ const Progress = lazy(() => import('./pages/Progress'))
 const Sandbox = lazy(() => import('./pages/Sandbox'))
 const TutorSession = lazy(() => import('./pages/TutorSession'))
 const EducatorDesk = lazy(() => import('./pages/EducatorDesk'))
+const EducatorEnroll = lazy(() => import('./pages/EducatorEnroll'))
 const ClassroomSetup = lazy(() => import('./pages/ClassroomSetup'))
 
 function RouteFallback() {
@@ -66,6 +67,7 @@ export default function App() {
           <Suspense fallback={<RouteFallback />}>
             <Routes>
               <Route path="/" element={<Login />} />
+              <Route path="/educator-enroll" element={<EducatorEnroll />} />
               <Route
                 path="/setup"
                 element={

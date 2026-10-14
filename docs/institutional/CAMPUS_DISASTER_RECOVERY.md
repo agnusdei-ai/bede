@@ -32,3 +32,19 @@ Optional future transport boundary: copy already-encrypted artifacts with native
 GitHub CI runs synthetic crypto round trips, corruption/incorrect-key rejection, no-overwrite, and mandatory restore acknowledgement. CI may simulate immutable retention configuration but cannot truthfully assert a real cloud immutability policy or disaster survival. Never put real child data, DB backups, backup passphrases, or MASTER_SECRET in CI.
 
 Before production: run scheduled daily backups, continuously verify integrity, alert on missed execution, enforce geographic and administrative separation, test full restored service from a fresh appliance, measure recovery point/recovery time objectives, verify school enrollment and teacher credentials after recovery, and provide signed owner acceptance.
+
+
+## Mandatory Bede recovery-enclave isolation
+
+Bede must have its own administration and recovery trust domain, entirely independent of campus directory accounts. No Entra ID, campus Active Directory, campus SSO, campus domain administrator, campus-managed backup agent, or campus-wide ransomware response automation may control Bede's recovery environment. Bede educators can have scoped educational roles without privileged host or recovery rights.
+
+- Separate dedicated backup identity and key custody from school IT administrator identities; require Bede owner-approved, hardware-backed phishing-resistant MFA for recovery operators.
+- Firewall deny by default between campus networks and the Bede management/recovery plane. Allow only required learner/educator app access through narrowly defined ingress; backup traffic is outbound-only to an isolated target where available.
+- Keep a clean recovery host and signed, reproducible golden build/configuration materials separate from the affected campus. The Apple Secure Enclave protects suitable hardware-bound keys; it is not a VM, complete OS isolation boundary, or substitutable disaster-recovery copy.
+- No campus credential, agent, shared drive, mounted file system, CI deploy token, or campus backup account may delete protected backups or change retention.
+- Preserve independently encrypted, immutable or physically offline recovery sets with geographically separate custody. A campus-local full-disk image alone cannot survive building loss or widespread compromise.
+- During campus incident, freeze remote synchronization, quarantine the campus-facing appliance, use clean independently administered recovery hardware, verify image signatures, validate backup authentication, restore into an isolated environment and explicitly approve reconnection.
+- Backup/restore encryption credentials and Bede MASTER_SECRET must be escrowed securely and separately; restoring encrypted application rows requires the correct original keys.
+- Product qualification tests must prove that compromised campus administrator credentials cannot authenticate to or erase the recovery target, and that restoring into clean hardware works. Never promise absolute immunity: privilege vulnerabilities, supply-chain compromise, malicious insiders, physical disasters and stolen recovery keys remain risks.
+
+The requested one-full-plus-30-day-incrementals schedule is a proposed retention profile, not yet an implemented platform snapshot capability. Keep at least one complete independently recoverable restore chain before archive or deletion, and test that archives can be restored within the agreed RTO. Offsite object storage and cold archive remain opt-in, not mandatory SDK dependencies.

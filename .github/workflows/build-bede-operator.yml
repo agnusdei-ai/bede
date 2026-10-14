@@ -1,0 +1,57 @@
+name: Bede self-contained operator bundle
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'bede-operator-v*'
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare bundle generator
+        run: python -m pip install 'PyYAML==6.0.2'
+      - name: Build versioned application and setup images
+        run: |
+          set -euo pipefail
+          prefix="ghcr.io/agnusdei-ai/bede"
+          sha="${GITHUB_SHA}"
+          docker build -t "${prefix}-api:sha-${sha}" -f homeschool-api/Dockerfile homeschool-api
+          docker build -t "${prefix}-ui:sha-${sha}" -f homeschool-tutor/Dockerfile homeschool-tutor
+          docker build -t "${prefix}-trust:sha-${sha}" -f scripts/trust_service/Dockerfile scripts/trust_service
+          docker build -t "${prefix}-wizard:sha-${sha}" -f scripts/setup_wizard/Dockerfile .
+      - name: Generate source-free installer and seal embedded images
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python packaging/build_operator_bundle.py
+          docker pull postgres:16-alpine
+          docker pull caddy:2-alpine
+          docker save -o dist/bede-operator/images.tar \
+            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA} \
+            postgres:16-alpine caddy:2-alpine
+          chmod +x dist/bede-operator/start.sh
+          cd dist
+          tar -czf bede-operator-${GITHUB_SHA}.tar.gz bede-operator
+          sha256sum bede-operator-${GITHUB_SHA}.tar.gz > bede-operator-${GITHUB_SHA}.tar.gz.sha256
+      - name: Publish installer archive as a downloadable workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bede-operator-${{ github.sha }}
+          path: |
+            dist/bede-operator-*.tar.gz
+            dist/bede-operator-*.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

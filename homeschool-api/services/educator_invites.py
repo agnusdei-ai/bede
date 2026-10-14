@@ -25,11 +25,20 @@ INVITATION_TTL = timedelta(minutes=10)
 def _normalize_email(email: str) -> str:
     address = email.strip().lower()
     domain = settings.educator_institution_email_domain.strip().lower().lstrip("@")
-    if (not domain or address.count("@") != 1 or not address.endswith("@" + domain)
-            or len(address) > 254 or any(ch.isspace() for ch in address)):
-        raise ValueError("A preapproved school-affiliated email address is required")
+    approved_exact = {
+        item.strip().lower()
+        for item in settings.educator_bootstrap_emails.split(",")
+        if item.strip()
+    }
+    valid_address = (
+        address.count("@") == 1
+        and len(address) <= 254
+        and not any(ch.isspace() for ch in address)
+    )
+    school_domain = bool(domain) and address.endswith("@" + domain)
+    if not valid_address or not (school_domain or address in approved_exact):
+        raise ValueError("An explicitly approved organizational email address is required")
     return address
-
 
 def _digest(value: str) -> bytes:
     return hashlib.sha256(value.encode("utf-8")).digest()

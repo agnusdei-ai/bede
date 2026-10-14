@@ -275,7 +275,7 @@ def refresh(
         log.critical("LICENSE REQUIRED: %s (instance is gated until a valid key is applied)", problem)
     elif chosen is not None:
         log.info(
-            "License active: %s for %r (%d seats, source=%s%s)",
+            "License active: %s for %r (%s learners, source=%s%s)",
             chosen.tier, chosen.licensee, chosen.seats, source,
             f", expires {chosen.expires.isoformat()}" if chosen.expires else "",
         )

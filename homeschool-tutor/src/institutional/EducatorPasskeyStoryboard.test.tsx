@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach } from 'vitest'
+
+afterEach(() => cleanup())
 import EducatorPasskeyStoryboard from './EducatorPasskeyStoryboard'
 
 describe('educator passkey usability storyboard (mock only)', () => {

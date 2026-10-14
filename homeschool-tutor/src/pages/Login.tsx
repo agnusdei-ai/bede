@@ -20,6 +20,7 @@ export default function Login() {
   const [role, setRole] = useState<'parent' | 'child' | 'educator'>('parent')
   const [educatorUsername, setEducatorUsername] = useState('')
   const [educatorCode, setEducatorCode] = useState('')
+  const [educatorMode, setEducatorMode] = useState(false)
   const [credential, setCredential] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)

@@ -7,6 +7,11 @@ command -v docker >/dev/null || fail "Docker Desktop / Engine is required"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose is unavailable"
 docker info >/dev/null 2>&1 || fail "Start Docker, then reopen Bede Setup"
 [[ -f images.tar ]] || fail "Installation image archive missing. Use the complete installer package."
+[[ -f ARCH ]] || fail "The package CPU architecture manifest is missing."
+required_arch="$(tr -d '\\r\\n' < ARCH)"
+actual_arch="$(docker info --format '{{.Architecture}}' | tr '[:upper:]' '[:lower:]')"
+case "$actual_arch" in x86_64|amd64) actual_arch=amd64 ;; aarch64|arm64) actual_arch=arm64 ;; esac
+[[ "$required_arch" = "$actual_arch" ]] || fail "This package targets $required_arch; Docker requires $actual_arch. Choose the $actual_arch installer."
 [[ -f WIZARD_IMAGE ]] || fail "Wizard reference missing."
 [[ -f compose.yaml && -f Caddyfile ]] || fail "Installation manifest is incomplete."
 docker load -i images.tar >/dev/null

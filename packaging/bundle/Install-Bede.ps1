@@ -8,6 +8,12 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { Stop-Install 'Ins
 if ($LASTEXITCODE -ne 0) { Stop-Install 'Docker Desktop must be running.' }
 if (!(Test-Path 'images.tar')) { Stop-Install 'The self-contained application image archive is missing.' }
 if (!(Test-Path 'WIZARD_IMAGE')) { Stop-Install 'The setup wizard image reference is missing.' }
+if (!(Test-Path 'ARCH')) { Stop-Install 'CPU architecture metadata is missing.' }
+$requiredArch = (Get-Content 'ARCH' -Raw).Trim()
+$dockerArch = (& docker info --format '{{.Architecture}}').Trim().ToLower()
+if ($dockerArch -eq 'x86_64') { $dockerArch = 'amd64' }
+if ($dockerArch -eq 'aarch64') { $dockerArch = 'arm64' }
+if ($requiredArch -ne $dockerArch) { Stop-Install "Choose the $dockerArch package; this archive contains $requiredArch images." }
 & docker load -i images.tar
 if ($LASTEXITCODE -ne 0) { Stop-Install 'Could not load the included application images.' }
 if (!(Test-Path '.env')) {

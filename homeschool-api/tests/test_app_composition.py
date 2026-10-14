@@ -47,7 +47,7 @@ EXPECTED_MIDDLEWARE = [
 
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
-    "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic",
+    "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
 ]
 
 # Dependencies that are plumbing rather than protection.

@@ -3,7 +3,7 @@
 ## What this enables
 
 Bede remains an independent teaching system. A **Classical Educator**
-(including an appropriately authorized Valor-style instructor) has a
+(including a properly authorized instructor in a classical program) has a
 separate username, password, and six-digit time-based authenticator.
 No educator token is an administrator token.
 

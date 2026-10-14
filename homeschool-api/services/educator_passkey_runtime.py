@@ -100,7 +100,8 @@ async def registration_options(db: AsyncSession, educator_id: str):
 
 
 async def verify_registration(db: AsyncSession, educator_id: str,
-                              ceremony_id: str, credential: dict) -> str:
+                              ceremony_id: str, credential: dict,
+                              *, ticket_id: str, ticket_token: str) -> str:
     challenge = await _consume(db, educator_id, "register", ceremony_id)
     verified = webauthn.verify_registration_response(
         credential=credential,
@@ -116,6 +117,10 @@ async def verify_registration(db: AsyncSession, educator_id: str,
         "public_key": bytes_to_base64url(verified.credential_public_key),
         "sign_count": verified.sign_count,
     }
+    # An institution-admin-approved invitation delivered to the verified
+    # school mailbox is mandatory. It is consumed before this key is committed.
+    from services.educator_invites import consume_invitation
+    await consume_invitation(db, ticket_id, ticket_token, educator_id)
     db.add(EducatorWebAuthnCredential(
         credential_id=credential_id,
         educator_id=educator_id,

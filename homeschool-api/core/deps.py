@@ -52,6 +52,8 @@ async def _validate_token(request: Request, credentials: HTTPAuthorizationCreden
     ctx = audit_from_request(request)
 
     payload = decode_token(credentials.credentials)
+    if payload and settings.educator_pilot_enabled and payload.get("role") == "child":
+        raise HTTPException(status_code=403, detail="Classroom pilot requires an authorized educator")
     if not payload:
         await log_event(AuditEvent.TOKEN_INVALID, success=False, **ctx)
         raise HTTPException(

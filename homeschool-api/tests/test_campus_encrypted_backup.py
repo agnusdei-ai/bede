@@ -1,5 +1,8 @@
 import io
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 import pytest
 from scripts.campus_backup import encrypt_stream, decrypt_stream, verified_backup, backup, restore
 

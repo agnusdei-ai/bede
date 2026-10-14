@@ -48,3 +48,16 @@ Bede must have its own administration and recovery trust domain, entirely indepe
 - Product qualification tests must prove that compromised campus administrator credentials cannot authenticate to or erase the recovery target, and that restoring into clean hardware works. Never promise absolute immunity: privilege vulnerabilities, supply-chain compromise, malicious insiders, physical disasters and stolen recovery keys remain risks.
 
 The requested one-full-plus-30-day-incrementals schedule is a proposed retention profile, not yet an implemented platform snapshot capability. Keep at least one complete independently recoverable restore chain before archive or deletion, and test that archives can be restored within the agreed RTO. Offsite object storage and cold archive remain opt-in, not mandatory SDK dependencies.
+
+
+## Hardware-agnostic and OS-neutral contract (mandatory)
+
+Linux, Windows and macOS are examples of possible host environments, **not an exclusive supported-platform list**. The implementation must be independent of CPU manufacturer, machine model, host OS, hypervisor, and cloud provider to the extent the selected container runtime, PostgreSQL and cryptographic primitives permit. A platform must be explicitly qualified before being advertised as supported.
+
+- Keep portable application data backups in a documented encrypted, authenticated and versioned format. Capture database-consistent state, container image digests, deployment manifests, schema version, operational configuration and a separately escrowed recovery-key inventory.
+- Treat **whole-host images** as optional platform-specific acceleration, not the portable canonical recovery artifact. Disks, bootloaders, virtualization drivers, TPM/Secure Enclave capabilities and filesystems vary. Offer a documented provider/host adapter interface for filesystem snapshots and host images; never imply that a full-disk image from one OS boots on another.
+- For container deployments, separately prove a reproducible clean-host restoration: deploy pinned images, provision independent secrets, restore application data, check schema and authorizations, then verify service health. No automatic failover into an untrusted campus host.
+- Keep the Bede recovery administrator and backup credential domain independent of campus Entra ID, AD, school SSO and campus admin accounts irrespective of host OS. Hardware-based key protection is opportunistic, not a hard Apple-only dependency; require portable protected-key escrow for disaster recovery.
+- Backup transport adapters may optionally support immutable remote storage selected by policy after a school explicitly enables it. No cloud SDK or external identity provider is a baseline runtime dependency.
+- Support a configurable full baseline plus 30 days of incremental snapshots only where the selected storage/snapshot engine can guarantee chain integrity. The recovery plan must preserve each increment's dependencies and verify restoration before deletion or transition to cold tiers.
+- Qualification matrix: container engine, OS/architecture, PostgreSQL backup/restore, app key escrow, user/tenant isolation, encrypted archives, offline/immutable retention, clean-host restore, CI/CD roll-forward and rollback. Mark untested combinations unsupported rather than guessing.

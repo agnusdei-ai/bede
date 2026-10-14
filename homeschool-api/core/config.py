@@ -291,6 +291,8 @@ class Settings(BaseSettings):
     # across unrelated institutional learners. Classroom pilot mode disables
     # child-PIN sessions and requires supervised, MFA-authenticated educators.
     educator_pilot_enabled: bool = False
+    # School-owned domain. Blank disables educator passkey invitation delivery.
+    educator_institution_email_domain: str = ""
 
     # ── Public demo mode (optional) ────────────────────────────────────────────
     # Empty by default: the public demo is entirely disabled unless a

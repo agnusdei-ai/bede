@@ -203,6 +203,8 @@ async def require_educator(
     """Teacher identity plus live credential-version check. Roster access
     is always checked again for the specifically requested student."""
     payload = await _validate_token(request, credentials)
+    if payload.get("auth_method") != "webauthn_uv":
+        raise HTTPException(status_code=401, detail="Educator session requires a verified passkey")
     await _authorize(request, payload, "educator.roster")
     return await _require_live_session(request, payload)
 

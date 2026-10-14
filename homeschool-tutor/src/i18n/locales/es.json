@@ -218,6 +218,7 @@
     "neverMind": "Mejor no"
   },
   "podDashboard": {
+    "licensedRosterCapacity": "Capacidad autorizada de estudiantes: {{enrolled}} de {{capacity}} plazas",
     "prepareFocusedLesson": "Enseñar una materia ahora",
     "focusedLessonExplanation": "Elija una materia del plan aprobado de hoy. Bede usará las configuraciones y las observaciones académicas existentes del estudiante.",
     "lessonSubject": "Materia de esta lección",

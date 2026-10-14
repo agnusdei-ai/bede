@@ -18,6 +18,8 @@ const PodDashboard = lazy(() => import('./pages/PodDashboard'))
 const Progress = lazy(() => import('./pages/Progress'))
 const Sandbox = lazy(() => import('./pages/Sandbox'))
 const TutorSession = lazy(() => import('./pages/TutorSession'))
+const EducatorDesk = lazy(() => import('./pages/EducatorDesk'))
+const ClassroomSetup = lazy(() => import('./pages/ClassroomSetup'))
 
 function RouteFallback() {
   return (
@@ -37,7 +39,7 @@ function RequireAuth({
   allowedRole,
 }: {
   children: React.ReactNode
-  allowedRole?: 'parent' | 'child'
+  allowedRole?: 'parent' | 'child' | 'educator'
 }) {
   const { token, role } = useSessionStore()
   const location = useLocation()
@@ -48,7 +50,7 @@ function RequireAuth({
     return <Navigate to={`/?returnTo=${returnTo}`} replace />
   }
   if (allowedRole && role !== allowedRole) {
-    return <Navigate to={role === 'parent' ? '/setup' : '/session'} replace />
+    return <Navigate to={role === 'parent' ? '/setup' : role === 'educator' ? '/classroom' : '/session'} replace />
   }
   return <>{children}</>
 }
@@ -104,6 +106,8 @@ export default function App() {
                   </RequireAuth>
                 }
               />
+              <Route path="/classroom" element={<RequireAuth allowedRole="educator"><EducatorDesk /></RequireAuth>} />
+              <Route path="/classroom-setup" element={<RequireAuth allowedRole="parent"><ClassroomSetup /></RequireAuth>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

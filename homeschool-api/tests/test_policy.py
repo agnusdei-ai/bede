@@ -21,7 +21,7 @@ from core.policy import (
     known_actions,
 )
 
-ALL_ROLES = ["parent", "child", "demo_code", "parent_pending", "parent_recovery"]
+ALL_ROLES = ["parent", "child", "educator", "demo_code", "parent_pending", "parent_recovery"]
 
 
 def _subject(role: str, code: str | None = None) -> Subject:
@@ -32,12 +32,13 @@ def _subject(role: str, code: str | None = None) -> Subject:
 # core/policy.py's own table on purpose: a test that imports the table it's
 # checking would pass no matter what the table said.
 EXPECTED: dict[str, set[str]] = {
-    "session.self":              {"parent", "child", "demo_code"},
-    "tutor.chat":                {"parent", "child", "demo_code"},
+    "session.self":              {"parent", "child", "educator", "demo_code"},
+    "tutor.chat":                {"parent", "child", "educator", "demo_code"},
     "tutor.email_summary":       {"parent", "demo_code"},
     "family.data.read":          {"parent", "child"},
     "family.data.write":         {"parent", "child"},
     "admin.manage":              {"parent"},
+    "educator.roster":          {"educator"},
     "admin.privileged":          {"parent"},
     "sandbox.parent_chat":       {"parent"},
     "sandbox.demo_preview":      {"demo_code"},

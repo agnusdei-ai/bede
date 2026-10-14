@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
 import { Copy, Check, ExternalLink, Settings, BarChart2, Sparkles, FlaskConical, Trash2, AlertTriangle, BookOpen } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import { fetchNarrationAssessments, fetchLearnerProfile, deleteStudentData } from '../services/api'
+import { fetchNarrationAssessments, fetchLearnerProfile, deleteStudentData, fetchRosterCapacity } from '../services/api'
+import type { RosterCapacity } from '../services/api'
 import { SUBJECTS } from '../types'
 import type { SessionConfig, Subject } from '../types'
 import { subjectLabel } from '../utils/subjectLabel'
@@ -14,6 +15,16 @@ export default function PodDashboard() {
   const navigate = useNavigate()
   const { podStudents, setPodStudents, setSessionConfig, startSession, logout, token } = useSessionStore()
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [capacity, setCapacity] = useState<RosterCapacity | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (!token) return
+    fetchRosterCapacity(token).then((result) => {
+      if (active) setCapacity(result)
+    }).catch(() => { if (active) setCapacity(null) })
+    return () => { active = false }
+  }, [token, podStudents.length])
 
   const startParentLedLesson = (student: SessionConfig, subject: Subject, parentFocus: string) => {
     const lesson = prepareFocusedLesson(student, subject, parentFocus)
@@ -73,6 +84,8 @@ export default function PodDashboard() {
         >
           {t('podDashboard.goToSetup')}
         </button>
+        <button onClick={() => navigate('/classroom-setup')} type="button"
+          className="text-sm text-navy-700 underline">Import a classical class roster</button>
       </div>
     )
   }
@@ -89,9 +102,21 @@ export default function PodDashboard() {
               <p className="text-sm text-gray-500">
                 {t('podDashboard.studentCount', { count: podStudents.length })}
               </p>
+              {capacity?.capacity_authority === 'signed_bede_license' && (
+                <p className="text-xs text-sage-700 mt-1" role="status">
+                  {t('podDashboard.licensedRosterCapacity', {
+                    enrolled: capacity.enrolled_students,
+                    capacity: capacity.licensed_children,
+                  })}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button type="button" onClick={() => navigate('/classroom-setup')}
+              className="text-sm text-navy-700 border border-navy-200 rounded-lg px-3 py-2">
+              Instructors &amp; rosters
+            </button>
             <button
               onClick={() => navigate('/progress')}
               className="flex items-center gap-1.5 px-3 py-2 text-sm text-navy-700 border border-navy-200 hover:bg-navy-50 rounded-lg transition-colors"

@@ -5,7 +5,7 @@ import hmac
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import child_throttle, device_registry, elevation, parent_lockout
@@ -208,6 +208,46 @@ async def available_locales():
     return {"locales": [{"code": settings.locale, "name": SUPPORTED_LOCALES[settings.locale]}]}
 
 
+@router.get("/educator-mode")
+async def educator_mode() -> dict:
+    return {"enabled": bool(settings.educator_pilot_enabled and not settings.is_demo_deployment),
+            "shared_child_pin_disabled": bool(settings.educator_pilot_enabled)}
+
+
+class EducatorLoginRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=80)
+    password: str = Field(min_length=1, max_length=256)
+    totp: str = Field(min_length=6, max_length=6)
+    locale: str = "en"
+
+
+@router.post("/educator-login", response_model=TokenResponse)
+async def educator_login(
+    req: EducatorLoginRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Independent educator password + TOTP. Never grants parent privileges."""
+    from services.educator_access import authenticate_educator
+    if settings.is_demo_deployment or not settings.educator_pilot_enabled:
+        raise HTTPException(status_code=403, detail="Educator pilot is not enabled")
+    if req.locale not in SUPPORTED_LOCALES:
+        raise HTTPException(status_code=422, detail="Unsupported language")
+    payload = await authenticate_educator(db, req.username, req.password, req.totp)
+    if not payload:
+        log_event_nowait(AuditEvent.AUTH_FAILURE, role="educator", success=False,
+                         **audit_from_request(request))
+        raise HTTPException(status_code=401, detail="Invalid educator credentials")
+    ctx = audit_from_request(request)
+    fingerprint = compute_fingerprint(ctx["ip"], ctx["user_agent"])
+    token = create_access_token(
+        {**payload, "locale": req.locale}, fingerprint=fingerprint,
+        expires_delta=timedelta(minutes=60),
+    )
+    log_event_nowait(AuditEvent.AUTH_SUCCESS, role="educator", success=True, **ctx)
+    return TokenResponse(access_token=token, role="educator")
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     ctx = audit_from_request(request)
@@ -296,6 +336,8 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
 
         expires = timedelta(minutes=settings.access_token_expire_minutes)
     elif req.role == "child":
+        if settings.educator_pilot_enabled:
+            raise HTTPException(status_code=403, detail="Classroom pilot requires an authorized educator")
         if not hmac.compare_digest(req.credential, settings.child_pin):
             # Escalating delay, not a lockout — see core/child_throttle.py
             # for why copying parent_lockout's fixed-threshold refusal here
@@ -376,6 +418,7 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
 async def validate_token(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Used by the frontend AppShell on every mount to confirm the token is still
@@ -397,6 +440,13 @@ async def validate_token(
         )
         raise HTTPException(status_code=401, detail="Session fingerprint mismatch — please log in again")
 
+    if payload.get("role") == "child" and settings.educator_pilot_enabled:
+        raise HTTPException(status_code=403, detail="Classroom pilot requires an authorized educator")
+    if payload.get("role") == "educator":
+        if not settings.educator_pilot_enabled:
+            raise HTTPException(status_code=403, detail="Educator pilot not enabled")
+        from services.educator_access import live_educator
+        await live_educator(db, payload)
     return {"role": payload.get("role"), "valid": True}
 
 

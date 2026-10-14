@@ -47,7 +47,7 @@ EXPECTED_MIDDLEWARE = [
 
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
-    "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic",
+    "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -86,6 +86,8 @@ GUARDS = {
     ('POST', '/auth/login'): 'PUBLIC',
     ('POST', '/auth/logout'): 'require_auth',
     ('GET', '/auth/recovery/methods'): 'PUBLIC',
+    ('POST', '/auth/educator-login'): 'PUBLIC',
+    ('GET', '/auth/educator-mode'): 'PUBLIC',
     ('POST', '/auth/recovery/reset-password'): 'require_parent_recovery',
     ('POST', '/auth/recovery/verify'): 'PUBLIC',
     ('POST', '/auth/recovery/webauthn/options'): 'PUBLIC',
@@ -125,6 +127,21 @@ GUARDS = {
     # about themselves. See services/lesson_planner.py.
     ('GET', '/diagnostic/{student_name}/plan'): 'require_parent',
     ('GET', '/diagnostic/{student_name}/summary'): 'require_parent',
+    # Distinct educator role: no administrator rights, and every child
+    # read/write also verifies a parent-approved SQL roster assignment.
+    ('GET', '/educators/accounts'): 'require_parent',
+    ('POST', '/educators/accounts'): 'require_elevated_parent',
+    ('PUT', '/educators/accounts/{educator_id}/roster'): 'require_elevated_parent',
+    ('POST', '/educators/accounts/{educator_id}/disable'): 'require_elevated_parent',
+    ('GET', '/educators/me/assessment-frameworks'): 'require_educator',
+    ('GET', '/educators/me/roster'): 'require_educator',
+    ('GET', '/educators/me/locuto-capacity'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/config'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/assessments'): 'require_educator',
+    ('POST', '/educators/me/students/{student_name}/assessments'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/activity'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/diagnostic'): 'require_educator',
+    ('GET', '/educators/me/students/{student_name}/dibels-progress'): 'require_educator',
     ('POST', '/feedback'): 'require_auth',
     ('GET', '/feedback/enabled'): 'PUBLIC',
     ('POST', '/mfa/change-password'): 'require_parent',
@@ -146,6 +163,7 @@ GUARDS = {
     ('GET', '/narration/{student_name}/behavior-check'): 'require_parent',
     ('GET', '/narration/{student_name}/profile'): 'require_real_user',
     ('POST', '/narration/{student_name}/profile'): 'require_real_user',
+    ('GET', '/pod/roster-capacity'): 'require_parent',
     ('GET', '/pod/configs'): 'require_parent',
     ('POST', '/pod/configs'): 'require_parent',
     ('DELETE', '/pod/configs/{student_name}'): 'require_elevated_parent',

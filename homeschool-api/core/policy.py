@@ -53,6 +53,7 @@ _DOMAIN_FOR_ROLE = {
     "parent_pending": DOMAIN_FAMILY,
     "parent_recovery": DOMAIN_FAMILY,
     "child": DOMAIN_FAMILY,
+    "educator": DOMAIN_FAMILY,
     "demo_code": DOMAIN_DEMO,
 }
 
@@ -126,12 +127,12 @@ _ALLOW = Decision(allowed=True)
 # separating anything that isn't already separated here.
 _POLICY: dict[str, frozenset[str]] = {
     # Anything a fully-authenticated session may do about itself.
-    "session.self": frozenset({"parent", "child", "demo_code"}),
+    "session.self": frozenset({"parent", "child", "educator", "demo_code"}),
 
     # Tutoring. Every authenticated role may chat; the demo's session config
     # is substituted server-side rather than trusted from the client, which
     # is an input-handling concern in routers/tutor.py, not an authz one.
-    "tutor.chat": frozenset({"parent", "child", "demo_code"}),
+    "tutor.chat": frozenset({"parent", "child", "educator", "demo_code"}),
     # Emailing a session summary is parent-or-demo, NOT child — a child
     # should not be able to send mail to an arbitrary address.
     "tutor.email_summary": frozenset({"parent", "demo_code"}),
@@ -145,6 +146,9 @@ _POLICY: dict[str, frozenset[str]] = {
     # boundary exists in the table rather than being implied by which
     # endpoints happen to use which guard.
     "admin.manage": frozenset({"parent"}),
+    # Narrow, independently authenticated education role. NOT a family
+    # identity: every student read additionally checks assignment in SQL.
+    "educator.roster": frozenset({"educator"}),
 
     # The privileged subset of the management plane (P8). Same role, but
     # additionally requires a recent re-authentication — see

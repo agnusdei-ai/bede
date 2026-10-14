@@ -29,6 +29,20 @@ def _config_aad(student_name: str) -> bytes:
 
 
 
+@router.get("/roster-capacity")
+async def get_roster_capacity(
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Parent-visible, entitlement-derived class/household roster capacity.
+
+    This does not assign teaching permissions, merge different households,
+    or create Locuto messaging groups. Those are independent boundaries.
+    """
+    from services.roster_capacity import snapshot
+    return await snapshot(db)
+
+
 @router.post("/configs", status_code=204)
 async def save_pod_configs(
     req: PodConfigsRequest,

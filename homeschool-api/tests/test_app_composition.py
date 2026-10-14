@@ -146,6 +146,7 @@ GUARDS = {
     ('GET', '/narration/{student_name}/behavior-check'): 'require_parent',
     ('GET', '/narration/{student_name}/profile'): 'require_real_user',
     ('POST', '/narration/{student_name}/profile'): 'require_real_user',
+    ('GET', '/pod/roster-capacity'): 'require_parent',
     ('GET', '/pod/configs'): 'require_parent',
     ('POST', '/pod/configs'): 'require_parent',
     ('DELETE', '/pod/configs/{student_name}'): 'require_elevated_parent',

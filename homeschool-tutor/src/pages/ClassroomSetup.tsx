@@ -4,7 +4,7 @@ import { UserPlus, Users, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig } from '../types'
 import {
-  assignInstructorRoster, disableInstructor, fetchInstructors,
+  assignInstructorRoster, disableInstructor, fetchEducatorPilotMode, fetchInstructors,
   provisionInstructor,
 } from '../services/api'
 import type { InstructorAccount, InstructorProvisioned, LocutoCapacity } from '../services/api'
@@ -42,6 +42,7 @@ export default function ClassroomSetup() {
   const navigate = useNavigate()
   const token = useSessionStore((s) => s.token)
   const [educators, setEducators] = useState<InstructorAccount[]>([])
+  const [pilotMode, setPilotMode] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [oneTime, setOneTime] = useState<InstructorProvisioned | null>(null)
@@ -61,6 +62,9 @@ export default function ClassroomSetup() {
   useEffect(() => {
     if (!token) return
     let active = true
+    fetchEducatorPilotMode().then(value => {
+      if (active) setPilotMode(value.enabled)
+    }).catch(() => { if (active) setPilotMode(false) })
     fetchInstructors(token).then((list) => {
       if (active) {
         setEducators(list)
@@ -132,6 +136,13 @@ export default function ClassroomSetup() {
           <h1 className="text-2xl font-display font-bold text-gray-900">Classical Educator enrollment</h1>
           <p className="mt-2 text-sm text-gray-600">A parent/operator authorizes the class. Instructors can teach and review only assigned learners, never manage Bede's credentials, AI provider, or server.</p>
         </header>
+        {!pilotMode && (
+          <p role="alert" className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-sm">
+            Classroom accounts are disabled on this family installation. The operator must explicitly set
+            EDUCATOR_PILOT_ENABLED=true and restart the Bede API before enrolling unrelated learners.
+            In pilot mode, supervised educator sessions replace the shared child-PIN login.
+          </p>
+        )}
 
         <section className="bg-white border rounded-2xl p-5 space-y-3">
           <h2 className="font-semibold flex items-center gap-2"><ShieldCheck size={18}/> Add an instructor</h2>
@@ -145,7 +156,7 @@ export default function ClassroomSetup() {
               onChange={e => setPassword(e.target.value)}
               className="mt-1 block border rounded-lg p-2 w-full"/>
           </label>
-          <button type="button" disabled={busy || username.trim().length < 3 || password.length < 14}
+          <button type="button" disabled={!pilotMode || busy || username.trim().length < 3 || password.length < 14}
             onClick={() => void enroll()} className="bg-navy-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
             <UserPlus size={15} className="inline mr-1"/> Provision MFA account
           </button>
@@ -178,7 +189,7 @@ export default function ClassroomSetup() {
           </label>
           <p className="text-xs text-gray-600">This replaces the instructor’s assignment list. Existing parent-approved learner plans are not overwritten. New learners start with classical books, math, and language arts; the parent can refine their plans in Setup. Import only learners whose authorized adult has approved participation.</p>
           <div className="flex gap-3 items-center flex-wrap">
-            <button type="button" disabled={busy || !selectedId} onClick={() => void importRoster()}
+            <button type="button" disabled={!pilotMode || busy || !selectedId} onClick={() => void importRoster()}
               className="bg-navy-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">Save authorized roster</button>
             <button type="button" disabled={busy || !selectedId} onClick={() => void revoke()}
               className="border border-red-300 text-red-700 px-4 py-2 rounded-lg disabled:opacity-50">Disable instructor</button>

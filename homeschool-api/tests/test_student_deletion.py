@@ -21,6 +21,7 @@ from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
     EducatorAssessmentEvidence,
+    EducatorRosterAssignment,
     Base,
     DiagnosticEvidenceLog,
     LearnerBehaviorCheck,
@@ -110,6 +111,9 @@ async def _seed_all_tables(db, student_name: str):
         student_name=student_name, framework="classical",
         detail_enc=encrypt_json({"framework": "classical"}),
     ))
+    db.add(EducatorRosterAssignment(
+        educator_id="test-instructor", student_name=student_name,
+    ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     await db.commit()
 
@@ -126,6 +130,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("skill_activity_log", SkillActivityLog),
         ("adaptive_instruction_traces", AdaptiveInstructionTrace),
         ("educator_assessment_evidence", EducatorAssessmentEvidence),
+        ("educator_roster_assignments", EducatorRosterAssignment),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),

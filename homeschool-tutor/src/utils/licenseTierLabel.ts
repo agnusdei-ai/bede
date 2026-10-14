@@ -26,6 +26,7 @@ export const TIER_LABEL_KEYS: Record<string, string> = {
   trial: 'parentSetup.trialLicense',
   core: 'parentSetup.coreLicense',
   coop: 'parentSetup.coopLicense',
+  campus_location: 'parentSetup.campusLocationLicense',
 }
 
 /**

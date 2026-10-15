@@ -491,10 +491,15 @@ def build_env_file(fields: dict) -> str:
         database_url = fields["database_url"]
         db_lines = ""
 
-    if LAN_IP:
-        cors = f"https://localhost,https://{LAN_IP},http://ui:80"
-    else:
-        cors = "https://localhost,http://ui:80"
+    lan_enabled = fields.get("lan_mode") == "yes"
+    lan_host = fields.get("lan_host", "").strip().lower() if lan_enabled else ""
+    lan_ip = fields.get("lan_ip", "").strip() if lan_enabled else ""
+    cors = f"https://localhost,https://{lan_host},http://ui:80" if lan_enabled else "https://localhost,http://ui:80"
+    lan_lines = (
+        f"BEDE_LAN_ENABLED=true\nBEDE_LAN_BIND_IP={lan_ip}\n"
+        if lan_enabled else "BEDE_LAN_ENABLED=false\n"
+    )
+    webauthn_host = lan_host if lan_enabled else "localhost
 
     provider = fields.get("provider", "anthropic")
     if provider == "local_auto":
@@ -521,6 +526,10 @@ def build_env_file(fields: dict) -> str:
         f"DATABASE_URL={database_url}\n"
         f"{db_lines}"
         f"CORS_ORIGINS={cors}\n"
+        f"WEBAUTHN_RP_ID={webauthn_host}\n"
+        f"WEBAUTHN_ORIGIN=https://{webauthn_host}\n"
+        f"WEBAUTHN_RP_NAME=Bede\n"
+        f"{lan_lines}"
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
         f"LICENSE_KEY={fields['license_key']}\n"
@@ -541,6 +550,9 @@ _PROVIDER_LABELS = {
 
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
+    lan_error = validate_lan_fields(fields)
+    if lan_error:
+        return lan_error
     provider = fields.get("provider", "anthropic")
     if provider == "local_auto":
         if _read_local_ai_marker() is None:

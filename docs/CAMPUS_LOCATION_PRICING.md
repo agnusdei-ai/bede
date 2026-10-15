@@ -1,12 +1,14 @@
 # Bede — organizational location subscriptions
 
-> **Valor founding-school promotion (Fall 2026–Spring 2027):** Eligible founding-school campus memberships are offered at **$2,700 USD per campus per month**, with unlimited enrolled learner seats at that campus and a 12-month contractual commitment. This promotional rate is binding for the signed subscription term, including months after Spring 2027. See [VALOR_PRICING.md](VALOR_PRICING.md). The $3,500/location figure below refers to the separate general campus-location offer and does **not** supersede the approved Valor founding promotion. The $950 fixed pilot and $25/learner/month options also remain available under their respective terms.\n\n**Commercial offer decision (October 2026): $3,500 USD per month per
+> **Valor founding-school promotion (Fall 2026–Spring 2027):** Eligible founding-school campus memberships are offered at **$2,600 USD per physical campus per month, billed monthly on a 12-month contract**, with unlimited enrolled learner seats at that campus. This is **over 25% off** the separate standard **$3,500/month** campus price: save **$900 per month** or **$10,800 across 12 months**. Founding-campus software fees total **$31,200 across 12 months** rather than **$42,000** at the standard rate. This promotional rate is binding for the signed subscription term, including months after Spring 2027. See [VALOR_PRICING.md](VALOR_PRICING.md). The $3,500/location figure below refers to the separate general campus-location offer and does **not** supersede the approved Valor founding promotion. The $950 fixed **paid evaluation** and $25/learner/month options remain separate; the current free invite-only Valor pilot uses only manually approved synthetic-data access and has no purchasing or conversion. 
+
+**Commercial offer decision (October 2026): $3,500 USD per month per
 physical school location, unlimited enrolled learner seats at that
 location.** This supersedes earlier wording of "$3,500 per organization"
 that could incorrectly license multiple locations on one subscription.
 
 The complementary per-learner offer is **$25 USD per learner per month**.
-At 140 enrolled learners, the monthly subscriptions are equal in price,
+At 140 enrolled learners, the **standard $3,500** monthly campus subscription and $25 per-learner subscription are equal in price; the founding-campus **$2,600** price equals $25 per learner at **104** learners,
 before hardware and optional services. Annualized location software fees
 are $42,000 with twelve paid months. Each additional physical branch or
 campus requires another location subscription and independently signed
@@ -17,6 +19,10 @@ The intended classroom package (32 GB unified memory / 1 TB storage) and
 campus package (64 GB / 4 TB) are specified in
 [MAC_MINI_BUNDLES.md](MAC_MINI_BUNDLES.md). Procurement, warranty, spare
 units, installation, repairs and support terms must be quoted separately.
+
+## Flexible 12-month model changes
+
+The school may move between the campus and per-learner models through a **mutually agreed written amendment** identifying its effective date and revised billing. The 12-month contractual commitment remains unless expressly amended; avoid charging both software models for the same campus period. No automatic credits, prorations, or return to promotional pricing are promised. Paid subscriptions are separate from the free, manually approved, synthetic-data-only Valor pilot.
 
 ## What "unlimited learner seats" actually promises
 

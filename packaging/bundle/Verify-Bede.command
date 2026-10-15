@@ -20,15 +20,25 @@ echo "Docker CPU: $(docker info --format '{{.Architecture}}')"
 docker compose version
 if [[ ! -s .env ]]; then echo "BLOCKED: installer setup has not finished."; exit 2; fi
 if [[ ! -s bede-root-ca.crt ]]; then echo "BLOCKED: verified local CA missing."; exit 2; fi
-if ! docker compose --env-file .env -f compose.yaml config --quiet >/dev/null 2>&1; then
+compose_files=(-f compose.yaml)
+if grep -qx 'BEDE_LAN_ENABLED=true' .env; then
+  if [[ ! -f compose.lan.yaml ]]; then echo "FAIL: LAN override missing"; exit 1; fi
+  compose_files+=(-f compose.lan.yaml)
+fi
+if ! docker compose --env-file .env "${compose_files[@]}" config --quiet >/dev/null 2>&1; then
   echo "FAIL: Compose configuration failed."; exit 1
 fi
 echo "PASS: Compose configuration"
-docker compose --env-file .env -f compose.yaml ps > "$out/container-status.txt"
+docker compose --env-file .env "${compose_files[@]}" ps > "$out/container-status.txt"
 if ! curl -fsS --max-time 15 --cacert bede-root-ca.crt https://localhost/api/health > "$out/health.json"; then
   echo "FAIL: HTTPS health verification"; exit 1
 fi
 echo "PASS: HTTPS health verified against this instance's CA"
+if grep -qx 'BEDE_LAN_ENABLED=true' .env; then
+  lan_host="$(sed -n 's/^WEBAUTHN_RP_ID=//p' .env | head -n1)"
+  if [[ -z "$lan_host" ]]; then echo "FAIL: LAN passkey DNS host missing"; exit 1; fi
+  echo "NOT RUN: client DNS and trusted TLS check on teacher Mac at https://$lan_host"
+fi
 cat > "$out/manual-acceptance.txt" <<'CHECKS'
 NOT RUN: Browser recognizes trusted HTTPS certificate without bypass.
 NOT RUN: Bede admin signs in and completes administrator passkey.

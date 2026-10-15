@@ -1,0 +1,17 @@
+# Agnus Dei Technologies
+
+> Agnus Dei Technologies, LLC makes Bede, a Socratic AI tutor for classical homeschool and school programs. Bede asks questions rather than giving answers, runs short daily subject sessions beside the family's or school's own curriculum, and records work as factual observations rather than grades of character or faith.
+
+## Key pages
+
+- [Home](https://agnusdei.ai/): what Bede is and how a family uses it.
+- [FAQ](https://agnusdei.ai/faq/): the method, faith across Christian traditions, data, and the learner's guarantee.
+- [Co-ops](https://agnusdei.ai/educators/): what a co-op would need before putting Bede in front of member families.
+- [Charter and campus schools](https://agnusdei.ai/schools/): what a campus licence includes and does not include.
+- [Privacy and data disclosure](https://agnusdei.ai/privacy/): every cookie, storage item and third party.
+
+## Facts
+
+- Bede is self-hosted for families and schools; student data is encrypted at rest with AES-256-GCM.
+- A campus licence covers unlimited enrolled learner seats at one licensed location. AI throughput, simultaneous capacity, uptime and hardware are not unlimited. Mac mini hardware is sold separately.
+- Bede does not administer or score DIBELS assessments.

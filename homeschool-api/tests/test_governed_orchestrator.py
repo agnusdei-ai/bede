@@ -65,6 +65,34 @@ class OrchestratorTests(unittest.TestCase):
             self.assertEqual(saved, [Decision.EDIT])
         asyncio.run(scenario())
 
+    def test_disconnected_cycle_rejected_before_any_agent_or_audit(self):
+        async def scenario():
+            side_effects = []
+            scope = Scope("campus-a", "learner-a", "teacher-a")
+
+            async def authorize(s, task):
+                side_effects.append(("authorize", task))
+                return True
+
+            async def audit(s, task, event):
+                side_effects.append(("audit", task, event))
+
+            async def write_capable_agent(s, deps):
+                side_effects.append(("agent", s.learner_id))
+                return True
+
+            # An unrelated ready task must NOT execute before a later
+            # disconnected cycle is discovered.
+            tasks = {
+                "independent": ((), write_capable_agent),
+                "loop-a": (("loop-b",), write_capable_agent),
+                "loop-b": (("loop-a",), write_capable_agent),
+            }
+            with self.assertRaisesRegex(ValueError, "cyclic"):
+                await GovernedOrchestrator(authorize, audit).run(scope, tasks)
+            self.assertEqual(side_effects, [])
+        asyncio.run(scenario())
+
     def test_invalid_dag_and_missing_evidence(self):
         async def scenario():
             async def auth(s, t): return True

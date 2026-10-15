@@ -30,6 +30,7 @@ doc["services"]["caddy"]["ports"] = ["127.0.0.1:80:80", "127.0.0.1:443:443"]
 # DB remains optional in upstream Compose, explicitly enable in operator package.
 (out / "compose.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
 shutil.copy2(root / "Caddyfile", out / "Caddyfile")
+shutil.copy2(root / "packaging" / "bundle" / "compose.lan.yaml", out / "compose.lan.yaml")
 shutil.copy2(root / "packaging" / "bundle" / "start.sh", out / "start.sh")
 shutil.copy2(root / "packaging" / "bundle" / "Install-Bede.command", out / "Install-Bede.command")
 shutil.copy2(root / "packaging" / "bundle" / "Verify-Bede.command", out / "Verify-Bede.command")

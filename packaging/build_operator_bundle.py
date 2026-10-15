@@ -32,6 +32,7 @@ doc["services"]["caddy"]["ports"] = ["127.0.0.1:80:80", "127.0.0.1:443:443"]
 shutil.copy2(root / "Caddyfile", out / "Caddyfile")
 shutil.copy2(root / "packaging" / "bundle" / "start.sh", out / "start.sh")
 shutil.copy2(root / "packaging" / "bundle" / "Install-Bede.command", out / "Install-Bede.command")
+shutil.copy2(root / "packaging" / "bundle" / "Verify-Bede.command", out / "Verify-Bede.command")
 shutil.copy2(root / "packaging" / "bundle" / "Install-Bede.ps1", out / "Install-Bede.ps1")
 shutil.copy2(root / "packaging" / "bundle" / "README.md", out / "README.md")
 shutil.copy2(root / "packaging" / "bundle" / ".env.example", out / ".env.example")

@@ -506,7 +506,9 @@ def build_env_file(fields: dict) -> str:
     lan_enabled = fields.get("lan_mode") == "yes"
     lan_host = fields.get("lan_host", "").strip().lower() if lan_enabled else ""
     lan_ip = fields.get("lan_ip", "").strip() if lan_enabled else ""
-    cors = f"https://localhost,https://{lan_host},http://ui:80" if lan_enabled else "https://localhost,http://ui:80"
+    cors = (f"https://localhost,https://{lan_host},http://ui:80" if lan_enabled
+            else f"https://localhost,https://{LAN_IP},http://ui:80" if LAN_IP
+            else "https://localhost,http://ui:80")
     lan_lines = (
         f"BEDE_LAN_ENABLED=true\nBEDE_LAN_BIND_IP={lan_ip}\n"
         if lan_enabled else "BEDE_LAN_ENABLED=false\n"

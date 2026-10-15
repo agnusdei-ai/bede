@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from core.config import settings
-from core.database import Base, EducatorRosterAssignment, PilotLearner
+from core.database import Base, ClassicalEducator, EducatorRosterAssignment, PilotLearner
 from core.encryption import initialize_encryption
 from routers.pilot_campuses import (
     CampusInput, LearnerInput, approve_educator_membership,
@@ -98,6 +98,17 @@ async def test_cross_campus_grant_denied_and_unassigned_learner_hidden(db):
     extra = (await create_learner(a, LearnerInput(display_name="Unassigned"), auth=ADMIN, db=db))["learner_id"]
     with pytest.raises(HTTPException) as exc:
         await get_my_learner(extra, auth=token(ea), db=db)
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_disabled_educator_cannot_receive_new_roster_grant(db):
+    ea, eb, a, b, la, lb = await fixture_two_campuses(db)
+    teacher = await db.get(ClassicalEducator, ea["id"])
+    teacher.enabled = False
+    await db.commit()
+    with pytest.raises(HTTPException) as exc:
+        await approve_roster_grant(a, ea["id"], la, auth=ADMIN, db=db)
     assert exc.value.status_code == 404
 
 

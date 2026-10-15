@@ -502,7 +502,7 @@ def build_env_file(fields: dict) -> str:
         f"BEDE_LAN_ENABLED=true\nBEDE_LAN_BIND_IP={lan_ip}\n"
         if lan_enabled else "BEDE_LAN_ENABLED=false\n"
     )
-    webauthn_host = lan_host if lan_enabled else "localhost
+    webauthn_host = lan_host if lan_enabled else "localhost"
 
     provider = fields.get("provider", "anthropic")
     if provider == "local_auto":

@@ -1,0 +1,162 @@
+name: Bede event-driven PR merge gate
+
+# Trusted default-branch workflow. It never checks out or executes PR content.
+# React to successful/failing CI completions, PR metadata changes, and main
+# changes immediately. The ChatGPT engineering watch is a separate fallback,
+# not the event trigger.
+on:
+  workflow_run:
+    workflows:
+      - Backend regression tests
+      - Frontend regression tests
+      - CodeQL analysis
+      - Institutional ordered qualification
+    types: [completed]
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, labeled, unlabeled]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: bede-pilot-event-driven-merge
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guarded-merge:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - name: Reconcile PRs on each repository event
+        # v9.0.0, pinned to an immutable SHA. No checkout or PR code execution.
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const required = [
+              'Backend regression tests',
+              'Frontend regression tests',
+              'CodeQL analysis',
+            ];
+            const optional = 'Institutional ordered qualification';
+            const open = await github.paginate(github.rest.pulls.list, {
+              owner, repo, state: 'open', base: 'main', per_page: 100,
+            });
+            const summary = [];
+            const repoInfo = (await github.rest.repos.get({owner, repo})).data;
+            for (const candidate of open) {
+              if (!candidate.labels.some(label => label.name === 'release:automerge')) continue;
+              const n = candidate.number;
+              // All decisions below are refreshed, not inferred from event payloads.
+              const pr = (await github.rest.pulls.get({owner, repo, pull_number: n})).data;
+              const sha = pr.head.sha;
+              const prefix = '#' + n + ' ' + sha.substring(0, 12);
+              if (pr.state !== 'open' || pr.draft || pr.base.ref !== 'main'
+                  || pr.head.repo?.id !== repoInfo.id || pr.head.repo?.fork
+                  || pr.mergeable !== true || pr.mergeable_state !== 'clean') {
+                summary.push(prefix + ': HOLD (draft, fork, conflict or branch gate)');
+                continue;
+              }
+
+              // Treat a decision from an old commit as stale. Latest review per
+              // person wins, including a subsequent change request/dismissal.
+              const reviews = await github.paginate(github.rest.pulls.listReviews, {
+                owner, repo, pull_number: n, per_page: 100,
+              });
+              const latest = new Map();
+              for (const review of reviews) {
+                if (!review.user?.login || review.user.login === pr.user?.login) continue;
+                latest.set(review.user.login, review);
+              }
+              const approvals = [...latest.values()].filter(review =>
+                review.state === 'APPROVED' && review.commit_id === sha
+                && review.user?.type === 'User'
+              );
+
+              // Require two independent exact-head approvals for auth, identity,
+              // security, production workflows, credential or recovery changes.
+              // Non-sensitive PRs require one independent exact-head approval.
+              const changed = await github.paginate(github.rest.pulls.listFiles, {
+                owner, repo, pull_number: n, per_page: 100,
+              });
+              const sensitive = changed.some(file =>
+                /^(\.github\/workflows\/|homeschool-api\/(core|routers|routes|auth|security|middleware)\/|homeschool-api\/main\.py$|scripts\/(trust_service|setup_wizard)\/|agent-governance\/|docker-compose\.yml$|wrangler\.jsonc$)/.test(file.filename)
+                || /(passkey|webauthn|identity|campus|learner|roster|recovery|secret|stripe|billing|session|authorization|permission)/i.test(file.filename)
+              );
+              const minApprovals = sensitive ? 2 : 1;
+              if (approvals.length < minApprovals) {
+                summary.push(prefix + ': HOLD (needs ' + minApprovals + ' exact-head independent approval(s))');
+                continue;
+              }
+
+              const allRuns = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+                owner, repo, event: 'pull_request', head_sha: sha, per_page: 100,
+              });
+              // Only use PR CI tied to this exact branch/SHA (no main push checks).
+              const runs = allRuns.filter(run =>
+                run.head_sha === sha && run.head_branch === pr.head.ref
+                && run.event === 'pull_request'
+              );
+              const best = new Map();
+              for (const run of runs) {
+                const prev = best.get(run.name);
+                if (!prev || run.id > prev.id) best.set(run.name, run);
+              }
+              const need = [...required];
+              if (best.has(optional)) need.push(optional);
+              const notGreen = need.filter(name =>
+                best.get(name)?.status !== 'completed' ||
+                best.get(name)?.conclusion !== 'success'
+              );
+              if (notGreen.length) {
+                summary.push(prefix + ': HOLD (CI missing/pending/failing: ' + notGreen.join(', ') + ')');
+                continue;
+              }
+
+              // Re-read after CI/review discovery; GitHub also rejects stale SHA.
+              const now = (await github.rest.pulls.get({owner, repo, pull_number: n})).data;
+              if (now.head.sha !== sha || now.draft || now.mergeable !== true
+                  || now.mergeable_state !== 'clean'
+                  || !now.labels.some(label => label.name === 'release:automerge')) {
+                summary.push(prefix + ': HOLD (PR changed during evaluation)');
+                continue;
+              }
+              try {
+                const merge = await github.rest.pulls.merge({
+                  owner, repo, pull_number: n, sha, merge_method: 'squash',
+                });
+                if (!merge.data.merged) {
+                  summary.push(prefix + ': HOLD (GitHub did not merge)');
+                  continue;
+                }
+                summary.push(prefix + ': MERGED as ' + merge.data.sha);
+                // A merge made with GITHUB_TOKEN does not automatically trigger
+                // ordinary push-based CI. Explicit dispatch is supported.
+                // Never dispatch production deployment or authorize pilot GO.
+                for (const workflow_id of ['test.yml', 'frontend-tests.yml', 'codeql.yml']) {
+                  try {
+                    await github.rest.actions.createWorkflowDispatch({
+                      owner, repo, workflow_id, ref: 'main',
+                    });
+                  } catch (err) {
+                    core.warning('Postmerge verification dispatch failed for ' + workflow_id
+                      + ': ' + err.message);
+                  }
+                }
+              } catch (err) {
+                core.warning(prefix + ': merge rejected: ' + err.message);
+                summary.push(prefix + ': HOLD (GitHub rejected guarded merge)');
+              }
+            }
+            if (!summary.length) summary.push('No opt-in PRs; no changes made.');
+            await core.summary.addHeading('Bede event-driven release gate')
+              .addList(summary).addRaw(
+                'Green CI is not G1/G2/G3 qualification or pilot GO. Synthetic-data-only HOLD persists.'
+              ).write();

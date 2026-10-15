@@ -81,7 +81,7 @@ jobs:
           assert all('0.0.0.0' not in str(port) for port in lan_ports)
           assert any(':443:443' in str(port) for port in lan_ports)
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
-          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','.env.example','Caddyfile','WIZARD_IMAGE'):
+          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
           cd dist

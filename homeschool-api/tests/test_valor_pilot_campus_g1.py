@@ -24,7 +24,7 @@ ADMIN = {"role": "parent", "auth_method": "webauthn_uv"}
 @pytest_asyncio.fixture
 async def db(monkeypatch):
     monkeypatch.setattr(settings, "educator_pilot_enabled", True)
-    monkeypatch.setattr(settings, "is_demo_deployment", False)
+    monkeypatch.setattr(settings, "demo_pin", "")
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:", poolclass=StaticPool,
         connect_args={"check_same_thread": False},

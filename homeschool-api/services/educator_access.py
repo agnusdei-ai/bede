@@ -17,7 +17,7 @@ from sqlalchemy import delete, select
 from core import student_keys
 from core.config import settings
 from core.credential_hash import hash_secret, verify_secret
-from core.database import ClassicalEducator, EducatorRosterAssignment, StudentConfig
+from core.database import ClassicalEducator, EducatorRosterAssignment, PilotCampus, StudentConfig
 from core.encryption import aad_for, decrypt_json, encrypt_json
 
 LOCUTO_POD_MIN = 3
@@ -127,8 +127,24 @@ async def live_educator(db, token: dict) -> ClassicalEducator:
     return row
 
 
+async def _require_legacy_name_route_safe(db) -> None:
+    """Deny legacy name-keyed educator paths once campus UUID mode is populated.
+
+    Legacy StudentConfig, assessment, tutor and SSE routes are keyed on a
+    display name shared across campuses. Even an authentic instructor with
+    a name-based roster grant cannot use those global paths once pilot
+    campus identities exist. The new /pilot UUID routes call live_educator
+    directly and remain available while UUID integrations are completed.
+    """
+    if settings.educator_pilot_enabled:
+        present = (await db.execute(select(PilotCampus.id).limit(1))).scalar_one_or_none()
+        if present is not None:
+            raise HTTPException(status_code=404, detail="Learner not assigned")
+
+
 async def require_assignment(db, token: dict, student_name: str) -> None:
     account = await live_educator(db, token)
+    await _require_legacy_name_route_safe(db)
     link = await db.get(EducatorRosterAssignment, (account.id, student_name))
     if link is None:
         # Same response for absent and unassigned learners: no enumeration.
@@ -138,6 +154,7 @@ async def require_assignment(db, token: dict, student_name: str) -> None:
 async def roster_configs(db, token: dict) -> list:
     from models.schemas import SessionConfig
     account = await live_educator(db, token)
+    await _require_legacy_name_route_safe(db)
     rows = (await db.execute(
         select(StudentConfig).join(
             EducatorRosterAssignment,
@@ -166,6 +183,7 @@ async def assign_class_roster(db, educator_id: str, configs: list) -> dict:
     curriculum settings are NEVER rewritten by an import: data belongs to
     the operator/parent. A preexisting name is only assigned, not altered.
     """
+    await _require_legacy_name_route_safe(db)
     account = await db.get(ClassicalEducator, educator_id)
     if account is None:
         raise HTTPException(status_code=404, detail="Educator not found")

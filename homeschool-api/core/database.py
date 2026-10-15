@@ -267,6 +267,44 @@ class VoiceProfile(Base):
     )
 
 
+class PilotCampus(Base):
+    """Explicitly approved institutional pilot campus; no household migration."""
+    __tablename__ = "pilot_campuses"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    title: Mapped[str] = mapped_column(String(100), nullable=False)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+
+class PilotLearner(Base):
+    """Immutable campus-scoped identity, separate from name-keyed household rows."""
+    __tablename__ = "pilot_learners"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    display_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+
+class PilotEducatorCampus(Base):
+    """Admin-issued membership; a credential alone cannot infer campus access."""
+    __tablename__ = "pilot_educator_campuses"
+
+    educator_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+
+class PilotRosterGrant(Base):
+    """Explicit educator-to-learner grant; never grant all pupils by campus."""
+    __tablename__ = "pilot_roster_grants"
+
+    educator_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    learner_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+
+
 class ClassicalEducator(Base):
     """Independently authenticated teacher. No parent/admin privileges.
 

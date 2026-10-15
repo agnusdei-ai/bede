@@ -158,9 +158,11 @@ async def approve_roster_grant(
     campus = await _campus(db, campus_id)
     teacher_id, learner_id = _id(educator_id), _id(learner_id)
     membership = await db.get(PilotEducatorCampus, (teacher_id, campus.id))
+    teacher = await db.get(ClassicalEducator, teacher_id)
     pupil = await db.get(PilotLearner, learner_id)
-    if (membership is None or not membership.enabled or pupil is None
-            or not pupil.enabled or pupil.campus_id != campus.id):
+    if (membership is None or not membership.enabled
+            or teacher is None or not teacher.enabled
+            or pupil is None or not pupil.enabled or pupil.campus_id != campus.id):
         raise HTTPException(status_code=404, detail="Record not found")
     grant = await db.get(PilotRosterGrant, (teacher_id, campus.id, pupil.id))
     if grant is None:

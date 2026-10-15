@@ -71,8 +71,13 @@ jobs:
               assert 'image' in config['services'][name]
               assert 'build' not in config['services'][name]
           assert '127.0.0.1:443:443' in config['services']['caddy']['ports']
+          lan = yaml.safe_load((d/'compose.lan.yaml').read_text())
+          lan_ports = lan['services']['caddy']['ports']
+          assert all('BEDE_LAN_BIND_IP' in str(port) for port in lan_ports)
+          assert all('0.0.0.0' not in str(port) for port in lan_ports)
+          assert any(':443:443' in str(port) for port in lan_ports)
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
-          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','.env.example','Caddyfile','WIZARD_IMAGE'):
+          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
           cd dist

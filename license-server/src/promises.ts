@@ -78,7 +78,10 @@ export const NOTHING_PROMISED: PromiseAuthorisation = {
 export const ADOPTED_PROMISES: PromiseAuthorisation = {
   community_downgrade: false,
   immediate_refund: false,
-  retained_trial_access: true,
+  // WITHHELD (2026-10-15) until the boundary anchor (PR-A, migration 0007)
+  // is on main. Without it the access date is re-read from the provider's
+  // live trial_end, which can move. Flip back to true only with PR-A merged.
+  retained_trial_access: false,
 };
 
 export function mayPromise(

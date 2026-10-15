@@ -30,6 +30,10 @@ jobs:
           python-version: '3.12'
       - name: Prepare bundle generator
         run: python -m pip install 'PyYAML==6.0.2'
+      - name: Verify LAN opt-in and WebAuthn wizard contracts
+        run: |
+          python -m py_compile scripts/setup_wizard/wizard.py
+          python packaging/tests/test_lan_wizard.py
       - name: Build versioned application and setup images
         run: |
           set -euo pipefail

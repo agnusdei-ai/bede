@@ -1,12 +1,14 @@
 """Deterministic, entirely fabricated two-campus pilot fixtures.
 
-Never replace these with exported school records. UUIDs are stable for reproducible
-cross-campus denial tests; no names, identifiers, or emails come from people.
+Never replace these with exported school records. IDs are stable, synthetic
+UUIDv4-shaped values so they match the G1 API's parser during replayable denial
+tests; no names, identifiers, or emails come from people.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from uuid import UUID, uuid5
+from hashlib import sha256
+from uuid import UUID
 
 _NAMESPACE = UUID("5cde68fb-9b92-49c0-b52f-b15b2c7029e1")
 
@@ -26,7 +28,11 @@ class SyntheticCampus:
 
 
 def _id(kind: str, label: str) -> str:
-    return str(uuid5(_NAMESPACE, f"bede-synthetic-pilot/{kind}/{label}"))
+    # G1's deployed _id() accepts only canonical UUIDv4 IDs.
+    # Reproducible test-only v4-shaped IDs ensure each run addresses the same
+    # fabricated learner, without ever using exported or actual school data.
+    digest = sha256(f"{_NAMESPACE}/bede-synthetic-pilot/{kind}/{label}".encode()).digest()
+    return str(UUID(bytes=digest[:16], version=4))
 
 
 def two_campus_fixture() -> tuple[SyntheticCampus, SyntheticCampus]:

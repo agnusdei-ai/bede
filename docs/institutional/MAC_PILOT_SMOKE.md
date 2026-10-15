@@ -9,10 +9,10 @@ This is the **shortest safe owner-operated test** for the **invite-only pilot**.
 3. From the Bede repository directory, run:
 
 ```bash
-bash scripts/pilot-smoke.sh start
+BEDE_SYNTHETIC_ONLY=1 bash scripts/pilot-smoke.sh start
 ```
 
-This validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health` **with certificate verification against the local `bede-root-ca.crt`**. If the CA is absent, HTTPS health is BLOCKED, never reported PASS using `curl --insecure`. It saves a private evidence folder under `pilot-evidence/`. First startup may require building/downloading images. For the actual source-free Mac pilot installation, use the merged package's `Verify-Bede.command` instead of this checkout-only helper.
+Only set `BEDE_SYNTHETIC_ONLY=1` after confirming the local environment uses a disposable database containing no real learner or campus records. This is an operator acknowledgement, **not an automated proof of data isolation**.\n\nThis validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health` **with certificate verification against the local `bede-root-ca.crt`**. If the CA is absent, HTTPS health is BLOCKED, never reported PASS using `curl --insecure`. It saves a private evidence folder under `pilot-evidence/`. First startup may require building/downloading images. For the actual source-free Mac pilot installation, use the merged package's `Verify-Bede.command` instead of this checkout-only helper.
 
 ## Later quick check
 

@@ -471,8 +471,13 @@ def validate_lan_fields(fields: dict) -> str:
         address = ipaddress.ip_address(ip)
     except ValueError:
         return "Enter the Mac mini's private IPv4 address."
-    if address.version != 4 or not address.is_private or address.is_loopback or address.is_link_local:
-        return "Use a private, non-loopback IPv4 address assigned to the Mac mini."
+    private_ranges = (
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("172.16.0.0/12"),
+        ipaddress.ip_network("192.168.0.0/16"),
+    )
+    if address.version != 4 or not any(address in network for network in private_ranges):
+        return "Use a private RFC 1918 IPv4 address assigned to the Mac mini."
     if not 4 <= len(name) <= 253 or not re.fullmatch(
         r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", name
     ):

@@ -1,0 +1,8 @@
+# Private instructor workstation access: only opt-in when Bede's setup wizard
+# has written validated LAN host settings and the operator approved a firewall.
+# Do not use 0.0.0.0; localhost remains available only to the Mac mini itself.
+services:
+  caddy:
+    ports:
+      - "${BEDE_LAN_BIND_IP:?Private LAN IPv4 not configured}:80:80"
+      - "${BEDE_LAN_BIND_IP:?Private LAN IPv4 not configured}:443:443"

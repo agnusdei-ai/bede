@@ -93,6 +93,28 @@ class OrchestratorTests(unittest.TestCase):
             self.assertEqual(side_effects, [])
         asyncio.run(scenario())
 
+    def test_malformed_teacher_decision_never_persists(self):
+        async def scenario():
+            writes = []
+            audits = []
+            async def auth(scope, action):
+                return True
+            async def persist(*args):
+                writes.append(args)
+            async def audit(scope, subject, event):
+                audits.append(event)
+            scope = Scope("campus-a", "learner-a", "teacher-a")
+            proposal = Recommendation("Review reading", (Evidence("e1", "Observation"),))
+            for invalid in ("approve", None, "unknown"):
+                with self.assertRaises(ValueError):
+                    await review_recommendation(
+                        scope, proposal, invalid, authorize=auth,
+                        persist=persist, audit=audit,
+                    )
+            self.assertEqual(writes, [])
+            self.assertEqual(audits, [])
+        asyncio.run(scenario())
+
     def test_invalid_dag_and_missing_evidence(self):
         async def scenario():
             async def auth(s, t): return True

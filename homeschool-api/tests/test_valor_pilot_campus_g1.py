@@ -9,14 +9,16 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from core.config import settings
-from core.database import Base, PilotLearner
+from core.database import Base, EducatorRosterAssignment, PilotLearner
 from core.encryption import initialize_encryption
 from routers.pilot_campuses import (
     CampusInput, LearnerInput, approve_educator_membership,
     approve_roster_grant, create_campus, create_learner, get_my_learner,
     list_my_learners, revoke_roster_grant, disable_campus_membership,
 )
-from services.educator_access import provision_educator
+from services.educator_access import (
+    provision_educator, require_assignment, roster_configs, assign_class_roster,
+)
 
 ADMIN = {"role": "parent", "auth_method": "webauthn_uv"}
 
@@ -132,3 +134,33 @@ async def test_missing_invalid_or_unapproved_ids_never_enumerate(db):
         with pytest.raises(HTTPException) as exc:
             await get_my_learner(bad, auth=token(ea), db=db)
         assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_legacy_name_keyed_educator_routes_fail_closed_in_uuid_campus_mode(db):
+    """An old per-name teacher roster must not bypass the UUID campus grants."""
+    ea, eb, a, b, la, lb = await fixture_two_campuses(db)
+    db.add(EducatorRosterAssignment(educator_id=ea["id"], student_name="Alex"))
+    await db.commit()
+
+    # Same display name appears in both tenant tables; a legacy display-name
+    # path cannot identify which campus owns the assessment, lesson or SSE.
+    with pytest.raises(HTTPException) as exc:
+        await require_assignment(db, token(ea), "Alex")
+    assert exc.value.status_code == 404
+
+    with pytest.raises(HTTPException) as exc:
+        await roster_configs(db, token(ea))
+    assert exc.value.status_code == 404
+
+    with pytest.raises(HTTPException) as exc:
+        await assign_class_roster(db, ea["id"], [])
+    assert exc.value.status_code == 404
+
+    # The new scoped UUID lookup is still usable for the authorized teacher.
+    result = await get_my_learner(la, auth=token(ea), db=db)
+    assert result["campus_id"] == a
+    assert result["learner_id"] == la
+    with pytest.raises(HTTPException) as exc:
+        await get_my_learner(lb, auth=token(ea), db=db)
+    assert exc.value.status_code == 404

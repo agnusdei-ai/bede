@@ -432,14 +432,17 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     return _PAGE_HEAD + "".join(body) + _PAGE_TAIL
 
 
-def render_success() -> str:
+def render_success(fields: dict | None = None) -> str:
     body = _narration_block("success", enable_mic=False)
+    host = (fields or {}).get("lan_host", "").strip().lower()
+    lan_url = f"https://{html.escape(host)}" if (fields or {}).get("lan_mode") == "yes" else ""
+    extra = f' or <a href="{lan_url}">{lan_url}</a> on the private teacher network' if lan_url else ""
     body += f"""
     <div class="success">
       <h1>All set!</h1>
       <p>Starting Bede now — this can take a couple of minutes the first time.</p>
       <p>You can close this tab. Bede will be running at
-        <a href="https://localhost">https://localhost</a>{f' or <a href="https://{html.escape(LAN_IP)}">https://{html.escape(LAN_IP)}</a> from tablets on your network' if LAN_IP else ''}.</p>
+        <a href="https://localhost">https://localhost</a>{extra}.</p>
     </div>
     """
     return _PAGE_HEAD + body + _PAGE_TAIL
@@ -471,7 +474,7 @@ def validate_lan_fields(fields: dict) -> str:
     if address.version != 4 or not address.is_private or address.is_loopback or address.is_link_local:
         return "Use a private, non-loopback IPv4 address assigned to the Mac mini."
     if not 4 <= len(name) <= 253 or not re.fullmatch(
-        r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", name
+        r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", name
     ):
         return "Enter a valid fully qualified private DNS hostname without http:// or a port."
     if name.endswith((".local", ".localhost", ".test", ".invalid", ".example")):
@@ -674,7 +677,7 @@ class Handler(BaseHTTPRequestHandler):
         if os.path.exists(local_ai_marker):
             os.remove(local_ai_marker)
 
-        self._send_html(render_success())
+        self._send_html(render_success(fields))
         # Give the response time to actually flush to the socket before the
         # process exits — the launcher script is waiting on this container
         # to stop as its signal that the wizard finished successfully.

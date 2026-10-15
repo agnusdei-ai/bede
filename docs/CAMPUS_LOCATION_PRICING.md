@@ -20,6 +20,10 @@ campus package (64 GB / 4 TB) are specified in
 [MAC_MINI_BUNDLES.md](MAC_MINI_BUNDLES.md). Procurement, warranty, spare
 units, installation, repairs and support terms must be quoted separately.
 
+## Flexible 12-month model changes
+
+The school may move between the campus and per-learner models through a **mutually agreed written amendment** identifying its effective date and revised billing. The 12-month contractual commitment remains unless expressly amended; avoid charging both software models for the same campus period. No automatic credits, prorations, or return to promotional pricing are promised. Paid subscriptions are separate from the free, manually approved, synthetic-data-only Valor pilot.
+
 ## What "unlimited learner seats" actually promises
 
 - Unlimited *enrolled learner accounts* under a **single named physical

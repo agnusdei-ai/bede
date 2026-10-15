@@ -1,0 +1,75 @@
+name: Campus backup crypto qualification
+on:
+  pull_request:
+    paths:
+      - 'scripts/campus_backup.py'
+      - 'homeschool-api/tests/test_campus_encrypted_backup.py'
+      - '.github/workflows/campus-backup.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backup-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install existing locked backend dependencies
+        working-directory: homeschool-api
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Synthetic encrypted backup qualification
+        run: PYTHONPATH=homeschool-api:. python -m pytest -q homeschool-api/tests/test_campus_encrypted_backup.py
+
+
+  live-postgres-restore:
+    name: Sequential local PostgreSQL backup and disaster restore
+    needs: backup-tests
+    runs-on: ubuntu-24.04
+    env:
+      COMPOSE_PROFILES: local-db
+      POSTGRES_PASSWORD: ci-only-postgres-password
+      DATABASE_URL: postgresql+asyncpg://sage:ci-only-postgres-password@db:5432/bede
+      SECRET_KEY: ci-only-secret-key-repeated-0123456789abcdef
+      MASTER_SECRET: ci-only-master-secret-repeated-0123456789abcdef
+      PARENT_PASSWORD: ci-only-parent-password-not-for-use
+      CHILD_PIN: ci-only-student-pin
+      LICENSE_KEY: ci-only-license-never-used
+      BEDE_BACKUP_PASSPHRASE: ci-test-backup-passphrase-for-disposable-data-only
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install existing pinned encryption dependency
+        run: python -m pip install pycryptodome==3.23.0
+      - name: Start isolated disposable local database
+        run: |
+          docker compose up -d db
+          for attempt in $(seq 1 30); do
+            if docker compose exec -T db pg_isready -U sage -d bede; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Prove encrypted backup and destructive recovery with synthetic rows
+        run: |
+          set -euo pipefail
+          docker compose exec -T db psql -U sage -d bede -v ON_ERROR_STOP=1 -c \
+            "CREATE TABLE ci_recovery_proof (id INTEGER PRIMARY KEY, marker TEXT NOT NULL);"
+          docker compose exec -T db psql -U sage -d bede -v ON_ERROR_STOP=1 -c \
+            "INSERT INTO ci_recovery_proof VALUES (1, 'first'), (2, 'second');"
+          python scripts/campus_backup.py backup backups/synthetic-ci.enc
+          python scripts/campus_backup.py verify backups/synthetic-ci.enc
+          if grep -a -q 'first' backups/synthetic-ci.enc; then
+            echo "Synthetic SQL was visible in encrypted archive"; exit 1
+          fi
+          docker compose exec -T db psql -U sage -d bede -v ON_ERROR_STOP=1 -c \
+            "DELETE FROM ci_recovery_proof;"
+          python scripts/campus_backup.py restore backups/synthetic-ci.enc --ack-replace-local-db
+          count=$(docker compose exec -T db psql -U sage -d bede -At -c \
+            'SELECT COUNT(*) FROM ci_recovery_proof')
+          test "$count" = "2"
+      - name: Destroy disposable recovery environment
+        if: always()
+        run: docker compose down --volumes --remove-orphans

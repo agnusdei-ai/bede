@@ -58,7 +58,9 @@ jobs:
             ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine
-          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
+          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command
+          bash -n dist/bede-operator/Verify-Bede.command
+          python packaging/tests/test_operator_arch.py
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           python - <<'PY'
           from pathlib import Path
@@ -70,7 +72,7 @@ jobs:
               assert 'build' not in config['services'][name]
           assert '127.0.0.1:443:443' in config['services']['caddy']['ports']
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
-          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','.env.example','Caddyfile','WIZARD_IMAGE'):
+          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
           cd dist
@@ -102,6 +104,7 @@ jobs:
         run: |
           bash -n packaging/bundle/start.sh
           bash -n packaging/bundle/Install-Bede.command
+          bash -n packaging/bundle/Verify-Bede.command
       - name: Windows PowerShell launcher syntax
         if: runner.os == 'Windows'
         shell: pwsh

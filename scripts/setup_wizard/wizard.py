@@ -13,6 +13,8 @@ stays tiny and there's nothing to explain about extra dependencies for what
 is, functionally, one short-lived form.
 """
 import html
+import ipaddress
+import re
 import json
 import os
 import secrets
@@ -431,6 +433,26 @@ _PROVIDER_FIELD_NAMES = {
     "mistral": "mistral_key",
     "local": "local_base_url",
 }
+
+
+def validate_lan_fields(fields: dict) -> str:
+    if fields.get("lan_mode") != "yes":
+        return ""
+    ip = (fields.get("lan_ip") or "").strip()
+    name = (fields.get("lan_host") or "").strip().lower()
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return "Enter the Mac mini's private IPv4 address."
+    if address.version != 4 or not address.is_private or address.is_loopback or address.is_link_local:
+        return "Use a private, non-loopback IPv4 address assigned to the Mac mini."
+    if not 4 <= len(name) <= 253 or not re.fullmatch(
+        r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", name
+    ):
+        return "Enter a valid fully qualified private DNS hostname without http:// or a port."
+    if name.endswith((".local", ".localhost", ".test", ".invalid", ".example")):
+        return "Use an organization-controlled hostname with real private DNS, not a placeholder or .local name."
+    return ""
 
 
 def build_env_file(fields: dict) -> str:

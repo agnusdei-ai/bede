@@ -66,3 +66,31 @@ export async function authenticateSecurityKey(options: any): Promise<object> {
     },
   }
 }
+
+/**
+ * A non-identifying usability hint. Only the native browser can decide which
+ * authenticator can complete an actual WebAuthn ceremony. Never interpret
+ * this probe as enrollment, device biometric status, or permission to bypass UV.
+ */
+export type PasskeyReadiness = 'unsupported' | 'platform-available' | 'browser-options'
+export async function detectPasskeyReadiness(): Promise<PasskeyReadiness> {
+  if (!webauthnSupported()) return 'unsupported'
+  try {
+    const supported = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable?.()
+    if (supported === true) return 'platform-available'
+  } catch {
+    // An older or restricted browser can still support roaming authenticators.
+  }
+  return 'browser-options'
+}
+
+export function passkeyGuidance(readiness: PasskeyReadiness): string {
+  switch (readiness) {
+    case 'platform-available':
+      return 'This browser reports a built-in passkey option. Use Touch ID or another method offered by the browser.'
+    case 'browser-options':
+      return 'This device may not have built-in Touch ID. In the browser passkey prompt, choose Other Options for a compatible phone or security key if supported.'
+    default:
+      return 'This browser does not support Bede passkey sign-in. Use a compatible browser or another authorized device. Password-only educator access is not available.'
+  }
+}

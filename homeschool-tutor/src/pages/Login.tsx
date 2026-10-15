@@ -11,6 +11,7 @@ import AccountRecovery from '../components/AccountRecovery'
 import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from '../components/BedeMark'
 import type { VerifyResult } from '../services/voiceApi'
 import { safeReturnTo } from '../utils/safeRedirect'
+import { detectPasskeyReadiness, passkeyGuidance, type PasskeyReadiness } from '../services/webauthn'
 import { LOGOUT_NOTICE_KEYS, takeLogoutNotice, type LogoutReason } from '../utils/logoutNotice'
 
 type Phase = 'login' | 'voice-verify' | 'parent-mfa' | 'account-recovery'
@@ -20,7 +21,14 @@ export default function Login() {
   const [role, setRole] = useState<'parent' | 'child' | 'educator'>('parent')
   const [educatorUsername, setEducatorUsername] = useState('')
   const [educatorMode, setEducatorMode] = useState(false)
+  const [educatorPasskeyReadiness, setEducatorPasskeyReadiness] = useState<PasskeyReadiness | null>(null)
   const [credential, setCredential] = useState('')
+  useEffect(() => {
+    if (role !== 'educator') return
+    let active = true
+    void detectPasskeyReadiness().then(value => { if (active) setEducatorPasskeyReadiness(value) })
+    return () => { active = false }
+  }, [role])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [phase, setPhase] = useState<Phase>('login')
@@ -331,9 +339,9 @@ export default function Login() {
           {role === 'educator' && (
             <p className="text-sm text-sage-700" role="note">
               Use the passkey enrolled through your school invitation.
-              Your device will request its local biometric or PIN verification.
-              Bede never receives that PIN. If your key is lost, ask your
-              authorized school administrator for a recovery invitation.
+              {educatorPasskeyReadiness && <> {passkeyGuidance(educatorPasskeyReadiness)}</>}
+              Bede never receives your biometric or device PIN. If your key
+              is lost, ask your authorized school administrator for recovery.
             </p>
           )}
 

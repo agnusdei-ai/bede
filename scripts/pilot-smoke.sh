@@ -33,6 +33,12 @@ if ! docker compose config --quiet >/dev/null 2>&1; then
   record config FAIL "Compose config invalid; secrets withheld from logs"; exit 1
 fi
 record config PASS "Compose config parses (values not printed)"
+# Never use a real-data deployment for the local synthetic qualification.
+# Explicit operator acknowledgement is required for service startup.
+if [[ "$MODE" == start && "${BEDE_SYNTHETIC_ONLY:-}" != "1" ]]; then
+  record synthetic-scope BLOCKED "Set BEDE_SYNTHETIC_ONLY=1 after verifying disposable local data"
+  exit 2
+fi
 if [[ "$MODE" == start ]]; then
   echo "Starting existing Bede Compose services; images may build on first run."
   if docker compose up -d --wait --wait-timeout 180; then record startup PASS "Compose services running/healthy"; else record startup FAIL "Compose readiness timed out"; fi

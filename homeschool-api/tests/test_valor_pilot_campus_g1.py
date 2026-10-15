@@ -19,6 +19,7 @@ from routers.pilot_campuses import (
 from services.educator_access import (
     provision_educator, require_assignment, roster_configs, assign_class_roster,
 )
+from valor_synthetic_fixture import assert_synthetic_fixture, two_campus_fixture
 
 ADMIN = {"role": "parent", "auth_method": "webauthn_uv"}
 
@@ -46,12 +47,16 @@ def token(account):
 
 
 async def fixture_two_campuses(db):
+    # Reuse #598's PII-free fixture as the named input to REAL Bede service
+    # creation; the service still mints its own random canonical UUIDv4 IDs.
+    assert_synthetic_fixture()
+    alpha, beta = two_campus_fixture()
     teacher_a = await provision_educator(db, "valor.teacher.a", "synthetic-passphrase-a-strong")
     teacher_b = await provision_educator(db, "valor.teacher.b", "synthetic-passphrase-b-strong")
-    a = (await create_campus(CampusInput(title="Synthetic campus A"), auth=ADMIN, db=db))["campus_id"]
-    b = (await create_campus(CampusInput(title="Synthetic campus B"), auth=ADMIN, db=db))["campus_id"]
-    same_a = (await create_learner(a, LearnerInput(display_name="Alex"), auth=ADMIN, db=db))["learner_id"]
-    same_b = (await create_learner(b, LearnerInput(display_name="Alex"), auth=ADMIN, db=db))["learner_id"]
+    a = (await create_campus(CampusInput(title=alpha.label), auth=ADMIN, db=db))["campus_id"]
+    b = (await create_campus(CampusInput(title=beta.label), auth=ADMIN, db=db))["campus_id"]
+    same_a = (await create_learner(a, LearnerInput(display_name=alpha.learners[0].display_name), auth=ADMIN, db=db))["learner_id"]
+    same_b = (await create_learner(b, LearnerInput(display_name=beta.learners[0].display_name), auth=ADMIN, db=db))["learner_id"]
     await approve_educator_membership(a, teacher_a["id"], auth=ADMIN, db=db)
     await approve_educator_membership(b, teacher_b["id"], auth=ADMIN, db=db)
     await approve_roster_grant(a, teacher_a["id"], same_a, auth=ADMIN, db=db)
@@ -64,9 +69,9 @@ async def test_duplicate_names_cannot_cross_synthetic_campus(db):
     ea, eb, a, b, la, lb = await fixture_two_campuses(db)
     assert a != b and la != lb
     assert await list_my_learners(auth=token(ea), db=db) == [
-        {"learner_id": la, "campus_id": a, "display_name": "Alex"}
+        {"learner_id": la, "campus_id": a, "display_name": "Example Learner"}
     ]
-    assert (await get_my_learner(la, auth=token(ea), db=db))["display_name"] == "Alex"
+    assert (await get_my_learner(la, auth=token(ea), db=db))["display_name"] == "Example Learner"
     for teacher, forbidden in [(ea, lb), (eb, la)]:
         with pytest.raises(HTTPException) as exc:
             await get_my_learner(forbidden, auth=token(teacher), db=db)
@@ -123,14 +128,14 @@ async def test_disabled_membership_blocks_all_learners(db):
 async def test_campus_identity_and_name_are_not_plaintext_in_learner_table(db):
     ea, eb, a, b, la, lb = await fixture_two_campuses(db)
     row = await db.get(PilotLearner, la)
-    assert b"Alex" not in row.display_enc
+    assert b"Example Learner" not in row.display_enc
     assert row.id == la and row.campus_id == a
 
 
 @pytest.mark.asyncio
 async def test_missing_invalid_or_unapproved_ids_never_enumerate(db):
     ea, eb, a, b, la, lb = await fixture_two_campuses(db)
-    for bad in ("Alex", "not-a-uuid", "00000000-0000-0000-0000-000000000000"):
+    for bad in ("Example Learner", "not-a-uuid", "00000000-0000-0000-0000-000000000000"):
         with pytest.raises(HTTPException) as exc:
             await get_my_learner(bad, auth=token(ea), db=db)
         assert exc.value.status_code == 404
@@ -140,13 +145,13 @@ async def test_missing_invalid_or_unapproved_ids_never_enumerate(db):
 async def test_legacy_name_keyed_educator_routes_fail_closed_in_uuid_campus_mode(db):
     """An old per-name teacher roster must not bypass the UUID campus grants."""
     ea, eb, a, b, la, lb = await fixture_two_campuses(db)
-    db.add(EducatorRosterAssignment(educator_id=ea["id"], student_name="Alex"))
+    db.add(EducatorRosterAssignment(educator_id=ea["id"], student_name="Example Learner"))
     await db.commit()
 
     # Same display name appears in both tenant tables; a legacy display-name
     # path cannot identify which campus owns the assessment, lesson or SSE.
     with pytest.raises(HTTPException) as exc:
-        await require_assignment(db, token(ea), "Alex")
+        await require_assignment(db, token(ea), "Example Learner")
     assert exc.value.status_code == 404
 
     with pytest.raises(HTTPException) as exc:

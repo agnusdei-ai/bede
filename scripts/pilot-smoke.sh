@@ -4,6 +4,10 @@
 set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 MODE="${1:-check}"
+if [[ "$MODE" != start && "$MODE" != check ]]; then
+  echo "Usage: bash scripts/pilot-smoke.sh [start|check]" >&2
+  exit 2
+fi
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT="pilot-evidence/$STAMP"
 mkdir -p "$OUT"
@@ -32,8 +36,6 @@ record config PASS "Compose config parses (values not printed)"
 if [[ "$MODE" == start ]]; then
   echo "Starting existing Bede Compose services; images may build on first run."
   if docker compose up -d --wait --wait-timeout 180; then record startup PASS "Compose services running/healthy"; else record startup FAIL "Compose readiness timed out"; fi
-elif [[ "$MODE" != check ]]; then
-  echo "Usage: bash scripts/pilot-smoke.sh [start|check]"; exit 2
 fi
 docker compose ps --format json > "$OUT/compose-status.json" 2>/dev/null || true
 # A 200 over --insecure is NOT a trusted HTTPS result. Never disable TLS
@@ -57,4 +59,4 @@ PILOT BOUNDARY NOT RUN: Confirm no self-service purchasing, Stripe entitlement d
 CHECKS
 printf 'AUTOMATED: PASS=%s FAIL=%s BLOCKED=%s; G1/G2/G3=NOT RUN\n' "$pass" "$fail" "$blocked" | tee "$OUT/summary.txt"
 echo "Logs saved in $OUT. Do not upload .env, keys, learner records or raw sensitive logs."
-[[ "$fail" == 0 ]]
+[[ "$fail" == 0 && "$blocked" == 0 ]]

@@ -436,7 +436,11 @@ def render_success(fields: dict | None = None) -> str:
     body = _narration_block("success", enable_mic=False)
     host = (fields or {}).get("lan_host", "").strip().lower()
     lan_url = f"https://{html.escape(host)}" if (fields or {}).get("lan_mode") == "yes" else ""
-    extra = f' or <a href="{lan_url}">{lan_url}</a> on the private teacher network' if lan_url else ""
+    legacy_extra = (
+        f' or <a href="https://{html.escape(LAN_IP)}">https://{html.escape(LAN_IP)}</a> from tablets on your network'
+        if LAN_IP else ""
+    )
+    extra = f' or <a href="{lan_url}">{lan_url}</a> on the private teacher network' if lan_url else legacy_extra
     body += f"""
     <div class="success">
       <h1>All set!</h1>

@@ -36,10 +36,16 @@ elif [[ "$MODE" != check ]]; then
   echo "Usage: bash scripts/pilot-smoke.sh [start|check]"; exit 2
 fi
 docker compose ps --format json > "$OUT/compose-status.json" 2>/dev/null || true
-if curl --silent --show-error --insecure --fail --max-time 12 https://localhost/api/health > "$OUT/health.json"; then
-  record health PASS "Local HTTPS API health endpoint answered"
+# A 200 over --insecure is NOT a trusted HTTPS result. Never disable TLS
+# verification in acceptance checks. The packaged Verify-Bede.command is the
+# authoritative source-free operator path; this source-checkout helper may
+# only claim HTTPS health with the locally issued CA present.
+if [[ ! -s bede-root-ca.crt ]]; then
+  record health BLOCKED "Trusted local CA missing; use packaged Verify-Bede.command"
+elif curl --silent --show-error --fail --max-time 12 --cacert bede-root-ca.crt https://localhost/api/health > "$OUT/health.json"; then
+  record health PASS "Local HTTPS health verified with the trusted instance CA"
 else
-  record health FAIL "HTTPS health endpoint not reachable"
+  record health FAIL "HTTPS health or certificate verification failed"
 fi
 echo
 echo "Manual checks (never auto-marked PASS):"

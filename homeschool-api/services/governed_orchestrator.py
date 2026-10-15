@@ -144,6 +144,12 @@ async def review_recommendation(
     audit: Audit,
 ) -> None:
     """Enforce approval on server; persistence and audit must be durable adapters."""
+    if not isinstance(decision, Decision):
+        raise ValueError("invalid teacher decision")
+    if not all((scope.campus_id, scope.learner_id, scope.educator_id)):
+        raise ValueError("immutable scope identifiers required")
+    if not proposal.proposal_id or not proposal.text.strip():
+        raise ValueError("recommendation identity and text required")
     if not proposal.evidence or any(not e.source_id for e in proposal.evidence):
         raise ValueError("recommendation must cite evidence")
     if not await authorize(scope, "review_recommendation"):

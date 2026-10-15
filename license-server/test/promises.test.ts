@@ -223,11 +223,12 @@ describe("nothing in the shipped source can construct one", () => {
         expect(code, file).not.toMatch(new RegExp(`${promise}:\\s*true`));
       }
     }
-    // The adopted set is exactly the owner's ruling: one promise, no more.
+    // Only retained access is EVER the adopted promise; it is currently
+    // WITHHELD (false) until PR-A lands. Community and refunds stay false.
     expect(ADOPTED_PROMISES).toEqual({
       community_downgrade: false,
       immediate_refund: false,
-      retained_trial_access: true,
+      retained_trial_access: false,
     });
   });
 

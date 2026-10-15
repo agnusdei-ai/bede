@@ -18,6 +18,14 @@ import { handleCancelConfirm, handleCancelState } from "../../src/routes/cancel"
 import type { BillingProvider, SubscriptionSnapshot } from "../../src/billing/subscription";
 import { ADOPTED_PROMISES, NOTHING_PROMISED, unresolvedPromisesIn } from "../../src/promises";
 
+/**
+ * The retained-access promise is WITHHELD on main (2026-10-15) until PR-A's
+ * boundary anchor lands. These tests exercise the behaviour the ruling
+ * authorises, so they pass the authorisation EXPLICITLY as a test seam. The
+ * shipped default is pinned separately by "withholds the sentence by default".
+ */
+const AUTHORISED = { ...NOTHING_PROMISED, retained_trial_access: true };
+
 const SUB_ID = "sub_live";
 const KEY = "payload.signature";
 const EMAIL = "parent@example.com";
@@ -108,6 +116,7 @@ describe("the trial screen, on the shipped defaults", () => {
     const e = env();
     await seed(e);
     const res = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
+      authorisation: AUTHORISED,
       provider: provider(trial()),
     });
     expect(res.status).toBe(200);
@@ -151,6 +160,7 @@ describe("a verified trial cancellation", () => {
     const sent: { subject: string; html: string }[] = [];
     const p = provider(trial());
     const res = await handleCancelConfirm(json({ license_key: KEY }), e, limiter, {
+      authorisation: AUTHORISED,
       provider: p,
       sendConfirmation: async (m) => void sent.push(m),
     });
@@ -172,12 +182,14 @@ describe("a verified trial cancellation", () => {
     const p = provider(trial());
     const first = (await (
       await handleCancelConfirm(json({ license_key: KEY }), e, limiter, {
+        authorisation: AUTHORISED,
         provider: p,
         sendConfirmation: async () => {},
       })
     ).json()) as { trial_access_until: string };
     const second = (await (
       await handleCancelConfirm(json({ license_key: KEY }), e, limiter, {
+        authorisation: AUTHORISED,
         provider: p,
         sendConfirmation: async () => {},
       })
@@ -187,6 +199,7 @@ describe("a verified trial cancellation", () => {
 
     // And a later visit shows the same boundary on the already-cancelled screen.
     const view = await handleCancelViewPage(form({ license_key: KEY }), e, limiter, {
+      authorisation: AUTHORISED,
       provider: p,
     });
     const html = await view.text();
@@ -198,6 +211,7 @@ describe("a verified trial cancellation", () => {
     const e = env();
     await seed(e);
     const ok = await handleCancelConfirmPage(form({ license_key: KEY }), e, limiter, {
+      authorisation: AUTHORISED,
       provider: provider(trial()),
       sendConfirmation: async () => {},
     });
@@ -211,6 +225,7 @@ describe("a verified trial cancellation", () => {
     const e = env();
     await seed(e);
     const res = await handleCancelConfirmPage(form({ license_key: KEY }), e, limiter, {
+      authorisation: AUTHORISED,
       provider: provider(trial(), false),
       sendConfirmation: async () => {
         throw new Error("must not be called");
@@ -226,6 +241,7 @@ describe("a verified trial cancellation", () => {
     const e = env();
     await seed(e);
     const res = await handleCancelConfirmPage(form({ license_key: KEY }), e, limiter, {
+      authorisation: AUTHORISED,
       provider: provider(trial()),
       sendConfirmation: async () => {
         throw new Error("resend down");
@@ -256,6 +272,7 @@ describe("a verified trial cancellation", () => {
     const sent: { html: string }[] = [];
     const body = (await (
       await handleCancelConfirm(json({ license_key: KEY }), e, limiter, {
+        authorisation: AUTHORISED,
         provider: provider(trial({ status: "active", trial_end: TRIAL_END })),
         sendConfirmation: async (m) => void sent.push(m),
       })
@@ -266,15 +283,30 @@ describe("a verified trial cancellation", () => {
   });
 });
 
+describe("the shipped default withholds the retained-access promise", () => {
+  it("withholds the sentence by default while PR-A is not on main", async () => {
+    expect(ADOPTED_PROMISES.retained_trial_access).toBe(false);
+    const e = env();
+    await seed(e);
+    const res = await handleCancelState(json({ license_key: KEY }), e, limiter, {
+      provider: provider(trial()),
+    });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { refusals: string[] }).refusals).toContain(
+      "retained_trial_access_not_authorised",
+    );
+  });
+});
+
 describe("the promise scanner agrees with the adoption", () => {
-  it("the retained-access copy is a promise only the adopted set may make", async () => {
+  it("the retained-access copy is a promise only the authorised set may make", async () => {
     const e = env();
     await seed(e);
     const html = await (
-      await handleCancelViewPage(form({ license_key: KEY }), e, limiter, { provider: provider(trial()) })
+      await handleCancelViewPage(form({ license_key: KEY }), e, limiter, { authorisation: AUTHORISED, provider: provider(trial()) })
     ).text();
     expect(unresolvedPromisesIn(html, NOTHING_PROMISED)).toContain("retained_trial_access");
-    // Under the adopted set, that promise is allowed and NOTHING ELSE appears.
-    expect(unresolvedPromisesIn(html, ADOPTED_PROMISES)).toEqual([]);
+    // Under the authorised set, that promise is allowed and NOTHING ELSE appears.
+    expect(unresolvedPromisesIn(html, AUTHORISED)).toEqual([]);
   });
 });

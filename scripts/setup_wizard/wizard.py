@@ -367,6 +367,30 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append(f'<input type="text" name="database_url" value="{html.escape(v.get("database_url", ""))}" placeholder="postgresql://user:pass@host/dbname">')
     body.append('</div>')
 
+
+    lan_selected = v.get("lan_mode") == "yes"
+    body.append('<label>Where will teachers open Bede?</label>')
+    body.append(f"""
+    <label class="choice">
+      <input type="checkbox" name="lan_mode" value="yes" onchange="toggleLan(this.checked)" {'checked' if lan_selected else ''}>
+      <span class="choice-title">Allow an approved teacher Mac on my private network</span>
+      <div class="choice-desc">Advanced pilot mode: needs a stable private IP, real private DNS, trusted HTTPS and local firewall restrictions. Disabled by default.</div>
+    </label>
+    <div id="lan_settings" style="display:{'block' if lan_selected else 'none'}">
+      <label>Mac mini private LAN IPv4 address</label>
+      <input type="text" name="lan_ip" value="{html.escape(v.get('lan_ip', ''))}" placeholder="192.168.1.50">
+      <div class="hint">This address must belong to the Mac mini, not the teacher's Mac.</div>
+      <label>Private DNS hostname for Bede</label>
+      <input type="text" name="lan_host" value="{html.escape(v.get('lan_host', ''))}" placeholder="bede-pilot.school.example.org">
+      <div class="hint">Must resolve from the teacher's Mac to the Mac mini. The passkey and TLS certificate use this exact hostname. Do not enter .local, an IP, or a nonresolving placeholder.</div>
+    </div>
+    <script>
+      function toggleLan(enabled) {{
+        document.getElementById('lan_settings').style.display = enabled ? 'block' : 'none';
+      }}
+    </script>
+    """)
+
     keep_mastery = v.get("keep_mastery", "yes")
     body.append('<label>Should Bede remember what your child has mastered between sessions?</label>')
     body.append(f"""

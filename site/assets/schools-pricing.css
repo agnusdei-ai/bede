@@ -1,0 +1,57 @@
+/* Bede institutional budget page — light screen presentation, one-page print. */
+.school-offer { text-align: left; }
+.school-offer .school-budget { text-align: left; padding: 1.7rem 1.5rem 1.3rem; margin: 1.6rem 0; border: 1px solid #d7ceb9; background: #fffdf8; border-radius: .5rem; }
+.school-budget h2 { font-size: 1.65rem; margin: .25rem 0; }
+.school-budget h3 { font-size: 1.08rem; margin: 1.15rem 0 .5rem; }
+.school-budget p { line-height: 1.48; margin: .4rem 0; }
+.school-budget-header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.school-kicker { color: #33482d; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .07em; }
+.school-print-button { background: #33482d; border: 1px solid #33482d; color: #fff; font: inherit; border-radius: .3rem; padding: .65rem 1rem; cursor: pointer; flex-shrink: 0; min-height: 44px; }
+.school-print-button:focus-visible { outline: 3px solid #b8860b; outline-offset: 3px; }
+.school-offer-banner { display: grid; grid-template-columns: 1.1fr .9fr; gap: 1.2rem; background: #f4ecdc; padding: 1rem 1.2rem; margin: 1.1rem 0; border-left: 4px solid #47613f; }
+.school-tag { font-size: .84rem; text-transform: uppercase; font-weight: 700; color: #33482d; }
+.school-major { font-size: .91rem; }
+.school-major span { font-size: clamp(1.8rem, 4vw, 2.5rem); color: #1c2438; font-weight: 700; }
+.school-annual { border-left: 1px solid #cfc4aa; padding-left: 1rem; align-self: center; }
+.school-annual strong { color: #33482d; }
+.school-under-offer, .school-evaluation, .school-budget-note { font-size: .91rem; }
+.school-scroll { overflow-x: auto; width: 100%; }
+.school-budget-table { border-collapse: collapse; width: 100%; text-align: left; font-size: .87rem; }
+.school-budget-table th, .school-budget-table td { border-bottom: 1px solid #d7ceb9; padding: .58rem .52rem; text-align: left; vertical-align: top; }
+.school-budget-table thead { background: #ede4d3; color: #1c2438; }
+.school-budget-table tbody .school-featured { background: #f3f4ee; }
+.school-budget-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; }
+.school-budget-detail-grid p { font-size: .9rem; }
+.school-evaluation { border-top: 1px solid #d7ceb9; padding-top: .65rem; }
+.school-budget-footer { display: flex; gap: 1rem; justify-content: space-between; color: #4d4a42; font-size: .72rem; margin-top: .9rem; padding-top: .4rem; border-top: 1px solid #d7ceb9; }
+.school-supporting-details { text-align: left; padding: 1.6rem 1rem; max-width: 49rem; margin-inline: auto; }
+.school-supporting-details p, .school-supporting-details li { line-height: 1.6; }
+@media(max-width: 640px) {
+  .school-offer .school-budget { margin: .5rem 0; padding: 1rem .75rem; }
+  .school-budget-header, .school-offer-banner, .school-budget-detail-grid, .school-budget-footer { display: block; }
+  .school-print-button { margin-top: .8rem; }
+  .school-annual { border-left: 0; border-top: 1px solid #cfc4aa; padding: .5rem 0 0; margin-top: .8rem; }
+  .school-budget-table { min-width: 650px; }
+}
+@media print {
+  @page { size: letter portrait; margin: .38in .42in; }
+  html, body { background: #fff !important; color: #111 !important; font-size: 9.2pt !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body > .band, body > footer, .school-supporting-details, .school-print-button { display: none !important; }
+  .school-offer, .school-offer .school-budget { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  .school-offer .school-budget { display: block !important; }
+  .school-budget h2 { font-size: 17pt; margin: .1in 0 .04in; }
+  .school-budget h3 { font-size: 11pt; margin: .14in 0 .05in; }
+  .school-budget p { line-height: 1.26; margin: .05in 0; }
+  .school-budget-header { display: block; }
+  .school-kicker { font-size: 8pt; }
+  .school-offer-banner { grid-template-columns: 1.1fr .9fr; margin: .1in 0; padding: .1in .14in; break-inside: avoid; }
+  .school-tag { font-size: 8pt; }
+  .school-major span { font-size: 22pt; }
+  .school-budget-table { min-width: 0 !important; font-size: 8pt; }
+  .school-budget-table th, .school-budget-table td { padding: .055in .045in; }
+  .school-under-offer, .school-evaluation { font-size: 8.5pt; }
+  .school-budget-detail-grid { display: grid; gap: .18in; }
+  .school-budget-detail-grid p { font-size: 8.4pt; }
+  .school-budget-footer { display: flex; font-size: 7pt; }
+  tr, h3, .school-evaluation { break-inside: avoid; }
+}

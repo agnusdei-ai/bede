@@ -62,10 +62,43 @@ def test_schools_faq_jsonld_mirrors_the_visible_faq():
     assert markup == visible, "FAQPage JSON-LD and the visible FAQ have diverged"
 
 
-def test_no_undecided_price_on_the_new_schools_page():
-    # Institutional prices must be published only through the approved offer.
-    text = re.sub(r"<script.*?</script>", "", SCHOOLS.read_text(encoding="utf-8"), flags=re.S)
-    assert not re.search(r"\$\s?\d", text), "the schools page publishes a dollar figure"
+def test_school_budget_uses_approved_founding_rate_and_fair_contract_terms():
+    # The approved campus promotion is a public budget price, not a checkout.
+    page = SCHOOLS.read_text(encoding="utf-8")
+    launch = (SITE.parent / "demo" / "public" / "launch.html").read_text(encoding="utf-8")
+    pricing = (SITE.parent / "docs" / "VALOR_PRICING.md").read_text(encoding="utf-8")
+    for source in (page, launch, pricing):
+        for amount in ("$2,600", "$3,500", "$900", "$10,800", "$31,200"):
+            assert amount in source, f"{amount} missing from organizational source"
+        assert "$2,700" not in source, "superseded founding price reappeared"
+    assert "Over 25% off" in page
+    assert "12-month" in page and "billed monthly" in launch
+    assert "mutually agreed written" in page and pricing
+    assert "each additional campus" in page.lower()
+    assert 3500 - 2600 == 900
+    assert 900 * 12 == 10800
+    assert 2600 * 12 == 31200
+    assert 25 * 104 == 2600
+    assert "site/assets/schools-pricing.css" not in page  # Website URLs are root-relative.
+    assert '/assets/schools-pricing.css' in page
+    assert '/assets/schools-print.js' in page
+    assert (SITE / "assets" / "schools-pricing.css").exists()
+    assert (SITE / "assets" / "schools-print.js").exists()
+
+
+def test_beta_banner_date_is_current_across_public_surfaces():
+    public_pages = ["index.html", "faq/index.html", "feedback/index.html",
+                    "survey/index.html", "educators/index.html", "privacy/index.html"]
+    for page in public_pages:
+        text = (SITE / page).read_text(encoding="utf-8")
+        assert "October 31, 2026" in text, f"{page} omitted beta end date"
+        assert "Free to use through August 31" not in text
+        assert "Fall Launch: September" not in text
+    launch = (SITE.parent / "demo" / "public" / "launch.html").read_text(encoding="utf-8")
+    assert "October&nbsp;31, 2026" in launch
+    assert "September 30" not in launch
+    demo = (SITE.parent / "demo" / "src" / "App.tsx").read_text(encoding="utf-8")
+    assert "Public beta through October 31, 2026" in demo
 
 
 def test_home_has_no_expired_beta_date_or_percentile_claim():

@@ -1,20 +1,22 @@
 # Valor Education — Bede institutional pricing decisions
 
-Status: Approved internal pricing direction; not yet a customer contract or public offer.
-Decision date: 2026-10-13.
+Status: Owner-approved public organizational pricing schedule; subject to signed agreement and engineering release qualification. The current invite-only Valor pilot is free and synthetic-data-only, separate from the paid evaluation below.
+Decision date: 2026-10-15.
 Owner: Agnus Dei Technologies, LLC.
 
 ## Commercial offers
 
 | Offer | Price | Eligibility / term | Notes |
 | --- | --- | --- | --- |
-| Controlled pilot | **$950 total** | Proposed 6–8 weeks, approximately 15–25 learners | Fixed pilot fee; pilot size and duration to be finalized with campus |
+| Separately contracted paid evaluation | **$950 total** | Proposed 6–8 weeks, approximately 15–25 learners | Fixed evaluation fee; **not** the current free invite-only Valor pilot |
 | Per-student campus | **$25 per learner per month** | Approximately 25–100 learners, 25-seat minimum; **12-month commitment**, monthly billing permitted | Recommended for small campuses and controlled expansion |
-| Founding campus | **$2,700 per campus per month** | Unlimited learner seats at the licensed campus; **12-month commitment**; promotional enrollment window: **Fall 2026–Spring 2027** | Preferred from ~108 learners onward; committed promotional founding-school rate for eligible memberships in the specified window |
+| Founding campus | **$2,600 per physical campus per month**, billed monthly | Unlimited enrolled learner seats at **one** licensed campus; **12-month commitment**; eligible agreements entered **Fall 2026–Spring 2027** | **Over 25% off** the standard $3,500/month campus price (25.7% discount); saves **$900/month** or **$10,800 over 12 months** |
 
-At 108 licensed learners, 108 × $25 = $2,700/month. At or above that point, the unlimited founding-campus offer is economically preferable. The 101–107 learner band can remain on the per-seat plan until the crossover, subject to campus-specific negotiations. The 25-student floor implies a $625/month minimum on the per-seat plan.
+At **104** licensed learners, 104 × $25 = **$2,600/month**, equal to the founding-campus rate; beyond 104, the founding-campus rate is less expensive if eligible. The regular per-learner offer is approximately 25–100 learners, so 101–103 learners require an individually agreed selection rather than an unadvertised automatic tier. The 25-seat floor implies a $625/month minimum or $7,500 per 12-month term. The founding-campus 12-month commitment totals **$31,200**, compared with **$42,000** for 12 months of the general $3,500/month campus price.
 
-The $2,700/month founding-school membership is an approved promotional offer for eligible campus agreements entered during Fall 2026 through Spring 2027. The agreed price applies throughout each signed 12-month subscription term, even when that term extends beyond Spring 2027. Eligibility after the promotional enrollment window and subsequent renewal rates require their own approved offer terms; the founding price is not automatically indefinite.\n\nAll prices are USD; campus-specific taxes, hardware, and separately scoped professional services are excluded unless explicitly agreed. Do not present pilot pricing as a recurring monthly charge. These prices are decisions to preserve for future proposal and contract drafting, not evidence that a campus has accepted them.
+The **$2,600/month** founding-school membership is an approved promotional offer for eligible campus agreements entered during Fall 2026 through Spring 2027. Billing is monthly under a signed 12-month commitment. The agreed price applies throughout each signed 12-month subscription term, even when that term extends beyond Spring 2027. Eligibility after the promotional enrollment window and subsequent renewal rates require their own approved offer terms; the founding price is not automatically indefinite. 
+
+All prices are USD; campus-specific taxes, hardware, and separately scoped professional services are excluded unless explicitly agreed. Do not present pilot pricing as a recurring monthly charge. Published pricing is for budgeting and inquiry, not a signed contract or a promise that institutional production deployment is already qualified. Each additional physical campus needs a separate license; hardware and separately scoped services are extra. The current invite-only Valor pilot stays free, manually approved and synthetic-data-only, without self-service purchasing, Stripe, or automatic paid conversion.
 
 ## Included product scope
 

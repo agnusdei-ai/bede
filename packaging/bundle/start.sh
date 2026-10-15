@@ -30,8 +30,20 @@ chmod 600 .env
 compose_files=(-f compose.yaml)
 if grep -qx 'BEDE_LAN_ENABLED=true' .env; then
   [[ -f compose.lan.yaml ]] || fail "Private LAN configuration is missing"
-  grep -q '^BEDE_LAN_BIND_IP=' .env || fail "Private LAN IP is missing"
-  grep -q '^WEBAUTHN_ORIGIN=https://' .env || fail "Private LAN passkey origin is missing"
+  lan_ip="$(sed -n 's/^BEDE_LAN_BIND_IP=//p' .env | head -n1)"
+  lan_rp="$(sed -n 's/^WEBAUTHN_RP_ID=//p' .env | head -n1)"
+  lan_origin="$(sed -n 's/^WEBAUTHN_ORIGIN=//p' .env | head -n1)"
+  [[ -n "$lan_rp" && "$lan_rp" != "localhost" && "$lan_origin" = "https://$lan_rp" ]] || fail "Private LAN HTTPS and WebAuthn hostname mismatch"
+  [[ "$lan_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || fail "Invalid private LAN IPv4 address"
+  IFS=. read -r oct1 oct2 oct3 oct4 <<< "$lan_ip"
+  for oct in "$oct1" "$oct2" "$oct3" "$oct4"; do
+    (( 10#$oct >= 0 && 10#$oct <= 255 )) || fail "Invalid private LAN IPv4 octet"
+  done
+  if [[ "$oct1" = 10 ]]; then :
+  elif [[ "$oct1" = 192 && "$oct2" = 168 ]]; then :
+  elif [[ "$oct1" = 172 && "$oct2" -ge 16 && "$oct2" -le 31 ]]; then :
+  else fail "Refusing a non-private LAN bind address (never use 0.0.0.0)"
+  fi
   compose_files+=(-f compose.lan.yaml)
   echo "Private LAN access requested. Verify local DNS, firewall restrictions and certificate trust on each teacher Mac before enrollment."
 fi

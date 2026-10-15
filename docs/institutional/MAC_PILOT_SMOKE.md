@@ -12,7 +12,7 @@ This is the **shortest safe owner-operated test** for the **invite-only pilot**.
 bash scripts/pilot-smoke.sh start
 ```
 
-This validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health`. It saves a private evidence folder under `pilot-evidence/`. First startup may require building/downloading images.
+This validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health` **with certificate verification against the local `bede-root-ca.crt`**. If the CA is absent, HTTPS health is BLOCKED, never reported PASS using `curl --insecure`. It saves a private evidence folder under `pilot-evidence/`. First startup may require building/downloading images. For the actual source-free Mac pilot installation, use the merged package's `Verify-Bede.command` instead of this checkout-only helper.
 
 ## Later quick check
 

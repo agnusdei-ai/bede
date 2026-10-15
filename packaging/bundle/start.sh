@@ -27,15 +27,23 @@ if [[ ! -s .env ]]; then
 fi
 [[ -s .env ]] || fail "The setup wizard did not save a valid configuration"
 chmod 600 .env
-docker compose --env-file .env -f compose.yaml config --quiet || fail "Invalid setup configuration"
-docker compose --env-file .env -f compose.yaml up -d --no-build --pull never || fail "Bede containers did not start"
+compose_files=(-f compose.yaml)
+if grep -qx 'BEDE_LAN_ENABLED=true' .env; then
+  [[ -f compose.lan.yaml ]] || fail "Private LAN configuration is missing"
+  grep -q '^BEDE_LAN_BIND_IP=' .env || fail "Private LAN IP is missing"
+  grep -q '^WEBAUTHN_ORIGIN=https://' .env || fail "Private LAN passkey origin is missing"
+  compose_files+=(-f compose.lan.yaml)
+  echo "Private LAN access requested. Verify local DNS, firewall restrictions and certificate trust on each teacher Mac before enrollment."
+fi
+docker compose --env-file .env "${compose_files[@]}" config --quiet || fail "Invalid setup configuration"
+docker compose --env-file .env "${compose_files[@]}" up -d --no-build --pull never || fail "Bede containers did not start"
 # Trigger Caddy's local certificate issuance on the loopback interface.
 # This first probe is NOT security validation; the final health test below
 # validates against the root CA exported from this instance.
 curl --silent --max-time 5 --insecure https://localhost/api/health >/dev/null 2>&1 || true
 ready=0
 for attempt in $(seq 1 30); do
-  if docker compose --env-file .env -f compose.yaml exec -T caddy \
+  if docker compose --env-file .env "${compose_files[@]}" exec -T caddy \
     cat /data/caddy/pki/authorities/local/root.crt > bede-root-ca.crt 2>/dev/null \
     && [[ -s bede-root-ca.crt ]]; then ready=1; break; fi
   sleep 2
@@ -48,4 +56,4 @@ for attempt in $(seq 1 45); do
   sleep 2
 done
 [[ "$ok" = 1 ]] || fail "Verified HTTPS health check failed. Inspect Bede container logs."
-echo "Bede is healthy at https://localhost. Trust the bundled local CA on this device before passkey enrollment."
+echo "Bede is healthy at https://localhost. On any teacher Mac, confirm private DNS and CA trust before using the configured HTTPS name for passkeys."

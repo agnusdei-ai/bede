@@ -85,6 +85,22 @@ class GovernedOrchestrator:
             return results
         if any(dep not in tasks for deps, _ in tasks.values() for dep in deps):
             raise ValueError("unknown task dependency")
+        # Preflight the ENTIRE DAG before launching even one agent. The former
+        # in-loop cycle check could run an unrelated write-capable task and
+        # only then detect a disconnected cycle. Invalid graphs must never
+        # produce partial side effects or an ambiguous educator audit trail.
+        unresolved = {name: set(deps) for name, (deps, _) in tasks.items()}
+        validated: set[str] = set()
+        while unresolved:
+            frontier = sorted(
+                name for name, deps in unresolved.items()
+                if deps.issubset(validated)
+            )
+            if not frontier:
+                raise ValueError("cyclic task dependency")
+            for name in frontier:
+                validated.add(name)
+                del unresolved[name]
         while pending:
             ready = sorted(
                 name for name, (deps, _) in pending.items()

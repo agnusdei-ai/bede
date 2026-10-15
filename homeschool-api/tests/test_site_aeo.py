@@ -63,7 +63,8 @@ def test_schools_faq_jsonld_mirrors_the_visible_faq():
 
 
 def test_no_undecided_price_on_the_new_schools_page():
-    # Institutional prices must be published only through the approved offer.\n    text = re.sub(r"<script.*?</script>", "", SCHOOLS.read_text(encoding="utf-8"), flags=re.S)
+    # Institutional prices must be published only through the approved offer.
+    text = re.sub(r"<script.*?</script>", "", SCHOOLS.read_text(encoding="utf-8"), flags=re.S)
     assert not re.search(r"\$\s?\d", text), "the schools page publishes a dollar figure"
 
 

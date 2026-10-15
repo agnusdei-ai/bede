@@ -291,6 +291,13 @@ class Settings(BaseSettings):
     # across unrelated institutional learners. Classroom pilot mode disables
     # child-PIN sessions and requires supervised, MFA-authenticated educators.
     educator_pilot_enabled: bool = False
+    # School-owned domain. Blank disables educator passkey invitation delivery.
+    educator_institution_email_domain: str = ""
+    # Exact owner-approved organizational addresses for synthetic pilot setup.
+    # Comma-separated; empty by default. Not a campus entitlement or login grant.
+    educator_bootstrap_emails: str = ""
+    # Signed campus entitlement binds this instance to its physical location.
+    bede_location_id: str = ""
 
     # ── Public demo mode (optional) ────────────────────────────────────────────
     # Empty by default: the public demo is entirely disabled unless a
@@ -564,10 +571,6 @@ class Settings(BaseSettings):
     # below) — an offline-verifiable certificate issued by scripts/issue_license.py.
     # See core/licensing.py and docs/PRODUCTION_SETUP.md#licensing.
     license_key: str = ""
-    # Required to ACTIVATE a signed campus_location offer, even if the key
-    # itself is valid. One opaque operator-assigned ID per physical school
-    # location; different branches must have different IDs and licenses.
-    bede_location_id: str = ""
 
     # ── License server (optional) ───────────────────────────────────────────
     # Base URL of the license server (the checkout/issuance service). When

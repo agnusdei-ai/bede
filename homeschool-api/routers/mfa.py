@@ -223,6 +223,7 @@ async def change_password(
 
 async def _issue_parent_token(
     db: AsyncSession, request: Request, locale: str = "en", cv: int | None = None, device_id: str | None = None,
+    *, auth_method: str = "totp",
 ) -> str:
     """locale/cv/device_id all come from the pending token's own claims
     (see routers/auth.py's login()) — the parent picked their language,
@@ -236,7 +237,7 @@ async def _issue_parent_token(
     equivalent point in login() for the no-MFA-enrolled path."""
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
-    payload = {"sub": "parent", "role": "parent", "locale": locale}
+    payload = {"sub": "parent", "role": "parent", "locale": locale, "auth_method": auth_method}
     if cv is not None:
         payload["cv"] = cv
     if device_id:
@@ -269,7 +270,7 @@ async def webauthn_authenticate_verify(
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail="webauthn login verify failed", **ctx)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Security key verification failed")
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="webauthn login", **ctx)
-    token = await _issue_parent_token(db, request, pending.get("locale", "en"), pending.get("cv"), pending.get("device_id"))
+    token = await _issue_parent_token(db, request, pending.get("locale", "en"), pending.get("cv"), pending.get("device_id"), auth_method="webauthn_uv")
     return TokenResponse(access_token=token, role="parent")
 
 

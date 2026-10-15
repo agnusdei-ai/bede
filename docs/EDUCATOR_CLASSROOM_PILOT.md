@@ -1,117 +1,44 @@
-# Bede Classical Educator Pilot — roster, diagnosis, DIBELS, and Locuto boundary
+# Bede Classical Educator — institutional pilot operating journey
 
-## What this enables
+Status: **integration candidate only**, not yet cleared as a complete Valor pilot release. This document replaces the legacy password/TOTP instructions.
 
-Bede remains an independent teaching system. A **Classical Educator**
-(including a properly authorized instructor in a classical program) has a
-separate username, password, and six-digit time-based authenticator.
-No educator token is an administrator token.
+## Authorized educator journey
 
-The *parent/operator* authorizes classroom learners. The educator can:
+1. A strongly authenticated Bede operator (verified WebAuthn session and elevated management authorization) approves a school-affiliated instructor and sends a single-use invitation to a configured, approved school email domain.
+2. The instructor opens the ten-minute invitation on a browser with secure origin / configured WebAuthn RP ID. The browser requests a discoverable passkey with user verification required. Bede never receives the device PIN or biometrics.
+3. The enrollment server checks invitation binding, fresh one-time challenge, RP ID, origin, signature and UV, then persists the scoped credential. Invitation email does not grant a student session. Instructor must perform a separate passkey sign-in.
+4. The teacher enters an account name, verifies the registered passkey and receives a short-lived educator-only session token. Legacy teacher password and TOTP routes return HTTP 410. Parent/admin sessions and educator sessions are separate.
+5. The educator desk shows only assigned learners through roster authorization. Teacher selects a learner and approved subject and starts the **real Bede tutor session**, not a simulated preview. Tutor streaming checks assignment again server-side.
+6. Teacher reviews subject-specific academic evidence and may transcribe authorized externally administered DIBELS 8 results. DIBELS outcomes are never inferred from Bede conversation, and changes are not represented as evidence Bede caused learning gains.
+7. Teacher may inspect enrolled passkeys and revoke a spare key. Revocation invalidates existing sessions. Last-key revocation is not self-service: the authorized operator must independently approve recovery, verify school affiliation and send a one-time invitation to the previously associated mailbox.
+8. An authorized operator can disable instructor access and invalidate outstanding sessions and roster authorization.
 
-- See only assigned learners' existing, encrypted parent-approved SessionConfig
-  settings and start the **real Bede Socratic tutor**. The tutor stream reloads
-  each assigned learner's configuration from the server before model invocation;
-  the client cannot introduce a new subject or another learner.
-- See assigned learners' completed academic work and subject-specific academic
-  diagnostic summaries with uncertainty, not personality or character scores.
-- Enter **DIBELS 8th Edition** results from separate properly administered
-  educator reports. The grade, testing window, measure-specific unit, and
-  reported risk classification follow the same validated backend rules used
-  by the parent diagnostic area.
-- Review longitudinal reported scores grouped by **identical measure, grade
-  and reporting unit**. Historic entries with missing metadata / wrong units
-  are preserved but excluded from numeric trend comparisons.
+## Security requirements beyond a passing PR
 
-**A score difference is not learning efficacy.** The UI and API do not claim
-improvement was caused by Bede. Real educational efficacy requires independent
-assessment and qualified evaluation, and should account for learner baseline,
-exposure time, curriculum and other instruction.
+- The original single-operator/student-name database is **not proof of campus/family multitenancy**. Enrollment of unrelated school families must remain blocked until persistent institution/campus/learner UUID separation, school-level privilege grants and cross-campus deny tests are operational.
+- The recovery initiation API currently relies on a strong Bede operator session and a matching historical mailbox; operational independent school affiliation checks, fresh administrator reauthentication and distinct school-admin privilege mapping must be independently validated.
+- The legacy family credential flows are not substitutes for educator recovery. Device PINs are local to authenticators. No SMS, TOTP or password fallback.
+- A green API or UI test cannot establish real-device passkey compatibility. Validate browser-origin migration, Safari, Chrome, Windows, Linux and external authenticators as relevant with **1–5 owner-conducted usability simulations**.
+- School pilot customers are separate paid engagements, not product release testers. Do not transfer student data to Locuto, an SIS, or any other service without explicit independent authorization.
+- Real host deployment, disaster recovery, immutable backups, threat testing, roster/guardian consent and qualified live inference must also pass before describing the complete Valor pilot as release-ready.
 
-## Parent enrollment (local Bede operator)
+## Verification hierarchy
 
-1. Login as **Parent**, open **Today's Pod → Instructors & rosters** (or use
-   `/classroom-setup` when there are no learners yet).
-2. Complete elevated parent authentication before provisioning a new
-   educator account. Supply a strong initial password. The server provisions a
-   new TOTP secret and returns the authenticator URI **once**. Privately hand
-   over account credentials to the named, approved adult; do not place them
-   in a Locuto group or other messaging transcript.
-3. Import learner entries `Name,Grade[,M/F]` (K–8) and select the educator.
-   The roster import creates new student configs with a small conventional
-   math/reading/language curriculum, or assigns existing configs **without
-   changing their approved settings**.
-4. Explicitly review the class list. Re-importing replaces the instructor's
-   assignments, not the pupils' encrypted learning history.
-5. To revoke teacher access, **Disable instructor**. The account-version
-   check immediately invalidates existing teacher JWTs on every API call.
+- Run pure policy unit tests, browser workflow tests, backend/frontend integration, CodeQL and dependency audits.
+- Exercise school invitation delivery, wrong domain, invitation expiry/replay, one-use WebAuthn challenge, invalid origin/RP/UV/signature, passkey cancellation/retry, suspended educator and arbitrary learner lookup.
+- Test an actual authorized learner session, a second session resumption, evidence writing and post-lesson review.
+- Verify clean-hardware recovery from separately protected encrypted backups and escrowed original application keys.
+- Owner reviews one to five simulated educator journeys and records accessible usability, error states, consent, performance and go/no-go.
 
-Educator sign-in is a separate role at the normal Login page. The educator
-is routed to **Bede Classical Educator Desk**. There is no teacher access
-to system credentials, external provider configuration, MFA enrollment,
-student deletion or administrator audit logs.
+No release status should be advanced merely because the UI is attractive or isolated unit tests pass.
 
-## Data and permissions
 
-- API identity: `classical_educators` table, salted verify-only password
-  hash, AES-GCM encrypted TOTP, 5-attempt/15-minute account lockout, one-use
-  TOTP step, 60-minute device-fingerprint-bound family-domain JWT.
-- Live JWT validity checks account enabled/version on every request;
-  authorization is not only a frontend role check.
-- `educator_roster_assignments` binds educator_id and student_name.
-  Every student route, including the **live /tutor/chat stream**, checks this
-  database edge before reading or writing student records.
-- The existing parent-only `/diagnostic/**` routes remain parent-only.
-  Educator data routes live under `/educators/me/students/{name}/...`.
-- Parent-enrolled pupils retain student-specific authenticated encryption
-  and crypto-deletion. Student deletion also deletes roster assignments.
-- Demo codes and child PINs do not grant instructor/admin rights.
+## Owner-led organizational enrollment verification (not Valor staff enrollment)
 
-**Important deployment limitation:** Bede presently has a single-operator
-family data model and a household-wide child PIN. Do **not** use the new
-educator workflow as proof of multi-family tenant isolation, verified
-guardian consent, or safe unsupervised child tablet provisioning for an
-institution. An academic pilot should be **instructor-operated on one
-authorized deployment** with proper school/family permissions, until
-per-household identity and per-child device authorization are independently
-implemented and exercised. Do not enroll unrelated families on one host
-without that additional work.
+For an owner-controlled synthetic enrollment exercise, set `EDUCATOR_BOOTSTRAP_EMAILS=info@agnusdei.ai,kristian@adaptcloud.io` in Bede's protected runtime configuration. This is a **case-insensitive exact-address allowlist**, empty by default. It does not authorize every address at either domain and does not create any campus/learner rights. Keep `EDUCATOR_INSTITUTION_EMAIL_DOMAIN` separate for a future school-approved educator population. No Bede external identity provider or Microsoft Entra dependency is introduced.
 
-## Locuto capability and group sizing
+Mailbox MFA protects the mail account; Bede independently requires an administrator's Bede WebAuthn session to invite, and a fresh browser WebAuthn passkey ceremony on the configured HTTPS RP origin to enroll or sign in. For a genuine Valor staff account, do not substitute either owner address for Valor's verified affiliation, consent, campus membership, or delegated administrator approval.
 
-Locuto's published v1 Pod specification is **3–10 people**, including the
-group administrator, enforced by its core design. Bede teacher rosters can
-be larger; a capacity planner divides them into potential 2–9 learner
-segments plus an instructor. This is **not** a messaging connector:
+Owner HITL procedure: (1) confirm configured HTTPS origin and verified email sender; (2) authenticate to Bede as an authorized administrator with a registered passkey and elevated authorization; (3) invite one exact allowlisted owner address; (4) open the single-use invitation in the mailbox using its existing MFA; (5) register a Bede passkey using the OS/browser prompt; (6) sign in independently with the enrolled passkey; (7) verify no roster appears without an explicit approved assignment, and verify denial of unauthorized learner access; (8) repeat on a second supported device only if independently authorized. Record the platform/browser version and outcomes, but never secret keys, passkey biometric/PIN, or invitation URLs.
 
-- Never transmit roster names, private student identifiers, grades,
-  diagnostic scores, report content, or account credentials to Locuto.
-- Never create groups automatically, infer a child's membership consent,
-  or pretend Locuto's group thread is functioning. As of the inspected
-  Locuto main branch, `docs/workflows.md` explicitly says group thread
-  behavior is incomplete.
-- Locuto remains optional. Parent and educator contacts must separately
-  establish and verify participant identities and any legally required
-  permissions. No automatic fallback to an insecure chat is permitted.
-
-Sources: `agnusdei-ai/locuto/docs/groups.md` §9 and
-`docs/workflows.md` §4–5, current main as inspected October 2026.
-
-## Pre-pilot acceptance gate
-
-- Enroll, log in with valid password+TOTP, reject wrong/replayed factors,
-  lock out repeated failures, then revoke active account and deny old JWT.
-- Import a class and show **only assigned** learner configs and records.
-  Rejected lookups must not enumerate other learner names or return encrypted
-  content. Verify a forged student_name/subject in tutor SSE is denied.
-- Run lesson A and resume lesson B without writing instructor changes into
-  parent-approved curriculum settings.
-- Repeat externally administered DIBELS measures longitudinally and verify
-  proper units, assessed grade, testing period, source flags and a **noncausal**
-  interpretation. Verify old encrypted reports remain readable.
-- Verify all native parent MFA/administrator endpoints refuse educator role.
-- Rehearse supported hardware, backups/restores, provider outage,
-  accessibility, and supervised instructor feedback before a live pupil pilot.
-
-**Software CI passing is necessary, but it does not validate real-device
-operation, psychometrics, efficacy, or institutional legal/consent readiness.**
+**Release limitation:** This is an enrollment test mechanism, not proof that institutional multi-tenant authorization or independently verified school recovery administration has been completed.

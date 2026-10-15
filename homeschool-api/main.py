@@ -21,7 +21,7 @@ from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from routers import admin, auth, catalog, diagnostic, educators, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, diagnostic, educator_passkeys, educators, feedback, mfa, narration, pod, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -575,6 +575,7 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
+app.include_router(educator_passkeys.router)
 app.include_router(mfa.router)
 app.include_router(recovery.router)
 app.include_router(tutor.router)

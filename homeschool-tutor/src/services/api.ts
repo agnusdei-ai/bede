@@ -1150,17 +1150,59 @@ export async function fetchEducatorPilotMode(): Promise<{ enabled: boolean; shar
   return res.json()
 }
 
-export async function educatorLogin(
-  username: string, password: string, totp: string, locale?: string,
-): Promise<LoginResult> {
-  const res = await fetch(`${BASE}/auth/educator-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password, totp, locale: locale ?? 'en' }),
+/** Real WebAuthn UV, using the browser-native helper shared with parent MFA. */
+export async function educatorPasskeyLogin(username: string): Promise<LoginResult> {
+  const { authenticateSecurityKey } = await import('./webauthn')
+  const first = await fetch(`${BASE}/auth/educator-passkey/login/options`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username }), cache: 'no-store',
   })
-  if (!res.ok) throw new Error('Invalid educator login or authenticator code')
-  return toLoginResult(await res.json())
+  if (!first.ok) throw new Error('No active educator passkey is available. Contact your school administrator.')
+  const ceremony = await first.json()
+  const credential = await authenticateSecurityKey(ceremony.options)
+  const verified = await fetch(`${BASE}/auth/educator-passkey/login/verify`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, ceremony_id: ceremony.ceremony_id, credential }),
+    cache: 'no-store',
+  })
+  if (!verified.ok) throw new Error('Passkey verification did not succeed. Try again or contact your school.')
+  return toLoginResult(await verified.json())
 }
+
+export async function educatorPasskeyEnroll(ticket_id: string, ticket_token: string): Promise<void> {
+  const { registerSecurityKey } = await import('./webauthn')
+  const request = { ticket_id, ticket_token }
+  const first = await fetch(`${BASE}/auth/educator-passkey/register/options`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request), cache: 'no-store',
+  })
+  if (!first.ok) throw new Error('Invitation expired or invalid. Request a new invitation.')
+  const ceremony = await first.json()
+  const credential = await registerSecurityKey(ceremony.options)
+  const verified = await fetch(`${BASE}/auth/educator-passkey/register/verify`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...request, ceremony_id: ceremony.ceremony_id, credential }),
+    cache: 'no-store',
+  })
+  if (!verified.ok) throw new Error('Passkey enrollment could not be verified. Request a fresh invitation.')
+}
+
+export const invitePasskeyInstructor = (token: string, username: string, institutional_email: string) =>
+  educatorApi<{ sent: boolean; username: string }>('/auth/educator-passkey/invite',
+    token, 'POST', { username, institutional_email })
+
+export interface EducatorPasskeySummary {
+  id: string
+  created_at: string
+}
+
+export const fetchMyEducatorPasskeys = (token: string) =>
+  educatorApi<EducatorPasskeySummary[]>('/auth/educator-passkey/credentials', token)
+
+export const revokeMyEducatorPasskey = (token: string, id: string) =>
+  educatorApi<{ revoked: boolean; all_previous_sessions_invalidated: boolean }>(
+    `/auth/educator-passkey/credentials/${encodeURIComponent(id)}/revoke`, token, 'POST',
+  )
 
 export const fetchInstructors = (token: string) =>
   educatorApi<InstructorAccount[]>('/educators/accounts', token)

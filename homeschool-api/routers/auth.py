@@ -227,25 +227,8 @@ async def educator_login(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Independent educator password + TOTP. Never grants parent privileges."""
-    from services.educator_access import authenticate_educator
-    if settings.is_demo_deployment or not settings.educator_pilot_enabled:
-        raise HTTPException(status_code=403, detail="Educator pilot is not enabled")
-    if req.locale not in SUPPORTED_LOCALES:
-        raise HTTPException(status_code=422, detail="Unsupported language")
-    payload = await authenticate_educator(db, req.username, req.password, req.totp)
-    if not payload:
-        log_event_nowait(AuditEvent.AUTH_FAILURE, role="educator", success=False,
-                         **audit_from_request(request))
-        raise HTTPException(status_code=401, detail="Invalid educator credentials")
-    ctx = audit_from_request(request)
-    fingerprint = compute_fingerprint(ctx["ip"], ctx["user_agent"])
-    token = create_access_token(
-        {**payload, "locale": req.locale}, fingerprint=fingerprint,
-        expires_delta=timedelta(minutes=60),
-    )
-    log_event_nowait(AuditEvent.AUTH_SUCCESS, role="educator", success=True, **ctx)
-    return TokenResponse(access_token=token, role="educator")
+    """Retired. Institution users can authenticate only with WebAuthn UV."""
+    raise HTTPException(status_code=410, detail="Educator sign-in requires a verified passkey")
 
 
 @router.post("/login", response_model=TokenResponse)

@@ -151,6 +151,10 @@ services:
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID:-}
       - WEBAUTHN_RP_NAME=${WEBAUTHN_RP_NAME:-Bede}
       - WEBAUTHN_ORIGIN=${WEBAUTHN_ORIGIN:-}
+      # Bede institutional mode is passkey-only and never consults campus AD/Entra.
+      - EDUCATOR_PILOT_ENABLED=${EDUCATOR_PILOT_ENABLED:-false}
+      - EDUCATOR_INSTITUTION_EMAIL_DOMAIN=${EDUCATOR_INSTITUTION_EMAIL_DOMAIN:-}
+      - EDUCATOR_BOOTSTRAP_EMAILS=${EDUCATOR_BOOTSTRAP_EMAILS:-}
       # Shown as the account name in an authenticator app (Google
       # Authenticator, 1Password). Cosmetic, but it is what a parent sees
       # when they look for Bede's code among a dozen others.

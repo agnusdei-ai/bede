@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router'
 import { educatorPasskeyEnroll } from '../services/api'
-import { webauthnSupported } from '../services/webauthn'
+import { webauthnSupported, detectPasskeyReadiness, passkeyGuidance, type PasskeyReadiness } from '../services/webauthn'
 
 /** One-time school-mailbox enrollment. Tokens stay in memory, not storage. */
 export default function EducatorEnroll() {
   const [invitation, setInvitation] = useState<{ ticket: string; token: string } | null>(null)
   const [state, setState] = useState<'ready' | 'busy' | 'complete'>('ready')
   const [error, setError] = useState('')
+  const [passkeyReadiness, setPasskeyReadiness] = useState<PasskeyReadiness | null>(null)
 
   useEffect(() => {
     const parts = new URLSearchParams(window.location.hash.slice(1))
@@ -18,6 +19,12 @@ export default function EducatorEnroll() {
     window.history.replaceState(null, '', window.location.pathname)
     if (ticket.length === 36 && token.length >= 32) setInvitation({ ticket, token })
     else setError('Your school invitation is missing or invalid. Ask the administrator for a new one.')
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void detectPasskeyReadiness().then(value => { if (active) setPasskeyReadiness(value) })
+    return () => { active = false }
   }, [])
 
   const enroll = async () => {
@@ -48,6 +55,7 @@ export default function EducatorEnroll() {
           to verify with its own biometric or device PIN. Bede will never
           collect or store that PIN.
         </p>
+        {passkeyReadiness && <p className="text-sm text-sage-800" role="status">{passkeyGuidance(passkeyReadiness)}</p>}
         {state === 'complete' ? (
           <div role="status" className="space-y-3">
             <p className="text-sage-800 font-semibold">Passkey enrolled successfully.</p>

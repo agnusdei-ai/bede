@@ -7,7 +7,7 @@ visible copy. These guards keep the three telling the same story:
   - every sitemap URL is a real page, and robots.txt points at the sitemap;
   - the FAQPage JSON-LD on /schools/ mirrors the visible questions and answers,
     because markup that says something the page does not is a misleading claim;
-  - no page states a price the owner has not yet decided, or a claim the
+  - no standalone metered diagnostics or undecided school prices, or a claim the
     product does not make (percentile ranking, an expired beta date).
 
 Each check was written to fail on the defect it names; see the PR for the
@@ -63,11 +63,7 @@ def test_schools_faq_jsonld_mirrors_the_visible_faq():
 
 
 def test_no_undecided_price_on_the_new_schools_page():
-    # Charter/campus pricing is an OWNER decision (PR #579 is unmerged). The
-    # new page must not publish a figure. The home page's existing "$15 per
-    # diagnostic test" line is NOT covered here: it predates this change and is
-    # flagged to the owner rather than silently edited.
-    text = re.sub(r"<script.*?</script>", "", SCHOOLS.read_text(encoding="utf-8"), flags=re.S)
+    # Institutional prices must be published only through the approved offer.\n    text = re.sub(r"<script.*?</script>", "", SCHOOLS.read_text(encoding="utf-8"), flags=re.S)
     assert not re.search(r"\$\s?\d", text), "the schools page publishes a dollar figure"
 
 
@@ -86,3 +82,11 @@ def test_the_new_page_is_in_the_change_filter():
     line = next(l for l in workflow.splitlines() if "grep -qE" in l and "site/index" in l)
     for needle in ["site/schools/", "site/robots\\.txt", "site/sitemap\\.xml", "site/llms\\.txt"]:
         assert needle in line, f"change filter is missing {needle}"
+
+
+def test_home_has_no_standalone_diagnostic_or_metered_tier():
+    text = HOME.read_text(encoding="utf-8").lower()
+    forbidden = ["$15 / diagnostic", "pay only for the diagnostics", "no annual fee", "tier-name\">metered"]
+    for phrase in forbidden:
+        assert phrase not in text, f"standalone diagnostic offer reintroduced: {phrase}"
+    assert "homeschool" in text and "charter &amp; campus" in text

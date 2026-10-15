@@ -18,6 +18,10 @@ The **$2,600/month** founding-school membership is an approved promotional offer
 
 All prices are USD; campus-specific taxes, hardware, and separately scoped professional services are excluded unless explicitly agreed. Do not present pilot pricing as a recurring monthly charge. Published pricing is for budgeting and inquiry, not a signed contract or a promise that institutional production deployment is already qualified. Each additional physical campus needs a separate license; hardware and separately scoped services are extra. The current invite-only Valor pilot stays free, manually approved and synthetic-data-only, without self-service purchasing, Stripe, or automatic paid conversion.
 
+## Flexible licensing within a 12-month term
+
+Schools may switch between per-learner and per-campus software pricing by **mutually agreed written contract amendment**, defining learner/campus scope, effective date, and new monthly rate. The 12-month contractual commitment remains in force unless expressly amended. Changes apply from the agreed effective date and must not double-bill the same campus period. Any proration, credits, or reapplication of promotional pricing requires express agreement; none is automatic.
+
 ## Included product scope
 
 - Student Socratic learning companion with authorized instructional content.

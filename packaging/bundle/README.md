@@ -2,7 +2,7 @@
 
 This bundle includes Compose configuration, the Caddy TLS proxy configuration,
 and a launcher. **No source checkout or compiler is required.**
-Images are pulled from GitHub Container Registry by an immutable Git SHA tag.
+Images are included in images.tar and keyed to an immutable Git commit SHA; no image download is required.
 
 The first run creates a permission-restricted `.env` template and exits.
 Fill the credentials and deployment settings privately, then launch again.
@@ -37,3 +37,24 @@ The launchers check **Docker's engine architecture** before importing images and
 The GitHub CI package job builds and seals each architecture on a matching native Linux runner. The Windows and macOS checks validate launcher syntax only until actual Docker startup and passkey enrollment tests have been run on those hosts. Do not call a target architecture supported until its image build and smoke tests pass.
 
 No raw application source or developer build tools are needed on the operator's machine.
+
+## Two-Mac educator pilot (explicit private LAN mode)
+
+By default this bundle publishes Bede **only to localhost**. To let an
+older Mac use the Mac mini as its server, select **Allow an approved teacher
+Mac on my private network** in the wizard, give the Mac mini's stable private
+IPv4 address, and an organization-controlled DNS name resolved on the older
+Mac. Docker binds only that IPv4 interface in addition to localhost. Do not
+forward router ports to the internet. Restrict host firewall access to the
+approved teacher devices. The browser must trust the Bede Caddy local CA
+for the exact hostname and its WebAuthn origin before passkey registration.
+The server cannot directly see a client Mac's Touch ID; Bede's frontend uses
+the client browser's platform authenticator probe. A security key or phone
+may work if supported by the browser. The educator never enters their local
+biometric or PIN in Bede. The two-Mac setup needs actual device qualification
+and cross-campus synthetic tests before live learners.
+
+`Verify-Bede.command` creates a private, non-destructive smoke evidence folder,
+not a G1/G2/G3 sign-off. The operator installer includes built application
+images; no repo download is required. The package remains an engineering
+qualification artifact until Mac hardware tests complete.

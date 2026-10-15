@@ -343,7 +343,7 @@ export function CodeScreen({ onLoggedIn }: {
       ref={formContainerRef}
       className="min-h-screen bg-gradient-to-br from-parchment-100 via-parchment-50 to-gold-100 flex flex-col items-center justify-center gap-6 p-4"
     >
-      {/* Fall Launch banner. Deliberately ABOVE the demo card and outside
+      {/* Public beta banner. Deliberately ABOVE the demo card and outside
           it: this screen's job is "try Bede now", and the launch offer is
           a separate errand. No pricing here — the full table lives on
           launch.html so the learner form stays the only thing to fill in.
@@ -361,7 +361,7 @@ export function CodeScreen({ onLoggedIn }: {
         className="w-full max-w-sm block rounded-xl border border-gold-300 bg-white/80 px-4 py-3 text-center shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-navy-400"
       >
         <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
-          Fall Launch: September 30
+          Public beta through October 31, 2026
         </span>
         <span className="mt-0.5 block text-xs text-navy-700">
           Founding Family access opening soon.{' '}

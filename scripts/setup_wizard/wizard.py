@@ -13,6 +13,8 @@ stays tiny and there's nothing to explain about extra dependencies for what
 is, functionally, one short-lived form.
 """
 import html
+import ipaddress
+import re
 import json
 import os
 import secrets
@@ -365,6 +367,30 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append(f'<input type="text" name="database_url" value="{html.escape(v.get("database_url", ""))}" placeholder="postgresql://user:pass@host/dbname">')
     body.append('</div>')
 
+
+    lan_selected = v.get("lan_mode") == "yes"
+    body.append('<label>Where will teachers open Bede?</label>')
+    body.append(f"""
+    <label class="choice">
+      <input type="checkbox" name="lan_mode" value="yes" onchange="toggleLan(this.checked)" {'checked' if lan_selected else ''}>
+      <span class="choice-title">Allow an approved teacher Mac on my private network</span>
+      <div class="choice-desc">Advanced pilot mode: needs a stable private IP, real private DNS, trusted HTTPS and local firewall restrictions. Disabled by default.</div>
+    </label>
+    <div id="lan_settings" style="display:{'block' if lan_selected else 'none'}">
+      <label>Mac mini private LAN IPv4 address</label>
+      <input type="text" name="lan_ip" value="{html.escape(v.get('lan_ip', ''))}" placeholder="192.168.1.50">
+      <div class="hint">This address must belong to the Mac mini, not the teacher's Mac.</div>
+      <label>Private DNS hostname for Bede</label>
+      <input type="text" name="lan_host" value="{html.escape(v.get('lan_host', ''))}" placeholder="bede-pilot.school.example.org">
+      <div class="hint">Must resolve from the teacher's Mac to the Mac mini. The passkey and TLS certificate use this exact hostname. Do not enter .local, an IP, or a nonresolving placeholder.</div>
+    </div>
+    <script>
+      function toggleLan(enabled) {{
+        document.getElementById('lan_settings').style.display = enabled ? 'block' : 'none';
+      }}
+    </script>
+    """)
+
     keep_mastery = v.get("keep_mastery", "yes")
     body.append('<label>Should Bede remember what your child has mastered between sessions?</label>')
     body.append(f"""
@@ -406,14 +432,21 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     return _PAGE_HEAD + "".join(body) + _PAGE_TAIL
 
 
-def render_success() -> str:
+def render_success(fields: dict | None = None) -> str:
     body = _narration_block("success", enable_mic=False)
+    host = (fields or {}).get("lan_host", "").strip().lower()
+    lan_url = f"https://{html.escape(host)}" if (fields or {}).get("lan_mode") == "yes" else ""
+    legacy_extra = (
+        f' or <a href="https://{html.escape(LAN_IP)}">https://{html.escape(LAN_IP)}</a> from tablets on your network'
+        if LAN_IP else ""
+    )
+    extra = f' or <a href="{lan_url}">{lan_url}</a> on the private teacher network' if lan_url else legacy_extra
     body += f"""
     <div class="success">
       <h1>All set!</h1>
       <p>Starting Bede now — this can take a couple of minutes the first time.</p>
       <p>You can close this tab. Bede will be running at
-        <a href="https://localhost">https://localhost</a>{f' or <a href="https://{html.escape(LAN_IP)}">https://{html.escape(LAN_IP)}</a> from tablets on your network' if LAN_IP else ''}.</p>
+        <a href="https://localhost">https://localhost</a>{extra}.</p>
     </div>
     """
     return _PAGE_HEAD + body + _PAGE_TAIL
@@ -433,6 +466,31 @@ _PROVIDER_FIELD_NAMES = {
 }
 
 
+def validate_lan_fields(fields: dict) -> str:
+    if fields.get("lan_mode") != "yes":
+        return ""
+    ip = (fields.get("lan_ip") or "").strip()
+    name = (fields.get("lan_host") or "").strip().lower()
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return "Enter the Mac mini's private IPv4 address."
+    private_ranges = (
+        ipaddress.ip_network("10.0.0.0/8"),
+        ipaddress.ip_network("172.16.0.0/12"),
+        ipaddress.ip_network("192.168.0.0/16"),
+    )
+    if address.version != 4 or not any(address in network for network in private_ranges):
+        return "Use a private RFC 1918 IPv4 address assigned to the Mac mini."
+    if not 4 <= len(name) <= 253 or not re.fullmatch(
+        r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", name
+    ):
+        return "Enter a valid fully qualified private DNS hostname without http:// or a port."
+    if name.endswith((".local", ".localhost", ".test", ".invalid", ".example")):
+        return "Use an organization-controlled hostname with real private DNS, not a placeholder or .local name."
+    return ""
+
+
 def build_env_file(fields: dict) -> str:
     secret_key = secrets.token_hex(32)
     master_secret = secrets.token_hex(32)
@@ -445,10 +503,17 @@ def build_env_file(fields: dict) -> str:
         database_url = fields["database_url"]
         db_lines = ""
 
-    if LAN_IP:
-        cors = f"https://localhost,https://{LAN_IP},http://ui:80"
-    else:
-        cors = "https://localhost,http://ui:80"
+    lan_enabled = fields.get("lan_mode") == "yes"
+    lan_host = fields.get("lan_host", "").strip().lower() if lan_enabled else ""
+    lan_ip = fields.get("lan_ip", "").strip() if lan_enabled else ""
+    cors = (f"https://localhost,https://{lan_host},http://ui:80" if lan_enabled
+            else f"https://localhost,https://{LAN_IP},http://ui:80" if LAN_IP
+            else "https://localhost,http://ui:80")
+    lan_lines = (
+        f"BEDE_LAN_ENABLED=true\nBEDE_LAN_BIND_IP={lan_ip}\n"
+        if lan_enabled else "BEDE_LAN_ENABLED=false\n"
+    )
+    webauthn_host = lan_host if lan_enabled else "localhost"
 
     provider = fields.get("provider", "anthropic")
     if provider == "local_auto":
@@ -475,6 +540,10 @@ def build_env_file(fields: dict) -> str:
         f"DATABASE_URL={database_url}\n"
         f"{db_lines}"
         f"CORS_ORIGINS={cors}\n"
+        f"WEBAUTHN_RP_ID={webauthn_host}\n"
+        f"WEBAUTHN_ORIGIN=https://{webauthn_host}\n"
+        f"WEBAUTHN_RP_NAME=Bede\n"
+        f"{lan_lines}"
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
         f"LICENSE_KEY={fields['license_key']}\n"
@@ -495,6 +564,9 @@ _PROVIDER_LABELS = {
 
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
+    lan_error = validate_lan_fields(fields)
+    if lan_error:
+        return lan_error
     provider = fields.get("provider", "anthropic")
     if provider == "local_auto":
         if _read_local_ai_marker() is None:
@@ -616,7 +688,7 @@ class Handler(BaseHTTPRequestHandler):
         if os.path.exists(local_ai_marker):
             os.remove(local_ai_marker)
 
-        self._send_html(render_success())
+        self._send_html(render_success(fields))
         # Give the response time to actually flush to the socket before the
         # process exits — the launcher script is waiting on this container
         # to stop as its signal that the wizard finished successfully.

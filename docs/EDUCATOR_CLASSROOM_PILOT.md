@@ -24,6 +24,62 @@ For learners enrolled through the campus pilot (immutable campus and learner IDs
 
 Synthetic learners only until G1 is accepted on the deployed build. See [#588](https://github.com/agnusdei-ai/bede/issues/588) for the gate criteria; passing G2 tests is not pilot approval.
 
+If a request fails, the panel says what failed and what to do next (for example, "Could not record your decision. This draft was already decided or changed, possibly in another window. The list has been refreshed; review it before deciding again."). It never shows server or exception text. If the audit trail's integrity check does not pass, the panel says so and asks the teacher to tell their administrator before relying on that history; the teacher's decisions are still saved.
+
+## Delivery to a learner session: not available (Owner Decision 7)
+
+Delivering a teacher-approved instruction into a learner's tutoring session is **unavailable until [#585](https://github.com/agnusdei-ai/bede/issues/585) is decided**. This is enforced, not just unbuilt:
+
+- Every recorded instructional plan (`pilot_recommendations` row) carries an explicit `delivery_state` of **`NOT_REQUESTED`**. It is the only state that exists: a database `CHECK` constraint refuses any other value, nothing in the shipped code writes the column after insert, and the API reports it on every recommendation. The teacher panel shows "Not sent to any learner session."
+- No route under `/pilot` names a session, the tutor request carries no pilot-session field, the tutoring turn and prompt builder import nothing from the pilot code, and no pilot module builds a tutoring configuration.
+- A teacher's words are never presented to the model as a parent's. The prompt builder labels `SessionConfig.lesson_focus` "Parent's note for today", so writing a teacher's instruction there would misattribute it; an earlier held prototype did exactly that.
+
+All of this is pinned by `homeschool-api/tests/test_valor_pilot_delivery_disabled.py`, each guard verified by breaking it.
+
+### The future delivery flow (documented only; not built)
+
+If #585 decides delivery should exist, it must work like this, as a separate explicit action rather than a side effect of approval:
+
+1. The teacher reviews the recorded plan.
+2. The teacher explicitly **requests** delivery.
+3. The teacher explicitly **confirms** delivery, in a separate step.
+4. The server **re-checks authorization** at that moment: teacher, campus, learner, roster grant and the target learner session.
+5. The delivery is **queued**.
+6. A **delivery audit event** is written.
+7. The **delivered or cancelled** state is recorded on the plan.
+8. **Revocation** (of the grant, the teacher, or the learner) **cancels any pending or active delivery** and blocks later writes into that learner's session.
+
+It must also be default-off by configuration, synthetically qualified, and must never place a teacher's words under a parent's label.
+
+Delivery-related work **must not merge** until all of the following hold:
+
+- a human product review approves it;
+- it is rebuilt on the G2-integrated `main` head (not on a pre-G2 branch);
+- it passes synthetic qualification;
+- no UI text claims instruction was delivered when it was not.
+
+## Owner-led learner deletion (classroom pilot administration)
+
+The deployment owner can permanently delete one pilot learner's records from **Parent Setup → Classroom pilot: delete a learner's records**. The panel appears only when the institutional pilot is enabled, loads nothing until opened, and every action asks for the administrator passkey (the app's elevation prompt) and is recorded in the audit log.
+
+1. Choose the campus and the learner.
+2. Type the learner's name exactly to confirm. The server also checks the learner's ID.
+3. Bede removes, by the learner's ID, the learner record, teacher assignments, recorded evidence, recommendations and decision history, then counts again. If anything remains, the whole deletion is rolled back and no receipt is written. Teachers assigned to that learner are signed out and must sign in again.
+
+The panel then leads with a plain summary, for example "All of Example Learner's pilot records were removed on October 16, 2026 at 7:00 AM.", followed by these statements, quoted from the panel:
+
+- **Removed:** the learner's pilot record, teacher assignments, recorded evidence, recommendations and decision history.
+- **What remains:** this deletion receipt and one entry in the security audit log. Both hold only ID numbers, record counts, the date and who performed the deletion (the audit entry also notes the network address the request came from, as every audit entry does), never the learner's name or any learning content. Keep a copy of the receipt if you need to show the deletion later.
+- **Backups:** database backups made before this deletion still contain these records and could restore them. Bede does not set a retention period for backups; they are kept until you delete them. To finish removing the records everywhere, delete or replace backups taken before this deletion.
+
+The backup statement differs from household deletion (`docs/DATA_RETENTION.md`), which crypto-shreds a per-student key: pilot rows are encrypted under the deployment key, not a per-learner key, so old backups stay restorable.
+
+The receipt's per-table counts, receipt ID, learner ID, SHA-256 and a **Copy receipt** button sit behind a collapsed **Technical details for administrators** disclosure. The receipt itself is unchanged by that presentation. Earlier receipts are listed with whether their integrity check passed; one that fails reads "This receipt's integrity check failed. Keep it and report it; do not rely on it as proof of deletion."
+
+Deliberately not part of this panel: session plans, session launches and session receipts. A plan with no delivery path has no consumer, and a stored plan would be the first piece of a delivery path waiting to be reconnected.
+
+The educator pilot screens, including this panel, are English only; they are not yet localized.
+
 ## Security requirements beyond a passing PR
 
 - The original single-operator/student-name database is **not proof of campus/family multitenancy**. Enrollment of unrelated school families must remain blocked until persistent institution/campus/learner UUID separation, school-level privilege grants and cross-campus deny tests are operational.

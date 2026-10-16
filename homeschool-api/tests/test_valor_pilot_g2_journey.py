@@ -8,6 +8,7 @@ Synthetic campuses and learners only (#598 fixtures). Every negative case
 learner, revoked grant, replayed decision, stale version, and a grant
 revoked between request start and the decision itself.
 """
+import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -46,11 +47,17 @@ ASSESSED = date.today() - timedelta(days=3)
 async def db(monkeypatch):
     monkeypatch.setattr(settings, "educator_pilot_enabled", True)
     monkeypatch.setattr(settings, "demo_pin", "")
-    engine = create_async_engine(
+    # G2_GAP_DB_URL (a postgresql+asyncpg URL to a scratch database) runs
+    # every test on this fixture against Postgres, the same switch
+    # test_valor_pilot_g2_gaps.py uses. Default: in-memory SQLite.
+    pg_url = os.environ.get("G2_GAP_DB_URL")
+    engine = (create_async_engine(pg_url) if pg_url else create_async_engine(
         "sqlite+aiosqlite:///:memory:", poolclass=StaticPool,
         connect_args={"check_same_thread": False},
-    )
+    ))
     async with engine.begin() as conn:
+        if pg_url:
+            await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:

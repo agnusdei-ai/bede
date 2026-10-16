@@ -150,6 +150,8 @@ def _render_recommendation(row: PilotRecommendation, learner: PilotLearner) -> d
     return {
         "recommendation_id": row.id, "learner_id": row.learner_id,
         "status": row.status, "version": row.version,
+        # Always NOT_REQUESTED: delivery is unavailable (Owner Decision 7).
+        "delivery_state": row.delivery_state,
         "policy_version": row.policy_version,
         "source_evidence_ids": json.loads(row.source_evidence_ids),
         "proposal": proposal["text"], "rationale": proposal["rationale"],
@@ -404,5 +406,6 @@ async def authorized_instruction(
     rendered = _render_recommendation(row, learner)
     return {"authorized_instruction": rendered["authorized_instruction"],
             "recommendation_id": row.id, "status": row.status,
+            "delivery_state": row.delivery_state,
             "source_evidence_ids": rendered["source_evidence_ids"],
             "decided_at": rendered["decided_at"]}

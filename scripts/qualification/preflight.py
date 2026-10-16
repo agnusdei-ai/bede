@@ -102,6 +102,41 @@ def check_ai_provider(r: Report, env: dict) -> None:
           "BEDE_FORCE_ADAPTER must be 'local' so no other provider can be reached")
 
 
+def check_mail(r: Report, env: dict) -> None:
+    """The loopback mail sink is the ONLY permitted mail destination.
+
+    A run may set RESEND_API_KEY / RESEND_FROM_ADDRESS only together with a
+    RESEND_API_BASE_URL that is exactly this run's sink. A key that is not a
+    synthetic- key (a real Resend key is re_...), a non-loopback or
+    non-sink base URL, or any other RESEND_* variable fails closed."""
+    base = env.get("RESEND_API_BASE_URL", "").strip()
+    key = env.get("RESEND_API_KEY", "").strip()
+    sender = env.get("RESEND_FROM_ADDRESS", "").strip()
+    for name, value in sorted(env.items()):
+        if name.startswith("RESEND_") and name not in cfg.ALLOWED_RESEND_ENV and value.strip():
+            r.add(f"mail_env_unknown:{name}", False, "only the loopback sink settings are allowed")
+    if base:
+        parsed = urlparse(base)
+        is_sink = (parsed.scheme == "http" and parsed.hostname == cfg.MAIL_SINK_HOST
+                   and parsed.port == cfg.MAIL_SINK_PORT and not parsed.username)
+        r.add("mail_endpoint_is_loopback_sink", is_sink and _is_loopback(parsed.hostname),
+              f"RESEND_API_BASE_URL={base!r} must be http://{cfg.MAIL_SINK_HOST}:{cfg.MAIL_SINK_PORT}")
+    if key or sender:
+        r.add("mail_requires_sink", bool(base), "RESEND_API_KEY/FROM set without the loopback sink")
+    if key:
+        r.add("mail_key_is_synthetic", key.startswith(cfg.SYNTHETIC_KEY_PREFIX) and not key.startswith("re_"),
+              f"RESEND_API_KEY must start with {cfg.SYNTHETIC_KEY_PREFIX!r}; a real Resend key fails closed")
+    if sender:
+        r.add("mail_sender_is_synthetic_domain",
+              sender.lower().endswith("@" + cfg.INSTITUTION_EMAIL_DOMAIN), f"from={sender!r}")
+    domain = env.get("EDUCATOR_INSTITUTION_EMAIL_DOMAIN", "").strip().lower()
+    if domain:
+        r.add("institution_domain_is_synthetic", domain == cfg.INSTITUTION_EMAIL_DOMAIN,
+              f"EDUCATOR_INSTITUTION_EMAIL_DOMAIN={domain!r}")
+    r.add("no_bootstrap_email_addresses", not env.get("EDUCATOR_BOOTSTRAP_EMAILS", "").strip(),
+          "EDUCATOR_BOOTSTRAP_EMAILS must be empty: invites go only to the synthetic domain")
+
+
 async def _db_facts(url: str) -> dict:
     sys.path.insert(0, str(cfg.API_DIR))
     from sqlalchemy import text
@@ -219,6 +254,7 @@ def run(phase: str, env: dict | None = None, *, skip_import: bool = False) -> Re
     check_candidate(r, env)
     check_environment(r, env)
     check_ai_provider(r, env)
+    check_mail(r, env)
     check_database(r, env, phase)
     if not skip_import:
         check_delivery_disabled(r)

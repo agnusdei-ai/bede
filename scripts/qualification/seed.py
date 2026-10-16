@@ -143,13 +143,22 @@ class Seeder:
             if r.status_code != 202:
                 self.fx.teacher_blocker = (
                     f"no teacher session: invite -> {r.status_code} ({_detail(r)[:80]}); the "
-                    "enrollment ticket is delivered only by email, which this environment forbids")
+                    "enrollment ticket is delivered only by email (is the loopback mail sink configured?)")
                 return
-            # A delivered ticket would arrive in a mailbox the harness does not
-            # read. There is no route that returns it, by design.
-            self.fx.teacher_blocker = ("invitation accepted, but its ticket is only ever sent "
-                                       "by email; no harness mailbox exists")
-            return
+            ticket = _ticket_from_sink(body["institutional_email"])
+            if ticket is None:
+                self.fx.teacher_blocker = ("no teacher session: invite accepted but no enrollment "
+                                           "email reached the loopback mail sink")
+                return
+            self.fx.steps.append({"step": f"mail_sink_captured_{key}", "method": "SINK",
+                                  "route": "POST /emails (loopback)", "status": None, "ok": True})
+            accounts = self._step("admin_list_educators", "GET", "/educators/accounts",
+                                  self.fx.admin_token)
+            ident = next((a["id"] for a in accounts if a["username"] == username), None)
+            if ident is None:
+                raise HarnessError(f"invited educator {username!r} not listed")
+            self.fx.teacher_id[key] = ident
+            self.enroll_teacher_with_ticket(key, *ticket)
 
     def enroll_teacher_with_ticket(self, key: str, ticket_id: str, ticket_token: str) -> None:
         """The full real passkey enrollment + sign-in for one teacher, once a
@@ -219,6 +228,24 @@ class Seeder:
         self.seed_teachers()
         self.grant_rosters()
         return self.fx
+
+
+def _ticket_from_sink(recipient: str) -> tuple[str, str] | None:
+    """The newest captured invitation to ``recipient``: (ticket_id, token),
+    parsed from the enrollment link the real route put in the email."""
+    import re
+    import time
+    from mail_sink import captured
+    pattern = re.compile(r"#ticket=([0-9a-f-]{36})&(?:amp;)?token=([A-Za-z0-9_-]{32,256})")
+    deadline = time.time() + 10
+    while time.time() < deadline:
+        for msg in reversed(captured(cfg.MAIL_SINK_DIR)):
+            if msg.get("to") == [recipient]:
+                m = pattern.search(msg.get("html", ""))
+                if m:
+                    return m.group(1), m.group(2)
+        time.sleep(0.2)
+    return None
 
 
 def _detail(r) -> str:

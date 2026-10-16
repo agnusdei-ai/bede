@@ -305,7 +305,7 @@ class Matrix:
         out = {"status": None, "data_events": 0, "pings": 0, "ended": False, "error": None,
                "text": "", "event_times": [], "end_time": None}
         headers = {"Authorization": f"Bearer {token or self.tok(teacher)}", "User-Agent": self.api.ua}
-        client = httpx.Client(base_url=self.api.base, timeout=httpx.Timeout(10, read=120))
+        client = httpx.Client(base_url=self.api.base, timeout=httpx.Timeout(10, read=120), verify=self.api.verify)
         closing = threading.Event()
 
         def reader() -> None:
@@ -418,7 +418,7 @@ class Matrix:
             barrier = threading.Barrier(2)
 
             def fire():
-                with httpx.Client(base_url=self.api.base, timeout=cfg.REQUEST_TIMEOUT_S,
+                with httpx.Client(base_url=self.api.base, timeout=cfg.REQUEST_TIMEOUT_S, verify=self.api.verify,
                                   headers={"User-Agent": self.api.ua}) as c:
                     barrier.wait()
                     results.append(c.post(cpath, json=body, headers={

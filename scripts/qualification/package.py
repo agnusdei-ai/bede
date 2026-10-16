@@ -32,7 +32,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import qualconfig as cfg  # noqa: E402
 
 SECRET_ENV_NAMES = ("SECRET_KEY", "MASTER_SECRET", "PARENT_PASSWORD", "CHILD_PIN",
-                    "QUAL_APP_DB_PASSWORD", "LOCAL_LLM_API_KEY")
+                    "QUAL_APP_DB_PASSWORD", "LOCAL_LLM_API_KEY", "RESEND_API_KEY")
+_TICKET_TOKEN = re.compile(r"token=([A-Za-z0-9_-]{32,256})")
 
 
 def sha256(path: Path) -> str:
@@ -43,10 +44,27 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def scan(out: Path, env: dict) -> list[dict]:
+def sink_tokens(store: Path) -> list[str]:
+    """Every enrollment-ticket token the loopback mail sink captured."""
+    from mail_sink import captured
+    return sorted({m for msg in captured(store) for m in _TICKET_TOKEN.findall(msg.get("html", ""))})
+
+
+def scan(out: Path, env: dict, sink_store: Path | None = None) -> list[dict]:
+    """Credential shapes and generated secrets in the evidence directory, and
+    every ticket token the mail sink captured. The sink's own store (outside
+    the evidence directory, where tickets live by design) is scanned for
+    credential SHAPES, so nothing else credential-like hides there either."""
     patterns = [re.compile(p) for p in cfg.CREDENTIAL_PATTERNS]
     literals = [env[n] for n in SECRET_ENV_NAMES if len(env.get(n, "")) >= 8]
     findings = []
+    if sink_store is not None and sink_store.exists():
+        literals += sink_tokens(sink_store)
+        for path in sorted(p for p in sink_store.rglob("*") if p.is_file()):
+            text = path.read_text(errors="replace")
+            for pat in patterns:
+                if pat.search(text):
+                    findings.append({"file": f"<mail-sink>/{path.name}", "kind": f"pattern:{pat.pattern[:30]}"})
     for path in sorted(p for p in out.rglob("*") if p.is_file()):
         if path.name in ("SHA256SUMS",):
             continue
@@ -82,7 +100,12 @@ def build_manifest(out: Path, env: dict, images: dict) -> dict:
                          "version": env.get("ImageVersion", "")},
         "image_digests": images,
         "lockfile_sha256": lockfiles,
-        "teacher_auth_mode": seed.get("mode", env.get("QUAL_TEACHER_AUTH_MODE", cfg.TEACHER_AUTH_MODE)),
+        "stubs": ["ai_stub: loopback OpenAI-compatible model",
+                  "mail_sink: loopback Resend-compatible mail endpoint"],
+        "mail_sink_messages": (sum(1 for _ in (out / "mail-sink-messages.jsonl").open())
+                               if (out / "mail-sink-messages.jsonl").exists() else 0),
+        "tls": cfg.TLS,
+        "teacher_auth_mode":seed.get("mode", env.get("QUAL_TEACHER_AUTH_MODE", cfg.TEACHER_AUTH_MODE)),
         "deviations": seed.get("deviations", []),
         "teacher_blocker": seed.get("teacher_blocker", ""),
         "suites": {
@@ -109,11 +132,11 @@ def main() -> int:
     out = cfg.OUT_DIR
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ)
-    findings = scan(out, env)
+    findings = scan(out, env, cfg.MAIL_SINK_DIR)
     if findings:
         quarantine = out.parent / (out.name + "-quarantine")
         quarantine.mkdir(exist_ok=True)
-        for f in {x["file"] for x in findings}:
+        for f in {x["file"] for x in findings if not x["file"].startswith("<mail-sink>")}:
             src = out / f
             if src.exists():
                 src.rename(quarantine / src.name)

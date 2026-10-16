@@ -39,10 +39,11 @@ def main() -> int:
     try:
         routes = load_route_table(out)
         stack.start_stub()
+        stack.start_sink()
         stack.start_server()
-        driver = Driver(cfg.API_ORIGIN, out)
+        driver = Driver(cfg.API_ORIGIN, out, stack.tls.get("spki", ""))
         ua = driver.user_agent("admin")
-        api = Api(stack.base, ua)
+        api = Api(stack.base, ua, stack.verify)
         seeder = Seeder(api, driver, env)
         try:
             seeder.run()

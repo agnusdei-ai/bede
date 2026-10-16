@@ -246,7 +246,21 @@ def test_preflight_baseline_only_fails_on_sha_and_database():
     ({"PRODUCTION": "true"}, "env_required:PRODUCTION=false"),
     ({"OPENAI_API_KEY": "x"}, "env_unset:OPENAI_API_KEY"),
     ({"ANTHROPIC_API_KEY": "x"}, "env_unset:ANTHROPIC_API_KEY"),
-    ({"RESEND_API_KEY": "x"}, "env_unset:RESEND_API_KEY"),
+    ({"RESEND_API_KEY": "re_live_realkey"}, "mail_requires_sink"),
+    ({"RESEND_API_KEY": "re_live_realkey", "RESEND_API_BASE_URL": "http://127.0.0.1:8767"},
+     "mail_key_is_synthetic"),
+    ({"RESEND_API_KEY": "synthetic-x", "RESEND_API_BASE_URL": "https://api.resend.com"},
+     "mail_endpoint_is_loopback_sink"),
+    ({"RESEND_API_BASE_URL": "http://127.0.0.1:9999"}, "mail_endpoint_is_loopback_sink"),
+    ({"RESEND_API_BASE_URL": "http://10.1.2.3:8767"}, "mail_endpoint_is_loopback_sink"),
+    # loopback, but not THIS run's sink: still refused
+    ({"RESEND_API_BASE_URL": "http://localhost:8767"}, "mail_endpoint_is_loopback_sink"),
+    ({"RESEND_FROM_ADDRESS": "bede@qualification.agnusdei.ai"}, "mail_requires_sink"),
+    ({"RESEND_FROM_ADDRESS": "x@real-school.org", "RESEND_API_BASE_URL": "http://127.0.0.1:8767"},
+     "mail_sender_is_synthetic_domain"),
+    ({"RESEND_WEBHOOK_SECRET": "x"}, "mail_env_unknown:RESEND_WEBHOOK_SECRET"),
+    ({"EDUCATOR_BOOTSTRAP_EMAILS": "someone@real-school.org"}, "no_bootstrap_email_addresses"),
+    ({"EDUCATOR_INSTITUTION_EMAIL_DOMAIN": "real-school.org"}, "institution_domain_is_synthetic"),
     ({"STRIPE_SECRET_KEY": "x"}, "env_unset:STRIPE_SECRET_KEY"),
     ({"STRIPE_ANYTHING": "x"}, "env_prefix_forbidden:STRIPE_ANYTHING"),
     ({"LICENSE_SERVER_URL": "https://x"}, "env_unset:LICENSE_SERVER_URL"),
@@ -264,6 +278,92 @@ def test_preflight_baseline_only_fails_on_sha_and_database():
 ])
 def test_preflight_fails_closed(override, expected):
     assert expected in _failed(_base_env(**override))
+
+
+def test_the_sink_configuration_passes_preflight():
+    ok = _base_env(RESEND_API_BASE_URL="http://127.0.0.1:8767", RESEND_API_KEY="synthetic-abc",
+                   RESEND_FROM_ADDRESS="bede@qualification.agnusdei.ai",
+                   EDUCATOR_INSTITUTION_EMAIL_DOMAIN="qualification.agnusdei.ai")
+    assert not {c for c in _failed(ok) if c.startswith(("mail_", "institution_", "no_bootstrap"))}
+
+
+def test_workflow_mail_points_only_at_the_loopback_sink():
+    env = _wf()["jobs"]["qualify"]["env"]
+    assert env["RESEND_API_BASE_URL"] == "http://127.0.0.1:8767"
+    assert env["WEBAUTHN_ORIGIN"].startswith("https://localhost:")
+    gen = _step("Generate synthetic secrets")["run"]
+    assert 'sink_key="synthetic-$(gen 16)"' in gen and 'echo "RESEND_API_KEY=$sink_key"' in gen
+    assert '::add-mask::$v' in gen and '"$sink_key"; do' in gen
+
+
+def _sink(tmp_path, port):
+    import os
+    import subprocess
+    import time
+    import httpx
+    env = dict(os.environ, QUAL_MAIL_SINK_KEY="synthetic-sinkkey")
+    proc = subprocess.Popen([sys.executable, str(QUAL / "mail_sink.py"), "--port", str(port),
+                             "--store", str(tmp_path / "store"), "--log", str(tmp_path / "log.jsonl"),
+                             "--domain", "qualification.agnusdei.ai"], env=env)
+    for _ in range(50):
+        try:
+            httpx.get(f"http://127.0.0.1:{port}/health", timeout=0.5)
+            return proc
+        except httpx.HTTPError:
+            time.sleep(0.1)
+    proc.kill()
+    raise RuntimeError("sink did not start")
+
+
+def test_mail_sink_accepts_only_the_synthetic_key_and_domain(tmp_path):
+    import socket
+    import httpx
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    proc = _sink(tmp_path, port)
+    try:
+        url = f"http://127.0.0.1:{port}/emails"
+        ok = {"from": "bede@qualification.agnusdei.ai", "to": ["t@qualification.agnusdei.ai"],
+              "subject": "s", "html": "<a href='https://localhost/x#ticket=" + "1" * 36 + "&amp;token=" + "a" * 40 + "'>x</a>"}
+        assert httpx.post(url, json=ok, headers={"Authorization": "Bearer wrong"}).status_code == 401
+        foreign = dict(ok, to=["someone@real-school.org"])
+        assert httpx.post(url, json=foreign, headers={"Authorization": "Bearer synthetic-sinkkey"}).status_code == 422
+        assert httpx.post(url, json=ok, headers={"Authorization": "Bearer synthetic-sinkkey"}).status_code == 200
+    finally:
+        proc.terminate()
+        proc.wait(timeout=5)
+    import mail_sink
+    msgs = mail_sink.captured(tmp_path / "store")
+    assert len(msgs) == 1 and msgs[0]["to"] == ["t@qualification.agnusdei.ai"]
+    log = (tmp_path / "log.jsonl").read_text()
+    assert "token=" not in log and "t@" not in log  # the evidence log is redacted
+
+
+def test_mail_sink_refuses_a_non_loopback_bind(tmp_path):
+    import os
+    import subprocess
+    r = subprocess.run([sys.executable, str(QUAL / "mail_sink.py"), "--host", "0.0.0.0",
+                        "--store", str(tmp_path), "--log", str(tmp_path / "l"), "--domain", "x"],
+                       env=dict(os.environ, QUAL_MAIL_SINK_KEY="synthetic-k"), capture_output=True, timeout=20)
+    assert r.returncode == 2
+
+
+def test_credential_scan_covers_captured_tickets(tmp_path):
+    import json
+    import package
+    store, out = tmp_path / "store", tmp_path / "out"
+    store.mkdir()
+    out.mkdir()
+    token = "T" * 43
+    (store / "1-a.json").write_text(json.dumps({"to": ["t@x"], "html": f"#ticket={'1' * 36}&amp;token={token}"}))
+    (out / "server.log").write_text(f"leaked {token}")
+    findings = package.scan(out, {}, store)
+    assert any(f["file"] == "server.log" for f in findings)
+    (out / "server.log").write_text("clean")
+    assert package.scan(out, {}, store) == []
+    (store / "2-b.json").write_text(json.dumps({"html": "sk-" + "x" * 30}))
+    assert any(f["file"].startswith("<mail-sink>") for f in package.scan(out, {}, store))
 
 
 def test_delivery_route_detector_flags_session_launch_paths():

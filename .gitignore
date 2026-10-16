@@ -54,3 +54,4 @@ packaging/windows/Output/
 # Synthetic qualification evidence (scripts/qualification/), written per run
 qualification-out/
 qualification-out-quarantine/
+qualification-out-tmp/

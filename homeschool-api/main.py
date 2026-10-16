@@ -21,7 +21,7 @@ from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from routers import admin, auth, catalog, diagnostic, educator_passkeys, educators, feedback, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor_history, pod, recovery, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, diagnostic, educator_passkeys, educators, feedback, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -596,6 +596,7 @@ app.include_router(pilot_diagnostic.router)
 app.include_router(pilot_journey.router)
 app.include_router(pilot_owner.router)
 app.include_router(pilot_tutor_history.router)
+app.include_router(pilot_tutor.router)
 
 
 # Bounds the probe itself. Without a timeout, a connection that hangs rather

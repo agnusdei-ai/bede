@@ -17,6 +17,7 @@ from sqlalchemy import select, update
 from starlette.requests import Request
 
 import routers.pilot_owner as owner
+import services.pilot_learner_deletion as deletion
 from core.database import Base, ClassicalEducator, PilotLearner
 from core.pilot_journey_models import PilotDeletionReceipt
 from routers.pilot_journey import DecisionInput, decide, record_evidence, request_recommendation
@@ -103,9 +104,9 @@ async def test_deletion_cascades_by_uuid_and_spares_the_same_named_learner(db):
     receipt = await delete_learner(a, la, _confirm(la), req(), auth=ADMIN, db=db)
 
     assert all(v == 0 for v in receipt["remaining_counts"].values())
-    assert set(receipt["deleted_counts"]) == {name for name, _ in LEARNER_TABLES}
-    for name, _ in LEARNER_TABLES:
-        assert receipt["deleted_counts"][name] >= 1, name
+    assert set(receipt["deleted_counts"]) >= {model.__tablename__ for _, model in LEARNER_TABLES}
+    for name, model in LEARNER_TABLES:
+        assert receipt["deleted_counts"][model.__tablename__] >= 1, name
     assert "Example Learner" not in json.dumps(receipt)  # receipt holds no name
     for _, model in LEARNER_TABLES:
         col = model.id if model is PilotLearner else model.learner_id
@@ -137,11 +138,11 @@ async def test_ordinary_audit_views_show_no_readable_learner_content(db, monkeyp
     async def capture(event, **kw):
         logged.append((event, kw))
 
-    monkeypatch.setattr(owner, "log_event", capture)
+    monkeypatch.setattr(deletion, "log_event", capture)
     receipt = await delete_learner(a, la, _confirm(la), req(), auth=ADMIN, db=db)
     assert [e for e, _ in logged] == ["student.data_deleted"]
     detail = logged[0][1]["detail"]
-    assert re.fullmatch(rf"pilot_learner_deleted learner={_UUID} receipt={_UUID}", detail), detail
+    assert re.fullmatch(rf"pilot_learner_deleted campus={_UUID} learner={_UUID} rows=\\d+ tables=\\d+", detail), detail
     listing = json.dumps(await list_receipts(auth=ADMIN, db=db))
     for text in ("Example Learner", "Synthetic DIBELS 8 report", "phoneme", "segmentation"):
         assert text not in detail and text not in listing and text not in json.dumps(receipt), text
@@ -155,18 +156,18 @@ async def test_ordinary_audit_views_show_no_readable_learner_content(db, monkeyp
 @pytest.mark.asyncio
 async def test_a_failed_recheck_rolls_back_and_writes_no_receipt(db, monkeypatch):
     _, _, a, _, la, _ = await _populated(db)
-    real = owner._counts
+    real = deletion._counts
     calls = {"n": 0}
 
-    async def recheck_finds_leftovers(session, learner_id):
+    async def recheck_finds_leftovers(session, scope):
         calls["n"] += 1
-        out = await real(session, learner_id)
-        return out if calls["n"] == 1 else {**out, "evidence": 1}
+        out = await real(session, scope)
+        return out if calls["n"] == 1 else {**out, "pilot_evidence": 1}
 
-    monkeypatch.setattr(owner, "_counts", recheck_finds_leftovers)
+    monkeypatch.setattr(deletion, "_counts", recheck_finds_leftovers)
     with pytest.raises(HTTPException) as exc:
         await delete_learner(a, la, _confirm(la), req(), auth=ADMIN, db=db)
-    assert exc.value.status_code == 500
+    assert exc.value.status_code == 409
     assert await db.get(PilotLearner, la) is not None
     assert (await db.execute(select(PilotDeletionReceipt))).scalars().all() == []
 
@@ -185,7 +186,7 @@ async def test_tampered_receipt_fails_verification(db):
 def test_cascade_covers_every_pilot_table_keyed_by_learner():
     """A new pilot table with a learner_id that the cascade forgets would
     leave a deleted child's data behind; this fails until it is added."""
-    covered = {model.__tablename__ for _, model in LEARNER_TABLES}
+    covered = {table.name for table in deletion.pilot_cascade()}
     keyed = {
         t.name for t in Base.metadata.sorted_tables
         if t.name.startswith("pilot_") and "learner_id" in t.c
@@ -201,7 +202,8 @@ def test_only_the_whole_learner_cascade_deletes_ledger_entries():
     src = Path(owner.__file__).read_text(encoding="utf-8")
     assert "delete(PilotDecision" not in src  # only via the LEARNER_TABLES loop
     assert "update(PilotDecision" not in src
-    assert "delete(model).where(_learner_col(model) == learner.id)" in src
+    assert "await delete_pilot_learner(" in src
+    assert "delete(table).where(" in Path(deletion.__file__).read_text(encoding="utf-8")
 
 
 def test_owner_routes_are_mounted_on_the_real_app():

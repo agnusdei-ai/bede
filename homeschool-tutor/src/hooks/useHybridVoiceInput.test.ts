@@ -67,10 +67,16 @@ vi.mock('./useVoiceRecorder', () => ({
   },
 }))
 
-vi.mock('../services/voiceApi', () => ({ startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents }))
+// voiceScopeFor stays REAL: the educator-scope test below proves the hook
+// actually invokes it and passes its result to startVoiceStream.
+vi.mock('../services/voiceApi', async (importOriginal) => ({
+  voiceScopeFor: (await importOriginal<typeof import('../services/voiceApi')>()).voiceScopeFor,
+  startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents,
+}))
 vi.mock('../utils/audioSession', () => ({ enterRecordingAudioSession, restorePlaybackAudioSession }))
 
 import { useHybridVoiceInput } from './useHybridVoiceInput'
+import { useSessionStore } from '../store/sessionStore'
 
 // A real macrotask tick — reliably flushes however many microtask hops a
 // given action needs (startVoiceStream's .then(), consumeEvents' own
@@ -143,6 +149,40 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
+  afterEach(() => {
+    useSessionStore.setState({ role: null, sessionConfig: null })
+  })
+
+  it('an educator session names its learner when it opens a voice stream', async () => {
+    useSessionStore.setState({
+      role: 'educator',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sessionConfig: { student_name: 'Synthetic Learner One' } as any,
+    })
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal: vi.fn() }))
+    await act(async () => {
+      result.current.startHold()
+      await flush()
+    })
+    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', { student_name: 'Synthetic Learner One' })
+  })
+
+  it('a parent session sends no learner scope', async () => {
+    useSessionStore.setState({
+      role: 'parent',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      sessionConfig: { student_name: 'Synthetic Learner One' } as any,
+    })
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal: vi.fn() }))
+    await act(async () => {
+      result.current.startHold()
+      await flush()
+    })
+    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en')
+  })
 })
 
 describe('useHybridVoiceInput core hold-to-talk flow', () => {

@@ -20,6 +20,7 @@ from core.database import (
 from core.deps import require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
 from services.educator_access import live_educator
+from services.pilot_authz import ACTION_LEARNER_READ, resolve_campus_learner
 
 router = APIRouter(prefix="/pilot", tags=["valor-pilot"])
 
@@ -67,24 +68,12 @@ def _learner_aad(campus_id: str, learner_id: str) -> bytes:
 
 async def _assigned(db: AsyncSession, auth: dict, learner_id: str) -> PilotLearner:
     _enabled()
-    teacher = await live_educator(db, auth)
-    # Every query must check ALL grant links, not trust a supplied campus claim.
-    row = (await db.execute(
-        select(PilotLearner)
-        .join(PilotCampus, PilotCampus.id == PilotLearner.campus_id)
-        .join(PilotEducatorCampus,
-              (PilotEducatorCampus.campus_id == PilotLearner.campus_id)
-              & (PilotEducatorCampus.educator_id == teacher.id))
-        .join(PilotRosterGrant,
-              (PilotRosterGrant.campus_id == PilotLearner.campus_id)
-              & (PilotRosterGrant.learner_id == PilotLearner.id)
-              & (PilotRosterGrant.educator_id == teacher.id))
-        .where(PilotLearner.id == _id(learner_id))
-        .where(PilotLearner.enabled.is_(True),
-               PilotCampus.enabled.is_(True),
-               PilotEducatorCampus.enabled.is_(True),
-               PilotRosterGrant.enabled.is_(True))
-    )).scalar_one_or_none()
+    # Every query must check ALL grant links, not trust a supplied campus
+    # claim. services/pilot_authz.py is the one place that join lives, so a
+    # learner read, a voice session and a tutoring turn all ask the same
+    # question.
+    ctx = await resolve_campus_learner(db, auth, learner_id, ACTION_LEARNER_READ)
+    row = await db.get(PilotLearner, ctx.learner_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Record not found")
     return row
@@ -169,8 +158,11 @@ async def approve_roster_grant(
         db.add(PilotRosterGrant(
             educator_id=teacher_id, campus_id=campus.id, learner_id=pupil.id,
         ))
-    else:
+    elif not grant.enabled:
+        # A re-approval is a NEW grant version. Anything minted under the
+        # version that was revoked must never revalidate (pilot_authz).
         grant.enabled = True
+        grant.version += 1
     await db.commit()
 
 
@@ -186,6 +178,7 @@ async def revoke_roster_grant(
     if grant is None:
         raise HTTPException(status_code=404, detail="Record not found")
     grant.enabled = False
+    grant.version += 1
     # Invalidate every prior bearer token immediately, not only the UI cache.
     teacher = await db.get(ClassicalEducator, teacher_id)
     if teacher:

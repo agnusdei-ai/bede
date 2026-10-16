@@ -103,6 +103,12 @@ async def test_deletion_cascades_by_uuid_and_spares_the_same_named_learner(db):
     old = await token(db, ta)
     receipt = await delete_learner(a, la, _confirm(la), req(), auth=ADMIN, db=db)
 
+    assert receipt["cache_eviction_executed"] is True
+    assert type(receipt["evicted_cache_entries"]) is int
+    assert receipt["evicted_cache_entries"] >= 0
+    # Cache diagnostics are transient and never form part of the durable
+    # deletion-receipt digest or export.
+    assert "evicted_cache_entries" not in json.dumps(await list_receipts(auth=ADMIN, db=db))
     assert all(v == 0 for v in receipt["remaining_counts"].values())
     assert set(receipt["deleted_counts"]) >= {model.__tablename__ for _, model in LEARNER_TABLES}
     for name, model in LEARNER_TABLES:

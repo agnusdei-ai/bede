@@ -9,6 +9,8 @@ from typing import Any, AsyncIterator, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from core.learner_scope import LearnerScope
+
 from services import action_governance, tool_registry
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
 from services.prayer_catalog import prayer_note as _prayer_catalog_note
@@ -3583,13 +3585,16 @@ async def _save_assessment(
 # profile takes effect within the same session, not just next login.
 _READONLY_PROMPT_CACHE_TTL_SECONDS = 300
 
-# Same per-student, TTL-bounded cache as the three sibling read-only
-# loaders. Keyed by student alone rather than (student, subject) because
-# there is exactly one music profile per child.
-_music_vector_cache: dict = {}
+# Same per-learner, TTL-bounded cache as the three sibling read-only
+# loaders. One entry per learner rather than per (learner, subject) because
+# there is exactly one music profile per child. Keyed by core/learner_scope.py's
+# five-part key, never by display name — see _prompt_scope below.
+_music_vector_cache: dict[tuple, tuple[tuple[Optional[dict], int], float]] = {}
 
 
-async def _load_music_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
+async def _load_music_vector_readonly(
+    db: "AsyncSession", student_name: str, scope: Optional["LearnerScope"] = None,
+) -> tuple[Optional[dict], int]:
     """
     Read-only load of a child's music-knowledge vector for prompt injection
     — the CALIBRATE step of the listening loop, and the piece without which
@@ -3611,8 +3616,11 @@ async def _load_music_vector_readonly(db: "AsyncSession", student_name: str) -> 
     the same defensive convention as _load_mastery_vector_readonly, which
     this mirrors.
     """
+    scope = _prompt_scope(student_name, scope)
+    subject_key = scope.storage_subject
+    cache_key = scope.cache_key("prompt_music_vector", _PROMPT_CACHE_VERSION)
     now = time.monotonic()
-    cached = _music_vector_cache.get(student_name)
+    cached = _music_vector_cache.get(cache_key)
     if cached is not None and cached[1] > now:
         return cached[0]
 
@@ -3625,7 +3633,7 @@ async def _load_music_vector_readonly(db: "AsyncSession", student_name: str) -> 
 
         result = await db.execute(
             select(MasteryProfile).where(
-                MasteryProfile.student_name == student_name,
+                MasteryProfile.student_name == subject_key,
                 MasteryProfile.subject_area == _MUSIC_AREA,
             )
         )
@@ -3633,16 +3641,16 @@ async def _load_music_vector_readonly(db: "AsyncSession", student_name: str) -> 
         value = (None, 0) if row is None else (
             decrypt_json(
                 row.profile_enc,
-                student_aad("mastery_profiles", "profile_enc", student_name, _MUSIC_AREA),
-                await _student_keys_mod().get_existing(db, student_name),
+                student_aad("mastery_profiles", "profile_enc", subject_key, _MUSIC_AREA),
+                await _student_keys_mod().get_existing(db, scope),
             ),
             row.evidence_count,
         )
     except Exception as exc:
-        log.warning("Music vector prompt-load failed for %s: %s", student_name, exc)
+        log.warning("Music vector prompt-load failed: %s", exc)
         value = (None, 0)
 
-    _music_vector_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    _music_vector_cache[cache_key] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
     return value
 
 
@@ -3720,12 +3728,47 @@ def _student_keys_mod():
     return student_keys
 
 
-_mastery_vector_cache: dict[str, tuple[tuple[Optional[dict], int], float]] = {}
-_processing_style_cache: dict[str, tuple[Optional[str], float]] = {}
-_lesson_bookmark_cache: dict[tuple[str, str], tuple[Optional[dict], float]] = {}
+# Every read-only prompt cache is keyed by core/learner_scope.py's five-part
+# key — (environment, campus_uuid, learner_uuid, resource_type,
+# resource_version) — never by display name (G1 items 7 and 8). Bump
+# _PROMPT_CACHE_VERSION when a cached value's shape changes.
+_PROMPT_CACHE_VERSION = 1
+_mastery_vector_cache: dict[tuple, tuple[tuple[Optional[dict], int], float]] = {}
+_processing_style_cache: dict[tuple, tuple[Optional[str], float]] = {}
+_lesson_bookmark_cache: dict[tuple, tuple[Optional[dict], float]] = {}
+
+_PROMPT_CACHES = (
+    _music_vector_cache, _mastery_vector_cache,
+    _processing_style_cache, _lesson_bookmark_cache,
+)
 
 
-async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -> tuple[Optional[dict], int]:
+def _prompt_scope(student_name: str, scope: Optional["LearnerScope"]) -> "LearnerScope":
+    """The learner scope a read-only loader keys its cache, row lookup and
+    AAD by. An institutional caller passes a scope; a household caller
+    passes nothing and gets the explicit legacy scope for the name, whose
+    storage subject is the name itself, so legacy rows are read exactly as
+    before."""
+    from core.learner_scope import LearnerScope as _LearnerScope
+    return scope if scope is not None else _LearnerScope.legacy(student_name)
+
+
+def evict_learner_prompt_caches(scope: "LearnerScope") -> int:
+    """Drop every read-only prompt-cache entry for this learner, in every
+    environment. Reached through core.learner_scope.evict_learner, the one
+    entry point revocation and deletion call. Returns entries removed."""
+    removed = 0
+    for cache in _PROMPT_CACHES:
+        stale = [k for k in cache if scope.owns(k)]
+        for k in stale:
+            del cache[k]
+        removed += len(stale)
+    return removed
+
+
+async def _load_mastery_vector_readonly(
+    db: "AsyncSession", student_name: str, scope: Optional["LearnerScope"] = None,
+) -> tuple[Optional[dict], int]:
     """
     Read-only load of a student's real (db-backed) mastery vector and its
     evidence_count, for prompt injection only — never writes, unlike
@@ -3740,8 +3783,11 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
     stream_tutor_response. Cached per student for
     _READONLY_PROMPT_CACHE_TTL_SECONDS — see that constant's comment.
     """
+    scope = _prompt_scope(student_name, scope)
+    subject_key = scope.storage_subject
+    cache_key = scope.cache_key("prompt_mastery_vector", _PROMPT_CACHE_VERSION)
     now = time.monotonic()
-    cached = _mastery_vector_cache.get(student_name)
+    cached = _mastery_vector_cache.get(cache_key)
     if cached is not None and cached[1] > now:
         return cached[0]
 
@@ -3753,7 +3799,7 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
 
         result = await db.execute(
             select(MasteryProfile).where(
-                MasteryProfile.student_name == student_name,
+                MasteryProfile.student_name == subject_key,
                 MasteryProfile.subject_area == "mathematics",
             )
         )
@@ -3761,20 +3807,22 @@ async def _load_mastery_vector_readonly(db: "AsyncSession", student_name: str) -
         value = (None, 0) if row is None else (
             decrypt_json(
                 row.profile_enc,
-                student_aad("mastery_profiles", "profile_enc", student_name, "mathematics"),
-                await _student_keys_mod().get_existing(db, student_name),
+                student_aad("mastery_profiles", "profile_enc", subject_key, "mathematics"),
+                await _student_keys_mod().get_existing(db, scope),
             ),
             row.evidence_count,
         )
     except Exception as exc:
-        log.warning("Mastery vector prompt-load failed for %s: %s", student_name, exc)
+        log.warning("Mastery vector prompt-load failed: %s", exc)
         value = (None, 0)
 
-    _mastery_vector_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    _mastery_vector_cache[cache_key] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
     return value
 
 
-async def _load_processing_style_readonly(db: "AsyncSession", student_name: str) -> Optional[str]:
+async def _load_processing_style_readonly(
+    db: "AsyncSession", student_name: str, scope: Optional["LearnerScope"] = None,
+) -> Optional[str]:
     """
     Read-only load of a student's synthesized processing_style ("visual",
     "auditory", "reading_writing", or "kinesthetic" — see
@@ -3791,8 +3839,11 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
     comment; this one in particular runs on every subject, not just
     mathematics, so it's the bigger of the two per-turn costs being cached.
     """
+    scope = _prompt_scope(student_name, scope)
+    subject_key = scope.storage_subject
+    cache_key = scope.cache_key("prompt_processing_style", _PROMPT_CACHE_VERSION)
     now = time.monotonic()
-    cached = _processing_style_cache.get(student_name)
+    cached = _processing_style_cache.get(cache_key)
     if cached is not None and cached[1] > now:
         return cached[0]
 
@@ -3803,24 +3854,25 @@ async def _load_processing_style_readonly(db: "AsyncSession", student_name: str)
         from core.encryption import decrypt_json, student_aad
 
         result = await db.execute(
-            select(LearnerProfile).where(LearnerProfile.student_name == student_name)
+            select(LearnerProfile).where(LearnerProfile.student_name == subject_key)
         )
         row = result.scalar_one_or_none()
         value = None if row is None else decrypt_json(
             row.profile_enc,
-            student_aad("learner_profiles", "profile_enc", student_name),
-            await _student_keys_mod().get_existing(db, student_name),
+            student_aad("learner_profiles", "profile_enc", subject_key),
+            await _student_keys_mod().get_existing(db, scope),
         ).get("processing_style")
     except Exception as exc:
-        log.warning("Processing-style prompt-load failed for %s: %s", student_name, exc)
+        log.warning("Processing-style prompt-load failed: %s", exc)
         value = None
 
-    _processing_style_cache[student_name] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
+    _processing_style_cache[cache_key] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
     return value
 
 
 async def _load_lesson_bookmark_readonly(
     db: "AsyncSession", student_name: str, subject: Subject,
+    scope: Optional["LearnerScope"] = None,
 ) -> Optional[dict]:
     """
     Read-only load of where this student left off in THIS subject, per
@@ -3835,7 +3887,10 @@ async def _load_lesson_bookmark_readonly(
     for _READONLY_PROMPT_CACHE_TTL_SECONDS, same rationale as the other
     two readonly loaders above.
     """
-    cache_key = (student_name, subject.value)
+    scope = _prompt_scope(student_name, scope)
+    subject_key = scope.storage_subject
+    # The subject belongs to the resource type: one bookmark per subject.
+    cache_key = scope.cache_key(f"prompt_lesson_bookmark:{subject.value}", _PROMPT_CACHE_VERSION)
     now = time.monotonic()
     cached = _lesson_bookmark_cache.get(cache_key)
     if cached is not None and cached[1] > now:
@@ -3849,7 +3904,7 @@ async def _load_lesson_bookmark_readonly(
 
         result = await db.execute(
             select(LessonBookmark).where(
-                LessonBookmark.student_name == student_name,
+                LessonBookmark.student_name == subject_key,
                 LessonBookmark.subject == subject.value,
             )
         )
@@ -3857,13 +3912,13 @@ async def _load_lesson_bookmark_readonly(
         value = None if row is None else {
             "note": decrypt_json(
                 row.bookmark_enc,
-                student_aad("lesson_bookmarks", "bookmark_enc", student_name, subject.value),
-                await _student_keys_mod().get_existing(db, student_name),
+                student_aad("lesson_bookmarks", "bookmark_enc", subject_key, subject.value),
+                await _student_keys_mod().get_existing(db, scope),
             )["note"],
             "updated_at": row.updated_at,
         }
     except Exception as exc:
-        log.warning("Lesson-bookmark prompt-load failed for %s/%s: %s", student_name, subject.value, exc)
+        log.warning("Lesson-bookmark prompt-load failed for %s: %s", subject.value, exc)
         value = None
 
     _lesson_bookmark_cache[cache_key] = (value, now + _READONLY_PROMPT_CACHE_TTL_SECONDS)
@@ -4427,6 +4482,7 @@ async def stream_tutor_response(
     time_remaining_seconds: Optional[int] = None,
     ip: str = "unknown",
     user_agent: str = "",
+    learner_scope: Optional["LearnerScope"] = None,
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
@@ -4510,7 +4566,7 @@ async def stream_tutor_response(
                 from services import diagnostic_session
                 db_vector, db_evidence_count = diagnostic_session.live_vector(session_id)
         elif db is not None:
-            db_vector, db_evidence_count = await _load_mastery_vector_readonly(db, config.student_name)
+            db_vector, db_evidence_count = await _load_mastery_vector_readonly(db, config.student_name, learner_scope)
 
     # Real sessions only (never demo, which has no narration/profile history
     # to synthesize from) — see _load_processing_style_readonly's docstring
@@ -4518,14 +4574,14 @@ async def stream_tutor_response(
     # read, but never fed back into Bede's own live tutoring behavior before.
     processing_style = None
     if db is not None:
-        processing_style = await _load_processing_style_readonly(db, config.student_name)
+        processing_style = await _load_processing_style_readonly(db, config.student_name, learner_scope)
 
     # Real sessions only, every subject (not just mathematics) — see
     # _load_lesson_bookmark_readonly's docstring and core/database.py's
     # LessonBookmark for why this is subject-agnostic.
     bookmark = None
     if db is not None:
-        bookmark = await _load_lesson_bookmark_readonly(db, config.student_name, subject)
+        bookmark = await _load_lesson_bookmark_readonly(db, config.student_name, subject, learner_scope)
 
     # Real sessions only, and only where listening actually happens. This is
     # the CALIBRATE step of the listening loop — see
@@ -4535,7 +4591,7 @@ async def stream_tutor_response(
     # calibration, exactly as it gets no bookmark.
     music_vector, music_evidence_count = None, 0
     if db is not None and subject in _MUSIC_CHECKIN_SUBJECTS:
-        music_vector, music_evidence_count = await _load_music_vector_readonly(db, config.student_name)
+        music_vector, music_evidence_count = await _load_music_vector_readonly(db, config.student_name, learner_scope)
 
     # Bounded, evidence-derived instructional strategy: read ONLY the existing
     # encrypted math work ledger, and never issue a new curriculum decision.

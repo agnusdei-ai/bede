@@ -19,6 +19,7 @@ from core.database import (
 )
 from core.deps import require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
+from core.learner_scope import LearnerScope, evict_learner
 from services.educator_access import live_educator
 
 router = APIRouter(prefix="/pilot", tags=["valor-pilot"])
@@ -191,6 +192,9 @@ async def revoke_roster_grant(
     if teacher:
         teacher.credential_version += 1
     await db.commit()
+    # Drop every per-learner cache entry and the unwrapped data key, so
+    # nothing derived for this learner outlives the grant in this process.
+    evict_learner(LearnerScope.institutional(campus_id, learner_id))
 
 
 @router.post("/campuses/{campus_id}/educators/{educator_id}/disable", status_code=204)
@@ -208,7 +212,17 @@ async def disable_campus_membership(
     teacher = await db.get(ClassicalEducator, teacher_id)
     if teacher:
         teacher.credential_version += 1
+    granted = (await db.execute(
+        select(PilotRosterGrant.learner_id).where(
+            PilotRosterGrant.educator_id == teacher_id,
+            PilotRosterGrant.campus_id == campus_id,
+        )
+    )).scalars().all()
     await db.commit()
+    # Same eviction as a single-grant revoke, for every learner this
+    # educator held a grant for on this campus.
+    for learner_id in granted:
+        evict_learner(LearnerScope.institutional(campus_id, learner_id))
 
 
 @router.get("/me/learners")

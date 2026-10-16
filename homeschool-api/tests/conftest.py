@@ -63,8 +63,9 @@ def test_client_with_database_context():
 @pytest.fixture(autouse=True)
 def _clear_readonly_prompt_caches():
     """services/ai_service.py caches _load_mastery_vector_readonly,
-    _load_processing_style_readonly, and _load_lesson_bookmark_readonly per
-    student_name for several minutes (a real perf fix — see
+    _load_processing_style_readonly, _load_lesson_bookmark_readonly and
+    _load_music_vector_readonly per learner scope (core/learner_scope.py; a
+    household name maps to one fixed legacy scope) for several minutes (a real perf fix — see
     _READONLY_PROMPT_CACHE_TTL_SECONDS' comment). Each cache is
     module-global, so without resetting them here, one test's result for a
     given student_name could silently leak into a later test reusing the
@@ -74,10 +75,12 @@ def _clear_readonly_prompt_caches():
     ai_service_module._mastery_vector_cache.clear()
     ai_service_module._processing_style_cache.clear()
     ai_service_module._lesson_bookmark_cache.clear()
+    ai_service_module._music_vector_cache.clear()
     yield
     ai_service_module._mastery_vector_cache.clear()
     ai_service_module._processing_style_cache.clear()
     ai_service_module._lesson_bookmark_cache.clear()
+    ai_service_module._music_vector_cache.clear()
 
 
 @pytest.fixture(autouse=True)

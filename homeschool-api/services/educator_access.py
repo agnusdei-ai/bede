@@ -17,7 +17,7 @@ from sqlalchemy import delete, select
 from core import student_keys
 from core.config import settings
 from core.credential_hash import hash_secret, verify_secret
-from core.database import ClassicalEducator, EducatorRosterAssignment, PilotCampus, StudentConfig
+from core.database import ClassicalEducator, EducatorRosterAssignment, StudentConfig
 from core.encryption import aad_for, decrypt_json, encrypt_json
 
 LOCUTO_POD_MIN = 3
@@ -136,10 +136,9 @@ async def _require_legacy_name_route_safe(db) -> None:
     campus identities exist. The new /pilot UUID routes call live_educator
     directly and remain available while UUID integrations are completed.
     """
-    if settings.educator_pilot_enabled:
-        present = (await db.execute(select(PilotCampus.id).limit(1))).scalar_one_or_none()
-        if present is not None:
-            raise HTTPException(status_code=404, detail="Learner not assigned")
+    from services.pilot_authz import legacy_name_routes_allowed
+    if not await legacy_name_routes_allowed(db):
+        raise HTTPException(status_code=404, detail="Learner not assigned")
 
 
 async def require_assignment(db, token: dict, student_name: str) -> None:
@@ -211,9 +210,20 @@ async def assign_class_roster(db, educator_id: str, configs: list) -> dict:
     for config in configs:
         if config.student_name not in existing:
             await student_keys.get_or_create(db, config.student_name)
+    previous = set((await db.execute(
+        select(EducatorRosterAssignment.student_name)
+        .where(EducatorRosterAssignment.educator_id == educator_id)
+    )).scalars().all())
     await db.execute(delete(EducatorRosterAssignment).where(
         EducatorRosterAssignment.educator_id == educator_id,
     ))
+    if previous - set(names):
+        # A replacement that removes a learner is a revocation. Bump the
+        # credential version exactly as the pilot revoke routes do, so every
+        # token, open voice stream and in-flight tutoring turn minted under
+        # the old roster stops on its next check (services/pilot_authz.py
+        # pins credential_version as the legacy grant version).
+        account.credential_version += 1
     for config in configs:
         if config.student_name not in existing:
             key = await student_keys.get_existing(db, config.student_name)

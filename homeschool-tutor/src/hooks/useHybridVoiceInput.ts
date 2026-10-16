@@ -1,7 +1,8 @@
 // Mirror of demo/src/useHybridVoiceInput.ts for the homeschool-tutor app.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useVoiceRecorder } from './useVoiceRecorder'
-import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents } from '../services/voiceApi'
+import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents, voiceScopeFor } from '../services/voiceApi'
+import { useSessionStore } from '../store/sessionStore'
 import { logDebug } from './debugBus'
 import { enterRecordingAudioSession, restorePlaybackAudioSession } from '../utils/audioSession'
 import { isNetworkFailure } from '../utils/networkFailure'
@@ -395,7 +396,14 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     }
 
     const beginStream = (attemptsLeft: number) => {
-      startVoiceStream(token, language.slice(0, 2))
+      // An educator's session must name its learner; the server binds the
+      // voice session to that learner's grant. Read live, not from a closure.
+      const { role, sessionConfig } = useSessionStore.getState()
+      const scope = voiceScopeFor(role, sessionConfig)
+      const opened = scope
+        ? startVoiceStream(token, language.slice(0, 2), scope)
+        : startVoiceStream(token, language.slice(0, 2))
+      opened
         .then((sessionId) => {
           if (attemptRef.current !== attempt) return // turn already ended
           logDebug(`startVoiceStream opened session after ${Date.now() - holdStartedAtRef.current}ms`)

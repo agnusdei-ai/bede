@@ -116,6 +116,21 @@ describe('what it deliberately will not retry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('a retry is a fresh request the server re-authorizes, and its refusal ends the retries', async () => {
+    // G1: the server resolves the educator's grant again on every request,
+    // so a retry after revocation is refused (401 once the credential
+    // version moved, 404 once the learner is unassigned). Neither refusal
+    // may be retried: the turn ends there.
+    for (const status of [401, 404]) {
+      fetchMock.mockReset()
+      fetchMock
+        .mockRejectedValueOnce(loadFailed())
+        .mockResolvedValueOnce(sseResponse([], false, status))
+      await expect(collect(run())).rejects.toThrow(/Tutor request failed/)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+    }
+  })
+
   it('does not restart a reply the child is already reading', async () => {
     // Fails AFTER the first chunk reached the caller. Retrying here would
     // replay text already on screen, mid-sentence.

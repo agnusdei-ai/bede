@@ -99,13 +99,35 @@ export type VoiceStreamEvent =
   | { type: 'done' }
   | { type: 'error'; message: string }
 
+/** Which learner an EDUCATOR's voice session is for. The server binds the
+ *  session to the teacher, campus, learner and grant it resolves from this,
+ *  and refuses an educator session without it (homeschool-api's
+ *  routers/voice.py). `learner_id` is a campus learner's UUID; `student_name`
+ *  is the single-household roster name, which the server refuses once any
+ *  campus exists. Parent, child and demo sessions send nothing. */
+export type VoiceLearnerScope =
+  | { learner_id: string; campus_id?: string }
+  | { student_name: string }
+
+/** The scope to send for the current session, or undefined when the role is
+ *  not an educator (or no learner is loaded, which the server then refuses). */
+export function voiceScopeFor(
+  role: string | null | undefined,
+  sessionConfig: { student_name?: string } | null | undefined,
+): VoiceLearnerScope | undefined {
+  if (role !== 'educator' || !sessionConfig?.student_name) return undefined
+  return { student_name: sessionConfig.student_name }
+}
+
 /** Starts a new server-side streaming-transcription session. Returns its id
  *  — pass it to pushVoiceStreamChunk/finishVoiceStream/streamVoiceEvents. */
-export async function startVoiceStream(token: string, language = 'en'): Promise<string> {
+export async function startVoiceStream(
+  token: string, language = 'en', scope?: VoiceLearnerScope,
+): Promise<string> {
   const res = await fetch(`${BASE}/voice/stream/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ language }),
+    body: JSON.stringify({ language, ...(scope ?? {}) }),
   })
   if (!res.ok) throw new Error('Could not start voice streaming')
   const data = await res.json()

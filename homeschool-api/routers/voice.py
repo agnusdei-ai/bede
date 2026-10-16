@@ -1,7 +1,8 @@
 import json
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 from typing import List
@@ -19,11 +20,14 @@ from services.voice_auth import (
 )
 from services.transcription import transcribe_audio
 from services.streaming_transcription import (
+    discard_session,
     events as stream_events,
     finish_session,
     push_chunk,
+    session_authz,
     start_session,
 )
+from services import pilot_authz
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
@@ -205,61 +209,165 @@ async def transcribe(
 
 class StreamStartRequest(BaseModel):
     language: str = "en"
+    # Educator sessions only, and required for them: which learner this
+    # voice session is for. In campus mode that is the learner UUID (the
+    # campus is resolved server-side from the grant; a campus sent here is
+    # only compared). In single-household mode it is the roster name. Every
+    # other role ignores these fields.
+    learner_id: Optional[str] = Field(default=None, max_length=64)
+    campus_id: Optional[str] = Field(default=None, max_length=64)
+    student_name: Optional[str] = Field(default=None, max_length=100)
+
+
+# Matches no session's owner. Used when an educator's token cannot be paired
+# with the session it names, so the comparison in streaming_transcription
+# fails exactly as it does for an unknown session.
+_NO_OWNER = "\x00no-owner"
+_UNKNOWN_SESSION = "Unknown or finished streaming session"
 
 
 def _stream_owner(auth: dict) -> str:
-    """Binds a streaming-transcription session to the identity that started
-    it. session_id is already a random 122-bit token (uuid4), but nothing
-    previously stopped a second authenticated caller — parent, child, or a
-    DIFFERENT demo visitor — who somehow learned another session's id from
-    pushing chunks into it or reading its transcript. Matters most for the
-    demo, where many independent concurrent visitors share the same role on
-    one instance: auth["code"] is the one thing that's actually unique per
-    visitor there. Parent/child are single shared-credential roles in this
-    app's single-tenant design (docs/SECURITY.md's scope statement — one
-    family, one parent_password, one child_pin), so role alone is the right
-    granularity for them; there's no separate per-child identity to bind to."""
+    """The owner of a NON-educator session. session_id is already a random
+    122-bit token (uuid4), but nothing else stops a second authenticated
+    caller who learned another session's id. auth["code"] is unique per demo
+    visitor; parent and child are single shared-credential roles in this
+    app's single-tenant design (docs/SECURITY.md's scope statement), so role
+    is the right granularity for them.
+
+    Educators never come through here. A literal "educator" owner once
+    shared every educator's session with every other educator; an educator
+    session's owner is pilot_authz.PilotAuthzContext.owner_key() instead."""
     return auth.get("code") or auth.get("role", "")
 
 
+def _educator_owner(session_id: str, auth: dict):
+    """(owner, context) for an educator request against an existing session.
+
+    The owner is recomputed from the TOKEN's principal and credential
+    version plus the session's bound campus, learner, grant id and grant
+    version, then compared in full by streaming_transcription. A different
+    teacher, a stale token, or a session started by another role all yield an
+    owner that matches nothing, which reads exactly like an unknown session."""
+    ctx = session_authz(session_id)
+    if (ctx is None or ctx.principal_id != auth.get("sub")
+            or ctx.credential_version != auth.get("ev")):
+        return _NO_OWNER, None
+    return ctx.owner_key(), ctx
+
+
+async def _resolve_voice_context(db, auth: dict, req: StreamStartRequest):
+    """Server-side resolution of the learner an educator's session is for.
+    Campus mode (any campus exists, or a learner UUID was sent): the uniform
+    404 for every bad, foreign, revoked or missing id. Single-household mode:
+    the roster name, denied instance-wide once any campus exists."""
+    if req.learner_id is not None or await pilot_authz.campus_mode_active(db):
+        return await pilot_authz.resolve_campus_learner(
+            db, auth, req.learner_id, pilot_authz.ACTION_VOICE,
+            claimed_campus_id=req.campus_id,
+        )
+    if req.student_name:
+        return await pilot_authz.resolve_legacy_learner(
+            db, auth, req.student_name, pilot_authz.ACTION_VOICE,
+        )
+    raise pilot_authz.not_found()
+
+
+async def _revoke_if_stale(session_id: str, ctx, request: Request) -> bool:
+    """Re-validate an educator session's grant. On failure: audit, discard
+    the session (its worker is cancelled with it), and report True so the
+    caller answers exactly as it would for an unknown session."""
+    if await pilot_authz.revalidate(ctx):
+        return False
+    pilot_authz.audit_revoked(ctx, "voice.write", audit_from_request(request))
+    discard_session(session_id)
+    return True
+
+
 @router.post("/stream/start")
-async def stream_start(req: StreamStartRequest, auth: dict = Depends(require_auth)):
+async def stream_start(
+    req: StreamStartRequest,
+    request: Request = None,
+    auth: dict = Depends(require_auth),
+    db: AsyncSession = Depends(get_db),
+):
+    if auth.get("role") == "educator":
+        ctx = await _resolve_voice_context(db, auth, req)
+        return {"session_id": start_session(
+            language=req.language, owner=ctx.owner_key(), authz=ctx,
+        )}
     return {"session_id": start_session(language=req.language, owner=_stream_owner(auth))}
 
 
 @router.post("/stream/{session_id}/chunk")
 async def stream_chunk(
     session_id: str,
+    request: Request = None,
     audio: UploadFile = File(...),
     auth: dict = Depends(require_auth),
 ):
     data = await audio.read()
     _validate_audio(data, audio.filename or "audio")
-    if not push_chunk(session_id, data, owner=_stream_owner(auth)):
-        raise HTTPException(status_code=404, detail="Unknown or finished streaming session")
+    owner = _stream_owner(auth)
+    if auth.get("role") == "educator":
+        owner, ctx = _educator_owner(session_id, auth)
+        if ctx is not None and await _revoke_if_stale(session_id, ctx, request):
+            raise HTTPException(status_code=404, detail=_UNKNOWN_SESSION)
+    if not push_chunk(session_id, data, owner=owner):
+        raise HTTPException(status_code=404, detail=_UNKNOWN_SESSION)
     return {"accepted": True}
 
 
 @router.post("/stream/{session_id}/finish")
-async def stream_finish(session_id: str, auth: dict = Depends(require_auth)):
-    if not finish_session(session_id, owner=_stream_owner(auth)):
+async def stream_finish(
+    session_id: str,
+    request: Request = None,
+    auth: dict = Depends(require_auth),
+):
+    owner = _stream_owner(auth)
+    if auth.get("role") == "educator":
+        owner, ctx = _educator_owner(session_id, auth)
+        if ctx is not None and await _revoke_if_stale(session_id, ctx, request):
+            raise HTTPException(status_code=404, detail="Unknown or already-finished streaming session")
+    if not finish_session(session_id, owner=owner):
         raise HTTPException(status_code=404, detail="Unknown or already-finished streaming session")
     return {"accepted": True}
 
 
 @router.get("/stream/{session_id}/events")
-async def stream_events_endpoint(session_id: str, auth: dict = Depends(require_auth)):
+async def stream_events_endpoint(
+    session_id: str,
+    request: Request = None,
+    auth: dict = Depends(require_auth),
+):
     """
     Consumed via fetch() + a manual stream reader on the client (see
     services/api.ts's parseSSEStream), NOT the browser's native EventSource
     API — EventSource can't attach an Authorization header, and this
     endpoint needs one like every other authenticated route here.
     """
-    owner = _stream_owner(auth)
+    owner, ctx = _stream_owner(auth), None
+    if auth.get("role") == "educator":
+        owner, ctx = _educator_owner(session_id, auth)
 
     async def event_generator():
-        async for item in with_stall_timeout(stream_events(session_id, owner=owner), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS):
-            yield json.dumps(item)
+        items = with_stall_timeout(stream_events(session_id, owner=owner), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS)
+        if ctx is None:
+            async for item in items:
+                yield json.dumps(item)
+            return
+        # An educator's stream re-validates the grant before every item and
+        # while idle (services/pilot_authz.guarded_stream). On revocation the
+        # inner stream is closed, which discards the session and cancels its
+        # worker, so a reconnect or a later chunk finds nothing. The client
+        # is told exactly what an unknown session tells it.
+        try:
+            async for item in pilot_authz.guarded_stream(
+                items, ctx, stage="voice.events", request_ctx=audit_from_request(request),
+            ):
+                yield json.dumps(item)
+        except pilot_authz.AuthzRevoked:
+            discard_session(session_id)
+            yield json.dumps({"type": "error", "message": "unknown or expired session"})
 
     # A shorter ping than sse-starlette's 15s default, for this endpoint
     # specifically. /tutor/chat and /sandbox/chat (the other EventSourceResponse

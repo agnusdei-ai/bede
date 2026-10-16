@@ -283,7 +283,8 @@ transaction it:
    `pilot_assessment_responses`, `pilot_assessment_transitions`,
    `pilot_assessment_evidence`, `pilot_assessment_proposals`,
    `pilot_assessment_decisions`, `pilot_assessment_plans`,
-   `pilot_progress_monitoring_schedules`, `pilot_roster_grants`, and last
+   `pilot_progress_monitoring_schedules`, **G2** `pilot_evidence`,
+   `pilot_recommendations`, `pilot_decisions`, `pilot_roster_grants`, and last
    `pilot_learners` (the encrypted display name);
 4. deletes any household-shaped row stored under the learner's institutional
    storage subject (`pilot:<campus_uuid>:<learner_uuid>`) in every table with a
@@ -298,6 +299,8 @@ evicted, so a failure never reports success.
 
 The campus calendar and benchmark authorization are kept. They describe the
 campus, not the learner.
+
+**Owner receipt.** The verified owner route records a content-free SHA-256 deletion receipt inside the **same transaction** as the complete G1+G2 learner cascade. A receipt-write failure rolls back the deletion. Previous encrypted copies in backups are outside this active-record deletion.
 
 **The tombstone.** One audit event, `student.data_deleted`, whose detail is
 exactly:

@@ -113,8 +113,8 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       ...(note.trim() ? { note: note.trim() } : {}),
     })
     setEditing(false); setEditText(''); setNote('')
-    setMessage(action === 'reject' ? 'Recommendation rejected. Nothing was sent to the learner.'
-      : 'Decision saved. The authorized instruction is below.')
+    setMessage(action === 'reject' ? 'Recommendation rejected and recorded.'
+      : 'Decision recorded. The instruction below is ready for teacher use.')
     await reload(learnerId)
   })
 
@@ -123,8 +123,9 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       <div>
         <h2 className="font-semibold flex items-center gap-2"><ClipboardList size={18}/> Evidence-linked recommendations</h2>
         <p className="text-xs text-gray-600">
-          Invite-only pilot. Bede drafts a suggestion from the evidence you record; nothing reaches
-          a learner until you approve or edit it. Every decision is saved to a tamper-evident audit trail.
+          Invite-only pilot. Bede drafts a suggestion from the evidence you record; nothing is recorded as
+          instruction until you approve or edit it, and Bede does not deliver it to a learner session —
+          it is ready for your own use. Every decision is saved to a tamper-evident audit trail.
         </p>
       </div>
 
@@ -238,11 +239,11 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold flex items-center gap-2"><FileCheck2 size={16}/> 3. Authorized instruction</h3>
+        <h3 className="text-sm font-semibold flex items-center gap-2"><FileCheck2 size={16}/> 3. Instruction ready for teacher use</h3>
         {authorized?.authorized_instruction
           ? <div className="rounded-xl border border-sage-300 bg-sage-50 p-3 text-sm space-y-1">
               <p>{authorized.authorized_instruction}</p>
-              <p className="text-xs text-gray-600">{authorized.status === 'edited' ? 'Edited and authorized' : 'Approved'} {authorized.decided_at ? new Date(authorized.decided_at).toLocaleDateString() : ''}</p>
+              <p className="text-xs text-gray-600">{authorized.status === 'edited' ? 'Edited and recorded' : 'Approved and recorded'} {authorized.decided_at ? new Date(authorized.decided_at).toLocaleDateString() : ''}</p>
             </div>
           : <p className="text-sm text-gray-500">No instruction authorized yet.</p>}
         {ledger && ledger.entries.length > 0 && (

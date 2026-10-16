@@ -94,6 +94,14 @@ describe('PilotTeacherJourney', () => {
       't', A, REC, { action: 'approve', expected_version: 1 }))
     expect(await screen.findByText(/1 decision · integrity verified/)).toBeTruthy()
     expect(screen.queryByText(/Draft, awaiting your decision/)).toBeNull()
+    // Decision 7: delivery into a learner session is unavailable (#585), so an
+    // approval is shown as recorded and ready for teacher use, never as delivered.
+    expect((await screen.findAllByText(/ready for teacher use/)).length).toBeGreaterThan(0)
+    const text = document.body.textContent ?? ''
+    for (const claim of [/reaches a learner/i, /sent to the learner/i, /delivered/i, /applied to/i, /Teach this with Bede/i]) {
+      expect(text).not.toMatch(claim)
+    }
+    expect(screen.queryByRole('button', { name: /teach|start session|deliver/i })).toBeNull()
   })
 
   it('edit sends the teacher text and a note', async () => {
@@ -109,13 +117,13 @@ describe('PilotTeacherJourney', () => {
     }))
   })
 
-  it('reject says plainly that nothing reached the learner', async () => {
+  it('reject is recorded, not described as delivery', async () => {
     render(<PilotTeacherJourney token="t"/>)
     await screen.findByText(pendingRec.proposal)
     api.decidePilotRecommendation.mockResolvedValue({ ...pendingRec, status: 'rejected' })
     api.fetchPilotRecommendations.mockResolvedValue([{ ...pendingRec, status: 'rejected' }])
     fireEvent.click(screen.getByRole('button', { name: /Reject/ }))
-    expect(await screen.findByText(/Nothing was sent to the learner/)).toBeTruthy()
+    expect(await screen.findByText(/Recommendation rejected and recorded/)).toBeTruthy()
     expect(api.decidePilotRecommendation).toHaveBeenCalledWith('t', A, REC, { action: 'reject', expected_version: 1 })
   })
 

@@ -152,7 +152,7 @@ async def delete_learner(campus_id: str, learner_id: str, payload: DeletionConfi
         receipts.append(row)
 
     try:
-        await delete_pilot_learner(
+        result = await delete_pilot_learner(
             db, learner.campus_id, learner.id,
             actor_role="parent", audit_context=audit_from_request(request),
             before_commit=persist_receipt,
@@ -164,7 +164,14 @@ async def delete_learner(campus_id: str, learner_id: str, payload: DeletionConfi
     # No second audit write: canonical service already records content-free
     # tombstone only AFTER the atomic delete and receipt commit succeeds.
     row = receipts[0]
-    return {**receipt_body(row), "receipt_sha256": row.receipt_sha256}
+    # This transient operational observation is intentionally OUTSIDE the
+    # durable SHA receipt: a cache is process-local, whereas the receipt
+    # records permanent database deletion. Only the already authenticated,
+    # passkey-elevated owner receives it; no learner content is exposed.
+    # Canonical deletion returns only after evict_learner(scope) has run.
+    return {**receipt_body(row), "receipt_sha256": row.receipt_sha256,
+            "cache_eviction_executed": True,
+            "evicted_cache_entries": result.evicted_cache_entries}
 
 
 @router.get("/deletion-receipts")

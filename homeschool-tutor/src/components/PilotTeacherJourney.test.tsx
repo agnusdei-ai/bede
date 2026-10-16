@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PilotTeacherJourney from './PilotTeacherJourney'
+import { ApiRequestError } from '../utils/requestFailure'
 
 const api = vi.hoisted(() => ({
   fetchPilotLearners: vi.fn(),
@@ -83,7 +84,7 @@ describe('PilotTeacherJourney', () => {
   it('approve sends the version it was shown, and the authorized instruction appears', async () => {
     render(<PilotTeacherJourney token="t"/>)
     await screen.findByText(pendingRec.proposal)
-    const approved = { ...pendingRec, status: 'approved', version: 2,
+    const approved = { ...pendingRec, status: 'approved', version: 2, delivery_state: 'NOT_REQUESTED',
       authorized_instruction: pendingRec.proposal, decided_at: '2026-10-11T00:00:00Z' }
     api.decidePilotRecommendation.mockResolvedValue(approved)
     api.fetchPilotRecommendations.mockResolvedValue([approved])
@@ -92,7 +93,7 @@ describe('PilotTeacherJourney', () => {
     fireEvent.click(screen.getByRole('button', { name: /Approve/ }))
     await waitFor(() => expect(api.decidePilotRecommendation).toHaveBeenCalledWith(
       't', A, REC, { action: 'approve', expected_version: 1 }))
-    expect(await screen.findByText(/1 decision · integrity verified/)).toBeTruthy()
+    expect(await screen.findByText(/1 decision · integrity check passed/)).toBeTruthy()
     expect(screen.queryByText(/Draft, awaiting your decision/)).toBeNull()
     // Decision 7: delivery into a learner session is unavailable (#585), so an
     // approval is shown as recorded and ready for teacher use, never as delivered.
@@ -102,6 +103,7 @@ describe('PilotTeacherJourney', () => {
       expect(text).not.toMatch(claim)
     }
     expect(screen.queryByRole('button', { name: /teach|start session|deliver/i })).toBeNull()
+    expect(screen.getByText(/Not sent to any learner session/)).toBeTruthy()
   })
 
   it('edit sends the teacher text and a note', async () => {
@@ -137,10 +139,38 @@ describe('PilotTeacherJourney', () => {
     expect(await screen.findByText(/No evidence has been recorded/)).toBeTruthy()
   })
 
-  it('flags a failed audit-chain check loudly', async () => {
+  it('explains a failed audit-trail check calmly, with what to do', async () => {
     api.fetchPilotLedger.mockResolvedValue({ chain_valid: false,
       entries: [{ seq: 1, action: 'approve', educator_id: 'e', created_at: '', note: null }] })
     render(<PilotTeacherJourney token="t"/>)
-    expect(await screen.findByText(/integrity check FAILED/)).toBeTruthy()
+    const line = await screen.findByText(/integrity check did not pass/)
+    expect(line.textContent).toMatch(/tell your administrator before relying on this history/)
+    expect(line.textContent).not.toMatch(/\b[A-Z]{4,}\b/)  // no all-caps alarm words
+  })
+
+  it('explains a decision conflict and refreshes instead of echoing server text', async () => {
+    render(<PilotTeacherJourney token="t"/>)
+    await screen.findByText(pendingRec.proposal)
+    api.decidePilotRecommendation.mockRejectedValue(
+      new ApiRequestError(409, 'Recommendation already decided or changed'))
+    const loads = api.fetchPilotRecommendations.mock.calls.length
+    fireEvent.click(screen.getByRole('button', { name: /Approve/ }))
+    expect(await screen.findByText(/Could not record your decision\. This draft was already decided/)).toBeTruthy()
+    await waitFor(() => expect(api.fetchPilotRecommendations.mock.calls.length).toBeGreaterThan(loads))
+  })
+
+  it('never shows raw exception text, and names a dropped connection', async () => {
+    render(<PilotTeacherJourney token="t"/>)
+    await screen.findByText(pendingRec.proposal)
+    api.decidePilotRecommendation.mockRejectedValue(
+      new ApiRequestError(500, 'Traceback (most recent call last): sqlalchemy.exc.OperationalError'))
+    fireEvent.click(screen.getByRole('button', { name: /Approve/ }))
+    expect(await screen.findByText(/Could not record your decision\. The server could not finish/)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Traceback|sqlalchemy|OperationalError/)
+
+    api.decidePilotRecommendation.mockRejectedValue(new TypeError('Load failed'))
+    fireEvent.click(screen.getByRole('button', { name: /Approve/ }))
+    expect(await screen.findByText(/couldn't reach the server\. Check your internet connection/)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Load failed/)
   })
 })

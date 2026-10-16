@@ -5,6 +5,8 @@ import {
   fetchPilotLearners, fetchPilotLedger, fetchPilotRecommendations,
   recordPilotEvidence, requestPilotRecommendation,
 } from '../services/api'
+import { describeFailure } from '../utils/requestFailure'
+import type { FailureContext } from '../utils/requestFailure'
 import type {
   AssessmentFrameworkMetadata, DibelsGrade, DibelsWindow, EducatorAssessmentBand,
   PilotEvidence, PilotLearner, PilotLedger, PilotRecommendation,
@@ -25,6 +27,21 @@ import type {
 const field = 'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm'
 const TODAY = () => new Date().toISOString().slice(0, 10)
 const label = (v: string | null | undefined) => (v ?? 'not reported').replaceAll('_', ' ')
+
+// What to say when a request fails, per action. Built from the status class
+// only (utils/requestFailure.ts), never from the error's own text.
+const NO_ACCESS = 'You may no longer be assigned to this learner. Ask your administrator to check your assignment.'
+export const FAILURES = {
+  load: { action: "load this learner's records", forbidden: NO_ACCESS,
+    notFound: 'This learner may no longer be assigned to you. Refresh the page to see your current list.' },
+  evidence: { action: 'save the evidence', forbidden: NO_ACCESS,
+    invalid: 'Check the score, unit, grade, testing window and category against the official report, then save again.' },
+  draft: { action: 'draft a recommendation', forbidden: NO_ACCESS,
+    conflict: 'There is already a draft awaiting your decision. Approve, edit or reject it first.' },
+  decide: { action: 'record your decision', forbidden: NO_ACCESS,
+    conflict: 'This draft was already decided or changed, possibly in another window. The list has been refreshed; review it before deciding again.',
+    invalid: 'Your edited instruction or note was not accepted. Check its length and try again.' },
+} satisfies Record<string, FailureContext>
 
 export default function PilotTeacherJourney({ token }: { token: string }) {
   const [learners, setLearners] = useState<PilotLearner[]>([])
@@ -71,7 +88,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
 
   useEffect(() => {
     setAbstention(''); setEditing(false); setMessage('')
-    reload(learnerId).catch(e => setMessage(e instanceof Error ? e.message : 'Could not load learner'))
+    reload(learnerId).catch(e => setMessage(describeFailure(e, FAILURES.load)))
   }, [learnerId, reload])
 
   const pending = recs.find(r => r.status === 'pending') ?? null
@@ -82,10 +99,11 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
 
   if (!learners.length) return null
 
-  const run = async (work: () => Promise<void>) => {
+  const run = async (work: () => Promise<void>, failure: FailureContext, onFail?: () => Promise<void>) => {
     setBusy(true); setMessage('')
     try { await work() } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Request failed')
+      setMessage(describeFailure(e, failure))
+      if (onFail) await onFail().catch(() => {})
     } finally { setBusy(false) }
   }
 
@@ -97,13 +115,13 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
     })
     setScore(''); setMessage('Evidence recorded.')
     await reload(learnerId)
-  })
+  }, FAILURES.evidence)
 
   const draft = () => run(async () => {
     const out = await requestPilotRecommendation(token, learnerId)
     setAbstention(out.abstained ? out.reason : '')
     await reload(learnerId)
-  })
+  }, FAILURES.draft)
 
   const decideAs = (action: 'approve' | 'edit' | 'reject') => run(async () => {
     if (!pending) return
@@ -116,7 +134,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
     setMessage(action === 'reject' ? 'Recommendation rejected and recorded.'
       : 'Decision recorded. The instruction below is ready for teacher use.')
     await reload(learnerId)
-  })
+  }, FAILURES.decide, () => reload(learnerId))
 
   return (
     <section aria-label="Pilot teacher journey" className="bg-white border rounded-2xl p-4 space-y-4">
@@ -244,12 +262,16 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
           ? <div className="rounded-xl border border-sage-300 bg-sage-50 p-3 text-sm space-y-1">
               <p>{authorized.authorized_instruction}</p>
               <p className="text-xs text-gray-600">{authorized.status === 'edited' ? 'Edited and recorded' : 'Approved and recorded'} {authorized.decided_at ? new Date(authorized.decided_at).toLocaleDateString() : ''}</p>
+              {authorized.delivery_state === 'NOT_REQUESTED' && (
+                <p className="text-xs text-gray-600">Not sent to any learner session. Sending is not available in this pilot.</p>
+              )}
             </div>
           : <p className="text-sm text-gray-500">No instruction authorized yet.</p>}
         {ledger && ledger.entries.length > 0 && (
-          <p className={ledger.chain_valid ? 'text-xs text-gray-600' : 'text-xs font-semibold text-red-700'}>
+          <p className={ledger.chain_valid ? 'text-xs text-gray-600' : 'text-xs font-medium text-amber-900'}>
             Audit trail: {ledger.entries.length} decision{ledger.entries.length === 1 ? '' : 's'} ·{' '}
-            {ledger.chain_valid ? 'integrity verified' : 'integrity check FAILED, contact your administrator'}
+            {ledger.chain_valid ? 'integrity check passed'
+              : "the integrity check did not pass. Your decisions are still saved; tell your administrator before relying on this history."}
           </p>
         )}
       </div>

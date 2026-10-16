@@ -3,6 +3,7 @@ import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 import { getOrCreateDeviceId } from '../utils/deviceId'
 import { isNetworkFailure } from '../utils/networkFailure'
+import { ApiRequestError } from '../utils/requestFailure'
 
 const BASE = '/api'
 
@@ -1139,7 +1140,11 @@ async function educatorApi<T>(path: string, token: string, method = 'GET', body?
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
-    throw new Error(detail.detail || 'Educator request failed')
+    // Typed so pilot screens can explain the failure from its status
+    // (utils/requestFailure.ts) instead of showing server text verbatim.
+    // A validation array is not a sentence, so it never becomes the message.
+    throw new ApiRequestError(
+      res.status, typeof detail.detail === 'string' ? detail.detail : 'Educator request failed')
   }
   return res.status === 204 ? undefined as T : res.json()
 }
@@ -1283,6 +1288,9 @@ export interface PilotRecommendation {
   learner_id: string
   status: 'pending' | 'approved' | 'edited' | 'rejected'
   version: number
+  // The only state that exists: delivery to a learner is unavailable
+  // (Owner Decision 7, #585). Optional so an older server still type-checks.
+  delivery_state?: 'NOT_REQUESTED'
   policy_version: string
   source_evidence_ids: string[]
   proposal: string
@@ -1334,3 +1342,38 @@ export const decidePilotRecommendation = (
 
 export const fetchPilotLedger = (token: string, learnerId: string) =>
   educatorApi<PilotLedger>(`${pilot(learnerId)}/decisions`, token)
+
+// ── Valor pilot: owner-led learner deletion ────────────────────────────────
+// Every call needs the administrator passkey; ElevationPrompt asks for it.
+// There is deliberately no session plan or session launch here: delivering
+// approved instruction to a learner stays unavailable (Owner Decision 7,
+// #585; homeschool-api/tests/test_valor_pilot_delivery_disabled.py).
+
+export interface PilotOwnerCampus { campus_id: string; title: string; enabled: boolean }
+export interface PilotOwnerLearner extends PilotLearner { enabled: boolean }
+export interface PilotDeletionReceipt {
+  receipt_id: string
+  campus_id: string
+  learner_id: string
+  actor: string
+  deleted_counts: Record<string, number>
+  remaining_counts: Record<string, number>
+  deleted_at: string
+  receipt_sha256: string
+  hash_verified?: boolean
+}
+
+const owner = (path: string) => `/pilot/owner${path}`
+
+export const fetchPilotOwnerCampuses = (token: string) =>
+  educatorApi<PilotOwnerCampus[]>(owner('/campuses'), token)
+export const fetchPilotOwnerLearners = (token: string, campusId: string) =>
+  educatorApi<PilotOwnerLearner[]>(owner(`/campuses/${encodeURIComponent(campusId)}/learners`), token)
+export const deletePilotLearner = (
+  token: string, campusId: string, learnerId: string, confirmDisplayName: string,
+) => educatorApi<PilotDeletionReceipt>(
+  owner(`/campuses/${encodeURIComponent(campusId)}/learners/${encodeURIComponent(learnerId)}/delete`),
+  token, 'POST', { confirm_learner_id: learnerId, confirm_display_name: confirmDisplayName },
+)
+export const fetchPilotDeletionReceipts = (token: string) =>
+  educatorApi<PilotDeletionReceipt[]>(owner('/deletion-receipts'), token)

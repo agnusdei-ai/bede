@@ -1,0 +1,107 @@
+name: G1 staged security qualification
+
+# A standalone, fail-closed G1 acceptance lane. Deliberately does NOT edit,
+# replace, waive or turn green the full Synthetic qualification workflow.
+# G2 and missing owner/tutor routes remain unresolved pilot-release blockers.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g1-security:
+    name: G1 SQLite and non-superuser PostgreSQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-g1-admin-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      BEDE_REQUIRE_PG: '1'
+      G1_TEST_DATABASE_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_streams
+      G1_CACHE_TEST_DATABASE_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_cache
+      BEDE_CANON_PG_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_canonical
+      BEDE_DELETE_PG_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_deletion
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Pin the PR *head*, not GitHub's synthetic test-merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify the tested commit is the PR head
+        env:
+          EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "G1 staged candidate: $actual"
+          test "$actual" = "$EXPECTED"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install hash-locked dependencies
+        working-directory: homeschool-api
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Provision synthetic non-superuser PostgreSQL databases
+        run: |
+          python - <<'PY'
+          import asyncio
+          import asyncpg
+          async def main():
+              conn = await asyncpg.connect(host="127.0.0.1", port=5432,
+                                           user="postgres", password="synthetic-g1-admin-only",
+                                           database="postgres")
+              try:
+                  await conn.execute(
+                      "CREATE ROLE g1_ci LOGIN PASSWORD 'synthetic-g1-app-only' "
+                      "NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS")
+                  for database in ("g1_streams", "g1_cache", "g1_canonical", "g1_deletion"):
+                      await conn.execute(f"CREATE DATABASE {database} OWNER g1_ci")
+                  perms = await conn.fetchrow(
+                      "SELECT rolsuper, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname='g1_ci'")
+                  assert perms is not None and not any(tuple(perms)), "app role is privileged"
+              finally:
+                  await conn.close()
+          asyncio.run(main())
+          PY
+      - name: Assert PostgreSQL and synthetic-only inputs
+        run: |
+          python - <<'PY'
+          import asyncio, asyncpg, os
+          async def run():
+              for key in ("G1_TEST_DATABASE_URL", "G1_CACHE_TEST_DATABASE_URL",
+                          "BEDE_CANON_PG_URL", "BEDE_DELETE_PG_URL"):
+                  url = os.environ[key].replace("postgresql+asyncpg://", "postgresql://")
+                  db = await asyncpg.connect(url)
+                  try:
+                      who = await db.fetchrow(
+                          "SELECT current_user AS who, (SELECT rolsuper FROM pg_roles WHERE rolname=current_user) AS root")
+                      assert who["who"] == "g1_ci" and not who["root"]
+                  finally:
+                      await db.close()
+          asyncio.run(run())
+          PY
+      - name: Execute G1 tenant, assessment, revocation, stream and deletion suites
+        working-directory: homeschool-api
+        run: |
+          set -euo pipefail
+          python -m pytest -v             tests/test_valor_pilot_campus_g1.py             tests/test_g1_pilot_authz.py             tests/test_g1_search_and_uuid_uniformity.py             tests/test_g1_voice_binding.py             tests/test_g1_integration_streams.py             tests/test_g1_integration_assessment_authz.py             tests/test_canonical_assessment_api.py             tests/test_pilot_learner_deletion.py             tests/test_learner_scope_cache_isolation.py             tests/test_canonical_assessment_adapter.py
+      - name: Record limits of evidence
+        if: success()
+        run: |
+          echo "G1 targeted gate PASS on $(git rev-parse HEAD)"
+          echo "NO G2, owner-route, campus tutoring, Mac hardware or pilot GO assertion."
+          echo "Full Synthetic qualification still separately reports its own absent cells."

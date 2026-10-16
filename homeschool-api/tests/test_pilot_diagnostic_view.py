@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import uuid
 
+import pytest
+
 from test_canonical_assessment_api import (
     _reset_rate_limiter, client, world, full_journey,
 )
@@ -94,18 +96,37 @@ def test_fresh_grant_check_refuses_access_if_revoked_mid_read(world, monkeypatch
     assert "sources" not in response.text
 
 
-def test_tampered_source_never_leaves_the_diagnostic_route(world):
-    """The response must not present a mismatched source hash as valid evidence."""
+def test_immutable_evidence_and_hash_mismatch_both_fail_closed(world, monkeypatch):
+    """The DB refuses immutable source edits; mismatched verified hash
+    still never becomes educator-visible evidence even with read corruption.
+    Runs unchanged on SQLite and non-superuser PostgreSQL.
+    """
     from sqlalchemy import update
+    from sqlalchemy.exc import SQLAlchemyError
     from core.pilot_assessment_models import PilotAssessmentEvidence
+    from routers import pilot_diagnostic
+
     full_journey(world)
 
-    async def tamper():
+    async def attempted_tamper():
         async with world.client.db_factory() as session:
-            await session.execute(update(PilotAssessmentEvidence).values(snapshot_sha256="0" * 64))
-            await session.commit()
+            with pytest.raises(SQLAlchemyError, match="canonical assessment record is immutable"):
+                await session.execute(
+                    update(PilotAssessmentEvidence).values(snapshot_sha256="0" * 64))
+                await session.commit()
+            await session.rollback()
 
-    world.client.portal.call(tamper)
+    world.client.portal.call(attempted_tamper)
+
+    # The trigger protected the source; normal reads remain valid.
+    intact = world.client.get(url(world), headers=world.teacher_one.headers)
+    assert intact.status_code == 200
+    assert intact.json()["status"] == "evidence_available"
+
+    async def mismatched_snapshot(*args, **kwargs):
+        return "0" * 64
+
+    monkeypatch.setattr(pilot_diagnostic, "_snapshot_hash", mismatched_snapshot)
     response = world.client.get(url(world), headers=world.teacher_one.headers)
     assert response.status_code == 409
     assert response.json() == {"detail": "Verified assessment evidence is unavailable"}

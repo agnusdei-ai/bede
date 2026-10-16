@@ -22,6 +22,15 @@ log = logging.getLogger(__name__)
 _RESEND_URL = "https://api.resend.com/emails"
 _REQUEST_TIMEOUT_SECONDS = 15.0
 
+
+def _resend_url() -> str:
+    """Resend, unless RESEND_API_BASE_URL names a loopback mail sink for a
+    synthetic qualification run. core/config.py refuses any non-loopback
+    value and any value at all in production, so this can never send a
+    family's mail anywhere but Resend."""
+    base = settings.resend_api_base_url.strip()
+    return base.rstrip("/") + "/emails" if base else _RESEND_URL
+
 # Same reasoning as services/voice_synthesis.py's shared client: a fresh
 # httpx.AsyncClient() per call pays a full new TCP+TLS handshake to Resend
 # every send instead of reusing a pooled connection. Emails here are
@@ -256,7 +265,7 @@ async def send_email(to_address: str, subject: str, html_body: str) -> bool:
     try:
         client = _get_http_client()
         resp = await client.post(
-            _RESEND_URL,
+            _resend_url(),
             headers={
                 "Authorization": f"Bearer {settings.resend_api_key}",
                 "Content-Type": "application/json",

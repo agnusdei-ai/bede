@@ -4,18 +4,8 @@ name: Bede event-driven PR merge gate
 # React to successful/failing CI completions, PR metadata changes, and main
 # changes immediately. The ChatGPT engineering watch is a separate fallback,
 # not the event trigger.
+# Paused at owner's request on 2026-10-15. Do not resume without approval.
 on:
-  workflow_run:
-    workflows:
-      - Backend regression tests
-      - Frontend regression tests
-      - CodeQL analysis
-      - Institutional ordered qualification
-    types: [completed]
-  pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, labeled, unlabeled]
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -27,7 +17,7 @@ permissions:
 
 jobs:
   guarded-merge:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
+    if: false # Owner-requested HOLD; no execution even under manual dispatch
     runs-on: ubuntu-24.04
     permissions:
       contents: write

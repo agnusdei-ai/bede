@@ -650,10 +650,11 @@ def test_a_grant_that_waits_on_a_deletion_is_refused(client):
 # ── Guards: the cascade cannot silently miss a table ────────────────────────
 
 def test_every_learner_bearing_pilot_table_is_in_the_cascade():
-    """Extends #607's module-local guard to the WHOLE metadata, so a pilot
-    table added in any module (G1, G2, a later lane) must join the cascade."""
+    """All active pilot learner content must be cascaded, including G2. Only the
+    content-free post-deletion receipt is intentionally retained."""
     learner_bearing = {t.name for t in Base.metadata.sorted_tables
-                       if t.name.startswith("pilot_") and "learner_id" in t.c}
+                       if t.name.startswith("pilot_") and "learner_id" in t.c
+                       and t.name != "pilot_deletion_receipts"}
     learner_bearing.add("pilot_learners")
     assert learner_bearing == {t.name for t in pilot_cascade()}
     assert pilot_cascade()[-1].name == "pilot_learners"

@@ -70,6 +70,7 @@ REVALIDATE_INTERVAL_SECONDS = 1.0
 ACTION_VOICE = "voice.stream"
 ACTION_TUTOR = "tutor.chat"
 ACTION_LEARNER_READ = "learner.read"
+ACTION_ASSESSMENT = "assessment"
 
 
 class AuthzRevoked(Exception):

@@ -42,3 +42,21 @@ Mailbox MFA protects the mail account; Bede independently requires an administra
 Owner HITL procedure: (1) confirm configured HTTPS origin and verified email sender; (2) authenticate to Bede as an authorized administrator with a registered passkey and elevated authorization; (3) invite one exact allowlisted owner address; (4) open the single-use invitation in the mailbox using its existing MFA; (5) register a Bede passkey using the OS/browser prompt; (6) sign in independently with the enrolled passkey; (7) verify no roster appears without an explicit approved assignment, and verify denial of unauthorized learner access; (8) repeat on a second supported device only if independently authorized. Record the platform/browser version and outcomes, but never secret keys, passkey biometric/PIN, or invitation URLs.
 
 **Release limitation:** This is an enrollment test mechanism, not proof that institutional multi-tenant authorization or independently verified school recovery administration has been completed.
+
+
+## Owner deletion receipt — plain-English statements
+
+These exact statements are shown to an authorized administrator after an
+owner-confirmed active-record deletion. They do not claim backup destruction.
+
+- the learner's pilot record, teacher assignments, recorded evidence, recommendations and decision history.
+- this deletion receipt and one entry in the security audit log. Both hold only ID numbers, record counts, the date and who performed the deletion (the audit entry also notes the network address the request came from, as every audit entry does), never the learner's name or any learning content. Keep a copy of the receipt if you need to show the deletion later.
+- database backups made before this deletion may still hold encrypted copies of these records and could restore them. This deletion does not change or remove any backup, and no backup retention period has been approved yet.
+
+The owner must authenticate with an elevated administrator passkey, select the
+learner's actual campus and UUID, and type the display name. The G1 service
+counts and removes every active UUID-scoped learner record, atomically writes a
+content-free SHA-256 receipt in the same transaction, and invalidates caches
+only after commit. A failed confirmation, incomplete cascade, or failed receipt
+write must leave the learner's active records unchanged. A separate physical
+backup-retention decision remains human-only.

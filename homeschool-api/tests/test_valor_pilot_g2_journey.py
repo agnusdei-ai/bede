@@ -18,7 +18,6 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
 
 import core.database as database
 from core.config import settings
@@ -45,16 +44,20 @@ ASSESSED = date.today() - timedelta(days=3)
 
 
 @pytest_asyncio.fixture
-async def db(monkeypatch):
+async def db(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "educator_pilot_enabled", True)
     monkeypatch.setattr(settings, "demo_pin", "")
     # G2_GAP_DB_URL (a postgresql+asyncpg URL to a scratch database) runs
     # every test on this fixture against Postgres, the same switch
     # test_valor_pilot_g2_gaps.py uses. Default: in-memory SQLite.
     pg_url = os.environ.get("G2_GAP_DB_URL")
+    # Use separate connections for the original request and the pinned-grant
+    # fresh-session revalidation. In-memory StaticPool shares one connection:
+    # the reader's session rollback could undo the writer's pending decision.
+    # A file SQLite engine reproduces the distinct transactions used by PG.
     engine = (create_async_engine(pg_url) if pg_url else create_async_engine(
-        "sqlite+aiosqlite:///:memory:", poolclass=StaticPool,
-        connect_args={"check_same_thread": False},
+        f"sqlite+aiosqlite:///{tmp_path / 'g2_journey.sqlite'}",
+        pool_pre_ping=True,
     ))
     async with engine.begin() as conn:
         if pg_url:

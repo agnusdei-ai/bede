@@ -8,6 +8,7 @@ on:
     branches: [test/ministral-local-probe-20261015]
     paths:
       - "homeschool-api/scripts/ministral_local_probe.py"
+      - "homeschool-api/scripts/ministral_latency_probe.py"
       - ".github/workflows/ministral-real-weights-probe.yml"
       - "docs/CONSTITUTION.md"
   workflow_dispatch:
@@ -106,6 +107,12 @@ jobs:
         run: |
           set -euo pipefail
           python3 homeschool-api/scripts/ministral_local_probe.py
+
+      - name: Record streaming first-token and concurrent CPU timings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 homeschool-api/scripts/ministral_latency_probe.py
 
       - name: Preserve synthetic-only evidence and model logs
         if: always()

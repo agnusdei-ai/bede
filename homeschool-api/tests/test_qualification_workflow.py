@@ -433,6 +433,8 @@ def test_g2_recommendation_probe_keeps_negative_tests_without_preempting_review(
             assert method == "GET", "an early authorized write would poison G2's pending-proposal state"
             return httpx.Response(200, json=[])
         assert teacher == "teacher_two"
+        if method == "GET" and m.fx.learner["learner_two"] in path:
+            return httpx.Response(200, json=[{"learner_id": m.fx.learner["learner_two"]}])
         return httpx.Response(404, json={"detail": "Record not found"})
 
     monkeypatch.setattr(m, "present", lambda spec: True)
@@ -448,6 +450,7 @@ def test_g2_recommendation_probe_keeps_negative_tests_without_preempting_review(
     assert ("cross_campus_write", "PASS") in observed
     assert ("cross_campus_read", "PASS") in observed
     assert ("own_access", "PASS") in observed
+    assert ("same_name_isolation", "PASS") in observed
     assert not any(c.cell == "own_write" for c in m.cells), "G2 must own the positive write"
 
 

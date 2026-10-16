@@ -1,4 +1,4 @@
-# MacBook Pro: minimal Bede pilot smoke package
+# Mac mini / MacBook Pro: minimal Bede pilot smoke package
 
 This is the **shortest safe owner-operated test** for the **invite-only pilot**. It uses the repository's existing `docker-compose.yml` and HTTPS health endpoint. It does not create campuses, authenticate teachers, invoke Stripe, or perform destructive recovery. **Passing this script does not satisfy G1, G2 or G3.** Only synthetic learners until real Bede campus isolation is verified.
 
@@ -12,7 +12,9 @@ This is the **shortest safe owner-operated test** for the **invite-only pilot**.
 BEDE_SYNTHETIC_ONLY=1 bash scripts/pilot-smoke.sh start
 ```
 
-Only set `BEDE_SYNTHETIC_ONLY=1` after confirming the local environment uses a disposable database containing no real learner or campus records. This is an operator acknowledgement, **not an automated proof of data isolation**.\n\nThis validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health` **with certificate verification against the local `bede-root-ca.crt`**. If the CA is absent, HTTPS health is BLOCKED, never reported PASS using `curl --insecure`. It saves a private evidence folder under `pilot-evidence/`. First startup may require building/downloading images. For the actual source-free Mac pilot installation, use the merged package's `Verify-Bede.command` instead of this checkout-only helper.
+Only set `BEDE_SYNTHETIC_ONLY=1` after confirming the local environment uses a disposable database containing no real learner or campus records. This is an operator acknowledgement, **not an automated proof of data isolation**.
+
+This validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health` **with certificate verification against the local `bede-root-ca.crt`**. If the CA is absent, HTTPS health is BLOCKED, never reported PASS using `curl --insecure`. It saves a private evidence folder under `pilot-evidence/` (excluded from Git; the operator must still guard local access and redact evidence before sharing). First startup may require building/downloading images. For the actual source-free Mac pilot installation, use the merged package's `Verify-Bede.command` instead of this checkout-only helper.
 
 ## Later quick check
 

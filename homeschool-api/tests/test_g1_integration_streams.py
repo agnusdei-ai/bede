@@ -243,8 +243,10 @@ def test_deleting_a_learner_ends_live_voice_and_denies_reconnect(world):
         # Learner Two (same display name, other campus) keeps streaming.
         w.client.post(f"/voice/stream/{sid2}/chunk", files=_audio("still2"), headers=t2)
         assert _data_items(ev2, until=lambda i: i["type"] == "partial")[-1]["text"].startswith("still2")
+        # Checked while ev2 is still open: closing a client's event stream
+        # ends its session by design, so after the block sid2 is gone too.
+        assert sid1 not in st._sessions and sid2 in st._sessions
 
-    assert sid1 not in st._sessions and sid2 in st._sessions
     # Old token: signed out by the deletion. Fresh token: the learner is gone.
     assert w.client.post(f"/voice/stream/{sid1}/chunk", files=_audio("late"), headers=t1).status_code == 401
     fresh = w.teacher(w.teacher_one)
@@ -342,3 +344,33 @@ def test_campus_mode_tutoring_never_constructs_a_legacy_scope(world, monkeypatch
             assert r.status_code == 404, (student_name, r.status_code, r.text)
     assert model_calls == []
     assert legacy_built == []
+
+
+# ── 6. Grant changes are audited by the admin action itself ─────────────────
+
+def test_admin_grant_changes_are_audited_with_uuids_only(world):
+    """Before integration, approve/revoke/disable wrote no audit event: a
+    revocation was only evidenced when a stream happened to be open
+    (authz.revoked_in_flight). Now the admin action records itself."""
+    from core.audit import AuditEvent
+    w = world
+    w.revoke(w.campus_one, w.teacher_one, w.learner_one)
+    w.grant(w.campus_one, w.teacher_one, w.learner_one)
+    r = w.client.post(f"/pilot/campuses/{w.campus_two}/educators/{w.teacher_two}/disable",
+                      headers=w.admin())
+    assert r.status_code == 204, r.text
+    events = w.audit_events()
+    by = {}
+    for e in events:
+        by.setdefault(e.get("event"), []).append(e.get("detail", ""))
+    revoked = by.get(AuditEvent.PILOT_GRANT_REVOKED, [])
+    assert any(f"learner={w.learner_one}" in d and f"campus={w.campus_one}" in d
+               and f"educator={w.teacher_one}" in d and "v=2" in d for d in revoked), revoked
+    approved = by.get(AuditEvent.PILOT_GRANT_APPROVED, [])
+    # Seed approvals (v=1) plus the re-approval after the revoke (v=3).
+    assert any(f"learner={w.learner_one}" in d and "v=3" in d for d in approved), approved
+    disabled = by.get(AuditEvent.PILOT_MEMBERSHIP_DISABLED, [])
+    assert any(f"campus={w.campus_two}" in d and f"educator={w.teacher_two}" in d
+               and "grants=1" in d for d in disabled), disabled
+    for d in revoked + approved + disabled:
+        assert SAME_NAME not in d  # never a display name

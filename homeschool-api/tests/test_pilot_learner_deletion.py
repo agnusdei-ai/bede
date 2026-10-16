@@ -539,6 +539,106 @@ def test_a_teacher_write_that_waits_on_a_deletion_is_refused(client):
     assert waited, "the write's re-check did not wait on the deletion's lock"
 
 
+def _third_teacher_with_membership(client, w: World) -> str:
+    """A campus-one member who does NOT yet hold a grant for learner one,
+    so the grant under test is a fresh INSERT rather than a re-enable."""
+    from services.educator_access import provision_educator
+
+    async def make():
+        async with client.db_factory() as s:
+            return (await provision_educator(s, "synthetic.teacher.three", "synthetic-passphrase-three-x"))["id"]
+    teacher = client.portal.call(make)
+    r = client.post(f"/pilot/campuses/{w.campus_one}/educators/{teacher}", headers=ADMIN)
+    assert r.status_code == 204, r.text
+    return teacher
+
+
+def _grant_rows(client, learner_id: str) -> int:
+    return _run(client, lambda s: _scalar(s, select(func.count()).select_from(PilotRosterGrant)
+                                           .where(PilotRosterGrant.learner_id == learner_id)))
+
+
+async def _scalar(s, stmt):
+    return (await s.execute(stmt)).scalar_one()
+
+
+def test_a_grant_in_flight_is_deleted_with_everything_else(client):
+    """Grant first, then delete: the REAL grant handler holds FOR SHARE on
+    the learner row until it commits, so the deletion waits and then
+    removes the new grant too."""
+    if client.backend != "postgres":
+        pytest.skip("Row locks are a Postgres property; SQLite serializes writers instead")
+    import routers.pilot_campuses as g1
+    w = World(client).seed()
+    teacher = _third_teacher_with_membership(client, w)
+
+    async def scenario():
+        reached, release = asyncio.Event(), asyncio.Event()
+        async with client.db_factory() as grant_db, client.db_factory() as admin_db:
+            real_commit = grant_db.commit
+
+            async def held_commit():
+                reached.set()
+                await release.wait()
+                await real_commit()
+            grant_db.commit = held_commit
+            grant = asyncio.create_task(g1.approve_roster_grant(
+                w.campus_one, teacher, w.learner_one, auth={"role": "parent", "auth_method": "webauthn_uv"},
+                db=grant_db))
+            await asyncio.wait_for(reached.wait(), timeout=10)
+            deleting = asyncio.create_task(delete_pilot_learner(admin_db, w.campus_one, w.learner_one))
+            await asyncio.sleep(1.0)
+            blocked = not deleting.done()
+            release.set()
+            await asyncio.wait_for(grant, timeout=10)
+            result = await asyncio.wait_for(deleting, timeout=10)
+            return blocked, result
+    blocked, result = client.portal.call(scenario)
+    assert blocked, "deletion did not wait for the in-flight grant's FOR SHARE lock"
+    assert result.deleted["pilot_roster_grants"] == 2  # seeded grant + the racing one
+    assert _grant_rows(client, w.learner_one) == 0
+
+
+def test_a_grant_that_waits_on_a_deletion_is_refused(client):
+    """Delete first, then grant: the grant waits on the deletion's lock,
+    then finds no learner and answers the uniform 404, writing nothing."""
+    if client.backend != "postgres":
+        pytest.skip("Row locks are a Postgres property; SQLite serializes writers instead")
+    from fastapi import HTTPException
+    import routers.pilot_campuses as g1
+    w = World(client).seed()
+    teacher = _third_teacher_with_membership(client, w)
+
+    async def scenario():
+        reached, release = asyncio.Event(), asyncio.Event()
+
+        async def hold(db, result):
+            reached.set()
+            await release.wait()
+
+        async with client.db_factory() as grant_db, client.db_factory() as admin_db:
+            deleting = asyncio.create_task(delete_pilot_learner(
+                admin_db, w.campus_one, w.learner_one, before_commit=hold))
+            await asyncio.wait_for(reached.wait(), timeout=10)
+            grant = asyncio.create_task(g1.approve_roster_grant(
+                w.campus_one, teacher, w.learner_one, auth={"role": "parent", "auth_method": "webauthn_uv"},
+                db=grant_db))
+            await asyncio.sleep(1.0)
+            waited = not grant.done()
+            release.set()
+            await asyncio.wait_for(deleting, timeout=10)
+            try:
+                await asyncio.wait_for(grant, timeout=10)
+                outcome = "allowed"
+            except HTTPException as exc:
+                outcome = (exc.status_code, exc.detail)
+            return waited, outcome
+    waited, outcome = client.portal.call(scenario)
+    assert outcome == (404, "Record not found")
+    assert waited, "the grant did not wait on the deletion's lock"
+    assert _grant_rows(client, w.learner_one) == 0
+
+
 # ── Guards: the cascade cannot silently miss a table ────────────────────────
 
 def test_every_learner_bearing_pilot_table_is_in_the_cascade():

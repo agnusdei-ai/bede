@@ -160,7 +160,16 @@ async def approve_roster_grant(
     teacher_id, learner_id = _id(educator_id), _id(learner_id)
     membership = await db.get(PilotEducatorCampus, (teacher_id, campus.id))
     teacher = await db.get(ClassicalEducator, teacher_id)
-    pupil = await db.get(PilotLearner, learner_id)
+    # Hold the learner row FOR SHARE until the grant commits. Learner
+    # deletion (services/pilot_learner_deletion.py) takes FOR UPDATE on it,
+    # so a grant either commits before the deletion counts (and is deleted
+    # with everything else) or waits and then finds no learner. A no-op on
+    # SQLite, whose single writer lock serializes the two instead.
+    pupil = (await db.execute(
+        select(PilotLearner).where(PilotLearner.id == learner_id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )).scalar_one_or_none()
     if (membership is None or not membership.enabled
             or teacher is None or not teacher.enabled
             or pupil is None or not pupil.enabled or pupil.campus_id != campus.id):

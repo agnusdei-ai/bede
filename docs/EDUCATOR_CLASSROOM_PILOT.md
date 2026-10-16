@@ -60,19 +60,19 @@ Delivery-related work **must not merge** until all of the following hold:
 
 ## Owner-led learner deletion (classroom pilot administration)
 
-The deployment owner can permanently delete one pilot learner's records from **Parent Setup → Classroom pilot: delete a learner's records**. The panel appears only when the institutional pilot is enabled, loads nothing until opened, and every action asks for the administrator passkey (the app's elevation prompt) and is recorded in the audit log.
+The deployment owner can delete one pilot learner's active records from **Parent Setup → Classroom pilot: delete a learner's records**. The panel appears only when the institutional pilot is enabled, loads nothing until opened, and every action asks for the administrator passkey (the app's elevation prompt) and is recorded in the audit log.
 
 1. Choose the campus and the learner.
 2. Type the learner's name exactly to confirm. The server also checks the learner's ID.
 3. Bede removes, by the learner's ID, the learner record, teacher assignments, recorded evidence, recommendations and decision history, then counts again. If anything remains, the whole deletion is rolled back and no receipt is written. Teachers assigned to that learner are signed out and must sign in again.
 
-The panel then leads with a plain summary, for example "All of Example Learner's pilot records were removed on October 16, 2026 at 7:00 AM.", followed by these statements, quoted from the panel:
+The panel then leads with a plain summary, for example "Example Learner's active pilot records were removed on October 16, 2026 at 7:00 AM.", followed by these statements, quoted from the panel:
 
 - **Removed:** the learner's pilot record, teacher assignments, recorded evidence, recommendations and decision history.
 - **What remains:** this deletion receipt and one entry in the security audit log. Both hold only ID numbers, record counts, the date and who performed the deletion (the audit entry also notes the network address the request came from, as every audit entry does), never the learner's name or any learning content. Keep a copy of the receipt if you need to show the deletion later.
-- **Backups:** database backups made before this deletion still contain these records and could restore them. Bede does not set a retention period for backups; they are kept until you delete them. To finish removing the records everywhere, delete or replace backups taken before this deletion.
+- **Backups:** database backups made before this deletion may still hold encrypted copies of these records and could restore them. This deletion does not change or remove any backup, and no backup retention period has been approved yet.
 
-The backup statement differs from household deletion (`docs/DATA_RETENTION.md`), which crypto-shreds a per-student key: pilot rows are encrypted under the deployment key, not a per-learner key, so old backups stay restorable.
+The backup statement differs from household deletion (`docs/DATA_RETENTION.md`), which crypto-shreds a per-student key: pilot rows are encrypted under the deployment key, not a per-learner key, so old backups stay restorable. The panel therefore never says the records are erased or permanently gone; how long backups are kept is an owner policy decision that has not been made.
 
 The receipt's per-table counts, receipt ID, learner ID, SHA-256 and a **Copy receipt** button sit behind a collapsed **Technical details for administrators** disclosure. The receipt itself is unchanged by that presentation. Earlier receipts are listed with whether their integrity check passed; one that fails reads "This receipt's integrity check failed. Keep it and report it; do not rely on it as proof of deletion."
 

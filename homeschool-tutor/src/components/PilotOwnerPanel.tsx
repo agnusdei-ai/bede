@@ -9,8 +9,9 @@ import { describeFailure } from '../utils/requestFailure'
 
 /**
  * Owner-only classroom-pilot administration, performed on the real build:
- * choose a campus and learner, and permanently delete that learner's pilot
- * records with a verifiable receipt.
+ * choose a campus and learner, and delete that learner's active pilot records
+ * with a verifiable receipt. It never claims erasure: backups made earlier may
+ * still hold encrypted copies (see RECEIPT_COPY.backups).
  *
  * Shown only when the deployment has the institutional pilot enabled, and it
  * loads nothing until the owner opens it, because every call needs the
@@ -55,9 +56,9 @@ export const RECEIPT_COPY = {
     "from, as every audit entry does), never the learner's name or any learning content. Keep a copy " +
     'of the receipt if you need to show the deletion later.',
   backups:
-    'database backups made before this deletion still contain these records and could restore them. Bede does ' +
-    'not set a retention period for backups; they are kept until you delete them. To finish removing the ' +
-    'records everywhere, delete or replace backups taken before this deletion.',
+    'database backups made before this deletion may still hold encrypted copies of these records and could ' +
+    'restore them. This deletion does not change or remove any backup, and no backup retention period has ' +
+    'been approved yet.',
 } as const
 
 const when = (iso: string) => {
@@ -206,13 +207,13 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
         {learner && (
           <div className="rounded-xl border border-gray-300 p-3 space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-900">
-              <Trash2 size={16} aria-hidden="true"/> Permanently delete {learner.display_name}'s pilot records
+              <Trash2 size={16} aria-hidden="true"/> Delete {learner.display_name}'s active pilot records
             </h3>
             <p className="text-xs text-gray-700">
               This removes the learner's pilot record, teacher assignments, recorded evidence,
               recommendations and decision history, then checks that nothing remains. Teachers
-              assigned to this learner are signed out and will need to sign in again. This cannot
-              be undone.
+              assigned to this learner are signed out and will need to sign in again. Bede has no
+              undo for this. Backups made earlier are not changed.
             </p>
             <label className="block text-sm">Type <strong>{learner.display_name}</strong> to confirm
               <input className={field + ' mt-1'} value={confirmName} autoComplete="off"
@@ -232,7 +233,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
             {fullyRemoved(receipt.data)
               ? <>
                   <p className="font-semibold">
-                    All of {receipt.name}'s pilot records were removed on {when(receipt.data.deleted_at)}.
+                    {receipt.name}'s active pilot records were removed on {when(receipt.data.deleted_at)}.
                   </p>
                   <p className="text-xs text-gray-700"><strong>Removed:</strong> {RECEIPT_COPY.removed}</p>
                   <p className="text-xs text-gray-700"><strong>What remains:</strong> {RECEIPT_COPY.remains}</p>

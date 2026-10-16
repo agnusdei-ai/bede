@@ -42,7 +42,7 @@ afterEach(cleanup)
 
 const openPanel = async () => {
   fireEvent.click(await screen.findByRole('button', { name: /Classroom pilot/ }))
-  await screen.findByText(/Permanently delete Example Learner's pilot records/)
+  await screen.findByText(/Delete Example Learner's active pilot records/)
 }
 
 const confirmAndDelete = async () => {
@@ -87,13 +87,32 @@ describe('PilotOwnerPanel', () => {
     expect(button.disabled).toBe(false)
   })
 
+  // Fixed release rule: active application records may be removed, but Bede
+  // never claims secure deletion, permanent erasure, or backup destruction —
+  // backups may keep encrypted copies until an owner-approved retention policy
+  // exists. Checked on what the owner actually reads (before and after a
+  // deletion) and on the shared copy the docs quote.
+  const ERASURE_CLAIM = /permanent|\berase|erasure|secure(ly)? delet|wip(e|ed|ing)\b|destroy|everywhere|cannot be undone|gone for good|irreversibl/i
+
+  it('never claims erasure, permanence, or backup destruction', async () => {
+    api.deletePilotLearner.mockResolvedValue(receipt())
+    render(<PilotOwnerPanel token="t"/>)
+    await openPanel()
+    expect(document.body.textContent).not.toMatch(ERASURE_CLAIM)
+    await confirmAndDelete()
+    await screen.findByText(/active pilot records were removed on/)
+    expect(document.body.textContent).not.toMatch(ERASURE_CLAIM)
+    for (const sentence of Object.values(RECEIPT_COPY)) expect(sentence).not.toMatch(ERASURE_CLAIM)
+    expect(RECEIPT_COPY.backups).toMatch(/does not change or remove any backup/)
+  })
+
   it('leads with a plain summary of what was deleted, what remains, and backups', async () => {
     api.deletePilotLearner.mockResolvedValue(receipt())
     render(<PilotOwnerPanel token="t"/>)
     await openPanel()
     await confirmAndDelete()
     await waitFor(() => expect(api.deletePilotLearner).toHaveBeenCalledWith('t', C, L, 'Example Learner'))
-    expect(await screen.findByText(/All of Example Learner's pilot records were removed on/)).toBeTruthy()
+    expect(await screen.findByText(/Example Learner's active pilot records were removed on/)).toBeTruthy()
     const status = screen.getAllByRole('status')[0]
     for (const sentence of Object.values(RECEIPT_COPY)) expect(status.textContent).toContain(sentence)
     // The technical detail is present but collapsed behind a disclosure.

@@ -730,7 +730,12 @@ class SessionTranscript(Base):
     """Encrypted full session transcript saved at session end for parent review."""
     __tablename__ = "session_transcripts"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # PostgreSQL keeps BIGINT; SQLite needs the exact INTEGER PRIMARY KEY
+    # affinity for auto-generated IDs in synthetic pilot HTTP/integration tests.
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"),
+        primary_key=True, autoincrement=True,
+    )
     student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
     session_date: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -148,9 +148,11 @@ async def test_ordinary_audit_views_show_no_readable_learner_content(db, monkeyp
         assert text not in detail and text not in listing and text not in json.dumps(receipt), text
     # The teacher journey writes no general audit entries at all; its own
     # decision ledger holds hashes and ciphertext, and is removed above.
-    for mod in ("pilot_journey", "pilot_campuses"):
-        src = (Path(owner.__file__).parent / f"{mod}.py").read_text(encoding="utf-8")
-        assert "log_event" not in src, mod
+    # G1 campus administration legitimately emits content-free GRANT and
+    # REVOKE audit records; G1's own tests assert their exact UUID scope.
+    # The G2 journey itself writes only to its encrypted hash-chain ledger.
+    src = (Path(owner.__file__).parent / "pilot_journey.py").read_text(encoding="utf-8")
+    assert "log_event" not in src
 
 
 @pytest.mark.asyncio

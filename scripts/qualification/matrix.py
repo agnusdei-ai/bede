@@ -280,6 +280,31 @@ class Matrix:
             uni = r.status_code == ref.status_code and r.text == ref.text
             self.put(row, name, "PASS" if uni else "FAIL",
                      f"{r.status_code} identical-to-absent={r.text == ref.text}", status=r.status_code)
+        if write and not read:
+            # A write-only route still needs a *reciprocal* same-name
+            # isolation proof. When this tutoring endpoint was ABSENT, the
+            # table emitted eight generic ABSENT cells; once built, the
+            # one-way write probe emitted only seven, quietly shrinking the
+            # security matrix from 146 to 145. Exercise both teacher/learner
+            # pairings against the same indistinguishable 404 oracle.
+            body = write[2] if len(write) > 2 else None
+            own_missing = self.call(
+                "teacher_one", write[0],
+                self.path(write[1], learner_id=str(uuid.uuid4())), body,
+            )
+            other_learner = self.call(
+                "teacher_one", write[0],
+                self.path(write[1], learner_id=l2), body,
+            )
+            reciprocal = (
+                same and own_missing.status_code == other_learner.status_code == 404
+                and own_missing.text == other_learner.text
+            )
+            self.put(row, "same_name_isolation",
+                     "PASS" if reciprocal else "FAIL",
+                     "teachers cannot operate on each other's identically named learners; "
+                     f"teacher_one crossing -> {other_learner.status_code}; "
+                     f"teacher_two crossing -> {cross.status_code}")
         if read:
             mine = self.call("teacher_two", read[0], self.path(read[1], learner_id=l2))
             iso = mine.status_code == 200 and l1 not in mine.text and (own is None or l2 not in own.text)

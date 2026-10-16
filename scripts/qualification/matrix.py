@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -656,9 +657,35 @@ class Matrix:
         rec_ok = ins.status_code == 200 and not any(w in low for w in DELIVERY_WORDS)
         self.put(row, "instruction_recorded_not_delivered", "PASS" if rec_ok else "FAIL",
                  f"-> {ins.status_code}; no delivery claim in payload: {rec_ok}")
-        self.put(row, "failed_audit_write_atomic", "UNVERIFIED",
-                 "a failed audit write cannot be induced over HTTP without fault injection into the "
-                 "server; the in-process atomicity test lives with #604")
+        # A malicious client must never be given an audit-failure trigger.
+        # Exercise the real service's rollback with an isolated synthetic
+        # database in a separate process instead. Qualification only reports
+        # PASS if this executable test finishes successfully on this SAME SHA;
+        # no HTTP control, mock response or status waiver is introduced.
+        api_root = Path(__file__).resolve().parents[2] / "homeschool-api"
+        cmd = [sys.executable, "-m", "pytest", "-q", "--disable-warnings",
+               "tests/test_valor_pilot_g2_gaps.py::test_failed_audit_write_leaves_no_decision"]
+        isolated_env = dict(os.environ)
+        isolated_env["G2_GAP_DB_URL"] = ""  # fresh SQLite file; never modify the live PG
+        try:
+            proof = subprocess.run(cmd, cwd=api_root, env=isolated_env,
+                                   capture_output=True, text=True, timeout=120,
+                                   check=False)
+            proof_exit = proof.returncode
+            proof_output = (proof.stdout + "\\n" + proof.stderr)[-1200:]
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            proof_exit = -1
+            proof_output = f"{type(exc).__name__}: {exc}"
+        (cfg.OUT_DIR / "g2-audit-rollback-test.json").write_text(json.dumps({
+            "test": "test_failed_audit_write_leaves_no_decision",
+            "database": "fresh synthetic SQLite; live PostgreSQL unchanged",
+            "exit_code": proof_exit,
+            "output_tail": proof_output,
+        }, indent=2) + "\\n")
+        atomic = proof_exit == 0 and "1 passed" in proof_output
+        self.put(row, "failed_audit_write_atomic", "PASS" if atomic else "FAIL",
+                 f"isolated real audit-failure rollback test returned {proof_exit}; "
+                 f"exactly one test passed: {atomic}")
 
     def g2_after_restart(self) -> None:
         row = "decision"

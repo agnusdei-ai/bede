@@ -90,3 +90,21 @@ def test_fresh_grant_check_refuses_access_if_revoked_mid_read(world, monkeypatch
     assert response.status_code == 404, response.text
     assert response.json() == {"detail": "Record not found"}
     assert "sources" not in response.text
+
+
+def test_tampered_source_never_leaves_the_diagnostic_route(world):
+    """The response must not present a mismatched source hash as valid evidence."""
+    from sqlalchemy import update
+    from core.pilot_assessment_models import PilotAssessmentEvidence
+    full_journey(world)
+
+    async def tamper():
+        async with world.client.db_factory() as session:
+            await session.execute(update(PilotAssessmentEvidence).values(snapshot_sha256="0" * 64))
+            await session.commit()
+
+    world.client.portal.call(tamper)
+    response = world.client.get(url(world), headers=world.teacher_one.headers)
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Verified assessment evidence is unavailable"}
+    assert "sources" not in response.text

@@ -7,11 +7,14 @@ There is no fallback to student_name, demo, parent, or public access.
 from __future__ import annotations
 
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import (
     ClassicalEducator, PilotCampus, PilotEducatorCampus, PilotLearner,
@@ -48,6 +51,16 @@ def _id(value: str) -> str:
         # No enumeration of absent or malformed learner IDs.
         raise HTTPException(status_code=404, detail="Record not found")
     return str(parsed)
+
+
+async def _audit_grant_change(event: str, request: Optional[Request], **ids) -> None:
+    """Durable evidence of an administrator's grant or membership change.
+    UUIDs and versions only: never a display name. Written after the commit,
+    by the admin action itself; a failed audit write never undoes the change
+    (log_event swallows its own errors)."""
+    detail = " ".join(f"{k}={v}" for k, v in ids.items())
+    await log_event(event, role="parent", success=True, detail=detail,
+                    **(audit_from_request(request) if request is not None else {}))
 
 
 def _admin(auth: dict) -> None:
@@ -141,6 +154,7 @@ async def approve_educator_membership(
 @router.post("/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}", status_code=204)
 async def approve_roster_grant(
     campus_id: str, educator_id: str, learner_id: str,
+    request: Request = None,
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -164,6 +178,7 @@ async def approve_roster_grant(
             or pupil is None or not pupil.enabled or pupil.campus_id != campus.id):
         raise HTTPException(status_code=404, detail="Record not found")
     grant = await db.get(PilotRosterGrant, (teacher_id, campus.id, pupil.id))
+    changed, version = True, 1
     if grant is None:
         db.add(PilotRosterGrant(
             educator_id=teacher_id, campus_id=campus.id, learner_id=pupil.id,
@@ -173,12 +188,20 @@ async def approve_roster_grant(
         # version that was revoked must never revalidate (pilot_authz).
         grant.enabled = True
         grant.version += 1
+        version = grant.version
+    else:
+        changed = False
+    campus_uuid, learner_uuid = campus.id, pupil.id
     await db.commit()
+    if changed:
+        await _audit_grant_change(AuditEvent.PILOT_GRANT_APPROVED, request, campus=campus_uuid,
+                                  educator=teacher_id, learner=learner_uuid, v=version)
 
 
 @router.delete("/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}", status_code=204)
 async def revoke_roster_grant(
     campus_id: str, educator_id: str, learner_id: str,
+    request: Request = None,
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -193,15 +216,19 @@ async def revoke_roster_grant(
     teacher = await db.get(ClassicalEducator, teacher_id)
     if teacher:
         teacher.credential_version += 1
+    grant_uuid, version = grant.grant_id, grant.version
     await db.commit()
     # Drop every per-learner cache entry and the unwrapped data key, so
     # nothing derived for this learner outlives the grant in this process.
     evict_learner(LearnerScope.institutional(campus_id, learner_id))
+    await _audit_grant_change(AuditEvent.PILOT_GRANT_REVOKED, request, campus=campus_id,
+                              educator=teacher_id, learner=learner_id, grant=grant_uuid, v=version)
 
 
 @router.post("/campuses/{campus_id}/educators/{educator_id}/disable", status_code=204)
 async def disable_campus_membership(
     campus_id: str, educator_id: str,
+    request: Request = None,
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -228,6 +255,8 @@ async def disable_campus_membership(
         grant.version += 1
     granted = [grant.learner_id for grant in grants]
     await db.commit()
+    await _audit_grant_change(AuditEvent.PILOT_MEMBERSHIP_DISABLED, request, campus=campus_id,
+                              educator=teacher_id, grants=len(granted))
     # Same eviction as a single-grant revoke, for every learner this
     # educator held a grant for on this campus.
     for learner_id in granted:

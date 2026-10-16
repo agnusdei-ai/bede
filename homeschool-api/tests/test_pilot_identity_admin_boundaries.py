@@ -34,7 +34,7 @@ def test_campus_directory_cannot_assume_bede_recovery_admin(principal):
 async def test_directory_identity_cannot_initiate_lost_device_recovery(monkeypatch):
     from routers import educator_passkeys as routes
     monkeypatch.setattr(routes.settings, "educator_pilot_enabled", True)
-    monkeypatch.setattr(routes.settings, "is_demo_deployment", False)
+    monkeypatch.setattr(routes.settings, "demo_pin", "")  # is_demo_deployment is derived from demo_pin
     # No database required: authorization must reject before any DB access.
     with pytest.raises(HTTPException) as exc:
         await recover_educator(
@@ -50,7 +50,7 @@ async def test_directory_identity_cannot_initiate_lost_device_recovery(monkeypat
 async def test_directory_identity_cannot_invite_teacher(monkeypatch):
     from routers import educator_passkeys as routes
     monkeypatch.setattr(routes.settings, "educator_pilot_enabled", True)
-    monkeypatch.setattr(routes.settings, "is_demo_deployment", False)
+    monkeypatch.setattr(routes.settings, "demo_pin", "")  # is_demo_deployment is derived from demo_pin
     with pytest.raises(HTTPException) as exc:
         await invite_educator(
             InviteRequest(username="synthetic.teacher", institutional_email="teacher@example.edu"),

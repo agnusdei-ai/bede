@@ -129,11 +129,11 @@ class World:
 class _Server:
     """uvicorn on 127.0.0.1:<ephemeral>, in a daemon thread with its own loop."""
 
-    def __init__(self, app):
+    def __init__(self, app, port: int = 0):
         import uvicorn
         self.loop = asyncio.new_event_loop()
         self.server = uvicorn.Server(uvicorn.Config(
-            app, host="127.0.0.1", port=0, lifespan="off", log_level="warning",
+            app, host="127.0.0.1", port=port, lifespan="off", log_level="warning",
             loop="none", access_log=False,
         ))
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -159,7 +159,7 @@ class _Server:
 
 
 @contextmanager
-def g1_world(monkeypatch, campuses: bool = True):
+def g1_world(monkeypatch, campuses: bool = True, port: int = 0):
     import httpx
     import core.database as database
     import main
@@ -209,7 +209,7 @@ def g1_world(monkeypatch, campuses: bool = True):
             await conn.run_sync(Base.metadata.drop_all)
         await engine.dispose()
 
-    server = _Server(app)
+    server = _Server(app, port)
     try:
         base_url = server.start()
         with httpx.Client(base_url=base_url, timeout=30) as client:

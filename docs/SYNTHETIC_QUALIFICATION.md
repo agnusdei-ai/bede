@@ -279,3 +279,18 @@ python scripts/qualification/package.py
 
 `playwright` must resolve from the repository's `node_modules` or from
 `NODE_PATH`. Evidence lands in `qualification-out/`, which is gitignored.
+
+## Real-device check on a Mac (10-20 minutes, owner-run)
+
+`scripts/qualification/mac_check.py` is the interactive companion to the matrix. The matrix uses a Chromium *virtual* authenticator, so it cannot show that a real Mac, a real Safari or Chrome, and a real Touch ID prompt work against the same routes. This script starts the same stack on synthetic data, invites one synthetic teacher, and serves one small page on the stack's own origin (`https://localhost:8765`, this run's self-signed certificate, accepted once in the browser) so the person does the Touch ID enrollment and sign-in. A Chromium virtual authenticator still plays the synthetic *administrator*; only the teacher is a real device.
+
+```
+export QUAL_DB_ADMIN_URL=postgresql://postgres@127.0.0.1:5432/postgres
+python scripts/qualification/mac_check.py --browser safari   # then again with --browser chrome
+```
+
+The person supplies: Touch ID taps, button presses in the page, and a yes/no per item. Everything else is automatic, and pass or fail is decided from what the server answered, not from the person's yes/no (their answer is recorded beside it, and a disagreement fails the item): enrollment and sign-in; a reused invitation refused; no learners before a grant; exactly one after (two same-named learners exist on two campuses); another campus's learner and an unknown id answering identically (404); and after revocation, reads refused and a fresh sign-in still seeing nothing.
+
+It writes `mac-check-out/mac-check-result.json` and `mac-check-calls.json`: route templates, status codes, 8-character body hashes and counts. It never writes a token, invitation link, passkey or response body, and it drops its scratch database on exit. The decision logic is tested without a browser in `tests/test_mac_check.py`; a rehearsal against Chromium's virtual authenticator passes all six items.
+
+This is evidence only. It is not the G3 Mac package check, not Engineering Complete and not a Pilot GO, and it involves no real teacher, learner or mailbox.

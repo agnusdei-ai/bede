@@ -1,42 +1,55 @@
-# Mac mini / MacBook Pro: minimal Bede pilot smoke package
+# Bede | Mac pilot smoke and G3 certification entry point
 
-This is the **shortest safe owner-operated test** for the **invite-only pilot**. It uses the repository's existing `docker-compose.yml` and HTTPS health endpoint. It does not create campuses, authenticate teachers, invoke Stripe, or perform destructive recovery. **Passing this script does not satisfy G1, G2 or G3.** Only synthetic learners until real Bede campus isolation is verified.
+**Current integrated code:** main `d3eb645c2de1058bb8056005a09c7d40446cea20`, with G1/G2/owner deletion and scoped tutoring integrated. The qualified underlying pilot candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e` passed **146/146 synthetic checks**. This does **not** constitute a physical Mac test.
 
-## First time
+For the **complete mandatory physical-Mac certification**, use:
 
-1. Install and start Docker Desktop.
-2. Use the Bede Setup wizard (`setup-gui.command` in the repository, or the approved packaged installer) to configure the local instance, including a disposable local database and model provider. Keep the generated `.env` private.
-3. From the Bede repository directory, run:
+- [G3 physical-Mac certification runbook](MAC_G3_CERTIFICATION_RUNBOOK.md)
+- [G3 evidence and owner release decision record](MAC_G3_CERTIFICATION_RECORD.md)
+
+This page describes only the quick, non-destructive installation/health checks that prepare for G3. Never mark G3 PASS solely because a smoke test passed. Use synthetic records and identities until a separate owner release explicitly authorizes another scope.
+
+## Option A — source-free operator archive (preferred installation evidence)
+
+On the physical server Mac, obtain the exact-SHA `bede-operator-<SHA>-arm64.tar.gz` for Apple Silicon or `...-amd64.tar.gz` for an Intel Mac, together with its `.sha256` file, from the approved `Bede self-contained operator bundle` GitHub Actions run. Check checksum and `RELEASE`/Docker architecture before using the archive; install Docker Desktop and start Docker Compose. A source checkout is **not** needed.
+
+From the extracted `bede-operator/` directory:
+
+```bash
+./Install-Bede.command
+./Verify-Bede.command
+```
+
+The first command launches the packaged setup wizard and starts the bundled images. The second checks Docker architecture, Compose validity and **CA-verified** `https://localhost/api/health` and produces a restricted `bede-evidence/<UTC>/` folder. The resulting `manual-acceptance.txt` intentionally says NOT RUN for passkeys, campus isolation, teacher journey, recovery and release approval. Read and redact evidence before sharing.
+
+For a teacher's **second Mac**, deliberately enable a private LAN listener during fresh installation, configure privately resolvable DNS for the server Mac, restrict firewall traffic, and verify the specific TLS CA trust on the teacher Mac. Never use `localhost` on the remote client, a raw LAN IP for a WebAuthn RP name, or a certificate-warning bypass. Refer to [TWO_MAC_TEACHER_PILOT.md](../../packaging/bundle/TWO_MAC_TEACHER_PILOT.md).
+
+## Option B — source checkout Docker smoke (developer-only)
+
+With the exact candidate source checked out, Docker Desktop running and a verified disposable synthetic-only database:
 
 ```bash
 BEDE_SYNTHETIC_ONLY=1 bash scripts/pilot-smoke.sh start
-```
-
-Only set `BEDE_SYNTHETIC_ONLY=1` after confirming the local environment uses a disposable database containing no real learner or campus records. This is an operator acknowledgement, **not an automated proof of data isolation**.
-
-This validates Docker/Compose, checks the configuration **without printing secrets**, starts the existing services, waits for health and probes `https://localhost/api/health` **with certificate verification against the local `bede-root-ca.crt`**. If the CA is absent, HTTPS health is BLOCKED, never reported PASS using `curl --insecure`. It saves a private evidence folder under `pilot-evidence/` (excluded from Git; the operator must still guard local access and redact evidence before sharing). First startup may require building/downloading images. For the actual source-free Mac pilot installation, use the merged package's `Verify-Bede.command` instead of this checkout-only helper.
-
-## Later quick check
-
-```bash
 bash scripts/pilot-smoke.sh check
 ```
 
-The output contains host/commit metadata, container status, a health response and a simple manual checklist. If startup fails, inspect `docker compose ps` and `docker compose logs --tail=50 api` locally; **review and redact logs before sharing**.
+The environment flag is an **operator assertion**, not a protective synthetic-data detector. This helper checks Docker/Compose, local configuration and trusted HTTPS health and saves `pilot-evidence/`. It does not create educators, perform WebAuthn, exercise G2 or test recovery. It must not be confused with the source-free operator artifact.
 
-## Three short manual gates (not automated by this script)
+## Option C — real teacher passkey browser check (separate from package)
 
-1. **G1: right people/right records.** On a disposable Bede instance with two synthetic campuses, verify allowed learner access succeeds and cross-campus/unassigned/revoked access fails. Do not use real school records until this passes on the intended build.
-2. **G2: one teacher workflow.** On that build, retrieve a learner's evidence, generate an evidence-linked recommendation, approve/edit/reject, and confirm decisions persist.
-3. **G3: operate and stop.** Verify manually approved participants, revoke/disable, named support, basic feedback/time baseline, and a **separately scheduled destructive restore rehearsal only on a disposable database**. The script deliberately does not execute recovery.
+The installed code also has `scripts/qualification/mac_check.py`, an interactive source-checkout harness that uses a real Safari/Chrome teacher authenticator **but a virtual Chromium administrator**, local synthetic mail and inference stubs. It tests six passkey and roster outcomes, and creates `mac-check-out/mac-check-result.json`. It **recreates and later drops** its `bede_mac_check` Postgres test database, so run it only on an isolated sacrificial Postgres host. Follow the exact setup in [SYNTHETIC_QUALIFICATION.md](../SYNTHETIC_QUALIFICATION.md#real-device-check-on-a-mac-10-20-minutes-owner-run).
 
-**Pilot commercial boundary:** free, invite-only, manually administered for an agreed period. Keep `retained_trial_access` withheld. Do not enable self-service purchasing, purchase notices, automatic paid conversion or Community continuing-access promises. PR #587 requires separate copy review.
+It cannot substitute for the packaged Mac installation, administrator lost-device recovery, whole-account educator offboarding, independent recovery-plane isolation, G2 classroom runtime or service restart/restore acceptance.
 
-## Result interpretation
+## Outcome interpretation
 
-- `PASS`: Docker/Compose and health checks actually executed.
-- `FAIL`: local startup/configuration/health check failed.
-- `BLOCKED`: prerequisites missing.
-- `NOT RUN`: G1, G2, G3, commercial separation and recovery until independently demonstrated.
+| Result | Meaning |
+| --- | --- |
+| PASS | The named script actually checked **its narrow documented scope** and recorded successful observations |
+| FAIL | A required observed check failed |
+| BLOCKED | Essential dependency or trust precondition was unavailable |
+| NOT RUN | Scenario was not executed; never convert to PASS |
 
-Do not run `docker compose down -v`, delete volumes, or restore into any database containing real records. Local Docker smoke evidence is **not** hosted pilot release evidence.
+Keep `.env`, device PIN/biometric, bearer tokens, invitation links, test-user secrets, private CA keys and real learner data out of reports. Do not execute volume-destroying Compose commands or a restore against any real database.
+
+**G3 remains a separate signed release engineering test. Pilot GO is a further distinct owner decision.**

@@ -120,19 +120,39 @@ class _Session:
     # reported trace) is the most likely way a second attach happens; this
     # guards the outcome regardless of what triggers it.
     active_reader: bool = False
+    # The educator authorization context this session was started under
+    # (services/pilot_authz.PilotAuthzContext), or None for every other role.
+    # routers/voice.py re-validates it on every chunk, finish and event, and
+    # derives the full owner from it, so a session is bound to one principal,
+    # campus, learner, session, grant id and grant version.
+    authz: Optional[object] = None
 
 
 _sessions: dict[str, _Session] = {}
 _sweep_task: Optional[asyncio.Task] = None
 
 
-def start_session(language: str = "en", owner: str = "") -> str:
+def start_session(language: str = "en", owner: str = "", authz: Optional[object] = None) -> str:
     session_id = uuid.uuid4().hex
-    session = _Session(language=language, owner=owner)
+    session = _Session(language=language, owner=owner, authz=authz)
     session.worker = asyncio.create_task(_worker_loop(session_id, session))
     _sessions[session_id] = session
     _ensure_sweeper()
     return session_id
+
+
+def session_authz(session_id: str) -> Optional[object]:
+    """The authorization context a live session was started under, or None
+    for an unknown session or one started by a non-educator role."""
+    session = _sessions.get(session_id)
+    return None if session is None else session.authz
+
+
+def discard_session(session_id: str) -> None:
+    """End a session at once: drop it and cancel its worker. Used when the
+    grant behind an educator's session stops holding, so a later chunk,
+    finish or reconnect finds nothing."""
+    _discard(session_id)
 
 
 def push_chunk(session_id: str, audio_bytes: bytes, owner: str = "") -> bool:

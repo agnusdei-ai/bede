@@ -34,15 +34,32 @@ from dataclasses import dataclass, field
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool, StaticPool
+from sqlalchemy.pool import NullPool
 
 PG_URL_ENV = "G1_TEST_DATABASE_URL"
 SAME_NAME = "Synthetic Learner"
 ADMIN_CLAIMS = {"role": "parent", "auth_method": "webauthn_uv"}
 
 
+_SQLITE_DIR = None
+
+
 def database_url() -> str:
-    return os.environ.get(PG_URL_ENV) or "sqlite+aiosqlite:///:memory:"
+    """Postgres when configured; otherwise a FILE-backed SQLite database.
+
+    Not ``:memory:`` with ``StaticPool``: that gives every session the one
+    shared connection, so a revalidation, an audit write and the request's
+    own session interleave inside one transaction. Revalidation then fails
+    closed for the wrong reason and audit writes are silently lost, which
+    is a test artifact (production runs Postgres) and made these tests
+    flaky. A file database with a connection per session has real
+    isolation."""
+    global _SQLITE_DIR
+    if os.environ.get(PG_URL_ENV):
+        return os.environ[PG_URL_ENV]
+    import tempfile
+    _SQLITE_DIR = tempfile.TemporaryDirectory(prefix="g1-harness-")
+    return f"sqlite+aiosqlite:///{_SQLITE_DIR.name}/g1.db"
 
 
 def backend_name() -> str:
@@ -53,7 +70,8 @@ def _engine():
     url = database_url()
     if url.startswith("sqlite"):
         return create_async_engine(
-            url, poolclass=StaticPool, connect_args={"check_same_thread": False},
+            url, poolclass=NullPool,
+            connect_args={"check_same_thread": False, "timeout": 30},
         )
     # NullPool: every session opens its own connection, as the revalidation
     # path deliberately does, and nothing outlives the test's loop.
@@ -119,8 +137,16 @@ class World:
         assert r.status_code == 204, r.text
 
     def audit_events(self) -> list[dict]:
+        """Every audit row, after the fire-and-forget audit writes already
+        scheduled on the server's loop have finished (log_event_nowait), so
+        a read never races the write it is looking for."""
         async def read():
-            from core.audit import read_audit_log
+            from core.audit import _background_tasks, read_audit_log
+            loop = asyncio.get_running_loop()
+            while pending := tuple(
+                t for t in _background_tasks if t.get_loop() is loop and not t.done()
+            ):
+                await asyncio.gather(*pending, return_exceptions=True)
             async with self.factory() as s:
                 return await read_audit_log(s, limit=500)
         return self.run(read)

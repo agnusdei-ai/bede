@@ -213,6 +213,13 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     # Must be a verified sending address/domain in your Resend account.
     resend_from_address: str = DEFAULT_RESEND_FROM_ADDRESS
+    # Synthetic qualification ONLY (docs/SYNTHETIC_QUALIFICATION.md): send the
+    # same Resend-shaped request to a mail sink on THIS machine instead of
+    # api.resend.com, so the real invite route's email can be captured on
+    # synthetic data. Empty (the default) is Resend, byte for byte. Only a
+    # loopback http(s) URL is accepted, and any value is refused when
+    # PRODUCTION=true — see reject_mail_endpoint_outside_loopback below.
+    resend_api_base_url: str = ""
 
     # ── Distress alert (optional) ─────────────────────────────────────────────
     # Unlike the post-session email above, a distress signal is child-
@@ -820,6 +827,31 @@ class Settings(BaseSettings):
                 "Production mode is enabled but API docs are not disabled — set "
                 "DISABLE_API_DOCS=true (otherwise /docs, /redoc, and /openapi.json "
                 "are publicly reachable, exposing the full internal API schema)"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def reject_mail_endpoint_outside_loopback(self) -> "Settings":
+        """RESEND_API_BASE_URL exists so a synthetic qualification run can
+        capture a real outbound email on a loopback sink. It must never be a
+        way to redirect a family's mail (a distress alert, an invitation) to
+        another host, and it must never be live in production at all."""
+        url = self.resend_api_base_url.strip()
+        if not url:
+            return self
+        if self.is_production:
+            raise ValueError(
+                "RESEND_API_BASE_URL is a synthetic-qualification setting and must be "
+                "empty when PRODUCTION=true"
+            )
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https") or parsed.hostname not in (
+            "127.0.0.1", "localhost", "::1",
+        ) or parsed.username or parsed.password:
+            raise ValueError(
+                "RESEND_API_BASE_URL must be a loopback URL (http://127.0.0.1:<port>, "
+                "http://localhost:<port> or http://[::1]:<port>) with no credentials"
             )
         return self
 

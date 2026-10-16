@@ -50,3 +50,8 @@ ipython_config.py
 
 # Windows installer build output (packaging/windows/) — local Inno Setup builds
 packaging/windows/Output/
+
+# Synthetic qualification evidence (scripts/qualification/), written per run
+qualification-out/
+qualification-out-quarantine/
+qualification-out-tmp/

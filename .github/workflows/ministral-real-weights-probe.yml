@@ -3,14 +3,8 @@ name: Ministral 8B real-weight local inference probe
 # One disposable GitHub-hosted CPU box downloads Apache-2.0 GGUF, verifies the
 # exact SHA-256 and executes localhost-only inference. Never uses any paid API
 # or production pilot environment. Do NOT mistake this for Apple Silicon test.
+# PAUSED by pilot owner 2026-10-15. No automatic model downloads or inference.
 on:
-  push:
-    branches: [test/ministral-local-probe-20261015]
-    paths:
-      - "homeschool-api/scripts/ministral_local_probe.py"
-      - "homeschool-api/scripts/ministral_latency_probe.py"
-      - ".github/workflows/ministral-real-weights-probe.yml"
-      - "docs/CONSTITUTION.md"
   workflow_dispatch:
 
 permissions:
@@ -19,6 +13,7 @@ permissions:
 jobs:
   real-weights-qualifying-smoke:
     name: Real GGUF inference on ephemeral CPU
+    if: false # Owner-requested pause; manual dispatch also blocked
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:

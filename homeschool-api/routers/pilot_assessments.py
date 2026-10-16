@@ -105,6 +105,20 @@ async def _recheck(db: AsyncSession, auth: dict, learner: PilotLearner) -> None:
     if again.id != learner.id or again.campus_id != learner.campus_id:
         await db.rollback()
         raise _not_found()
+    # Hold the learner row FOR SHARE until this write commits. Learner
+    # deletion (services/pilot_learner_deletion.py) takes FOR UPDATE on the
+    # same row, so a write in flight either lands before the deletion counts
+    # and is deleted with everything else, or waits and then finds no
+    # learner. Without this, a write could commit an orphan row for a
+    # learner the deletion just removed. A no-op on SQLite.
+    locked = (await db.execute(
+        select(PilotLearner.id)
+        .where(PilotLearner.id == learner.id, PilotLearner.campus_id == learner.campus_id)
+        .with_for_update(read=True)
+    )).scalar_one_or_none()
+    if locked is None:
+        await db.rollback()
+        raise _not_found()
 
 
 async def _administration(db: AsyncSession, learner: PilotLearner,

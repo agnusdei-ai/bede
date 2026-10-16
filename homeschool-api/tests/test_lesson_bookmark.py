@@ -246,7 +246,9 @@ async def test_persisting_invalidates_the_cache():
     """_persist_lesson_bookmarks clears the module cache outright — a fresh
     end-of-session write must be visible to the very next session's opener,
     not served stale for up to _READONLY_PROMPT_CACHE_TTL_SECONDS."""
-    ai_service._lesson_bookmark_cache[("Priya", "history")] = ({"note": "stale", "updated_at": datetime.now(timezone.utc)}, 1e18)
+    from core.learner_scope import LearnerScope
+    priya_key = LearnerScope.legacy("Priya").cache_key("prompt_lesson_bookmark:history", ai_service._PROMPT_CACHE_VERSION)
+    ai_service._lesson_bookmark_cache[priya_key] = ({"note": "stale", "updated_at": datetime.now(timezone.utc)}, 1e18)
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:", poolclass=StaticPool, connect_args={"check_same_thread": False},
     )
@@ -258,7 +260,7 @@ async def test_persisting_invalidates_the_cache():
         await initialize_encryption(settings.master_secret, session)
         await _persist_lesson_bookmarks(session, "Priya", {"history": "fresh note"})
 
-        assert ("Priya", "history") not in ai_service._lesson_bookmark_cache
+        assert priya_key not in ai_service._lesson_bookmark_cache
         assert (await _load_lesson_bookmark_readonly(session, "Priya", Subject.history))["note"] == "fresh note"
     await engine.dispose()
 

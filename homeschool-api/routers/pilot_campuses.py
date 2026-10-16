@@ -7,11 +7,14 @@ There is no fallback to student_name, demo, parent, or public access.
 from __future__ import annotations
 
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import (
     ClassicalEducator, PilotCampus, PilotEducatorCampus, PilotLearner,
@@ -19,7 +22,9 @@ from core.database import (
 )
 from core.deps import require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
+from core.learner_scope import LearnerScope, evict_learner
 from services.educator_access import live_educator
+from services.pilot_authz import ACTION_LEARNER_READ, resolve_campus_learner
 
 router = APIRouter(prefix="/pilot", tags=["valor-pilot"])
 
@@ -48,6 +53,16 @@ def _id(value: str) -> str:
     return str(parsed)
 
 
+async def _audit_grant_change(event: str, request: Optional[Request], **ids) -> None:
+    """Durable evidence of an administrator's grant or membership change.
+    UUIDs and versions only: never a display name. Written after the commit,
+    by the admin action itself; a failed audit write never undoes the change
+    (log_event swallows its own errors)."""
+    detail = " ".join(f"{k}={v}" for k, v in ids.items())
+    await log_event(event, role="parent", success=True, detail=detail,
+                    **(audit_from_request(request) if request is not None else {}))
+
+
 def _admin(auth: dict) -> None:
     _enabled()
     if auth.get("role") != "parent" or auth.get("auth_method") != "webauthn_uv":
@@ -67,24 +82,12 @@ def _learner_aad(campus_id: str, learner_id: str) -> bytes:
 
 async def _assigned(db: AsyncSession, auth: dict, learner_id: str) -> PilotLearner:
     _enabled()
-    teacher = await live_educator(db, auth)
-    # Every query must check ALL grant links, not trust a supplied campus claim.
-    row = (await db.execute(
-        select(PilotLearner)
-        .join(PilotCampus, PilotCampus.id == PilotLearner.campus_id)
-        .join(PilotEducatorCampus,
-              (PilotEducatorCampus.campus_id == PilotLearner.campus_id)
-              & (PilotEducatorCampus.educator_id == teacher.id))
-        .join(PilotRosterGrant,
-              (PilotRosterGrant.campus_id == PilotLearner.campus_id)
-              & (PilotRosterGrant.learner_id == PilotLearner.id)
-              & (PilotRosterGrant.educator_id == teacher.id))
-        .where(PilotLearner.id == _id(learner_id))
-        .where(PilotLearner.enabled.is_(True),
-               PilotCampus.enabled.is_(True),
-               PilotEducatorCampus.enabled.is_(True),
-               PilotRosterGrant.enabled.is_(True))
-    )).scalar_one_or_none()
+    # Every query must check ALL grant links, not trust a supplied campus
+    # claim. services/pilot_authz.py is the one place that join lives, so a
+    # learner read, a voice session and a tutoring turn all ask the same
+    # question.
+    ctx = await resolve_campus_learner(db, auth, learner_id, ACTION_LEARNER_READ)
+    row = await db.get(PilotLearner, ctx.learner_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Record not found")
     return row
@@ -151,6 +154,7 @@ async def approve_educator_membership(
 @router.post("/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}", status_code=204)
 async def approve_roster_grant(
     campus_id: str, educator_id: str, learner_id: str,
+    request: Request = None,
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -159,24 +163,45 @@ async def approve_roster_grant(
     teacher_id, learner_id = _id(educator_id), _id(learner_id)
     membership = await db.get(PilotEducatorCampus, (teacher_id, campus.id))
     teacher = await db.get(ClassicalEducator, teacher_id)
-    pupil = await db.get(PilotLearner, learner_id)
+    # Hold the learner row FOR SHARE until the grant commits. Learner
+    # deletion (services/pilot_learner_deletion.py) takes FOR UPDATE on it,
+    # so a grant either commits before the deletion counts (and is deleted
+    # with everything else) or waits and then finds no learner. A no-op on
+    # SQLite, whose single writer lock serializes the two instead.
+    pupil = (await db.execute(
+        select(PilotLearner).where(PilotLearner.id == learner_id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )).scalar_one_or_none()
     if (membership is None or not membership.enabled
             or teacher is None or not teacher.enabled
             or pupil is None or not pupil.enabled or pupil.campus_id != campus.id):
         raise HTTPException(status_code=404, detail="Record not found")
     grant = await db.get(PilotRosterGrant, (teacher_id, campus.id, pupil.id))
+    changed, version = True, 1
     if grant is None:
         db.add(PilotRosterGrant(
             educator_id=teacher_id, campus_id=campus.id, learner_id=pupil.id,
         ))
-    else:
+    elif not grant.enabled:
+        # A re-approval is a NEW grant version. Anything minted under the
+        # version that was revoked must never revalidate (pilot_authz).
         grant.enabled = True
+        grant.version += 1
+        version = grant.version
+    else:
+        changed = False
+    campus_uuid, learner_uuid = campus.id, pupil.id
     await db.commit()
+    if changed:
+        await _audit_grant_change(AuditEvent.PILOT_GRANT_APPROVED, request, campus=campus_uuid,
+                                  educator=teacher_id, learner=learner_uuid, v=version)
 
 
 @router.delete("/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}", status_code=204)
 async def revoke_roster_grant(
     campus_id: str, educator_id: str, learner_id: str,
+    request: Request = None,
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -186,16 +211,24 @@ async def revoke_roster_grant(
     if grant is None:
         raise HTTPException(status_code=404, detail="Record not found")
     grant.enabled = False
+    grant.version += 1
     # Invalidate every prior bearer token immediately, not only the UI cache.
     teacher = await db.get(ClassicalEducator, teacher_id)
     if teacher:
         teacher.credential_version += 1
+    grant_uuid, version = grant.grant_id, grant.version
     await db.commit()
+    # Drop every per-learner cache entry and the unwrapped data key, so
+    # nothing derived for this learner outlives the grant in this process.
+    evict_learner(LearnerScope.institutional(campus_id, learner_id))
+    await _audit_grant_change(AuditEvent.PILOT_GRANT_REVOKED, request, campus=campus_id,
+                              educator=teacher_id, learner=learner_id, grant=grant_uuid, v=version)
 
 
 @router.post("/campuses/{campus_id}/educators/{educator_id}/disable", status_code=204)
 async def disable_campus_membership(
     campus_id: str, educator_id: str,
+    request: Request = None,
     auth: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
 ) -> None:
@@ -208,16 +241,38 @@ async def disable_campus_membership(
     teacher = await db.get(ClassicalEducator, teacher_id)
     if teacher:
         teacher.credential_version += 1
+    grants = (await db.execute(
+        select(PilotRosterGrant).where(
+            PilotRosterGrant.educator_id == teacher_id,
+            PilotRosterGrant.campus_id == campus_id,
+        )
+    )).scalars().all()
+    # Every grant this membership carried becomes a new version, exactly as a
+    # single revoke does, so no pilot_authz context minted before the disable
+    # can ever revalidate, even if the membership is later re-approved and
+    # the credential-version pin were somehow not enough on its own.
+    for grant in grants:
+        grant.version += 1
+    granted = [grant.learner_id for grant in grants]
     await db.commit()
+    await _audit_grant_change(AuditEvent.PILOT_MEMBERSHIP_DISABLED, request, campus=campus_id,
+                              educator=teacher_id, grants=len(granted))
+    # Same eviction as a single-grant revoke, for every learner this
+    # educator held a grant for on this campus.
+    for learner_id in granted:
+        evict_learner(LearnerScope.institutional(campus_id, learner_id))
 
 
-@router.get("/me/learners")
-async def list_my_learners(
-    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+class LearnerSearch(BaseModel):
+    # In the body, never a query string: a learner's name in a URL is
+    # written into every access log and Referer header on the way here.
+    query: str = Field(min_length=1, max_length=100)
+
+
+async def _my_learner_rows(db: AsyncSession, auth: dict) -> list[PilotLearner]:
     _enabled()
     teacher = await live_educator(db, auth)
-    rows = (await db.execute(
+    return (await db.execute(
         select(PilotLearner)
         .join(PilotCampus, PilotCampus.id == PilotLearner.campus_id)
         .join(PilotEducatorCampus,
@@ -233,7 +288,33 @@ async def list_my_learners(
                PilotRosterGrant.enabled.is_(True))
         .order_by(PilotLearner.id)
     )).scalars().all()
-    return [_render(row) for row in rows]
+
+
+@router.get("/me/learners")
+async def list_my_learners(
+    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    return [_render(row) for row in await _my_learner_rows(db, auth)]
+
+
+@router.post("/me/learners/search")
+async def search_my_learners(
+    payload: LearnerSearch,
+    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Name search / autocomplete over ONLY the learners this teacher holds a
+    live grant for. Every result carries the learner's UUID and campus UUID,
+    and every later protected operation takes the UUID: a name is never an
+    authorization key. Two learners with the same name on two campuses are
+    two results with two UUIDs, never a merged record. Ordered by UUID, so
+    the order says nothing about how well a name matched."""
+    needle = payload.query.strip().casefold()
+    if not needle:
+        return []
+    return [
+        item for item in (_render(row) for row in await _my_learner_rows(db, auth))
+        if needle in item["display_name"].casefold()
+    ]
 
 
 @router.get("/me/learners/{learner_id}")

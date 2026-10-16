@@ -45,6 +45,7 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
+from services import pilot_authz
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
@@ -179,6 +180,12 @@ async def chat(
 
     role = auth.get("role")
     is_demo_code = role == "demo_code"
+    # The educator's resolved authorization context (services/pilot_authz.py).
+    # None for every other role. When set, the turn re-validates the grant
+    # before context retrieval, before every chunk it releases, before every
+    # durable write, and periodically while generation is silent. A retry is
+    # a new request and resolves a fresh context from scratch.
+    tutor_ctx = None
     if is_demo_code:
         # Never trust client-supplied session_config for the demo role —
         # only the subject choice (browsing the curriculum) and the
@@ -199,6 +206,12 @@ async def chat(
                 detail="Subject not included in approved learner plan",
             )
         req.session_config = saved
+        tutor_ctx = await pilot_authz.resolve_legacy_learner(
+            db, auth, saved.student_name, pilot_authz.ACTION_TUTOR,
+        )
+        # No write this turn makes can become durable once the grant stops
+        # holding: every commit and flush re-validates first.
+        db = pilot_authz.RevocationGatedSession(db, tutor_ctx, audit_from_request(request))
 
     demo_quota_exceeded = False
     if is_demo_code:
@@ -340,7 +353,7 @@ async def chat(
         # its own: the child's send button just spun forever with no way to
         # recover short of reloading the page.
         try:
-            async for chunk in with_stall_timeout(
+            chunks = with_stall_timeout(
                 stream_tutor_response(
                     config=req.session_config,
                     subject=req.current_subject,
@@ -358,8 +371,18 @@ async def chat(
                     **audit_from_request(request),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,
-            ):
+            )
+            if tutor_ctx is not None:
+                chunks = pilot_authz.guarded_stream(
+                    chunks, tutor_ctx, stage="tutor", request_ctx=audit_from_request(request),
+                )
+            async for chunk in chunks:
                 yield chunk
+        except pilot_authz.AuthzRevoked:
+            # The grant stopped holding mid-turn. Generation is already
+            # cancelled and the revocation audited (pilot_authz). Nothing
+            # protected follows: the stream simply ends.
+            yield json.dumps({'type': 'done'})
         except asyncio.TimeoutError:
             log.warning(
                 "Tutor stream stalled past %.0fs for %s — closing with a recoverable error",

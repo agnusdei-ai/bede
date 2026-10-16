@@ -25,15 +25,19 @@ configuration and secrets. In this harness:
 | App process | `uvicorn main:app`, one worker, with the real lifespan (constitution check, DB init, encryption init). Stopped with SIGTERM and relaunched mid-run. |
 | Database | A Postgres service container. The app connects as a **non-superuser** role (`QUAL_APP_DB_ROLE`, default `bede_qual_app`: `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`) through production's `_build_engine()`. The role owns its database, so startup `CREATE TABLE IF NOT EXISTS` works as on a self-hosted install. |
 | Admin login | Password, then a passkey enrolled and asserted through a **Chromium CDP virtual WebAuthn authenticator** (`webauthn_driver.cjs`), via the real `/mfa/webauthn/*` routes. Only that `webauthn_uv` session reaches the `/pilot` admin routes. |
-| Teacher login | The same virtual authenticator, through `/auth/educator-passkey/register/*` and `/login/*`. See "Teacher login on this base" below. |
+| Teacher login | The real invite route (`POST /auth/educator-passkey/invite`) sends its enrollment email to the loopback mail sink. The harness reads the ticket from that email, then enrolls and signs in through `/auth/educator-passkey/register/*` and `/login/*` on the same virtual authenticator. See "Teacher login" below. |
 | Seeding | Real HTTP routes only. Every name is checked against a synthetic allowlist. The two learners share one display name on purpose. |
 | SSE | Real HTTP streams read in a background thread. Data events, keep-alive pings, a server-ended stream and a client-side error are recorded separately, so a client error is never read as the server closing a stream. |
 | Browser vs API | The same read is made through the browser page's `fetch` and through the API client, which presents the browser's User-Agent (tokens are IP+UA fingerprinted). |
-| AI vendor | `ai_stub.py`, a loopback OpenAI-compatible server, forced with `BEDE_FORCE_ADAPTER=local`. It is the **only** stubbed dependency. Its request log records route, model and message count, never content. |
+| AI vendor | `ai_stub.py`, a loopback OpenAI-compatible server, forced with `BEDE_FORCE_ADAPTER=local`. Its request log records route, model and message count, never content. |
+| Mail | `mail_sink.py`, a loopback Resend-compatible endpoint. The application's own `send_email` reaches it through `RESEND_API_BASE_URL`. |
+| TLS | The stack is served over https with a self-signed certificate generated for the run, because the invite route requires an https `WEBAUTHN_ORIGIN`. Chromium trusts exactly that certificate's key (`--ignore-certificate-errors-spki-list`) and the API client verifies against it. |
+
+The AI stub and the mail sink are the **only** two stubbed dependencies.
 
 Environment differences from a production install, all configuration:
-`PRODUCTION=false`, `WEBAUTHN_ORIGIN=http://localhost:8765` (which the
-educator passkey runtime accepts for localhost), and raised
+`PRODUCTION=false`, `WEBAUTHN_ORIGIN=https://localhost:8765` with the run's
+own certificate, `RESEND_API_BASE_URL` pointing at the loopback sink, and raised
 `RATE_LIMIT_AUTH_PER_MINUTE` / `RATE_LIMIT_API_PER_MINUTE`, because one
 client IP drives every principal's ceremonies. `DISABLE_API_DOCS=true` as in
 production: route presence is read from the app object, not `/openapi.json`.
@@ -47,9 +51,18 @@ production: route presence is read from the app object, not `/openapi.json`.
 2. **Preflight, fail closed** (`preflight.py --phase pre-start`). Every check
    is written to `preflight-pre-start.json`, pass or fail. It exits non-zero on:
    - `PRODUCTION` not `false`;
-   - any commercial AI key, Resend, notification address, license server,
-     licence key, Stripe or operator credential, or any `STRIPE_*` / `RESEND_*`
-     variable;
+   - any commercial AI key, notification address, license server, licence
+     key, Stripe or operator credential, or any `STRIPE_*` variable;
+   - mail aimed anywhere but this run's sink. Specifically:
+     - `RESEND_API_BASE_URL` must be exactly `http://127.0.0.1:8767`;
+     - `RESEND_API_KEY` and `RESEND_FROM_ADDRESS` are only accepted together
+       with that sink;
+     - the key must be a `synthetic-` key, so a real Resend `re_...` key
+       fails;
+     - the sender, and `EDUCATOR_INSTITUTION_EMAIL_DOMAIN`, must be the
+       synthetic domain;
+     - `EDUCATOR_BOOTSTRAP_EMAILS` must be empty;
+     - any other `RESEND_*` variable fails;
    - any variable named for real data, billing, auto-enrollment, an auth
      bypass or delivery that is switched on;
    - `EDUCATOR_PILOT_ENABLED` off, which would close the routes under test so
@@ -129,29 +142,39 @@ until the probes are bound to the canonical schema.
 SQLite/Postgres agreement belongs to the pytest suites. This harness runs on
 Postgres only.
 
-## Teacher login on this base
+## Teacher login
 
-On base `1b48e234`, `POST /auth/educator-passkey/invite` returns **503**
-(`Verified school invitation delivery is not configured`). The enrollment
-ticket is delivered only by email, there is no route that returns it, and
-preflight forbids an email provider in this environment. So **no teacher
-passkey session can be obtained through the real routes**. Every
-teacher-dependent cell is `BLOCKED` in the default mode.
+The application has one mail transport, Resend. `RESEND_API_BASE_URL` in
+`core/config.py` is the narrowest change that lets a run capture the invite
+email:
 
-The ceremony code itself is ready. Run by hand, with the ticket created the
-way `issue_invitation` would create it before sending (standing in for the
-mailbox), both synthetic teachers enrolled and signed in through the virtual
-authenticator:
+- empty, the default, is `api.resend.com` exactly as before;
+- only an `http(s)` loopback URL with no credentials is accepted;
+- **any** value is refused when `PRODUCTION=true`.
 
-- `register/options` and `register/verify` returned 200;
-- `login/options` and `login/verify` returned 200;
-- Teacher One read own learner: 200;
-- Teacher Two read Learner One: 404;
-- a replayed used ticket: 401.
+`homeschool-api/tests/test_mail_endpoint_loopback.py` pins all three, plus
+the real `send_email` reaching the configured URL. Each was verified by
+breaking it. No product route, enrollment path or bypass was added.
 
-Unblocking the default mode needs an owner decision, for example a local
-mail sink as a second stub, or an approved administrator-mediated enrollment
-path. This harness does not invent a route.
+The sink (`mail_sink.py`):
+
+- binds loopback only;
+- requires the run's synthetic key as the bearer token;
+- refuses any recipient outside the synthetic domain;
+- writes raw messages only to the run's temp directory (`QUAL_MAIL_SINK_DIR`,
+  default `<out>-tmp/mail`), never to the evidence directory, because they
+  carry live enrollment tickets;
+- writes a redacted line per message to the evidence (`mail-sink-messages.jsonl`:
+  recipient domain, subject, body SHA-256).
+
+`package.py`'s credential scan covers both:
+
+- it scans the sink store for credential shapes;
+- it refuses any evidence file that contains a ticket token the sink captured.
+
+On base `1b48e234` this takes the default mode through the real invite route
+(202), the email to the sink, the real register and login ceremony (200 at
+every step), and the roster grants.
 
 **Documented fallback:** `teacher_auth_mode: minted_token` creates the teacher
 accounts with the production `provision_educator` service. It mints tokens
@@ -213,6 +236,8 @@ export QUAL_CANDIDATE_SHA=$(git rev-parse HEAD)
 export QUAL_DB_ADMIN_URL=postgresql://postgres@127.0.0.1:5433/postgres   # bootstrap superuser
 export QUAL_APP_DB_PASSWORD=synthetic-$(openssl rand -hex 12)
 export DATABASE_URL=$(python scripts/qualification/db_setup.py --db bede_qualification_local)
+export RESEND_API_BASE_URL=http://127.0.0.1:8767                         # the loopback sink
+export RESEND_API_KEY=synthetic-$(openssl rand -hex 16)                   # accepted only by the sink
 # plus SECRET_KEY, MASTER_SECRET, PARENT_PASSWORD and the application
 # environment block from qualification.yml's job env
 python scripts/qualification/preflight.py --phase pre-start

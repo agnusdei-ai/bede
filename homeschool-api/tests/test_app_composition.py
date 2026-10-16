@@ -48,6 +48,7 @@ EXPECTED_MIDDLEWARE = [
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
+    "pilot_journey",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -133,6 +134,15 @@ GUARDS = {
     ('POST', '/educators/accounts'): 'require_elevated_parent',
     ('PUT', '/educators/accounts/{educator_id}/roster'): 'require_elevated_parent',
     ('POST', '/educators/accounts/{educator_id}/disable'): 'require_elevated_parent',
+    # Valor pilot G2 teacher journey (routers/pilot_journey.py). Every route
+    # additionally re-checks the per-learner campus grant in-handler.
+    ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
+    ('POST', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',
+    ('POST', '/pilot/me/learners/{learner_id}/recommendations/{recommendation_id}/decision'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/decisions'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/instruction'): 'require_educator',
     ('GET', '/educators/me/assessment-frameworks'): 'require_educator',
     ('GET', '/educators/me/roster'): 'require_educator',
     ('GET', '/educators/me/locuto-capacity'): 'require_educator',

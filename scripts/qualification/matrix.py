@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -116,7 +117,7 @@ TABLE: list[dict] = [
      "special": "g2"},
     {"id": "authorized_instruction", "group": "G2", "read": ("GET", L + "/instruction")},
     {"id": "learner_deletion", "group": "DELETION",
-     "delete": ("DELETE", "/pilot/campuses/{campus_id}/learners/{learner_id}"),
+     "delete": ("POST", "/pilot/owner/campuses/{campus_id}/learners/{learner_id}/delete"),
      "special": "deletion"},
 ]
 
@@ -207,7 +208,7 @@ class Matrix:
     GENERIC = ["own_access", "cross_campus_read", "cross_campus_write", "random_uuid",
                "malformed_id", "noncanonical_uuid", "nil_uuid", "same_name_isolation"]
 
-    def run_generic(self, row: dict) -> None:
+    def run_generic(self, row: dict, *, defer_own_write: bool = False) -> None:
         read, write, lst = row.get("read"), row.get("write"), row.get("list")
         specs = [s for s in (read, write, lst) if s]
         if not specs:
@@ -242,7 +243,7 @@ class Matrix:
                          "list route takes no learner id; covered by isolation of its result")
             return
 
-        if write:
+        if write and not defer_own_write:
             body = write[2] if len(write) > 2 else None
             if "{recommendation_id}" not in write[1]:
                 r = self.call("teacher_one", write[0], self.path(write[1], learner_id=l1), body)
@@ -279,6 +280,31 @@ class Matrix:
             uni = r.status_code == ref.status_code and r.text == ref.text
             self.put(row, name, "PASS" if uni else "FAIL",
                      f"{r.status_code} identical-to-absent={r.text == ref.text}", status=r.status_code)
+        if write and not read:
+            # A write-only route still needs a *reciprocal* same-name
+            # isolation proof. When this tutoring endpoint was ABSENT, the
+            # table emitted eight generic ABSENT cells; once built, the
+            # one-way write probe emitted only seven, quietly shrinking the
+            # security matrix from 146 to 145. Exercise both teacher/learner
+            # pairings against the same indistinguishable 404 oracle.
+            body = write[2] if len(write) > 2 else None
+            own_missing = self.call(
+                "teacher_one", write[0],
+                self.path(write[1], learner_id=str(uuid.uuid4())), body,
+            )
+            other_learner = self.call(
+                "teacher_one", write[0],
+                self.path(write[1], learner_id=l2), body,
+            )
+            reciprocal = (
+                same and own_missing.status_code == other_learner.status_code == 404
+                and own_missing.text == other_learner.text
+            )
+            self.put(row, "same_name_isolation",
+                     "PASS" if reciprocal else "FAIL",
+                     "teachers cannot operate on each other's identically named learners; "
+                     f"teacher_one crossing -> {other_learner.status_code}; "
+                     f"teacher_two crossing -> {cross.status_code}")
         if read:
             mine = self.call("teacher_two", read[0], self.path(read[1], learner_id=l2))
             iso = mine.status_code == 200 and l1 not in mine.text and (own is None or l2 not in own.text)
@@ -574,6 +600,14 @@ class Matrix:
         ev = self.call("teacher_one", "POST", p(L + "/evidence"), SYNTH_DIBELS)
         rec = self.call("teacher_one", "POST", p(L + "/recommendations"))
         data = rec.json() if rec.status_code == 200 else {}
+        # The generic recommendation row verifies *read* and negative write
+        # isolation without issuing an extra authorized write. This sole G2
+        # creation is the real positive write, so no pending recommendation
+        # is left behind to prevent teacher review or tutoring.
+        self.put("recommendation", "own_write",
+                 "PASS" if rec.status_code == 200 and not data.get("abstained", True) else "FAIL",
+                 f"teacher_one authorized recommendation -> {rec.status_code}",
+                 status=rec.status_code)
         linked = (ev.status_code == 201 and not data.get("abstained", True)
                   and ev.json().get("evidence_id") in data.get("source_evidence_ids", []))
         self.put(row, "evidence_linked_to_recommendation", "PASS" if linked else "FAIL",
@@ -648,9 +682,35 @@ class Matrix:
         rec_ok = ins.status_code == 200 and not any(w in low for w in DELIVERY_WORDS)
         self.put(row, "instruction_recorded_not_delivered", "PASS" if rec_ok else "FAIL",
                  f"-> {ins.status_code}; no delivery claim in payload: {rec_ok}")
-        self.put(row, "failed_audit_write_atomic", "UNVERIFIED",
-                 "a failed audit write cannot be induced over HTTP without fault injection into the "
-                 "server; the in-process atomicity test lives with #604")
+        # A malicious client must never be given an audit-failure trigger.
+        # Exercise the real service's rollback with an isolated synthetic
+        # database in a separate process instead. Qualification only reports
+        # PASS if this executable test finishes successfully on this SAME SHA;
+        # no HTTP control, mock response or status waiver is introduced.
+        api_root = Path(__file__).resolve().parents[2] / "homeschool-api"
+        cmd = [sys.executable, "-m", "pytest", "-q", "--disable-warnings",
+               "tests/test_valor_pilot_g2_gaps.py::test_failed_audit_write_leaves_no_decision"]
+        isolated_env = dict(os.environ)
+        isolated_env["G2_GAP_DB_URL"] = ""  # fresh SQLite file; never modify the live PG
+        try:
+            proof = subprocess.run(cmd, cwd=api_root, env=isolated_env,
+                                   capture_output=True, text=True, timeout=120,
+                                   check=False)
+            proof_exit = proof.returncode
+            proof_output = (proof.stdout + "\\n" + proof.stderr)[-1200:]
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            proof_exit = -1
+            proof_output = f"{type(exc).__name__}: {exc}"
+        (cfg.OUT_DIR / "g2-audit-rollback-test.json").write_text(json.dumps({
+            "test": "test_failed_audit_write_leaves_no_decision",
+            "database": "fresh synthetic SQLite; live PostgreSQL unchanged",
+            "exit_code": proof_exit,
+            "output_tail": proof_output,
+        }, indent=2) + "\\n")
+        atomic = proof_exit == 0 and "1 passed" in proof_output
+        self.put(row, "failed_audit_write_atomic", "PASS" if atomic else "FAIL",
+                 f"isolated real audit-failure rollback test returned {proof_exit}; "
+                 f"exactly one test passed: {atomic}")
 
     def g2_after_restart(self) -> None:
         row = "decision"
@@ -700,7 +760,55 @@ class Matrix:
                 "teacher_one", f"/voice/stream/{s_active}/events", seconds=40, until=revoked)))
             th.start()
             time.sleep(1.5)
+        # Complete human-owned elevated WebAuthn ceremony BEFORE starting
+        # the short local tutor stream. Otherwise the model stub could
+        # finish normally while the passkey prompt is still completing,
+        # falsely passing or failing a revocation race.
         self.seeder.elevate()
+        tutor_spec = ("POST", L + "/tutoring/chat")
+        tutor_result: dict = {"events": [], "finished": False}
+        tutor_thread = None
+        if self.present(tutor_spec):
+            tutor_path = self.path(tutor_spec[1], learner_id=l1)
+
+            def read_active_tutor():
+                try:
+                    with httpx.Client(base_url=self.api.base,
+                                      timeout=cfg.REQUEST_TIMEOUT_S,
+                                      verify=self.api.verify,
+                                      headers={"User-Agent": self.api.ua}) as client:
+                        with client.stream(
+                            "POST", tutor_path,
+                            json={"child_message": "[START]"},
+                            headers={"Authorization": f"Bearer {old_token}"},
+                        ) as response:
+                            tutor_result["status"] = response.status_code
+                            for line in response.iter_lines():
+                                if line.startswith("data:"):
+                                    value = line[5:].strip()
+                                    try:
+                                        item = json.loads(value)
+                                    except ValueError:
+                                        item = {"type": "invalid"}
+                                    tutor_result["events"].append((time.time(), item))
+                    tutor_result["finished"] = True
+                    tutor_result["ended_at"] = time.time()
+                except Exception as exc:
+                    tutor_result["error"] = f"{type(exc).__name__}: {exc}"
+
+            tutor_thread = threading.Thread(target=read_active_tutor, daemon=True)
+            tutor_thread.start()
+            # Synchronize against an *observed* first text chunk rather than
+            # guessing a fixed delay across slow CI workers. Never assume
+            # a response exists: the below assertion still FAILS if no
+            # protected data preceded revocation.
+            deadline = time.monotonic() + min(cfg.REQUEST_TIMEOUT_S, 10.0)
+            while time.monotonic() < deadline:
+                if any(event.get("type") == "text" for _, event in tutor_result["events"]):
+                    break
+                if tutor_result.get("finished") or tutor_result.get("error"):
+                    break
+                time.sleep(0.05)
         rv = self.api.call("DELETE", f"/pilot/campuses/{c1}/educators/{t1}/learners/{l1}", self.fx.admin_token)
         revoked.revoked_at = time.time()  # type: ignore[attr-defined]
         revoked.set()
@@ -770,11 +878,28 @@ class Matrix:
         else:
             self.put(row, "revocation_closes_active_voice_stream", "BLOCKED",
                      "teacher_one could not start a voice session")
-        tut = ("POST", L + "/tutoring/chat")
-        self.put(row, "revocation_closes_active_tutoring_stream",
-                 "ABSENT" if not self.present(tut) else "UNVERIFIED",
-                 "UUID-keyed tutoring stream route not mounted" if not self.present(tut)
-                 else "tutoring stream present; mid-stream revocation probe needs its request contract")
+        if tutor_thread is None:
+            self.put(row, "revocation_closes_active_tutoring_stream", "ABSENT",
+                     "UUID-keyed tutoring stream route not mounted")
+        else:
+            tutor_thread.join(timeout=cfg.SSE_IDLE_WAIT_S + 20)
+            r_at = revoked.revoked_at  # type: ignore[attr-defined]
+            records = tutor_result.get("events", [])
+            before = [e for t, e in records if t <= r_at and e.get("type") == "text"]
+            after = [e for t, e in records if t > r_at and e.get("type") == "text"]
+            stopped = any(t >= r_at and e.get("type") == "error"
+                          and e.get("message") == "Learner access ended"
+                          for t, e in records)
+            finished_on_time = (tutor_result.get("finished") and not tutor_result.get("error")
+                                and tutor_result.get("ended_at", 1e18) <= r_at + cfg.SSE_IDLE_WAIT_S)
+            ok = (tutor_result.get("status") == 200 and bool(before)
+                  and not after and stopped and finished_on_time)
+            self.put(row, "revocation_closes_active_tutoring_stream",
+                     "PASS" if ok else "FAIL",
+                     f"real local-model SSE status={tutor_result.get('status')}; "
+                     f"text before revoke={len(before)}; protected text after={len(after)}; "
+                     f"terminal revocation={stopped}; timely end={bool(finished_on_time)}; "
+                     f"client error={tutor_result.get('error')}")
         audited = False
         aud = self.api.call("GET", "/admin/audit?limit=200", self.fx.admin_token)
         if aud.status_code == 200:
@@ -825,11 +950,27 @@ class Matrix:
             return
         c2, l2 = self.fx.campus["campus_two"], self.fx.learner["learner_two"]
         self.seeder.elevate()
-        d = self.api.call(spec[0], spec[1].format(campus_id=c2, learner_id=l2), self.fx.admin_token)
-        plain = d.status_code in (200, 204) and (d.status_code == 204 or len(d.text) > 20)
+        target = spec[1].format(campus_id=c2, learner_id=l2)
+        confirm = {"confirm_learner_id": l2,
+                   "confirm_display_name": cfg.SHARED_LEARNER_DISPLAY_NAME}
+        # Wrong-name confirmation must be rejected without deleting the
+        # learner. A plain DELETE without a human confirmation is forbidden.
+        denied = self.api.call(spec[0], target, self.fx.admin_token,
+                               {**confirm, "confirm_display_name": "Wrong synthetic name"})
+        prior = self.call("teacher_two", "GET", self.path(L, learner_id=l2))
+        d = self.api.call(spec[0], target, self.fx.admin_token, confirm)
+        body = d.json() if d.status_code == 200 else {}
+        plain = (d.status_code == 200 and isinstance(body, dict)
+                 and body.get("learner_id") == l2
+                 and len(body.get("receipt_sha256", "")) == 64
+                 and all(v == 0 for v in body.get("remaining_counts", {}).values())
+                 and cfg.SHARED_LEARNER_DISPLAY_NAME not in d.text)
+        safe = denied.status_code == 422 and prior.status_code == 200
         self.put(row, "delete_succeeds_with_plain_confirmation",
-                 "PASS" if d.status_code == 200 and plain else ("UNVERIFIED" if d.status_code == 204 else "FAIL"),
-                 f"-> {d.status_code}; confirmation wording must be reviewed by a human")
+                 "PASS" if safe and plain else "FAIL",
+                 f"wrong typed confirmation -> {denied.status_code}; learner still readable: "
+                 f"{prior.status_code}; verified confirmed deletion -> {d.status_code}; "
+                 f"content-free receipt: {bool(plain)}")
         r = self.call("teacher_two", "GET", self.path(L, learner_id=l2))
         self.put(row, "post_delete_read_denied", "PASS" if r.status_code in (401, 404) else "FAIL", f"-> {r.status_code}")
         lst = self.call("teacher_two", "GET", "/pilot/me/learners")
@@ -843,8 +984,21 @@ class Matrix:
         v = self.call("teacher_two", "POST", "/voice/stream/start", {"language": "en", "learner_id": l2})
         self.put(row, "post_delete_voice_denied", "PASS" if v.status_code in (401, 403, 404) else "FAIL",
                  f"voice start for deleted learner -> {v.status_code}")
-        self.put(row, "post_delete_cache_evicted", "UNVERIFIED",
-                 "cache eviction is not observable over HTTP beyond the read denial above")
+        # The elevated owner route now returns its canonical deletion
+        # service's *actual* post-commit eviction result, outside the durable
+        # deletion receipt. Cross-check with the denied read and the required
+        # integration test that primes all learner cache families and verifies
+        # no survivor after deletion; never infer eviction from 404 alone.
+        count = body.get("evicted_cache_entries")
+        observed = (
+            plain and body.get("cache_eviction_executed") is True
+            and isinstance(count, int) and not isinstance(count, bool) and count >= 0
+            and r.status_code in (401, 404)
+        )
+        self.put(row, "post_delete_cache_evicted", "PASS" if observed else "FAIL",
+                 f"owner reported canonical post-commit eviction: {body.get('cache_eviction_executed')}; "
+                 f"entries evicted: {count if isinstance(count, int) else 'missing'}; "
+                 f"subsequent access: {r.status_code}")
 
     # ── drive ────────────────────────────────────────────────────────────────
     def canonical_setup(self) -> None:
@@ -868,12 +1022,20 @@ class Matrix:
         if self.fx.campus:
             self.canonical_setup()
         for row in TABLE:
-            if row.get("special") in ("voice", "g2", "deletion"):
+            if row.get("special") in ("voice", "g2", "deletion") or row["id"] == "tutoring_turn":
                 continue
-            self.run_generic(row)
+            # Recommendation creation is a stateful teacher approval prelude.
+            # Exercise negative writes here, but create its single positive
+            # proposal inside g2() so the candidate 409 pending-proposal
+            # guard remains mandatory and is not bypassed.
+            self.run_generic(row, defer_own_write=row["id"] == "recommendation")
         self.browser_agreement()
         self.voice_owner_binding()
         self.g2()
+        # This write legitimately REQUIRES a teacher-approved G2 instruction.
+        # Run it after the real evidence→recommendation→human decision journey,
+        # not before approval and not by bypassing the approval guard.
+        self.run_generic(next(row for row in TABLE if row["id"] == "tutoring_turn"))
         self.stack.restart_server()
         self.put("learner_profile", "restart_sigterm_relaunch", "PASS",
                  "server stopped by SIGTERM and relaunched", **self.stack.events[-1])

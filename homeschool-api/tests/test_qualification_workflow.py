@@ -405,6 +405,55 @@ def test_a_missing_route_is_recorded_absent_never_skipped():
     assert {r["id"] for r in matrix.TABLE} <= covered
 
 
+def test_g2_recommendation_probe_keeps_negative_tests_without_preempting_review(monkeypatch):
+    """Read/cross-campus checks run before G2, but only G2 creates a pending
+    recommendation. A premature authorized POST returns 409 in the real app
+    and blocks every teacher decision; this test protects that ordering."""
+    import httpx
+    import matrix
+    from seed import Fixture
+
+    class _Seeder:
+        fx = Fixture(mode="virtual_authenticator")
+
+    m = matrix.Matrix(api=None, driver=None, stack=None, seeder=_Seeder(), routes=set())
+    m.fx.learner = {
+        "learner_one": "11111111-1111-4111-8111-111111111111",
+        "learner_two": "22222222-2222-4222-8222-222222222222",
+    }
+    m.fx.campus = {
+        "campus_one": "33333333-3333-4333-8333-333333333333",
+        "campus_two": "44444444-4444-4444-8444-444444444444",
+    }
+    calls = []
+
+    def fake_call(teacher, method, path, body=None):
+        calls.append((teacher, method, path))
+        if teacher == "teacher_one":
+            assert method == "GET", "an early authorized write would poison G2's pending-proposal state"
+            return httpx.Response(200, json=[])
+        assert teacher == "teacher_two"
+        if method == "GET" and m.fx.learner["learner_two"] in path:
+            return httpx.Response(200, json=[{"learner_id": m.fx.learner["learner_two"]}])
+        return httpx.Response(404, json={"detail": "Record not found"})
+
+    monkeypatch.setattr(m, "present", lambda spec: True)
+    monkeypatch.setattr(m, "teachers_ready", lambda: True)
+    monkeypatch.setattr(m, "call", fake_call)
+    rec = next(row for row in matrix.TABLE if row["id"] == "recommendation")
+    m.run_generic(rec, defer_own_write=True)
+    assert not any(who == "teacher_one" and method == "POST"
+                   for who, method, _ in calls)
+    assert any(who == "teacher_two" and method == "POST"
+               for who, method, _ in calls), "cross-campus negative write must still run"
+    observed = {(c.cell, c.status) for c in m.cells}
+    assert ("cross_campus_write", "PASS") in observed
+    assert ("cross_campus_read", "PASS") in observed
+    assert ("own_access", "PASS") in observed
+    assert ("same_name_isolation", "PASS") in observed
+    assert not any(c.cell == "own_write" for c in m.cells), "G2 must own the positive write"
+
+
 def test_table_covers_every_group_the_brief_requires():
     import matrix
     assert {r["group"] for r in matrix.TABLE} == {"G1", "DIBELS", "G2", "DELETION"}
@@ -469,3 +518,45 @@ def test_this_guards_inputs_are_in_the_api_change_filter():
     assert "scripts/qualification/" in alternatives
     assert "\\.github/workflows/" in alternatives
     assert "docs/SYNTHETIC_QUALIFICATION\\.md" in alternatives
+
+
+def test_write_only_tutoring_preserves_reciprocal_isolation_matrix_cell():
+    """A newly implemented write-only route must not shrink its ABSENT coverage."""
+    from types import SimpleNamespace
+    import matrix
+
+    first = "11111111-1111-4111-8111-111111111111"
+    second = "22222222-2222-4222-8222-222222222222"
+    campus_a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    campus_b = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    m = matrix.Matrix.__new__(matrix.Matrix)
+    m.fx = SimpleNamespace(
+        learner={"learner_one": first, "learner_two": second},
+        campus={"campus_one": campus_a, "campus_two": campus_b},
+    )
+    m.cells = []
+    m.routes = set()
+    m.present = lambda spec: True
+    m.teachers_ready = lambda: True
+    calls = []
+
+    def fake_call(teacher, method, path, body=None):
+        calls.append((teacher, method, path))
+        authorized = teacher == "teacher_one" and f"/{first}/" in path
+        return SimpleNamespace(
+            status_code=200 if authorized else 404,
+            text="data: {\"type\":\"text\"}" if authorized else '{"detail":"Record not found"}',
+        )
+
+    m.call = fake_call
+    tutoring_row = next(row for row in matrix.TABLE if row["id"] == "tutoring_turn")
+    m.run_generic(tutoring_row)
+
+    by_name = {c.cell: c.status for c in m.cells}
+    assert len(m.cells) == len(m.GENERIC), "write-only route silently lost a security cell"
+    assert by_name["same_name_isolation"] == "PASS"
+    assert all(status == "PASS" for status in by_name.values())
+    assert any(actor == "teacher_one" and f"/{second}/" in path
+               for actor, _, path in calls)
+    assert any(actor == "teacher_two" and f"/{first}/" in path
+               for actor, _, path in calls)

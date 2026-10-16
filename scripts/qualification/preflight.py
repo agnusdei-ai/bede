@@ -212,6 +212,11 @@ def delivery_offenders(table) -> list[str]:
         segments = [s for s in path.lower().split("/") if s and not s.startswith("{")]
         words = {w for s in segments for w in re.split(r"[-_]", s)}
         hit = sorted(words & set(cfg.DELIVERY_PATH_MARKERS))
+        # The owner's 71-cell exception authorizes one educator-operated
+        # local-only synthetic tutoring turn; no public learner delivery,
+        # extra session launch or other excluded /pilot route is authorized.
+        if method == "POST" and path == "/pilot/me/learners/{learner_id}/tutoring/chat":
+            continue
         if hit:
             offenders.append(f"{method} {path} ({','.join(hit)})")
     return offenders
@@ -239,6 +244,19 @@ def check_delivery_disabled(r: Report) -> None:
     r.add("pilot_routes_present", bool(pilot), f"{len(pilot)} routes under /pilot")
     offenders = delivery_offenders(table)
     r.add("no_pilot_session_launch_route", not offenders, "; ".join(offenders))
+    tutor = ("POST", "/pilot/me/learners/{learner_id}/tutoring/chat")
+    if tutor in table:
+        src = (cfg.API_DIR / "routers" / "pilot_tutor.py").read_text(encoding="utf-8")
+        obligations = ("require_educator", "resolve_campus_learner",
+                       "guarded_stream", "RevocationGatedSession",
+                       "resolve_local_only", "Teacher approval is required",
+                       "settings.production")
+        missing = [term for term in obligations if term not in src]
+        r.add("pilot_tutoring_supervised_local_only_with_revocation", not missing,
+              "missing obligated safety controls: " + ",".join(missing))
+    else:
+        r.add("pilot_tutoring_supervised_local_only_with_revocation", True,
+              "synthetic tutor route not mounted; matrix still reports ABSENT")
     for rel in cfg.DELIVERY_SOURCE_FILES:
         src = (cfg.API_DIR / rel).read_text(encoding="utf-8")
         found = [m for m in cfg.DELIVERY_SOURCE_MARKERS if m in src]

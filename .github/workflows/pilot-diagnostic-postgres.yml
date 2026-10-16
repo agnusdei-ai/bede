@@ -1,0 +1,69 @@
+name: Pilot diagnostic PostgreSQL qualification
+on:
+  pull_request:
+    paths:
+      - 'homeschool-api/routers/pilot_diagnostic.py'
+      - 'homeschool-api/tests/test_pilot_diagnostic_view.py'
+      - '.github/workflows/pilot-diagnostic-postgres.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    name: Diagnostic HTTP SQLite and non-superuser PostgreSQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-diagnostic-admin
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      BEDE_REQUIRE_PG: '1'
+      BEDE_CANON_PG_URL: postgresql+asyncpg://diagnostic_ci:synthetic-diagnostic-app@127.0.0.1:5432/diagnostic_ci
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Require actual candidate head
+        env:
+          EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Install hash-locked backend
+        working-directory: homeschool-api
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+      - name: Provision non-superuser PostgreSQL test database
+        run: |
+          python - <<'PY'
+          import asyncio, asyncpg
+          async def run():
+              c = await asyncpg.connect(host="127.0.0.1", user="postgres",
+                                        password="synthetic-diagnostic-admin", database="postgres")
+              try:
+                  await c.execute("CREATE ROLE diagnostic_ci LOGIN PASSWORD 'synthetic-diagnostic-app' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS")
+                  await c.execute("CREATE DATABASE diagnostic_ci OWNER diagnostic_ci")
+              finally:
+                  await c.close()
+          asyncio.run(run())
+          PY
+      - name: Run real HTTP diagnostic isolation and verified source tests
+        working-directory: homeschool-api
+        run: python -m pytest -v tests/test_pilot_diagnostic_view.py
+      - name: Evidence boundary
+        if: success()
+        run: |
+          echo "Diagnostic route tested against SQLite and non-superuser PostgreSQL."
+          echo "No student data, learner tutoring or Pilot GO was authorized."

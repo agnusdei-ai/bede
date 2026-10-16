@@ -3,6 +3,7 @@ import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 import { getOrCreateDeviceId } from '../utils/deviceId'
 import { isNetworkFailure } from '../utils/networkFailure'
+import { ApiRequestError } from '../utils/requestFailure'
 
 const BASE = '/api'
 
@@ -1139,7 +1140,8 @@ async function educatorApi<T>(path: string, token: string, method = 'GET', body?
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
-    throw new Error(detail.detail || 'Educator request failed')
+    throw new ApiRequestError(
+      res.status, typeof detail.detail === 'string' ? detail.detail : 'Educator request failed')
   }
   return res.status === 204 ? undefined as T : res.json()
 }
@@ -1254,3 +1256,122 @@ export const fetchInstructorActivity = (token: string, student: string) =>
   educatorApi<{ total: number; skills: unknown[] }>(
     `/educators/me/students/${encodeURIComponent(student)}/activity`, token,
   )
+
+
+// ── Valor pilot G2 teacher journey (/pilot/me/learners/*) ──────────────────
+// UUID-scoped: every call names an immutable learner id the server re-checks
+// against the educator's active campus grant. Display names are never keys.
+
+export interface PilotLearner {
+  learner_id: string
+  campus_id: string
+  display_name: string
+}
+
+export interface PilotEvidence {
+  evidence_id: string
+  recorded_at: string
+  framework: 'dibels8' | 'classical' | 'external_other'
+  measure: string
+  assessed_on: string
+  source_name: string
+  score?: number | null
+  score_unit?: string | null
+  reported_band?: EducatorAssessmentBand | null
+  assistance?: string | null
+}
+
+export interface PilotRecommendation {
+  recommendation_id: string
+  learner_id: string
+  status: 'pending' | 'approved' | 'edited' | 'rejected'
+  version: number
+  // The only state that exists: delivery to a learner is unavailable
+  // (Owner Decision 7, #585). Optional so an older server still type-checks.
+  delivery_state?: 'NOT_REQUESTED'
+  policy_version: string
+  source_evidence_ids: string[]
+  proposal: string
+  rationale: string[]
+  authorized_instruction: string | null
+  created_at: string
+  decided_at: string | null
+}
+
+export type PilotRecommendationResult =
+  | ({ abstained: false } & PilotRecommendation)
+  | { abstained: true; reason: string; policy_version: string }
+
+export interface PilotDecisionInput {
+  action: 'approve' | 'edit' | 'reject'
+  expected_version: number
+  edited_text?: string
+  note?: string
+}
+
+export interface PilotLedger {
+  chain_valid: boolean
+  entries: Array<{ seq: number; action: string; educator_id: string; created_at: string; note: string | null }>
+}
+
+const pilot = (learnerId: string) => `/pilot/me/learners/${encodeURIComponent(learnerId)}`
+
+export const fetchPilotLearners = (token: string) =>
+  educatorApi<PilotLearner[]>('/pilot/me/learners', token)
+
+export const fetchPilotEvidence = (token: string, learnerId: string) =>
+  educatorApi<PilotEvidence[]>(`${pilot(learnerId)}/evidence`, token)
+
+export const recordPilotEvidence = (token: string, learnerId: string, entry: EducatorAssessmentInput) =>
+  educatorApi<PilotEvidence>(`${pilot(learnerId)}/evidence`, token, 'POST', entry)
+
+export const fetchPilotRecommendations = (token: string, learnerId: string) =>
+  educatorApi<PilotRecommendation[]>(`${pilot(learnerId)}/recommendations`, token)
+
+export const requestPilotRecommendation = (token: string, learnerId: string) =>
+  educatorApi<PilotRecommendationResult>(`${pilot(learnerId)}/recommendations`, token, 'POST')
+
+export const decidePilotRecommendation = (
+  token: string, learnerId: string, recommendationId: string, decision: PilotDecisionInput,
+) => educatorApi<PilotRecommendation>(
+  `${pilot(learnerId)}/recommendations/${encodeURIComponent(recommendationId)}/decision`,
+  token, 'POST', decision,
+)
+
+export const fetchPilotLedger = (token: string, learnerId: string) =>
+  educatorApi<PilotLedger>(`${pilot(learnerId)}/decisions`, token)
+
+// ── Valor pilot: owner-led learner deletion ────────────────────────────────
+// Every call needs the administrator passkey; ElevationPrompt asks for it.
+// There is deliberately no session plan or session launch here: delivering
+// approved instruction to a learner stays unavailable (Owner Decision 7,
+// #585; homeschool-api/tests/test_valor_pilot_delivery_disabled.py).
+
+export interface PilotOwnerCampus { campus_id: string; title: string; enabled: boolean }
+export interface PilotOwnerLearner extends PilotLearner { enabled: boolean }
+export interface PilotDeletionReceipt {
+  receipt_id: string
+  campus_id: string
+  learner_id: string
+  actor: string
+  deleted_counts: Record<string, number>
+  remaining_counts: Record<string, number>
+  deleted_at: string
+  receipt_sha256: string
+  hash_verified?: boolean
+}
+
+const owner = (path: string) => `/pilot/owner${path}`
+
+export const fetchPilotOwnerCampuses = (token: string) =>
+  educatorApi<PilotOwnerCampus[]>(owner('/campuses'), token)
+export const fetchPilotOwnerLearners = (token: string, campusId: string) =>
+  educatorApi<PilotOwnerLearner[]>(owner(`/campuses/${encodeURIComponent(campusId)}/learners`), token)
+export const deletePilotLearner = (
+  token: string, campusId: string, learnerId: string, confirmDisplayName: string,
+) => educatorApi<PilotDeletionReceipt>(
+  owner(`/campuses/${encodeURIComponent(campusId)}/learners/${encodeURIComponent(learnerId)}/delete`),
+  token, 'POST', { confirm_learner_id: learnerId, confirm_display_name: confirmDisplayName },
+)
+export const fetchPilotDeletionReceipts = (token: string) =>
+  educatorApi<PilotDeletionReceipt[]>(owner('/deletion-receipts'), token)

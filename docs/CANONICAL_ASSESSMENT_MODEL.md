@@ -266,13 +266,87 @@ G2's `PilotEvidence`, `PilotRecommendation` and `PilotDecision` live on
   restack, it links a canonical proposal and decision to a G2 recommendation ID
   without rewriting either table.
 
+## Deleting a pilot learner
+
+`homeschool-api/services/pilot_learner_deletion.py` removes one pilot learner's
+**active application records**. Its tests are in
+`tests/test_pilot_learner_deletion.py`, which runs on SQLite and on Postgres.
+
+It is keyed by campus UUID and learner UUID, never by a display name. In one
+transaction it:
+
+1. locks the `pilot_learners` row `FOR UPDATE`;
+2. signs out every teacher who held a grant for the learner, by raising their
+   credential version;
+3. deletes the learner's rows from every table below, by `(campus_id, learner_id)`:
+   `pilot_assessment_administrations`, `pilot_assessment_scores`,
+   `pilot_assessment_responses`, `pilot_assessment_transitions`,
+   `pilot_assessment_evidence`, `pilot_assessment_proposals`,
+   `pilot_assessment_decisions`, `pilot_assessment_plans`,
+   `pilot_progress_monitoring_schedules`, `pilot_roster_grants`, and last
+   `pilot_learners` (the encrypted display name);
+4. deletes any household-shaped row stored under the learner's institutional
+   storage subject (`pilot:<campus_uuid>:<learner_uuid>`) in every table with a
+   `student_name` column, except `student_keys`;
+5. re-counts every one of those tables by learner UUID alone, and rolls the whole
+   transaction back if any row remains.
+
+Only after the commit succeeds does it call `evict_learner` from
+`core/learner_scope.py`. That drops the learner's prompt-cache entries and the
+unwrapped data key, in every environment. A deletion that fails is never
+evicted, so a failure never reports success.
+
+The campus calendar and benchmark authorization are kept. They describe the
+campus, not the learner.
+
+**The tombstone.** One audit event, `student.data_deleted`, whose detail is
+exactly:
+
+```
+pilot_learner_deleted campus=<uuid> learner=<uuid> rows=<n> tables=<n>
+```
+
+It holds the UUIDs, the counts, the timestamp and the actor role. It never holds
+a name, score, label, evidence text or note. A test scans the whole audit view
+for the fixture's content.
+
+**Concurrency.** A teacher's write re-checks the grant immediately before commit
+and holds the learner row `FOR SHARE` until it commits. A write in flight is
+therefore either deleted with everything else, or waits and then answers the
+uniform `404`. Both orders are tested on Postgres.
+
+**After deletion,** every learner route, the Data Day packet, the per-assessment
+audit, `GET /pilot/me/learners`, and a direct lookup of an old administration ID
+all answer the uniform `404 Record not found`. Re-granting the learner is also
+`404`.
+
+**What this is not.** It is not secure deletion, permanent erasure, or backup
+destruction. These tables are encrypted under the deployment's data key, not a
+per-learner key. Database backups, write-ahead log segments and dead tuples taken
+before the deletion may still hold encrypted historical copies, readable by this
+deployment, until a human-approved retention policy exists. The learner's
+`student_keys` row, if one exists, is left in place. Destroying it would be
+per-learner cryptographic erasure, which is a human-only decision.
+
+Eviction is per process. Another replica's cache entries expire within their TTL.
+
+**Integration seam.** No deletion route exists on this base. The owner route in
+#609 (`routers/pilot_owner.py`) should call `delete_pilot_learner` after the
+restack, and pass its content-free receipt as `before_commit` so the receipt
+commits with the deletion. Its G2 tables must join the cascade; the metadata
+guard fails until they do. The caller authorizes the actor. The service
+authorizes nothing itself.
+
 ## Not built or deferred
 
 - **Campus engagement rubric.** This is deferred until the owner decides whether
   character-adjacent categories may be stored at all. No rubric table, route or
   field exists.
-- **Learner deletion cascade.** This belongs to the deletion lane. The tables to
-  cascade are listed above.
+- **Learner deletion route.** The deletion *service* is built (see "Deleting a
+  pilot learner" below). No route on this base calls it; the owner route arrives
+  with #609.
+- **Per-learner cryptographic erasure.** Not built. Destroying a per-learner key
+  is a human-only decision.
 - **Delivery to a learner session.** This is not built. Plans stay at
   `NOT_REQUESTED`.
 - **Teacher UI for these routes.** This is not built in this lane. The routes are

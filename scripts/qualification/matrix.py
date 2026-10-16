@@ -932,8 +932,21 @@ class Matrix:
         v = self.call("teacher_two", "POST", "/voice/stream/start", {"language": "en", "learner_id": l2})
         self.put(row, "post_delete_voice_denied", "PASS" if v.status_code in (401, 403, 404) else "FAIL",
                  f"voice start for deleted learner -> {v.status_code}")
-        self.put(row, "post_delete_cache_evicted", "UNVERIFIED",
-                 "cache eviction is not observable over HTTP beyond the read denial above")
+        # The elevated owner route now returns its canonical deletion
+        # service's *actual* post-commit eviction result, outside the durable
+        # deletion receipt. Cross-check with the denied read and the required
+        # integration test that primes all learner cache families and verifies
+        # no survivor after deletion; never infer eviction from 404 alone.
+        count = body.get("evicted_cache_entries")
+        observed = (
+            plain and body.get("cache_eviction_executed") is True
+            and isinstance(count, int) and not isinstance(count, bool) and count >= 0
+            and r.status_code in (401, 404)
+        )
+        self.put(row, "post_delete_cache_evicted", "PASS" if observed else "FAIL",
+                 f"owner reported canonical post-commit eviction: {body.get('cache_eviction_executed')}; "
+                 f"entries evicted: {count if isinstance(count, int) else 'missing'}; "
+                 f"subsequent access: {r.status_code}")
 
     # ── drive ────────────────────────────────────────────────────────────────
     def canonical_setup(self) -> None:

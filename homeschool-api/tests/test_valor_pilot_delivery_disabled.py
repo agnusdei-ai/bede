@@ -151,14 +151,22 @@ def test_no_educator_text_reaches_the_prompt_at_all():
 
 
 def test_no_pilot_module_builds_a_tutoring_config():
-    """``SessionConfig``'s free-text fields are rendered under parent labels
-    ("Parent's note for today"). A pilot module that constructs one could
-    only put a teacher's words there."""
+    """The supervised synthetic-only turn must never go through the legacy
+    name-keyed tutor or borrow household/parent SessionConfig fields."""
     for path in _pilot_backend_modules():
         src = path.read_text(encoding="utf-8")
-        for name in ("SessionConfig", "TutorRequest", "lesson_focus", "current_unit",
-                     "lesson_resume", "ai_service", "stream_tutor_response"):
+        for name in ("SessionConfig", "TutorRequest", "lesson_focus",
+                     "current_unit", "lesson_resume", "stream_tutor_response"):
             assert name not in src, (path.name, name)
+        if path.name == "pilot_tutor.py":
+            # Explicit owner 71-cell exception: local-only supervised
+            # tutor, with teacher approval and per-event G1 grant checks.
+            for required in ("resolve_local_only", "guarded_stream",
+                             "RevocationGatedSession", "require_educator",
+                             "Teacher approval is required"):
+                assert required in src, required
+        else:
+            assert "ai_service" not in src, path.name
 
 
 def test_no_pilot_code_uses_parent_attribution_wording():

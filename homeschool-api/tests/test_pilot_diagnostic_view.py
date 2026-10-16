@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import uuid
 
-from test_canonical_assessment_api import client, world, full_journey
+from test_canonical_assessment_api import (
+    _reset_rate_limiter, client, world, full_journey,
+)
 
 
 def url(w, learner_id=None):

@@ -166,12 +166,26 @@ def test_no_pilot_module_builds_a_tutoring_config():
                              "Teacher approval is required"):
                 assert required in src, required
         elif path.name == "pilot_authz.py":
-            # G1's canonical auth service legitimately imports ai_service
-            # for cache eviction; it MUST NOT import any model-stream route.
-            assert "evict_learner_prompt_caches" in src
+            # The resolved G1 authority cannot call a legacy name-based
+            # model route. The one supported cache-eviction entry point is
+            # core.learner_scope.evict_learner, called after actual revoke
+            # and deletion commits by the campus/owner modules.
             assert "stream_tutor_response" not in src
+            assert "from services import ai_service" not in src
         else:
             assert "ai_service" not in src, path.name
+
+
+def test_all_campus_revocation_and_deletion_paths_evict_scoped_learner_cache():
+    # Non-vacuous ownership check: a path that removes access must evict
+    # institutional caches/keys by immutable learner scope, not by name.
+    campus = (API / "routers" / "pilot_campuses.py").read_text(encoding="utf-8")
+    deletion = (API / "services" / "pilot_learner_deletion.py").read_text(encoding="utf-8")
+    scope = (API / "core" / "learner_scope.py").read_text(encoding="utf-8")
+    assert "evict_learner(LearnerScope.institutional(campus_id, learner_id))" in campus
+    assert "evicted = evict_learner(scope)" in deletion
+    assert "ai_service.evict_learner_prompt_caches(scope)" in scope
+    assert "student_keys.evict(scope)" in scope
 
 
 def test_no_pilot_code_uses_parent_attribution_wording():

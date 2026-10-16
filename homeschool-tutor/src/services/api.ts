@@ -437,7 +437,8 @@ export async function* streamTutorChat(
   timeOfDay?: TimeOfDay | null,
   localDate?: string | null,
   sessionId?: string | null,
-  timeRemainingSeconds?: number | null
+  timeRemainingSeconds?: number | null,
+  pilotSessionId?: string | null
 ): AsyncGenerator<StreamChunk> {
   // The debug panel is the only way a report like "greeting doesn't match
   // the time of day" or "wrong week's poem" can actually be diagnosed
@@ -478,6 +479,9 @@ export async function* streamTutorChat(
           // during a break, and null here disables both rules rather than
           // assuming the worst.
           time_remaining_seconds: timeRemainingSeconds ?? null,
+          // Valor pilot learner session (server discards session_config and
+          // rebuilds it from the owner's plan). Omitted for everyone else.
+          ...(pilotSessionId ? { pilot_session_id: pilotSessionId } : {}),
         }),
         signal,
       })
@@ -1334,3 +1338,65 @@ export const decidePilotRecommendation = (
 
 export const fetchPilotLedger = (token: string, learnerId: string) =>
   educatorApi<PilotLedger>(`${pilot(learnerId)}/decisions`, token)
+
+// ── Valor pilot: live session and owner-led operations ─────────────────────
+
+export interface PilotSessionLaunch {
+  pilot_session_id: string
+  learner_id: string
+  recommendation_id: string | null
+  instruction: string | null
+  instruction_sha256: string
+  session_config: SessionConfig
+}
+
+export interface PilotSessionReceipt {
+  pilot_session_id: string
+  learner_id: string
+  educator_id: string
+  recommendation_id: string | null
+  instruction_sha256: string
+  started_at: string
+  turns: number
+  last_turn_at: string | null
+}
+
+export const startPilotLearnerSession = (token: string, learnerId: string) =>
+  educatorApi<PilotSessionLaunch>(`${pilot(learnerId)}/sessions`, token, 'POST')
+
+export interface PilotOwnerCampus { campus_id: string; title: string; enabled: boolean }
+export interface PilotOwnerLearner extends PilotLearner { enabled: boolean; has_plan: boolean }
+export interface PilotSessionPlan { grade: string; subjects: Subject[]; session_cap_minutes?: number | null }
+export interface PilotDeletionReceipt {
+  receipt_id: string
+  campus_id: string
+  learner_id: string
+  actor: string
+  deleted_counts: Record<string, number>
+  remaining_counts: Record<string, number>
+  deleted_at: string
+  receipt_sha256: string
+  hash_verified?: boolean
+}
+
+const owner = (path: string) => `/pilot/owner${path}`
+const ownerLearner = (campusId: string, learnerId: string) =>
+  owner(`/campuses/${encodeURIComponent(campusId)}/learners/${encodeURIComponent(learnerId)}`)
+
+export const fetchPilotOwnerCampuses = (token: string) =>
+  educatorApi<PilotOwnerCampus[]>(owner('/campuses'), token)
+export const fetchPilotOwnerLearners = (token: string, campusId: string) =>
+  educatorApi<PilotOwnerLearner[]>(owner(`/campuses/${encodeURIComponent(campusId)}/learners`), token)
+export const fetchPilotOwnerPlan = (token: string, campusId: string, learnerId: string) =>
+  educatorApi<{ learner_id: string; plan: PilotSessionPlan | null }>(`${ownerLearner(campusId, learnerId)}/plan`, token)
+export const savePilotOwnerPlan = (token: string, campusId: string, learnerId: string, plan: PilotSessionPlan) =>
+  educatorApi<{ learner_id: string; plan: PilotSessionPlan }>(`${ownerLearner(campusId, learnerId)}/plan`, token, 'PUT', plan)
+export const fetchPilotOwnerSessions = (token: string, campusId: string, learnerId: string) =>
+  educatorApi<PilotSessionReceipt[]>(`${ownerLearner(campusId, learnerId)}/sessions`, token)
+export const deletePilotLearner = (
+  token: string, campusId: string, learnerId: string, confirmDisplayName: string,
+) => educatorApi<PilotDeletionReceipt>(`${ownerLearner(campusId, learnerId)}/delete`, token, 'POST', {
+  confirm_learner_id: learnerId, confirm_display_name: confirmDisplayName,
+})
+export const fetchPilotDeletionReceipts = (token: string) =>
+  educatorApi<PilotDeletionReceipt[]>(owner('/deletion-receipts'), token)

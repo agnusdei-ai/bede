@@ -60,6 +60,9 @@ class AuditEvent:
     DIAGNOSTIC_VIEW          = "diagnostic.view"
     FEEDBACK_SUBMITTED       = "feedback.submitted"
     STUDENT_DATA_DELETED     = "student.data_deleted"
+    # Valor pilot owner/educator acts (routers/pilot_owner.py, services/pilot_session.py).
+    PILOT_PLAN_SET           = "pilot.plan_set"
+    PILOT_SESSION_STARTED    = "pilot.session_started"
     LICENSE_APPLIED          = "license.applied"
     AI_PROVIDER_CHANGED      = "ai_provider.changed"
     ANOMALY_ALERT            = "security.anomaly_alert"

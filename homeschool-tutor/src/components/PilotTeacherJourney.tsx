@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
+import { useSessionStore } from '../store/sessionStore'
 import { CheckCircle2, ClipboardList, FileCheck2, PencilLine, XCircle } from 'lucide-react'
 import {
   decidePilotRecommendation, fetchInstructorFrameworks, fetchPilotEvidence,
   fetchPilotLearners, fetchPilotLedger, fetchPilotRecommendations,
-  recordPilotEvidence, requestPilotRecommendation,
+  recordPilotEvidence, requestPilotRecommendation, startPilotLearnerSession,
 } from '../services/api'
 import type {
   AssessmentFrameworkMetadata, DibelsGrade, DibelsWindow, EducatorAssessmentBand,
@@ -27,6 +29,8 @@ const TODAY = () => new Date().toISOString().slice(0, 10)
 const label = (v: string | null | undefined) => (v ?? 'not reported').replaceAll('_', ' ')
 
 export default function PilotTeacherJourney({ token }: { token: string }) {
+  const navigate = useNavigate()
+  const startPilotSession = useSessionStore(s => s.startPilotSession)
   const [learners, setLearners] = useState<PilotLearner[]>([])
   const [learnerId, setLearnerId] = useState('')
   const [evidence, setEvidence] = useState<PilotEvidence[]>([])
@@ -81,6 +85,12 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
   const unit = catalog?.measure_units?.[measure] ?? 'correct_per_minute'
 
   if (!learners.length) return null
+
+  const teach = () => run(async () => {
+    const launch = await startPilotLearnerSession(token, learnerId)
+    startPilotSession(launch.session_config, launch.pilot_session_id)
+    navigate('/session')
+  })
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true); setMessage('')
@@ -208,7 +218,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
             </div>
             {editing && (
               <label className="block text-sm">Your instruction
-                <textarea className={field + ' mt-1'} rows={3} maxLength={1200}
+                <textarea className={field + ' mt-1'} rows={3} maxLength={450}
                   value={editText} onChange={e => setEditText(e.target.value)}/>
               </label>
             )}
@@ -245,6 +255,15 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
               <p className="text-xs text-gray-600">{authorized.status === 'edited' ? 'Edited and authorized' : 'Approved'} {authorized.decided_at ? new Date(authorized.decided_at).toLocaleDateString() : ''}</p>
             </div>
           : <p className="text-sm text-gray-500">No instruction authorized yet.</p>}
+        <button type="button" disabled={busy} onClick={() => void teach()}
+          className="rounded-lg bg-navy-700 px-4 py-2 text-sm text-white disabled:opacity-40">
+          {authorized?.authorized_instruction ? 'Teach this with Bede' : 'Start a session with Bede'}
+        </button>
+        <p className="text-xs text-gray-600">
+          Opens a supervised tutoring session on this device using the owner's session plan
+          {authorized?.authorized_instruction ? ' and the instruction you authorized above' : ''}.
+          Nothing from the session is saved under the learner's name.
+        </p>
         {ledger && ledger.entries.length > 0 && (
           <p className={ledger.chain_valid ? 'text-xs text-gray-600' : 'text-xs font-semibold text-red-700'}>
             Audit trail: {ledger.entries.length} decision{ledger.entries.length === 1 ? '' : 's'} ·{' '}

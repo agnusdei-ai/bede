@@ -13,6 +13,7 @@ import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
 import LicenseSettings from '../components/LicenseSettings'
 import AIProviderSettings from '../components/AIProviderSettings'
+import PilotOwnerPanel from '../components/PilotOwnerPanel'
 import AgenticLoopInsights from '../components/AgenticLoopInsights'
 import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, isFeedbackEnabled, listPodConfigs, savePodConfigs, type SystemStatus } from '../services/api'
@@ -528,6 +529,7 @@ export default function ParentSetup() {
         <DeviceSettings token={token!} />
         <LicenseSettings token={token!} />
         <AIProviderSettings token={token!} />
+        <PilotOwnerPanel token={token!} />
         <AgenticLoopInsights token={token!} />
 
         {/* Student cards */}

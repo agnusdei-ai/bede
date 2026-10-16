@@ -179,7 +179,20 @@ async def chat(
 
     role = auth.get("role")
     is_demo_code = role == "demo_code"
-    if is_demo_code:
+    is_pilot = req.pilot_session_id is not None
+    if is_pilot and role != "educator":
+        raise HTTPException(status_code=403, detail="Pilot sessions are educator-led")
+    if is_pilot:
+        # Valor pilot learner (immutable campus UUID): config comes only from
+        # the owner's plan plus the instruction pinned at launch, with the live
+        # grant re-checked this turn. db=None so nothing about a pilot learner
+        # is ever written under a display name. See services/pilot_session.py.
+        from services.pilot_session import config_for_turn
+        req.session_config = await config_for_turn(
+            db, auth, req.pilot_session_id, req.current_subject,
+        )
+        db = None
+    elif is_demo_code:
         # Never trust client-supplied session_config for the demo role —
         # only the subject choice (browsing the curriculum) and the
         # name/grade they set once at /auth/demo-code are theirs to make.

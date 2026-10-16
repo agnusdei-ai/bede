@@ -25,7 +25,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -240,7 +240,9 @@ class DecisionInput(BaseModel):
 
     action: Literal["approve", "edit", "reject"]
     expected_version: int = Field(ge=1)
-    edited_text: str | None = Field(default=None, max_length=1200)
+    # Capped so the authorized text reaches the live session verbatim
+    # (services/pilot_session.MAX_INSTRUCTION_CHARS; lesson_focus is cut at 500).
+    edited_text: str | None = Field(default=None, max_length=450)
     note: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
@@ -406,3 +408,39 @@ async def authorized_instruction(
             "recommendation_id": row.id, "status": row.status,
             "source_evidence_ids": rendered["source_evidence_ids"],
             "decided_at": rendered["decided_at"]}
+
+
+# ── Live session (owner-planned, teacher-authorized) ────────────────────────
+
+@router.post("/{learner_id}/sessions", status_code=201)
+async def start_pilot_session(
+    learner_id: str, request: Request,
+    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Start a real tutoring session for this pilot learner, carrying the
+    latest teacher-authorized instruction (pinned at launch)."""
+    from core.audit import AuditEvent, audit_from_request, log_event
+    from services.pilot_session import launch
+    out = await launch(db, auth, learner_id)
+    await log_event(AuditEvent.PILOT_SESSION_STARTED, role="educator", success=True,
+                    detail=(f"pilot_session={out['pilot_session_id']} learner={out['learner_id']} "
+                            f"recommendation={out['recommendation_id']}"),
+                    **audit_from_request(request))
+    return out
+
+
+@router.get("/{learner_id}/sessions")
+async def list_pilot_sessions(
+    learner_id: str, auth: dict = Depends(require_educator),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    from core.pilot_journey_models import PilotSessionLaunch
+    from services.pilot_session import render_launch
+    learner = await _assigned(db, auth, learner_id)
+    rows = (await db.execute(
+        select(PilotSessionLaunch)
+        .where(PilotSessionLaunch.learner_id == learner.id,
+               PilotSessionLaunch.campus_id == learner.campus_id)
+        .order_by(PilotSessionLaunch.started_at.desc())
+    )).scalars().all()
+    return [render_launch(r) for r in rows]

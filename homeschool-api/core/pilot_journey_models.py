@@ -95,3 +95,66 @@ class PilotDecision(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False,
     )
+
+
+class PilotSessionPlan(Base):
+    """Owner-set tutoring plan for one pilot learner (grade + subjects).
+
+    A pilot learner has no name-keyed ``StudentConfig``, so this is the only
+    authority for what a live session may teach. Set by the owner with an
+    administrator passkey; validated by constructing a real ``SessionConfig``.
+    """
+    __tablename__ = "pilot_session_plans"
+
+    learner_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    plan_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False,
+    )
+
+
+class PilotSessionLaunch(Base):
+    """One live tutoring session an educator started for a pilot learner.
+
+    Pins the exact authorized instruction (by recommendation id and SHA-256)
+    at launch, so what reaches the learner is what the teacher approved even
+    if a newer decision lands mid-session. Turn count and timestamps make the
+    row a session receipt the owner can attach as evidence.
+    """
+    __tablename__ = "pilot_session_launches"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    learner_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    educator_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    recommendation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    instruction_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    instruction_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False,
+    )
+    turns: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_turn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class PilotDeletionReceipt(Base):
+    """Tombstone proving an owner-led deletion of one pilot learner.
+
+    Holds no learner content: only the random UUIDs, per-table counts deleted,
+    the post-delete re-check (which must be all zeros), who did it and when,
+    and a SHA-256 over those fields so a receipt the owner exported can be
+    checked against the server's copy.
+    """
+    __tablename__ = "pilot_deletion_receipts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    learner_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    deleted_counts: Mapped[str] = mapped_column(Text, nullable=False)
+    remaining_counts: Mapped[str] = mapped_column(Text, nullable=False)
+    receipt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    deleted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False,
+    )

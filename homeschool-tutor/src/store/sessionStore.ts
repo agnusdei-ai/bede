@@ -62,6 +62,12 @@ interface SessionState {
   // Session configuration for the currently active student
   sessionConfig: SessionConfig | null
   setSessionConfig: (config: SessionConfig) => void
+  // Valor pilot only: the launch id for a campus pilot learner's session.
+  // The server rebuilds the config from the owner's plan on every turn, so
+  // this is the only thing it trusts. Cleared by any ordinary
+  // setSessionConfig so it can never ride into a household session.
+  pilotSessionId: string | null
+  startPilotSession: (config: SessionConfig, pilotSessionId: string) => void
 
   // Active tutoring state
   currentSubjectIndex: number
@@ -176,6 +182,7 @@ export const useSessionStore = create<SessionState>()(
       role: null,
       locale: null,
       sessionConfig: null,
+      pilotSessionId: null,
       podStudents: [],
       displayMessages: [],
       subjectStart: 0,
@@ -192,7 +199,12 @@ export const useSessionStore = create<SessionState>()(
   setPodStudents: (configs) => set({ podStudents: configs }),
 
   sessionConfig: null,
-  setSessionConfig: (config) => set({ sessionConfig: config }),
+  setSessionConfig: (config) => set({ sessionConfig: config, pilotSessionId: null }),
+  pilotSessionId: null,
+  startPilotSession: (config, pilotSessionId) => {
+    set({ sessionConfig: config, pilotSessionId })
+    get().startSession()
+  },
 
   currentSubjectIndex: 0,
   currentSubject: 'morning_time',
@@ -370,6 +382,7 @@ export const useSessionStore = create<SessionState>()(
         role: s.role,
         locale: s.locale,
         sessionConfig: s.sessionConfig,
+        pilotSessionId: s.pilotSessionId,
         podStudents: s.podStudents,
       }),
     }

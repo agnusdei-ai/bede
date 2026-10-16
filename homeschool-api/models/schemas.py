@@ -723,6 +723,11 @@ class PodConfigsRequest(BaseModel):
 
 class TutorRequest(BaseModel):
     session_config: SessionConfig
+    # Valor pilot only (services/pilot_session.py): the launch id an educator
+    # started for a campus pilot learner. When present the server discards
+    # session_config and rebuilds it from the owner's plan and the instruction
+    # pinned at launch, re-checking the live campus grant on every turn.
+    pilot_session_id: Optional[str] = Field(default=None, max_length=36)
     current_subject: Subject
     conversation_history: List[ChatMessage] = []
     child_message: str = Field(..., min_length=1, max_length=2000)

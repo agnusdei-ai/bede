@@ -521,6 +521,7 @@ export default function SocraticChat({
       state.localDate,
       state.sessionId,
       remainingSecsRef.current,
+      state.pilotSessionId,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening])
@@ -561,6 +562,7 @@ export default function SocraticChat({
       state.localDate,
       state.sessionId,
       remainingSecsRef.current,
+      state.pilotSessionId,
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
@@ -629,6 +631,7 @@ export default function SocraticChat({
       localDate,
       sessionId,
       remainingSecsRef.current,
+      useSessionStore.getState().pilotSessionId,
     )
     await consumeTurnStream(stream)
   }, [

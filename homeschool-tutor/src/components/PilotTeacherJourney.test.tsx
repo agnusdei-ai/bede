@@ -2,7 +2,18 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PilotTeacherJourney from './PilotTeacherJourney'
 
+const nav = vi.hoisted(() => ({ navigate: vi.fn(), startPilotSession: vi.fn() }))
+vi.mock('react-router', async (original) => ({
+  ...await original<typeof import('react-router')>(),
+  useNavigate: () => nav.navigate,
+}))
+vi.mock('../store/sessionStore', () => ({
+  useSessionStore: (pick: (s: { startPilotSession: typeof nav.startPilotSession }) => unknown) =>
+    pick({ startPilotSession: nav.startPilotSession }),
+}))
+
 const api = vi.hoisted(() => ({
+  startPilotLearnerSession: vi.fn(),
   fetchPilotLearners: vi.fn(),
   fetchInstructorFrameworks: vi.fn(),
   fetchPilotEvidence: vi.fn(),
@@ -134,5 +145,30 @@ describe('PilotTeacherJourney', () => {
       entries: [{ seq: 1, action: 'approve', educator_id: 'e', created_at: '', note: null }] })
     render(<PilotTeacherJourney token="t"/>)
     expect(await screen.findByText(/integrity check FAILED/)).toBeTruthy()
+  })
+
+  it('launches a pilot session with the server-built config and opens the tutor', async () => {
+    const approved = { ...pendingRec, status: 'approved', version: 2,
+      authorized_instruction: pendingRec.proposal, decided_at: '2026-10-11T00:00:00Z' }
+    api.fetchPilotRecommendations.mockResolvedValue([approved])
+    const config = { student_name: 'Example Learner', grade: '1', grade_stage: 'K-2', subjects: ['mathematics'] }
+    api.startPilotLearnerSession.mockResolvedValue({
+      pilot_session_id: 'launch-1', learner_id: A, recommendation_id: REC,
+      instruction: pendingRec.proposal, instruction_sha256: 'abc', session_config: config,
+    })
+    render(<PilotTeacherJourney token="t"/>)
+    fireEvent.click(await screen.findByRole('button', { name: 'Teach this with Bede' }))
+    await waitFor(() => expect(nav.startPilotSession).toHaveBeenCalledWith(config, 'launch-1'))
+    expect(api.startPilotLearnerSession).toHaveBeenCalledWith('t', A)
+    expect(nav.navigate).toHaveBeenCalledWith('/session')
+  })
+
+  it('reports a missing owner plan instead of opening a session', async () => {
+    api.startPilotLearnerSession.mockRejectedValue(
+      new Error('The owner has not set a session plan for this learner yet'))
+    render(<PilotTeacherJourney token="t"/>)
+    fireEvent.click(await screen.findByRole('button', { name: /with Bede/ }))
+    expect(await screen.findByText(/owner has not set a session plan/)).toBeTruthy()
+    expect(nav.navigate).not.toHaveBeenCalled()
   })
 })

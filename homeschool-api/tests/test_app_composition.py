@@ -48,7 +48,7 @@ EXPECTED_MIDDLEWARE = [
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
-    "pilot_journey",
+    "pilot_journey", "pilot_owner",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -143,6 +143,17 @@ GUARDS = {
     ('POST', '/pilot/me/learners/{learner_id}/recommendations/{recommendation_id}/decision'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/decisions'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/instruction'): 'require_educator',
+    ('POST', '/pilot/me/learners/{learner_id}/sessions'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/sessions'): 'require_educator',
+    # Owner-led pilot operations (routers/pilot_owner.py): administrator
+    # passkey (webauthn_uv) additionally enforced in-handler by _admin().
+    ('GET', '/pilot/owner/campuses'): 'require_elevated_parent',
+    ('GET', '/pilot/owner/campuses/{campus_id}/learners'): 'require_elevated_parent',
+    ('GET', '/pilot/owner/campuses/{campus_id}/learners/{learner_id}/plan'): 'require_elevated_parent',
+    ('PUT', '/pilot/owner/campuses/{campus_id}/learners/{learner_id}/plan'): 'require_elevated_parent',
+    ('GET', '/pilot/owner/campuses/{campus_id}/learners/{learner_id}/sessions'): 'require_elevated_parent',
+    ('POST', '/pilot/owner/campuses/{campus_id}/learners/{learner_id}/delete'): 'require_elevated_parent',
+    ('GET', '/pilot/owner/deletion-receipts'): 'require_elevated_parent',
     ('GET', '/educators/me/assessment-frameworks'): 'require_educator',
     ('GET', '/educators/me/roster'): 'require_educator',
     ('GET', '/educators/me/locuto-capacity'): 'require_educator',

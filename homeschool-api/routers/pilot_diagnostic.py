@@ -22,6 +22,7 @@ from core.pilot_assessment_models import (
 )
 from routers.pilot_assessments import _snapshot_hash
 from routers.pilot_campuses import _assigned
+from services import pilot_authz
 
 router = APIRouter(prefix="/pilot/me/learners", tags=["valor-pilot-evidence"])
 
@@ -56,6 +57,11 @@ async def diagnostic_view(
     db: AsyncSession = Depends(get_db),
 ) -> DiagnosticView:
     learner = await _assigned(db, auth, learner_id)
+    # Pin the original educator / campus / grant identity and version before
+    # reading.  A second lookup in the SAME DB session can see a stale grant.
+    ctx = await pilot_authz.resolve_campus_learner(
+        db, auth, learner.id, pilot_authz.ACTION_LEARNER_READ,
+    )
     rows = list((await db.execute(
         select(PilotAssessmentEvidence)
         .where(PilotAssessmentEvidence.campus_id == learner.campus_id,
@@ -86,11 +92,11 @@ async def diagnostic_view(
             snapshot_sha256=ev.snapshot_sha256, recorded_at=ev.created_at,
         ))
 
-    # A second live-authorization check before releasing the projection.
-    # Not an invitation to use this pattern for SSE: streaming requires
-    # per-event and idle revocation checks with version-bound contexts.
-    again = await _assigned(db, auth, learner_id)
-    if again.id != learner.id or again.campus_id != learner.campus_id:
+    # A FRESH DB session must confirm that the original grant and credential
+    # version still hold before any protected material leaves this endpoint.
+    # The request's own SQLAlchemy identity map can be stale after revoke.
+    if not await pilot_authz.revalidate(ctx):
+        pilot_authz.audit_revoked(ctx, "diagnostic.read")
         raise HTTPException(status_code=404, detail="Record not found")
 
     return DiagnosticView(

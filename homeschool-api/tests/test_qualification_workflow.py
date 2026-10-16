@@ -405,6 +405,52 @@ def test_a_missing_route_is_recorded_absent_never_skipped():
     assert {r["id"] for r in matrix.TABLE} <= covered
 
 
+def test_g2_recommendation_probe_keeps_negative_tests_without_preempting_review(monkeypatch):
+    """Read/cross-campus checks run before G2, but only G2 creates a pending
+    recommendation. A premature authorized POST returns 409 in the real app
+    and blocks every teacher decision; this test protects that ordering."""
+    import httpx
+    import matrix
+    from seed import Fixture
+
+    class _Seeder:
+        fx = Fixture(mode="virtual_authenticator")
+
+    m = matrix.Matrix(api=None, driver=None, stack=None, seeder=_Seeder(), routes=set())
+    m.fx.learner = {
+        "learner_one": "11111111-1111-4111-8111-111111111111",
+        "learner_two": "22222222-2222-4222-8222-222222222222",
+    }
+    m.fx.campus = {
+        "campus_one": "33333333-3333-4333-8333-333333333333",
+        "campus_two": "44444444-4444-4444-8444-444444444444",
+    }
+    calls = []
+
+    def fake_call(teacher, method, path, body=None):
+        calls.append((teacher, method, path))
+        if teacher == "teacher_one":
+            assert method == "GET", "an early authorized write would poison G2's pending-proposal state"
+            return httpx.Response(200, json=[])
+        assert teacher == "teacher_two"
+        return httpx.Response(404, json={"detail": "Record not found"})
+
+    monkeypatch.setattr(m, "present", lambda spec: True)
+    monkeypatch.setattr(m, "teachers_ready", lambda: True)
+    monkeypatch.setattr(m, "call", fake_call)
+    rec = next(row for row in matrix.TABLE if row["id"] == "recommendation")
+    m.run_generic(rec, defer_own_write=True)
+    assert not any(who == "teacher_one" and method == "POST"
+                   for who, method, _ in calls)
+    assert any(who == "teacher_two" and method == "POST"
+               for who, method, _ in calls), "cross-campus negative write must still run"
+    observed = {(c.cell, c.status) for c in m.cells}
+    assert ("cross_campus_write", "PASS") in observed
+    assert ("cross_campus_read", "PASS") in observed
+    assert ("own_access", "PASS") in observed
+    assert not any(c.cell == "own_write" for c in m.cells), "G2 must own the positive write"
+
+
 def test_table_covers_every_group_the_brief_requires():
     import matrix
     assert {r["group"] for r in matrix.TABLE} == {"G1", "DIBELS", "G2", "DELETION"}

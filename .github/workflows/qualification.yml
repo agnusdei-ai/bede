@@ -1,0 +1,222 @@
+name: Synthetic qualification
+
+# Produces evidence about ONE fixed commit: does the real application stack
+# (real uvicorn main:app and lifespan, Postgres as a non-superuser role,
+# real routes, real browser passkey ceremonies, real SSE) enforce the G1
+# isolation, DIBELS/Data Day, G2 decision and deletion guarantees on
+# synthetic data? See docs/SYNTHETIC_QUALIFICATION.md.
+#
+# It decides nothing. It never merges, deploys, releases, dispatches another
+# workflow, or touches billing, enrollment or real data. Its output is an
+# artifact keyed by the candidate SHA, with a manifest and SHA256SUMS.
+# homeschool-api/tests/test_qualification_workflow.py guards every property
+# below against the parsed YAML.
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Full 40-character commit SHA to qualify (never a branch or tag name)
+        required: true
+        type: string
+      teacher_auth_mode:
+        description: virtual_authenticator (default) or the documented minted_token fallback
+        required: false
+        type: choice
+        default: virtual_authenticator
+        options: [virtual_authenticator, minted_token]
+      app_db_role:
+        description: Non-superuser Postgres role the application connects as
+        required: false
+        type: string
+        default: bede_qual_app
+      postgres_image:
+        description: Postgres service image
+        required: false
+        type: string
+        default: postgres:16
+      python_version:
+        description: Python for the API and harness
+        required: false
+        type: string
+        default: '3.12'
+      playwright_version:
+        description: Playwright npm version for the virtual authenticator
+        required: false
+        type: string
+        default: 1.56.0
+      build_images:
+        description: Build the API image at the candidate SHA and record its digest (never pushed)
+        required: false
+        type: boolean
+        default: true
+      artifact_retention_days:
+        description: Days to keep the qualification evidence artifact
+        required: false
+        type: number
+        default: 30
+      mac_package:
+        description: G3 Mac package — PLACEHOLDER ONLY; not implemented, nothing is built or verified
+        required: false
+        type: choice
+        default: none
+        options: [none]
+  pull_request:
+    paths:
+      - 'scripts/qualification/**'
+      - '.github/workflows/qualification.yml'
+      - 'docs/SYNTHETIC_QUALIFICATION.md'
+
+permissions:
+  contents: read
+
+# Superseded PR runs are cancelled; a dispatched qualification run is not.
+concurrency:
+  group: qualification-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  qualify:
+    name: Synthetic qualification
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: ${{ inputs.postgres_image || 'postgres:16' }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-bootstrap-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      QUAL_CANDIDATE_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha }}
+      QUAL_TEACHER_AUTH_MODE: ${{ inputs.teacher_auth_mode || 'virtual_authenticator' }}
+      QUAL_APP_DB_ROLE: ${{ inputs.app_db_role || 'bede_qual_app' }}
+      QUAL_MAC_PACKAGE: ${{ inputs.mac_package || 'none' }}
+      QUAL_BUILD_IMAGES: ${{ inputs.build_images && 'true' || 'false' }}
+      QUAL_OUT_DIR: ${{ github.workspace }}/qualification-out
+      QUAL_RUN_ID: ${{ github.run_id }}
+      QUAL_DB_ADMIN_URL: postgresql://postgres:synthetic-bootstrap-only@127.0.0.1:5432/postgres
+      # The application's environment: synthetic, loopback-only, production off.
+      PRODUCTION: 'false'
+      DISABLE_API_DOCS: 'true'
+      EDUCATOR_PILOT_ENABLED: 'true'
+      ELEVATION_ENFORCED: 'true'
+      MCP_EXTERNAL_ENABLED: 'false'
+      LOCUTO_IPC_ENABLED: 'false'
+      EDUCATOR_INSTITUTION_EMAIL_DOMAIN: qualification.agnusdei.ai
+      WEBAUTHN_RP_ID: localhost
+      WEBAUTHN_ORIGIN: http://localhost:8765
+      CORS_ORIGINS: http://localhost:8765
+      LOCAL_LLM_BASE_URL: http://127.0.0.1:8766/v1
+      LOCAL_LLM_MODEL: synthetic-stub
+      BEDE_FORCE_ADAPTER: local
+      RATE_LIMIT_AUTH_PER_MINUTE: '120'
+      RATE_LIMIT_API_PER_MINUTE: '1200'
+      CHILD_PIN: '739184'
+    steps:
+      - name: Require a full commit SHA, never a branch name
+        env:
+          CANDIDATE: ${{ inputs.candidate_sha || github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$CANDIDATE" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::candidate_sha must be a full 40-character commit SHA, got '$CANDIDATE'"
+            exit 1
+          fi
+
+      - name: Check out the candidate commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.candidate_sha || github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Verify HEAD is exactly the candidate SHA
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse HEAD)"
+          echo "HEAD=$head candidate=$QUAL_CANDIDATE_SHA"
+          test "$head" = "$QUAL_CANDIDATE_SHA"
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ inputs.python_version || '3.12' }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Install pinned API dependencies
+        working-directory: homeschool-api
+        run: pip install --require-hashes -r requirements-dev.lock.txt
+
+      - name: Install Playwright (chromium only)
+        env:
+          PLAYWRIGHT_VERSION: ${{ inputs.playwright_version || '1.56.0' }}
+        run: npm install --no-save "playwright@${PLAYWRIGHT_VERSION}" && npx playwright install chromium
+
+      - name: Generate synthetic secrets and the non-superuser application role
+        run: |
+          set -euo pipefail
+          gen() { openssl rand -hex "$1"; }
+          db_pw="synthetic-$(gen 16)"; secret="$(gen 32)"; master="$(gen 32)"; parent="synthetic-$(gen 16)"
+          for v in "$db_pw" "$secret" "$master" "$parent"; do echo "::add-mask::$v"; done
+          {
+            echo "QUAL_APP_DB_PASSWORD=$db_pw"
+            echo "SECRET_KEY=$secret"
+            echo "MASTER_SECRET=$master"
+            echo "PARENT_PASSWORD=$parent"
+          } >> "$GITHUB_ENV"
+          url="$(QUAL_APP_DB_PASSWORD="$db_pw" python scripts/qualification/db_setup.py --db bede_qualification)"
+          echo "::add-mask::$url"
+          echo "DATABASE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Fail-closed preflight
+        run: python scripts/qualification/preflight.py --phase pre-start
+
+      - name: Build the API image at the candidate SHA (not pushed)
+        if: env.QUAL_BUILD_IMAGES == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p "$QUAL_OUT_DIR"
+          docker build --label "org.opencontainers.image.revision=$QUAL_CANDIDATE_SHA" \
+            -t "bede-api:$QUAL_CANDIDATE_SHA" homeschool-api
+          digest="$(docker image inspect --format '{{.Id}}' "bede-api:$QUAL_CANDIDATE_SHA")"
+          printf '{"bede-api": "%s"}\n' "$digest" > "$RUNNER_TEMP/images.json"
+
+      - name: Run the stack, seed through the API, run the matrix
+        id: qualify
+        run: python scripts/qualification/run.py
+
+      - name: Package evidence (credential scan, manifest, SHA256SUMS)
+        id: package
+        if: always()
+        run: python scripts/qualification/package.py --images "$RUNNER_TEMP/images.json"
+
+      - name: Upload evidence
+        if: always() && steps.package.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: qualification-${{ env.QUAL_CANDIDATE_SHA }}
+          path: qualification-out/
+          retention-days: ${{ inputs.artifact_retention_days || 14 }}
+          if-no-files-found: error
+
+      - name: Final verification
+        if: always()
+        env:
+          QUALIFY_OUTCOME: ${{ steps.qualify.outcome }}
+          PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+        run: |
+          set -euo pipefail
+          echo "candidate=$QUAL_CANDIDATE_SHA matrix=$QUALIFY_OUTCOME package=$PACKAGE_OUTCOME"
+          echo "Physical Mac verification: NOT RUN (a human step outside this workflow)."
+          echo "This run is evidence only. It authorizes no gate, Engineering Complete or GO."
+          test "$PACKAGE_OUTCOME" = success
+          test "$QUALIFY_OUTCOME" = success

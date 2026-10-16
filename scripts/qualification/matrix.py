@@ -884,12 +884,16 @@ class Matrix:
         if self.fx.campus:
             self.canonical_setup()
         for row in TABLE:
-            if row.get("special") in ("voice", "g2", "deletion"):
+            if row.get("special") in ("voice", "g2", "deletion") or row["id"] == "tutoring_turn":
                 continue
             self.run_generic(row)
         self.browser_agreement()
         self.voice_owner_binding()
         self.g2()
+        # This write legitimately REQUIRES a teacher-approved G2 instruction.
+        # Run it after the real evidence→recommendation→human decision journey,
+        # not before approval and not by bypassing the approval guard.
+        self.run_generic(next(row for row in TABLE if row["id"] == "tutoring_turn"))
         self.stack.restart_server()
         self.put("learner_profile", "restart_sigterm_relaunch", "PASS",
                  "server stopped by SIGTERM and relaunched", **self.stack.events[-1])

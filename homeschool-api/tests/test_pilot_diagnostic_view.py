@@ -76,3 +76,17 @@ def test_revoke_makes_old_teacher_token_unusable(world):
     assert after.status_code in (401, 404)
     # No success payload or data while the previous credential is stale.
     assert "sources" not in after.text
+
+
+def test_fresh_grant_check_refuses_access_if_revoked_mid_read(world, monkeypatch):
+    """Simulates a revoked grant after the initial read, before response release."""
+    from services import pilot_authz
+
+    async def no_longer_valid(_ctx):
+        return False
+
+    monkeypatch.setattr(pilot_authz, "revalidate", no_longer_valid)
+    response = world.client.get(url(world), headers=world.teacher_one.headers)
+    assert response.status_code == 404, response.text
+    assert response.json() == {"detail": "Record not found"}
+    assert "sources" not in response.text

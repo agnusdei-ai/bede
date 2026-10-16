@@ -204,13 +204,16 @@ async def disable_campus_membership(
     await db.commit()
 
 
-@router.get("/me/learners")
-async def list_my_learners(
-    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+class LearnerSearch(BaseModel):
+    # In the body, never a query string: a learner's name in a URL is
+    # written into every access log and Referer header on the way here.
+    query: str = Field(min_length=1, max_length=100)
+
+
+async def _my_learner_rows(db: AsyncSession, auth: dict) -> list[PilotLearner]:
     _enabled()
     teacher = await live_educator(db, auth)
-    rows = (await db.execute(
+    return (await db.execute(
         select(PilotLearner)
         .join(PilotCampus, PilotCampus.id == PilotLearner.campus_id)
         .join(PilotEducatorCampus,
@@ -226,7 +229,33 @@ async def list_my_learners(
                PilotRosterGrant.enabled.is_(True))
         .order_by(PilotLearner.id)
     )).scalars().all()
-    return [_render(row) for row in rows]
+
+
+@router.get("/me/learners")
+async def list_my_learners(
+    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    return [_render(row) for row in await _my_learner_rows(db, auth)]
+
+
+@router.post("/me/learners/search")
+async def search_my_learners(
+    payload: LearnerSearch,
+    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """Name search / autocomplete over ONLY the learners this teacher holds a
+    live grant for. Every result carries the learner's UUID and campus UUID,
+    and every later protected operation takes the UUID: a name is never an
+    authorization key. Two learners with the same name on two campuses are
+    two results with two UUIDs, never a merged record. Ordered by UUID, so
+    the order says nothing about how well a name matched."""
+    needle = payload.query.strip().casefold()
+    if not needle:
+        return []
+    return [
+        item for item in (_render(row) for row in await _my_learner_rows(db, auth))
+        if needle in item["display_name"].casefold()
+    ]
 
 
 @router.get("/me/learners/{learner_id}")

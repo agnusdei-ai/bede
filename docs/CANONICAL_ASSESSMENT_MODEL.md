@@ -315,6 +315,12 @@ and holds the learner row `FOR SHARE` until it commits. A write in flight is
 therefore either deleted with everything else, or waits and then answers the
 uniform `404`. Both orders are tested on Postgres.
 
+Granting a teacher access to the learner (`approve_roster_grant` in
+`routers/pilot_campuses.py`) takes the same `FOR SHARE` lock until the grant
+commits. A grant racing a deletion is therefore either deleted with everything
+else, or waits and then answers the uniform `404` and writes nothing. Both
+orders are tested on Postgres.
+
 **After deletion,** every learner route, the Data Day packet, the per-assessment
 audit, `GET /pilot/me/learners`, and a direct lookup of an old administration ID
 all answer the uniform `404 Record not found`. Re-granting the learner is also

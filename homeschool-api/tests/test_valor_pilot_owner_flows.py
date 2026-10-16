@@ -142,7 +142,7 @@ async def test_ordinary_audit_views_show_no_readable_learner_content(db, monkeyp
     receipt = await delete_learner(a, la, _confirm(la), req(), auth=ADMIN, db=db)
     assert [e for e, _ in logged] == ["student.data_deleted"]
     detail = logged[0][1]["detail"]
-    assert re.fullmatch(rf"pilot_learner_deleted campus={_UUID} learner={_UUID} rows=\\d+ tables=\\d+", detail), detail
+    assert re.fullmatch(rf"pilot_learner_deleted campus={_UUID} learner={_UUID} rows=\d+ tables=\d+", detail), detail
     listing = json.dumps(await list_receipts(auth=ADMIN, db=db))
     for text in ("Example Learner", "Synthetic DIBELS 8 report", "phoneme", "segmentation"):
         assert text not in detail and text not in listing and text not in json.dumps(receipt), text

@@ -1,0 +1,137 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 05_AI_Governance_and_Teacher_Oversight
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 10 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE          •   VENDOR REVIEW / 05
+
+
+
+
+AI Safety, Teacher Control & Access
+Model governance and classroom use limitations for Bede
+
+DRAFT - INTERNAL VENDOR REVIEW; NOT EXECUTED
+
+
+
+
+Product role
+Bede is an AI-assisted Socratic learning companion intended to work under educator instruction. It asks age-
+appropriate questions, supports lessons selected by educators, and presents academic work for human review. It is
+not a teacher of record, assessment publisher, school administrator, counselor, or autonomous decision-maker.
+
+Teacher decision rights
+
+ Area                       Teacher control / system boundary
+
+
+                            School approves allowable content, subjects, reading materials, faith/sensitivity settings and grade-
+ Curriculum
+                            level scope.
+
+                            AI may prepare draft recommendations with source evidence and state when evidence is insufficient;
+ Academic guidance
+                            teacher approves, edits or rejects.
+
+                            No consequential change should publish solely from an AI draft; server must verify authenticated
+ Instructional changes
+                            educator authorization and record the decision.
+
+                            Bede must not imply it administers or scores official DIBELS; educator can reference properly
+ Assessments
+                            sourced outside results only.
+
+                            No moral, conscience, spirituality or compassion grades of children; these are not academic
+ Character / faith
+                            performance scores.
+
+ Learner data               School-authorized assignments, permissions and retention govern what the system may show or use.
+
+
+
+
+Safeguards to validate before any learner-facing release
+   Model outputs cannot modify identities, grades, approved curriculum or teacher decisions without a separate
+    authorized action.
+   Constrain allowed tools, documents and prompts; handle prompt injection and unsafe/off-topic requests with a
+    supervised response and escalation route.
+   Refuse or abstain when required evidence or provenance is missing; identify drafts as drafts.
+   Log human approval/rejection in a versioned, tamper-evident record; test retries, stale decisions and rollback.
+   Check educator, campus and learner grants on each protected request and during streaming; revoked users lose
+    access.
+   No cross-student memory, hidden data reuse, model training on school records or external provider fallback
+    unless explicitly authorized.
+
+Suggested oversight responsibilities
+
+ Role                               Responsibility
+
+
+ Valor instructional lead           Approve classroom purpose, grade scope, materials and educator reviewers.
+
+
+                                                                                                WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 11 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE             •   VENDOR REVIEW / 05
+
+
+
+
+ Role                               Responsibility
+
+
+
+
+ Valor privacy/security lead        Approve data-sharing, provider, consent, monitoring and escalation.
+
+ Agnus Dei engineering owner        Ship exact tested build; demonstrate guardrails, audits, negative cases and recovery.
+
+ Classroom educator                 Decide lesson use, review outputs, reject inaccuracies and stop sessions when needed.
+
+
+
+
+Claims that must not be made
+   Bede does not automatically improve literacy, DIBELS scores or teacher productivity; pilot outcomes must be
+    measured, including failures.
+   The interface does not make Bede a replacement for teachers or a licensed clinical/psychological assessor.
+   AI model policies do not replace the required server permissions, school policies, family rights and technical
+    testing.
+   A successful unit test or merged PR is not evidence of real-world school deployment readiness.
+
+Model and safeguard review record
+
+ Item to verify                                                    Result / dated evidence
+
+
+ Selected model and exact version                                  [APPROVED MODEL + VERSION / DEVICE]
+
+ Allowed outbound destinations                                     [NETWORK REVIEW + EGRESS LOGS]
+
+ Unsafe-request handling / tool permissions                        [NEGATIVE TESTS + REMEDIATIONS]
+
+ Teacher decisions and correction trail                            [BROWSER E2E + API AUDIT RECORD]
+
+ Cross-campus context separation                                   [G1 POSITIVE + NEGATIVE RESULTS]
+
+ School instructional approval                                     [VALOR REVIEWER / DATE / EXCEPTIONS]
+
+
+
+
+Open pilot decisions
+[SCHOOL CURRICULUM RULES] | [APPROVED MODEL] | [MAX SESSION LENGTH / CONCURRENCY] | [EDUCATOR
+APPROVAL USERS] | [CONTENT INCIDENT ESCALATION] | [RETENTION RULES] | [EVIDENCE REVIEWER]
+
+Source references
+Internal: docs/institutional/PILOT_ROUTE_DIALOG_CONTRACT.md; docs/institutional/VALOR_INTEGRATION_QUALIFICATION.md;
+docs/institutional/EDUCATOR_ASSESSMENT_JOURNEYS.md; docs/ASSESSMENT_INTEROPERABILITY.md.
+
+
+
+
+                                                                                               WORKING DRAFT • October 16, 2026 • 2

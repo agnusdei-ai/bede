@@ -1,0 +1,136 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 06_Accessibility_and_Curriculum_Review
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 12 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE         •   VENDOR REVIEW / 06
+
+
+
+
+Accessibility & Curriculum Alignment
+School review guide; not a VPAT or certification
+
+DRAFT - INTERNAL VENDOR REVIEW; NOT EXECUTED
+
+
+
+
+Instructional approach and intended scope
+Bede is designed around question-led teaching, short guided lessons, narration and work with real texts. The intended
+learning range is elementary and middle grades (K-8), with the specific classroom grade, language, subject and source
+materials to be approved by the School before use. Public charter-school use must follow the School-approved
+curriculum and applicable educational policies; any optional religious content must be excluded unless expressly
+permitted in that setting.
+
+What the School should validate
+
+ Area                         What to review
+
+
+                              State standards and campus scope; approved texts; lesson objectives; literacy/numeracy skills;
+ Instructional alignment
+                              language support.
+
+ Educator usability           Readability of source evidence and draft decisions; teacher ability to correct, reject and override.
+
+                              Clear reading level, short prompts, breaks, screen limits, input choice and understandable error
+ Student usability
+                              states.
+
+                              Keyboard-only use, focus order, labels, screen reader announcements, color contrast, text reflow
+ Accessibility
+                              and reduced motion.
+
+                              Interaction with assistive technology, hearing/voice alternatives and IEP/504 planning under
+ Accommodation needs
+                              School direction.
+
+                              Actual source records, timing, limitations and full samples; no invented standards alignment or
+ Evidence quality
+                              scored character traits.
+
+
+
+
+Accessibility status: design intentions are not test results
+Target relevant WCAG success criteria for the web/application experience and applicable school obligations. The U.S.
+Department of Justice Title II web/mobile rule uses WCAG 2.1 Level AA for covered public entities, subject to its
+exceptions, applicability and compliance dates; Bede may use WCAG 2.2 AA as an internal design target. Agnus Dei
+has not supplied an independently reviewed VPAT/ACR or completed institutional assistive-technology audit in this
+packet.
+
+Evidence Valor may ask for
+   Documented keyboard and screen-reader tests on the exact browser/device build, including enrollment, lesson,
+    evidence review and denial dialogs.
+   Accessibility Conformance Report (ACR/VPAT) if requested, with identified nonconformities and written
+    remediation commitments.
+   Representative lesson samples with curriculum map; source rights or school-owned content authorization.
+   Educator review of suitability for actual grades, English learners and students with disabilities.
+
+
+                                                                                               WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 13 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE                •   VENDOR REVIEW / 06
+
+
+
+
+   Teacher-facing acknowledgment that AI cannot independently assign student accommodations or substitute for
+     an educator.
+
+Classroom content and assessment boundaries
+External assessments such as DIBELS 8 must be administered under the instrument owner’s terms by authorized
+personnel. Bede must not manufacture scores or make unsupported growth claims. For standardized school subjects,
+an approved teaching plan and materials inventory should be attached before real student participation.
+
+Accessibility testing record
+
+  Experience                                                           School-approved test / status
+
+
+  Keyboard + focus flow                                                [BROWSER / OS / PASS OR ISSUE]
+
+  Screen reader labels and live announcements                          [DEVICE / READER / PASS OR ISSUE]
+
+  Zoom, reflow, contrast and motion                                    [TEST CASE / PASS OR ISSUE]
+
+  Teacher authorization and error dialogs                              [TASK RUN / PASS OR ISSUE]
+
+  Voice alternatives and captions                                      [SUPPORT NEED / PASS OR ISSUE]
+
+  Exceptions / remediation decision                                    [ISSUE ID / OWNER / DUE DATE]
+
+
+
+
+Open items for Valor
+
+  Decision                                                                         Owner / response
+
+
+  Exact grade(s), subjects and program type                                        [VALOR]
+
+  Approved curriculum and excluded content                                         [VALOR INSTRUCTIONAL LEAD]
+
+  Required accessibility standard and testing environment                          [VALOR IT / ACCESSIBILITY LEAD]
+
+  Assistive technology and languages to support                                    [VALOR]
+
+  Owner sign-off on gaps / remediation plan                                        [VALOR + AGNUS DEI]
+
+
+
+
+Source references
+U.S. DOJ Title II accessibility rule: https://www.ada.gov/law-and-regs/regulations/title-ii-2010-regulations/
+Internal: docs/ACCESSIBILITY_RESEARCH.md; docs/institutional/EDUCATOR_ASSESSMENT_JOURNEYS.md;
+docs/ASSESSMENT_INTEROPERABILITY.md.
+
+
+
+
+                                                                                                           WORKING DRAFT • October 16, 2026 • 2

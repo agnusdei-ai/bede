@@ -1,0 +1,202 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 03_Data_Privacy_Agreement_Draft
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 5 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE          •   VENDOR REVIEW / 03
+
+
+
+
+Student Data Privacy Agreement
+Negotiation draft with FERPA, COPPA and Texas student privacy exhibits
+
+LEGAL DRAFT - COUNSEL AND SCHOOL REVIEW REQUIRED; NOT EFFECTIVE OR SIGNED
+
+
+This working draft is for review, not a representation that Valor has accepted these terms or that Bede is cleared to
+receive identifiable student information. The current synthetic-only pilot shall not ingest student personal
+information.
+
+Agreement details
+
+ Item                         Vendor information
+
+
+ School / Controller          [EXACT VALOR CONTRACTING ENTITY]
+
+ Provider / Operator          Agnus Dei Technologies, LLC
+
+ Service                      Bede for Schools - teacher-guided AI tutoring and learning evidence
+
+ Effective date / term        [TO BE AGREED]; no terms take effect before both authorized signatures
+
+ Authorized processing
+                              [SPECIFY HOSTING, REGION, DEVICES AND MODEL PROVIDERS]
+ location
+
+ Data protection / incident
+                              [NAMES, EMAILS AND VERIFIED ESCALATION NUMBERS]
+ contacts
+
+
+
+
+1 | Purpose and permitted use
+Provider will process only information specifically authorized by School to deliver documented educational services,
+under School direction and the signed scope. Provider will not use protected student information for targeted
+advertising, sell or rent student information, build unrelated commercial profiles, or use identifiable student records
+to train models unless a separate, lawful written approval explicitly permits it.
+
+2 | Disclosure and access
+School decides whether a lawful FERPA basis permits disclosure and remains responsible for school-level permissions
+and notices. If the FERPA school-official exception applies, Provider performs a School-designated institutional
+service, acts under School direct control for education-record use, restricts staff access by legitimate educational need,
+and must not re-disclose data except as authorized by the agreement and law.
+
+3 | COPPA, Texas consent and notice
+Before use involving children under 13, the parties will determine whether COPPA applies and document the proper
+parental or school authorization, notices and school-purpose limits. The ability of a school to consent under COPPA is
+limited to school-benefit uses; it is not a blanket substitute for state-mandated direct and informed parental consent.
+School will verify Texas Education Code Section 32.1021 and its adopted policies before activating a school application
+for pupils.
+
+
+
+
+                                                                                              WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 6 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE          •   VENDOR REVIEW / 03
+
+
+
+
+4 | Security safeguards
+Before any real-data launch, Provider must present the agreed security controls and evidence: role and campus
+separation; strong staff authentication; encryption in transit and at rest; secure secrets handling; monitoring; tested
+recovery; least-privilege support; vulnerability response; and verified revocation. Unverified controls do not become
+contractual facts by being listed here. School may decline real-data access until testing satisfies the agreed standard.
+
+5 | Subprocessors and model services
+No third-party model or ancillary service receives identifiable School student information unless named in an
+approved Exhibit B describing company, purpose, data fields, geography, retention, and governing terms. Changes to
+subprocessors require the agreed notice and objection process. The school-approved deployment profile must
+explicitly indicate local model versus cloud adapter and audio processing paths.
+
+6 | Retention, return, deletion and backups
+Provider will collect the minimum data needed, honor School-approved retention periods, support access/correction
+requests within agreed roles, and return or delete covered information upon authorized School request or
+termination. Texas Education Code Section 32.156 specifies deletion within 60 days after a district request unless a
+contract/terms provision or permitted student/parent consent changes the rule. A schedule for active data, derived
+records, logs, archived backups and recovery copies must be completed before real data is used; do not promise
+immediate deletion from immutable backups without a verified method.
+
+7 | Security events, audit and termination
+Provider will isolate and investigate suspected unauthorized access, preserve relevant evidence, notify School using
+contacts and deadlines filled in Schedule C, and cooperate with legally required notifications. The parties will specify
+incident severity, notification window, investigation responsibilities, subcontractor cooperation, indemnity/insurance
+expectations, governing law, dispute process and order of precedence in the executed agreement.
+
+Exhibit A | Data categories and lawful purpose
+
+ Category                                  Need / proposed restriction
+
+
+                                           DISABLED for synthetic pilot. For real use, only school-issued UUID/pseudonym and
+ Student identity and roster
+                                           approved roster fields.
+
+ Instructional prompts and responses       Only approved instructional tasks; confirm logging and retention by deployment.
+
+ Teacher notes / work evidence             School-directed academic review, corrections and deletion controls.
+
+ Assessment records                        Only authorized externally administered assessment records with source/provenance.
+
+                                           Disabled unless separately approved; vendor flow varies by transcription and model
+ Voice / images
+                                           configuration.
+
+ Staff credentials and audit events        Limited to verified staff and security purposes; never store passkey secrets.
+
+                                           Minimized, role-limited, with defined periods and documented restore/deletion
+ Operational logs/backups
+                                           behavior.
+
+
+
+
+                                                                                                 WORKING DRAFT • October 16, 2026 • 2
+
+
+<PARSED TEXT FOR PAGE: 7 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE               •   VENDOR REVIEW / 03
+
+
+
+
+Exhibit B | Subprocessor authorization register
+
+  Service / vendor                                Permitted?                  Data / destination / retention
+
+
+                                                                              School-owned hardware; local prompts; independently
+  Self-hosted local model                         [YES/NO]
+                                                                              test egress.
+
+                                                  [NONE OR APPROVED           If approved: full tutoring context may leave local
+  OpenAI / Anthropic / Mistral model API
+                                                  NAME]                       deployment. Verify separate DPA, terms and controls.
+
+                                                  [DISABLED /                 Audio may be transmitted for remote transcription when
+  OpenAI speech-to-text / text-to-speech
+                                                  APPROVED]                   enabled; Bede responses for speech synthesis.
+
+                                                  [DISABLED /                 May transmit recipient address and selected generated
+  Resend transactional email
+                                                  APPROVED]                   content.
+
+                                                  [DISABLED /
+  Wikimedia browser image lookup                                              Public titles and client IP may be visible to the destination.
+                                                  APPROVED]
+
+                                                                              Vendor, region, data categories, and storage/retention to
+  Other hosting / backup vendors                  [LIST OR NONE]
+                                                                              be completed.
+
+
+
+
+Schedule C | Decisions needed before real student records
+   Set incident notice window, after-hours contact and breach investigation cooperation.
+   Approve the exact AI model, local/cloud boundary, egress policy, audio/visual tools and every subprocessor.
+   Agree data categories, retention/deletion periods, backup lifecycle, export format, and parent access route.
+   Attach signed school privacy/security addenda and confirm parental-consent requirements.
+   Record actual technical GO and an independent School approval for identifiable data.
+
+Approval / acknowledgment
+
+  Vendor                                                                 School
+
+
+  Agnus Dei Technologies, LLC                                            Valor Education (authorized representative)
+  Name/title: __________________                                         Name/title: __________________
+  Signature: __________________                                          Signature: __________________
+  Date: __________________                                               Date: __________________
+
+
+
+
+Source references
+FERPA contractor/school-official rules: https://studentprivacy.ed.gov/faq/who-school-official-under-ferpa
+FTC COPPA school-consent guidance: https://www.ftc.gov/business-guidance/resources/complying-coppa-frequently-asked-questions
+Texas Education Code Chapter 32, especially Sections 32.1021 and 32.151-32.157: https://statutes.capitol.texas.gov/GetStatute.aspx?
+Code=ED&Value=32
+Internal: docs/VENDOR_DATA_FLOW.md; docs/RETENTION_POLICY.md; docs/INFORMATION_SECURITY_POLICY.md.
+
+
+
+
+                                                                                                        WORKING DRAFT • October 16, 2026 • 3

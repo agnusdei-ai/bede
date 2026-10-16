@@ -1,0 +1,141 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 01_Company_and_Vendor_Profile
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 1 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE            •   VENDOR REVIEW / 01
+
+
+
+
+Company & Vendor Information
+Vendor onboarding profile and document-request checklist
+
+DRAFT - INTERNAL VENDOR REVIEW; NOT EXECUTED
+
+
+
+
+Vendor overview
+
+ Item                          Vendor information
+
+
+ Legal business name           Agnus Dei Technologies, LLC
+
+ Product / offering            Bede - AI-assisted Socratic tutoring and educator support
+
+ Public website                https://agnusdei.ai | https://agnusdei.ai/schools/
+
+ Business email                info@agnusdei.ai
+
+ Business address              [VERIFY AND INSERT LEGAL BUSINESS ADDRESS]
+
+ Authorized representative     [INSERT LEGAL NAME, TITLE AND DIRECT EMAIL]
+
+ Tax documentation             W-9 to be provided securely to Valor; do not include EIN in public packet
+
+ Vendor registration / ID      [ASSIGNED BY VALOR IF REQUIRED]
+
+ Insurance                     [CARRIER / COVERAGE / COI - TO BE CONFIRMED]
+
+
+
+
+What Agnus Dei is proposing
+A controlled, founder-authorized demonstration and evaluation of Bede for educational organizations. The current
+invite-only Valor pilot is free, manually approved, and limited to synthetic student records. It is not authorized for
+real Valor student information until both parties separately approve the expanded scope and the technical release
+gates are accepted.
+
+Commercial options - separate from current free pilot
+
+ Offer                      Planning price               Main conditions
+
+
+                                                         Separate proposed 6-8 weeks; approximately 15-25 learners; written
+ Paid evaluation            $950 one-time
+                                                         agreement required.
+
+                                                         25-seat minimum; generally 25-100 learners; 12-month commitment;
+ Per-learner campus         $25 per learner/month
+                                                         monthly billing allowed.
+
+                            $2,600 per physical          One campus; unlimited enrolled learner accounts; 12-month agreement
+ Founding campus
+                            campus/month                 billed monthly; eligible Fall 2026-Spring 2027.
+
+
+The founding-campus software commitment is $31,200 over 12 months. This is $10,800 below the $42,000 12-month
+standard campus reference price. Hardware, taxes, and custom services are separate. Commercial figures do not
+authorize live deployment.
+
+
+
+
+                                                                                                WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 2 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE              •   VENDOR REVIEW / 01
+
+
+
+
+Onboarding documents to exchange
+   Agnus Dei / Bede: completed vendor form, signed W-9 via secure channel, primary contact and invoicing details,
+     proof of coverage if requested.
+   Valor: approval owner, procurement path, standard contract and DPA, purchasing/insurance requirements,
+     approved school domain and IT contact.
+   Joint: scope, no-real-data restriction, deployment architecture, acceptance measures, incident contacts, and exit
+     procedure.
+
+Vendor onboarding decision
+
+ Question                                                                            Response / owner
+
+
+ Does Valor require a cooperative contract, vendor portal or PO for a no-cost
+                                                                                     [VALOR TO CONFIRM]
+ pilot?
+
+ Is marketplace listing necessary for this direct pilot?                             [VALOR TO CONFIRM; do not assume]
+
+ Who signs the pilot agreement and the data agreement?                               [VALOR / AGNUS DEI]
+
+ Is a separate security review required before synthetic-only access?                [VALOR TO CONFIRM]
+
+
+
+
+Vendor attestation - complete before sending
+
+ Verification                                                        Status / evidence
+
+
+ Legal name and authorized signatory                                 [ ] Verified by [NAME / DATE]
+
+ W-9 and tax documentation transferred securely                      [ ] Provided to Valor procurement contact / [ ] Pending
+
+ Insurance certificate / coverage response                           [ ] Provided / [ ] Not required by Valor / [ ] Pending
+
+ Background-screening requirements confirmed, if applicable          [ ] No direct student contact / [ ] Screening evidence needed
+
+ Procurement path and pilot cost confirmed                           [ ] Direct approval / [ ] Purchase order / [ ] Other
+
+ Contacts and escalation route approved                              [ ] Names, email and response responsibility verified
+
+
+
+  REVIEW NOTE Internal draft, not a completed registration, proof of insurance, W-9, or purchase authorization.
+  Obtain vendor legal/financial documents through the appropriate controlled channels.
+
+Source references
+Internal pricing basis: docs/VALOR_PRICING.md, revision approved October 15, 2026.
+Public executive summary: https://agnusdei.ai/schools/
+
+
+
+
+                                                                                                   WORKING DRAFT • October 16, 2026 • 2

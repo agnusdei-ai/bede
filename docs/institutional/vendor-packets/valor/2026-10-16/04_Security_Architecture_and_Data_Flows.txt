@@ -1,0 +1,137 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 04_Security_Architecture_and_Data_Flows
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 8 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE             •   VENDOR REVIEW / 04
+
+
+
+
+Security Architecture & Data Flows
+Vendor security disclosure and deployment-choice worksheet
+
+DRAFT - INTERNAL VENDOR REVIEW; NOT EXECUTED
+
+
+
+
+Deployment choices must not be conflated
+
+ Environment                Present / proposed use                       Data boundary
+
+
+                            Separate marketing demonstration. Not        May use hosted backend and remote speech/model
+ Public Bede demo
+                            the Valor institutional pilot.               providers; see public privacy notice.
+
+ Self-hosted family         Existing installation architecture; not a    Database is on operator equipment; AI egress depends on
+ Bede                       guarantee of campus scale.                   chosen adapters and optional services.
+
+                            Release-HOLD until exact build and           Synthetic-only; choose one model/provider, hosting,
+ Proposed school pilot
+                            school configuration approved.               network and backup plan in writing.
+
+
+
+
+Reference architecture at a glance
+User browser / teacher passkey -> Bede web/API on approved HTTPS origin -> scope checks against campus and roster
+-> PostgreSQL and encrypted record services -> configured model adapter (either local model or approved cloud API).
+Separately enabled voice, email, image lookup and licensing services can create additional outbound flows. This is a
+design description, not evidence that each control passed a deployed campus test.
+
+External data-flow inventory
+
+ Connection                    Information that may leave Bede                                  Decision for Valor
+
+
+                               None to third-party model if fully isolated and network policy
+ Local AI model                                                                                 [CONFIGURATION/TEST TBD]
+                               passes egress tests.
+
+                               Tutor prompt context, current child message, subject             [DISABLE OR AUTHORIZE
+ Cloud tutor adapter
+                               conversation and optional image.                                 SPECIFIC VENDOR]
+
+ Remote transcription          Microphone audio if nonlocal transcription is enabled.           [LOCAL BY DEFAULT / VERIFY]
+
+                               Bede-generated speech text when external synthesis is
+ Speech synthesis                                                                               [DISABLE OR AUTHORIZE]
+                               enabled.
+
+                               Recipient and permitted content/alerts when email
+ Transactional email                                                                            [APPROVE/DISABLE]
+                               integration is enabled.
+
+                               Public article title and browser IP visible to Wikimedia, if
+ Picture reference lookup                                                                       [APPROVE/DISABLE]
+                               enabled.
+
+                               Purchaser and entitlement metadata; should contain no
+ Billing / licensing                                                                            [KEEP OUT OF SYNTHETIC TEST]
+                               learner records.
+
+
+
+
+                                                                                                 WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 9 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE         •   VENDOR REVIEW / 04
+
+
+
+
+Documented safeguards versus evidence gaps
+
+ Control                      Code/policy basis                               Evidence state for Valor
+
+
+ Encryption and key           Repository describes AES-256-GCM and            Design documented; campus key custody and
+ isolation                    protected secrets.                              restore still require acceptance.
+
+                              WebAuthn educator invitation and recovery       Merged foundations; real browser and school
+ Verified staff sign-in
+                              implementation.                                 admin recovery test required.
+
+ Campus/learner               Campus UUID and grants merged in                Full cross-campus, revocation and stream isolation
+ authorization                baseline #596; integrated G1 #613 pending.      not accepted.
+
+                              Contract specifies explicit teacher decisions
+ Teacher action approval                                                      G2 #604 remains draft; no auto-publishing claim.
+                              and audit.
+
+                              Encrypted backup work merged #574;              Restore from clean hardware, custody and
+ Backups / resilience
+                              runbooks exist.                                 RTO/RPO not yet accepted.
+
+ Vulnerability / security     Security policy, threat model, incident plan;   Independent penetration test / third-party
+ program                      automated CI scans.                             certification not represented as done.
+
+
+
+
+Minimum security evidence Valor should request
+   Exact release SHA, artifact integrity and SBOM; supported browsers and device inventory.
+   Architecture and data egress diagram for the actual deployment, including every enabled cloud API and
+    subprocessor.
+   Campus isolation, session revocation, consent/guardian checks, input safeguards, assessment integrity and
+    security log review.
+   Signed operational plan for keys, encrypted backups, offsite copies, restore, incident response and secure
+    disposal.
+   Accessibility, load and device verification for agreed enrollment and simultaneous usage; no assumed unlimited
+    throughput.
+  REVIEW NOTE The phrase "data stays on site" is accurate only for a proven local, properly isolated configuration.
+  The public demo and certain optional features use external services.
+
+Source references
+Internal: docs/VENDOR_DATA_FLOW.md; docs/SECURITY.md; docs/INFORMATION_SECURITY_POLICY.md; docs/INCIDENT_RESPONSE.md;
+docs/THREAT_MODEL.md; docs/institutional/PILOT_RELEASE_EVIDENCE_CHECKLIST.md.
+
+
+
+
+                                                                                              WORKING DRAFT • October 16, 2026 • 2

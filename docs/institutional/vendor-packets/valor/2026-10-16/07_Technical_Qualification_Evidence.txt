@@ -1,0 +1,145 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 07_Technical_Qualification_Evidence
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 14 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE           •   VENDOR REVIEW / 07
+
+
+
+
+Technical Qualification & Evidence Register
+Evidence matrix for institutional pilot, explicitly showing open gaps
+
+ENGINEERING STATUS: HOLD - NOT AN ACCEPTED SCHOOL PILOT
+
+
+Snapshot based on repository records reviewed October 16, 2026. This register does not substitute for actual CI
+artifacts, browser recordings, deployment logs or owner signatures. Status can change with subsequent engineering
+work.
+
+Current integrated qualification
+
+ Gate                        Present record                                                  Readiness decision
+
+
+                             Base UUID and fail-closed roster grants merged in #596;
+ G1 - campus / learner                                                                       HOLD: full deployed isolation not
+                             integrated G1 #613 open. Route qualification previously
+ isolation                                                                                   accepted.
+                             recorded 75 PASS / 0 FAIL / 71 ABSENT.
+
+                             Teacher evidence, suggestion and human approve/edit/reject
+ G2 - teacher decision                                                                       HOLD: end-to-end journey not
+                             logic remains in draft #604, requiring integration and audit
+ workflow                                                                                    accepted.
+                             tests.
+
+                                                                                             HOLD: measured
+                             Installer bundle merged #578; #590 physical Mac smoke
+ G3 - Mac packaged build                                                                     device/passkey/restore acceptance
+                             evidence PR open.
+                                                                                             pending.
+
+                                                                                             HOLD: clean-device destructive
+                             Encrypted backup implementation merged #574; runbook
+ Recovery                                                                                    restore, custody and RTO/RPO not
+                             available.
+                                                                                             accepted.
+
+                                                                                             HOLD: real browser ceremony and
+ Identity                    Educator WebAuthn implementation merged #575.                   offboarding/recovery acceptance
+                                                                                             pending.
+
+                             Diagnostic evidence #616 remains a draft and is dependent on    HOLD: cannot treat route contract
+ Read-only routes
+                             G1; history route remains in documented delivery plan.          as implementation.
+
+                             Separate dated engineering acceptance and release GO are
+ Pilot authorization                                                                         HOLD; no real student records.
+                             required.
+
+
+
+
+Required evidence packet per gate
+
+ Evidence item                          Proof required
+
+
+ Build identity                         Commit SHA, package hash, artifact download, SBOM and deployment address.
+
+                                        Backend and frontend tests, security scans, required reviews on exact SHA; no skipped
+ CI and code assurance
+                                        mandatory gates.
+
+                                        Same-name synthetic students, unauthorized educator lookups, exports, cached keys,
+ Two-campus negative tests
+                                        streaming, voice and reassignment.
+
+                                        Browser origin/RP bound WebAuthn sign-in, cancellation, replay denial, lost-device
+ Real authentication
+                                        recovery and staff offboarding.
+
+
+
+
+                                                                                              WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 15 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE              •   VENDOR REVIEW / 07
+
+
+
+
+  Evidence item                            Proof required
+
+
+                                           Source linked academic evidence -> teacher decision -> verified saved record -> permitted
+  Teacher journey
+                                           follow-up; revocation mid-session.
+
+                                           Mac startup/restart, outage/recovery, backup/restore, rollback, accessible UI and resource
+  Operations
+                                           measurements.
+
+                                           Sustained concurrent sessions, p95 latency, throughput, failures and maximum supported
+  Scale
+                                           hardware envelope.
+
+
+
+
+Evidence log - do not mark a row PASS without attachment
+
+  Gate / owner               SHA and CI link                Observed positive + negative evidence                  Decision/date
+
+
+  G1 / [OWNER]               [INSERT]                       [TEST LOG + ENVIRONMENT]                               HOLD / [DATE]
+
+  G2 / [OWNER]               [INSERT]                       [TEST LOG + BROWSER]                                   HOLD / [DATE]
+
+  G3 / [OWNER]               [INSERT]                       [DEVICE / RESTART / RESTORE]                           HOLD / [DATE]
+
+  Security / [OWNER]         [INSERT]                       [THREAT / RECOVERY / ACCESSIBILITY]                    HOLD / [DATE]
+
+
+
+
+What the School can review today
+This is a vendor-readiness evidence register, useful for security prequalification and scoping. It is not a release
+attestation. The school must receive the actual completed evidence bundle and a dated, signed release decision before
+any real student information is used.
+
+Source references
+GitHub: https://github.com/agnusdei-ai/bede/pull/613; https://github.com/agnusdei-ai/bede/pull/604;
+https://github.com/agnusdei-ai/bede/pull/590
+Internal: docs/institutional/PILOT_RELEASE_EVIDENCE_CHECKLIST.md; docs/institutional/PILOT_MERGE_SEQUENCE.md;
+docs/institutional/PILOT_ROUTE_DIALOG_CONTRACT.md.
+
+
+
+
+                                                                                                      WORKING DRAFT • October 16, 2026 • 2

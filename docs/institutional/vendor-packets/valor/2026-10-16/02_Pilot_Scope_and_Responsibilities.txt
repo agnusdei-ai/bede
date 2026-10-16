@@ -1,0 +1,135 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 02_Pilot_Scope_and_Responsibilities
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 3 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE        •   VENDOR REVIEW / 02
+
+
+
+
+Pilot Scope & Responsibility Agreement
+Draft statement of work for the synthetic-data-only Valor evaluation
+
+DRAFT - INTERNAL VENDOR REVIEW; NOT EXECUTED
+
+
+
+
+1 | Parties and objective
+Proposed parties: Agnus Dei Technologies, LLC (Provider) and [FULL LEGAL NAME OF VALOR CONTRACTING
+ENTITY] (School). Purpose: determine whether Bede supports teacher-led classroom planning, Socratic tutoring
+workflows, and evidence review in a controlled setting without exposing real student information.
+
+2 | Stage, duration and consideration
+
+ Item                  Proposed agreement
+
+
+ Pilot stage           Synthetic-data-only, invite-only technical evaluation. Not production and not a live student rollout.
+
+                       $0 for the current invite-only pilot. A separate $950 paid evaluation is optional only under another
+ Fees
+                       executed statement of work.
+
+ Schedule              [START DATE TBD] to [END DATE TBD], after security and engineering acceptance.
+
+ Participants          Designated vendor owner and Valor-authorized adults; synthetic campus/teacher/learner identities only.
+
+                       [LOCAL HARDWARE / CONTROLLED HOSTED SANDBOX - CHOOSE AND APPROVE]; no automatic access
+ Delivery
+                       provision.
+
+
+
+
+3 | Included work
+   Provider: provision a controlled test environment after engineering acceptance; conduct guided teacher/admin
+    walkthroughs with synthetic records; provide a known limitations list and evidence packet.
+   School: name a business owner and security/IT contact; confirm curriculum constraints, hosting approval and
+    permitted domains; provide written decisions on suitability.
+   Joint: run positive and negative authorization cases, a teacher-review cycle, usable reporting, recovery/stop tests
+    and a final findings review.
+
+4 | Explicit exclusions and controls
+   No real student names, IDs, grades, recordings, education records, live class rosters or school credentials.
+   No connection to SchoolAxis, Jupiter Ed, an LMS, directory, production network, or school data without a
+    separately approved integration and access agreement.
+   No autonomous teacher approvals, no unsupported DIBELS administration/scoring, no character or faith scoring,
+    no claim of proven academic improvement.
+   No billing, automatic conversion, production support SLA, unlimited concurrent AI capacity, or hardware
+    purchase under this draft.
+
+
+
+
+                                                                                              WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 4 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE        •     VENDOR REVIEW / 02
+
+
+
+
+5 | Deliverables and success measures
+
+ Deliverable                             Evidence / acceptance
+
+
+ Environment and access record           Exact release SHA, system location, access list, test domain, rollback owner.
+
+                                         Two synthetic campuses, assignment grants, cross-campus denials, revoked access and
+ Isolation and identity evidence
+                                         negative tests.
+
+                                         Evidence -> draft suggestion -> explicit teacher approval/edit/reject -> audit -> approved
+ Teacher workflow
+                                         teacher follow-up.
+
+                                         Startup, stop, backup/restore rehearsal, documented recovery steps and measured
+ Recovery and operations
+                                         operating limits.
+
+                                         Task completion, educator friction, model errors, accessibility issues, latency, limitations
+ Outcome summary
+                                         and GO/HOLD recommendation.
+
+
+
+
+6 | Governance, incidents, and termination
+The Provider may suspend the evaluation for an access-control or safety failure. Neither party may expand to real
+student data without a newly signed data agreement, school approvals and an independently recorded engineering
+acceptance and pilot GO. Security concerns are routed to [VENDOR INCIDENT CONTACT] and [SCHOOL INCIDENT
+CONTACT]; escalation and notification windows must be specified before signing. At exit, remove access, inventory
+any synthetic data and return or destroy school-provided non-student materials as agreed.
+
+7 | Open approval items
+   Named contracting entity, authorized signatories and IT/school leads.
+   Hosting location, approved model/provider, network access, pilot dates and exact permitted participants.
+   Acceptance thresholds (including performance), support hours, rollback decision-maker and incident notice
+    timetable.
+   Required procurement, contract, insurance and accessibility review by Valor.
+
+Approval / acknowledgment
+
+ Vendor                                                            School
+
+
+ Agnus Dei Technologies, LLC                                       Valor Education (authorized representative)
+ Name/title: __________________                                    Name/title: __________________
+ Signature: __________________                                     Signature: __________________
+ Date: __________________                                          Date: __________________
+
+
+
+
+Source references
+Internal: docs/institutional/PILOT_RELEASE_EVIDENCE_CHECKLIST.md; docs/EDUCATOR_CLASSROOM_PILOT.md; docs/VALOR_PRICING.md.
+
+
+
+
+                                                                                                 WORKING DRAFT • October 16, 2026 • 2

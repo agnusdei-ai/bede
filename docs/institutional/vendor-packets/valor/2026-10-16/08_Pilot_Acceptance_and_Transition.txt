@@ -1,0 +1,193 @@
+SOURCE: Bede Valor Vendor Packet Combined PDF (SHA-256 f59e67caf0ef84ca9fbba0e2046af2c90201f9f5ef66bc1abf5f33b79ac297df)
+DOCUMENT: 08_Pilot_Acceptance_and_Transition
+FORMAT: Extracted text; not identical to original PDF/DOCX bytes.
+STATUS: Draft; unexecuted; synthetic-only pilot HOLD.
+
+<PARSED TEXT FOR PAGE: 16 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE            •   VENDOR REVIEW / 08
+
+
+
+
+Pilot Acceptance, Exit & Real-Data Transition
+Decision record and go/no-go checklist for School and Provider
+
+RELEASE HOLD - NO REAL STUDENT DATA OR PRODUCTION AUTHORIZATION
+
+
+
+
+Two distinct approval decisions
+
+ Decision                        Who decides                             What it authorizes
+
+
+                                 Valor procurement and school/security
+ A | Vendor / pilot                                                      Whether the parties may conduct a synthetic-only
+                                 leaders; Agnus Dei contracting
+ participation                                                           evaluation, with agreed scope.
+                                 representative.
+
+                                 Agnus Dei engineering owner signs
+ B | Technical release / real-   evidence acceptance; Valor separately   Only the specifically tested cohort, build, hosting
+ data access                     approves school access and legal        and data classes, after written GO.
+                                 compliance.
+
+                                 Authorized parties sign commercial,     Billed licenses and separate hardware/services; not
+ C | Paid rollout
+                                 security, support and privacy terms.    triggered automatically by pilot.
+
+
+
+
+Entry criteria - synthetic stage
+   Signed or expressly approved evaluation scope naming roles, allowed synthetic data, use locations, endpoints,
+    permitted model/provider and start/stop authority.
+   Sandbox environment contains no real education records, staff secrets, student accounts or production
+    credentials.
+   Technical operator can stop access and recover synthetic environments; known gaps disclosed to School.
+   Named School instructional/IT/security contacts; approved test plan, dates and communication methods.
+
+Criteria before a real-student pilot
+   FERPA/COPPA/Texas privacy analysis and executable DPA/contract with named subprocessors, parental-consent
+    plan and data deletion terms.
+   G1 tenant isolation and G2 teacher authorization pass on an exact release build with campus/learner negative
+    cases; no 71 ABSENT in in-scope mandatory cells.
+   WebAuthn enrollment, administrative recovery, staff offboarding, session and stream revocation validated on
+    real compatible devices.
+   G3 installation, encrypted backup, destructive restore, update/rollback and measured throughput pass within
+    approved hardware limits.
+   School-approved content/curriculum, accessibility evidence and incident response contacts are recorded.
+   Separate dated engineering evidence acceptance and School real-data GO with maximum cohort, capacity,
+    monitoring and stop triggers.
+
+
+
+
+                                                                                          WORKING DRAFT • October 16, 2026 • 1
+
+
+<PARSED TEXT FOR PAGE: 17 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE        •   VENDOR REVIEW / 08
+
+
+
+
+Pilot scorecard - agree targets before launch
+
+ Measure                            Baseline / acceptance target                    Evidence
+
+
+ Teacher time saved after                                                           Timed teacher workflows; include
+                                    [BASELINE HOURS / TARGET]
+ corrections                                                                        corrections and non-completes.
+
+ Correct recommendations and                                                        Source-linked samples; decisions and
+                                    [TARGET / ERROR LIMIT]
+ overrides                                                                          abstentions.
+
+                                    100% denial of unauthorized synthetic test      Cross-campus negative logs and
+ Role and campus isolation
+                                    attempts                                        independent review.
+
+ Successful                                                                         WebAuthn, recovery, offboarding and
+                                    [TARGET]
+ authentication/revocation                                                          active stream tests.
+
+ Uptime, p95 latency, capacity      [SLO / CONCURRENT SESSION CAP]                  Measured hardware and browser traces.
+
+                                                                                    Keyboard/screen reader and teacher
+ Accessibility task completion      [TARGET / REQUIRED ACCOMMODATIONS]
+                                                                                    feedback.
+
+                                                                                    Restored synthetic environment and
+ Recovery                           [RTO] / [RPO]
+                                                                                    integrity evidence.
+
+
+
+
+Stop, incident and recovery triggers
+Suspend participation immediately upon cross-campus disclosure, revoked-account access, failed fail-closed response,
+unexpected provider egress, unauthorized real data ingestion or uncontained security incident. School and Vendor
+agree the notification/escalation window, responsible owner and preservation of evidence. Resumption requires
+documented remediation, a new tested build when applicable, and explicit joint approval.
+
+Exit and handoff checklist
+   Disable test identities, invitations, sessions, streams, model access and tokens.
+   Export agreed School-provided artifacts (none containing student records in the synthetic stage); verify database,
+    logs and backups against the retention plan.
+   Return equipment and revoke VPN/domain/API permissions where applicable.
+   Issue outcome memo including what worked, negative results, unresolved safety gaps, measured cost/capacity
+    and recommendation.
+   If proceeding, negotiate a separate signed paid agreement and DPA; never convert the free synthetic stage
+    automatically.
+
+Final decision record
+
+ Disposition                          Record
+
+
+ Engineering evidence acceptance      [GO / HOLD] | Exact SHA: [ ] | Reviewer/date: [ ] | Exceptions: [ ]
+
+ Valor vendor/pilot approval          [APPROVED / NOT APPROVED] | Scope/data class: [ ] | Signer/date: [ ]
+
+ Real student data permission         [NOT AUTHORIZED - DEFAULT] | Separate DPA and school consent decision: [ ]
+
+ Pilot start and operating cap        [TBD] | Allowed learners: [ ] | Max concurrency: [ ] | Owner contact: [ ]
+
+
+
+
+                                                                                            WORKING DRAFT • October 16, 2026 • 2
+
+
+<PARSED TEXT FOR PAGE: 18 / 18>
+AGNUS DEI TECHNOLOGIES / BEDE           •   VENDOR REVIEW / 08
+
+
+
+
+Approval / acknowledgment
+
+ Vendor                                                          School
+
+
+ Agnus Dei Technologies, LLC                                     Valor Education (authorized representative)
+ Name/title: __________________                                  Name/title: __________________
+ Signature: __________________                                   Signature: __________________
+ Date: __________________                                        Date: __________________
+
+
+
+
+Release / authorization evidence to attach
+
+ Artifact                                                          Reference / confirmation
+
+
+ Approved pilot scope and vendor contract                          [SIGNED DOCUMENT / VERSION]
+
+ Executed DPA and consent assessment (real data only)              [AGREEMENT / DATE / DATA CLASSES]
+
+ Accepted security gate evidence                                   [SHA / CI / NEGATIVE TEST LOGS]
+
+ Accepted accessible teaching journey                              [BROWSER / TEACHER REVIEWER / DATE]
+
+ Device and recovery evidence                                      [MAC / RESTORE / CAPACITY REPORT]
+
+ Final approved deployment and model list                          [URL / REGION / MODEL / CONTACT]
+
+ Final decision and exceptions                                     [GO OR HOLD / SIGNER / DATE / EXCEPTIONS]
+
+
+
+
+Source references
+Internal: docs/institutional/PILOT_RELEASE_EVIDENCE_CHECKLIST.md; docs/institutional/VALOR_INTEGRATION_QUALIFICATION.md;
+docs/institutional/PILOT_MERGE_SEQUENCE.md.
+
+
+
+
+                                                                                            WORKING DRAFT • October 16, 2026 • 3

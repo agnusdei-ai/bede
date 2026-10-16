@@ -104,7 +104,7 @@ def test_school_executive_pricing_scenarios_and_us_english():
         assert row in page, f"missing or incorrect scenario for {enrolled} learners"
     for british_spelling in ("licence", "enrolment", "organisation", "organisational",
                              "centre", "programme", "behaviour", "colour"):
-        assert not re.search(rf"\\b{british_spelling}\\b", page, re.I), (
+        assert not re.search(rf"\b{british_spelling}\b", page, re.I), (
             f"US English copy regressed: {british_spelling}"
         )
     assert 2600 * 12 == 31_200

@@ -700,6 +700,11 @@ class Matrix:
                 "teacher_one", f"/voice/stream/{s_active}/events", seconds=40, until=revoked)))
             th.start()
             time.sleep(1.5)
+        # Complete human-owned elevated WebAuthn ceremony BEFORE starting
+        # the short local tutor stream. Otherwise the model stub could
+        # finish normally while the passkey prompt is still completing,
+        # falsely passing or failing a revocation race.
+        self.seeder.elevate()
         tutor_spec = ("POST", L + "/tutoring/chat")
         tutor_result: dict = {"events": [], "finished": False}
         tutor_thread = None
@@ -736,7 +741,6 @@ class Matrix:
             # Server's local model stub emits several streamed chunks with a
             # 250ms gap. Allow it to start before the administrator revokes.
             time.sleep(0.35)
-        self.seeder.elevate()
         rv = self.api.call("DELETE", f"/pilot/campuses/{c1}/educators/{t1}/learners/{l1}", self.fx.admin_token)
         revoked.revoked_at = time.time()  # type: ignore[attr-defined]
         revoked.set()

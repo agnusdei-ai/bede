@@ -24,7 +24,7 @@ import core.database as database
 from core.config import settings
 from core.database import Base, ClassicalEducator
 from core.encryption import initialize_encryption
-from core.pilot_journey_models import PilotDecision, PilotRecommendation
+from core.pilot_journey_models import PilotDecision, PilotEvidence, PilotRecommendation
 import routers.pilot_journey as journey
 from routers.pilot_campuses import (
     CampusInput, LearnerInput, approve_educator_membership,
@@ -484,3 +484,60 @@ def test_recommendations_describe_instruction_never_the_child():
         prose = (p.text + " " + " ".join(p.rationale)).lower()
         for word in judgments:
             assert word not in prose, (word, prose)
+
+
+# ── Pinned G1 authorization must survive through the G2 commit ─────────────
+
+@pytest.mark.asyncio
+async def test_revoked_before_evidence_commit_writes_nothing(db, monkeypatch):
+    ta, _, _, _, learner, _ = await two_campuses(db)
+    auth = await token(db, ta)
+
+    async def revoked(_ctx):
+        return False
+
+    monkeypatch.setattr(journey.pilot_authz, "revalidate", revoked)
+    with pytest.raises(HTTPException) as exc:
+        await record_evidence(learner, dibels(), auth=auth, db=db)
+    assert exc.value.status_code == 404
+    await db.rollback()
+    assert (await db.execute(select(PilotEvidence))).scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_revoked_before_recommendation_commit_writes_nothing(db, monkeypatch):
+    ta, _, _, _, learner, _ = await two_campuses(db)
+    auth = await token(db, ta)
+    await record_evidence(learner, dibels(), auth=auth, db=db)
+
+    async def revoked(_ctx):
+        return False
+
+    monkeypatch.setattr(journey.pilot_authz, "revalidate", revoked)
+    with pytest.raises(HTTPException) as exc:
+        await request_recommendation(learner, auth=auth, db=db)
+    assert exc.value.status_code == 404
+    await db.rollback()
+    assert (await db.execute(select(PilotRecommendation))).scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_revoked_before_decision_commit_rolls_back_ledger(db, monkeypatch):
+    ta, _, _, _, learner, _ = await two_campuses(db)
+    auth, _, proposal = await evidence_and_recommendation(db, ta, learner)
+
+    async def revoked(_ctx):
+        return False
+
+    monkeypatch.setattr(journey.pilot_authz, "revalidate", revoked)
+    with pytest.raises(HTTPException) as exc:
+        await decide(
+            learner, proposal["recommendation_id"],
+            DecisionInput(action="approve", expected_version=1),
+            auth=auth, db=db,
+        )
+    assert exc.value.status_code == 404
+    await db.rollback()
+    remaining = await db.get(PilotRecommendation, proposal["recommendation_id"])
+    assert remaining is not None and remaining.status == "pending" and remaining.version == 1
+    assert (await db.execute(select(PilotDecision))).scalars().all() == []

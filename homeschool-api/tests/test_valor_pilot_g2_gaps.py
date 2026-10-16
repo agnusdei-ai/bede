@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import core.encryption as encryption_module
 import routers.pilot_journey as journey
+import core.database as database
 from core.config import settings
 from core.database import Base
 from core.encryption import initialize_encryption
@@ -51,6 +52,8 @@ async def durable(monkeypatch):
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+    # A G2 write checks the pinned grant from a fresh DB session at commit.
+    monkeypatch.setattr(database, "AsyncSessionLocal", factory)
     async with factory() as s:
         await initialize_encryption(settings.master_secret, s)
         ta, tb, a, b, la, lb = await two_campuses(s)

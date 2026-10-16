@@ -116,7 +116,7 @@ TABLE: list[dict] = [
      "special": "g2"},
     {"id": "authorized_instruction", "group": "G2", "read": ("GET", L + "/instruction")},
     {"id": "learner_deletion", "group": "DELETION",
-     "delete": ("DELETE", "/pilot/campuses/{campus_id}/learners/{learner_id}"),
+     "delete": ("POST", "/pilot/owner/campuses/{campus_id}/learners/{learner_id}/delete"),
      "special": "deletion"},
 ]
 
@@ -825,11 +825,27 @@ class Matrix:
             return
         c2, l2 = self.fx.campus["campus_two"], self.fx.learner["learner_two"]
         self.seeder.elevate()
-        d = self.api.call(spec[0], spec[1].format(campus_id=c2, learner_id=l2), self.fx.admin_token)
-        plain = d.status_code in (200, 204) and (d.status_code == 204 or len(d.text) > 20)
+        target = spec[1].format(campus_id=c2, learner_id=l2)
+        confirm = {"confirm_learner_id": l2,
+                   "confirm_display_name": cfg.SHARED_LEARNER_DISPLAY_NAME}
+        # Wrong-name confirmation must be rejected without deleting the
+        # learner. A plain DELETE without a human confirmation is forbidden.
+        denied = self.api.call(spec[0], target, self.fx.admin_token,
+                               {**confirm, "confirm_display_name": "Wrong synthetic name"})
+        prior = self.call("teacher_two", "GET", self.path(L, learner_id=l2))
+        d = self.api.call(spec[0], target, self.fx.admin_token, confirm)
+        body = d.json() if d.status_code == 200 else {}
+        plain = (d.status_code == 200 and isinstance(body, dict)
+                 and body.get("learner_id") == l2
+                 and len(body.get("receipt_sha256", "")) == 64
+                 and all(v == 0 for v in body.get("remaining_counts", {}).values())
+                 and cfg.SHARED_LEARNER_DISPLAY_NAME not in d.text)
+        safe = denied.status_code == 422 and prior.status_code == 200
         self.put(row, "delete_succeeds_with_plain_confirmation",
-                 "PASS" if d.status_code == 200 and plain else ("UNVERIFIED" if d.status_code == 204 else "FAIL"),
-                 f"-> {d.status_code}; confirmation wording must be reviewed by a human")
+                 "PASS" if safe and plain else "FAIL",
+                 f"wrong typed confirmation -> {denied.status_code}; learner still readable: "
+                 f"{prior.status_code}; verified confirmed deletion -> {d.status_code}; "
+                 f"content-free receipt: {bool(plain)}")
         r = self.call("teacher_two", "GET", self.path(L, learner_id=l2))
         self.put(row, "post_delete_read_denied", "PASS" if r.status_code in (401, 404) else "FAIL", f"-> {r.status_code}")
         lst = self.call("teacher_two", "GET", "/pilot/me/learners")

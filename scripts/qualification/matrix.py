@@ -700,6 +700,42 @@ class Matrix:
                 "teacher_one", f"/voice/stream/{s_active}/events", seconds=40, until=revoked)))
             th.start()
             time.sleep(1.5)
+        tutor_spec = ("POST", L + "/tutoring/chat")
+        tutor_result: dict = {"events": [], "finished": False}
+        tutor_thread = None
+        if self.present(tutor_spec):
+            tutor_path = self.path(tutor_spec[1], learner_id=l1)
+
+            def read_active_tutor():
+                try:
+                    with httpx.Client(base_url=self.api.base,
+                                      timeout=cfg.REQUEST_TIMEOUT_S,
+                                      verify=self.api.verify,
+                                      headers={"User-Agent": self.api.ua}) as client:
+                        with client.stream(
+                            "POST", tutor_path,
+                            json={"child_message": "[START]"},
+                            headers={"Authorization": f"Bearer {old_token}"},
+                        ) as response:
+                            tutor_result["status"] = response.status_code
+                            for line in response.iter_lines():
+                                if line.startswith("data:"):
+                                    value = line[5:].strip()
+                                    try:
+                                        item = json.loads(value)
+                                    except ValueError:
+                                        item = {"type": "invalid"}
+                                    tutor_result["events"].append((time.time(), item))
+                    tutor_result["finished"] = True
+                    tutor_result["ended_at"] = time.time()
+                except Exception as exc:
+                    tutor_result["error"] = f"{type(exc).__name__}: {exc}"
+
+            tutor_thread = threading.Thread(target=read_active_tutor, daemon=True)
+            tutor_thread.start()
+            # Server's local model stub emits several streamed chunks with a
+            # 250ms gap. Allow it to start before the administrator revokes.
+            time.sleep(0.35)
         self.seeder.elevate()
         rv = self.api.call("DELETE", f"/pilot/campuses/{c1}/educators/{t1}/learners/{l1}", self.fx.admin_token)
         revoked.revoked_at = time.time()  # type: ignore[attr-defined]
@@ -770,11 +806,28 @@ class Matrix:
         else:
             self.put(row, "revocation_closes_active_voice_stream", "BLOCKED",
                      "teacher_one could not start a voice session")
-        tut = ("POST", L + "/tutoring/chat")
-        self.put(row, "revocation_closes_active_tutoring_stream",
-                 "ABSENT" if not self.present(tut) else "UNVERIFIED",
-                 "UUID-keyed tutoring stream route not mounted" if not self.present(tut)
-                 else "tutoring stream present; mid-stream revocation probe needs its request contract")
+        if tutor_thread is None:
+            self.put(row, "revocation_closes_active_tutoring_stream", "ABSENT",
+                     "UUID-keyed tutoring stream route not mounted")
+        else:
+            tutor_thread.join(timeout=cfg.SSE_IDLE_WAIT_S + 20)
+            r_at = revoked.revoked_at  # type: ignore[attr-defined]
+            records = tutor_result.get("events", [])
+            before = [e for t, e in records if t <= r_at and e.get("type") == "text"]
+            after = [e for t, e in records if t > r_at and e.get("type") == "text"]
+            stopped = any(t >= r_at and e.get("type") == "error"
+                          and e.get("message") == "Learner access ended"
+                          for t, e in records)
+            finished_on_time = (tutor_result.get("finished") and not tutor_result.get("error")
+                                and tutor_result.get("ended_at", 1e18) <= r_at + cfg.SSE_IDLE_WAIT_S)
+            ok = (tutor_result.get("status") == 200 and bool(before)
+                  and not after and stopped and finished_on_time)
+            self.put(row, "revocation_closes_active_tutoring_stream",
+                     "PASS" if ok else "FAIL",
+                     f"real local-model SSE status={tutor_result.get('status')}; "
+                     f"text before revoke={len(before)}; protected text after={len(after)}; "
+                     f"terminal revocation={stopped}; timely end={bool(finished_on_time)}; "
+                     f"client error={tutor_result.get('error')}")
         audited = False
         aud = self.api.call("GET", "/admin/audit?limit=200", self.fx.admin_token)
         if aud.status_code == 200:

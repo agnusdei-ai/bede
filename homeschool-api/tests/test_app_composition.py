@@ -48,7 +48,7 @@ EXPECTED_MIDDLEWARE = [
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
-    "pilot_diagnostic",
+    "pilot_diagnostic", "pilot_journey", "pilot_owner",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -62,6 +62,17 @@ _NOT_A_GUARD = {"get_db"}
 # whether the feedback form is switched on. A new PUBLIC row appearing in a
 # diff is the thing to challenge in review.
 GUARDS = {
+    ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
+    ('POST', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',
+    ('POST', '/pilot/me/learners/{learner_id}/recommendations/{recommendation_id}/decision'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/decisions'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}/instruction'): 'require_educator',
+    ('GET', '/pilot/owner/campuses'): 'require_elevated_parent',
+    ('GET', '/pilot/owner/campuses/{campus_id}/learners'): 'require_elevated_parent',
+    ('POST', '/pilot/owner/campuses/{campus_id}/learners/{learner_id}/delete'): 'require_elevated_parent',
+    ('GET', '/pilot/owner/deletion-receipts'): 'require_elevated_parent',
     ('GET', '/pilot/me/learners/{learner_id}/diagnostic'): 'require_educator',
     ('GET', '/admin/agentic-loop-stats'): 'require_parent',
     ('GET', '/admin/ai-provider'): 'require_parent',

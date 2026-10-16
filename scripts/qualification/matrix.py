@@ -738,9 +738,17 @@ class Matrix:
 
             tutor_thread = threading.Thread(target=read_active_tutor, daemon=True)
             tutor_thread.start()
-            # Server's local model stub emits several streamed chunks with a
-            # 250ms gap. Allow it to start before the administrator revokes.
-            time.sleep(0.35)
+            # Synchronize against an *observed* first text chunk rather than
+            # guessing a fixed delay across slow CI workers. Never assume
+            # a response exists: the below assertion still FAILS if no
+            # protected data preceded revocation.
+            deadline = time.monotonic() + min(cfg.REQUEST_TIMEOUT_S, 10.0)
+            while time.monotonic() < deadline:
+                if any(event.get("type") == "text" for _, event in tutor_result["events"]):
+                    break
+                if tutor_result.get("finished") or tutor_result.get("error"):
+                    break
+                time.sleep(0.05)
         rv = self.api.call("DELETE", f"/pilot/campuses/{c1}/educators/{t1}/learners/{l1}", self.fx.admin_token)
         revoked.revoked_at = time.time()  # type: ignore[attr-defined]
         revoked.set()

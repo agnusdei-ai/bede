@@ -4,6 +4,7 @@ import { BookOpen, ClipboardCheck, LogOut, ShieldCheck, Users } from 'lucide-rea
 import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig, Subject } from '../types'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
+import PilotTeacherJourney from '../components/PilotTeacherJourney'
 import {
   fetchInstructorRoster, fetchInstructorLocutoCapacity,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,

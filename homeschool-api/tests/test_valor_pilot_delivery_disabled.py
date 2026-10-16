@@ -165,6 +165,11 @@ def test_no_pilot_module_builds_a_tutoring_config():
                              "RevocationGatedSession", "require_educator",
                              "Teacher approval is required"):
                 assert required in src, required
+        elif path.name == "pilot_authz.py":
+            # G1's canonical auth service legitimately imports ai_service
+            # for cache eviction; it MUST NOT import any model-stream route.
+            assert "evict_learner_prompt_caches" in src
+            assert "stream_tutor_response" not in src
         else:
             assert "ai_service" not in src, path.name
 
@@ -253,8 +258,18 @@ def test_no_code_path_writes_a_delivery_state():
     """The column is set once, by its default, at insert. Any assignment,
     UPDATE ... values(delivery_state=...) or setattr in shipped code is a
     path off NOT_REQUESTED, so it fails here first."""
-    allowed = {("core/pilot_journey_models.py",
-                "CheckConstraint(f\"delivery_state = '{DELIVERY_NOT_REQUESTED}'\",")}
+    # Canonical assessment plan write/read sites may explicitly set the
+    # one database-allowed state. Other state transitions remain forbidden.
+    allowed = {
+        ("core/pilot_journey_models.py",
+         "CheckConstraint(f\"delivery_state = '{DELIVERY_NOT_REQUESTED}'\","),
+        ("routers/pilot_assessments.py",
+         'learner_id=learner.id, delivery_state="NOT_REQUESTED",'),
+        ("routers/pilot_assessments.py",
+         '"status": "recorded", "delivery_state": "NOT_REQUESTED"}'),
+        ("routers/pilot_assessments.py",
+         '"delivery_state": plan.delivery_state if plan else "NOT_REQUESTED"}'),
+    }
     hits = []
     for path in sorted(API.rglob("*.py")):
         rel = path.relative_to(API).as_posix()

@@ -144,6 +144,9 @@ def _cancel_for(event_name: str) -> bool:
 
 
 def test_a_dispatched_run_is_never_cancelled_by_a_newer_run():
+    """An IN-PROGRESS dispatched run. GitHub still replaces a *pending* run
+    in the same group with a newer pending one; the exact block cannot close
+    that, and docs/SYNTHETIC_QUALIFICATION.md says so."""
     assert _cancel_for("workflow_dispatch") is False
     assert _cancel_for("pull_request") is True
     # Nothing else can cancel it either: no job- or step-level concurrency,

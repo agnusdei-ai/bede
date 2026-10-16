@@ -40,6 +40,39 @@ from harness import Api, Driver, Stack, route_present  # noqa: E402
 from seed import Fixture, Seeder  # noqa: E402
 
 L = "/pilot/me/learners/{learner_id}"
+# The canonical assessment routes (#607, routers/pilot_assessments.py) are
+# campus-scoped. path() fills {campus_id} with the LEARNER's own campus, so a
+# teacher copying another learner's id copies that learner's whole path.
+C = "/pilot/campuses/{campus_id}/learners/{learner_id}"
+SYNTH_PM_FORM = "SYN-PM-FORM-1"
+SYNTH_FIRST_DATA_DAY = "2031-08-25"  # fabricated, far from any real school year
+
+
+def canon_administration(measure: str = "PSF", purpose: str = "progress_monitoring",
+                         window: str = "none", cycle: str = "valor_q1",
+                         minute: int = 0) -> dict:
+    """A synthetic canonical administration body (teacher-administered
+    progress monitoring: needs no licensed-benchmark authorization). Every
+    value is invented."""
+    return {
+        "instrument": "dibels8", "edition": "8th", "measure": measure, "grade": "1",
+        "form_id": SYNTH_PM_FORM, "administration_purpose": purpose,
+        "instructional_cycle": cycle,
+        "administered_at": f"2031-09-02T09:{minute % 60:02d}:00+00:00",
+        "report_source": "teacher_administered", "official_benchmark_window": window,
+        "vendor_next_assessment_date": None, "accommodations": [], "notes": None,
+        "vendor_guidance": None,
+    }
+
+
+def _scored(measure: str, raw: float) -> dict:
+    return {"measure": measure, "administration_status": "scored", "raw_score": raw,
+            "score_unit": "correct_per_minute"}
+
+
+def _skipped(measure: str) -> dict:
+    return {"measure": measure, "administration_status": "not_administered_by_rule",
+            "reason": "Synthetic: not administered at this grade per the report"}
 
 SYNTH_DIBELS = {
     "framework": "dibels8", "measure": "ORF_WC", "assessed_on": "2026-01-15",
@@ -59,18 +92,19 @@ TABLE: list[dict] = [
     {"id": "learner_search", "group": "G1",
      "list": ("POST", "/pilot/me/learners/search", {"query": cfg.SHARED_LEARNER_DISPLAY_NAME})},
     {"id": "assessment", "group": "G1",
-     "read": ("GET", L + "/assessments"), "write": ("POST", L + "/assessments", SYNTH_DIBELS)},
+     "read": ("GET", C + "/assessments"),
+     "write": ("POST", C + "/assessments", canon_administration(minute=1))},
     {"id": "tutoring_history", "group": "G1", "read": ("GET", L + "/tutoring/history")},
     {"id": "tutoring_turn", "group": "G1",
      "write": ("POST", L + "/tutoring/chat", {"child_message": "[START]"}), "sse": True},
     {"id": "cache_derived_summary", "group": "G1", "read": ("GET", L + "/diagnostic")},
     {"id": "voice_session", "group": "G1", "special": "voice"},
     {"id": "dibels_administration", "group": "DIBELS",
-     "read": ("GET", L + "/assessment-administrations"),
-     "write": ("POST", L + "/assessment-administrations", {}),
+     "read": ("GET", C + "/assessments"),
+     "write": ("POST", C + "/assessments", canon_administration(minute=2)),
      "semantics": ["progress_monitoring_not_benchmark", "skipped_measure_not_zero",
                    "interrupted_not_finalized", "interpretation_never_overwrites_score"]},
-    {"id": "data_day_packet", "group": "DIBELS", "read": ("GET", L + "/data-day"),
+    {"id": "data_day_packet", "group": "DIBELS", "read": ("GET", C + "/data-day?cycle=valor_q1"),
      "semantics": ["packet_changes_no_official_score", "packet_starts_no_instruction",
                    "packet_shows_skipped_and_invalid_states"]},
     {"id": "evidence", "group": "G2",
@@ -92,8 +126,12 @@ UNIFORM_PROBES = {
     "noncanonical_uuid": lambda: str(uuid.uuid4()).upper(),
     "nil_uuid": lambda: "00000000-0000-0000-0000-000000000000",
 }
+# The audit event the ADMIN REVOKE ACTION itself writes. Deliberately not a
+# loose substring like "revoke": #606's authz.revoked_in_flight also contains
+# it, and that event only appears when a stream happened to be open, so a
+# loose marker would pass this cell for the wrong reason.
 REVOCATION_AUDIT_MARKERS = [m.lower() for m in cfg._csv(
-    "REVOCATION_AUDIT_MARKERS", "revoke,revocation,roster_grant,grant_revoked")]
+    "REVOCATION_AUDIT_MARKERS", "pilot.roster_grant_revoked")]
 DELIVERY_WORDS = ("delivered", "sent to learner", "started lesson")
 
 
@@ -134,11 +172,20 @@ class Matrix:
         self.cells.append(Cell(rid, group, cell, outcome, detail[:400], ev))
 
     def present(self, spec) -> bool:
-        return bool(spec) and route_present(self.routes, spec[0], spec[1])
+        # A query string is part of the call, never of the route template.
+        return bool(spec) and route_present(self.routes, spec[0], spec[1].split("?", 1)[0])
 
     def path(self, template: str, **ids) -> str:
-        values = {"learner_id": self.fx.learner.get("learner_one", ""),
-                  "campus_id": self.fx.campus.get("campus_one", ""), **ids}
+        """Fill a template. ``{campus_id}`` defaults to the campus of the
+        learner being addressed (learner_two -> campus_two), so a teacher
+        aiming at another campus's learner uses that learner's real path; an
+        unknown id (a probe) keeps campus_one's path."""
+        learner = ids.get("learner_id", self.fx.learner.get("learner_one", ""))
+        own_campus = {self.fx.learner.get(k): self.fx.campus.get(k.replace("learner", "campus"))
+                      for k in ("learner_one", "learner_two")}
+        values = {"learner_id": learner,
+                  "campus_id": own_campus.get(learner) or self.fx.campus.get("campus_one", ""),
+                  **ids}
         return template.format(**values)
 
     def tok(self, teacher: str) -> str | None:
@@ -239,8 +286,168 @@ class Matrix:
                      "same display name; neither teacher's response carries the other learner's id",
                      statuses=[own.status_code if own is not None else None, mine.status_code])
         for c in row.get("semantics", []):
-            self.put(row, c, "UNVERIFIED",
-                     "route present; semantic probe must be bound to the canonical schema once it lands")
+            probe = getattr(self, f"_sem_{c}", None)
+            if probe is None:
+                self.put(row, c, "UNVERIFIED", "no semantic probe bound for this rule")
+                continue
+            try:
+                ok, detail = probe()
+            except Exception as exc:  # noqa: BLE001 - a probe crash is a FAIL, never a skip
+                ok, detail = False, f"probe raised {type(exc).__name__}: {exc}"
+            self.put(row, c, "PASS" if ok else "FAIL", detail)
+
+    # ── DIBELS / Data Day semantic probes (canonical routes, #607) ──────────
+    # Each probe is self-contained on teacher_one / learner_one / campus_one
+    # and returns (held, detail). They exercise only teacher-recorded actions:
+    # nothing here advances on a timer, schedules or delivers instruction.
+    def _c(self, method: str, suffix: str, body=None, teacher: str = "teacher_one") -> httpx.Response:
+        l1 = self.fx.learner["learner_one"]
+        return self.call(teacher, method, self.path(C + suffix, learner_id=l1), body)
+
+    def _administer(self, **kw) -> str:
+        self._seq = getattr(self, "_seq", 10) + 1
+        r = self._c("POST", "/assessments", canon_administration(minute=self._seq, **kw))
+        if r.status_code != 201:
+            raise RuntimeError(f"create administration -> {r.status_code} {r.text[:200]}")
+        return r.json()["assessment_id"]
+
+    def _step(self, aid: str, action: str, expected: str, resolution: str | None = None) -> int:
+        return self._c("POST", f"/assessments/{aid}/transitions",
+                       {"action": action, "expected_state": expected, "resolution": resolution}).status_code
+
+    def _scores(self, aid: str, scores: list) -> int:
+        return self._c("PUT", f"/assessments/{aid}/scores", {"scores": scores, "responses": []}).status_code
+
+    def _finalize(self, aid: str, scores: list) -> list[int]:
+        return [self._step(aid, "mark_ready", "DRAFT"),
+                self._step(aid, "start", "READY_FOR_ADMINISTRATION"),
+                self._scores(aid, scores),
+                self._step(aid, "submit", "IN_PROGRESS"),
+                self._step(aid, "finalize", "COMPLETED_PENDING_REVIEW")]
+
+    def _detail(self, aid: str) -> dict:
+        return self._c("GET", f"/assessments/{aid}").json()
+
+    def _packet(self, cycle: str = "valor_q1") -> httpx.Response:
+        return self._c("GET", f"/data-day?cycle={cycle}")
+
+    def _sem_progress_monitoring_not_benchmark(self):
+        bad = self._c("POST", "/assessments",
+                      canon_administration(window="MOY", cycle="valor_q2", minute=50))
+        aid = self._administer(cycle="valor_q2")
+        steps = self._finalize(aid, [_scored("PSF", 20)])
+        pk = self._packet("valor_q2").json()
+        growth = pk.get("growth_by_measure", {})
+        pm_ids = [p["assessment_id"] for p in growth.get("progress_monitoring", {}).get("PSF", {}).get("points", [])]
+        bm_ids = [p["assessment_id"] for p in growth.get("benchmark", {}).get("PSF", {}).get("points", [])]
+        shown = {a["assessment_id"]: a for a in pk.get("current_valid_results", [])}
+        rec = shown.get(aid, {})
+        ok = (bad.status_code == 422 and steps == [200] * 5 and aid in pm_ids and aid not in bm_ids
+              and rec.get("administration_purpose") == "progress_monitoring"
+              and rec.get("official_benchmark_window") == "none")
+        return ok, (f"PM carrying an official window -> {bad.status_code}; finalized PM in "
+                    f"progress_monitoring series: {aid in pm_ids}; in benchmark series: {aid in bm_ids}")
+
+    def _sem_skipped_measure_not_zero(self):
+        aid = self._administer(measure="multiple", cycle="valor_q3")
+        pre = [self._step(aid, "mark_ready", "DRAFT"), self._step(aid, "start", "READY_FOR_ADMINISTRATION")]
+        zero = self._scores(aid, [{**_skipped("ORF_WC"), "raw_score": 0, "score_unit": "correct_per_minute"}])
+        good = self._scores(aid, [_scored("PSF", 10), _skipped("ORF_WC")])
+        fin = [self._step(aid, "submit", "IN_PROGRESS"), self._step(aid, "finalize", "COMPLETED_PENDING_REVIEW")]
+        by = {s["measure"]: s for s in self._detail(aid).get("scores", [])}
+        orf = by.get("ORF_WC", {})
+        pk = self._packet("valor_q3").json()
+        skipped = {s["measure"] for s in pk.get("skipped_or_invalid_measures", [])}
+        in_growth = any("ORF_WC" in series for series in pk.get("growth_by_measure", {}).values())
+        ok = (pre == [200, 200] and zero == 422 and good == 200 and fin == [200, 200]
+              and orf.get("raw_score") is None
+              and orf.get("administration_status") == "not_administered_by_rule"
+              and "ORF_WC" in skipped and not in_growth)
+        return ok, (f"skipped measure with raw_score 0 -> {zero}; stored raw_score="
+                    f"{orf.get('raw_score')!r}; listed as skipped: {'ORF_WC' in skipped}; in growth: {in_growth}")
+
+    def _sem_interrupted_not_finalized(self):
+        aid = self._administer(cycle="valor_q4")
+        codes = [self._step(aid, "mark_ready", "DRAFT"),
+                 self._step(aid, "start", "READY_FOR_ADMINISTRATION"),
+                 self._scores(aid, [_scored("PSF", 10)]),
+                 self._step(aid, "interrupt", "IN_PROGRESS")]
+        fin = self._step(aid, "finalize", "INTERRUPTED")
+        sub = self._step(aid, "submit", "INTERRUPTED")
+        resume_no_reason = self._step(aid, "resume", "INTERRUPTED")
+        state = self._detail(aid).get("state")
+        ok = codes == [200] * 4 and fin == 409 and sub == 409 and resume_no_reason == 409 \
+            and state == "INTERRUPTED"
+        return ok, (f"finalize from INTERRUPTED -> {fin}; submit -> {sub}; resume without a written "
+                    f"resolution -> {resume_no_reason}; state still {state}")
+
+    def _sem_interpretation_never_overwrites_score(self):
+        aid = self._administer(cycle="valor_q1")
+        steps = self._finalize(aid, [_scored("PSF", 17)])
+        before = self._detail(aid)
+        ev = self._c("POST", f"/assessments/{aid}/evidence", {"summary": "Synthetic evidence summary"})
+        pr = self._c("POST", f"/assessments/{aid}/proposal")
+        dec = None
+        if pr.status_code == 200:
+            dec = self._c("POST", f"/assessments/{aid}/proposals/{pr.json()['proposal_id']}/decision",
+                          {"action": "edit", "expected_version": 1, "edited_text": "Synthetic edited step",
+                           "rationale": "Synthetic teacher reading"}).status_code
+        rescore = self._scores(aid, [_scored("PSF", 99)])
+        after = self._detail(aid)
+        ok = (steps == [200] * 5 and ev.status_code == 201 and pr.status_code == 200 and dec == 200
+              and rescore == 409 and after.get("scores") == before.get("scores")
+              and after.get("snapshot_sha256") == before.get("snapshot_sha256")
+              and after.get("snapshot_verified") is True)
+        return ok, (f"evidence {ev.status_code}, proposal {pr.status_code}, teacher edit {dec}; "
+                    f"re-score after finalization -> {rescore}; scores unchanged: "
+                    f"{after.get('scores') == before.get('scores')}")
+
+    def _sem_packet_changes_no_official_score(self):
+        aid = self._administer(cycle="valor_q1")
+        self._finalize(aid, [_scored("PSF", 21)])
+        before = self._detail(aid)
+        pk = self._packet("valor_q1")
+        after = self._detail(aid)
+        boundaries = pk.json().get("boundaries", {}) if pk.status_code == 200 else {}
+        ok = (pk.status_code == 200 and after.get("scores") == before.get("scores")
+              and after.get("snapshot_sha256") == before.get("snapshot_sha256")
+              and boundaries.get("changes_official_scores") is False
+              and boundaries.get("alters_placement") is False)
+        return ok, f"packet {pk.status_code}; scores unchanged by reading it; boundaries={boundaries}"
+
+    def _sem_packet_starts_no_instruction(self):
+        pk = self._packet("valor_q1")
+        data = pk.json() if pk.status_code == 200 else {}
+        b = data.get("boundaries", {})
+        outcomes = [d.get("outcome", {}) for d in data.get("prior_teacher_decisions", [])]
+        low = pk.text.lower()
+        ok = (pk.status_code == 200 and b.get("starts_instruction") is False
+              and b.get("delivers_instruction") is False
+              and all(o.get("delivery_state") == "NOT_REQUESTED" for o in outcomes)
+              and not any(w in low for w in DELIVERY_WORDS))
+        return ok, (f"packet {pk.status_code}; starts_instruction={b.get('starts_instruction')} "
+                    f"delivers_instruction={b.get('delivers_instruction')}; "
+                    f"{len(outcomes)} prior decision(s), all NOT_REQUESTED")
+
+    def _sem_packet_shows_skipped_and_invalid_states(self):
+        valid_skip = self._administer(measure="multiple", cycle="valor_q2")
+        vcodes = self._finalize(valid_skip, [_scored("PSF", 12), _skipped("MAZE")])
+        aid = self._administer(measure="multiple", cycle="valor_q2")
+        codes = vcodes + [self._step(aid, "mark_ready", "DRAFT"),
+                 self._step(aid, "start", "READY_FOR_ADMINISTRATION"),
+                 self._scores(aid, [_scored("PSF", 10), _skipped("MAZE")]),
+                 self._step(aid, "invalidate", "IN_PROGRESS", resolution="Synthetic: wrong form used"),
+                 self._step(aid, "resolve_invalid", "INVALID_ADMINISTRATION",
+                            resolution="Synthetic: recorded for the file only"),
+                 self._step(aid, "finalize", "COMPLETED_PENDING_REVIEW")]
+        pk = self._packet("valor_q2").json()
+        not_valid = {a["assessment_id"] for a in pk.get("not_valid_administrations", [])}
+        valid = {a["assessment_id"] for a in pk.get("current_valid_results", [])}
+        skipped = {s["measure"] for s in pk.get("skipped_or_invalid_measures", [])}
+        ok = codes == [200] * 11 and aid in not_valid and aid not in valid and "MAZE" in skipped
+        return ok, (f"lifecycle codes {codes}; invalid administration listed as not valid: "
+                    f"{aid in not_valid}; excluded from valid results: {aid not in valid}; "
+                    f"skipped measures shown: {sorted(skipped)}")
 
     # ── browser vs API ───────────────────────────────────────────────────────
     def browser_agreement(self) -> None:
@@ -320,6 +527,7 @@ class Matrix:
                         if line.startswith("data:"):
                             out["data_events"] += 1
                             out["event_times"].append(time.time())
+                            out.setdefault("event_payloads", []).append(line[5:].strip()[:200])
                             out["text"] += line[5:].strip()[:200] + " "
                         elif line.startswith(":"):
                             out["pings"] += 1
@@ -549,10 +757,16 @@ class Matrix:
             r_at = revoked.revoked_at  # type: ignore[attr-defined]
             closed = (stream_result.get("ended") and not stream_result.get("error")
                       and (stream_result.get("end_time") or 1e18) <= r_at + cfg.SSE_IDLE_WAIT_S)
-            after = [t for t in stream_result.get("event_times", []) if t > r_at]
+            # Protected output after revocation = any data event after it EXCEPT
+            # the server's own terminal "unknown or expired session" notice,
+            # which carries no learner data and is how the server tells the
+            # client the stream is over. Anything else after r_at fails.
+            after = [p for t, p in zip(stream_result.get("event_times", []),
+                                       stream_result.get("event_payloads", []))
+                     if t > r_at and not _is_session_ended_notice(p)]
             self.put(row, "revocation_closes_active_voice_stream", "PASS" if closed and not after else "FAIL",
                      f"server ended the stream within {cfg.SSE_IDLE_WAIT_S}s of revocation: {bool(closed)}; "
-                     f"{_sse_desc(stream_result)}")
+                     f"protected data events after revocation: {len(after)}; {_sse_desc(stream_result)}")
         else:
             self.put(row, "revocation_closes_active_voice_stream", "BLOCKED",
                      "teacher_one could not start a voice session")
@@ -564,10 +778,13 @@ class Matrix:
         audited = False
         aud = self.api.call("GET", "/admin/audit?limit=200", self.fx.admin_token)
         if aud.status_code == 200:
-            blob = json.dumps(aud.json()).lower()
-            audited = any(m in blob for m in REVOCATION_AUDIT_MARKERS)
+            # An entry whose EVENT is the revoke action and whose detail names
+            # the revoked learner's UUID; not any string anywhere in the log.
+            audited = any(str(e.get("event", "")).lower() in REVOCATION_AUDIT_MARKERS
+                          and l1 in str(e.get("detail", ""))
+                          for e in aud.json().get("entries", []))
         self.put(row, "revocation_is_audited", "PASS" if audited else "FAIL",
-                 f"/admin/audit -> {aud.status_code}; revocation marker present: {audited}")
+                 f"/admin/audit -> {aud.status_code}; revoke-action event naming the learner: {audited}")
         t2 = self.call("teacher_two", "GET", self.path(L, learner_id=self.fx.learner["learner_two"]))
         self.put(row, "other_teacher_unaffected", "PASS" if t2.status_code == 200 else "FAIL",
                  f"teacher_two own learner -> {t2.status_code}")
@@ -630,8 +847,26 @@ class Matrix:
                  "cache eviction is not observable over HTTP beyond the read denial above")
 
     # ── drive ────────────────────────────────────────────────────────────────
+    def canonical_setup(self) -> None:
+        """Each campus's Data Day calendar, through the real elevated admin
+        route, before any canonical administration is recorded. The Valor
+        default preset; the first Data Day is a fabricated date."""
+        spec = ("PUT", "/pilot/campuses/{campus_id}/calendar")
+        if not self.present(spec):
+            self.put("data_day_packet", "campus_calendar_configured", "ABSENT",
+                     f"{spec[0]} {spec[1]} not mounted")
+            return
+        self.seeder.elevate()
+        codes = [self.api.call("PUT", spec[1].format(campus_id=self.fx.campus[k]), self.fx.admin_token,
+                               {"preset": "valor_default", "first_data_day": SYNTH_FIRST_DATA_DAY}).status_code
+                 for k in ("campus_one", "campus_two")]
+        self.put("data_day_packet", "campus_calendar_configured",
+                 "PASS" if codes == [200, 200] else "FAIL", f"calendar PUT per campus -> {codes}")
+
     def run(self) -> list[Cell]:
         _apply_overrides()
+        if self.fx.campus:
+            self.canonical_setup()
         for row in TABLE:
             if row.get("special") in ("voice", "g2", "deletion"):
                 continue
@@ -649,6 +884,16 @@ class Matrix:
         self.persistence_after_restart("after_revocation")
         self.deletion()
         return self.cells
+
+
+def _is_session_ended_notice(payload: str) -> bool:
+    """Exactly the server's terminal error event for an unknown/ended voice
+    session, {"type": "error", "message": "unknown or expired session"}."""
+    try:
+        item = json.loads(payload)
+    except (TypeError, ValueError):
+        return False
+    return item == {"type": "error", "message": "unknown or expired session"}
 
 
 def _sse_denied(r: dict) -> bool:

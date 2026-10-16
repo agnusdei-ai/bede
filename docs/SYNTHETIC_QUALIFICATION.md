@@ -136,8 +136,40 @@ Two cells are `UNVERIFIED` by design and say why:
 - **Post-delete cache eviction** is not observable over HTTP beyond the read
   denial.
 
-DIBELS/Data Day semantic cells become `UNVERIFIED` once their routes exist,
-until the probes are bound to the canonical schema.
+DIBELS/Data Day rows are bound to the canonical campus-scoped routes
+(`/pilot/campuses/{campus_id}/learners/{learner_id}/assessments...` and
+`/data-day?cycle=`, `routers/pilot_assessments.py`). `path()` fills
+`{campus_id}` with the addressed learner's own campus, so a teacher copying
+another campus's learner copies that learner's whole path. Before the DIBELS
+rows the harness sets each campus's Valor default calendar through the real
+elevated admin route (cell `campus_calendar_configured`). Each semantic cell
+is a real probe over HTTP on synthetic progress-monitoring records (no
+licensed-benchmark authorization is needed):
+
+| Cell | What is observed |
+| --- | --- |
+| `progress_monitoring_not_benchmark` | A PM record carrying an official window is refused (422); a finalized PM appears only in the progress-monitoring series, with window `none`. |
+| `skipped_measure_not_zero` | A skipped measure with `raw_score: 0` is refused (422); a stored skipped measure has no score, is listed as skipped, and is in no growth series. |
+| `interrupted_not_finalized` | From `INTERRUPTED`, finalize and submit are 409, and resume without a written resolution is 409. |
+| `interpretation_never_overwrites_score` | Evidence, Bede's proposal and a teacher edit leave the finalized scores and snapshot hash unchanged; re-scoring after finalization is 409. |
+| `packet_changes_no_official_score` | Reading the packet changes no score; its `boundaries` deny changing scores or placement. |
+| `packet_starts_no_instruction` | `boundaries` deny starting or delivering instruction; every prior decision outcome is `NOT_REQUESTED`; no delivery wording. |
+| `packet_shows_skipped_and_invalid_states` | An invalid administration is listed as not valid and excluded from valid results; skipped measures are shown. |
+
+`revocation_is_audited` requires an audit entry whose event is the admin
+revoke action itself (`pilot.roster_grant_revoked`) and whose detail names
+the revoked learner's UUID. A loose substring such as "revoke" is not
+accepted, because #606's `authz.revoked_in_flight` also contains it and
+exists only when a stream happened to be open.
+`revocation_closes_active_voice_stream` treats any data event after
+revocation as protected output, except the server's exact terminal notice
+`{"type": "error", "message": "unknown or expired session"}`.
+
+Learner deletion has no HTTP route on the G1 integration head (the service
+`services/pilot_learner_deletion.py` exists; its owner route ships with
+#609), so the deletion cells are `ABSENT`. Its stream, cache and reconnect
+behaviour is covered in-process by
+`homeschool-api/tests/test_g1_integration_streams.py`.
 
 SQLite/Postgres agreement belongs to the pytest suites. This harness runs on
 Postgres only.

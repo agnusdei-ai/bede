@@ -425,6 +425,21 @@ def test_sse_denial_requires_the_server_to_refuse():
                                    "data_events": 1, "text": "unknown or expired session"})
 
 
+def test_only_the_exact_session_ended_notice_is_exempt_after_revocation():
+    """revocation_closes_active_voice_stream exempts the server's own terminal
+    notice and nothing else, so a transcript after revocation still FAILs."""
+    import json
+    import matrix
+    notice = {"type": "error", "message": "unknown or expired session"}
+    assert matrix._is_session_ended_notice(json.dumps(notice))
+    for leak in ({"type": "partial", "text": "synthetic words"},
+                 {"type": "final", "text": "synthetic words"},
+                 {**notice, "text": "synthetic words"},
+                 {"type": "error", "message": "unknown or expired session."}):
+        assert not matrix._is_session_ended_notice(json.dumps(leak))
+    assert not matrix._is_session_ended_notice("not json")
+
+
 def test_seeding_refuses_a_non_synthetic_name():
     import seed
     assert seed.assert_synthetic("Synthetic Campus One") == "Synthetic Campus One"

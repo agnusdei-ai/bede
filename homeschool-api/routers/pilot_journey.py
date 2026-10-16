@@ -42,6 +42,7 @@ from services.governed_orchestrator import (
     Decision, Evidence, Recommendation, Scope, review_recommendation,
 )
 from services.pilot_recommender import EvidenceRecord, recommend
+from services import pilot_authz
 
 router = APIRouter(prefix="/pilot/me/learners", tags=["valor-pilot"])
 
@@ -91,6 +92,27 @@ def verify_chain(rows: list[PilotDecision]) -> bool:
     return True
 
 
+# ── Revoke-safe writes ──────────────────────────────────────────────────────
+
+async def _write_context(db: AsyncSession, auth: dict, learner: PilotLearner):
+    """Pin the original grant/version; a re-grant must not revive a write."""
+    ctx = await pilot_authz.resolve_campus_learner(
+        db, auth, learner.id, pilot_authz.ACTION_ASSESSMENT,
+    )
+    if ctx.campus_id != learner.campus_id:
+        raise _NOT_FOUND
+    return ctx
+
+
+async def _commit_if_still_assigned(db: AsyncSession, ctx) -> None:
+    """Fresh-session revalidation immediately before the durable commit."""
+    try:
+        await pilot_authz.RevocationGatedSession(db, ctx).commit()
+    except pilot_authz.AuthzRevoked as exc:
+        await db.rollback()
+        raise HTTPException(status_code=404, detail="Record not found") from exc
+
+
 # ── Evidence ────────────────────────────────────────────────────────────────
 
 def _render_evidence(row: PilotEvidence, learner: PilotLearner) -> dict:
@@ -104,6 +126,7 @@ async def record_evidence(
     auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
 ) -> dict:
     learner = await _assigned(db, auth, learner_id)
+    ctx = await _write_context(db, auth, learner)
     teacher = await live_educator(db, auth)
     row_id = str(uuid.uuid4())
     row = PilotEvidence(
@@ -114,7 +137,7 @@ async def record_evidence(
         created_at=datetime.now(timezone.utc),
     )
     db.add(row)
-    await db.commit()
+    await _commit_if_still_assigned(db, ctx)
     return _render_evidence(row, learner)
 
 
@@ -167,6 +190,7 @@ async def request_recommendation(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     learner = await _assigned(db, auth, learner_id)
+    ctx = await _write_context(db, auth, learner)
     teacher = await live_educator(db, auth)
     pending = (await db.execute(
         select(PilotRecommendation.id).where(
@@ -207,7 +231,7 @@ async def request_recommendation(
         created_at=datetime.now(timezone.utc),
     )
     db.add(row)
-    await db.commit()
+    await _commit_if_still_assigned(db, ctx)
     return {"abstained": False, **_render_recommendation(row, learner)}
 
 
@@ -264,6 +288,7 @@ async def decide(
     auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
 ) -> dict:
     learner = await _assigned(db, auth, learner_id)
+    ctx = await _write_context(db, auth, learner)
     teacher = await live_educator(db, auth)
     rec = await _owned_recommendation(db, learner, recommendation_id)
     if rec.status != "pending" or rec.version != payload.expected_version:
@@ -347,7 +372,7 @@ async def decide(
             scope, proposal, Decision(payload.action),
             authorize=authorize, persist=persist, audit=audit,
         )
-        await db.commit()
+        await _commit_if_still_assigned(db, ctx)
     except PermissionError:
         await db.rollback()
         raise _NOT_FOUND

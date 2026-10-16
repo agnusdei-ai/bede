@@ -168,9 +168,12 @@ async def pilot_tutor_turn(
                 yield json.dumps({"type": "error", "message": "Local tutoring returned no text"})
                 return
             await pilot_authz.require_valid(ctx, "pilot.tutoring.before_write")
-            key = await student_keys.get_or_create(db, scope)
+            gated_db = pilot_authz.RevocationGatedSession(db, ctx)
+            # Even key creation is a write: gate its commit against this
+            # exact grant version, not merely the earlier read check.
+            key = await student_keys.get_or_create(gated_db, scope)
             now = datetime.now(timezone.utc)
-            db.add(SessionTranscript(
+            gated_db.add(SessionTranscript(
                 student_name=scope.storage_subject, session_date=now,
                 subjects=payload.subject, duration_minutes=0,
                 transcript_enc=encrypt_json(
@@ -184,7 +187,7 @@ async def pilot_tutor_turn(
             ))
             # Preserve original grant version through commit; a revoke
             # causes rollback, not an orphan record.
-            await pilot_authz.RevocationGatedSession(db, ctx).commit()
+            await gated_db.commit()
             yield json.dumps({"type": "done"})
         except pilot_authz.AuthzRevoked:
             yield json.dumps({"type": "error", "message": "Learner access ended"})

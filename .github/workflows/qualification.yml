@@ -112,8 +112,15 @@ jobs:
       LOCUTO_IPC_ENABLED: 'false'
       EDUCATOR_INSTITUTION_EMAIL_DOMAIN: qualification.agnusdei.ai
       WEBAUTHN_RP_ID: localhost
-      WEBAUTHN_ORIGIN: http://localhost:8765
-      CORS_ORIGINS: http://localhost:8765
+      # https: the real invite route requires it. A self-signed certificate is
+      # generated per run; Chromium trusts exactly its key.
+      WEBAUTHN_ORIGIN: https://localhost:8765
+      CORS_ORIGINS: https://localhost:8765
+      # The ONLY mail destination: the loopback sink (scripts/qualification/mail_sink.py).
+      # core/config.py refuses a non-loopback value and any value in production;
+      # the synthetic RESEND_API_KEY is generated below and accepted only by the sink.
+      RESEND_API_BASE_URL: http://127.0.0.1:8767
+      RESEND_FROM_ADDRESS: bede@qualification.agnusdei.ai
       LOCAL_LLM_BASE_URL: http://127.0.0.1:8766/v1
       LOCAL_LLM_MODEL: synthetic-stub
       BEDE_FORCE_ADAPTER: local
@@ -166,12 +173,14 @@ jobs:
           set -euo pipefail
           gen() { openssl rand -hex "$1"; }
           db_pw="synthetic-$(gen 16)"; secret="$(gen 32)"; master="$(gen 32)"; parent="synthetic-$(gen 16)"
-          for v in "$db_pw" "$secret" "$master" "$parent"; do echo "::add-mask::$v"; done
+          sink_key="synthetic-$(gen 16)"
+          for v in "$db_pw" "$secret" "$master" "$parent" "$sink_key"; do echo "::add-mask::$v"; done
           {
             echo "QUAL_APP_DB_PASSWORD=$db_pw"
             echo "SECRET_KEY=$secret"
             echo "MASTER_SECRET=$master"
             echo "PARENT_PASSWORD=$parent"
+            echo "RESEND_API_KEY=$sink_key"
           } >> "$GITHUB_ENV"
           url="$(QUAL_APP_DB_PASSWORD="$db_pw" python scripts/qualification/db_setup.py --db bede_qualification)"
           echo "::add-mask::$url"

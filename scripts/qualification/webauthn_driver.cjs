@@ -37,7 +37,14 @@ let browser;
 const contexts = new Map();
 
 async function ensureBrowser() {
-  if (!browser) browser = await chromium.launch({ headless: true });
+  if (!browser) {
+    // Trust exactly this run's self-signed certificate (by its public-key
+    // hash) so the origin is a valid secure context for WebAuthn. Nothing
+    // else's certificate errors are ignored.
+    const spki = process.env.QUAL_TLS_SPKI || '';
+    const args = spki ? [`--ignore-certificate-errors-spki-list=${spki}`] : [];
+    browser = await chromium.launch({ headless: true, args });
+  }
   return browser;
 }
 

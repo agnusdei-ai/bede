@@ -36,9 +36,20 @@ API_HOST = _env("API_HOST", "127.0.0.1")
 API_PORT = int(_env("API_PORT", "8765"))
 # The origin the browser page lives on. It is also WEBAUTHN_ORIGIN, so a
 # passkey ceremony's clientDataJSON.origin matches what the server expects.
-API_ORIGIN = _env("API_ORIGIN", f"http://localhost:{API_PORT}")
+# TLS on by default: the real invite route (services/educator_invites.py)
+# requires an https WEBAUTHN_ORIGIN, so the stack is served over https with a
+# self-signed certificate generated for this run, and Chromium is told to
+# trust exactly that certificate's key (--ignore-certificate-errors-spki-list).
+TLS = _env("TLS", "true") == "true"
+API_ORIGIN = _env("API_ORIGIN", f"{'https' if TLS else 'http'}://localhost:{API_PORT}")
 STUB_HOST = _env("AI_STUB_HOST", "127.0.0.1")
 STUB_PORT = int(_env("AI_STUB_PORT", "8766"))
+MAIL_SINK_HOST = _env("MAIL_SINK_HOST", "127.0.0.1")
+MAIL_SINK_PORT = int(_env("MAIL_SINK_PORT", "8767"))
+# Raw captured mail holds live enrollment tickets, so it lives in the run's
+# temp directory, never in the evidence directory.
+MAIL_SINK_DIR = Path(_env("MAIL_SINK_DIR", str(OUT_DIR.parent / (OUT_DIR.name + "-tmp") / "mail"))).resolve()
+RUN_TMP = MAIL_SINK_DIR.parent
 STARTUP_TIMEOUT_S = float(_env("STARTUP_TIMEOUT_S", "90"))
 SHUTDOWN_TIMEOUT_S = float(_env("SHUTDOWN_TIMEOUT_S", "30"))
 REQUEST_TIMEOUT_S = float(_env("REQUEST_TIMEOUT_S", "20"))
@@ -90,8 +101,9 @@ FORBIDDEN_NONEMPTY_ENV = _csv(
     "FORBIDDEN_NONEMPTY_ENV",
     # commercial AI
     "ANTHROPIC_API_KEY,OPENAI_API_KEY,MISTRAL_API_KEY,"
-    # email (Resend) and outbound notification addresses
-    "RESEND_API_KEY,RESEND_FROM_ADDRESS,PARENT_EMAIL,FEEDBACK_EMAIL,SALES_EMAIL,"
+    # outbound notification addresses (RESEND_* is checked separately: only
+    # a synthetic key aimed at the loopback mail sink is allowed)
+    "PARENT_EMAIL,FEEDBACK_EMAIL,SALES_EMAIL,"
     # license server / billing
     "LICENSE_SERVER_URL,LICENSE_KEY,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,"
     "STRIPE_PUBLISHABLE_KEY,OPERATOR_TOKEN,ED25519_PRIVATE_KEY,"
@@ -99,7 +111,10 @@ FORBIDDEN_NONEMPTY_ENV = _csv(
     "MCP_EXTERNAL_SERVERS",
 )
 # Any env var whose NAME starts with one of these prefixes and is non-empty fails.
-FORBIDDEN_ENV_PREFIXES = _csv("FORBIDDEN_ENV_PREFIXES", "STRIPE_,RESEND_")
+FORBIDDEN_ENV_PREFIXES = _csv("FORBIDDEN_ENV_PREFIXES", "STRIPE_")
+# The only RESEND_* variables a run may set, and only toward the sink.
+ALLOWED_RESEND_ENV = ("RESEND_API_KEY", "RESEND_FROM_ADDRESS", "RESEND_API_BASE_URL")
+SYNTHETIC_KEY_PREFIX = "synthetic-"
 # Any env var whose NAME contains one of these markers and is truthy fails.
 FORBIDDEN_TRUTHY_MARKERS = _csv(
     "FORBIDDEN_TRUTHY_MARKERS",

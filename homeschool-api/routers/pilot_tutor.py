@@ -108,13 +108,26 @@ async def pilot_tutor_turn(
         raise HTTPException(status_code=409,
                             detail="Teacher approval is required before tutoring")
     scope = LearnerScope.institutional(ctx.campus_id, ctx.learner_id)
-    instruction = decrypt_json(
-        row.authorized_enc,
-        aad_for("pilot_recommendations", "authorized_enc",
-                f"{ctx.campus_id}:{ctx.learner_id}:{row.id}"),
-    )["text"]
+    # Do not send content to even the *local* model when the grant has been
+    # revoked after the initial scoped query. No provider is contacted until
+    # the original educator+campus+learner grant version is freshly checked.
+    try:
+        await pilot_authz.require_valid(ctx, "pilot.tutoring.before_model")
+    except pilot_authz.AuthzRevoked as exc:
+        raise HTTPException(status_code=404, detail="Record not found") from exc
+    try:
+        authorized = decrypt_json(
+            row.authorized_enc,
+            aad_for("pilot_recommendations", "authorized_enc",
+                    f"{ctx.campus_id}:{ctx.learner_id}:{row.id}"),
+        )
+        instruction = authorized["text"]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=409,
+                            detail="Verified teacher instruction is unavailable") from exc
     if not isinstance(instruction, str) or not instruction.strip():
-        raise HTTPException(status_code=409, detail="Approved instruction is unavailable")
+        raise HTTPException(status_code=409,
+                            detail="Verified teacher instruction is unavailable")
     client = _local_model()
     await _classify_local(client, payload.child_message)
     try:

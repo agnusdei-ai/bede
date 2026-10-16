@@ -6,12 +6,17 @@
 # Local Postgres backups (make db-backup) — never commit these
 /backups/
 
+# Owner-operated pilot smoke output can contain local environment and health data;
+# generated run evidence must stay on the operator's device, outside Git.
+/pilot-evidence/
+
 # scripts/build_pages_site.sh's assembled Cloudflare Pages output —
 # regenerated on every build, never committed (see docs/DEMO_HOSTING.md)
 /publish/
 
 # Generated per-deployment — embeds this deployment's real CA cert
 sage-root-ca.crt
+bede-root-ca.crt
 bede-ipad.mobileconfig
 
 # Claude Code agent worktrees (ephemeral, not source)

@@ -38,6 +38,8 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          # Pin the PR *head*, not GitHub's synthetic test-merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Verify the tested commit is the PR head
         env:
@@ -70,7 +72,7 @@ jobs:
                       await conn.execute(f"CREATE DATABASE {database} OWNER g1_ci")
                   perms = await conn.fetchrow(
                       "SELECT rolsuper, rolcreaterole, rolbypassrls FROM pg_roles WHERE rolname='g1_ci'")
-                  assert perms is not None and not any(perms.values()), "app role is privileged"
+                  assert perms is not None and not any(tuple(perms)), "app role is privileged"
               finally:
                   await conn.close()
           asyncio.run(main())

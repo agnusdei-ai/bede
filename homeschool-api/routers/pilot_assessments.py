@@ -8,7 +8,11 @@ unauthorized, cross-campus, stale and substituted UUIDs all produce the same
 ``404 Record not found`` body, so nothing confirms that a record exists.
 
 Writes re-check the grant immediately before commit (``_recheck``), so a
-grant revoked while a request is in flight cannot persist anything.
+grant revoked while a request is in flight cannot persist anything. The
+re-check is bound to the ``services.pilot_authz`` context resolved when the
+request STARTED (grant id, grant version, educator credential version): a
+grant revoked and re-approved mid-request is a NEW grant version and is
+refused, even though a fresh lookup would find it enabled again.
 
 State changes happen only through recorded teacher actions on the pure
 lifecycle in ``services/assessment_lifecycle.py``; nothing here advances on
@@ -28,7 +32,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import PilotLearner, get_db
+from core.database import PilotLearner, PilotRosterGrant, get_db
 from core.deps import require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
 from core.pilot_assessment_models import (
@@ -39,6 +43,7 @@ from core.pilot_assessment_models import (
 )
 import routers.pilot_campuses as g1
 from services import canonical_assessment as ca
+from services import pilot_authz
 from services.assessment_lifecycle import (
     POST_FINALIZATION, SCORE_ENTRY, Action, IllegalTransition, State, next_state,
 )
@@ -85,12 +90,26 @@ def _iso(value) -> Optional[str]:
 
 # ── Scope resolution ────────────────────────────────────────────────────────
 
+#: Key under which ``_scope`` pins the request-start authorization context on
+#: the request's own session (``AsyncSession.info``), for ``_recheck``.
+_CTX_KEY = "pilot_assessment_authz_ctx"
+
+
 async def _scope(db: AsyncSession, auth: dict, campus_id: str, learner_id: str):
-    """(teacher, learner) or the uniform 404. Never trusts the path's campus."""
+    """(teacher, learner) or the uniform 404. Never trusts the path's campus.
+
+    Also resolves and pins the request's ``PilotAuthzContext``: the grant id
+    and version, and the educator's credential version, as they stood when
+    this request started. ``_recheck`` refuses the write if any of them has
+    moved, which is what makes a revoke-then-re-grant mid-request a refusal
+    rather than a pass."""
     cid = g1._id(campus_id)
     learner = await g1._assigned(db, auth, learner_id)
     if learner.campus_id != cid:
         raise _not_found()
+    db.info[_CTX_KEY] = await pilot_authz.resolve_campus_learner(
+        db, auth, learner.id, pilot_authz.ACTION_ASSESSMENT, claimed_campus_id=cid,
+    )
     teacher = await live_educator(db, auth)
     return teacher, learner
 
@@ -105,6 +124,12 @@ async def _recheck(db: AsyncSession, auth: dict, learner: PilotLearner) -> None:
     if again.id != learner.id or again.campus_id != learner.campus_id:
         await db.rollback()
         raise _not_found()
+    ctx = db.info.get(_CTX_KEY)
+    if ctx is None or ctx.learner_id != learner.id or ctx.campus_id != learner.campus_id:
+        # No pinned context means _scope did not run for this learner on this
+        # session: fail closed rather than write on an unbound check.
+        await db.rollback()
+        raise _not_found()
     # Hold the learner row FOR SHARE until this write commits. Learner
     # deletion (services/pilot_learner_deletion.py) takes FOR UPDATE on the
     # same row, so a write in flight either lands before the deletion counts
@@ -117,6 +142,32 @@ async def _recheck(db: AsyncSession, auth: dict, learner: PilotLearner) -> None:
         .with_for_update(read=True)
     )).scalar_one_or_none()
     if locked is None:
+        await db.rollback()
+        raise _not_found()
+    # Hold the grant row FOR SHARE as well, re-read past the identity map
+    # (populate_existing: the request already loaded this row, and a plain
+    # select would hand back the stale object). A concurrent revoke's UPDATE
+    # then waits for this write to commit, so the two serialize. It must
+    # still be THE grant at THE version this request started under.
+    grant = (await db.execute(
+        select(PilotRosterGrant)
+        .where(PilotRosterGrant.educator_id == ctx.principal_id,
+               PilotRosterGrant.campus_id == learner.campus_id,
+               PilotRosterGrant.learner_id == learner.id)
+        .with_for_update(read=True)
+        .execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+    if (grant is None or not grant.enabled
+            or grant.grant_id != ctx.grant_id or grant.version != ctx.grant_version):
+        pilot_authz.audit_revoked(ctx, "assessment.write")
+        await db.rollback()
+        raise _not_found()
+    # And the whole context once more in a FRESH session (educator account,
+    # credential version, membership, campus, learner, grant), which also
+    # covers SQLite, where the request's own transaction may read a snapshot
+    # and FOR SHARE is a no-op. Fails closed on any error.
+    if not await pilot_authz.revalidate(ctx):
+        pilot_authz.audit_revoked(ctx, "assessment.write")
         await db.rollback()
         raise _not_found()
 

@@ -214,12 +214,19 @@ async def disable_campus_membership(
     teacher = await db.get(ClassicalEducator, teacher_id)
     if teacher:
         teacher.credential_version += 1
-    granted = (await db.execute(
-        select(PilotRosterGrant.learner_id).where(
+    grants = (await db.execute(
+        select(PilotRosterGrant).where(
             PilotRosterGrant.educator_id == teacher_id,
             PilotRosterGrant.campus_id == campus_id,
         )
     )).scalars().all()
+    # Every grant this membership carried becomes a new version, exactly as a
+    # single revoke does, so no pilot_authz context minted before the disable
+    # can ever revalidate, even if the membership is later re-approved and
+    # the credential-version pin were somehow not enough on its own.
+    for grant in grants:
+        grant.version += 1
+    granted = [grant.learner_id for grant in grants]
     await db.commit()
     # Same eviction as a single-grant revoke, for every learner this
     # educator held a grant for on this campus.

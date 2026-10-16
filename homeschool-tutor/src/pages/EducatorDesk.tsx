@@ -202,6 +202,8 @@ export default function EducatorDesk() {
           )}
         </section>
 
+        {token && <PilotTeacherJourney token={token} />}
+
         <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
           {(['roster', 'lesson', 'evidence'] as const).map((step, index) => (
             <button key={step} type="button"

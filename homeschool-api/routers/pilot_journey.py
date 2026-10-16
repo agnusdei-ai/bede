@@ -185,6 +185,7 @@ async def request_recommendation(
             evidence_id=row.id, framework=d["framework"], measure=d["measure"],
             assessed_on=datetime.fromisoformat(d["assessed_on"]).date(),
             reported_band=d.get("reported_band"), assistance=d.get("assistance"),
+            recorded_at=row.created_at,
         ))
     proposal = recommend(records)
     if proposal.abstained:

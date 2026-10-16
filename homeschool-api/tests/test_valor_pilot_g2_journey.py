@@ -8,7 +8,7 @@ Synthetic campuses and learners only (#598 fixtures). Every negative case
 learner, revoked grant, replayed decision, stale version, and a grant
 revoked between request start and the decision itself.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -433,6 +433,20 @@ def test_latest_record_per_measure_wins():
     p = recommend([_rec(1, "PSF", "intensive_at_risk", days_ago=40),
                    _rec(2, "PSF", "core_minimal_risk", days_ago=2)])
     assert "continue current instruction" in p.text and p.source_evidence_ids == ("e2",)
+
+
+def test_same_day_results_use_the_later_entry_not_a_random_id():
+    """Two results for one measure on one date: the later ENTRY is current.
+    Ids are random UUIDs, so ordering on them flipped this case at random
+    (caught by CI on Python 3.12 after passing locally)."""
+    day = date.today() - timedelta(days=1)
+    first = EvidenceRecord("ffff", "dibels8", "PSF", day, "intensive_at_risk",
+                           recorded_at=datetime(2026, 10, 1, 9, 0))
+    later = EvidenceRecord("0000", "dibels8", "PSF", day, "core_minimal_risk",
+                           recorded_at=datetime(2026, 10, 1, 15, 0))
+    for order in ([first, later], [later, first]):
+        p = recommend(order)
+        assert "continue current instruction" in p.text and p.source_evidence_ids == ("0000",)
 
 
 def test_composite_and_unreported_bands_alone_abstain():

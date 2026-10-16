@@ -31,7 +31,7 @@ decision route.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 
 POLICY_VERSION = "pilot-recommender/1"
 
@@ -77,6 +77,9 @@ class EvidenceRecord:
     assessed_on: date
     reported_band: str | None = None
     assistance: str | None = None
+    # When the record was entered. Breaks ties between two results for the
+    # same measure on the same assessment date: the later entry is current.
+    recorded_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -90,10 +93,17 @@ class Proposal:
 
 
 def _latest_per_measure(records: list[EvidenceRecord]) -> list[EvidenceRecord]:
-    """Most recent record per (framework, measure). Ties keep the later id
-    order deterministic so the same inputs always cite the same rows."""
+    """Most recent record per (framework, measure): latest assessment date,
+    then latest entry time, then id. The id is only a last resort for exact
+    duplicates; it is random, so ordering on it alone would pick an
+    arbitrary record whenever two results share a date."""
     latest: dict[tuple[str, str], EvidenceRecord] = {}
-    for rec in sorted(records, key=lambda r: (r.assessed_on, r.evidence_id)):
+    epoch = datetime.min
+    for rec in sorted(records, key=lambda r: (
+        r.assessed_on,
+        (r.recorded_at.replace(tzinfo=None) if r.recorded_at else epoch),
+        r.evidence_id,
+    )):
         latest[(rec.framework, rec.measure)] = rec
     return list(latest.values())
 

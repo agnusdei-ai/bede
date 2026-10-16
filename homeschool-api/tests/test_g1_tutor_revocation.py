@@ -185,6 +185,16 @@ def test_revocation_mid_generation_stops_output_and_later_writes(legacy_world, m
                          headers=w.teacher(w.teacher_one)) as r:
         first = _items(r, until=lambda i: i.get("content") == "Synthetic first part.")
         assert first[-1]["content"] == "Synthetic first part."
+        # Revoke only once the write that precedes the gate is durable. The
+        # scripted model emits the text BEFORE the tool, so the client can
+        # read it and revoke before that write's commit gate has run; under
+        # load that ordering flipped and the "before revocation" write was
+        # (correctly) refused, failing this test for a reason it does not
+        # test. Bounded: a write that never lands still fails below.
+        import time
+        deadline = time.monotonic() + 10
+        while _ledger_rows(w) < 1 and time.monotonic() < deadline:
+            time.sleep(0.05)
         _remove_learner_one(w)
         # The model is silent (blocked on the gate). The periodic check, not
         # a new chunk, is what ends the turn.

@@ -482,7 +482,12 @@ def test_a_teacher_write_in_flight_is_deleted_with_everything_else(client):
 
     async def scenario():
         async with client.db_factory() as teacher_db, client.db_factory() as admin_db:
-            learner = await teacher_db.get(PilotLearner, w.learner_one)
+            # Exactly what every write route does first: _scope resolves the
+            # learner AND pins the request's authorization context, which the
+            # write-time _recheck requires (G1 integration: no pinned context
+            # fails closed).
+            _, learner = await pa._scope(teacher_db, _educator_auth(w.teacher_one),
+                                         w.campus_one, w.learner_one)
             await pa._recheck(teacher_db, _educator_auth(w.teacher_one), learner)
             teacher_db.add(models.PilotProgressMonitoringSchedule(
                 id="0b8a7c1e-3d2f-4e5a-9b6c-7d8e9f0a1b2c", administration_id=adm,
@@ -519,7 +524,10 @@ def test_a_teacher_write_that_waits_on_a_deletion_is_refused(client):
             await release.wait()
 
         async with client.db_factory() as teacher_db, client.db_factory() as admin_db:
-            learner = await teacher_db.get(PilotLearner, w.learner_one)
+            # The request started (and pinned its context through _scope)
+            # before the deletion began; its write-time re-check runs after.
+            _, learner = await pa._scope(teacher_db, _educator_auth(w.teacher_one),
+                                         w.campus_one, w.learner_one)
             deleting = asyncio.create_task(delete_pilot_learner(
                 admin_db, w.campus_one, w.learner_one, before_commit=hold))
             await asyncio.wait_for(reached.wait(), timeout=10)

@@ -20,6 +20,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+import core.database as database
 from core.config import settings
 from core.database import Base, ClassicalEducator
 from core.encryption import initialize_encryption
@@ -60,6 +61,8 @@ async def db(monkeypatch):
             await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
+    # A G2 write checks the pinned grant from a fresh DB session at commit.
+    monkeypatch.setattr(database, "AsyncSessionLocal", factory)
     async with factory() as session:
         await initialize_encryption(settings.master_secret, session)
         yield session

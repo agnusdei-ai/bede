@@ -1,8 +1,6 @@
 # Mac mini server with an older Mac educator workstation
 
-Status: **deployment acceptance contract, not a qualified LAN installer**.
-Use synthetic identities and records until campus-isolation G1 passes and the
-owner separately approves real-data release.
+Status: **opt-in LAN installer implementation exists; physical LAN/device G3 qualification NOT RUN**. The integrated synthetic G1/G2 candidate passed 146/146 and is merged to `main`. No real-data permission or pilot authorization follows from that result. Follow [the G3 physical-Mac runbook](MAC_G3_CERTIFICATION_RUNBOOK.md) and [certification record](MAC_G3_CERTIFICATION_RECORD.md).
 
 ## Separation of responsibilities
 
@@ -24,9 +22,8 @@ owner separately approves real-data release.
 1. The operator selects a secure **Local campus network** mode deliberately;
    never silently publish Bede on all interfaces. Restrict access to the
    approved local network and devices using host firewall and network
-   controls. The present offline operator package binds Caddy's ports to
-   `127.0.0.1` and **will not be reachable from the older Mac** without a
-   specifically qualified LAN mode. Preserve local-only as default.
+   controls. The current source-free operator package binds Caddy's ports to
+   `127.0.0.1` **by default**, and now includes explicit, wizard-selected `BEDE_LAN_ENABLED=true` and `compose.lan.yaml` for a private interface. Only the designated RFC 1918 IPv4 may be published. This implementation still requires live firewall/DNS/client verification on physical Macs. Preserve localhost-only as default.
 2. The Mac mini has a stable local address and a chosen, consistent DNS name,
    preferably under an organization-controlled domain with private DNS.
    Certificate SAN, `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN` and actual browser
@@ -54,7 +51,4 @@ owner separately approves real-data release.
    backup restore and manual pilot disable; store time-stamped redacted
    evidence of responses and failures.
 
-**Known work:** implement and CI-qualify a constrained LAN listener profile,
-DNS/trust onboarding and live cross-device browser WebAuthn on target
-hardware before calling this a ready-to-deploy two-Mac topology.
-A green API or Docker packaging CI result is not evidence of the LAN flow.
+**Current implementation:** `packaging/bundle/start.sh` enforces a private IPv4 and matching `WEBAUTHN_RP_ID`/`WEBAUTHN_ORIGIN` for the LAN option, `Install-Bede.command` launches the wizard, and `Verify-Bede.command` confirms CA-verified local HTTPS health. The teacher's actual client DNS, browser CA trust, WebAuthn, isolation, lost-device recovery, offboarding and independent recovery controls are **not** proved by those checks. A green API or image-build CI result is not evidence of a completed two-Mac G3 test. Record an unperformed scenario as NOT RUN/BLOCKED, never PASS.

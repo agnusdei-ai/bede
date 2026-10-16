@@ -207,7 +207,7 @@ class Matrix:
     GENERIC = ["own_access", "cross_campus_read", "cross_campus_write", "random_uuid",
                "malformed_id", "noncanonical_uuid", "nil_uuid", "same_name_isolation"]
 
-    def run_generic(self, row: dict) -> None:
+    def run_generic(self, row: dict, *, defer_own_write: bool = False) -> None:
         read, write, lst = row.get("read"), row.get("write"), row.get("list")
         specs = [s for s in (read, write, lst) if s]
         if not specs:
@@ -242,7 +242,7 @@ class Matrix:
                          "list route takes no learner id; covered by isolation of its result")
             return
 
-        if write:
+        if write and not defer_own_write:
             body = write[2] if len(write) > 2 else None
             if "{recommendation_id}" not in write[1]:
                 r = self.call("teacher_one", write[0], self.path(write[1], learner_id=l1), body)
@@ -574,6 +574,14 @@ class Matrix:
         ev = self.call("teacher_one", "POST", p(L + "/evidence"), SYNTH_DIBELS)
         rec = self.call("teacher_one", "POST", p(L + "/recommendations"))
         data = rec.json() if rec.status_code == 200 else {}
+        # The generic recommendation row verifies *read* and negative write
+        # isolation without issuing an extra authorized write. This sole G2
+        # creation is the real positive write, so no pending recommendation
+        # is left behind to prevent teacher review or tutoring.
+        self.put("recommendation", "own_write",
+                 "PASS" if rec.status_code == 200 and not data.get("abstained", True) else "FAIL",
+                 f"teacher_one authorized recommendation -> {rec.status_code}",
+                 status=rec.status_code)
         linked = (ev.status_code == 201 and not data.get("abstained", True)
                   and ev.json().get("evidence_id") in data.get("source_evidence_ids", []))
         self.put(row, "evidence_linked_to_recommendation", "PASS" if linked else "FAIL",
@@ -951,7 +959,11 @@ class Matrix:
         for row in TABLE:
             if row.get("special") in ("voice", "g2", "deletion") or row["id"] == "tutoring_turn":
                 continue
-            self.run_generic(row)
+            # Recommendation creation is a stateful teacher approval prelude.
+            # Exercise negative writes here, but create its single positive
+            # proposal inside g2() so the candidate 409 pending-proposal
+            # guard remains mandatory and is not bypassed.
+            self.run_generic(row, defer_own_write=row["id"] == "recommendation")
         self.browser_agreement()
         self.voice_owner_binding()
         self.g2()

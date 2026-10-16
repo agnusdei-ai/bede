@@ -21,6 +21,7 @@ PostgreSQL remains the only officially documented choice
 (docs/PRODUCTION_SETUP.md).
 """
 
+import uuid
 from datetime import datetime, timezone
 from typing import AsyncIterator, Optional
 
@@ -303,6 +304,16 @@ class PilotRosterGrant(Base):
     campus_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     learner_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     enabled: Mapped[bool] = mapped_column(default=True, nullable=False)
+    # Surrogate identity and version for services/pilot_authz.py. Every
+    # authorization context and voice session pins both; revoke and
+    # re-approve advance ``version``, so a context minted before a revocation
+    # never revalidates, even after the grant is re-enabled. New columns on a
+    # table that exists only on the unmerged pilot branch: create_all is the
+    # migration.
+    grant_id: Mapped[str] = mapped_column(
+        String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()),
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
 class ClassicalEducator(Base):

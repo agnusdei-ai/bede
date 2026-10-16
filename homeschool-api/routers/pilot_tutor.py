@@ -22,10 +22,9 @@ from core import student_keys
 from core.config import settings
 from core.database import SessionTranscript, get_db
 from core.deps import require_educator
-from core.encryption import decrypt_json, encrypt_json, student_aad
+from core.encryption import aad_for, decrypt_json, encrypt_json, student_aad
 from core.learner_scope import LearnerScope
 from core.pilot_journey_models import PilotRecommendation
-from routers.pilot_journey import _aad
 from services import pilot_authz
 from services.adapters.router import LocalAdapterUnavailableError, resolve_local_only
 from services.ai_service import _redact_credentials, check_safeguarding
@@ -111,14 +110,17 @@ async def pilot_tutor_turn(
     scope = LearnerScope.institutional(ctx.campus_id, ctx.learner_id)
     instruction = decrypt_json(
         row.authorized_enc,
-        _aad("pilot_recommendations", "authorized_enc",
-             type("_L", (), {"campus_id": ctx.campus_id, "id": ctx.learner_id})(), row.id),
+        aad_for("pilot_recommendations", "authorized_enc",
+                f"{ctx.campus_id}:{ctx.learner_id}:{row.id}"),
     )["text"]
     if not isinstance(instruction, str) or not instruction.strip():
         raise HTTPException(status_code=409, detail="Approved instruction is unavailable")
     client = _local_model()
     await _classify_local(client, payload.child_message)
-    await pilot_authz.require_valid(ctx, "pilot.tutoring.preflight")
+    try:
+        await pilot_authz.require_valid(ctx, "pilot.tutoring.preflight")
+    except pilot_authz.AuthzRevoked as exc:
+        raise HTTPException(status_code=404, detail="Record not found") from exc
 
     prompt = (
         "You are Bede, a gentle Socratic tutor used only in a supervised "

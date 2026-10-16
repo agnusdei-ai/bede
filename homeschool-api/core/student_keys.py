@@ -48,12 +48,13 @@ destroy for the local replica and bounded by TTL for the others.
 """
 import logging
 import time
-from typing import Optional
+from typing import Optional, Union
 
 from Crypto.Random import get_random_bytes
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.encryption import aad_for, decrypt, encrypt
+from core.learner_scope import LearnerScope, as_scope
 
 log = logging.getLogger(__name__)
 
@@ -62,74 +63,99 @@ log = logging.getLogger(__name__)
 # encrypted read and write, on a Raspberry Pi. The cached value is a
 # student's immutable key, so this is a cache of something that cannot go
 # stale in the ordinary case.
+#
+# KEYED BY SCOPE, NEVER BY NAME (G1 items 3 and 8). The cache key is
+# core/learner_scope.py's five-part key — environment, campus UUID, learner
+# UUID, resource type, resource version — so two same-named learners on two
+# campuses can never be handed each other's unwrapped key. The persistent
+# row and its AAD use LearnerScope.storage_subject, which for a legacy
+# household is the name exactly as before (no family's key row or ciphertext
+# changes) and for an institutional learner is a campus- and learner-bound
+# string, so the two campuses also get distinct rows and distinct AAD.
 _CACHE_TTL_SECONDS = 300
-_cache: dict[str, tuple[bytes, float]] = {}
+_RESOURCE = "student_data_key"
+_RESOURCE_VERSION = 1
+_cache: dict[tuple, tuple[bytes, float]] = {}
+
+Subject = Union[str, LearnerScope]
 
 
-def _key_aad(student_name: str) -> bytes:
+def _key_aad(storage_subject: str) -> bytes:
     """The wrapped key is itself context-bound, so a wrapped key cannot be
     moved between students — which would otherwise let someone with DB write
     access make student A's rows decrypt under student B's key."""
-    return aad_for("student_keys", "wrapped_key", student_name)
+    return aad_for("student_keys", "wrapped_key", storage_subject)
 
 
-def _cache_get(student_name: str) -> Optional[bytes]:
-    entry = _cache.get(student_name)
+def _ckey(scope: LearnerScope) -> tuple:
+    return scope.cache_key(_RESOURCE, _RESOURCE_VERSION)
+
+
+def _cache_get(subject: Subject) -> Optional[bytes]:
+    k = _ckey(as_scope(subject))
+    entry = _cache.get(k)
     if entry is None:
         return None
     key, expires = entry
     if time.monotonic() >= expires:
-        _cache.pop(student_name, None)
+        _cache.pop(k, None)
         return None
     return key
 
 
-async def get_or_create(db: AsyncSession, student_name: str) -> bytes:
+async def get_or_create(db: AsyncSession, subject: Subject) -> bytes:
     """The student's data key, creating one on first use.
+
+    `subject` is a legacy household name or a LearnerScope. A bare name is
+    always the legacy scope; an institutional learner must pass a scope.
 
     Called on every encrypted read and write for that student, so the cache
     is not optional — it's what keeps this off the hot path."""
-    cached = _cache_get(student_name)
+    scope = as_scope(subject)
+    cached = _cache_get(scope)
     if cached is not None:
         return cached
 
     from core.database import StudentKey
 
-    row = await db.get(StudentKey, student_name)
+    stored = scope.storage_subject
+    row = await db.get(StudentKey, stored)
     if row is None:
         key = get_random_bytes(32)
-        db.add(StudentKey(student_name=student_name, wrapped_key=encrypt(key, _key_aad(student_name))))
+        db.add(StudentKey(student_name=stored, wrapped_key=encrypt(key, _key_aad(stored))))
         await db.commit()
-        log.info("Created data key for student %r", student_name)
+        log.info("Created data key for a learner scope")
     else:
-        key = decrypt(row.wrapped_key, _key_aad(student_name))
+        key = decrypt(row.wrapped_key, _key_aad(stored))
 
-    _cache[student_name] = (key, time.monotonic() + _CACHE_TTL_SECONDS)
+    _cache[_ckey(scope)] = (key, time.monotonic() + _CACHE_TTL_SECONDS)
     return key
 
 
-async def get_existing(db: AsyncSession, student_name: str) -> Optional[bytes]:
+async def get_existing(db: AsyncSession, subject: Subject) -> Optional[bytes]:
     """The student's key if one exists, else None — never creates.
 
     For read paths: a student with no key row has no v3 data, so their rows
     (if any) are v1/v2 under DATA_KEY and decrypt without one. Creating a
     key on a read would write to the database on a read path and, worse,
     resurrect a key row for a student who was just shredded."""
-    cached = _cache_get(student_name)
+    scope = as_scope(subject)
+    cached = _cache_get(scope)
     if cached is not None:
         return cached
 
     from core.database import StudentKey
 
-    row = await db.get(StudentKey, student_name)
+    stored = scope.storage_subject
+    row = await db.get(StudentKey, stored)
     if row is None:
         return None
-    key = decrypt(row.wrapped_key, _key_aad(student_name))
-    _cache[student_name] = (key, time.monotonic() + _CACHE_TTL_SECONDS)
+    key = decrypt(row.wrapped_key, _key_aad(stored))
+    _cache[_ckey(scope)] = (key, time.monotonic() + _CACHE_TTL_SECONDS)
     return key
 
 
-async def destroy(db: AsyncSession, student_name: str) -> bool:
+async def destroy(db: AsyncSession, subject: Subject) -> bool:
     """Crypto-shred: destroy the student's key.
 
     After this, every v3 ciphertext belonging to them is permanently
@@ -143,13 +169,24 @@ async def destroy(db: AsyncSession, student_name: str) -> bool:
     the reverse). Returns whether a key existed."""
     from core.database import StudentKey
 
-    _cache.pop(student_name, None)
-    row = await db.get(StudentKey, student_name)
+    scope = as_scope(subject)
+    evict(scope)
+    row = await db.get(StudentKey, scope.storage_subject)
     if row is None:
         return False
     await db.delete(row)
-    log.info("Destroyed data key for student %r — their stored data is now unrecoverable", student_name)
+    log.info("Destroyed data key for a learner scope — its stored data is now unrecoverable")
     return True
+
+
+def evict(scope: LearnerScope) -> int:
+    """Drop this learner's unwrapped key from the local cache, in every
+    environment. Called by core.learner_scope.evict_learner (revocation and
+    deletion) and by destroy(). Returns how many entries were removed."""
+    stale = [k for k in _cache if scope.owns(k)]
+    for k in stale:
+        del _cache[k]
+    return len(stale)
 
 
 def clear_cache() -> None:

@@ -171,6 +171,23 @@ Legacy mode has no grant row. Its grant version is the educator's
 `credential_version`, which `assign_class_roster` now bumps whenever a
 replacement removes a learner (D5).
 
+## Evidence for each `BUILT_AND_QUALIFIED` and `DISABLED_AND_TESTED` row
+
+Every test below drives the assembled app over real HTTP on a loopback
+uvicorn server (`homeschool-api/tests/g1_harness.py`). SSE is read
+incrementally. Every suite runs on SQLite and on Postgres under a
+non-superuser role (`G1_TEST_DATABASE_URL`).
+
+| Row | Tests |
+| --- | --- |
+| Shared context, grant versioning, fail-closed revalidation, legacy guard, legacy revocation (D4, D5) | `tests/test_g1_pilot_authz.py` |
+| Voice binding, events revalidation, reconnect denial (D1, D2) | `tests/test_g1_voice_binding.py` |
+| Tutoring revalidation at context, output, write, idle and retry (D3) | `tests/test_g1_tutor_revocation.py` |
+| Campus-mode educator tutoring disabled | `tests/test_g1_tutor_revocation.py::test_campus_mode_tutoring_and_history_are_denied_to_every_teacher` |
+| Learner search and uniform failure | `tests/test_g1_search_and_uuid_uniformity.py` |
+| Frontend learner scope on voice start; retry refusal | `homeschool-tutor/src/services/voiceApi.test.ts`, `src/hooks/useHybridVoiceInput.test.ts`, `src/services/tutorRetry.test.ts` |
+| Browser, API and SSE agree | `homeschool-api/scripts/g1_browser_check.py` (run by hand; real Chromium on the app's own origin) |
+
 ## Decisions needed from the owner
 
 1. **Campus-mode tutoring.** Choose between:

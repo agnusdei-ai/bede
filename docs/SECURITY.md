@@ -1134,6 +1134,28 @@ list as items are closed.
     session" rather than leaking that a given id exists. Covered by new
     tests in `tests/test_streaming_transcription.py` and
     `tests/test_voice_stream_router.py`.
+  - **That ownership check gave every educator the same owner** (G1).
+    The role-granularity owner was right for a household's single shared
+    parent and child credential and wrong for the educator role. Every
+    educator's voice session was owned by `"educator"`, so any educator
+    who held another educator's session id could push audio into it or
+    read its transcript. An open events stream also never re-checked the
+    teacher's grant.
+
+    Educator sessions are now bound to principal + campus + learner +
+    grant id + grant version + credential version
+    (`services/pilot_authz.py`). Chunk and finish revalidate the grant,
+    and events revalidates it before every item and while idle. Revocation
+    ends the stream, discards the session and is audited
+    (`authz.revoked_in_flight`).
+
+    The same gap existed in tutoring: an educator's in-flight tutoring turn
+    was checked only at its start. It now revalidates before context,
+    output and every write.
+
+    Covered over a real server, on SQLite and Postgres, by
+    `tests/test_g1_voice_binding.py` and `tests/test_g1_tutor_revocation.py`.
+    See `docs/G1_AUTHZ_VOICE_TUTOR_INVENTORY.md`.
   - **No automated dependency-vulnerability scanning existed anywhere** —
     the CycloneDX SBOM (`docs/sbom/`) is a point-in-time inventory, never a
     signal that anything installed has a new CVE, and no

@@ -188,6 +188,66 @@ a different instance mid-turn. Abandoned/orphaned sessions (a browser tab
 closed mid-hold, a dropped connection) are swept after 180 seconds of no
 activity, so nothing leaks indefinitely.
 
+### Who owns a voice session: educators are bound to one learner and one grant
+
+Every streaming session has an owner, and `chunk`, `finish` and `events`
+compare it in full. If the caller is not the owner, the answer is exactly the
+answer for a session that does not exist. The owner depends on the role:
+
+| Role | Owner | Why that granularity |
+| --- | --- | --- |
+| Demo visitor | the visitor's demo code | Unique per visitor. |
+| Parent / child | the role | Single shared credential per household. |
+| Educator | principal UUID + campus UUID + learner UUID + grant id + grant version + credential version, with the session UUID as the key | An educator acts for one learner, under one grant. |
+
+An educator's session used to be owned by the literal string `"educator"`.
+Any educator who held another educator's session id could push audio into
+it or read its transcript of a child's speech.
+
+**An educator must name the learner when starting.** The start request
+(`POST /voice/stream/start`) carries the learner:
+
+- **Campus mode** (any pilot campus exists): the learner's UUID as
+  `learner_id`. The campus is resolved on the server from the grant. A
+  `campus_id` sent with it is only compared, never trusted. A learner's
+  display name is refused.
+- **Single-household mode** (no campus exists): the roster `student_name`.
+  The frontend sends it automatically for an educator session
+  (`voiceScopeFor` in `services/voiceApi.ts`).
+
+A missing, malformed, random, other-campus or revoked learner all get the
+same `404 Record not found`.
+
+**Revocation ends an open stream.** These events stop a teacher's grant from
+holding:
+
+- the grant is revoked;
+- the campus membership is disabled;
+- the learner or campus is disabled;
+- a roster replacement drops the learner;
+- the account is disabled.
+
+When that happens:
+
+1. The open `/events` stream ends within about a second, even if nothing is
+   being transcribed. It re-checks the grant before every item and while
+   idle (`services/pilot_authz.py`).
+2. Its last item is `{"type": "error", "message": "unknown or expired session"}`.
+3. The session is discarded and its transcription worker cancelled, so a
+   later chunk, finish or reconnect finds nothing.
+4. An `authz.revoked_in_flight` audit event records the stage, with UUIDs
+   only.
+
+A chunk or finish sent after revocation is refused the same way, even when
+the teacher's token is still valid. That happens when a learner is disabled
+without any credential change.
+
+**To confirm it end to end:** `homeschool-api/tests/test_g1_voice_binding.py`
+drives a real server and reads the SSE stream incrementally.
+`homeschool-api/scripts/g1_browser_check.py` (run by hand) checks that a real
+Chromium page using the app's own `voiceApi.ts` sees exactly what the API
+sees.
+
 **This stopped being hypothetical.** A family on the public demo sent two
 real traces, five minutes apart: a session opened successfully
 (`POST /voice/stream/start` → 200), then the very next `chunk`/`finish`

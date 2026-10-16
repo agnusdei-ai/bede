@@ -48,7 +48,7 @@ EXPECTED_MIDDLEWARE = [
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
-    "pilot_diagnostic", "pilot_journey", "pilot_owner",
+    "pilot_diagnostic", "pilot_journey", "pilot_owner", "pilot_tutor_history",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -62,6 +62,7 @@ _NOT_A_GUARD = {"get_db"}
 # whether the feedback form is switched on. A new PUBLIC row appearing in a
 # diff is the thing to challenge in review.
 GUARDS = {
+    ('GET', '/pilot/me/learners/{learner_id}/tutoring/history'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',

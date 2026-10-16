@@ -36,6 +36,7 @@ from core.pilot_journey_models import (
     PilotDecision, PilotDeletionReceipt, PilotEvidence, PilotRecommendation,
 )
 from routers.pilot_campuses import _admin, _campus, _id, _render
+from services.pilot_learner_deletion import (DeletionIncomplete, LearnerNotFound, delete_pilot_learner)
 
 router = APIRouter(prefix="/pilot/owner", tags=["valor-pilot-owner"])
 
@@ -130,37 +131,39 @@ async def delete_learner(campus_id: str, learner_id: str, payload: DeletionConfi
         raise HTTPException(status_code=422,
                             detail="Confirmation does not match this learner's id and name")
 
-    # Sign out every teacher who could still reach this learner, immediately.
-    holders = (await db.execute(select(PilotRosterGrant.educator_id)
-                                .where(PilotRosterGrant.learner_id == learner.id))).scalars().all()
-    for educator_id in set(holders):
-        teacher = await db.get(ClassicalEducator, educator_id)
-        if teacher:
-            teacher.credential_version += 1
+    # Canonical G1 cascade is the only deletion implementation. It includes
+    # the G2 evidence/recommendation/decision rows and every canonical
+    # assessment row; its post-commit cache eviction is mandatory.
+    # Receipt is staged using before_commit INSIDE the same transaction.
+    receipts: list[PilotDeletionReceipt] = []
 
-    deleted = await _counts(db, learner.id)
-    for _, model in LEARNER_TABLES:
-        await db.execute(delete(model).where(_learner_col(model) == learner.id))
-    await db.flush()
-    remaining = await _counts(db, learner.id)
-    if any(remaining.values()):
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="Deletion did not complete; nothing was removed")
+    async def persist_receipt(session: AsyncSession, result) -> None:
+        row = PilotDeletionReceipt(
+            id=str(uuid.uuid4()), campus_id=result.campus_id,
+            learner_id=result.learner_id,
+            actor=str(auth.get("sub") or "owner")[:100],
+            deleted_counts=json.dumps(result.deleted, sort_keys=True),
+            remaining_counts=json.dumps({key: 0 for key in result.deleted}, sort_keys=True),
+            receipt_sha256="", deleted_at=datetime.now(timezone.utc),
+        )
+        row.receipt_sha256 = receipt_hash(receipt_body(row))
+        session.add(row)
+        await session.flush()  # Receipt failure aborts the entire cascade.
+        receipts.append(row)
 
-    row = PilotDeletionReceipt(
-        id=str(uuid.uuid4()), campus_id=learner.campus_id, learner_id=learner.id,
-        actor=str(auth.get("sub") or "owner")[:100],
-        deleted_counts=json.dumps(deleted, sort_keys=True),
-        remaining_counts=json.dumps(remaining, sort_keys=True),
-        receipt_sha256="", deleted_at=datetime.now(timezone.utc),
-    )
-    row.receipt_sha256 = receipt_hash(receipt_body(row))
-    db.add(row)
-    await db.commit()
-    # No display name in the audit trail: the receipt id and UUID suffice.
-    await log_event(AuditEvent.STUDENT_DATA_DELETED, role="parent", success=True,
-                    detail=f"pilot_learner_deleted learner={learner.id} receipt={row.id}",
-                    **audit_from_request(request))
+    try:
+        await delete_pilot_learner(
+            db, learner.campus_id, learner.id,
+            actor_role="parent", audit_context=audit_from_request(request),
+            before_commit=persist_receipt,
+        )
+    except LearnerNotFound:
+        raise HTTPException(status_code=404, detail="Record not found")
+    except DeletionIncomplete:
+        raise HTTPException(status_code=409, detail="Deletion did not complete; nothing was removed")
+    # No second audit write: canonical service already records content-free
+    # tombstone only AFTER the atomic delete and receipt commit succeeds.
+    row = receipts[0]
     return {**receipt_body(row), "receipt_sha256": row.receipt_sha256}
 
 

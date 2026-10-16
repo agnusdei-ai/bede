@@ -48,6 +48,7 @@ EXPECTED_MIDDLEWARE = [
 _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
+    "pilot_diagnostic",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -61,6 +62,7 @@ _NOT_A_GUARD = {"get_db"}
 # whether the feedback form is switched on. A new PUBLIC row appearing in a
 # diff is the thing to challenge in review.
 GUARDS = {
+    ('GET', '/pilot/me/learners/{learner_id}/diagnostic'): 'require_educator',
     ('GET', '/admin/agentic-loop-stats'): 'require_parent',
     ('GET', '/admin/ai-provider'): 'require_parent',
     ('POST', '/admin/ai-provider'): 'require_elevated_parent',

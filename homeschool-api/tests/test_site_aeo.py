@@ -86,6 +86,31 @@ def test_school_budget_uses_approved_founding_rate_and_fair_contract_terms():
     assert (SITE / "assets" / "schools-print.js").exists()
 
 
+
+def test_school_executive_pricing_scenarios_and_us_english():
+    page = SCHOOLS.read_text(encoding="utf-8")
+    assert '<html lang="en-US">' in page
+    assert page.count('class="school-budget-table') == 2
+    assert 'The $950 paid evaluation is not the current free' in page
+    assert '$2,600 rate lasts for the signed 12-month term' in page
+    assert '104 learners at $25 each equals $2,600/month' in page
+    for enrolled in (25, 50, 75, 100):
+        monthly = enrolled * 25
+        annual = monthly * 12
+        row = (
+            f'<tr><th scope="row">{enrolled}</th>'
+            f'<td>${monthly:,}</td><td>${annual:,}</td><td>$2,600</td>'
+        )
+        assert row in page, f"missing or incorrect scenario for {enrolled} learners"
+    for british_spelling in ("licence", "enrolment", "organisation", "organisational",
+                             "centre", "programme", "behaviour", "colour"):
+        assert not re.search(rf"\b{british_spelling}\b", page, re.I), (
+            f"US English copy regressed: {british_spelling}"
+        )
+    assert 2600 * 12 == 31_200
+    assert (3500 - 2600) * 12 == 10_800
+
+
 def test_beta_banner_date_is_current_across_public_surfaces():
     public_pages = ["index.html", "faq/index.html", "feedback/index.html",
                     "survey/index.html", "educators/index.html", "privacy/index.html"]

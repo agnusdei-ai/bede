@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -207,7 +208,7 @@ class Matrix:
     GENERIC = ["own_access", "cross_campus_read", "cross_campus_write", "random_uuid",
                "malformed_id", "noncanonical_uuid", "nil_uuid", "same_name_isolation"]
 
-    def run_generic(self, row: dict) -> None:
+    def run_generic(self, row: dict, *, defer_own_write: bool = False) -> None:
         read, write, lst = row.get("read"), row.get("write"), row.get("list")
         specs = [s for s in (read, write, lst) if s]
         if not specs:
@@ -242,7 +243,7 @@ class Matrix:
                          "list route takes no learner id; covered by isolation of its result")
             return
 
-        if write:
+        if write and not defer_own_write:
             body = write[2] if len(write) > 2 else None
             if "{recommendation_id}" not in write[1]:
                 r = self.call("teacher_one", write[0], self.path(write[1], learner_id=l1), body)
@@ -574,6 +575,14 @@ class Matrix:
         ev = self.call("teacher_one", "POST", p(L + "/evidence"), SYNTH_DIBELS)
         rec = self.call("teacher_one", "POST", p(L + "/recommendations"))
         data = rec.json() if rec.status_code == 200 else {}
+        # The generic recommendation row verifies *read* and negative write
+        # isolation without issuing an extra authorized write. This sole G2
+        # creation is the real positive write, so no pending recommendation
+        # is left behind to prevent teacher review or tutoring.
+        self.put("recommendation", "own_write",
+                 "PASS" if rec.status_code == 200 and not data.get("abstained", True) else "FAIL",
+                 f"teacher_one authorized recommendation -> {rec.status_code}",
+                 status=rec.status_code)
         linked = (ev.status_code == 201 and not data.get("abstained", True)
                   and ev.json().get("evidence_id") in data.get("source_evidence_ids", []))
         self.put(row, "evidence_linked_to_recommendation", "PASS" if linked else "FAIL",
@@ -648,9 +657,35 @@ class Matrix:
         rec_ok = ins.status_code == 200 and not any(w in low for w in DELIVERY_WORDS)
         self.put(row, "instruction_recorded_not_delivered", "PASS" if rec_ok else "FAIL",
                  f"-> {ins.status_code}; no delivery claim in payload: {rec_ok}")
-        self.put(row, "failed_audit_write_atomic", "UNVERIFIED",
-                 "a failed audit write cannot be induced over HTTP without fault injection into the "
-                 "server; the in-process atomicity test lives with #604")
+        # A malicious client must never be given an audit-failure trigger.
+        # Exercise the real service's rollback with an isolated synthetic
+        # database in a separate process instead. Qualification only reports
+        # PASS if this executable test finishes successfully on this SAME SHA;
+        # no HTTP control, mock response or status waiver is introduced.
+        api_root = Path(__file__).resolve().parents[2] / "homeschool-api"
+        cmd = [sys.executable, "-m", "pytest", "-q", "--disable-warnings",
+               "tests/test_valor_pilot_g2_gaps.py::test_failed_audit_write_leaves_no_decision"]
+        isolated_env = dict(os.environ)
+        isolated_env["G2_GAP_DB_URL"] = ""  # fresh SQLite file; never modify the live PG
+        try:
+            proof = subprocess.run(cmd, cwd=api_root, env=isolated_env,
+                                   capture_output=True, text=True, timeout=120,
+                                   check=False)
+            proof_exit = proof.returncode
+            proof_output = (proof.stdout + "\\n" + proof.stderr)[-1200:]
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            proof_exit = -1
+            proof_output = f"{type(exc).__name__}: {exc}"
+        (cfg.OUT_DIR / "g2-audit-rollback-test.json").write_text(json.dumps({
+            "test": "test_failed_audit_write_leaves_no_decision",
+            "database": "fresh synthetic SQLite; live PostgreSQL unchanged",
+            "exit_code": proof_exit,
+            "output_tail": proof_output,
+        }, indent=2) + "\\n")
+        atomic = proof_exit == 0 and "1 passed" in proof_output
+        self.put(row, "failed_audit_write_atomic", "PASS" if atomic else "FAIL",
+                 f"isolated real audit-failure rollback test returned {proof_exit}; "
+                 f"exactly one test passed: {atomic}")
 
     def g2_after_restart(self) -> None:
         row = "decision"
@@ -924,8 +959,21 @@ class Matrix:
         v = self.call("teacher_two", "POST", "/voice/stream/start", {"language": "en", "learner_id": l2})
         self.put(row, "post_delete_voice_denied", "PASS" if v.status_code in (401, 403, 404) else "FAIL",
                  f"voice start for deleted learner -> {v.status_code}")
-        self.put(row, "post_delete_cache_evicted", "UNVERIFIED",
-                 "cache eviction is not observable over HTTP beyond the read denial above")
+        # The elevated owner route now returns its canonical deletion
+        # service's *actual* post-commit eviction result, outside the durable
+        # deletion receipt. Cross-check with the denied read and the required
+        # integration test that primes all learner cache families and verifies
+        # no survivor after deletion; never infer eviction from 404 alone.
+        count = body.get("evicted_cache_entries")
+        observed = (
+            plain and body.get("cache_eviction_executed") is True
+            and isinstance(count, int) and not isinstance(count, bool) and count >= 0
+            and r.status_code in (401, 404)
+        )
+        self.put(row, "post_delete_cache_evicted", "PASS" if observed else "FAIL",
+                 f"owner reported canonical post-commit eviction: {body.get('cache_eviction_executed')}; "
+                 f"entries evicted: {count if isinstance(count, int) else 'missing'}; "
+                 f"subsequent access: {r.status_code}")
 
     # ── drive ────────────────────────────────────────────────────────────────
     def canonical_setup(self) -> None:
@@ -951,7 +999,11 @@ class Matrix:
         for row in TABLE:
             if row.get("special") in ("voice", "g2", "deletion") or row["id"] == "tutoring_turn":
                 continue
-            self.run_generic(row)
+            # Recommendation creation is a stateful teacher approval prelude.
+            # Exercise negative writes here, but create its single positive
+            # proposal inside g2() so the candidate 409 pending-proposal
+            # guard remains mandatory and is not bypassed.
+            self.run_generic(row, defer_own_write=row["id"] == "recommendation")
         self.browser_agreement()
         self.voice_owner_binding()
         self.g2()

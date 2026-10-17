@@ -16,3 +16,9 @@ Both retain the same setup wizard, Compose configuration, TLS, local-only defaul
 5. Record the package SHA, image digests, Docker architecture, OS, UTC timestamps and redacted results. This does not certify physical WebAuthn or release G3.
 
 **Build caveats:** The build workflow requires GitHub Actions permission to publish GHCR packages. Existing GHCR package settings must allow the repository's workflow token to write packages and intended operators to read them. Do not make a private school image public solely for Lite distribution. First-run Lite network transfer can still be substantial: the reduction is in the downloadable **installer artifact**, not total runtime bytes. Keep the existing known-good Offline artifact for the current Mac qualification until the new workflow passes.
+
+## School pilot download selection
+
+GitHub Actions now publishes **four separate artifacts**, not two combined architecture bundles: `bede-lite-<SHA>-arm64`, `bede-lite-<SHA>-amd64`, `bede-offline-<SHA>-arm64`, and `bede-offline-<SHA>-amd64`. For Apple Silicon schools, select **bede-lite-…-arm64**. Do not download an Offline artifact for network-connected pilot machines. Each Lite artifact contains only the Lite archive and checksum, not `images.tar`.
+
+**Important bandwidth limitation:** The Lite artifact is small, but the installer still pulls the full API and other pinned Docker images on first deployment. No claim of low total network usage is justified until image-layer bytes are measured and reduced. Repeated installations on separate Macs do not share Docker's local cache. A private LAN image cache or controlled distribution proxy may reduce repeat external downloads, subject to school network approval and authentication controls. Avoid removing PyTorch, Whisper or speech/authentication dependencies without capability regression tests.

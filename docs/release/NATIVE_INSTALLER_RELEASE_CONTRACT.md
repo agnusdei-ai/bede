@@ -78,3 +78,23 @@ Platform-specific candidates must be qualified through full Compose, networking,
 - Linux: Docker Engine with Compose plugin under their applicable open-source licenses, subject to distribution and OS support checks.
 
 Never download and execute a floating, unverified prerequisite installer. Pin a tested version and digest or verify a trusted signed publisher release; show provenance, expected download size, permissions, and license before installation. An existing supported engine must be reused rather than replaced.
+
+## Cross-platform client/server interoperability contract
+
+Every supported Bede client (Windows, Linux, macOS; x64 or ARM64 where certified) MUST interoperate with **either** a macOS Bede server or a Linux Bede server without changing application features, requiring client-side Docker, or relying on server-OS-specific paths or binaries. The server owns database, inference, institutional policy, and authoritative identity; clients use the same versioned HTTPS application/API and approved WebAuthn flow regardless of operating system.
+
+The installer MUST distinguish **client-only** from **server** deployment and, for client-only, request an approved server hostname or secure enrollment handoff, validate private DNS, certificate trust, API compatibility and enrollment authorization, and install only the client application. A client must not auto-provision a second server or download server images. Server enrollment must not require shared private keys, insecure TLS bypasses, or exposing public network listeners.
+
+### Mandatory compatibility matrix
+
+| Client OS | macOS server | Linux server |
+| --- | --- | --- |
+| macOS | REQUIRED | REQUIRED |
+| Windows | REQUIRED | REQUIRED |
+| Linux | REQUIRED | REQUIRED |
+
+For each cell: perform a real cross-host connection using the native client and the exact release candidate server, verify trusted TLS and server identity, passkey registration/login, teacher roster authorization, G1 cross-campus denial, G2 evidence-to-teacher-decision workflow, tutoring stream, revocation, reconnect and recovery behavior. Repeat for each advertised client CPU architecture and supported server architecture. A browser smoke test alone does not certify a native client installer.
+
+Servers on macOS and Linux must publish an identical documented API contract and compatibility/version negotiation; reject unsupported client/server versions with a clear upgrade path, never an insecure fallback. Test clients on a separate host as well as loopback to avoid treating localhost success as proof of LAN interoperability. Windows server remains a separately qualified optional topology; its support is not required to establish this macOS/Linux server matrix.
+
+Record exact client installer digest, server installer digest, OS versions, API versions, network topology, passkey method, and evidence for each matrix cell. Any untested cell is NOT CERTIFIED and cannot be advertised as supported.

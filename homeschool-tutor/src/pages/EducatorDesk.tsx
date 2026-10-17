@@ -169,8 +169,8 @@ export default function EducatorDesk() {
       <div className="max-w-4xl mx-auto space-y-5">
         <header className="flex flex-wrap justify-between gap-3 items-start">
           <div>
-            <h1 className="text-2xl font-display font-bold text-gray-900">Bede Classical Educator Desk</h1>
-            <p className="text-sm text-gray-600 mt-1">Assigned learner instruction, academic evidence, and externally reported DIBELS 8 progress.</p>
+            <h1 className="text-2xl font-display font-bold text-gray-900">Your Classroom</h1>
+            <p className="text-sm text-gray-600 mt-1">A calm place to guide your learners, see their growth, and review Bede’s suggestions.</p>
           </div>
           <button type="button" className="flex items-center gap-2 text-sm text-gray-700" onClick={() => {
             logout()
@@ -202,6 +202,7 @@ export default function EducatorDesk() {
           )}
         </section>
 
+        <p className="text-sm text-gray-700">Welcome. Choose a learner, then follow the steps below at your own pace.</p>
         <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
           {(['roster', 'lesson', 'evidence', 'recommendations'] as const).map((step, index) => (
             <button key={step} type="button"
@@ -210,14 +211,14 @@ export default function EducatorDesk() {
               className={journeyStep === step
                 ? 'rounded-lg bg-navy-700 px-3 py-2 text-sm text-white'
                 : 'rounded-lg border px-3 py-2 text-sm text-navy-800'}>
-              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Teach with Bede' : step === 'evidence' ? 'Learning evidence' : 'Review recommendations'}
+              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Plan a lesson' : step === 'evidence' ? 'See progress' : 'Review suggestions'}
             </button>
           ))}
         </nav>
         {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
         <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
-          <p className="text-xs text-gray-500">{roster.length} assigned learners. Only the parent/operator can enroll or remove learners.</p>
+          <p className="text-xs text-gray-500">{roster.length} assigned learners. Your school administrator manages learner assignments.</p>
           <label className="block text-sm">Select learner
             <select value={student} onChange={e => setStudent(e.target.value)} className={field + ' mt-1'}>
               {roster.map(cfg => <option key={cfg.student_name} value={cfg.student_name}>
@@ -228,9 +229,9 @@ export default function EducatorDesk() {
           {activeConfig && <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setJourneyStep('lesson')} className="rounded-lg bg-navy-700 px-4 py-2 text-white">Plan lesson</button>
             <button type="button" onClick={() => setJourneyStep('evidence')} className="rounded-lg border px-4 py-2 text-navy-800">Review progress</button>
-            <button type="button" onClick={() => setJourneyStep('recommendations')} className="rounded-lg border px-4 py-2 text-navy-800">Review Bede recommendations</button>
+            <button type="button" onClick={() => setJourneyStep('recommendations')} className="rounded-lg border px-4 py-2 text-navy-800">Review Bede’s suggestions</button>
           </div>}
-          {!roster.length && <p className="text-sm text-gray-600">No learners are assigned yet. Ask the parent/operator to authorize a class roster.</p>}
+          {!roster.length && <p className="text-sm text-gray-600">Your classroom is ready for learners. Ask your school administrator to assign your class.</p>}
         </section>
 
         {activeConfig && (

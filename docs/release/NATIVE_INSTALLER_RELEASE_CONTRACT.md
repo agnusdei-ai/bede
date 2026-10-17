@@ -106,3 +106,20 @@ The next engineering evidence demonstration is **one complete end-to-end pass on
 Capture: prerequisite detection and consent-based no-cost runtime provisioning if absent; installer launch; architecture/memory/disk preflight; verified runtime acquisition; database and local inference provisioning; trusted HTTPS and passkey enrollment; synthetic learner-to-teacher journey; G1 campus isolation; G2 teacher decision and authorized follow-up; G3 packaged Mac install, restart, revoke, repair/recovery; diagnostic evidence and final release-candidate digest. Record each outcome PASS/FAIL/NOT RUN with machine and installer metadata.
 
 **Evidence limitation:** This single macOS same-machine pass is the immediate demonstration and may support a narrowly scoped Mac pilot decision only after all required gates pass and the owner separately authorizes Pilot GO. It does **not** certify Windows or Linux installers, remote macOS/Linux server connectivity, or the six-cell cross-platform matrix. Those requirements remain mandatory for their respective broader releases; do not hold this one Mac demonstration hostage to their physical certification.
+
+## Privileged administration and least-privilege identities
+
+The installer must explicitly distinguish the **host administrator** (OS elevation), **platform/system owner** (Bede provisioning and recovery), **database administration** (PostgreSQL maintenance), and **institutional administrator** (campus/teacher configuration). These roles must not be conflated. The installer may request OS elevation for approved prerequisite installation, but must not run Bede's ordinary services or educator clients with host-root or database-superuser credentials.
+
+PostgreSQL role design (implement and verify before certification):
+- `bede_db_owner`: non-login schema ownership role, where supported.
+- `bede_migrator`: time-limited, authenticated schema-migration identity with required ownership/DDL rights; no routine use by the application.
+- `bede_app`: login role with only required data access; no SUPERUSER, CREATEDB, CREATEROLE, BYPASSRLS or schema DDL.
+- `bede_backup`: backup-only permissions appropriate to the selected backup method, separate from ordinary app identity.
+- PostgreSQL bootstrap superuser: provision/recovery only, isolated from application environment and client endpoints; never embedded in installers, logs, artifacts, or browser responses.
+
+Use secret generation on the target host and OS-appropriate protected storage; rotate/revoke credentials, avoid shell-history or diagnostics disclosure, and require audit records for privileged operations. Institutional RBAC and campus isolation must be enforced server-side and in the database where applicable; a client UI hiding a control is not an authorization boundary.
+
+### Mac full-pass privileged-access acceptance
+
+During the one physical macOS same-machine pass, verify privileged setup with explicit operator consent, database role creation and grants, normal runtime without superuser, teacher/institutional admin denial of host and database operations, G1 cross-campus denials, authorized backup and recovery, credential rotation/revocation, and redacted audit evidence. These are additional checks inside the **same consolidated Mac evidence packet**, not a separate release certification.

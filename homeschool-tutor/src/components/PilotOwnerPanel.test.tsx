@@ -154,11 +154,11 @@ describe('PilotOwnerPanel', () => {
       "Could not delete this learner's records. The name you typed doesn't match this learner. Check the spelling and try again.")
 
     api.deletePilotLearner.mockRejectedValue(new ApiRequestError(403, 'Verified administrator passkey required'))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete these records' }))
+    await confirmAndDelete()
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/needs your administrator passkey/))
 
     api.deletePilotLearner.mockRejectedValue(new ApiRequestError(500, 'Deletion did not complete; nothing was removed'))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete these records' }))
+    await confirmAndDelete()
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/check whether the learner is still listed/))
     expect(document.body.textContent).not.toMatch(/Request failed|Deletion did not complete/)
   })

@@ -40,7 +40,7 @@ Allowed outcomes: **PASS**, **FAIL**, **BLOCKED**, **NOT RUN**. Record exact UTC
 | G3-02 | Actual educator WebAuthn passkey enrollment/sign-in, replay denial, prompt cancel/retry and no insecure fallback | NOT RUN | — |
 | G3-03 | Two same-named synthetic learners on different campus UUIDs: valid roster access and uniform cross-campus/unknown/revoked denial | NOT RUN | — |
 | G3-04 | Synthetic G2 evidence -> recommendation/abstention -> approve/edit/reject -> hash-chained ledger -> approved-only instruction | NOT RUN | — |
-| G3-05 | Approved-only local tutoring SSE, durable synthetic history/diagnostic provenance and active-stream revocation; no external inference or automatic learner delivery | NOT RUN | — |
+| G3-05 | Teacher-approved plan remains `NOT_REQUESTED`; no learner session, credential, launch or delivery; revoked teacher cannot read or write after restart | NOT RUN | — |
 | G3-06 | Administrator-authorized lost-device recovery: separate real passkey, verified prior mailbox, old key/session invalid, new key works | NOT RUN | — |
 | G3-07 | Roster revoke, campus membership disable and whole-educator account disable: old tokens/API/voice/tutor streams refused; other campus unaffected | NOT RUN | — |
 | G3-08 | Independently administered Bede recovery environment rejects campus AD/Entra/SSO/directory administrator and backup-agent control; Bede operator permitted | NOT RUN | — |
@@ -67,7 +67,20 @@ For a **Mac mini appliance capacity claim**, attach a separate **G3-CAP** record
 | --- | --- | --- | --- | --- |
 | — | — | — | — | — |
 
-## D. Defects, exceptions and environmental gaps
+## D. Operator experiential sequence
+
+The release owner may provide real-Mac observations incrementally. For each scenario, capture the package SHA, UTC time, device/OS/architecture, expected behavior, observed behavior, outcome (PASS/FAIL/BLOCKED/NOT RUN), and a private redacted screenshot or log reference. Never infer PASS from instructions alone.
+
+1. **Install and trust (G3-01):** verify downloaded SHA-256, RELEASE/ARCH and image digests; run source-free installer and `Verify-Bede.command`. Record HTTPS certificate validation, private listener and restart health.
+2. **Teacher identity (G3-02):** use a real physical passkey to enroll and sign in. Record replay/invalid-origin denial; do not share passkey secrets.
+3. **Campus boundaries (G3-03):** on two synthetic campuses, verify assigned learner access and uniform unknown UUID, other-campus and revoked denial.
+4. **Instructional workflow (G3-04 and G3-05):** synthetic DIBELS assessment → Data Day → cited recommendation → approve/edit/reject → durable plan and audit → teacher observation/checkpoint; verify `delivery_state = NOT_REQUESTED` and no learner launch.
+5. **Offboarding and recovery (G3-06 through G3-09):** recover a synthetic educator, invalidate old credentials, revoke roster grants, verify after restart and preserve unrelated campus access.
+6. **Backup and operator closeout (G3-10 through G3-11):** encrypted backup/recovery in an isolated disposable environment, safe-failure observation, redacted evidence packet.
+
+Only genuine physical-device, credential-custody, and owner-approval boundaries need operator input. A blocked environmental step is reported as BLOCKED, not a failed implementation or a PASS. The physical sequence does not authorize learner delivery or Pilot GO.
+
+## E. Defects, exceptions and environmental gaps
 
 | Issue / finding | Affected case | Severity | Owner | Resolution commit or environmental remediation | Re-test evidence |
 | --- | --- | --- | --- | --- | --- |
@@ -75,7 +88,7 @@ For a **Mac mini appliance capacity claim**, attach a separate **G3-CAP** record
 
 **No blanket exceptions.** A mandatory FAIL/BLOCKED/NOT RUN means G3 NOT CERTIFIED. New code or installer changes require impact-based qualification on the changed exact SHA; documentation-only edits do not themselves invalidate existing application-test evidence. Environmental fixes require new physical evidence for only the affected case(s).
 
-## E. Certification and release decisions — separate authorities
+## F. Certification and release decisions — separate authorities
 
 **G3 engineering/device decision**
 

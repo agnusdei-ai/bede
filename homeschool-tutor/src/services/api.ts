@@ -1254,3 +1254,83 @@ export const fetchInstructorActivity = (token: string, student: string) =>
   educatorApi<{ total: number; skills: unknown[] }>(
     `/educators/me/students/${encodeURIComponent(student)}/activity`, token,
   )
+
+// ── Valor pilot G2 teacher journey (/pilot/me/learners/*) ──────────────────
+// UUID-scoped: every call names an immutable learner id the server re-checks
+// against the educator's active campus grant. Display names are never keys.
+
+export interface PilotLearner {
+  learner_id: string
+  campus_id: string
+  display_name: string
+}
+
+export interface PilotEvidence {
+  evidence_id: string
+  recorded_at: string
+  framework: 'dibels8' | 'classical' | 'external_other'
+  measure: string
+  assessed_on: string
+  source_name: string
+  score?: number | null
+  score_unit?: string | null
+  reported_band?: EducatorAssessmentBand | null
+  assistance?: string | null
+}
+
+export interface PilotRecommendation {
+  recommendation_id: string
+  learner_id: string
+  status: 'pending' | 'approved' | 'edited' | 'rejected'
+  version: number
+  policy_version: string
+  source_evidence_ids: string[]
+  proposal: string
+  rationale: string[]
+  authorized_instruction: string | null
+  created_at: string
+  decided_at: string | null
+}
+
+export type PilotRecommendationResult =
+  | ({ abstained: false } & PilotRecommendation)
+  | { abstained: true; reason: string; policy_version: string }
+
+export interface PilotDecisionInput {
+  action: 'approve' | 'edit' | 'reject'
+  expected_version: number
+  edited_text?: string
+  note?: string
+}
+
+export interface PilotLedger {
+  chain_valid: boolean
+  entries: Array<{ seq: number; action: string; educator_id: string; created_at: string; note: string | null }>
+}
+
+const pilot = (learnerId: string) => `/pilot/me/learners/${encodeURIComponent(learnerId)}`
+
+export const fetchPilotLearners = (token: string) =>
+  educatorApi<PilotLearner[]>('/pilot/me/learners', token)
+
+export const fetchPilotEvidence = (token: string, learnerId: string) =>
+  educatorApi<PilotEvidence[]>(`${pilot(learnerId)}/evidence`, token)
+
+export const recordPilotEvidence = (token: string, learnerId: string, entry: EducatorAssessmentInput) =>
+  educatorApi<PilotEvidence>(`${pilot(learnerId)}/evidence`, token, 'POST', entry)
+
+export const fetchPilotRecommendations = (token: string, learnerId: string) =>
+  educatorApi<PilotRecommendation[]>(`${pilot(learnerId)}/recommendations`, token)
+
+export const requestPilotRecommendation = (token: string, learnerId: string) =>
+  educatorApi<PilotRecommendationResult>(`${pilot(learnerId)}/recommendations`, token, 'POST')
+
+export const decidePilotRecommendation = (
+  token: string, learnerId: string, recommendationId: string, decision: PilotDecisionInput,
+) => educatorApi<PilotRecommendation>(
+  `${pilot(learnerId)}/recommendations/${encodeURIComponent(recommendationId)}/decision`,
+  token, 'POST', decision,
+)
+
+export const fetchPilotLedger = (token: string, learnerId: string) =>
+  educatorApi<PilotLedger>(`${pilot(learnerId)}/decisions`, token)

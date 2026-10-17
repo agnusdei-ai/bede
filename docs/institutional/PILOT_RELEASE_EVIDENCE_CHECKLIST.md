@@ -26,7 +26,7 @@ Parallel Bede unified UI, orchestration and learning-memory development may use 
 - [ ] Capture baseline teacher preparation/review time and learner assessment evidence.
 - [ ] Educator authenticates and accesses only assigned learners.
 - [ ] Bede generates a source-linked recommendation; teacher approves, edits or rejects.
-- [ ] Approved instruction reaches learner; Bede tutors; learner progress persists.
+- [ ] Approved instruction reaches learner; Bede tutors; learner progress persists. (Deferred to #585: delivery is deliberately disabled and tested as disabled; the pilot UI says "recorded" / "ready for teacher use".)
 - [ ] Evidence returns to educator for follow-up and next action.
 - [ ] Measure real teacher time saved **net of corrections**, learner progress, teacher adoption, recommendation errors/overrides, usability feedback and operational reliability. Include denominators and inconclusive/negative outcomes. Proposed three hours/week is a hypothesis, not a proven result.
 

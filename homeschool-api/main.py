@@ -22,6 +22,7 @@ from core.middleware import (
     SecurityHeadersMiddleware,
 )
 from routers import admin, auth, catalog, diagnostic, educator_passkeys, educators, feedback, mfa, narration, pilot_campuses, pod, recovery, sandbox, transcripts, tutor, voice
+from routers import pilot_journey  # Valor pilot G2 teacher journey
 
 logging.basicConfig(
     level=logging.INFO,
@@ -590,6 +591,7 @@ app.include_router(feedback.router)
 app.include_router(diagnostic.router)
 app.include_router(educators.router)
 app.include_router(pilot_campuses.router)
+app.include_router(pilot_journey.router)
 
 
 # Bounds the probe itself. Without a timeout, a connection that hangs rather

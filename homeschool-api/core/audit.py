@@ -88,6 +88,10 @@ class AuditEvent:
     # a parent has explicitly revoked.
     DEVICE_REVOKED           = "device.revoked"
     DEVICE_LOGIN_BLOCKED     = "device.login_blocked"
+    # services/pilot_authz.py: an educator's grant stopped holding while a
+    # voice stream, tutoring turn or write was already in flight, and the
+    # output or write was refused. Detail carries UUIDs and the stage only.
+    AUTHZ_REVOKED_IN_FLIGHT  = "authz.revoked_in_flight"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

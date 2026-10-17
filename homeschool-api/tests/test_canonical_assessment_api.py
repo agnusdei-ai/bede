@@ -757,3 +757,121 @@ def test_the_model_doc_is_in_cis_change_filter():
     line = next(ln for ln in wf.splitlines() if "grep -qE" in ln)
     alternatives = line.split("'")[1].strip("^()").split("|")
     assert r"docs/CANONICAL_ASSESSMENT_MODEL\.md" in alternatives
+
+
+# ── Publisher-neutral official form and separate teacher observation ────────
+
+def test_live_marks_are_encrypted_scoped_and_frozen_after_finalization(world):
+    a = world.administer(purpose="progress_monitoring", window="none",
+                         measure="PSF", form=PM_FORM)
+    aid = a["assessment_id"]
+    payload = {
+        "expected_state": "DRAFT",
+        "administration_log": {
+            "elapsed_seconds": 60, "last_item_attempted": 12,
+            "correct_marks": 9, "error_marks": 3, "self_corrections": 1,
+            "discontinue_rule_result": "not_met",
+            "administration_fidelity_note": "Synthetic independent administration",
+        },
+    }
+    path = f"{world.base()}/assessments/{aid}/administration-log"
+    changed = world.client.patch(path, json=payload, headers=world.teacher_one.headers)
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["administration_log"]["correct_marks"] == 9
+    # Stale state fails without creating a second version.
+    payload["expected_state"] = "IN_PROGRESS"
+    assert world.client.patch(path, json=payload, headers=world.teacher_one.headers).status_code == 409
+    # A teacher on another campus sees neither the assessment nor its marks.
+    assert world.client.patch(path, json=payload, headers=world.teacher_two.headers).status_code == 404
+    detail = world.client.get(f"{world.base()}/assessments/{aid}",
+                              headers=world.teacher_one.headers).json()
+    assert detail["administration_log"]["last_item_attempted"] == 12
+    world.finalize_with(aid, [scored("PSF", 9, correct_count=9, error_count=3,
+                                    teacher_reviewed=True)])
+    payload["expected_state"] = "FINALIZED"
+    assert world.client.patch(path, json=payload, headers=world.teacher_one.headers).status_code == 409
+    final = world.client.get(f"{world.base()}/assessments/{aid}",
+                             headers=world.teacher_one.headers).json()
+    assert final["snapshot_verified"] is True
+    assert final["scores"][0]["correct_count"] == 9
+    assert final["scores"][0]["teacher_reviewed"] is True
+    chain = world.client.get(f"{world.base()}/assessments/{aid}/audit",
+                             headers=world.teacher_one.headers).json()
+    assert chain["chain_valid"] is True
+    assert "update_log" in [e["action"] for e in chain["entries"]]
+
+
+def test_missing_measure_status_never_becomes_numeric_zero(world):
+    a = world.administer(purpose="progress_monitoring", window="none",
+                         measure="PSF", form=PM_FORM)
+    aid = a["assessment_id"]
+    world.step(aid, "mark_ready", "DRAFT")
+    world.step(aid, "start", "READY_FOR_ADMINISTRATION")
+    for status in ("skipped", "not_applicable", "invalid", "voided"):
+        result = world.scores(aid, [{
+            "measure": "PSF", "administration_status": status,
+            "reason": "Synthetic omission, no administration",
+        }])
+        value = result["scores"][0]
+        assert value["raw_score"] is None and value["correct_count"] is None
+        assert value["error_count"] is None and value["accuracy_percent"] is None
+    world.scores(aid, [{
+        "measure": "PSF", "administration_status": "skipped", "raw_score": 0,
+        "reason": "Not given",  # A missing measure is not zero.
+    }], expect=422)
+    world.step(aid, "submit", "IN_PROGRESS")
+    world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
+    packet = world.packet("valor_q1")
+    assert packet["skipped_or_invalid_measures"][0]["administration_status"] == "voided"
+    assert "PSF" not in packet["growth_by_measure"].get("progress_monitoring", {})
+
+
+def test_composite_is_never_inferred_and_verified_requires_reported_components(world):
+    a = world.administer()
+    aid = a["assessment_id"]
+    world.step(aid, "mark_ready", "DRAFT")
+    world.step(aid, "start", "READY_FOR_ADMINISTRATION")
+    composite = scored("COMPOSITE", 245, unit="points",
+                       composite_eligibility="eligible_as_reported",
+                       required_composite_measures=["LNF", "PSF"])
+    world.scores(aid, [composite], expect=422)
+    world.scores(aid, [scored("LNF", 24), composite], expect=422)
+    out = world.scores(aid, [scored("LNF", 24), scored("PSF", 11), composite])
+    comp = next(v for v in out["scores"] if v["measure"] == "COMPOSITE")
+    assert comp["composite_eligibility"] == "eligible_as_reported"
+    assert comp["required_composite_measures"] == ["LNF", "PSF"]
+    # Bede never calculates the composite from component values.
+    assert comp["raw_score"] == 245
+    world.step(aid, "submit", "IN_PROGRESS")
+    final = world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
+    assert final["snapshot_verified"] is True
+
+
+def test_observation_is_separate_from_immutable_official_scores(world):
+    a = world.administer()
+    aid = a["assessment_id"]
+    world.finalize_with(aid, [scored("PSF", 12)])
+    before = world.client.get(f"{world.base()}/assessments/{aid}",
+                              headers=world.teacher_one.headers).json()
+    payload = {"summary": "Synthetic teacher review", "observation": {
+        "accuracy_fluency_notes": "Synthetic slow phrasing",
+        "error_patterns": "Synthetic recurring pattern",
+        "attention_circumstances": "Synthetic quiet room",
+        "narration_comprehension": "Synthetic retell summary",
+        "curriculum_concepts_taught": "Synthetic phonemic awareness",
+        "teacher_interpretation": "Teacher notes only",
+        "suggested_next_step": "Review with teacher next Data Day",
+    }}
+    url = f"{world.base()}/assessments/{aid}/evidence"
+    response = world.client.post(url, json=payload, headers=world.teacher_one.headers)
+    assert response.status_code == 201, response.text
+    assert response.json()["observation"]["teacher_interpretation"] == "Teacher notes only"
+    assert world.client.post(url, json=payload, headers=world.teacher_one.headers).status_code == 409
+    assert world.client.post(url, json=payload, headers=world.teacher_two.headers).status_code == 404
+    packet = world.packet("valor_q1")
+    assert packet["cited_evidence"][0]["observation"]["error_patterns"] == "Synthetic recurring pattern"
+    after = world.client.get(f"{world.base()}/assessments/{aid}",
+                             headers=world.teacher_one.headers).json()
+    assert after["scores"] == before["scores"]
+    assert after["snapshot_sha256"] == before["snapshot_sha256"]
+    assert after["snapshot_verified"] is True

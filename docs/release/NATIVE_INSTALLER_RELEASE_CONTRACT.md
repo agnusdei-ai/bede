@@ -1,0 +1,44 @@
+# Bede native installer release contract
+
+## Product, not container archives
+
+The release deliverables are native, guided installers for **macOS, Windows, and Linux**, in both Standard (verified resumable download) and Offline (all required runtime assets included) modes. Docker images, OCI archives, and shell/PowerShell scripts are internal implementation artifacts, never substitutes for a platform installer.
+
+| Target | Standard deliverable | Offline deliverable | Minimum architecture |
+| --- | --- | --- | --- |
+| macOS | signed/notarized DMG with Bede Installer.app | signed/notarized DMG with sealed runtime | arm64 and x86_64 |
+| Windows | signed GUI EXE (or MSI) | signed GUI EXE (or MSI) with sealed runtime | x64; ARM64 only when full runtime validated |
+| Linux | GUI .deb and .rpm | GUI .deb and .rpm with sealed runtime | amd64 and arm64 |
+
+Do not advertise an architecture before a native installer and full application smoke test pass on that architecture. Installer size is separate from runtime download size. The Standard installer is a small bootstrap application, not a reduced-feature edition.
+
+## Mandatory behavior
+
+1. Detect OS, architecture, supported container runtime, memory, storage, network, and permissions before downloading.
+2. Use native GUI progress and guided setup. Never require Git, source checkout, manual archive extraction, Terminal/PowerShell, GHCR credentials, or a separately installed decompressor.
+3. Retrieve a release-manifest-pinned payload by HTTPS with resumable transfer, size limits, SHA-256 verification, and atomic promotion from a temporary download. No floating image tags or arbitrary URLs.
+4. Offline distribution includes identical application, database, HTTPS, setup, and pilot-required voice/model functionality. No silent network fallback.
+5. Reuse existing verified bytes after interruption, preserve encryption keys and data during repair/upgrade, and provide non-destructive recovery and clean uninstall.
+6. Verify service readiness using trusted TLS, private listener, and real application health; display a useful error and retain a redacted local diagnostic report on failure.
+7. Never silently install an untrusted prerequisite. Verify publisher/signature and request user consent for OS elevation.
+8. Produce SBOM, source SHA, architecture, per-file digest manifest, signing/notarization evidence, and an independently verified artifact checksum.
+
+## Release acceptance per OS and architecture
+
+- Native installer builds, verifies its signature and checksum, installs from a clean machine, and launches full Bede.
+- Both Standard and Offline paths complete; Offline works with networking disabled after prerequisite installation.
+- Interrupted download resumes; corrupted payload is rejected; insufficient disk, unsupported CPU, unavailable container runtime, and revoked signatures fail safely.
+- Repair, upgrade, reinstall, rollback, restart, and uninstall are observed with no unauthorized deletion of user data.
+- G1 campus isolation, G2 teacher approval workflow, and G3 device/package tests use the exact installed artifact. Synthetic data only until separate owner Pilot GO.
+- Each tested combination records artifact digest, test runner/device, UTC timestamp, test evidence, and independent reviewer.
+
+## Current implementation gaps (as of 2026-10-17)
+
+- `build-bede-operator.yml` produces compressed Linux container bundles, not native installers.
+- Existing `packaging/windows/BedeSetup.iss` builds a GUI EXE but `Setup-Bede.ps1` still clones the Git repository and depends on manual Git installation; it does not consume the sealed operator runtime.
+- macOS has a `.command` launcher, not a signed/notarized `.app` or DMG.
+- Linux has a shell installer, not verified GUI DEB/RPM distributions.
+- Offline `images.tar.zst` requires `zstd` on the target machine; installer must embed a compatible decompressor or use a natively supported verified stream.
+- Signing credentials and actual physical device evidence are not established by syntax-only CI.
+
+**Disposition: pilot release HOLD.** This contract is a scope and acceptance baseline, not proof that native binaries exist. Do not label any artifact certified until the relevant evidence is recorded.

@@ -60,6 +60,7 @@ describe('PilotTeacherJourney', () => {
     expect(screen.getByRole('heading', { name: '3. Your approved teaching guidance' })).toBeTruthy()
     expect(screen.getByText(/You decide what is helpful/)).toBeTruthy()
     expect(screen.getByText(/not sent to learners automatically/)).toBeTruthy()
+    expect(await screen.findByText(pendingRec.proposal)).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Reject' })).toBeTruthy()

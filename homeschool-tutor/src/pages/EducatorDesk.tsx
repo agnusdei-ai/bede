@@ -6,14 +6,14 @@ import type { SessionConfig, Subject } from '../types'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import PilotTeacherJourney from '../components/PilotTeacherJourney'
 import {
-  fetchInstructorRoster, fetchInstructorLocutoCapacity,
+  fetchInstructorRoster,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
   fetchInstructorActivity, saveInstructorAssessment,
   fetchMyEducatorPasskeys, revokeMyEducatorPasskey,
 } from '../services/api'
 import type {
   AssessmentFrameworkMetadata, DibelsProgress, DibelsGrade, EducatorPasskeySummary,
-  DibelsWindow, EducatorAssessmentBand, LocutoCapacity,
+  DibelsWindow, EducatorAssessmentBand,
 } from '../services/api'
 
 const TODAY = () => {
@@ -33,7 +33,6 @@ export default function EducatorDesk() {
   const [progress, setProgress] = useState<DibelsProgress | null>(null)
   const [workTotal, setWorkTotal] = useState<number | null>(null)
   const [catalog, setCatalog] = useState<AssessmentFrameworkMetadata[]>([])
-  const [capacity, setCapacity] = useState<LocutoCapacity | null>(null)
   const [measure, setMeasure] = useState('ORF_WC')
   const [grade, setGrade] = useState<DibelsGrade>('4')
   const [windowName, setWindowName] = useState<DibelsWindow>('middle_of_year')
@@ -53,12 +52,10 @@ export default function EducatorDesk() {
     Promise.all([
       fetchInstructorRoster(token),
       fetchInstructorFrameworks(token),
-      fetchInstructorLocutoCapacity(token),
-    ]).then(([students, frameworks, plan]) => {
+]).then(([students, frameworks]) => {
       if (!active) return
       setRoster(students)
       setCatalog(frameworks)
-      setCapacity(plan)
       if (students[0]) setStudent((current) => current || students[0].student_name)
     }).catch(() => { if (active) setMessage('Could not load assigned class roster') })
     return () => { active = false }
@@ -179,6 +176,7 @@ export default function EducatorDesk() {
           }}><LogOut size={16}/> Sign out</button>
         </header>
 
+        {/* Account management is available on demand, not a competing classroom step. */}
         <section className="rounded-xl border bg-white p-3 space-y-3" aria-label="Account security">
           <button type="button" onClick={() => setShowPasskeys(value => !value)}
             className="text-sm font-semibold text-navy-800 underline">
@@ -350,11 +348,7 @@ export default function EducatorDesk() {
           </>
         )}
 
-        <footer className="text-xs text-gray-500">
-          {capacity?.integration_status === 'planning_only_not_connected'
-            ? `Locuto: planning only; up to ${capacity.maximum_members} members per Pod including instructor. No student data transferred or messaging link active.`
-            : 'Messaging is optional and independent from teaching and assessment records.'}
-        </footer>
+        {/* Legacy Pod/Locuto capacity is not part of the institutional teacher journey. */}
         {message && <p role="status" className="text-sm text-navy-700">{message}</p>}
       </div>
     </main>

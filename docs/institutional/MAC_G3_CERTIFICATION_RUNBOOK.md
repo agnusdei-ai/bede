@@ -92,9 +92,9 @@ Run one synthetic teacher journey on the **packaged** Mac build using the actual
 2. A recommendation is requested at `/recommendations`; inadequate source evidence must abstain, never fabricate diagnostic measures.
 3. The educator **approves, edits or rejects** through `POST /recommendations/{recommendation_id}/decision`. Check `GET /decisions` for durable, hash-chained decision evidence and `GET /instruction` for **approved/edited only** instruction.
 4. Query `GET /pilot/me/learners/{learner_id}/diagnostic` and `GET /pilot/me/learners/{learner_id}/tutoring/history` against **real stored synthetic records**; no fabricated historical records or scores.
-5. Test supervised `POST /pilot/me/learners/{learner_id}/tutoring/chat` SSE **only** after educator approval, with the configured **local-only** model adapter; verify bounded generation and no remote model fallback. Revoke the teacher's grant *during an active stream* and prove stream termination, refusal of later writes/reconnect and no leaked neighboring-campus output.
+5. Verify that teacher approval leaves `delivery_state = NOT_REQUESTED`, that no learner session or delivery is created, and that revoking the teacher's grant blocks subsequent access and writes (including after restart). An educator-only diagnostic tutoring endpoint is not part of this teacher-directed release acceptance.
 
-The campus tutoring route is restricted to nonproduction synthetic qualification; **no learner-facing automatic delivery/session-launch authorization** is added by these G2 records. Persist a redacted record of expected/actual status, persistence after restart and denied negative operations. Local model behavior/safeguarding and observed resource limits are separate from the loopback-stub synthetic matrix.
+The educator-only tutoring diagnostic is not a release criterion for the current Valor pilot and must not be presented as learner instruction. **No learner-facing delivery/session launch is authorized.** Persist a redacted record of expected/actual status, persistence after restart and denied negative operations. Local model behavior/safeguarding and observed resource limits are separate from the loopback-stub synthetic matrix.
 
 ## 6. Phase D — lost device, offboarding, recovery isolation (G3-06 / G3-07 / G3-08)
 

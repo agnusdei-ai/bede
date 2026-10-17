@@ -78,6 +78,13 @@ jobs:
           set -euo pipefail
           python packaging/build_operator_bundle.py
           cp image-digests.txt dist/bede-operator/IMAGE_DIGESTS
+          docker image inspect \
+            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            postgres:16-alpine caddy:2-alpine \
+            --format '{{.RepoTags}} {{.Size}}' > dist/bede-operator/IMAGE_SIZES.txt
           docker save -o dist/bede-operator/images.tar \
             ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
@@ -106,6 +113,13 @@ jobs:
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
           for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
+          PY
+          # Compression metrics are retained in the offline package for field analysis.
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('dist/bede-operator/images.tar')
+          with (p.parent/'PAYLOAD_METRICS.txt').open('w') as f:
+              f.write(f'Uncompressed image archive bytes: {p.stat().st_size}\n')
           PY
           cp -a dist/bede-operator dist/bede-operator-lite
           rm -f dist/bede-operator-lite/images.tar

@@ -139,11 +139,10 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
   return (
     <section aria-label="Pilot teacher journey" className="bg-white border rounded-2xl p-4 space-y-4">
       <div>
-        <h2 className="font-semibold flex items-center gap-2"><ClipboardList size={18}/> Evidence-linked recommendations</h2>
+        <h2 className="font-semibold flex items-center gap-2"><ClipboardList size={18}/> Review Bede’s suggestions</h2>
         <p className="text-xs text-gray-600">
-          Invite-only pilot. Bede drafts a suggestion from the evidence you record; nothing is recorded as
-          instruction until you approve or edit it, and Bede does not deliver it to a learner session —
-          it is ready for your own use. Every decision is saved to a tamper-evident audit trail.
+          Bede can suggest a next step based on your learner’s recorded work. You decide what is helpful.
+          Suggestions are not sent to learners automatically. Your choices are saved for your records.
         </p>
       </div>
 
@@ -154,7 +153,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       </label>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold">1. Evidence on record</h3>
+        <h3 className="text-sm font-semibold">1. Look at the learner’s work</h3>
         {evidence.length === 0
           ? <p className="text-sm text-gray-500">No evidence recorded for this learner yet.</p>
           : <ul className="text-sm divide-y border rounded-lg">{evidence.map(e => (
@@ -205,7 +204,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold">2. Draft a recommendation</h3>
+        <h3 className="text-sm font-semibold">2. Ask Bede for a suggestion</h3>
         {!pending && (
           <button type="button" disabled={busy} onClick={() => void draft()}
             className="rounded-lg border border-navy-700 px-4 py-2 text-sm text-navy-800 disabled:opacity-40">
@@ -257,7 +256,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold flex items-center gap-2"><FileCheck2 size={16}/> 3. Instruction ready for teacher use</h3>
+        <h3 className="text-sm font-semibold flex items-center gap-2"><FileCheck2 size={16}/> 3. Your approved teaching guidance</h3>
         {authorized?.authorized_instruction
           ? <div className="rounded-xl border border-sage-300 bg-sage-50 p-3 text-sm space-y-1">
               <p>{authorized.authorized_instruction}</p>

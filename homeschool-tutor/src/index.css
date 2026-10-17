@@ -66,3 +66,44 @@ input, textarea, select {
 html, body {
   overscroll-behavior: none;
 }
+
+/* Classical educator: warm, quiet visual language with local botanical artwork. */
+.educator-classroom .educator-welcome {
+  min-height: 205px;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid #d5d8c5;
+  border-radius: 1.25rem;
+  background: #f6f0e3 url('/educator-botanical.svg') no-repeat right center / auto 100%;
+  box-shadow: 0 8px 26px rgba(61, 71, 49, .06);
+}
+.educator-classroom .educator-welcome-copy {
+  max-width: 29rem;
+  padding: .75rem 1rem;
+  border-radius: .75rem;
+  background: rgba(250, 247, 239, .9);
+}
+.educator-classroom nav[aria-label="Educator journey"] {
+  border-color: #d8d9c7;
+  background: #fdfaf3;
+}
+.educator-classroom nav[aria-label="Educator journey"] button {
+  min-height: 44px;
+  border-radius: .75rem;
+}
+.educator-classroom section {
+  scroll-margin-top: 1rem;
+}
+.educator-classroom button:focus-visible,
+.educator-classroom input:focus-visible,
+.educator-classroom select:focus-visible,
+.educator-classroom textarea:focus-visible {
+  outline: 3px solid #758d73;
+  outline-offset: 3px;
+}
+@media (max-width: 640px) {
+  .educator-classroom .educator-welcome { background-size: auto 85%; background-position: right bottom; }
+  .educator-classroom .educator-welcome-copy { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .educator-classroom * { scroll-behavior: auto !important; }
+}

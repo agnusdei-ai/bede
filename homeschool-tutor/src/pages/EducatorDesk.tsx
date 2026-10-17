@@ -6,14 +6,14 @@ import type { SessionConfig, Subject } from '../types'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import PilotTeacherJourney from '../components/PilotTeacherJourney'
 import {
-  fetchInstructorRoster, fetchInstructorLocutoCapacity,
+  fetchInstructorRoster,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
   fetchInstructorActivity, saveInstructorAssessment,
   fetchMyEducatorPasskeys, revokeMyEducatorPasskey,
 } from '../services/api'
 import type {
   AssessmentFrameworkMetadata, DibelsProgress, DibelsGrade, EducatorPasskeySummary,
-  DibelsWindow, EducatorAssessmentBand, LocutoCapacity,
+  DibelsWindow, EducatorAssessmentBand,
 } from '../services/api'
 
 const TODAY = () => {
@@ -33,7 +33,6 @@ export default function EducatorDesk() {
   const [progress, setProgress] = useState<DibelsProgress | null>(null)
   const [workTotal, setWorkTotal] = useState<number | null>(null)
   const [catalog, setCatalog] = useState<AssessmentFrameworkMetadata[]>([])
-  const [capacity, setCapacity] = useState<LocutoCapacity | null>(null)
   const [measure, setMeasure] = useState('ORF_WC')
   const [grade, setGrade] = useState<DibelsGrade>('4')
   const [windowName, setWindowName] = useState<DibelsWindow>('middle_of_year')
@@ -45,7 +44,7 @@ export default function EducatorDesk() {
   const [message, setMessage] = useState('')
   const [passkeys, setPasskeys] = useState<EducatorPasskeySummary[]>([])
   const [showPasskeys, setShowPasskeys] = useState(false)
-  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence'>('roster')
+  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence' | 'recommendations'>('roster')
 
   useEffect(() => {
     if (!token) return
@@ -53,12 +52,10 @@ export default function EducatorDesk() {
     Promise.all([
       fetchInstructorRoster(token),
       fetchInstructorFrameworks(token),
-      fetchInstructorLocutoCapacity(token),
-    ]).then(([students, frameworks, plan]) => {
+]).then(([students, frameworks]) => {
       if (!active) return
       setRoster(students)
       setCatalog(frameworks)
-      setCapacity(plan)
       if (students[0]) setStudent((current) => current || students[0].student_name)
     }).catch(() => { if (active) setMessage('Could not load assigned class roster') })
     return () => { active = false }
@@ -165,12 +162,13 @@ export default function EducatorDesk() {
   }
 
   return (
-    <main className="bg-parchment-50 min-h-screen px-4 py-8">
+    <main className="bg-parchment-50 min-h-screen px-4 py-8 educator-classroom">
       <div className="max-w-4xl mx-auto space-y-5">
-        <header className="flex flex-wrap justify-between gap-3 items-start">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-gray-900">Bede Classical Educator Desk</h1>
-            <p className="text-sm text-gray-600 mt-1">Assigned learner instruction, academic evidence, and externally reported DIBELS 8 progress.</p>
+        <header className="educator-welcome flex flex-wrap justify-between gap-3 items-start">
+          <div className="educator-welcome-copy">
+            <p className="text-xs uppercase tracking-widest text-sage-700 mb-2">Bede · Classical learning</p>
+            <h1 className="text-2xl font-display font-bold text-gray-900">Your Classroom</h1>
+            <p className="text-sm text-gray-600 mt-1">A calm place to guide your learners, see their growth, and review Bede’s suggestions.</p>
           </div>
           <button type="button" className="flex items-center gap-2 text-sm text-gray-700" onClick={() => {
             logout()
@@ -178,6 +176,7 @@ export default function EducatorDesk() {
           }}><LogOut size={16}/> Sign out</button>
         </header>
 
+        {/* Account management is available on demand, not a competing classroom step. */}
         <section className="rounded-xl border bg-white p-3 space-y-3" aria-label="Account security">
           <button type="button" onClick={() => setShowPasskeys(value => !value)}
             className="text-sm font-semibold text-navy-800 underline">
@@ -202,23 +201,23 @@ export default function EducatorDesk() {
           )}
         </section>
 
-        {token && <PilotTeacherJourney token={token} />}
-
+        <p className="text-sm text-gray-700">Welcome. Choose a learner, then follow the steps below at your own pace.</p>
         <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
-          {(['roster', 'lesson', 'evidence'] as const).map((step, index) => (
+          {(['roster', 'lesson', 'evidence', 'recommendations'] as const).map((step, index) => (
             <button key={step} type="button"
               aria-current={journeyStep === step ? 'step' : undefined}
               onClick={() => setJourneyStep(step)}
               className={journeyStep === step
                 ? 'rounded-lg bg-navy-700 px-3 py-2 text-sm text-white'
                 : 'rounded-lg border px-3 py-2 text-sm text-navy-800'}>
-              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Teach with Bede' : 'Learning evidence'}
+              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Plan a lesson' : step === 'evidence' ? 'See progress' : 'Review suggestions'}
             </button>
           ))}
         </nav>
-        <section className="bg-white rounded-2xl border p-4 space-y-3">
+        {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
+        <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
-          <p className="text-xs text-gray-500">{roster.length} assigned learners. Only the parent/operator can enroll or remove learners.</p>
+          <p className="text-xs text-gray-500">{roster.length} assigned learners. Your school administrator manages learner assignments.</p>
           <label className="block text-sm">Select learner
             <select value={student} onChange={e => setStudent(e.target.value)} className={field + ' mt-1'}>
               {roster.map(cfg => <option key={cfg.student_name} value={cfg.student_name}>
@@ -226,9 +225,12 @@ export default function EducatorDesk() {
               </option>)}
             </select>
           </label>
-          {activeConfig && <button type="button" onClick={() => setJourneyStep('lesson')}
-            className="rounded-lg bg-navy-700 px-4 py-2 text-white">Plan lesson</button>}
-          {!roster.length && <p className="text-sm text-gray-600">No learners are assigned yet. Ask the parent/operator to authorize a class roster.</p>}
+          {activeConfig && <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setJourneyStep('lesson')} className="rounded-lg bg-navy-700 px-4 py-2 text-white">Plan lesson</button>
+            <button type="button" onClick={() => setJourneyStep('evidence')} className="rounded-lg border px-4 py-2 text-navy-800">Review progress</button>
+            <button type="button" onClick={() => setJourneyStep('recommendations')} className="rounded-lg border px-4 py-2 text-navy-800">Review Bede’s suggestions</button>
+          </div>}
+          {!roster.length && <p className="text-sm text-gray-600">Your classroom is ready for learners. Ask your school administrator to assign your class.</p>}
         </section>
 
         {activeConfig && (
@@ -346,11 +348,7 @@ export default function EducatorDesk() {
           </>
         )}
 
-        <footer className="text-xs text-gray-500">
-          {capacity?.integration_status === 'planning_only_not_connected'
-            ? `Locuto: planning only; up to ${capacity.maximum_members} members per Pod including instructor. No student data transferred or messaging link active.`
-            : 'Messaging is optional and independent from teaching and assessment records.'}
-        </footer>
+        {/* Legacy Pod/Locuto capacity is not part of the institutional teacher journey. */}
         {message && <p role="status" className="text-sm text-navy-700">{message}</p>}
       </div>
     </main>

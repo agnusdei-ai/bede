@@ -6,7 +6,7 @@ The release deliverables are native, guided installers for **macOS, Windows, and
 
 | Target | Standard deliverable | Offline deliverable | Minimum architecture |
 | --- | --- | --- | --- |
-| macOS | signed/notarized DMG with Bede Installer.app | signed/notarized DMG with sealed runtime | arm64 and x86_64 |
+| macOS | DMG with Bede Installer.app (Developer ID signed/notarized for public release) | DMG with sealed runtime (Developer ID signed/notarized for public release) | arm64 and x86_64 |
 | Windows | signed GUI EXE (or MSI) | signed GUI EXE (or MSI) with sealed runtime | x64; ARM64 only when full runtime validated |
 | Linux | GUI .deb and .rpm | GUI .deb and .rpm with sealed runtime | amd64 and arm64 |
 
@@ -123,3 +123,9 @@ Use secret generation on the target host and OS-appropriate protected storage; r
 ### Mac full-pass privileged-access acceptance
 
 During the one physical macOS same-machine pass, verify privileged setup with explicit operator consent, database role creation and grants, normal runtime without superuser, teacher/institutional admin denial of host and database operations, G1 cross-campus denials, authorized backup and recovery, credential rotation/revocation, and redacted audit evidence. These are additional checks inside the **same consolidated Mac evidence packet**, not a separate release certification.
+
+## Apple development identity versus public distribution
+
+For the **single physical macOS engineering evidence pass**, a regular Apple Account and Xcode/Apple command-line tools are sufficient; paid Apple Developer Program membership, Developer ID certificates, and notarization are **not prerequisites** for locally building and testing the Mac app. Build an explicitly labeled **LOCAL TEST / NOT NOTARIZED** DMG or app, using ad hoc signing when needed, with verified payload SHA-256, exact source commit, and operator-controlled execution on the owner's Mac. Never describe that artifact as notarized, publicly trusted, or ready for third-party distribution. Do not ask the operator to disable Gatekeeper system-wide or weaken macOS security controls.
+
+For **general distribution outside the owner's controlled test Mac**, retain Developer ID signing and notarization as separate release requirements. Record signing status as `local-test` or `developer-id-notarized` in evidence. The local pilot's G1/G2/G3 security and runtime checks remain unchanged.

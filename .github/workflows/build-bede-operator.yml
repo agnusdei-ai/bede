@@ -1,4 +1,4 @@
-name: Bede Lite and Offline operator bundles
+name: Bede Standard and Offline operator bundles
 on:
   pull_request:
     paths:
@@ -84,10 +84,11 @@ jobs:
             ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine
-          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command
+          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/Verify-Bede.command
           python packaging/tests/test_operator_arch.py
           python packaging/tests/test_lite_offline.py
+          bash -n dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           python - <<'PY'
           from pathlib import Path
@@ -107,20 +108,20 @@ jobs:
           for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
-          cp -a dist/bede-operator dist/bede-operator-lite
-          rm -f dist/bede-operator-lite/images.tar
+          cp -a dist/bede-operator dist/bede-operator-standard
+          rm -f dist/bede-operator-standard/images.tar
           cd dist
-          tar -czf bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-lite
-          sha256sum bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
+          tar -czf bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-standard
+          sha256sum bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
           tar -czf bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator
           sha256sum bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
-      - name: Publish small Lite installer separately
+      - name: Publish standard network installer separately
         uses: actions/upload-artifact@v4
         with:
-          name: bede-lite-linux-${{ matrix.arch }}-${{ github.sha }}
+          name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
           path: |
-            dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz
-            dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
+            dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz
+            dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

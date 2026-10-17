@@ -42,7 +42,8 @@ AdministrationPurpose = Literal[
 ]
 OfficialWindow = Literal["BOY", "MOY", "EOY", "none"]
 MeasureStatus = Literal[
-    "scored", "not_administered_by_rule", "not_administered_other", "invalid",
+    "scored", "not_administered_by_rule", "not_administered_other",
+    "skipped", "not_applicable", "invalid", "voided",
 ]
 Grade = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 
@@ -173,6 +174,33 @@ class VendorGuidance(BaseModel):
         return out
 
 
+class AdministrationLog(BaseModel):
+    """Publisher-neutral marks and timings, not proprietary assessment content."""
+    model_config = ConfigDict(extra="forbid")
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    elapsed_seconds: Optional[int] = Field(default=None, ge=0, le=86400)
+    last_item_attempted: Optional[int] = Field(default=None, ge=0, le=10000)
+    correct_marks: Optional[int] = Field(default=None, ge=0, le=10000)
+    error_marks: Optional[int] = Field(default=None, ge=0, le=10000)
+    self_corrections: Optional[int] = Field(default=None, ge=0, le=10000)
+    discontinue_rule_result: Literal["not_recorded", "met", "not_met", "not_applicable"] = "not_recorded"
+    interrupted: bool = False
+    interruption_note: Optional[str] = Field(default=None, max_length=500)
+    administration_fidelity_note: Optional[str] = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def _times(self):
+        if self.start_time is not None and self.end_time is not None:
+            if (self.start_time.tzinfo is None) != (self.end_time.tzinfo is None):
+                raise ValueError("Start and end must use the same timezone convention")
+            if self.end_time < self.start_time:
+                raise ValueError("End time precedes start time")
+        if self.interrupted and not (self.interruption_note or "").strip():
+            raise ValueError("Record the reason for an interruption")
+        return self
+
+
 class AdministrationInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -190,6 +218,7 @@ class AdministrationInput(BaseModel):
     accommodations: list[str] = Field(default_factory=list, max_length=10)
     notes: Optional[str] = Field(default=None, max_length=1000)
     vendor_guidance: Optional[VendorGuidance] = None
+    administration_log: Optional[AdministrationLog] = None
 
     @model_validator(mode="after")
     def _semantics(self):
@@ -209,6 +238,7 @@ class AdministrationInput(BaseModel):
             "accommodations": [a.strip() for a in self.accommodations if a.strip()],
             "notes": (self.notes or "").strip() or None,
             "vendor_guidance": self.vendor_guidance.model_dump() if self.vendor_guidance else None,
+            "administration_log": self.administration_log.model_dump(mode="json") if self.administration_log else None,
         }
 
 
@@ -229,6 +259,12 @@ class ScoreInput(BaseModel):
     benchmark_label: Optional[BenchmarkLabel] = None
     support_label: Optional[SupportLabel] = None
     printed_cut_points: list[CutPoint] = Field(default_factory=list, max_length=10)
+    correct_count: Optional[int] = Field(default=None, ge=0, le=100000)
+    error_count: Optional[int] = Field(default=None, ge=0, le=100000)
+    accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+    composite_eligibility: Literal["not_verified", "eligible_as_reported", "not_eligible"] = "not_verified"
+    required_composite_measures: list[str] = Field(default_factory=list, max_length=12)
+    teacher_reviewed: bool = False
     calculation_version: str = Field(default="as_printed_on_source_report",
                                      min_length=2, max_length=64)
 
@@ -236,6 +272,12 @@ class ScoreInput(BaseModel):
     def _semantics(self):
         if self.measure not in DIBELS_MEASURES:
             raise ValueError("Unsupported DIBELS 8th Edition measure")
+        if self.composite_eligibility != "not_verified" and self.measure != "COMPOSITE":
+            raise ValueError("Composite eligibility belongs only to a composite record")
+        if self.measure != "COMPOSITE" and self.required_composite_measures:
+            raise ValueError("Required composite measures belong only to a composite record")
+        if any(m not in DIBELS_MEASURES or m == "COMPOSITE" for m in self.required_composite_measures):
+            raise ValueError("Required composite measures must be recognized non-composite measures")
         if self.administration_status == "scored":
             if self.raw_score is None:
                 raise ValueError("A scored measure needs its reported raw score")
@@ -245,8 +287,12 @@ class ScoreInput(BaseModel):
                 raise ValueError("Percentage cannot exceed 100")
         else:
             # Never zero, never a score: a skipped/invalid measure has none.
-            if self.raw_score is not None or self.score_unit is not None:
-                raise ValueError("A measure that was not scored has no score, not zero")
+            if any(x is not None for x in (self.raw_score, self.score_unit,
+                                          self.correct_count, self.error_count,
+                                          self.accuracy_percent)):
+                raise ValueError("A measure that was not scored has no numeric marks, not zero")
+            if self.composite_eligibility == "eligible_as_reported":
+                raise ValueError("An unscored composite cannot be eligible")
             if not (self.reason or "").strip():
                 raise ValueError("Transcribe the reason the measure was not scored")
             if self.benchmark_label or self.support_label:
@@ -263,6 +309,11 @@ class ScoreInput(BaseModel):
             "reason": (self.reason or "").strip() or None,
             "benchmark_label": self.benchmark_label, "support_label": self.support_label,
             "printed_cut_points": [c.model_dump() for c in self.printed_cut_points],
+            "correct_count": self.correct_count, "error_count": self.error_count,
+            "accuracy_percent": self.accuracy_percent,
+            "composite_eligibility": self.composite_eligibility,
+            "required_composite_measures": self.required_composite_measures,
+            "teacher_reviewed": self.teacher_reviewed,
         }
 
 
@@ -297,6 +348,12 @@ class ScoresSubmission(BaseModel):
             raise ValueError("Each response item appears at most once")
         if not {r.measure for r in self.responses} <= set(measures):
             raise ValueError("Responses must belong to a submitted measure")
+        scored_measures = {s.measure for s in self.scores if s.administration_status == "scored"}
+        for score in self.scores:
+            if score.is_composite and score.composite_eligibility == "eligible_as_reported":
+                required = set(score.required_composite_measures)
+                if not required or not required <= (scored_measures - {"COMPOSITE"}):
+                    raise ValueError("Composite eligibility needs every listed applicable measure scored")
         return self
 
 
@@ -308,9 +365,22 @@ class TransitionInput(BaseModel):
     resolution: Optional[str] = Field(default=None, max_length=500)
 
 
+class TeacherObservation(BaseModel):
+    """Separate teacher-authored interpretation; never an official score."""
+    model_config = ConfigDict(extra="forbid")
+    accuracy_fluency_notes: Optional[str] = Field(default=None, max_length=600)
+    error_patterns: Optional[str] = Field(default=None, max_length=600)
+    attention_circumstances: Optional[str] = Field(default=None, max_length=600)
+    narration_comprehension: Optional[str] = Field(default=None, max_length=600)
+    curriculum_concepts_taught: Optional[str] = Field(default=None, max_length=600)
+    teacher_interpretation: Optional[str] = Field(default=None, max_length=800)
+    suggested_next_step: Optional[str] = Field(default=None, max_length=800)
+
+
 class EvidenceInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     summary: Optional[str] = Field(default=None, max_length=600)
+    observation: Optional[TeacherObservation] = None
 
 
 class DecisionInput(BaseModel):

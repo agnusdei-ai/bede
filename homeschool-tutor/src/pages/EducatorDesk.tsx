@@ -45,7 +45,7 @@ export default function EducatorDesk() {
   const [message, setMessage] = useState('')
   const [passkeys, setPasskeys] = useState<EducatorPasskeySummary[]>([])
   const [showPasskeys, setShowPasskeys] = useState(false)
-  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence'>('roster')
+  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence' | 'recommendations'>('roster')
 
   useEffect(() => {
     if (!token) return
@@ -202,21 +202,20 @@ export default function EducatorDesk() {
           )}
         </section>
 
-        {token && <PilotTeacherJourney token={token} />}
-
         <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
-          {(['roster', 'lesson', 'evidence'] as const).map((step, index) => (
+          {(['roster', 'lesson', 'evidence', 'recommendations'] as const).map((step, index) => (
             <button key={step} type="button"
               aria-current={journeyStep === step ? 'step' : undefined}
               onClick={() => setJourneyStep(step)}
               className={journeyStep === step
                 ? 'rounded-lg bg-navy-700 px-3 py-2 text-sm text-white'
                 : 'rounded-lg border px-3 py-2 text-sm text-navy-800'}>
-              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Teach with Bede' : 'Learning evidence'}
+              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Teach with Bede' : step === 'evidence' ? 'Learning evidence' : 'Review recommendations'}
             </button>
           ))}
         </nav>
-        <section className="bg-white rounded-2xl border p-4 space-y-3">
+        {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
+        <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
           <p className="text-xs text-gray-500">{roster.length} assigned learners. Only the parent/operator can enroll or remove learners.</p>
           <label className="block text-sm">Select learner
@@ -226,8 +225,11 @@ export default function EducatorDesk() {
               </option>)}
             </select>
           </label>
-          {activeConfig && <button type="button" onClick={() => setJourneyStep('lesson')}
-            className="rounded-lg bg-navy-700 px-4 py-2 text-white">Plan lesson</button>}
+          {activeConfig && <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setJourneyStep('lesson')} className="rounded-lg bg-navy-700 px-4 py-2 text-white">Plan lesson</button>
+            <button type="button" onClick={() => setJourneyStep('evidence')} className="rounded-lg border px-4 py-2 text-navy-800">Review progress</button>
+            <button type="button" onClick={() => setJourneyStep('recommendations')} className="rounded-lg border px-4 py-2 text-navy-800">Review Bede recommendations</button>
+          </div>}
           {!roster.length && <p className="text-sm text-gray-600">No learners are assigned yet. Ask the parent/operator to authorize a class roster.</p>}
         </section>
 

@@ -37,6 +37,7 @@ shutil.copy2(root / "packaging" / "bundle" / "Install-Bede.command", out / "Inst
 shutil.copy2(root / "packaging" / "bundle" / "Verify-Bede.command", out / "Verify-Bede.command")
 shutil.copy2(root / "packaging" / "bundle" / "Install-Bede.ps1", out / "Install-Bede.ps1")
 shutil.copy2(root / "packaging" / "bundle" / "README.md", out / "README.md")
+shutil.copytree(root / "packaging" / "simulation", out / "simulation", dirs_exist_ok=True)
 shutil.copy2(root / "packaging" / "bundle" / ".env.example", out / ".env.example")
 (out / "WIZARD_IMAGE").write_text(f"{repository}-wizard:sha-{sha}-{arch}\n")
 (out / "RELEASE").write_text(sha + "\n")

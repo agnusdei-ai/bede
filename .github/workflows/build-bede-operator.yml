@@ -84,10 +84,11 @@ jobs:
             ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine
-          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command
+          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/Verify-Bede.command
           python packaging/tests/test_operator_arch.py
           python packaging/tests/test_lite_offline.py
+          bash -n dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           python - <<'PY'
           from pathlib import Path

@@ -33,6 +33,8 @@ jobs:
           python-version: '3.12'
       - name: Prepare bundle generator
         run: python -m pip install 'PyYAML==6.0.2'
+      - name: Install archive compressor
+        run: sudo apt-get update && sudo apt-get install -y zstd
       - name: Verify LAN opt-in and WebAuthn wizard contracts
         run: |
           python -m py_compile scripts/setup_wizard/wizard.py
@@ -84,6 +86,13 @@ jobs:
             ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine
+          docker image inspect \
+            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            postgres:16-alpine caddy:2-alpine \
+            --format '{{.RepoTags}} {{.Size}}' > dist/bede-operator/IMAGE_SIZES.txt
           chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/Verify-Bede.command
           python packaging/tests/test_operator_arch.py
@@ -108,8 +117,15 @@ jobs:
           for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('dist/bede-operator/images.tar')
+          (p.parent/'PAYLOAD_METRICS.txt').write_text(f'Uncompressed image archive bytes: {p.stat().st_size}\\n')
+          PY
+          zstd -T0 -19 -f dist/bede-operator/images.tar -o dist/bede-operator/images.tar.zst
+          rm dist/bede-operator/images.tar
           cp -a dist/bede-operator dist/bede-operator-standard
-          rm -f dist/bede-operator-standard/images.tar
+          rm -f dist/bede-operator-standard/images.tar dist/bede-operator-standard/images.tar.zst
           cd dist
           tar -czf bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-standard
           sha256sum bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256

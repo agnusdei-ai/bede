@@ -16,6 +16,9 @@ case "$actual_arch" in x86_64|amd64) actual_arch=amd64 ;; aarch64|arm64) actual_
 [[ -f compose.yaml && -f Caddyfile ]] || fail "Installation manifest is incomplete."
 if [[ -f images.tar ]]; then
   docker load -i images.tar >/dev/null
+elif [[ -f images.tar.zst ]]; then
+  command -v zstd >/dev/null || fail "This package needs zstd; use the portable .tar.gz package or install zstd."
+  zstd -dc images.tar.zst | docker load >/dev/null
 else
   # Lite: only a release-published, digest-pinned manifest is permitted.
   [[ -s IMAGE_DIGESTS ]] || fail "Lite image digest manifest is empty"

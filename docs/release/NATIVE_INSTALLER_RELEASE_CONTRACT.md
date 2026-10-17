@@ -65,3 +65,16 @@ The same installer binary may expose all three paths, but payload selection and 
 ### Topology-specific acceptance
 
 Test all three topology paths on macOS, Windows, and Linux. Verify single-device loopback TLS and real model inference; server/client private DNS, trusted HTTPS, passkey enrollment and revocation; and client-only installation with **no server dependencies**. Record the exact model and hardware measurements separately from basic installer success.
+
+## No-cost container runtime prerequisite policy
+
+For Same machine and Dedicated server topology, the installer MUST detect an already installed, compatible container engine first. If missing, it MUST present an approved no-cost engine option and, after explicit user consent and required OS elevation, guide its installation, initialization, and health verification. Client workstation topology MUST NOT install a container engine.
+
+No Bede runtime choice may silently create a Docker Desktop subscription obligation. Docker Desktop's free-use terms are conditional and must be evaluated for the specific deploying organization; do not assume every school or institution qualifies, and do not bundle or redistribute third-party installers without verified redistribution rights. If an approved no-cost runtime cannot be installed on a target host, fail with a clear supported-alternative message rather than silently falling back to a paid or unverified engine.
+
+Platform-specific candidates must be qualified through full Compose, networking, host-mount, TLS, architecture, restart, and upgrade tests:
+- macOS: compatible no-cost local VM/container-engine solution; Docker Desktop only where license eligibility and installation rights are confirmed.
+- Windows: compatible no-cost WSL2-backed engine; Docker Desktop only where license eligibility and installation rights are confirmed.
+- Linux: Docker Engine with Compose plugin under their applicable open-source licenses, subject to distribution and OS support checks.
+
+Never download and execute a floating, unverified prerequisite installer. Pin a tested version and digest or verify a trusted signed publisher release; show provenance, expected download size, permissions, and license before installation. An existing supported engine must be reused rather than replaced.

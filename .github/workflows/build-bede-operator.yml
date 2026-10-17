@@ -70,6 +70,9 @@ jobs:
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
             printf '%s %s\n' "$image" "$digest" >> image-digests.txt
           done
+      - name: Require anonymous pull access for every published Bede image
+        run: |
+          python packaging/tests/verify_public_registry.py image-digests.txt
       - name: Generate source-free installer and seal embedded images
         env:
           RELEASE_SHA: ${{ github.sha }}

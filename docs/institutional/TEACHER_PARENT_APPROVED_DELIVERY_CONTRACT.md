@@ -50,3 +50,55 @@ Exact routes and migrations must be reviewed against current APIs before impleme
 
 ## Release gates
 Implementation must be a separate PR with code and tests, migration/rollback notes, threat model, privacy review, SBOM/dependency scans and reproducible G1/G2/G3 evidence. Keep delivery feature disabled by default until owner signs a separate pilot GO decision. Do not treat PR #632 merge as that decision.
+
+## Product-complete learning journey coverage (normative extension)
+
+The institutional product is not complete when an approved recommendation is merely stored. It must support all seven learner journeys below, with explicit role, UI, API, persistence, recovery, and acceptance evidence. **Contract coverage is not an implementation claim.** Every gap remains open until verified in a running build.
+
+| Journey | Required end-to-end experience | Acceptance evidence |
+| --- | --- | --- |
+| J1 Enrollment and assignment | Admin provisions campus, verified educator, learner UUID, guardian association when applicable, scoped assignments, disable/revoke and recovery; learner sees only own assignments | Synthetic admin→teacher→learner walkthrough; duplicate names; cross-campus/learner denials; restart |
+| J2 Teacher-directed lesson delivery | Teacher creates/selects objective, lesson content and permitted resources, previews exact learner-facing version, explicitly approves and delivers; learner opens, resumes, completes | Working educator and learner UIs; approved-version receipt; offline/restart; no delivery on draft/reject |
+| J3 Supervised Socratic tutoring | Learner opens approved lesson and interacts with local model in bounded, age-appropriate questioning; teacher can supervise, pause, terminate, and revoke; no autonomous new lesson or external inference | Synthetic multi-turn sessions, stream interruption on revoke, prompt-injection containment, local-only provider proof |
+| J4 Practice and assessment | Learner submits responses and assignments; educator can distinguish learner evidence from AI suggestions; authorized progress updates and rubric results persist | Submit→feedback→review; persistence/restart; assessment provenance and no fabricated standardized scores |
+| J5 Educator review and progress | Educator views assigned learner evidence, reviews AI draft, approves/edits/rejects next steps and inspects audit trail | Full decision workflow, version conflict/replay and grant-revoke negative tests |
+| J6 Parent-approved home reinforcement | Verified guardian accesses linked child only, views school-approved home scope, authorizes where policy permits, supervises practice and sees permitted progress; campus can require teacher and parent jointly | Guardian-link verification, unlink/revoke, role/policy matrix, home UI, dual-approval tests, no schoolwide access |
+| J7 Follow-up, revision and revocation | Learner receives approved follow-up, resumes safely; authorized adult revises or revokes, blocks pending/new delivery and active streams, sees receipts | Delivery→acknowledgment→follow-up→revoke; races, idempotency, restart, audit integrity |
+
+### Explicit undefined or unimplemented delivery gaps
+
+These are **requirements to resolve**, not assumed working features. Implementers must close each with code references and reproducible test evidence:
+1. **Complete lesson delivery interface:** teacher lesson builder/selection, approved-content preview, versioned send action, learner inbox/lesson reader, start/resume/complete states, accessibility, error/empty/offline states, and delivery acknowledgment.
+2. **Interactive learner tutoring integration:** scoped session token bound to approved lesson/version, streaming Socratic conversation UI, allowed tool/content boundary, teacher supervision controls, revocation propagation, transcript/progress retention rules, and local-only inference proof.
+3. **Parent home-learning interface:** verified guardian identity and child link, campus policy display, home assignment/approval view, permitted learner activity, parent progress view, consent/revocation, and unlink handling.
+4. **End-to-end seven-journey certification:** executable synthetic journeys across admin, teacher, learner, parent, backend, storage and packaged Mac; unified evidence tied to one immutable candidate SHA.
+5. **Assignment lifecycle:** canonical ownership and durable lesson-to-learner assignment, due/completion states, reassignment semantics, and restart recovery.
+6. **Delivery transport and receipts:** approved-version outbox/inbox, exactly-once effect via idempotency, retry/expiry, delivery/ack states, network-loss handling and scoped read APIs.
+7. **Progress provenance:** source-of-truth assessment schema, learner work attribution, AI-suggestion separation, teacher overrides, retention/export and restart verification.
+8. **Security and policy operations:** teacher/guardian grant versioning, policy transitions, active-stream cancellation, account recovery, audit export, accessibility and role-specific support messages.
+9. **Data lifecycle and observability:** encrypted-at-rest storage, backup/restore consistency, audit retention, deletion limitations, operational diagnostics without sensitive content and failure recovery.
+10. **Device and deployment experience:** Mac packaged install/configure/run/restart/recover/uninstall, local inference availability, classroom client connectivity policy, and version compatibility.
+11. **Product decisions still undefined:** approved learner device/access model, offline sync behavior, whether a parent can originate home lessons or only approve school-scoped ones, campus dual-approval defaults, session supervision availability, permitted home data visibility, content retention and age-appropriate accessibility criteria. Record explicit owner decisions before coding policy-dependent behavior; default to least privilege.
+
+### Staged implementation and acceptance
+
+**Release R1 — teacher-directed supervised institutional learning (P0):**
+- Complete J1, J2, J3, J4, J5 and teacher-controlled J7 for one synthetic campus/learner journey, including the actual educator and learner interfaces.
+- Deliver only after a current teacher approval; record exact content/version, receipt and audit; support edit/reject, revoke and interruption of active sessions.
+- Local supervised Socratic inference, bounded approved lesson scope, learner response/progress capture and durable restart recovery.
+- Negative tests: cross-campus, cross-learner, stale versions, revoked educator grants, learner disabled, prompt injection, delivery replay, restart and Mac packaging.
+- R1 is **not** certified if a backend-only approval exists but the learner cannot open and complete the approved lesson. Parent/guardian delivery remains feature-disabled.
+
+**Release R2 — verified guardian home reinforcement (P0 for product completeness, gated after R1):**
+- Complete J6 plus parent-controlled aspects of J7: verified guardian linking, campus teacher/parent/both approval policy, home-learning UI, scoped delivery and parent revocation.
+- Test teacher-only, parent-only, dual approval, guardian unlink, family isolation, school/home boundary, parent consent and recovery.
+- Parent access must not implicitly authorize campus-wide information or override teacher/campus policy.
+
+**Release R3 — complete product certification (P0 before declaring all-journey completeness):**
+- Run a single reproducible synthetic J1→J7 walkthrough including R1 and R2 capabilities, persistence/recovery and real role separation.
+- Collect G1 isolation, G2 evidence→decision→delivery→progress, G3 Mac install/restart/recovery/uninstall, usability observations without engineering assistance, security tests, dependency/SBOM scans, and signed owner acceptance.
+- Evidence packet names immutable commit SHA, build digest, test commands, timestamps, observed results, known exceptions and explicit GO/NO-GO.
+- No real learner data, externally accessible pilot or unsupervised delivery before separate owner GO.
+
+### Acceptance tracking rule
+For every journey maintain: requirement ID, assigned implementation PR, UI route, API route, persistence model, test IDs, security negative tests, evidence artifact, status (unimplemented/partial/verified), owner and release gate. Missing evidence means **not verified**. A passing frontend unit suite alone does not satisfy delivery or Mac certification.

@@ -6,7 +6,7 @@ fail() { printf 'Bede installation incomplete: %s\n' "$*" >&2; exit 1; }
 command -v docker >/dev/null || fail "Docker Desktop / Engine is required"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose is unavailable"
 docker info >/dev/null 2>&1 || fail "Start Docker, then reopen Bede Setup"
-[[ -f images.tar ]] || fail "Installation image archive missing. Use the complete installer package."
+[[ -f images.tar || -f IMAGE_DIGESTS ]] || fail "Missing image archive or pinned registry digest manifest."
 [[ -f ARCH ]] || fail "The package CPU architecture manifest is missing."
 required_arch="$(tr -d '\r\n' < ARCH)"
 actual_arch="$(docker info --format '{{.Architecture}}' | tr '[:upper:]' '[:lower:]')"
@@ -14,7 +14,17 @@ case "$actual_arch" in x86_64|amd64) actual_arch=amd64 ;; aarch64|arm64) actual_
 [[ "$required_arch" = "$actual_arch" ]] || fail "This package targets $required_arch; Docker requires $actual_arch. Choose the $actual_arch installer."
 [[ -f WIZARD_IMAGE ]] || fail "Wizard reference missing."
 [[ -f compose.yaml && -f Caddyfile ]] || fail "Installation manifest is incomplete."
-docker load -i images.tar >/dev/null
+if [[ -f images.tar ]]; then
+  docker load -i images.tar >/dev/null
+else
+  # Lite: only a release-published, digest-pinned manifest is permitted.
+  [[ -s IMAGE_DIGESTS ]] || fail "Lite image digest manifest is empty"
+  while IFS=' ' read -r image digest; do
+    [[ -n "$image" && "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || fail "Invalid digest manifest entry"
+    docker pull "${image}@${digest}" || fail "Unable to pull pinned image: $image"
+    docker tag "${image}@${digest}" "$image" || fail "Unable to tag verified image: $image"
+  done < IMAGE_DIGESTS
+fi
 if [[ ! -s .env ]]; then
   echo "Launching the secure Bede setup wizard..."
   image="$(tr -d '\r\n' < WIZARD_IMAGE)"

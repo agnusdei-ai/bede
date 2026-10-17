@@ -1,4 +1,4 @@
-name: Bede Lite and Offline operator bundles
+name: Bede Standard and Offline operator bundles
 on:
   pull_request:
     paths:
@@ -33,6 +33,8 @@ jobs:
           python-version: '3.12'
       - name: Prepare bundle generator
         run: python -m pip install 'PyYAML==6.0.2'
+      - name: Install archive compressor
+        run: sudo apt-get update && sudo apt-get install -y zstd
       - name: Verify LAN opt-in and WebAuthn wizard contracts
         run: |
           python -m py_compile scripts/setup_wizard/wizard.py
@@ -78,6 +80,12 @@ jobs:
           set -euo pipefail
           python packaging/build_operator_bundle.py
           cp image-digests.txt dist/bede-operator/IMAGE_DIGESTS
+          docker save -o dist/bede-operator/images.tar \
+            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            postgres:16-alpine caddy:2-alpine
           docker image inspect \
             ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
@@ -85,16 +93,11 @@ jobs:
             ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine \
             --format '{{.RepoTags}} {{.Size}}' > dist/bede-operator/IMAGE_SIZES.txt
-          docker save -o dist/bede-operator/images.tar \
-            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            postgres:16-alpine caddy:2-alpine
-          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command
+          chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/Verify-Bede.command
           python packaging/tests/test_operator_arch.py
           python packaging/tests/test_lite_offline.py
+          bash -n dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           python - <<'PY'
           from pathlib import Path
@@ -111,34 +114,30 @@ jobs:
           assert all('0.0.0.0' not in str(port) for port in lan_ports)
           assert any(':443:443' in str(port) for port in lan_ports)
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
-          for name in ('images.tar.zst','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
+          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
-          # Compression metrics are retained in the offline package for field analysis.
           python - <<'PY'
           from pathlib import Path
           p = Path('dist/bede-operator/images.tar')
-          with (p.parent/'PAYLOAD_METRICS.txt').open('w') as f:
-              f.write(f'Uncompressed image archive bytes: {p.stat().st_size}\n')
+          (p.parent/'PAYLOAD_METRICS.txt').write_text(f'Uncompressed image archive bytes: {p.stat().st_size}\\n')
           PY
-          # zstd level 19 compresses the actual six-image payload as a single
-          # deduplicated Docker archive; preserve legacy tar for fallback builds.
           zstd -T0 -19 -f dist/bede-operator/images.tar -o dist/bede-operator/images.tar.zst
           rm dist/bede-operator/images.tar
-          cp -a dist/bede-operator dist/bede-operator-lite
-          rm -f dist/bede-operator-lite/images.tar dist/bede-operator-lite/images.tar.zst
+          cp -a dist/bede-operator dist/bede-operator-standard
+          rm -f dist/bede-operator-standard/images.tar dist/bede-operator-standard/images.tar.zst
           cd dist
-          tar -czf bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-lite
-          sha256sum bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
+          tar -czf bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-standard
+          sha256sum bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
           tar -czf bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator
           sha256sum bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
-      - name: Publish small Lite installer separately
+      - name: Publish standard network installer separately
         uses: actions/upload-artifact@v4
         with:
-          name: bede-lite-linux-${{ matrix.arch }}-${{ github.sha }}
+          name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
           path: |
-            dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz
-            dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
+            dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz
+            dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

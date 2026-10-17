@@ -102,7 +102,7 @@ jobs:
               "prior_qualification_carries_to_this_sha": False
           }
           Path("dist/bede-operator/RELEASE_PROVENANCE.json").write_text(
-              json.dumps(evidence, indent=2, sort_keys=True) + "\\n")
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n")
           PY
           docker save -o dist/bede-operator/images.tar \
             ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \

@@ -52,6 +52,19 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe('PilotTeacherJourney', () => {
+  it('offers a clear, calm teacher decision flow without implying automatic learner delivery', async () => {
+    render(<PilotTeacherJourney token="t" />)
+    expect(await screen.findByRole('heading', { name: 'Review Bede’s suggestions' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '1. Look at the learner’s work' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '2. Ask Bede for a suggestion' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '3. Your approved teaching guidance' })).toBeTruthy()
+    expect(screen.getByText(/You decide what is helpful/)).toBeTruthy()
+    expect(screen.getByText(/not sent to learners automatically/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeTruthy()
+  })
+
   it('renders nothing when the educator has no pilot learners', async () => {
     api.fetchPilotLearners.mockResolvedValue([])
     const { container } = render(<PilotTeacherJourney token="t"/>)

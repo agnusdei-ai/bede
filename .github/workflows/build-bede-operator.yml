@@ -6,8 +6,12 @@ on:
       - '.github/workflows/build-bede-operator.yml'
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'bede-operator-v*'
+    paths:
+      - '.github/workflows/build-bede-operator.yml'
 permissions:
   contents: read
   packages: write
@@ -80,6 +84,26 @@ jobs:
           set -euo pipefail
           python packaging/build_operator_bundle.py
           cp image-digests.txt dist/bede-operator/IMAGE_DIGESTS
+          # Record traceable immutable package identity without claiming G3 or Pilot GO.
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          evidence = {
+              "source_sha": os.environ["GITHUB_SHA"],
+              "architecture": "${{ matrix.arch }}",
+              "build_run_url": f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}',
+              "contents": "source-free operator images and launchers",
+              "scope": "teacher-directed, synthetic-only Valor pilot evaluation",
+              "learner_delivery": "NOT_REQUESTED",
+              "physical_mac": "NOT_RUN",
+              "engineering_acceptance": "NOT_SIGNED",
+              "pilot_go": "HOLD",
+              "prior_146_cell_candidate": "6574a0e1b69ed3b162c39c626be316c4e457db4e",
+              "prior_qualification_carries_to_this_sha": False
+          }
+          Path("dist/bede-operator/RELEASE_PROVENANCE.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\\n")
+          PY
           docker save -o dist/bede-operator/images.tar \
             ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
@@ -114,6 +138,13 @@ jobs:
           assert all('0.0.0.0' not in str(port) for port in lan_ports)
           assert any(':443:443' in str(port) for port in lan_ports)
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
+          import json, os
+          provenance = json.loads((d/'RELEASE_PROVENANCE.json').read_text())
+          assert provenance['source_sha'] == os.environ['GITHUB_SHA']
+          assert provenance['architecture'] == '${{ matrix.arch }}'
+          assert provenance['learner_delivery'] == 'NOT_REQUESTED'
+          assert provenance['physical_mac'] == 'NOT_RUN'
+          assert provenance['pilot_go'] == 'HOLD'
           for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY

@@ -13,20 +13,20 @@ Parallel Bede unified UI, orchestration and learning-memory development may use 
 
 ## Seven integrated sprint capabilities
 
-- [ ] One recognizable Bede Tutor interface for learners and teachers; no separate visible agents.
+- [ ] One recognizable educator workspace for the teacher-only pilot; learner interfaces are deferred.
 - [ ] Bounded, governed orchestration of actual tools and model inference.
-- [ ] Durable, tenant-scoped learner memory and session continuity.
+- [ ] Durable, campus-scoped assessment evidence, instructional decisions, and teacher observations across restart.
 - [ ] Evidence-grounded instructional recommendations joining assessment, lessons and interventions; source IDs, verified scoring and abstention when evidence is inadequate.
 - [ ] Server-enforced educator approval for consequential instructional changes; version-bound audit trail.
 - [ ] Real APIs, durable storage, Render backend and frontend, exact deployed SHA/URLs, TLS, auth and operational telemetry.
 - [ ] Passing automated unit/integration/browser E2E, accessibility, privacy, security, recovery and release evidence.
 
-## Full teacher-to-learner-to-teacher journey and measurement
+## Teacher-directed pilot journey and measurement
 
 - [ ] Capture baseline teacher preparation/review time and learner assessment evidence.
 - [ ] Educator authenticates and accesses only assigned learners.
 - [ ] Bede generates a source-linked recommendation; teacher approves, edits or rejects.
-- [ ] Approved instruction reaches learner; Bede tutors; learner progress persists.
+- [ ] Approved instruction is recorded for the teacher to deliver personally; teacher observations persist and can be reviewed at the next checkpoint. No learner delivery is enabled.
 - [ ] Evidence returns to educator for follow-up and next action.
 - [ ] Measure real teacher time saved **net of corrections**, learner progress, teacher adoption, recommendation errors/overrides, usability feedback and operational reliability. Include denominators and inconclusive/negative outcomes. Proposed three hours/week is a hypothesis, not a proven result.
 
@@ -55,4 +55,4 @@ Existing family-oriented single-node Compose/PostgreSQL and Render demo are **no
 
 ## Authorization
 
-**Engineering evidence acceptance:** owner signs dated evidence package, with explicit exceptions and blockers. **Pilot release decision:** owner separately records dated GO or HOLD, approved cohort size, maximum concurrency, monitoring, incident rollback triggers and pilot start date. Pilot remains **HOLD** until all required gates and the #585 loop pass. Customer or contractual independent-review requirements, if any, are not waived by merged founder roles. No untested merges, bypasses or invented evidence.
+**Engineering evidence acceptance:** owner signs dated evidence package, with explicit exceptions and blockers. **Pilot release decision:** owner separately records dated GO or HOLD, approved cohort size, maximum concurrency, monitoring, incident rollback triggers and pilot start date. Pilot remains **HOLD** until all required teacher-only pilot gates pass; the #585 learner-delivery loop is deferred. Customer or contractual independent-review requirements, if any, are not waived by merged founder roles. No untested merges, bypasses or invented evidence.

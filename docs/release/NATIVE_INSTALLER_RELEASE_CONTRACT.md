@@ -129,3 +129,25 @@ During the one physical macOS same-machine pass, verify privileged setup with ex
 For the **single physical macOS engineering evidence pass**, a regular Apple Account and Xcode/Apple command-line tools are sufficient; paid Apple Developer Program membership, Developer ID certificates, and notarization are **not prerequisites** for locally building and testing the Mac app. Build an explicitly labeled **LOCAL TEST / NOT NOTARIZED** DMG or app, using ad hoc signing when needed, with verified payload SHA-256, exact source commit, and operator-controlled execution on the owner's Mac. Never describe that artifact as notarized, publicly trusted, or ready for third-party distribution. Do not ask the operator to disable Gatekeeper system-wide or weaken macOS security controls.
 
 For **general distribution outside the owner's controlled test Mac**, retain Developer ID signing and notarization as separate release requirements. Record signing status as `local-test` or `developer-id-notarized` in evidence. The local pilot's G1/G2/G3 security and runtime checks remain unchanged.
+
+## Narrow pilot blocker policy — owner-approved
+
+**Scope:** one locally controlled Apple Silicon 24 GB Mac, same-machine deployment, local inference, initial administrator passkey, synthetic learner data, one complete G1/G2/G3 evidence pass. A passing result authorizes only a separate owner Pilot GO decision, not production or multi-platform certification.
+
+### Required to start and complete this pilot evidence pass
+1. A real locally runnable Mac installation entrypoint that performs a complete installation, with supported free/no-cost container runtime present or consent-based guided provisioning; do not require a paid Apple Developer Program membership.
+2. Verified complete Bede application and local inference assets with exact source SHA and integrity evidence; no Git checkout, manual archive extraction or unapproved credentials.
+3. Working local HTTPS, initial administrator passkey, least-privilege database/runtime service accounts, and safe secrets handling.
+4. A functional end-to-end synthetic learner -> evidence -> teacher decision -> authorized follow-up journey (G2), including explicit G1 cross-campus and unauthorized-access denials.
+5. Same installed build successfully restarts, revokes access, and recovers without leaking data (G3), with a single consolidated evidence record and a separate owner GO decision.
+
+### Explicitly NON-BLOCKING for this one Mac evidence pass
+- Developer ID certificate, paid Apple Developer Program membership, public notarization, Gatekeeper reputation, App Store publication, or enterprise signing.
+- Windows/Linux native installers and the full cross-platform client/server certification matrix.
+- Remote multi-host client enrollment, LAN DNS, public endpoint, enterprise-scale concurrency, or high availability.
+- Complete DEB/RPM/MSI packaging, Windows ARM64 certification, public auto-updater, distribution storefront, or automated fleet deployment.
+- Offline all-in-one DMG, provided a verified Standard local install completes with available network access; production-quality resumable distribution remains a subsequent release requirement.
+- Full backup-retention automation, optional observability dashboards, public SBOM publishing, and comprehensive production performance benchmarking. A **working local recovery/restart and evidence** remain required.
+- All non-pilot optional features, model providers, or commercial billing workflows.
+
+An unfinished optional feature is not a pilot blocker. A failed G1/G2/G3 gate, missing authentication, unverified payload, or inability to run the actual Bede experience **is** a blocker. Do not claim production readiness from the limited evidence scope.

@@ -55,7 +55,7 @@ describe('authenticated educator-to-learner journey', () => {
     render(<MemoryRouter><EducatorDesk /></MemoryRouter>)
     await waitFor(() => expect(fetchInstructorRoster).toHaveBeenCalledWith('synthetic-educator-token'))
     expect(await screen.findByText(/Learner A — grade 4/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /Plan lesson/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Plan a lesson/i }))
     expect(screen.getByRole('button', { name: /Begin guided lesson/i })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Begin guided lesson/i }))
     expect(startSession).toHaveBeenCalledOnce()
@@ -66,7 +66,7 @@ describe('authenticated educator-to-learner journey', () => {
   it('keeps external assessment reporting separate from the tutoring flow', async () => {
     render(<MemoryRouter><EducatorDesk /></MemoryRouter>)
     await waitFor(() => expect(fetchInstructorRoster).toHaveBeenCalled())
-    fireEvent.click(screen.getByRole('button', { name: /Learning evidence/i }))
+    fireEvent.click(screen.getByRole('button', { name: /See progress/i }))
     expect(screen.getByText(/do not establish that Bede caused a learning gain/i)).toBeTruthy()
     expect(screen.getByText(/Transcribe an independently administered assessment report/i)).toBeTruthy()
   })

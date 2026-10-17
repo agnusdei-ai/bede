@@ -98,3 +98,11 @@ For each cell: perform a real cross-host connection using the native client and 
 Servers on macOS and Linux must publish an identical documented API contract and compatibility/version negotiation; reject unsupported client/server versions with a clear upgrade path, never an insecure fallback. Test clients on a separate host as well as loopback to avoid treating localhost success as proof of LAN interoperability. Windows server remains a separately qualified optional topology; its support is not required to establish this macOS/Linux server matrix.
 
 Record exact client installer digest, server installer digest, OS versions, API versions, network topology, passkey method, and evidence for each matrix cell. Any untested cell is NOT CERTIFIED and cannot be advertised as supported.
+
+## Immediate physical evidence scope: one macOS full pass
+
+The next engineering evidence demonstration is **one complete end-to-end pass on the owner's 24 GB Apple Silicon MacBook Pro**, selecting **Same machine** so the Mac runs the full Bede server and local client. The demonstration must use a single exact installer artifact and source SHA from initial download through final recovery; do not substitute source checkout, Docker archives, mock screens, or CI syntax checks for the actual installer.
+
+Capture: prerequisite detection and consent-based no-cost runtime provisioning if absent; installer launch; architecture/memory/disk preflight; verified runtime acquisition; database and local inference provisioning; trusted HTTPS and passkey enrollment; synthetic learner-to-teacher journey; G1 campus isolation; G2 teacher decision and authorized follow-up; G3 packaged Mac install, restart, revoke, repair/recovery; diagnostic evidence and final release-candidate digest. Record each outcome PASS/FAIL/NOT RUN with machine and installer metadata.
+
+**Evidence limitation:** This single macOS same-machine pass is the immediate demonstration and may support a narrowly scoped Mac pilot decision only after all required gates pass and the owner separately authorizes Pilot GO. It does **not** certify Windows or Linux installers, remote macOS/Linux server connectivity, or the six-cell cross-platform matrix. Those requirements remain mandatory for their respective broader releases; do not hold this one Mac demonstration hostage to their physical certification.

@@ -201,6 +201,13 @@ class AdministrationLog(BaseModel):
         return self
 
 
+class AdministrationLogUpdate(BaseModel):
+    """A version-aware update before finalization, not a score recalculation."""
+    model_config = ConfigDict(extra="forbid")
+    expected_state: str = Field(min_length=2, max_length=40)
+    administration_log: AdministrationLog
+
+
 class AdministrationInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

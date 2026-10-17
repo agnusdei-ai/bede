@@ -66,6 +66,7 @@ on:
       - 'scripts/qualification/**'
       - '.github/workflows/qualification.yml'
       - 'docs/SYNTHETIC_QUALIFICATION.md'
+      - '.github/workflows/build-bede-operator.yml'
 
 permissions:
   contents: read

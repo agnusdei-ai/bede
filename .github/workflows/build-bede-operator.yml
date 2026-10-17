@@ -85,6 +85,7 @@ jobs:
           chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command
           bash -n dist/bede-operator/Verify-Bede.command
           python packaging/tests/test_operator_arch.py
+          python packaging/tests/test_lite_offline.py
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           python - <<'PY'
           from pathlib import Path

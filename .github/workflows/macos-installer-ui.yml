@@ -1,0 +1,24 @@
+name: macOS native installer UI compile check
+on:
+  pull_request:
+    paths:
+      - 'packaging/macos/**'
+      - '.github/workflows/macos-installer-ui.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/macos/**'
+      - '.github/workflows/macos-installer-ui.yml'
+permissions:
+  contents: read
+jobs:
+  compile:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Compile native SwiftUI installer shell
+        run: |
+          mkdir -p "$RUNNER_TEMP/BedeInstaller.app/Contents/MacOS"
+          swiftc -parse-as-library -o "$RUNNER_TEMP/BedeInstaller.app/Contents/MacOS/BedeInstaller" packaging/macos/BedeInstallerApp.swift
+      - name: Confirm release is NOT certified by compilation
+        run: echo "Compile-only check; signed DMG, payload provisioning and physical Mac evidence remain required."

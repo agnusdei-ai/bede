@@ -150,6 +150,7 @@ describe('PilotOwnerPanel', () => {
     render(<PilotOwnerPanel token="t"/>)
     await openPanel()
     await confirmAndDelete()
+    await waitFor(() => expect(api.deletePilotLearner).toHaveBeenCalledTimes(1))
     expect((await screen.findByRole('alert')).textContent).toBe(
       "Could not delete this learner's records. The name you typed doesn't match this learner. Check the spelling and try again.")
 

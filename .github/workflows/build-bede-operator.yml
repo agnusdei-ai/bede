@@ -111,7 +111,7 @@ jobs:
           assert all('0.0.0.0' not in str(port) for port in lan_ports)
           assert any(':443:443' in str(port) for port in lan_ports)
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
-          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
+          for name in ('images.tar.zst','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
           # Compression metrics are retained in the offline package for field analysis.
@@ -121,8 +121,12 @@ jobs:
           with (p.parent/'PAYLOAD_METRICS.txt').open('w') as f:
               f.write(f'Uncompressed image archive bytes: {p.stat().st_size}\n')
           PY
+          # zstd level 19 compresses the actual six-image payload as a single
+          # deduplicated Docker archive; preserve legacy tar for fallback builds.
+          zstd -T0 -19 -f dist/bede-operator/images.tar -o dist/bede-operator/images.tar.zst
+          rm dist/bede-operator/images.tar
           cp -a dist/bede-operator dist/bede-operator-lite
-          rm -f dist/bede-operator-lite/images.tar
+          rm -f dist/bede-operator-lite/images.tar dist/bede-operator-lite/images.tar.zst
           cd dist
           tar -czf bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-lite
           sha256sum bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256

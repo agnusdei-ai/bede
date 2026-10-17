@@ -1268,6 +1268,28 @@ export interface PilotLearner {
   display_name: string
 }
 
+// Canonical read-only institutional assessment packet; separate from the
+// educator-entered evidence used by the G2 recommendation flow.
+export interface PilotDataDayPacket {
+  campus_id: string
+  learner_id: string
+  cycle: { cycle_key: string; label: string; data_day_on: string | null; calendar_configured: boolean }
+  current_valid_results: unknown[]
+  prior_valid_results: unknown[]
+  not_valid_administrations: unknown[]
+  cited_evidence: unknown[]
+  prior_teacher_decisions: unknown[]
+  proposed_next_steps: unknown[]
+  audit_history: { decisions_chain_valid: boolean }
+  boundaries: { changes_official_scores: false; alters_placement: false; starts_instruction: false; delivers_instruction: false }
+}
+
+export const fetchPilotDataDay = (token: string, campusId: string, learnerId: string, cycle: string) =>
+  educatorApi<PilotDataDayPacket>(
+    `/pilot/campuses/${encodeURIComponent(campusId)}/learners/${encodeURIComponent(learnerId)}/data-day?cycle=${encodeURIComponent(cycle)}`,
+    token,
+  )
+
 export interface PilotEvidence {
   evidence_id: string
   recorded_at: string

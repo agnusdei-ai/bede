@@ -24,7 +24,7 @@ Schools may switch between per-learner and per-campus software pricing by **mutu
 
 ## Included product scope
 
-- Student Socratic learning companion with authorized instructional content.
+- Student Socratic learning companion with authorized instructional content (broader institutional offer only; not available in the current teacher-only Valor pilot).
 - Teacher AI workspace: lesson support, learner pods, instructional review, and educator-approved interventions.
 - Progress reporting: learner evidence, classroom summaries, campus insights, and permitted parent reporting; preserve provenance and human judgment.
 - Educator identity/role boundaries, campus-scoped authorization, and privacy controls.

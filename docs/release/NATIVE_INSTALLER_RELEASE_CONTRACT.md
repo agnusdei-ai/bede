@@ -42,3 +42,26 @@ Do not advertise an architecture before a native installer and full application 
 - Signing credentials and actual physical device evidence are not established by syntax-only CI.
 
 **Disposition: pilot release HOLD.** This contract is a scope and acceptance baseline, not proof that native binaries exist. Do not label any artifact certified until the relevant evidence is recorded.
+
+## Deployment topology selection and ordered setup
+
+The native GUI must present three clear choices before acquiring a payload:
+
+| Choice | Install on this device | Guided sequence |
+| --- | --- | --- |
+| Same machine | Full Bede server runtime plus local client launcher | Detect hardware -> verify Docker and disk -> provision local database and inference -> configure local HTTPS/passkeys -> verify health -> launch client |
+| Dedicated server | Full server runtime only; optionally a local admin launcher | Detect server OS/architecture -> provision database and inference -> select private network address and DNS -> configure TLS and admin identity -> start services -> issue a short-lived enrollment handoff |
+| Client workstation | Lightweight client shell/shortcut and trusted server enrollment only | Enter or scan approved server address -> verify hostname and trusted CA fingerprint -> enroll approved educator passkey -> test authorized connection -> launch client |
+
+The same installer binary may expose all three paths, but payload selection and installation operations must be role-specific. A client never installs Docker, PostgreSQL, AI weights, or server images. A dedicated server does not automatically create educator access. Enrollment handoffs must expire, require approval, and contain no secrets in diagnostics.
+
+### Hardware assessment
+
+- On Apple Silicon with **24 GB unified memory**, offer **Same machine** as an eligible candidate when disk and runtime checks pass; 24 GB alone does not certify a particular inference model, latency, concurrency, or school workload.
+- Inspect available memory, free disk, CPU architecture, container-runtime resource allocation, and intended model requirements before permitting full local inference.
+- If resources are inadequate, explain the constraint and offer **Client workstation** or a separately provisioned **Dedicated server** without changing the user's choice silently.
+- Make offline server/same-machine payloads available for each supported OS/architecture. Client payloads must remain lightweight and must not inherit the full server download.
+
+### Topology-specific acceptance
+
+Test all three topology paths on macOS, Windows, and Linux. Verify single-device loopback TLS and real model inference; server/client private DNS, trusted HTTPS, passkey enrollment and revocation; and client-only installation with **no server dependencies**. Record the exact model and hardware measurements separately from basic installer success.

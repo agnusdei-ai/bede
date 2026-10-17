@@ -20,6 +20,10 @@ class LiteOfflineTests(unittest.TestCase):
         for item in ("arm64", "amd64", "bede-operator-lite-", "bede-operator-", "IMAGE_DIGESTS", "images.tar", "packages: write"):
             self.assertIn(item, workflow)
         self.assertIn('rm -f dist/bede-operator-lite/images.tar', workflow)
+        self.assertIn('name: bede-lite-', workflow)
+        self.assertIn('name: bede-offline-', workflow)
+        self.assertNotIn('dist/bede-operator*.tar.gz', workflow)
+        self.assertIn('dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz', workflow)
 
 
 if __name__ == "__main__":

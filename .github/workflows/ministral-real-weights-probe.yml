@@ -1,0 +1,120 @@
+name: Ministral 8B real-weight local inference probe
+
+# One disposable GitHub-hosted CPU box downloads Apache-2.0 GGUF, verifies the
+# exact SHA-256 and executes localhost-only inference. Never uses any paid API
+# or production pilot environment. Do NOT mistake this for Apple Silicon test.
+# PAUSED by pilot owner 2026-10-15. No automatic model downloads or inference.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-weights-qualifying-smoke:
+    name: Real GGUF inference on ephemeral CPU
+    if: false # Owner-requested pause; manual dispatch also blocked
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+      MISTRAL_API_KEY: ""
+      BEDE_FORCE_ADAPTER: "local"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      DO_NOT_TRACK: "1"
+      BEDE_LOCAL_INFERENCE_URL: "http://127.0.0.1:8080/v1"
+      BEDE_LOCAL_MODEL: "ministral-8b-local"
+      BEDE_PROBE_EVIDENCE: "local-model-evidence/ministral-8b-local.json"
+      BEDE_PROBE_TIMEOUT_SECONDS: "360"
+    steps:
+      - name: Checkout trusted Bede probe code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Record isolated runner resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p local-model-evidence bin
+          uname -a | tee local-model-evidence/runner.txt
+          free -h | tee -a local-model-evidence/runner.txt
+          df -h . | tee -a local-model-evidence/runner.txt
+          echo 'No paid model API secrets provided to this job.' >> local-model-evidence/runner.txt
+
+      - name: Download and verify pinned llama.cpp CPU runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --max-time 240 \
+            -o /tmp/llama-cpu.tar.gz \
+            https://github.com/ggml-org/llama.cpp/releases/download/b11425/llama-b11425-bin-ubuntu-x64.tar.gz
+          echo '6a47856d08ecc4030b2fa8b8bf761c96d142d689567f69a0f75e42de430dc34c  /tmp/llama-cpu.tar.gz' \
+            | sha256sum --check
+          tar -xzf /tmp/llama-cpu.tar.gz -C bin
+          find bin -type f -name llama-server | head -5
+          echo 'llama.cpp tag b11425; verified runtime archive checksum' \
+            > local-model-evidence/runtime.txt
+
+      - name: Download and verify official Ministral 8B Q4_K_M GGUF
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 --retry-delay 8 --max-time 1200 \
+            -o /tmp/ministral.gguf \
+            https://huggingface.co/mistralai/Ministral-3-8B-Instruct-2512-GGUF/resolve/main/Ministral-3-8B-Instruct-2512-Q4_K_M.gguf
+          echo '33e7a72cf5e6e2cfc2f2847075acc013d68bba023e35310cef86b5cf8fdca761  /tmp/ministral.gguf' \
+            | sha256sum --check
+          echo 'mistralai/Ministral-3-8B-Instruct-2512-GGUF:Q4_K_M; SHA-256 verified' \
+            > local-model-evidence/model.txt
+
+      - name: Launch model server on loopback only
+        shell: bash
+        run: |
+          set -euo pipefail
+          SERVER="$(find "$PWD/bin" -type f -name llama-server -print -quit)"
+          test -n "$SERVER"
+          chmod +x "$SERVER"
+          export LD_LIBRARY_PATH="$(dirname "$SERVER")"
+          "$SERVER" --version | head -10
+          nohup "$SERVER" \
+            -m /tmp/ministral.gguf \
+            --alias ministral-8b-local \
+            --host 127.0.0.1 --port 8080 \
+            --ctx-size 3072 --parallel 1 --threads 2 --n-gpu-layers 0 \
+            --jinja > local-model-evidence/server.log 2>&1 &
+          echo $! > local-model-evidence/server.pid
+          for i in $(seq 1 120); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8080/health > /tmp/ministral-health.json; then
+              cat /tmp/ministral-health.json
+              exit 0
+            fi
+            if ! kill -0 "$(cat local-model-evidence/server.pid)" 2>/dev/null; then
+              tail -100 local-model-evidence/server.log
+              exit 1
+            fi
+            sleep 3
+          done
+          tail -100 local-model-evidence/server.log
+          exit 1
+
+      - name: Run real-weight Bede Socratic, grounding and tool-call smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 homeschool-api/scripts/ministral_local_probe.py
+
+      - name: Record streaming first-token and concurrent CPU timings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 homeschool-api/scripts/ministral_latency_probe.py
+
+      - name: Preserve synthetic-only evidence and model logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ministral-local-8b-real-weight-probe
+          path: |
+            local-model-evidence/
+          if-no-files-found: warn
+          retention-days: 14

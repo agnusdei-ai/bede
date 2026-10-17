@@ -151,3 +151,22 @@ For **general distribution outside the owner's controlled test Mac**, retain Dev
 - All non-pilot optional features, model providers, or commercial billing workflows.
 
 An unfinished optional feature is not a pilot blocker. A failed G1/G2/G3 gate, missing authentication, unverified payload, or inability to run the actual Bede experience **is** a blocker. Do not claim production readiness from the limited evidence scope.
+
+## $2,600/month founding-campus core experience — scope safeguard
+
+The narrow single-Mac **installation evidence pass** is not a reduction in the functionality promised by the founding-campus offer. For the $2,600/month campus license (12-month term, monthly billing; hardware separately), distinguish (a) a minimal-input Mac installation demonstration, (b) the full institutional core experience, and (c) optional enterprise enhancements.
+
+### Founding-campus core acceptance — must function before a full-featured campus release
+- Real Bede tutoring: locally served model produces useful, policy-governed Socratic instruction with supported lesson context; not a scripted/demo-only response.
+- Institutional identity and tenancy: campus administration, teacher invitation and approval, learner assignment, secure passkey administration, explicit role enforcement, and tested cross-campus isolation.
+- Teacher workflow: authorized roster, learner evidence/progress review, Bede recommendation, teacher approve/edit/reject, and durable authorized learner follow-up.
+- Learner continuity: persistent learner profile, learning plan/assignments, session history and recovery, progress/mastery evidence visible to authorized educators.
+- Security and stewardship: verified HTTPS, least-privilege database/runtime accounts, audit trails for privileged and instructional decisions, credential revocation, data deletion, and a working backup/restore path.
+- Usable operation: minimal-input installer, administrator onboarding, real app readiness, error/recovery guidance, restart, and a clear school-facing experience.
+- If voice or accessibility features are presented as included in the paid campus offer, their actual supported paths must work; otherwise accurately disclose the limitation before release. No unverified marketing claims.
+- Confirm the real teacher and learner journeys against the exact packaged candidate, using synthetic data until G1/G2/G3 and owner GO.
+
+### Scope discipline
+A single-Mac evidence run may establish a limited technical pilot, **not** that a $2,600/month campus offering is ready for production. Public notarization, Windows/Linux installer certification, remote clients, enterprise SSO, HA, analytics beyond core mastery/progress, advanced fleet management, and payment automation are not prerequisites for the one-Mac evidence run. They must not be falsely represented as available.
+
+**Release decision:** If any campus-core capability above is absent or nonfunctional, track it as a **founding-campus release blocker**, even if it does not block the narrower Mac installation demonstration. Maintain distinct evidence and GO decisions for the Mac pilot and paid campus release.

@@ -165,10 +165,11 @@ export default function EducatorDesk() {
   }
 
   return (
-    <main className="bg-parchment-50 min-h-screen px-4 py-8">
+    <main className="bg-parchment-50 min-h-screen px-4 py-8 educator-classroom">
       <div className="max-w-4xl mx-auto space-y-5">
-        <header className="flex flex-wrap justify-between gap-3 items-start">
-          <div>
+        <header className="educator-welcome flex flex-wrap justify-between gap-3 items-start">
+          <div className="educator-welcome-copy">
+            <p className="text-xs uppercase tracking-widest text-sage-700 mb-2">Bede · Classical learning</p>
             <h1 className="text-2xl font-display font-bold text-gray-900">Your Classroom</h1>
             <p className="text-sm text-gray-600 mt-1">A calm place to guide your learners, see their growth, and review Bede’s suggestions.</p>
           </div>

@@ -170,3 +170,27 @@ The narrow single-Mac **installation evidence pass** is not a reduction in the f
 A single-Mac evidence run may establish a limited technical pilot, **not** that a $2,600/month campus offering is ready for production. Public notarization, Windows/Linux installer certification, remote clients, enterprise SSO, HA, analytics beyond core mastery/progress, advanced fleet management, and payment automation are not prerequisites for the one-Mac evidence run. They must not be falsely represented as available.
 
 **Release decision:** If any campus-core capability above is absent or nonfunctional, track it as a **founding-campus release blocker**, even if it does not block the narrower Mac installation demonstration. Maintain distinct evidence and GO decisions for the Mac pilot and paid campus release.
+
+## Institutional teacher experience gap review (2026-10-17)
+
+This review is grounded in `docs/institutional/MAC_G3_CERTIFICATION_RUNBOOK.md`, `docs/AUTHORIZATION_POLICY.md`, `docs/MASTERY.md`, and `docs/PRODUCTION_SETUP.md`. It is a **documentation/API-contract review**, not proof that the packaged teacher UI works.
+
+| Priority | Required experience | Evidence observed | Gap / acceptance to verify |
+| --- | --- | --- | --- |
+| P0 | Teacher can see and manage only assigned learners | Pilot roster/grant/revoke routes documented in Mac runbook | Prove complete teacher-facing UI and campus-admin grant/revoke flow, not manual API calls; verify isolation and audit |
+| P0 | Teacher can review learner work and progress | Evidence, diagnostic and tutoring-history routes documented; homeschool mastery ledger/progress described | Prove institutional UI joins evidence, learner history, mastery and assignments; no invented scores or cross-campus leakage |
+| P0 | Teacher approves/edits/rejects recommendations | Recommendation/decision/instruction routes and durable audit documented | Prove complete UI workflow, persistence after restart, abstention on insufficient evidence, and learner-specific approved instruction |
+| P0 | Approved teacher direction reaches learner | Runbook explicitly says no learner-facing automatic delivery/session-launch authorization added by G2 records | Implement authorized learner delivery/consumption of approved instruction with revocation enforcement; reject unapproved recommendations |
+| P0 | Institutional RBAC and passkey onboarding | Teacher WebAuthn and institutional pilot routes documented; general auth policy describes family roles | Reconcile institutional role/action policy with existing parent/child/demo matrix; negative-test all institutional endpoints |
+| P1 | School-ready administration | Current operator setup is family-oriented; Mac installer UI remains a shell | Provide nontechnical campus setup, teacher invitation, learner assignment, recovery, and operational diagnostics |
+| P1 | Data stewardship and local inference | Production backup/restore tests documented; local model and hardware need real Mac evidence | Exercise full installed backup/restore, deletion, actual local inference and realistic teacher/learner sessions |
+
+### Founding-campus acceptance journeys (required, exact packaged release candidate)
+
+1. **Campus administrator:** create/choose synthetic campus, invite educator with passkey, enroll learner, assign and revoke learner access, view scoped audit events; never obtain host or database superuser rights.
+2. **Teacher roster:** sign in, see only assigned learners, add/update permitted learning-plan details, view evidence, progress, session continuity and mastery with explicit provenance.
+3. **Teacher decision:** receive grounded Bede recommendation, approve/edit/reject in UI, verify durable audit and that only approved/edited guidance appears in the correct learner's next authorized session.
+4. **Learner session:** launch with authorized identity, receive approved instruction, complete work, persist evidence/history, and show resulting progress to authorized teacher; revoked access must fail, including active streaming where applicable.
+5. **Negative and recovery:** deny other-campus access, unknown learner IDs, unapproved recommendation delivery, and unauthorized admin operations; restart and recover without losing roster, progress or decisions.
+
+**Release policy:** Missing teacher-facing learner management, progress visibility, or recommendation approval is a P0 founding-campus blocker. The API routes alone are not sufficient. Distinguish `IMPLEMENTED`, `UI VERIFIED`, `PACKAGED VERIFIED`, and `PHYSICAL MAC VERIFIED` evidence states. No paid campus release GO until every P0 journey passes. These journeys should be reused within the same Mac evidence pass when possible; no separate OS certification is necessary for this scope.

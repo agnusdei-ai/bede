@@ -45,7 +45,7 @@ import routers.pilot_campuses as g1
 from services import canonical_assessment as ca
 from services import pilot_authz
 from services.assessment_lifecycle import (
-    POST_FINALIZATION, SCORE_ENTRY, Action, IllegalTransition, State, next_state,
+    POST_FINALIZATION, SCORE_ENTRY, TERMINAL, Action, IllegalTransition, State, next_state,
 )
 from services.educator_access import live_educator
 

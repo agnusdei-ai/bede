@@ -102,3 +102,35 @@ These are **requirements to resolve**, not assumed working features. Implementer
 
 ### Acceptance tracking rule
 For every journey maintain: requirement ID, assigned implementation PR, UI route, API route, persistence model, test IDs, security negative tests, evidence artifact, status (unimplemented/partial/verified), owner and release gate. Missing evidence means **not verified**. A passing frontend unit suite alone does not satisfy delivery or Mac certification.
+
+## Bede interface continuity — binding design authority for J1–J7
+
+**Design authority:** the existing Bede application, its running learner/educator experience, shared styles, components, and assets in `homeschool-tutor` are the source of truth. Institutional delivery must extend that interface rather than introduce a separate design system, unrelated portal, or generic AI chat UI. This requirement applies equally to teacher, administrator, learner, and parent surfaces.
+
+**Existing reference points:** `homeschool-tutor/src/index.css` (Georgia/Cambria serif, parchment, sage, navy, accessible controls), `homeschool-tutor/src/pages/EducatorDesk.tsx` (guided educator workflow), `homeschool-tutor/src/components/PilotTeacherJourney.tsx` (evidence and considered decisions), `homeschool-tutor/src/pages/ClassroomSetup.tsx` (administration), and `homeschool-tutor/public/educator-botanical.svg` (local botanical illustration). Reuse existing Tailwind theme tokens, typography, layout, navigation, button, focus, and error patterns; any new component must be visually compatible and documented.
+
+**Experience principles:** warm, classical, calm, age-appropriate, readable, and Charlotte Mason-aligned. Favor reading, observation, narration, reflection, and Socratic questioning over points, streaks, distracting motion, or generic chatbot framing. Keep security prompts and approvals clear without turning the experience into a technical console. Preserve role-specific affordances and accessibility rather than making every role's page identical.
+
+| Journey | Required Bede-aligned UI acceptance |
+| --- | --- |
+| J1 Enrollment | Administrator uses established classroom setup patterns; learner enters a welcoming, uncluttered classroom with no exposure to campus administration. |
+| J2 Lesson delivery | Teacher prepares and previews within the educator workflow; learner receives a legible, book-like lesson view with clear start, resume, complete and approval state. |
+| J3 Socratic tutoring | Conversation remains a guided learning dialogue within the approved lesson, with restrained controls, visible supervision state, and clear pause/stop behavior. |
+| J4 Practice | Quiet workbook-like response, narration and reflection surfaces, with understandable feedback and accessible input. |
+| J5 Educator review | Existing evidence → recommendation → approve/edit/reject interaction remains familiar; progress is readable without excessive dashboards. |
+| J6 Parent home learning | Family-facing experience inherits Bede typography, colors, and navigation patterns, with explicit linked-child context and home-only permissions. |
+| J7 Follow-up/revocation | Continued studies and approval/revocation states appear in the same language and components, with clear outcomes and no misleading delivery claims. |
+
+### Installation-based visual and interaction acceptance
+
+The owner will validate the experience from the **installed, packaged build**. Implementation PRs must include route-by-route instructions and seeded synthetic identities for administrator, educator, learner and guardian; no real learner data. Provide a repeatable script to exercise J1–J7, including empty/loading/error states, role switching, approved vs rejected content, revoke mid-session, restart/resume, and guardian-link failure.
+
+Acceptance requires:
+1. Screenshots or recorded walkthroughs of each implemented journey from the packaged application, tied to the tested immutable SHA and build digest.
+2. Visual continuity review against existing Bede screens: typography, parchment/sage/navy palette, botanical treatment, spacing, reusable controls, and calm instructional copy.
+3. Keyboard, screen-reader labeling, contrast, focus, reduced-motion, responsive layout and iPad/touch checks.
+4. Role clarity and accurate states: learners never see administrative actions; parents never inherit educator privileges; pending drafts never look delivered.
+5. A nontechnical educator and parent can complete their permitted journeys without engineering assistance.
+6. Owner installation-based sign-off after observing the actual running application. Automated UI tests support but do not replace this review.
+
+**Release gate:** a journey cannot be marked product-complete solely because backend endpoints or unit tests pass. Missing installed-build visual evidence or owner review is recorded as **pending**, not assumed accepted. R1/R2 may be developed and tested separately; full J1–J7 acceptance is required for R3.

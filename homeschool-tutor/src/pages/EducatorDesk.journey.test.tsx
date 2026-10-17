@@ -3,12 +3,11 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EducatorDesk from './EducatorDesk'
 
-const { fetchInstructorRoster, fetchInstructorFrameworks, fetchInstructorLocutoCapacity,
+const { fetchInstructorRoster, fetchInstructorFrameworks,
   fetchInstructorDibelsProgress, fetchInstructorActivity, setSessionConfig, startSession,
   navigate, logout } = vi.hoisted(() => ({
   fetchInstructorRoster: vi.fn(),
   fetchInstructorFrameworks: vi.fn(),
-  fetchInstructorLocutoCapacity: vi.fn(),
   fetchInstructorDibelsProgress: vi.fn(),
   fetchInstructorActivity: vi.fn(),
   setSessionConfig: vi.fn(),
@@ -19,7 +18,7 @@ const { fetchInstructorRoster, fetchInstructorFrameworks, fetchInstructorLocutoC
 
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(),
-  fetchInstructorRoster, fetchInstructorFrameworks, fetchInstructorLocutoCapacity,
+  fetchInstructorRoster, fetchInstructorFrameworks,
   fetchInstructorDibelsProgress, fetchInstructorActivity,
 }))
 vi.mock('../store/sessionStore', () => ({
@@ -39,10 +38,6 @@ beforeEach(() => {
     subjects: ['mathematics', 'living_books'], current_unit: 'Fractions',
   }])
   fetchInstructorFrameworks.mockResolvedValue([])
-  fetchInstructorLocutoCapacity.mockResolvedValue({
-    integration_status: 'planning_only_not_connected',
-    maximum_members: 10, groups: [],
-  })
   fetchInstructorDibelsProgress.mockResolvedValue({
     total_dibels_records: 0, records_excluded_from_comparison: 0, series: [],
   })

@@ -358,6 +358,11 @@ def _render_score(row: PilotAssessmentScore, learner: PilotLearner) -> dict:
         "calculation_version": row.calculation_version,
         "raw_score": d["raw_score"], "score_unit": d["score_unit"], "reason": d["reason"],
         "benchmark_label": d["benchmark_label"], "support_label": d["support_label"],
+        "correct_count": d.get("correct_count"), "error_count": d.get("error_count"),
+        "accuracy_percent": d.get("accuracy_percent"),
+        "composite_eligibility": d.get("composite_eligibility", "not_verified"),
+        "required_composite_measures": d.get("required_composite_measures", []),
+        "teacher_reviewed": d.get("teacher_reviewed", False),
         "printed_cut_points": {"provenance": ca.CUT_POINT_PROVENANCE,
                                "values": d["printed_cut_points"]},
     }
@@ -371,7 +376,10 @@ def _render_response(row: PilotAssessmentResponse, learner: PilotLearner) -> dic
 def _score_snapshot(s: dict) -> dict:
     return {k: s[k] for k in ("measure", "is_composite", "administration_status",
                               "calculation_version", "raw_score", "score_unit", "reason",
-                              "benchmark_label", "support_label")} | {
+                              "benchmark_label", "support_label",
+                              "correct_count", "error_count", "accuracy_percent",
+                              "composite_eligibility", "required_composite_measures",
+                              "teacher_reviewed")} | {
         "printed_cut_points": s["printed_cut_points"]["values"]}
 
 
@@ -389,6 +397,7 @@ async def _render_administration(db, adm, learner, *, detail: bool = False) -> d
                    learner, adm.id)
     out = {**_meta(adm), "state": state.value,
            "accommodations": content["accommodations"], "notes": content["notes"],
+           "administration_log": content.get("administration_log"),
            "vendor_guidance": (
                {"attribution": ca.VENDOR_ATTRIBUTION, **content["vendor_guidance"]}
                if content["vendor_guidance"] else None),
@@ -515,6 +524,33 @@ async def get_administration(campus_id: str, learner_id: str, assessment_id: str
                              db: AsyncSession = Depends(get_db)) -> dict:
     _, learner = await _scope(db, auth, campus_id, learner_id)
     adm = await _administration(db, learner, assessment_id)
+    return await _render_administration(db, adm, learner, detail=True)
+
+
+@learner_router.patch("/assessments/{assessment_id}/administration-log")
+async def update_administration_log(campus_id: str, learner_id: str, assessment_id: str,
+                                    payload: ca.AdministrationLogUpdate,
+                                    auth: dict = Depends(require_educator),
+                                    db: AsyncSession = Depends(get_db)) -> dict:
+    """Save timed marks while in progress, preserving a hash-linked edit audit."""
+    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    adm = await _administration(db, learner, assessment_id)
+    state, head = await _state(db, adm.id)
+    if adm.finalized_at is not None or state in POST_FINALIZATION or state in TERMINAL:
+        raise _conflict("Finalized or closed records require a superseding correction")
+    if payload.expected_state != state.value:
+        raise _conflict("The administration changed; reload before editing")
+    content = _dec(adm.content_enc, "pilot_assessment_administrations", "content_enc",
+                   learner, adm.id)
+    content["administration_log"] = payload.administration_log.model_dump(mode="json")
+    await db.execute(update(PilotAssessmentAdministration)
+                     .where(PilotAssessmentAdministration.id == adm.id)
+                     .values(content_enc=_enc(content, "pilot_assessment_administrations",
+                                             "content_enc", learner, adm.id)))
+    _append(db, learner, adm.id, teacher.id, head, "update_log",
+            state.value, state.value, content_sha256=ca.canonical_hash(content))
+    await _commit(db, auth, learner)
+    await db.refresh(adm)
     return await _render_administration(db, adm, learner, detail=True)
 
 
@@ -675,8 +711,10 @@ async def record_evidence(campus_id: str, learner_id: str, assessment_id: str,
         id=ev_id, administration_id=adm.id, campus_id=learner.campus_id,
         learner_id=learner.id, snapshot_sha256=adm.snapshot_sha256,
         score_ids=json.dumps([s.id for s in scores]),
-        summary_enc=_enc({"summary": (payload.summary or "").strip() or None},
-                         "pilot_assessment_evidence", "summary_enc", learner, ev_id),
+        summary_enc=_enc({
+            "summary": (payload.summary or "").strip() or None,
+            "observation": payload.observation.model_dump() if payload.observation else None,
+        }, "pilot_assessment_evidence", "summary_enc", learner, ev_id),
         recorded_by=teacher.id, created_at=datetime.now(timezone.utc),
     ))
     await _commit(db, auth, learner)
@@ -688,7 +726,8 @@ def _render_evidence(ev: PilotAssessmentEvidence, learner: PilotLearner) -> dict
     summary = _dec(ev.summary_enc, "pilot_assessment_evidence", "summary_enc", learner, ev.id)
     return {"evidence_id": ev.id, "assessment_id": ev.administration_id,
             "snapshot_sha256": ev.snapshot_sha256, "score_ids": json.loads(ev.score_ids),
-            "summary": summary["summary"], "recorded_at": _iso(ev.created_at)}
+            "summary": summary["summary"], "observation": summary.get("observation"),
+            "recorded_at": _iso(ev.created_at)}
 
 
 async def _last_decision(db, adm_id) -> Optional[PilotAssessmentDecision]:

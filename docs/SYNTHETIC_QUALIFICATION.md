@@ -1,5 +1,7 @@
 # Synthetic qualification
 
+**Current integrated pilot reference (October 16, 2026):** #618 integrated into #616 and merged to `main` as `d3eb645c2de1058bb8056005a09c7d40446cea20`. The exact pre-merge integrated code candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e` produced **146 PASS, 0 FAIL, 0 ABSENT, 0 BLOCKED, 0 UNVERIFIED**. This synthetic result does **not** constitute a physical Mac or packaged-build G3 certificate. For G3 use [MAC_G3_CERTIFICATION_RUNBOOK.md](institutional/MAC_G3_CERTIFICATION_RUNBOOK.md) and [MAC_G3_CERTIFICATION_RECORD.md](institutional/MAC_G3_CERTIFICATION_RECORD.md). Avoid repeated code qualification when code has not changed; new code or packaging changes require impact-based testing.
+
 `.github/workflows/qualification.yml` and `scripts/qualification/` answer one
 question about one fixed commit:
 
@@ -71,11 +73,9 @@ production: route presence is read from the app object, not `/openapi.json`.
    - a `DATABASE_URL` outside the service host allowlist, an app role that is a
      superuser or can create roles or bypass RLS, or a database that already
      holds tables;
-   - any route under `/pilot` whose path words name a session, launch, start,
-     delivery, tutoring, chat or stream; `routers/tutor.py` or
-     `services/ai_service.py` mentioning `authorized_instruction` or
-     `pilot_session`; or a `TutorRequest` field naming `pilot`. This mirrors
-     #604's `test_valor_pilot_delivery_disabled.py`.
+   - a learner session-launch or unauthorized delivery route under `/pilot`;
+     the separately implemented synthetic, educator-guarded `/pilot/me/learners/{learner_id}/tutoring/chat` is **allowed only with** scoped grant/version revalidation, revocable SSE, an authorized teacher instruction, a local-only model and nonproduction guard;
+     `routers/tutor.py` or `services/ai_service.py` reading a pilot instructional-delivery handle, or a `TutorRequest` field naming `pilot`. No automatic learner delivery is authorized.
 3. **Image (optional, dispatch default on).** The API image is built at the
    candidate SHA with an `org.opencontainers.image.revision` label. Its digest
    is recorded. It is never pushed.
@@ -108,8 +108,7 @@ for when another lane lands a route under a different path.
 | `UNVERIFIED` | The route exists but the rule cannot be observed over HTTP by this harness. The reason is stated. |
 
 **Every status except `PASS` fails the run.** A missing route is never
-skipped. Several routes are still being built in other lanes, so their rows
-are `ABSENT` until those land. That is the candidate's honest state.
+skipped; it is `ABSENT` and fails. The current integrated candidate has all 146 required cells PASS; earlier G1-only branches historically had 71 ABSENT, and those counts must not be reused as the current pilot candidate.
 
 Rules exercised per record type: own access; cross-campus read and write;
 random, malformed, non-canonical and nil ids, each required to return the
@@ -129,12 +128,10 @@ Scenario cells cover:
 - restart persistence, before and after revocation;
 - deletion.
 
-Two cells are `UNVERIFIED` by design and say why:
+The current matrix resolves two formerly `UNVERIFIED` checks without weakening them:
 
-- **Failed-audit-write atomicity** cannot be induced over HTTP without fault
-  injection into the server. The in-process test lives with #604.
-- **Post-delete cache eviction** is not observable over HTTP beyond the read
-  denial.
+- **Failed-audit-write atomicity:** the matrix runs an isolated real rollback pytest in a subprocess against a disposable SQLite database and requires its actual success (never exposes a public fault-injection route).
+- **Post-delete cache eviction:** the passkey-elevated owner route returns the canonical deletion service's real post-commit eviction completion/count outside the durable receipt. Qualification also requires read denial and a targeted cache-eviction integration test; a 404 alone does not prove eviction.
 
 DIBELS/Data Day rows are bound to the canonical campus-scoped routes
 (`/pilot/campuses/{campus_id}/learners/{learner_id}/assessments...` and
@@ -165,11 +162,7 @@ exists only when a stream happened to be open.
 revocation as protected output, except the server's exact terminal notice
 `{"type": "error", "message": "unknown or expired session"}`.
 
-Learner deletion has no HTTP route on the G1 integration head (the service
-`services/pilot_learner_deletion.py` exists; its owner route ships with
-#609), so the deletion cells are `ABSENT`. Its stream, cache and reconnect
-behaviour is covered in-process by
-`homeschool-api/tests/test_g1_integration_streams.py`.
+Canonical owner deletion is implemented as `POST /pilot/owner/campuses/{campus_id}/learners/{learner_id}/delete` with a passkey-elevated administrator, typed learner confirmation, single-transaction cascade/receipt and observed post-commit cache eviction. No alternate unaudited DELETE route exists. The integrated qualification checks denial, receipt integrity and persistence, while `homeschool-api/tests/test_g1_integration_streams.py` covers stream/cache effects.
 
 SQLite/Postgres agreement belongs to the pytest suites. This harness runs on
 Postgres only.
@@ -256,10 +249,7 @@ forbidden-variable lists, the delivery markers, ports and timeouts.
 
 ## G3 / Mac
 
-Not implemented. `mac_package` accepts only `none`. The manifest records
-`built: false` and `physical_mac_verification: NOT RUN`. Physical Mac
-verification is a human step for the release owner, and this workflow never
-performs it or claims it.
+This **qualification workflow** does not build or certify a physical Mac package: `mac_package` accepts only `none`, and its manifest explicitly records `built: false` and `physical_mac_verification: NOT RUN`. A **separate** workflow, `.github/workflows/build-bede-operator.yml`, builds source-free architecture-specific operator archives; these also remain unqualified for G3 until actually installed and tested on the exact physical Mac. The owner follows [the G3 runbook](institutional/MAC_G3_CERTIFICATION_RUNBOOK.md) and records results in [the certification record](institutional/MAC_G3_CERTIFICATION_RECORD.md).
 
 ## Running it locally
 

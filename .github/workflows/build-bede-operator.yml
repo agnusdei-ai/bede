@@ -1,4 +1,4 @@
-name: Bede self-contained operator bundle
+name: Bede Lite and Offline operator bundles
 on:
   pull_request:
     paths:
@@ -10,6 +10,7 @@ on:
       - 'bede-operator-v*'
 permissions:
   contents: read
+  packages: write
 jobs:
   package:
     strategy:
@@ -47,6 +48,26 @@ jobs:
           docker build -t "${prefix}-ui:sha-${sha}-${arch}" -f homeschool-tutor/Dockerfile homeschool-tutor
           docker build -t "${prefix}-trust:sha-${sha}-${arch}" -f scripts/trust_service/Dockerfile scripts/trust_service
           docker build -t "${prefix}-wizard:sha-${sha}-${arch}" -f scripts/setup_wizard/Dockerfile .
+      - name: Publish application images and capture registry digests
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          : > image-digests.txt
+          for component in api ui trust wizard; do
+            image="ghcr.io/agnusdei-ai/bede-${component}:sha-${GITHUB_SHA}-${{ matrix.arch }}"
+            docker push "$image"
+            digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+            printf '%s %s\n' "$image" "$digest" >> image-digests.txt
+          done
+          for image in postgres:16-alpine caddy:2-alpine; do
+            docker pull "$image"
+            digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}' | sed 's/^.*@//')"
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+            printf '%s %s\n' "$image" "$digest" >> image-digests.txt
+          done
       - name: Generate source-free installer and seal embedded images
         env:
           RELEASE_SHA: ${{ github.sha }}
@@ -54,8 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           python packaging/build_operator_bundle.py
-          docker pull postgres:16-alpine
-          docker pull caddy:2-alpine
+          cp image-digests.txt dist/bede-operator/IMAGE_DIGESTS
           docker save -o dist/bede-operator/images.tar \
             ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
             ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
@@ -84,7 +104,11 @@ jobs:
           for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
+          cp -a dist/bede-operator dist/bede-operator-lite
+          rm -f dist/bede-operator-lite/images.tar
           cd dist
+          tar -czf bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-lite
+          sha256sum bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-lite-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
           tar -czf bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator
           sha256sum bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
       - name: Publish installer archive as a downloadable workflow artifact
@@ -92,8 +116,8 @@ jobs:
         with:
           name: bede-operator-${{ github.sha }}-${{ matrix.arch }}
           path: |
-            dist/bede-operator-*.tar.gz
-            dist/bede-operator-*.sha256
+            dist/bede-operator*.tar.gz
+            dist/bede-operator*.sha256
           if-no-files-found: error
           retention-days: 30
           compression-level: 0

@@ -18,8 +18,10 @@ jobs:
       matrix:
         include:
           - arch: amd64
+            target_os: linux
             runner: ubuntu-24.04
           - arch: arm64
+            target_os: linux
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
@@ -115,7 +117,7 @@ jobs:
       - name: Publish small Lite installer separately
         uses: actions/upload-artifact@v4
         with:
-          name: bede-lite-${{ github.sha }}-${{ matrix.arch }}
+          name: bede-lite-linux-${{ matrix.arch }}-${{ github.sha }}
           path: |
             dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz
             dist/bede-operator-lite-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
@@ -125,7 +127,7 @@ jobs:
       - name: Publish complete Offline installer separately
         uses: actions/upload-artifact@v4
         with:
-          name: bede-offline-${{ github.sha }}-${{ matrix.arch }}
+          name: bede-offline-linux-${{ matrix.arch }}-${{ github.sha }}
           path: |
             dist/bede-operator-${{ github.sha }}-${{ matrix.arch }}.tar.gz
             dist/bede-operator-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256

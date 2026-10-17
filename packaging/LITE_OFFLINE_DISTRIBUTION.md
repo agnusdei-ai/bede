@@ -22,3 +22,17 @@ Both retain the same setup wizard, Compose configuration, TLS, local-only defaul
 GitHub Actions now publishes **four separate artifacts**, not two combined architecture bundles: `bede-lite-<SHA>-arm64`, `bede-lite-<SHA>-amd64`, `bede-offline-<SHA>-arm64`, and `bede-offline-<SHA>-amd64`. For Apple Silicon schools, select **bede-lite-…-arm64**. Do not download an Offline artifact for network-connected pilot machines. Each Lite artifact contains only the Lite archive and checksum, not `images.tar`.
 
 **Important bandwidth limitation:** The Lite artifact is small, but the installer still pulls the full API and other pinned Docker images on first deployment. No claim of low total network usage is justified until image-layer bytes are measured and reduced. Repeated installations on separate Macs do not share Docker's local cache. A private LAN image cache or controlled distribution proxy may reduce repeat external downloads, subject to school network approval and authentication controls. Avoid removing PyTorch, Whisper or speech/authentication dependencies without capability regression tests.
+
+## Platform labels and launcher support
+
+Artifact names now explicitly include `linux` because the payloads are **Linux container images**; `amd64` and `arm64` describe the Docker engine architecture, not the host OS. The same ARM64 payload can run under Docker Desktop on Apple Silicon macOS and compatible Linux ARM64 systems. AMD64 images can run under Docker Desktop on Intel macOS/Windows and Linux x86_64 systems. Host operating systems are **not independently built or certified** by renaming the artifact.
+
+| Host | Applicable current Docker payload | Launch entry point | Validation level |
+| --- | --- | --- | --- |
+| macOS Apple Silicon | `bede-lite-linux-arm64-<SHA>` | `Install-Bede.command` | Mac syntax tested; physical G3 still required |
+| macOS Intel | `bede-lite-linux-amd64-<SHA>` | `Install-Bede.command` | Mac syntax tested; physical G3 still required |
+| Windows x64 | `bede-lite-linux-amd64-<SHA>` | `Install-Bede.ps1` | PowerShell syntax only; no native startup certification |
+| Linux x64 | `bede-lite-linux-amd64-<SHA>` | `start.sh` | Linux image build; runtime smoke qualification pending |
+| Linux ARM64 | `bede-lite-linux-arm64-<SHA>` | `start.sh` | Linux image build; runtime smoke qualification pending |
+
+True OS-specific, standalone release artifacts should be emitted only after OS-native installation tests are added. No school deployment or Pilot HOLD clearance is implied by these labels.

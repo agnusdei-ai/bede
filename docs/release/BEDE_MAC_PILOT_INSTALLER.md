@@ -1,27 +1,58 @@
-# Bede Mac pilot installation
+# Bede Mac pilot installation and evidence
 
-## One entry point
+## Pilot scope
 
-The Bede Installer.app packaged inside Bede Pilot Mac arm64.dmg is the only Mac pilot installation entry point. The browser setup page is part of the same installation journey and uses the same Bede portrait, colors and language.
+One approved Mac installation, one manually issued campus license, and the G1, G2, G3 acceptance record. Only synthetic learner data is allowed. Commercial payment integration, Cloudflare licensing deployment, and production key custody are separate work.
 
-Older scripts such as setup-gui.command, Install-Bede.command and source checkout instructions remain internal development compatibility tools. They are not supported Mac pilot distribution methods and must not be delivered as alternatives to the native application.
+## 1. Issue a dedicated pilot entitlement
 
-The app copies sealed runtime files into the current user's Application Support/Bede Pilot directory so the signed application is not used for mutable configuration. It starts the operator runtime, opens the local browser setup when the approved license is entered, and only reports completion after the HTTPS health probe succeeds.
+The original Ed25519 private signing key is unavailable. Bede's embedded public key cannot reconstruct it. This prepilot path generates an **ephemeral replacement keypair on the owner's Mac** and uses it once to create one approved campus license. The private key is never saved, copied to Git, sent to CI, or loaded into an agent. The saved license file has owner only permissions.
 
-## Experience
+From the existing checkout, with the existing `.venv` and PyCryptodome installed:
 
-The application shows these verified stages: Checking this Mac, Preparing Bede, Completing setup, Starting Bede, Confirming secure access. The active stage shows a spinner and completed stages show a check. The output of the runtime stages is the authoritative source for progress; there is no time based simulated percentage.
+```bash
+cd ~/Documents/Bede-License-Tools
+git fetch origin feat/pilot-single-mac-installer
+git switch --track origin/feat/pilot-single-mac-installer
+./.venv/bin/python scripts/pilot/issue_one_time_campus_license.py \
+  --location-id bede-mac-pilot-2026 --licensee "Bede Mac G3 Pilot" --days 60
+git add homeschool-api/core/licensing.py
+git diff --cached --check
+git diff --cached -- homeschool-api/core/licensing.py
+git commit -m "pilot: embed public verification key for Mac qualification"
+git push
+```
 
-The browser wizard uses the same Bede image and neutral language. Cancel means setup is not complete. A completed form means only that the settings were saved, not that the API has started. Final completion is based on the verified local HTTPS health check.
+Only the public half of the keypair is committed. The license is saved under the owner's `~/Library/Application Support/Bede Pilot/pilot-license.txt`, **not** in the repository. Keep that file private, and do not paste the license or private material into agent sessions. The replacement public key is baked into the exact next signed installer build. A source update alone does not alter an already downloaded bundle.
 
-## Pilot prerequisites
+**Limitation:** As the private key is intentionally discarded, the pilot entitlement can be reobtained from the saved file, but a fresh differently scoped or renewed license cannot be signed with that identity. A new issuer and installer rebuild would be needed. This is suitable only for one authorized synthetic pilot and does not establish commercial signing custody.
 
-The synthetic pilot requires a manually authorized compatible license, a supported working container engine and architecture, approved model access, and a trusted local or private network HTTPS origin. The current embedded signing public key still requires a matching private issuing key for the license. This PR does not generate or replace it.
+The wizard must use `bede-mac-pilot-2026` as its Pilot campus ID, matching the signed entitlement.
 
-## Release gate
+## 2. Install the next exact candidate
 
-This PR is not evidence of a signed or notarized Mac release. The GitHub job creates an ad hoc signed ARM64 test DMG for physical qualification only. Developer ID signing, notarization, hardware testing, installer cancel safety, passkey checks and G1/G2/G3 evidence must pass before declaring the pilot ready. No real learners before separate owner Pilot GO.
+Use the latest successful **Bede Standard and Offline operator bundles** GitHub Actions run associated with the public key commit from step 1. Download only the `bede-mac-pilot-arm64-<sha>` artifact. Verify the accompanying SHA256 checksum before opening the DMG.
 
-## Deferred
+Start Docker Desktop or the separately qualified container engine. Open `Bede Installer.app`. The app shows real checks for Mac prerequisites, runtime preparation, settings, services and trusted HTTPS health. The browser setup is part of the same installation and uses the same Bede portrait and language. Paste the saved approved `LICENSE_KEY` value into the license field. Use the location ID from step 1.
 
-No Stripe, billing, production signing key custody, Cloudflare license Worker, entitlement automation, or student data is introduced here. Commercial licensing is a separate sprint.
+The bundle remains an **ad hoc signed engineering artifact**, not a public notarized distribution. Physical Mac preflight, publisher trust approval, OS permissions, passkeys, and model operation must be verified on the device. Never disable signature or TLS verification to get a passing result.
+
+## 3. Qualification evidence
+
+Store a private redacted evidence packet for the *exact artifact digest* and candidate Git SHA. Record tester, reviewer, UTC date, hardware, macOS version, container engine/version, passkey method, model and inference mode. No real learner names or assessment records.
+
+| Gate | Required action | Evidence | Acceptance |
+| --- | --- | --- | --- |
+| G1 Campus isolation | Set up two synthetic campuses with the same learner name, distinct campus identifiers and teacher permissions. Attempt authorized and cross campus access, role changes and revocation. | Request / response outcomes, identity roles, and denied cross campus attempts with fake IDs only. | No cross campus access, data leakage or unauthorized roster changes. |
+| G2 Human teaching workflow | Load independently administered synthetic DIBELS evidence, review source corrections, then record teacher approve, edit and reject decisions plus the authorized follow up. | Assessment provenance, teacher decisions, immutable audit event references, and next teaching action. | Bede supports but never silently replaces the educator's decision. |
+| G3 Native Mac and recovery | Open the exact DMG, complete guided install and passkey enrollment, validate trusted local HTTPS, stop/restart, revoke/re enroll an approved teacher, and prove installation can recover without deleting existing settings. | Archive SHA256, device and OS details, boot and HTTPS check, administrator passkey, revoke and restart trace, support report. | Real installation and recovery pass without bypasses. |
+
+Each gate needs a human reviewer and an explicit **PASS**. CI tests alone are not sufficient. A STOP or NOT RUN remains a blocking result.
+
+## 4. Pilot GO decision
+
+Review all three evidence packets for the **same candidate**. Owner signs the explicit pilot decision only when G1, G2, and G3 have passed. Approve a separate limited synthetic evaluation before any real learner data is introduced. No automated test or model may declare Pilot GO.
+
+## Mac user experience
+
+The native app is the only supported public Mac pilot entry point. Older `.command` launchers remain internal repository compatibility utilities but are excluded from the Mac app bundle. The browser setup must share its logo, palette, copy, progress language, and completion states. No license bypasses, secret extraction, or background student data collection are permitted.

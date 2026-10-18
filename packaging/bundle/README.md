@@ -72,3 +72,7 @@ and cross-campus synthetic tests before live learners.
 not a G1/G2/G3 sign-off. The operator installer includes built application
 images; no repo download is required. The package remains an engineering
 qualification artifact until Mac hardware tests complete.
+
+## Valor executive case and practice support
+
+Open `Valor-Executive-Business-Case.html` for the branded, editable annual expense, avoided-cash-cost and teacher-capacity model. Use `Valor-Prepilot-Walkthrough.html` for the separate synthetic teacher journey. Test preparation and original practice materials belong to Bede's broader teacher-guided product vision; learner-facing delivery and official proprietary assessment forms are not part of the Valor pilot.

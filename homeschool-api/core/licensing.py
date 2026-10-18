@@ -39,7 +39,7 @@ from Crypto.Signature import eddsa
 # scripts/generate_license_keypair.py; the matching private key lives
 # offline, outside this repo.
 PUBLIC_KEY_PEM = """-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEABpTf5ffiiNf0OItRYP3R2pLb7ij/KtNOS73WPBq57N4=
+MCowBQYDK2VwAyEAsAR5qmhQ7/fMccVKxmDZSu5YVXBo08cL7aoiwb5+bkk=
 -----END PUBLIC KEY-----"""
 
 # Signed license vocabulary only; separate from commercial pricing tiers.

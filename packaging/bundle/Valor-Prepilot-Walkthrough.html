@@ -135,6 +135,7 @@ var $=function(id){return document.getElementById(id);};
 var now=function(){return new Date().toISOString();};
 var uid=function(){return "synthetic-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);};
 var latest=function(arr){return arr.length?arr[arr.length-1]:null;};
+var lastFor=function(arr,recordId){for(var n=arr.length-1;n>=0;n--){if(arr[n].official_record_id===recordId)return arr[n];}return null;};
 function persist(){try{sessionStorage.setItem(KEY,JSON.stringify(state));}catch(_){}}
 function log(action,recordId){state.events.push({seq:state.events.length+1,at:now(),action:action,record_id:recordId||null});persist();}
 function text(el,value){el.textContent=value;}
@@ -150,7 +151,7 @@ window.scrollTo({top:0,behavior:"auto"});
 }
 document.querySelectorAll("nav [data-step]").forEach(function(button){button.addEventListener("click",function(){showStep(button.dataset.step);});});
 function refresh(){
-var o=latest(state.official),ob=latest(state.observations),d=latest(state.decisions);
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),d=lastFor(state.decisions,o&&o.id);
 text($("sideOfficial"),o?o.instrument+" · "+o.measure_status.replaceAll("_"," "):"Not recorded");
 text($("sideObs"),ob?"Recorded":"Not recorded");
 text($("sideDecision"),d?d.action:"Awaiting review");
@@ -214,13 +215,13 @@ if(!fields.some(function(k){return out[k].length>0;})){text($("observation-statu
 state.observations.push(out);log("Teacher observation saved",out.id);refresh();showStep("review");
 });
 function renderReview(){
-var o=latest(state.official),ob=latest(state.observations);
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id);
 text($("reviewEvidence"),o?(o.instrument+" · "+o.measure+" · "+o.assessed_on+" · "+(o.raw_score===null?"No reported numeric result ("+o.measure_status+")":"reported raw score "+o.raw_score)+". Teacher observation: "+(ob&&ob.interpretation||"Not yet recorded.")):"No official evidence recorded. Complete Step 1 before deciding.");
 }
 document.querySelectorAll("[data-decision]").forEach(function(button){
 button.addEventListener("click",function(){
 text($("review-error"),"");
-var o=latest(state.official),ob=latest(state.observations),action=button.dataset.decision;
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),action=button.dataset.decision;
 if(!o||!ob){text($("review-error"),"Record the official result and an observation before a teacher decision.");return;}
 var proposed=$("proposedStep").value.trim();
 if(action!=="reject"&&proposed.length<8){text($("review-error"),"Enter a specific teaching step before approving.");return;}
@@ -230,7 +231,7 @@ state.decisions.push(d);log("Teacher "+action+" decision recorded",d.id);refresh
 });
 function renderAudit(){
 var summary=$("reviewSummary");summary.replaceChildren();
-var o=latest(state.official),ob=latest(state.observations),d=latest(state.decisions);
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),d=lastFor(state.decisions,o&&o.id);
 var rows=[["Assessment",o?o.instrument+" · "+o.measure:"Not recorded"],["Assessment status",o?o.measure_status:"Not recorded"],["Raw score",o?(o.raw_score===null?"Not scored":String(o.raw_score)):"Not recorded"],["Teacher observation",ob?"Recorded separately":"Not recorded"],["Teacher decision",d?d.action:"Not recorded"],["Learner delivery","NOT_REQUESTED"],["Evidence type","Browser-local simulation; not server-audited"]];
 var table=document.createElement("table");rows.forEach(function(row){var tr=document.createElement("tr"),th=document.createElement("th"),td=document.createElement("td");th.textContent=row[0];td.textContent=row[1];tr.append(th,td);table.append(tr);});summary.append(table);
 var history=$("history");history.replaceChildren();state.events.forEach(function(ev){var li=document.createElement("li");li.textContent="#"+ev.seq+" · "+ev.at+" · "+ev.action+" · "+(ev.record_id||"");history.append(li);});

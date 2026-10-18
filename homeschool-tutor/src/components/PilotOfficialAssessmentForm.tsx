@@ -6,7 +6,7 @@ import {
   transitionOfficialAssessment,
 } from '../services/api'
 import type {
-  DibelsGrade, OfficialAdministrationState, OfficialAssessment,
+  DibelsGrade, OfficialAssessment,
   OfficialMeasureStatus, OfficialProposal, OfficialScoreEntry, TeacherObservation,
 } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'

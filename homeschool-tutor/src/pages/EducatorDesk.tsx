@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig, Subject } from '../types'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import PilotTeacherJourney from '../components/PilotTeacherJourney'
+import PilotOfficialAssessmentPanels from '../components/PilotOfficialAssessmentPanels'
 import {
   fetchInstructorRoster,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
@@ -44,7 +45,7 @@ export default function EducatorDesk() {
   const [message, setMessage] = useState('')
   const [passkeys, setPasskeys] = useState<EducatorPasskeySummary[]>([])
   const [showPasskeys, setShowPasskeys] = useState(false)
-  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence' | 'recommendations'>('roster')
+  const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence' | 'official' | 'recommendations'>('roster')
 
   useEffect(() => {
     if (!token) return
@@ -203,18 +204,19 @@ export default function EducatorDesk() {
 
         <p className="text-sm text-gray-700">Welcome. Choose a learner, then follow the steps below at your own pace.</p>
         <nav aria-label="Educator journey" className="flex flex-wrap gap-2 rounded-xl border bg-white p-3">
-          {(['roster', 'lesson', 'evidence', 'recommendations'] as const).map((step, index) => (
+          {(['roster', 'lesson', 'evidence', 'official', 'recommendations'] as const).map((step, index) => (
             <button key={step} type="button"
               aria-current={journeyStep === step ? 'step' : undefined}
               onClick={() => setJourneyStep(step)}
               className={journeyStep === step
                 ? 'rounded-lg bg-navy-700 px-3 py-2 text-sm text-white'
                 : 'rounded-lg border px-3 py-2 text-sm text-navy-800'}>
-              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Plan a lesson' : step === 'evidence' ? 'See progress' : 'Review suggestions'}
+              {index + 1}. {step === 'roster' ? 'My learners' : step === 'lesson' ? 'Plan a lesson' : step === 'evidence' ? 'See progress' : step === 'official' ? 'Official record' : 'Review suggestions'}
             </button>
           ))}
         </nav>
         {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
+        {journeyStep === 'official' && token && <PilotOfficialAssessmentPanels token={token} />}
         <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
           <p className="text-xs text-gray-500">{roster.length} assigned learners. Your school administrator manages learner assignments.</p>

@@ -52,6 +52,8 @@ SUGGESTED_CHILD_PIN = suggest_pin()
 # the actual API container boots — if that rejects it, `make logs` shows
 # why (see docs/PRODUCTION_SETUP.md#licensing).
 
+DEPLOYMENT_CONTEXT = os.environ.get("BEDE_INSTALL_CONTEXT", "homeschool").strip()
+APPROVED_CAMPUS_ID = os.environ.get("BEDE_CAMPUS_ID", "").strip()
 REPO_DIR = "/repo"
 ENV_PATH = os.path.join(REPO_DIR, ".env")
 PORT = int(os.environ.get("WIZARD_PORT", "8765"))
@@ -271,6 +273,8 @@ def _narration_block(clip: str, enable_mic: bool) -> str:
 
 def render_form(error: str = "", banner: str = "", values: dict | None = None) -> str:
     v = values or {}
+    if DEPLOYMENT_CONTEXT == "campus" and APPROVED_CAMPUS_ID and not v.get("location_id"):
+        v = {**v, "location_id": APPROVED_CAMPUS_ID}
     db_choice = v.get("db_choice", "local")
     local_ai = _read_local_ai_marker()
     provider = v.get("provider", "local_auto" if local_ai else "anthropic")
@@ -401,7 +405,7 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     """)
 
     keep_mastery = v.get("keep_mastery", "yes")
-    body.append('<label>Should Bede remember what your child has mastered between sessions?</label>')
+    body.append('<label>Should Bede keep learner progress between sessions?</label>')
     body.append(f"""
     <label class="choice {'selected' if keep_mastery == 'yes' else ''}">
       <input type="radio" name="keep_mastery" value="yes" {'checked' if keep_mastery == 'yes' else ''}>
@@ -415,17 +419,24 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     </label>
     """)
 
-    body.append('<label>Parent password</label>')
-    body.append('<div class="hint">At least 8 characters. This is what you\'ll use to log in as the parent/admin.</div>')
-    body.append('<input type="password" name="parent_password">')
+    if DEPLOYMENT_CONTEXT == "campus":
+        body.append('<label>Administrator setup password</label>')
+        body.append('<div class="hint">For the approved pilot administrator. Educator access requires a passkey and approved grants.</div>')
+        body.append('<input type="password" name="parent_password">')
+        body.append(f'<input type="hidden" name="child_pin" value="{SUGGESTED_CHILD_PIN}">')
+    else:
+        body.append('<label>Parent password</label>')
+        body.append('<div class="hint">At least 8 characters for the parent account.</div>')
+        body.append('<input type="password" name="parent_password">')
+        body.append('<label>Student PIN</label>')
+        body.append(f'<div class="hint">At least 6 digits. You can use this randomly generated suggestion: {SUGGESTED_CHILD_PIN}.</div>')
+        body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
 
-    body.append('<label>Student PIN</label>')
-    body.append(f'<div class="hint">At least 6 digits, and not an obvious pattern like 111111 or 123456. Your child uses this to log in. Not sure? <strong>{SUGGESTED_CHILD_PIN}</strong> was just generated for you and is fine to use.</div>')
-    body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
+    if DEPLOYMENT_CONTEXT == "campus":
+        body.append('<label>Campus ID</label>')
+        body.append('<div class="hint">This ID must match your approved campus pilot license.</div>')
+        body.append(f'<input type="text" name="location_id" readonly value="{html.escape(v.get("location_id", ""))}">')
 
-    body.append('<label>Pilot campus ID</label>')
-    body.append('<div class="hint">For a campus license, enter the exact campus ID shown in your approved pilot license. Leave blank for a family license.</div>')
-    body.append(f'<input type="text" name="location_id" value="{html.escape(v.get("location_id", ""))}" placeholder="bede-mac-pilot-2026">')
     body.append('<label>License key</label>')
     body.append('<div class="hint">A valid license is required to finish installation. If you have not received one yet, choose Cancel setup for now below and reopen the installer when it is issued. License verification works offline.</div>')
     body.append(f'<input type="text" name="license_key" value="{html.escape(v.get("license_key", ""))}" placeholder="eyJ...">')
@@ -564,6 +575,7 @@ def build_env_file(fields: dict) -> str:
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
         f"LICENSE_KEY={fields['license_key']}\n"
+        + ("EDUCATOR_PILOT_ENABLED=true\n" if DEPLOYMENT_CONTEXT == "campus" else "")
         + (f"BEDE_LOCATION_ID={fields.get('location_id', '').strip()}\n" if fields.get("location_id", "").strip() else "")
         # Written only when the parent actually chose it. A default install's
         # .env stays free of settings nobody picked, and the code default
@@ -624,6 +636,8 @@ def validate(fields: dict) -> str:
             f"won't start with it. {SUGGESTED_CHILD_PIN} was generated for you and works."
         )
     campus = fields.get("location_id", "").strip()
+    if DEPLOYMENT_CONTEXT == "campus" and (not APPROVED_CAMPUS_ID or campus != APPROVED_CAMPUS_ID):
+        return "The campus ID must match the approved installation."
     if campus and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,63}", campus):
         return "Enter the campus ID from your pilot license."
     if not fields.get("license_key", "").strip():

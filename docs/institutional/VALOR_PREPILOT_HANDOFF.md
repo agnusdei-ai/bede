@@ -1,5 +1,7 @@
 # Valor prepilot — administrator handoff
 
+**Executive value proposition:** More time for teaching. Clearer instructional decisions. Track hands-on preparation minutes, approval fidelity, operating costs, and actual costs avoided—separating capacity released from finance-recognized cash savings. The illustrative model and measurement definitions are in [VALOR_EXECUTIVE_VALUE_SCORECARD.md](VALOR_EXECUTIVE_VALUE_SCORECARD.md).
+
 **Purpose:** Let nontechnical Valor school leaders experience Bede's proposed teacher-directed workflow with no sign-in, installation, student information or vendor credentials. **Not** a school deployment, certified assessment tool, or Pilot GO.
 
 ## Open and experience

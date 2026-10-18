@@ -464,6 +464,26 @@ async def record_benchmark_authorization(
             "local_policy_ref": row.local_policy_ref}
 
 
+@learner_router.get("/assessment-calendar")
+async def educator_assessment_calendar(campus_id: str, learner_id: str,
+                                      auth: dict = Depends(require_educator),
+                                      db: AsyncSession = Depends(get_db)) -> dict:
+    """Educator can read only the approved learner's instructional cycles.
+
+    These dates are distinct from the publisher's DIBELS benchmark periods.
+    """
+    _, learner = await _scope(db, auth, campus_id, learner_id)
+    cycles, configured = await _calendar(db, learner.campus_id)
+    return {
+        "campus_id": learner.campus_id,
+        "configured": configured,
+        "cycles": [
+            {"cycle_key": c.cycle_key, "label": c.label, "data_day_on": _iso(c.data_day_on)}
+            for c in cycles
+        ],
+    }
+
+
 # ── Administrations ─────────────────────────────────────────────────────────
 
 @learner_router.post("/assessments", status_code=201)

@@ -360,6 +360,8 @@ def _render_score(row: PilotAssessmentScore, learner: PilotLearner) -> dict:
         "benchmark_label": d["benchmark_label"], "support_label": d["support_label"],
         "printed_cut_points": {"provenance": ca.CUT_POINT_PROVENANCE,
                                "values": d["printed_cut_points"]},
+        "official_marks": d.get("official_marks"),
+        "composite_eligible": d.get("composite_eligible"),
     }
 
 
@@ -372,7 +374,9 @@ def _score_snapshot(s: dict) -> dict:
     return {k: s[k] for k in ("measure", "is_composite", "administration_status",
                               "calculation_version", "raw_score", "score_unit", "reason",
                               "benchmark_label", "support_label")} | {
-        "printed_cut_points": s["printed_cut_points"]["values"]}
+        "printed_cut_points": s["printed_cut_points"]["values"],
+        "official_marks": s.get("official_marks"),
+        "composite_eligible": s.get("composite_eligible")}
 
 
 async def _snapshot_hash(db, adm, learner) -> str:

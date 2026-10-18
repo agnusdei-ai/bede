@@ -42,7 +42,8 @@ AdministrationPurpose = Literal[
 ]
 OfficialWindow = Literal["BOY", "MOY", "EOY", "none"]
 MeasureStatus = Literal[
-    "scored", "not_administered_by_rule", "not_administered_other", "invalid",
+    "scored", "not_administered_by_rule", "not_administered_other",
+    "skipped", "not_applicable", "interrupted", "invalid", "voided",
 ]
 Grade = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 
@@ -218,6 +219,35 @@ class CutPoint(BaseModel):
     value: float = Field(ge=0, le=100_000, allow_inf_nan=False)
 
 
+class OfficialMarksInput(BaseModel):
+    """Educator-transcribed measure metadata, never DIBELS protected items.
+
+    This is not a computerized administration or scoring engine. Values are
+    optional because different measures use different timing and error fields.
+    """
+    model_config = ConfigDict(extra="forbid")
+    started_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
+    elapsed_seconds: Optional[float] = Field(default=None, ge=0, le=86_400)
+    last_item_attempted: Optional[int] = Field(default=None, ge=0, le=10_000)
+    correct_marks: Optional[int] = Field(default=None, ge=0, le=10_000)
+    error_marks: Optional[int] = Field(default=None, ge=0, le=10_000)
+    self_corrections: Optional[int] = Field(default=None, ge=0, le=10_000)
+    discontinue_rule_result: Optional[Literal[
+        "not_checked", "met", "not_met", "not_applicable"
+    ]] = None
+    interruption: Optional[str] = Field(default=None, max_length=300)
+    administration_fidelity_note: Optional[str] = Field(default=None, max_length=500)
+    accuracy_percent: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+    teacher_reviewed: bool = False
+
+    @model_validator(mode="after")
+    def _time_order(self):
+        if self.started_at and self.ended_at and self.ended_at < self.started_at:
+            raise ValueError("End time must not precede start time")
+        return self
+
+
 class ScoreInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -231,11 +261,17 @@ class ScoreInput(BaseModel):
     printed_cut_points: list[CutPoint] = Field(default_factory=list, max_length=10)
     calculation_version: str = Field(default="as_printed_on_source_report",
                                      min_length=2, max_length=64)
+    official_marks: Optional[OfficialMarksInput] = None
+    # Composite is transcribed from an eligible official report; Bede never
+    # fills in missing subtests or calculates the composite itself.
+    composite_eligible: Optional[bool] = None
 
     @model_validator(mode="after")
     def _semantics(self):
         if self.measure not in DIBELS_MEASURES:
             raise ValueError("Unsupported DIBELS 8th Edition measure")
+        if self.is_composite and self.composite_eligible is False and self.administration_status == "scored":
+            raise ValueError("An ineligible composite cannot have an official score")
         if self.administration_status == "scored":
             if self.raw_score is None:
                 raise ValueError("A scored measure needs its reported raw score")
@@ -251,6 +287,10 @@ class ScoreInput(BaseModel):
                 raise ValueError("Transcribe the reason the measure was not scored")
             if self.benchmark_label or self.support_label:
                 raise ValueError("A measure that was not scored has no printed band")
+            if self.composite_eligible and self.is_composite:
+                raise ValueError("A non-scored composite cannot be marked eligible")
+        if self.composite_eligible is not None and not self.is_composite:
+            raise ValueError("Composite eligibility applies only to a composite")
         return self
 
     @property
@@ -263,6 +303,8 @@ class ScoreInput(BaseModel):
             "reason": (self.reason or "").strip() or None,
             "benchmark_label": self.benchmark_label, "support_label": self.support_label,
             "printed_cut_points": [c.model_dump() for c in self.printed_cut_points],
+            "official_marks": self.official_marks.model_dump(mode="json") if self.official_marks else None,
+            "composite_eligible": self.composite_eligible,
         }
 
 

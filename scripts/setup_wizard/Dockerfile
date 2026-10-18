@@ -10,6 +10,7 @@ FROM python:3.12-alpine
 WORKDIR /app
 COPY homeschool-api/core/pin_policy.py homeschool-api/core/__init__.py /app/homeschool-api/core/
 COPY scripts/setup_wizard/wizard.py /app/wizard.py
+COPY site/assets/bede-portrait.png /app/BedeIcon.png
 # Optional spoken narration (see generate_narration.py) — copies whatever's
 # committed there, even if empty; wizard.py degrades gracefully either way.
 COPY scripts/setup_wizard/audio/ /app/audio/

@@ -274,7 +274,7 @@ jobs:
           codesign --force --deep --sign - "$RUNNER_TEMP/native/Bede Installer.app"
           codesign --verify --deep --strict "$RUNNER_TEMP/native/Bede Installer.app"
           hdiutil create -volname "Bede Pilot" -srcfolder "$RUNNER_TEMP/native/Bede Installer.app" -ov -format UDZO "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg"
-          shasum -a 256 "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg" > "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg.sha256"
+          ( cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Pilot-Mac-arm64.dmg" > "Bede-Pilot-Mac-arm64.dmg.sha256" )
       - name: Upload qualification artifact, not a public release
         uses: actions/upload-artifact@v4
         with:

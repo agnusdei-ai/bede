@@ -247,33 +247,53 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - name: Download sealed ARM64 operator runtime
+      - name: Download compact ARM64 operator runtime
         uses: actions/download-artifact@v4
         with:
-          name: bede-offline-linux-arm64-${{ github.sha }}
+          name: bede-standard-linux-arm64-${{ github.sha }}
           path: ${{ runner.temp }}/bede-artifact
-      - name: Prepare native payload without runtime prerequisites
+      - name: Verify compact runtime and immutable image references
         shell: bash
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/bede-artifact"
-          shasum -a 256 -c "bede-operator-$GITHUB_SHA-arm64.tar.gz.sha256"
-          tar -xzf "bede-operator-$GITHUB_SHA-arm64.tar.gz"
-          test "$(cat bede-operator/ARCH)" = arm64
-          brew list zstd >/dev/null 2>&1 || brew install zstd
-          zstd -d --rm -f bede-operator/images.tar.zst -o bede-operator/images.tar
-          test -s bede-operator/images.tar
+          shasum -a 256 -c "bede-operator-standard-$GITHUB_SHA-arm64.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$GITHUB_SHA-arm64.tar.gz"
+          test "$(cat bede-operator-standard/ARCH)" = arm64
+          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test -s bede-operator-standard/IMAGE_DIGESTS
+          test ! -e bede-operator-standard/images.tar
+          test ! -e bede-operator-standard/images.tar.zst
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          paths = Path("bede-operator-standard")
+          entries = (paths / "IMAGE_DIGESTS").read_text().splitlines()
+          assert len(entries) == 6, "Expected four Bede images, PostgreSQL and Caddy"
+          for entry in entries:
+              assert re.fullmatch(r"[^\\s]+ sha256:[0-9a-f]{64}", entry), "Invalid immutable image digest"
+          print("Six immutable container references verified. No images embedded.")
+          PY
       - name: Compile branded Mac installer and package native app
         shell: bash
         run: |
           set -euo pipefail
-          bash packaging/macos/build-app.sh "$RUNNER_TEMP/bede-artifact/bede-operator" "$RUNNER_TEMP/native"
+          bash packaging/macos/build-app.sh "$RUNNER_TEMP/bede-artifact/bede-operator-standard" "$RUNNER_TEMP/native"
           test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/BedeIcon.png"
-          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/images.tar"
+          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/IMAGE_DIGESTS"
+          test ! -e "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/images.tar"
+          test ! -e "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/images.tar.zst"
           test -x "$RUNNER_TEMP/native/Bede Installer.app/Contents/MacOS/BedeInstaller"
           codesign --force --deep --sign - "$RUNNER_TEMP/native/Bede Installer.app"
           codesign --verify --deep --strict "$RUNNER_TEMP/native/Bede Installer.app"
           hdiutil create -volname "Bede Pilot" -srcfolder "$RUNNER_TEMP/native/Bede Installer.app" -ov -format UDZO "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg"
+          # Catch accidental reintroduction of the enormous offline Docker archive.
+          dmg_bytes="$(stat -f %z "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg")"
+          echo "Compact Mac DMG size: $dmg_bytes bytes"
+          test "$dmg_bytes" -lt $((50 * 1024 * 1024)) || {
+            echo "Compact Mac installer exceeds 50 MiB. Check bundled images." >&2
+            exit 1
+          }
           ( cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Pilot-Mac-arm64.dmg" > "Bede-Pilot-Mac-arm64.dmg.sha256" )
       - name: Upload qualification artifact, not a public release
         uses: actions/upload-artifact@v4

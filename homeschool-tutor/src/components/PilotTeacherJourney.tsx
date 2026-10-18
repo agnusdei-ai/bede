@@ -157,7 +157,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       <div>
         <button type="button" className="rounded-lg border border-navy-700 px-3 py-2 text-sm" aria-expanded={showOfficial}
           onClick={() => setShowOfficial(open => !open)}>
-          {showOfficial ? 'Close official record' : 'Official assessment + teacher observation'}
+          {showOfficial ? 'Close official record' : 'Official DIBELS record + observations'}
         </button>
         {showOfficial && <div className="mt-3">
           <PilotOfficialAssessmentForm key={learnerId} token={token}

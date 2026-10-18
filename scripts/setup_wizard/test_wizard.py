@@ -680,9 +680,9 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
     assert 'Student PIN</label>' not in rendered
     assert wizard.validate(fields) == ""
     generated = wizard.build_env_file(fields)
-    assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\\n" in generated
-    assert "EDUCATOR_PILOT_ENABLED=true\\n" in generated
-    assert "LICENSE_KEY=local-unit-test-not-a-signed-license\\n" in generated
+    assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\n" in generated
+    assert "EDUCATOR_PILOT_ENABLED=true\n" in generated
+    assert "LICENSE_KEY=local-unit-test-not-a-signed-license\n" in generated
     from pathlib import Path
     compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
     assert "- BEDE_LOCATION_ID=${BEDE_LOCATION_ID:-}" in compose

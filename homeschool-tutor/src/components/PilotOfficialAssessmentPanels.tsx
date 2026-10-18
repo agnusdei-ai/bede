@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   createOfficialAssessment, decideOfficialProposal, fetchOfficialAssessment,
+  fetchOfficialAssessmentCalendar,
   fetchOfficialAssessments, fetchOfficialDataDay, fetchPilotLearners,
   recordOfficialEvidence, recordOfficialPlan, recordOfficialScores,
   requestOfficialProposal, supersedeOfficialAssessment, transitionOfficialAssessment,
@@ -53,6 +54,7 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
   const [purpose, setPurpose] = useState<'benchmark' | 'progress_monitoring'>('progress_monitoring')
   const [windowName, setWindowName] = useState<'BOY' | 'MOY' | 'EOY' | 'none'>('none')
   const [cycle, setCycle] = useState('valor_q1')
+  const [campusCycles, setCampusCycles] = useState<Array<{ cycle_key: string; label: string }>>([])
   const [formId, setFormId] = useState('')
   const [source, setSource] = useState('teacher_administered')
   const [accommodation, setAccommodation] = useState('')
@@ -94,6 +96,21 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
     }).catch(() => { if (alive) setMessage('No authorized pilot learners are available.') })
     return () => { alive = false }
   }, [token])
+
+  useEffect(() => {
+    if (!learner) return
+    let alive = true
+    fetchOfficialAssessmentCalendar(token, learner.campus_id, learner.learner_id).then(data => {
+      if (!alive) return
+      setCampusCycles(data.cycles)
+      if (data.cycles.length && !data.cycles.some(item => item.cycle_key === cycle)) {
+        setCycle(data.cycles[0].cycle_key)
+      }
+    }).catch(() => {
+      if (alive) setMessage('Could not load the authorized campus Data Day calendar.')
+    })
+    return () => { alive = false }
+  }, [learner?.campus_id, learner?.learner_id, token])
 
   const refresh = useCallback(async (id: string, selectedId?: string) => {
     const l = learners.find(row => row.learner_id === id)
@@ -355,8 +372,8 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
             </label>}
             <label className="text-sm">Valor Data Day cycle
               <select className={input + ' mt-1'} value={cycle} onChange={e => setCycle(e.target.value)}>
-                {['valor_q1','valor_q2','valor_q3','valor_q4'].map(key =>
-                  <option key={key} value={key}>{key.replace('valor_', 'Valor ').toUpperCase()}</option>)}
+                {(campusCycles.length ? campusCycles : [{ cycle_key: cycle, label: cycle }]).map(item =>
+                  <option key={item.cycle_key} value={item.cycle_key}>{item.label}</option>)}
               </select>
             </label>
             <label className="text-sm col-span-2">Official form identifier
@@ -365,8 +382,10 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
             </label>
             <label className="text-sm">Report source
               <select className={input + ' mt-1'} value={source} onChange={e => setSource(e.target.value)}>
-                <option value="teacher_administered">Teacher-administered official form</option>
+                <option value="teacher_administered">Manual official-form transcription</option>
                 <option value="vendor_report">Official vendor report</option>
+                <option value="mclass_report">mCLASS report (entered manually)</option>
+                <option value="dds_report">DIBELS Data System report (entered manually)</option>
               </select>
             </label>
             <label className="text-sm">Accommodation (if recorded)
@@ -435,7 +454,7 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
                   onChange={e => setFidelity(e.target.value)}/>
               </label>
               <button type="button" onClick={() => void updateMarks()} disabled={busy}
-                className="rounded-lg border px-3 py-2 text-sm">Save live marks</button>
+                className="rounded-lg border px-3 py-2 text-sm">Save administration marks</button>
             </fieldset>
             <div className="flex flex-wrap gap-2">
               {record.state === 'DRAFT' && <button type="button" disabled={busy}

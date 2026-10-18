@@ -92,6 +92,7 @@ AUDIO_DIR = Path(__file__).resolve().parent / "audio"
 _AUDIO_FILES = {"welcome.wav", "success.wav"}
 
 _shutdown_event = threading.Event()
+_cancel_event = threading.Event()
 
 _PAGE_HEAD = """\
 <!DOCTYPE html>
@@ -122,6 +123,9 @@ _PAGE_HEAD = """\
            font-weight: 600; color: white; background: #2b4c7e; border: none;
            border-radius: 10px; cursor: pointer; }
   button:hover { background: #1f3a63; }
+  .cancel-setup { margin-top: 12px; background: transparent; color: #2b4c7e;
+                  border: 1px solid #a6b1c1; }
+  .cancel-setup:hover { background: #eef2f8; }
   .error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
            padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
   .success { text-align: center; padding: 40px 20px; }
@@ -415,10 +419,15 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
 
     body.append('<label>License key</label>')
-    body.append('<div class="hint">The LICENSE_KEY you received when you purchased or started a trial of Bede. No internet connection is needed to use it.</div>')
+    body.append('<div class="hint">A valid license is required to finish installation. If you have not received one yet, choose Cancel setup for now below and reopen the installer when it is issued. License verification works offline.</div>')
     body.append(f'<input type="text" name="license_key" value="{html.escape(v.get("license_key", ""))}" placeholder="eyJ...">')
 
     body.append('<button type="submit">Set up Bede</button>')
+    body.append('</form>')
+    # A separate form avoids transmitting passwords, PINs or provider keys
+    # when someone cancels before receiving their license.
+    body.append('<form action="/cancel" method="post">')
+    body.append('<button class="cancel-setup" type="submit">Cancel setup for now</button>')
     body.append('</form>')
     body.append("""
     <script>
@@ -658,6 +667,18 @@ class Handler(BaseHTTPRequestHandler):
         self._send_html(render_form(banner=banner))
 
     def do_POST(self):
+        if self.path == "/cancel":
+            self._send_html(
+                _PAGE_HEAD
+                + '<div class="success"><h1>Setup canceled</h1>'
+                + "<p>No new configuration was saved. Close this tab and resume "
+                  "the Bede installer when you have an approved license key.</p></div>"
+                + _PAGE_TAIL
+            )
+            _cancel_event.set()
+            # Let the browser receive the confirmation before signaling exit.
+            threading.Timer(0.5, _shutdown_event.set).start()
+            return
         if self.path != "/submit":
             self.send_response(404)
             self.end_headers()
@@ -695,14 +716,26 @@ class Handler(BaseHTTPRequestHandler):
         threading.Timer(0.5, _shutdown_event.set).start()
 
 
-def main():
+def main() -> int:
+    _cancel_event.clear()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
-    print(f"Wizard listening on http://localhost:{PORT}")
-    _shutdown_event.wait()
-    server.shutdown()
+    print(f"Wizard listening on http://localhost:{PORT}", flush=True)
+    try:
+        _shutdown_event.wait()
+    except KeyboardInterrupt:
+        print("\nBede setup canceled from the terminal. No new configuration was saved.", flush=True)
+        return 130
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=5)
+    if _cancel_event.is_set():
+        print("Bede setup canceled in the browser. No new configuration was saved.", flush=True)
+        return 130
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

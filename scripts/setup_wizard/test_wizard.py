@@ -36,6 +36,7 @@ def running_wizard(tmp_path, monkeypatch):
     monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
     monkeypatch.setattr(wizard, "LAN_IP", "192.168.1.50")
     wizard._shutdown_event.clear()
+    wizard._cancel_event.clear()
 
     server = wizard.ThreadingHTTPServer(("127.0.0.1", 0), wizard.Handler)
     port = server.server_address[1]
@@ -119,6 +120,92 @@ def test_missing_license_key_rejected_without_writing_env(running_wizard):
     assert exc_info.value.code == 400
     assert "license key" in exc_info.value.read().decode()
     assert not os.path.exists(wizard.ENV_PATH)
+
+
+
+def test_cancel_does_not_require_license_or_save_configuration(running_wizard):
+    """An operator may exit before acquiring a license, without submitting secrets."""
+    req = urllib.request.Request(
+        f"{running_wizard}/cancel", data=b"", method="POST"
+    )
+    with urllib.request.urlopen(req) as response:
+        assert response.status == 200
+        assert "Setup canceled" in response.read().decode()
+    assert wizard._cancel_event.is_set()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_form_has_separate_cancel_button_and_license_guidance(running_wizard):
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert '<form action="/cancel" method="post">' in body
+    assert "Cancel setup for now" in body
+    assert "A valid license is required" in body
+
+
+def test_main_entrypoint_returns_clean_browser_cancel(tmp_path, monkeypatch):
+    monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
+    monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
+    monkeypatch.setattr(wizard, "PORT", 0)
+    wizard._shutdown_event.clear()
+    wizard._cancel_event.clear()
+    server_holder = {}
+    original_server_cls = wizard.ThreadingHTTPServer
+
+    class _CapturingServer(original_server_cls):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            server_holder["server"] = self
+
+    monkeypatch.setattr(wizard, "ThreadingHTTPServer", _CapturingServer)
+    result = {}
+    thread = threading.Thread(
+        target=lambda: result.setdefault("status", wizard.main()), daemon=True
+    )
+    thread.start()
+    for _ in range(50):
+        if "server" in server_holder:
+            break
+        time.sleep(0.05)
+    assert "server" in server_holder
+    port = server_holder["server"].server_address[1]
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}/cancel", data=b"", method="POST"
+    )
+    with urllib.request.urlopen(request) as response:
+        assert response.status == 200
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+    assert result["status"] == 130
+    assert not (tmp_path / ".env").exists()
+
+
+def test_main_entrypoint_suppresses_keyboard_interrupt_traceback(monkeypatch, capsys):
+    """Simulate Ctrl+C on the main thread without sending an OS signal."""
+    class FakeEvent:
+        def wait(self):
+            raise KeyboardInterrupt
+
+        def clear(self):
+            pass
+
+    class FakeServer:
+        def serve_forever(self):
+            pass
+
+        def shutdown(self):
+            self.stopped = True
+
+        def server_close(self):
+            self.closed = True
+
+    server = FakeServer()
+    monkeypatch.setattr(wizard, "_shutdown_event", FakeEvent())
+    monkeypatch.setattr(wizard, "ThreadingHTTPServer", lambda *args: server)
+    assert wizard.main() == 130
+    assert server.stopped and server.closed
+    output = capsys.readouterr()
+    assert "setup canceled" in output.out.lower()
+    assert "Traceback" not in output.err
 
 
 def test_valid_local_db_submission_writes_correct_env(running_wizard):

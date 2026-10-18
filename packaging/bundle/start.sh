@@ -72,8 +72,16 @@ if [[ ! -s .env ]]; then
   if command -v open >/dev/null; then (sleep 2; open http://localhost:8765) &
   elif command -v xdg-open >/dev/null; then (sleep 2; xdg-open http://localhost:8765) &
   else echo "Open http://localhost:8765 in this computer's browser"; fi
+  wizard_status=0
   docker run --rm --network bridge -p 127.0.0.1:8765:8765 \
-    --user "$(id -u):$(id -g)" --mount "type=bind,src=$(pwd),dst=/repo" "$image" || fail "Wizard was not completed"
+    --user "$(id -u):$(id -g)" --mount "type=bind,src=$(pwd),dst=/repo" "$image" || wizard_status=$?
+  if [[ "$wizard_status" -ne 0 ]]; then
+    if [[ "$wizard_status" -eq 130 ]]; then
+      echo "Bede setup canceled. Obtain your approved license, then reopen Install-Bede.command to resume." >&2
+      exit 130
+    fi
+    fail "Setup wizard exited before installation finished (exit $wizard_status). No application containers were started."
+  fi
 fi
 [[ -s .env ]] || fail "The setup wizard did not save a valid configuration"
 chmod 600 .env

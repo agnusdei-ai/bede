@@ -757,3 +757,85 @@ def test_the_model_doc_is_in_cis_change_filter():
     line = next(ln for ln in wf.splitlines() if "grep -qE" in ln)
     alternatives = line.split("'")[1].strip("^()").split("|")
     assert r"docs/CANONICAL_ASSESSMENT_MODEL\.md" in alternatives
+
+
+def test_official_marks_and_separate_teacher_observation_survive_finalization(world):
+    """No copyrighted stimuli, inferred scoring, or learner-delivery transition."""
+    adm = world.administer(purpose="progress_monitoring", window="none", form="SYN-PM-FORM-1", measure="PSF")
+    aid = adm["assessment_id"]
+    world.step(aid, "mark_ready", "DRAFT")
+    world.step(aid, "start", "READY_FOR_ADMINISTRATION")
+    entry = {
+        **scored("PSF", 28),
+        "official_marks": {
+            "elapsed_seconds": 60,
+            "last_item_attempted": 30,
+            "correct_marks": 28, "error_marks": 2,
+            "self_corrections": 1,
+            "discontinue_rule_result": "not_met",
+            "administration_fidelity_note": "Synthetic fidelity check",
+            "teacher_reviewed": True,
+        },
+    }
+    response = world.scores(aid, [entry])
+    assert response["scores"][0]["official_marks"]["correct_marks"] == 28
+    world.step(aid, "submit", "IN_PROGRESS")
+    world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
+    detail = world.client.get(
+        f"{world.base()}/assessments/{aid}", headers=world.teacher_one.headers,
+    ).json()
+    assert detail["snapshot_verified"] is True
+    assert detail["scores"][0]["official_marks"]["teacher_reviewed"] is True
+    assert detail["scores"][0]["raw_score"] == 28
+    assert detail["snapshot_sha256"]
+    # A second write cannot rewrite an already finalized official record.
+    world.scores(aid, [{**entry, "raw_score": 99}], expect=409)
+    observation = {
+        "teacher_observation": {
+            "accuracy_fluency": "Fluency developing",
+            "error_patterns": "Two synthetic error marks",
+            "narration_comprehension": "Narration recorded in classroom",
+            "curriculum_already_taught": "Phonemic segmentation",
+            "teacher_interpretation": "Continue classroom observation",
+            "suggested_next_step": "Teacher-guided review",
+        },
+    }
+    ev = world.client.post(
+        f"{world.base()}/assessments/{aid}/evidence",
+        json=observation, headers=world.teacher_one.headers,
+    )
+    assert ev.status_code == 201, ev.text
+    assert ev.json()["teacher_observation"]["suggested_next_step"] == "Teacher-guided review"
+    assert ev.json()["snapshot_sha256"] == detail["snapshot_sha256"]
+    proposal = world.proposal(aid)
+    assert not proposal.get("abstained")
+    assert "teacher_observation" not in str(proposal)  # distinct from standardized data
+    packet = world.packet("valor_q1")
+    assert packet["audit_history"]["decisions_chain_valid"] is True
+    assert packet["boundaries"]["delivers_instruction"] is False
+
+
+def test_unadministered_measure_remains_missing_and_composite_ineligible(world):
+    adm = world.administer(purpose="progress_monitoring", window="none", form="SYN-PM-FORM-1", measure="PSF")
+    aid = adm["assessment_id"]
+    world.step(aid, "mark_ready", "DRAFT")
+    world.step(aid, "start", "READY_FOR_ADMINISTRATION")
+    world.scores(aid, [{
+        "measure": "PSF", "administration_status": "skipped",
+        "reason": "Synthetic absence from this session",
+    }])
+    world.step(aid, "submit", "IN_PROGRESS")
+    world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
+    detail = world.client.get(f"{world.base()}/assessments/{aid}",
+                              headers=world.teacher_one.headers).json()
+    assert detail["scores"][0]["raw_score"] is None
+    assert detail["scores"][0]["administration_status"] == "skipped"
+    assert "PSF" not in world.packet("valor_q1")["growth_by_measure"].get("progress_monitoring", {})
+    # Refuse numeric zero on skipped forms, even if the submitter supplies a unit.
+    other = world.administer(purpose="progress_monitoring", window="none", form="SYN-PM-FORM-1", measure="PSF")
+    world.step(other["assessment_id"], "mark_ready", "DRAFT")
+    world.step(other["assessment_id"], "start", "READY_FOR_ADMINISTRATION")
+    world.scores(other["assessment_id"], [{
+        "measure": "PSF", "administration_status": "skipped",
+        "reason": "Not administered", "raw_score": 0, "score_unit": "correct_per_minute",
+    }], expect=422)

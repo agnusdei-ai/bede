@@ -839,3 +839,21 @@ def test_unadministered_measure_remains_missing_and_composite_ineligible(world):
         "measure": "PSF", "administration_status": "skipped",
         "reason": "Not administered", "raw_score": 0, "score_unit": "correct_per_minute",
     }], expect=422)
+
+
+def test_new_official_marks_require_explicit_teacher_review_before_finalize(world):
+    adm = world.administer(purpose="progress_monitoring", window="none", form="SYN-PM-FORM-1", measure="PSF")
+    aid = adm["assessment_id"]
+    world.step(aid, "mark_ready", "DRAFT")
+    world.step(aid, "start", "READY_FOR_ADMINISTRATION")
+    score = {**scored("PSF", 12),
+             "official_marks": {"correct_marks": 12, "teacher_reviewed": False}}
+    world.scores(aid, [score])
+    world.step(aid, "submit", "IN_PROGRESS")
+    world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW", expect=409)
+    changed = world.scores(aid, [{
+        **score, "official_marks": {"correct_marks": 12, "teacher_reviewed": True},
+    }])
+    assert changed["scores"][0]["official_marks"]["teacher_reviewed"] is True
+    finalized = world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
+    assert finalized["snapshot_verified"] is True

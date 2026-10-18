@@ -564,6 +564,7 @@ def build_env_file(fields: dict) -> str:
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
         f"LICENSE_KEY={fields['license_key']}\n"
+        + (f"BEDE_LOCATION_ID={fields.get('location_id', '').strip()}\\n" if fields.get("location_id", "").strip() else "")
         # Written only when the parent actually chose it. A default install's
         # .env stays free of settings nobody picked, and the code default
         # (True) already means "remember", so silence and "yes" agree.

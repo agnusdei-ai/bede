@@ -29,6 +29,26 @@ Only the public half of the keypair is committed. The license is saved under the
 
 The wizard must use `bede-mac-pilot-2026` as its Pilot campus ID, matching the signed entitlement.
 
+## Campus and homeschool installation layout
+
+The same Bede application supports either an approved **Campus** installation or a **Homeschool** installation. The Mac application selects context before starting setup and stores its working configuration, logs and local files separately:
+
+```text
+~/Library/Application Support/Bede/
+  Campus/
+    <approved-campus-id>/
+      bede-operator/
+  Homeschool/
+    local/
+      bede-operator/
+```
+
+These are local runtime directories, not separate application products or source code copies. The existing `homeschool-api/` and `homeschool-tutor/` source directory names remain internal implementation names during the pilot and do not determine which experience an installed campus receives. The native installer shows the Bede logo and a Campus or Homeschool choice before setup. For this pilot, select **Campus** and retain the licensed `bede-mac-pilot-2026` ID.
+
+Each context uses a separate Compose project and local database volume. The installer refuses an unrecognized campus ID and the browser setup binds the context to the approved ID. Bede's API receives the same `BEDE_LOCATION_ID`, and campus setup enables educator pilot mode, which is governed by educator passkeys and roster authorization. Both contexts still use local loopback HTTPS, so attempting to run two different Bede installations simultaneously on the same port must fail safely rather than claim both are available.
+
+The saved approval file `~/Library/Application Support/Bede Pilot/pilot-license.txt` is an owner controlled **issuance artifact**, separate from either installation directory. Do not copy it into the source tree or commit it.
+
 ## 2. Install the next exact candidate
 
 Use the latest successful **Bede Standard and Offline operator bundles** GitHub Actions run associated with the public key commit from step 1. Download only the `bede-mac-pilot-arm64-<sha>` artifact. Verify the accompanying SHA256 checksum before opening the DMG.

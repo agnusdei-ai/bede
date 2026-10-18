@@ -405,7 +405,10 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     """)
 
     keep_mastery = v.get("keep_mastery", "yes")
-    body.append('<label>Should Bede keep learner progress between sessions?</label>')
+    if DEPLOYMENT_CONTEXT == "campus":
+        body.append('<label>Should Bede keep learner progress between sessions?</label>')
+    else:
+        body.append('<label>Should Bede remember what your child has mastered between sessions?</label>')
     body.append(f"""
     <label class="choice {'selected' if keep_mastery == 'yes' else ''}">
       <input type="radio" name="keep_mastery" value="yes" {'checked' if keep_mastery == 'yes' else ''}>

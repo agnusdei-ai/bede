@@ -288,8 +288,8 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
         body.append(f'<div class="error">{html.escape(error)}</div>')
     body.append('<form method="POST" action="/submit">')
 
-    body.append('<label>Which AI provider should Bede use for tutoring?</label>')
-    body.append('<div class="hint">Pick one — you can add a backup provider later by editing .env yourself, see docs/PROVIDER_ADAPTERS.md.</div>')
+    body.append('<label>How should Bede provide tutoring?</label>')
+    body.append('<div class="hint">Choose who will run the tutoring model. Online services require an account and may charge for usage. You can change this later.</div>')
     if local_ai:
         body.append(f"""
         <label class="choice {'selected' if provider == 'local_auto' else ''}">
@@ -316,8 +316,8 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     </label>
     <label class="choice {'selected' if provider == 'local' else ''}">
       <input type="radio" name="provider" value="local" onclick="showProvider('local')" {'checked' if provider == 'local' else ''}>
-      <span class="choice-title">A self-hosted model on my own server</span>
-      <div class="choice-desc">Open-weight, no account, no per-message cost — but needs a separate computer with a capable GPU running it. See docs/PROVIDER_ADAPTERS.md if you haven't set one up yet.</div>
+      <span class="choice-title">A tutoring model hosted by my school</span>
+      <div class="choice-desc">No per-message provider fee. Requires a separate computer with a suitable GPU and a configured model service.</div>
     </label>
     """)
 
@@ -361,16 +361,16 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     </script>
     """)
 
-    body.append('<label>Where should Bede store its data?</label>')
+    body.append('<label>Where should Bede save learning records?</label>')
     body.append(f"""
     <label class="choice {'selected' if db_choice == 'local' else ''}">
       <input type="radio" name="db_choice" value="local" onclick="showManaged(false)" {'checked' if db_choice == 'local' else ''}>
-      <span class="choice-title">On this computer (recommended)</span>
+      <span class="choice-title">Keep records on this Mac (recommended)</span>
       <div class="choice-desc">Nothing to sign up for. Runs alongside Bede — nothing ever leaves this machine. You'll want to back it up occasionally (there's a simple command for that).</div>
     </label>
     <label class="choice {'selected' if db_choice == 'managed' else ''}">
       <input type="radio" name="db_choice" value="managed" onclick="showManaged(true)" {'checked' if db_choice == 'managed' else ''}>
-      <span class="choice-title">A cloud database I already have</span>
+      <span class="choice-title">Use my organization's existing database</span>
       <div class="choice-desc">If you've already signed up for Neon, Supabase, or similar and have a connection string. Gets automatic backups from them, but your (still encrypted) data leaves this machine.</div>
     </label>
     """)
@@ -382,11 +382,11 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
 
     lan_selected = v.get("lan_mode") == "yes"
-    body.append('<label>Where will teachers open Bede?</label>')
+    body.append('<label>Who needs access to Bede?</label>')
     body.append(f"""
     <label class="choice">
       <input type="checkbox" name="lan_mode" value="yes" onchange="toggleLan(this.checked)" {'checked' if lan_selected else ''}>
-      <span class="choice-title">Allow an approved teacher Mac on my private network</span>
+      <span class="choice-title">Allow approved teachers on our private network</span>
       <div class="choice-desc">Advanced pilot mode: needs a stable private IP, real private DNS, trusted HTTPS and local firewall restrictions. Disabled by default.</div>
     </label>
     <div id="lan_settings" style="display:{'block' if lan_selected else 'none'}">
@@ -406,25 +406,25 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
     keep_mastery = v.get("keep_mastery", "yes")
     if DEPLOYMENT_CONTEXT == "campus":
-        body.append('<label>Should Bede keep learner progress between sessions?</label>')
+        body.append('<label>Should Bede remember learning progress between sessions?</label>')
     else:
         body.append('<label>Should Bede remember what your child has mastered between sessions?</label>')
     body.append(f"""
     <label class="choice {'selected' if keep_mastery == 'yes' else ''}">
       <input type="radio" name="keep_mastery" value="yes" {'checked' if keep_mastery == 'yes' else ''}>
-      <span class="choice-title">Yes, build a picture over time (recommended)</span>
+      <span class="choice-title">Yes, remember progress over time (recommended)</span>
       <div class="choice-desc">Bede's sense of what your child has mastered gets steadier week by week, and the Progress page can show a whole term. The estimate is encrypted and never leaves this machine.</div>
     </label>
     <label class="choice {'selected' if keep_mastery == 'no' else ''}">
       <input type="radio" name="keep_mastery" value="no" {'checked' if keep_mastery == 'no' else ''}>
-      <span class="choice-title">No, start fresh each session</span>
+      <span class="choice-title">No, review each session separately</span>
       <div class="choice-desc">Bede still assesses fully and still reports what it saw at the end of each session, but keeps no lasting estimate of your child anywhere. The trade is real: judgements get steadier with evidence, so with this on you'll see "still getting to know your learner" more often, and the Progress page won't show a term's picture. Your record of the work they actually completed is kept either way.</div>
     </label>
     """)
 
     if DEPLOYMENT_CONTEXT == "campus":
-        body.append('<label>Administrator setup password</label>')
-        body.append('<div class="hint">For the approved pilot administrator. Educator access requires a passkey and approved grants.</div>')
+        body.append('<label>Create your administrator password</label>')
+        body.append('<div class="hint">Create a password for the person managing this Bede installation. Teachers will receive separate, approved access using passkeys.</div>')
         body.append('<input type="password" name="parent_password">')
         body.append(f'<input type="hidden" name="child_pin" value="{SUGGESTED_CHILD_PIN}">')
     else:
@@ -436,12 +436,12 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
         body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
 
     if DEPLOYMENT_CONTEXT == "campus":
-        body.append('<label>Campus ID</label>')
-        body.append('<div class="hint">This ID must match your approved campus pilot license.</div>')
+        body.append('<label>School or campus code</label>')
+        body.append('<div class="hint">This code identifies your approved school or campus and must match your Bede pilot activation.</div>')
         body.append(f'<input type="text" name="location_id" readonly value="{html.escape(v.get("location_id", ""))}">')
 
-    body.append('<label>License key</label>')
-    body.append('<div class="hint">A valid license is required to finish installation. If you have not received one yet, choose Cancel setup for now below and reopen the installer when it is issued. License verification works offline.</div>')
+    body.append('<label>Bede activation code</label>')
+    body.append('<div class="hint">Enter the activation code provided for your Bede pilot. If you do not have one yet, choose Cancel setup and return when it arrives. The code can be verified without an internet connection.</div>')
     body.append(f'<input type="text" name="license_key" value="{html.escape(v.get("license_key", ""))}" placeholder="eyJ...">')
 
     body.append('<button type="submit">Set up Bede</button>')

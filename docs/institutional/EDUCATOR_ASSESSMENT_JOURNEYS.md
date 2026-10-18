@@ -12,18 +12,20 @@ campus and assigned learner always visible:
 1. **My Class**: assigned learners, missing assessments, recent activity,
    unresolved needs, and next action. Empty or unauthorized roster never
    leaks names from another campus.
-2. **Assess**: pick assigned learner, reading assessment framework, grade,
-   assessment window, measure and external score source. Never simulate or
-   independently administer proprietary assessment materials.
-3. **Plan Support**: teacher reviews objective evidence and selects a
-   teacher-approved literacy skill focus, instructional duration and
-   reassessment date. Explain observations vs hypotheses and allow override.
-4. **Teach with Bede**: launch a real authorized Socratic tutoring session
-   using the approved focus, with age-appropriate hints and accessible
-   feedback; session access is rechecked by the API.
-5. **Review Growth**: show measure-by-measure benchmark periods and
-   progress monitoring, source attribution, units and dates; distinguish
-   externally administered DIBELS results from Bede tutoring activity.
+2. **Official record**: select an authorized campus and learner; record
+   DIBELS 8 edition, approved form identifier, benchmark or progress-monitoring
+   purpose, grade, official window and Valor Data Day cycle. Link to publisher
+   materials; do not reproduce passages, items, or protected scoring forms.
+3. **Teacher observation**: independently capture fluency, error patterns,
+   circumstances, narration, taught concepts and interpretation. Keep these
+   separate from the immutable official score and cited evidence.
+4. **Review Bede suggestion**: cite canonical evidence and invite explicit
+   teacher approve, edit or reject. The teacher personally delivers any
+   approved instruction. The pilot cannot start a learner session;
+   `delivery_state = NOT_REQUESTED` remains enforced.
+5. **Review Growth**: compare only source-compatible benchmark results and
+   progress-monitoring measures, show omission statuses without numeric zero,
+   and record the teacher's observation at the next checkpoint.
 
 ## DIBELS 8 boundaries
 
@@ -31,10 +33,11 @@ campus and assigned learner always visible:
   authorized materials and follow official administration and scoring
   instructions. Record an educator-reported external score and original
   source; Bede may not fabricate a score from learner chat.
-- Score entry validates grade, time of year, measure, unit and permitted
-  numeric range, plus the correct recorded administration date. Display
-  official benchmark interpretation only where the versioned publisher
-  benchmark table and usage rights have been verified.
+- Score entry validates measure, reported unit, numeric bounds, and source.
+  The teacher enters scores, marks and interpretation; Bede never calculates
+  official scoring norms or composites. A reported composite is not
+  verified until all applicable official subtests and report provenance
+  have been checked against the authorized source.
 - Progress-monitoring measures and composite scores must not be confused,
   nor should tests at differing grades/windows be plotted as a single
   comparable series without explanation.
@@ -53,9 +56,9 @@ campus and assigned learner always visible:
 | E04 | Teacher selects valid DIBELS grade/measure/window | Enters external score and source | Stored once with audit, date, units, provenance and stable learner ID |
 | E05 | Teacher enters missing source or invalid score | Submits | Field-specific accessible error, no partial write |
 | E06 | Teacher opens learner longitudinal view | Reviews two windows | Separate benchmark/progress monitoring displays, no invented trends |
-| E07 | Teacher selects reading focus | Confirms support plan | Explicit approval then real tutoring setup, no unattended enrollment |
-| E08 | Teacher returns after lesson | Reviews activity | Separates actual Bede evidence from external DIBELS score |
-| E09 | Teacher loses authorization mid-session | Attempts evidence/streaming | Server denies and clears protected UI |
+| E07 | Teacher selects reading focus | Confirms support plan | Decision and plan recorded, learner delivery remains NOT_REQUESTED |
+| E08 | Teacher returns after personally teaching | Records observation | Separate teacher notes linked to official evidence and next Data Day |
+| E09 | Teacher loses authorization | Attempts evidence or marks write | Server denies access; no learner session or stream is created |
 | E10 | Admin revokes passkey | Teacher reopens desk | Existing session refused |
 | E11 | Browser keyboard/screen reader | Navigates workflow | Landmarks, keyboard focus, announced errors, no pointer-only actions |
 | E12 | Slow/offline/failed request | Saves assessment | No duplicate entry, actionable retry and confirmed saved state |
@@ -70,8 +73,9 @@ campus and assigned learner always visible:
   source-preserving assessment entry; no duplicates/replay; audit and
   cross-campus negative cases.
 - Browser E2E: invited teacher WebAuthn sign-in → assigned learner →
-  external score entry → teacher-approved lesson → real session → evidence
-  review → revoked access.
+  official score entry → separate observation → Bede recommendation →
+  teacher approve/edit/reject → plan recorded but NOT_REQUESTED →
+  evidence review → revoked access.
 - Instructor acceptance: one to five owner-led synthetic sessions across
   supported browsers. Capture friction and task completion without genuine
   student data. Do not call the workflow qualified from static mockups.

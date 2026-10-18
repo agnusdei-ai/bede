@@ -271,7 +271,7 @@ jobs:
           entries = (paths / "IMAGE_DIGESTS").read_text().splitlines()
           assert len(entries) == 6, "Expected four Bede images, PostgreSQL and Caddy"
           for entry in entries:
-              assert re.fullmatch(r"[^\\s]+ sha256:[0-9a-f]{64}", entry), "Invalid immutable image digest"
+              assert re.fullmatch(r"\S+ sha256:[0-9a-f]{64}", entry), "Invalid immutable image digest"
           print("Six immutable container references verified. No images embedded.")
           PY
       - name: Compile branded Mac installer and package native app

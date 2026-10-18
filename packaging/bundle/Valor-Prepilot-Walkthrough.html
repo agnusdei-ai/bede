@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Bede | Valor Prepilot Walkthrough</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#23352e;background:#f7f4ec}
+*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.47}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #ac8750;outline-offset:2px}
+header{background:#243c33;color:#fff;padding:23px max(20px,calc((100vw - 1060px)/2))}
+.brand{font-size:23px;letter-spacing:.17em;font-family:Georgia,serif}.brand small{font-family:system-ui;letter-spacing:.08em;font-size:10px;color:#d9c49b;margin-left:12px}
+main{max-width:1100px;margin:auto;padding:27px 20px 65px}.eyebrow{text-transform:uppercase;letter-spacing:.13em;color:#77806b;font-size:11px;font-weight:800}
+h1,h2,h3{font-family:Georgia,serif;font-weight:normal;margin:.35em 0}h1{font-size:clamp(28px,4vw,44px)}h2{font-size:25px}h3{font-size:18px}
+p{line-height:1.55}.subtle{font-size:14px;color:#5d665f}.notice{border-left:4px solid #b39660;background:#fff9e9;padding:12px 15px;font-size:13px;margin:15px 0}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px;align-items:start}.surface{background:#fff;border:1px solid #dcded6;border-radius:16px;padding:22px;box-shadow:0 3px 16px #19382b08}
+.side{position:sticky;top:16px}.stepnav{display:flex;flex-wrap:wrap;gap:9px;margin:22px 0}
+.stepnav button{border:1px solid #d8ded5;background:#fff;color:#334b3d;border-radius:25px;padding:10px 14px;font-size:13px}
+.stepnav button[aria-current=step]{background:#29483a;color:#fff;border-color:#29483a}
+.stepnav .done:before{content:"✓ ";color:#b08a44}
+.stepnav button[aria-current=step].done:before{color:#e4d2a7}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.full{grid-column:1/-1}
+label{display:block;font-weight:650;font-size:13px;color:#35493d}label span{display:block;font-weight:400;color:#657166;font-size:12px;margin-top:2px}
+input,textarea,select{width:100%;border:1px solid #ccd4c9;border-radius:9px;padding:11px;margin-top:6px;background:#fff;color:#253b31}
+textarea{min-height:82px;resize:vertical}input[type=checkbox]{width:auto;margin:0 7px 0 0}label.check{font-weight:500}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:22px}.primary,.secondary,.danger{padding:11px 17px;border-radius:9px;font-weight:700;font-size:14px}
+.primary{background:#284a39;border:1px solid #284a39;color:white}.secondary{background:white;border:1px solid #bfc9bf;color:#254233}.danger{background:#fff;border:1px solid #b88981;color:#8d352c}
+.status{background:#f0f5ed;color:#325544;padding:9px 12px;border-radius:9px;font-size:13px}
+.item{border:1px solid #e3e7df;border-radius:11px;padding:13px;margin:11px 0;background:#fafbf8}
+.item strong{display:block}.item small{color:#607368}.muted{color:#657166;font-size:13px}
+.tag{display:inline-block;border-radius:25px;padding:3px 10px;background:#e9f0e5;color:#305342;font-weight:700;font-size:11px}
+aside .metric{padding:12px 0;border-bottom:1px solid #ebeee7;font-size:13px}aside .metric strong{display:block;font-size:15px;color:#2a4435}
+ul{padding-left:18px;line-height:1.65}.rail{margin-top:15px;padding:12px;background:#f4f7f2;border-radius:10px;font-size:12px}
+.hidden,[hidden]{display:none!important}.alert{color:#9b3630;font-size:13px;min-height:20px}.audit{max-height:270px;overflow:auto;font-size:12px}.audit li{margin-bottom:9px}
+table{border-collapse:collapse;width:100%;font-size:13px}td,th{text-align:left;padding:9px;border-bottom:1px solid #e5e8e2;vertical-align:top}
+footer{max-width:1100px;margin:auto;padding:0 20px 28px;font-size:12px;color:#637067}
+@media(max-width:830px){.layout{grid-template-columns:1fr}.side{position:static}.grid{grid-template-columns:1fr}.full{grid-column:auto}.surface{padding:17px}}
+@media print{header{print-color-adjust:exact}.stepnav,.bar,button{display:none!important}.layout{display:block}.side{position:static}}
+</style>
+</head>
+<body>
+<header><div class="brand">BEDE <small>CLASSICAL LEARNING OPERATING SYSTEM</small></div></header>
+<main>
+<p class="eyebrow">Valor Education · prepilot guided experience</p>
+<h1>From evidence to thoughtful teaching.</h1>
+<p class="subtle">Experience how a school administrator and teacher review assessment evidence, document observations, and agree on the next instructional step.</p>
+<div class="notice" role="note"><strong>Interactive simulation only.</strong> Fictional learner, fictional campus, and illustrative scores. No sign-in, real student data, official assessment items, AI inference, or server connection. Your work stays in this browser tab; export a local review record when finished.</div>
+<nav class="stepnav" aria-label="Prepilot steps">
+<button type="button" data-step="official" aria-current="step">1. Official result</button>
+<button type="button" data-step="observation">2. Teacher observation</button>
+<button type="button" data-step="review">3. Data Day review</button>
+<button type="button" data-step="audit">4. Review record</button>
+</nav>
+<div class="layout">
+<div>
+<section class="surface" id="panel-official">
+<p class="eyebrow">Step 1 · official assessment</p><h2>Record what the official report says.</h2>
+<p class="muted">Use Valor's authorized assessment material or transcribe its reported result. Bede does not reproduce passages, generate official scores, or interpret licensed cut points.</p>
+<form id="official-form" class="grid" autocomplete="off">
+<label>Campus<input id="campus" value="Example Valor Campus" disabled></label>
+<label>Learner<input id="learner" value="Sample Learner 001" disabled></label>
+<label>Instrument<select id="instrument"><option>DIBELS 8</option><option>NWEA MAP</option><option>STAAR</option><option>Other approved assessment</option></select></label>
+<label>Grade<select id="grade"><option>K</option><option selected>2</option><option>1</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></label>
+<label>Assessment purpose<select id="purpose"><option value="benchmark">Benchmark</option><option value="progress_monitoring">Progress monitoring</option><option value="state_assessment">State assessment</option><option value="other">Teacher-entered official record</option></select></label>
+<label>Benchmark period<select id="period"><option value="BOY">Beginning of year</option><option value="MOY" selected>Middle of year</option><option value="EOY">End of year</option><option value="none">Not applicable</option></select></label>
+<label>Valor review cycle<select id="cycle"><option value="valor_q1">Quarter 1</option><option value="valor_q2" selected>Quarter 2</option><option value="valor_q3">Quarter 3</option><option value="valor_q4">Quarter 4</option></select></label>
+<label>Assessment date<input id="assessed" type="date" required></label>
+<label>Measure / subject<input id="measure" maxlength="64" value="ORF words correct" required placeholder="As shown on the official report"></label>
+<label>Official form / report identifier<input id="formid" maxlength="64" placeholder="Enter the approved identifier" value="SYNTHETIC-EXAMPLE" required></label>
+<label class="full">Report source<input id="source" maxlength="120" value="Illustrative official-report entry" required></label>
+<label>Measure status<select id="measureStatus"><option value="scored">Scored</option><option value="skipped">Skipped</option><option value="not_administered">Not administered</option><option value="interrupted">Interrupted</option><option value="invalid">Invalid</option><option value="voided">Voided</option><option value="not_applicable">Not applicable</option></select></label>
+<label id="scoreWrap">Reported raw score<input id="rawScore" inputmode="decimal" type="number" step="any" min="0" value="58" required></label>
+<label id="unitWrap">Score unit<input id="scoreUnit" maxlength="50" value="words correct / minute"></label>
+<label id="reasonWrap" class="full hidden">Reason this measure has no score<input id="noScoreReason" maxlength="300" placeholder="As noted on the official record"></label>
+<label>Reported classification<input id="band" maxlength="80" value="Not reported" placeholder="Copy the label printed on the official report"><span>No band or risk category is calculated by Bede.</span></label>
+<label>Composite<select id="composite"><option value="not_provided">Not provided</option><option value="reported_official">Present on authorized official report</option></select><span>Never calculated from incomplete measures.</span></label>
+<label id="compositeWrap" class="full hidden">Composite exactly as printed (optional)<input id="compositeScore" inputmode="decimal" type="number" min="0" step="any" placeholder="Copy official score only"></label>
+<label class="full check"><input type="checkbox" id="verified">I reviewed this fictional entry against the illustrative report.</label>
+</form>
+<p class="alert" id="official-error" role="alert"></p>
+<div class="bar"><button class="primary" type="button" id="saveOfficial">Save reviewed record</button><button class="secondary hidden" type="button" id="correctOfficial">Record a correction</button></div>
+<div id="savedOfficial" aria-live="polite"></div>
+</section>
+<section class="surface hidden" id="panel-observation">
+<p class="eyebrow">Step 2 · educator observations</p><h2>What did the teacher notice?</h2>
+<p class="muted">Separate qualitative observations from the standardized record. Nothing here changes the official score.</p>
+<form id="observation-form" class="grid" autocomplete="off">
+<label class="full">Accuracy or fluency<textarea id="accuracy" maxlength="800" placeholder="What was heard or seen?">Reads carefully; pauses on multisyllabic words.</textarea></label>
+<label class="full">Error patterns<textarea id="errors" maxlength="800" placeholder="Note observed patterns, not diagnoses."></textarea></label>
+<label class="full">Attention or administration circumstances<textarea id="attention" maxlength="800"></textarea></label>
+<label class="full">Narration / comprehension<textarea id="narration" maxlength="800" placeholder="How did the learner explain the passage?">Can retell the central events after prompting.</textarea></label>
+<label class="full">Curriculum already taught<textarea id="curriculum" maxlength="800" placeholder="Current lesson sequence or concepts">Narration and oral reading practice.</textarea></label>
+<label class="full">Teacher interpretation<textarea id="interpretation" maxlength="800" placeholder="Your professional interpretation">Needs time to practice fluent reading of familiar material.</textarea></label>
+</form><div class="bar"><button class="primary" type="button" id="saveObservation">Save teacher observation</button></div><p id="observation-status" class="status hidden" role="status"></p>
+</section>
+<section class="surface hidden" id="panel-review">
+<p class="eyebrow">Step 3 · data day</p><h2>Decide the next step.</h2>
+<p class="muted">Assessment and teacher observation are presented together. The suggested wording below is a <strong>sample teaching prompt</strong>, not an AI-generated or validated intervention.</p>
+<div class="item" id="reviewEvidence"></div>
+<label>Illustrative next instructional step<textarea id="proposedStep" maxlength="1200">Practice oral reading and narration with an approved classroom text. Observe fluency and comprehension during teacher-led instruction.</textarea></label>
+<label style="margin-top:12px">Next review date (teacher confirmed)<input type="date" id="reviewDate"></label>
+<label style="margin-top:12px">Reason for your decision<textarea id="decisionNote" maxlength="600" placeholder="Optional teacher rationale"></textarea></label>
+<p class="alert" id="review-error" role="alert"></p>
+<div class="bar"><button class="primary" type="button" data-decision="approve">Approve</button><button class="secondary" type="button" data-decision="edit">Save edited plan</button><button class="danger" type="button" data-decision="reject">Reject</button></div>
+<p class="status" id="review-status">No instructional decision yet. No lesson is sent to a learner.</p>
+</section>
+<section class="surface hidden" id="panel-audit">
+<p class="eyebrow">Step 4 · traceable review</p><h2>One record for the review meeting.</h2>
+<p class="muted">Download a local JSON record of this simulated walkthrough. Its chronological activity trail is illustrative, not a cryptographically verified server audit. The real pilot has separate authorized database controls.</p>
+<div id="reviewSummary" aria-live="polite"></div>
+<h3>Activity history</h3><ol id="history" class="audit"></ol>
+<div class="bar"><button class="primary" type="button" id="export">Download review record</button><button class="secondary" type="button" id="reset">Restart the example</button></div>
+</section>
+</div>
+<aside class="surface side" aria-label="Walkthrough context">
+<p class="eyebrow">Your guided experience</p>
+<h3>Example Valor Campus</h3>
+<div class="metric">Learner<strong>Sample Learner 001 · Grade 2</strong></div>
+<div class="metric">Official report<strong id="sideOfficial">Not recorded</strong></div>
+<div class="metric">Teacher observation<strong id="sideObs">Not recorded</strong></div>
+<div class="metric">Teacher decision<strong id="sideDecision">Awaiting review</strong></div>
+<div class="rail"><strong>What stays in the teacher's hands?</strong><ul><li>Official forms and scores</li><li>Interpretation and instructional plan</li><li>Follow-up review</li></ul><strong>No learner delivery.</strong> In the institutional pilot, delivery remains <code>NOT_REQUESTED</code>.</div>
+<p class="muted">Based on Valor's 2025–26 improvement-plan priorities: BOY / MOY / EOY evidence, classical instruction, and documented progress.</p>
+</aside>
+</div>
+</main><footer>BEDE / AGNUS DEI TECHNOLOGIES · PREPILOT SIMULATION · No real student information may be entered. No network calls or third-party fonts, images, or libraries are used.</footer>
+<script>
+(function(){
+"use strict";
+var KEY="bede_valor_prepilot_synthetic_v1";
+var state={official:[],observations:[],decisions:[],events:[]};
+try{var saved=sessionStorage.getItem(KEY);if(saved){var candidate=JSON.parse(saved);if(candidate&&Array.isArray(candidate.events)&&Array.isArray(candidate.official)&&Array.isArray(candidate.observations)&&Array.isArray(candidate.decisions))state=candidate;}}catch(_){}
+var $=function(id){return document.getElementById(id);};
+var now=function(){return new Date().toISOString();};
+var uid=function(){return "synthetic-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);};
+var latest=function(arr){return arr.length?arr[arr.length-1]:null;};
+var lastFor=function(arr,recordId){for(var n=arr.length-1;n>=0;n--){if(arr[n].official_record_id===recordId)return arr[n];}return null;};
+function persist(){try{sessionStorage.setItem(KEY,JSON.stringify(state));}catch(_){}}
+function log(action,recordId){state.events.push({seq:state.events.length+1,at:now(),action:action,record_id:recordId||null});persist();}
+function text(el,value){el.textContent=value;}
+function showStep(step){
+["official","observation","review","audit"].forEach(function(name){
+$("panel-"+name).classList.toggle("hidden",name!==step);
+var button=document.querySelector('[data-step="'+name+'"]');
+if(button){if(name===step)button.setAttribute("aria-current","step");else button.removeAttribute("aria-current");}
+});
+if(step==="review")renderReview();
+if(step==="audit")renderAudit();
+window.scrollTo({top:0,behavior:"auto"});
+}
+document.querySelectorAll("nav [data-step]").forEach(function(button){button.addEventListener("click",function(){showStep(button.dataset.step);});});
+function refresh(){
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),d=lastFor(state.decisions,o&&o.id);
+text($("sideOfficial"),o?o.instrument+" · "+o.measure_status.replaceAll("_"," "):"Not recorded");
+text($("sideObs"),ob?"Recorded":"Not recorded");
+text($("sideDecision"),d?d.action:"Awaiting review");
+["official","observation","review","audit"].forEach(function(name,index){
+var passed=[!!o,!!ob,!!d,!!d][index];
+document.querySelector('[data-step="'+name+'"]').classList.toggle("done",passed);
+});
+if(o){
+$("savedOfficial").replaceChildren();
+var box=document.createElement("div");box.className="item";
+var h=document.createElement("strong");h.textContent="Saved: "+o.instrument+" · "+o.measure;
+var small=document.createElement("small");small.textContent="Official record "+o.id+" · "+o.measure_status+(o.raw_score!==null?" · reported "+o.raw_score:" · no numeric score");
+box.append(h,small);$("savedOfficial").append(box);
+$("correctOfficial").classList.remove("hidden");
+}
+if(ob){text($("observation-status"),"Teacher observation recorded separately from official scores.");$("observation-status").classList.remove("hidden");}
+if(d){text($("review-status"),"Teacher decision: "+d.action+". Instruction delivery: NOT_REQUESTED.");}
+}
+function scoreVisibility(){
+var scored=$("measureStatus").value==="scored";
+$("scoreWrap").classList.toggle("hidden",!scored);$("unitWrap").classList.toggle("hidden",!scored);
+$("reasonWrap").classList.toggle("hidden",scored);$("rawScore").disabled=!scored;$("rawScore").required=scored;
+$("noScoreReason").required=!scored;
+$("compositeWrap").classList.toggle("hidden",$("composite").value!=="reported_official"||!scored);
+}
+$("measureStatus").addEventListener("change",scoreVisibility);$("composite").addEventListener("change",scoreVisibility);
+$("purpose").addEventListener("change",function(){if($("purpose").value!=="benchmark")$("period").value="none";});
+$("instrument").addEventListener("change",function(){
+var i=$("instrument").value;
+$("measure").value=i==="DIBELS 8"?"ORF words correct":i==="NWEA MAP"?"Reading RIT":i==="STAAR"?"Reading Language Arts":"";
+$("scoreUnit").value=i==="DIBELS 8"?"words correct / minute":i==="NWEA MAP"?"RIT":i==="STAAR"?"reported points":"as reported";
+if(i==="STAAR"){$("purpose").value="state_assessment";$("period").value="none";}
+});
+$("assessed").value=new Date().toISOString().slice(0,10);
+$("saveOfficial").addEventListener("click",function(){
+text($("official-error"),"");
+var status=$("measureStatus").value,scored=status==="scored",score=$("rawScore").value.trim(),reason=$("noScoreReason").value.trim();
+if(!$("official-form").reportValidity())return;
+if(!$("verified").checked){text($("official-error"),"Confirm you reviewed the example report.");return;}
+if(scored&&(!score||!Number.isFinite(Number(score))||Number(score)<0)){text($("official-error"),"Enter the nonnegative raw score exactly as reported.");return;}
+if(!scored&&!reason){text($("official-error"),"Enter why the measure has no score. Bede never converts this to zero.");return;}
+if($("purpose").value!=="benchmark"&&$("period").value!=="none"){text($("official-error"),"Only benchmark records may have a benchmark period.");return;}
+var prior=latest(state.official);
+var item={id:uid(),created_at:now(),supersedes_id:prior&&prior.id||null,learner_id:"SYNTHETIC-001",campus_id:"SYNTHETIC-CAMPUS",instrument:$("instrument").value,edition:$("instrument").value==="DIBELS 8"?"8":"as supplied",grade:$("grade").value,purpose:$("purpose").value,period:$("period").value,cycle:$("cycle").value,assessed_on:$("assessed").value,measure:$("measure").value.trim(),form_identifier:$("formid").value.trim(),source:$("source").value.trim(),measure_status:status,raw_score:scored?Number(score):null,unit:scored?$("scoreUnit").value.trim():null,reason:scored?null:reason,reported_band:scored?$("band").value.trim()||"Not reported":null,composite_eligibility:scored?$("composite").value:"not_applicable",reported_composite:scored&&$("composite").value==="reported_official"&&$("compositeScore").value!==""?Number($("compositeScore").value):null,reviewed:true,status:status==="scored"?"finalized":status};
+if(item.reported_composite!==null&&(!Number.isFinite(item.reported_composite)||item.reported_composite<0)){text($("official-error"),"Copy a valid official composite, or leave it blank.");return;}
+state.official.push(item);log(prior?"Official record correction linked":"Official assessment recorded and reviewed",item.id);
+refresh();showStep("observation");
+});
+$("correctOfficial").addEventListener("click",function(){
+$("verified").checked=false;
+text($("official-error"),"Correction creates a linked new record. The previous reviewed entry stays in the simulation history.");
+$("official-form").scrollIntoView({behavior:"smooth"});
+});
+$("saveObservation").addEventListener("click",function(){
+var official=latest(state.official);
+if(!official){showStep("official");text($("official-error"),"Record the assessment first.");return;}
+var fields=["accuracy","errors","attention","narration","curriculum","interpretation"];
+var out={id:uid(),at:now(),official_record_id:official.id};
+fields.forEach(function(k){out[k]=$(k).value.trim();});
+if(!fields.some(function(k){return out[k].length>0;})){text($("observation-status"),"Record at least one observation.");$("observation-status").classList.remove("hidden");return;}
+state.observations.push(out);log("Teacher observation saved",out.id);refresh();showStep("review");
+});
+function renderReview(){
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id);
+text($("reviewEvidence"),o?(o.instrument+" · "+o.measure+" · "+o.assessed_on+" · "+(o.raw_score===null?"No reported numeric result ("+o.measure_status+")":"reported raw score "+o.raw_score)+". Teacher observation: "+(ob&&ob.interpretation||"Not yet recorded.")):"No official evidence recorded. Complete Step 1 before deciding.");
+}
+document.querySelectorAll("[data-decision]").forEach(function(button){
+button.addEventListener("click",function(){
+text($("review-error"),"");
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),action=button.dataset.decision;
+if(!o||!ob){text($("review-error"),"Record the official result and an observation before a teacher decision.");return;}
+var proposed=$("proposedStep").value.trim();
+if(action!=="reject"&&proposed.length<8){text($("review-error"),"Enter a specific teaching step before approving.");return;}
+var d={id:uid(),at:now(),official_record_id:o.id,observation_id:ob.id,action:action,plan:action==="reject"?null:proposed,confirmed_review_on:action==="reject"?null:($("reviewDate").value||null),teacher_note:$("decisionNote").value.trim(),delivery_state:"NOT_REQUESTED",simulated:true};
+state.decisions.push(d);log("Teacher "+action+" decision recorded",d.id);refresh();showStep("audit");
+});
+});
+function renderAudit(){
+var summary=$("reviewSummary");summary.replaceChildren();
+var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),d=lastFor(state.decisions,o&&o.id);
+var rows=[["Assessment",o?o.instrument+" · "+o.measure:"Not recorded"],["Assessment status",o?o.measure_status:"Not recorded"],["Raw score",o?(o.raw_score===null?"Not scored":String(o.raw_score)):"Not recorded"],["Teacher observation",ob?"Recorded separately":"Not recorded"],["Teacher decision",d?d.action:"Not recorded"],["Learner delivery","NOT_REQUESTED"],["Evidence type","Browser-local simulation; not server-audited"]];
+var table=document.createElement("table");rows.forEach(function(row){var tr=document.createElement("tr"),th=document.createElement("th"),td=document.createElement("td");th.textContent=row[0];td.textContent=row[1];tr.append(th,td);table.append(tr);});summary.append(table);
+var history=$("history");history.replaceChildren();state.events.forEach(function(ev){var li=document.createElement("li");li.textContent="#"+ev.seq+" · "+ev.at+" · "+ev.action+" · "+(ev.record_id||"");history.append(li);});
+}
+$("export").addEventListener("click",function(){
+log("Local review record exported",null);renderAudit();
+var content=JSON.stringify({kind:"BEDE_VALOR_SYNTHETIC_PREPILOT",version:1,generated_at:now(),real_student_data:false,server_audited:false,official_instrument_generated:false,learner_delivery:"NOT_REQUESTED",source_note:"Illustrative evidence only; not an official assessment, no AI inference or immutable proof.",...state},null,2);
+var blob=new Blob([content],{type:"application/json"});
+var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="bede-valor-synthetic-review.json";document.body.append(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+});
+$("reset").addEventListener("click",function(){if(!confirm("Restart the fictional demonstration and clear the browser-tab record?"))return;state={official:[],observations:[],decisions:[],events:[]};persist();location.reload();});
+scoreVisibility();refresh();showStep("official");
+})();
+</script>
+</body>
+</html>

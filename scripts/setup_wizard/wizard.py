@@ -101,9 +101,14 @@ _PAGE_HEAD = """\
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Set up Bede</title>
+<link rel="icon" type="image/png" href="/bede-icon.png">
 <style>
+  .bede-brand { display:flex; gap:18px; align-items:center; margin:0 0 24px; }
+  .bede-brand img { width:78px; height:78px; border-radius:13px; object-fit:cover; }
+  .bede-brand h1 { font-family:Georgia,serif; margin:0; }
+  .bede-brand p { margin:4px 0 0; color:#65716a; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-         background: #f7f3ec; color: #2d3142; max-width: 640px; margin: 0 auto;
+         background: #f7f3ec; color: #24382e; max-width: 640px; margin: 0 auto;
          padding: 32px 20px; line-height: 1.5; }
   h1 { font-size: 24px; margin-bottom: 4px; }
   .sub { color: #6b7280; margin-top: 0; margin-bottom: 28px; }
@@ -115,29 +120,29 @@ _PAGE_HEAD = """\
   }
   .choice { border: 2px solid #e5e7eb; border-radius: 10px; padding: 14px 16px;
             margin-top: 10px; cursor: pointer; }
-  .choice.selected { border-color: #2b4c7e; background: #eef2f8; }
+  .choice.selected { border-color: #4b6555; background: #eef2f8; }
   .choice input { margin-right: 8px; }
   .choice-title { font-weight: 600; }
   .choice-desc { color: #6b7280; font-size: 13px; margin-top: 2px; }
   button { margin-top: 28px; width: 100%; padding: 14px; font-size: 16px;
-           font-weight: 600; color: white; background: #2b4c7e; border: none;
+           font-weight: 600; color: white; background: #4b6555; border: none;
            border-radius: 10px; cursor: pointer; }
   button:hover { background: #1f3a63; }
-  .cancel-setup { margin-top: 12px; background: transparent; color: #2b4c7e;
+  .cancel-setup { margin-top: 12px; background: transparent; color: #4b6555;
                   border: 1px solid #a6b1c1; }
   .cancel-setup:hover { background: #eef2f8; }
   .error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
            padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; }
   .success { text-align: center; padding: 40px 20px; }
-  a { color: #2b4c7e; }
+  a { color: #4b6555; }
   .narration-bar { display: none; align-items: center; gap: 10px; flex-wrap: wrap;
                     background: #eef2f8; border-radius: 10px; padding: 10px 14px;
                     margin-bottom: 20px; }
   .narration-btn, .mic-btn { padding: 8px 14px; font-size: 14px; font-weight: 600;
-    border: 1px solid #2b4c7e; border-radius: 20px; background: white;
-    color: #2b4c7e; cursor: pointer; }
+    border: 1px solid #4b6555; border-radius: 20px; background: white;
+    color: #4b6555; cursor: pointer; }
   .narration-btn:hover, .mic-btn:hover { background: #e0e7f2; }
-  .mic-btn.on { background: #2b4c7e; color: white; }
+  .mic-btn.on { background: #4b6555; color: white; }
   .mic-status { font-size: 13px; color: #6b7280; flex-basis: 100%; }
   .voice-hint { font-size: 12px; color: #6b7280; flex-basis: 100%; }
 </style>
@@ -270,9 +275,9 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     local_ai = _read_local_ai_marker()
     provider = v.get("provider", "local_auto" if local_ai else "anthropic")
     body = []
-    body.append("<h1>Let's set up Bede</h1>")
+    body.append('<div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Welcome to Bede</h1><p>Prepare Bede for your pilot.</p></div></div>')
     body.append(_narration_block("welcome", enable_mic=True))
-    body.append('<p class="sub">Answer these, then click the button at the bottom — everything else happens automatically.</p>')
+    body.append('<p class="sub">Choose your settings. Bede will guide you through the rest.</p>')
     if banner:
         body.append(f'<div class="error">{banner}</div>')
     if error:
@@ -452,8 +457,8 @@ def render_success(fields: dict | None = None) -> str:
     extra = f' or <a href="{lan_url}">{lan_url}</a> on the private teacher network' if lan_url else legacy_extra
     body += f"""
     <div class="success">
-      <h1>All set!</h1>
-      <p>Starting Bede now — this can take a couple of minutes the first time.</p>
+      <div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Saving your setup</h1></div></div>
+      <p>Settings are saved. Bede will now start and check the secure connection.</p>
       <p>You can close this tab. Bede will be running at
         <a href="https://localhost">https://localhost</a>{extra}.</p>
     </div>
@@ -652,6 +657,18 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if self.path == "/bede-icon.png":
+            image = Path("/app/BedeIcon.png")
+            if not image.is_file():
+                self.send_error(404)
+                return
+            content = image.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(content)))
+            self.end_headers()
+            self.wfile.write(content)
+            return
         if self.path.startswith("/audio/"):
             self._serve_audio(self.path[len("/audio/"):])
             return
@@ -670,8 +687,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/cancel":
             self._send_html(
                 _PAGE_HEAD
-                + '<div class="success"><h1>Setup canceled</h1>'
-                + "<p>No new configuration was saved. Close this tab and resume "
+                + '<div class="success"><div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Setup stopped</h1></div></div>'
+                + "<p>No new configuration was saved. Close this tab and return "
                   "the Bede installer when you have an approved license key.</p></div>"
                 + _PAGE_TAIL
             )

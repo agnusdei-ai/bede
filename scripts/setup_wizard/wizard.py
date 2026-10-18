@@ -465,19 +465,35 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
 def render_success(fields: dict | None = None) -> str:
     body = _narration_block("success", enable_mic=False)
+    lan_enabled = (fields or {}).get("lan_mode") == "yes"
     host = (fields or {}).get("lan_host", "").strip().lower()
-    lan_url = f"https://{html.escape(host)}" if (fields or {}).get("lan_mode") == "yes" else ""
-    legacy_extra = (
-        f' or <a href="https://{html.escape(LAN_IP)}">https://{html.escape(LAN_IP)}</a> from tablets on your network'
-        if LAN_IP else ""
-    )
-    extra = f' or <a href="{lan_url}">{lan_url}</a> on the private teacher network' if lan_url else legacy_extra
+    if lan_enabled and host:
+        access_url = f"https://{html.escape(host)}"
+        access_message = (
+            "After the installer confirms that the secure connection is ready, "
+            "approved teachers can open Bede at:"
+        )
+        detail = (
+            "<p>The private network address identifies the Bede computer; "
+            "the secure website name is used for HTTPS and passkeys. "
+            "If this link does not work, ask your network administrator to "
+            "check the private DNS and HTTPS setup.</p>"
+        )
+    else:
+        access_url = "https://localhost"
+        access_message = (
+            "After the installer confirms that Bede is ready, "
+            "open it on this computer at:"
+        )
+        detail = "<p>Access from other computers is turned off.</p>"
     body += f"""
     <div class="success">
-      <div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Saving your setup</h1></div></div>
-      <p>Settings are saved. Bede will now start and check the secure connection.</p>
-      <p>You can close this tab. Bede will be running at
-        <a href="https://localhost">https://localhost</a>{extra}.</p>
+      <div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Starting Bede</h1></div></div>
+      <p>Your settings have been saved. The installer is starting Bede and checking the secure connection.</p>
+      <p><strong>{access_message}</strong></p>
+      <p><a href="{access_url}">{access_url}</a></p>
+      {detail}
+      <p>Keep the installer open until it confirms setup is complete.</p>
     </div>
     """
     return _PAGE_HEAD + body + _PAGE_TAIL

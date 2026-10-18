@@ -658,3 +658,26 @@ def test_the_suggested_pin_is_actually_accepted(running_wizard):
     })
     assert resp.status == 200
     assert f"CHILD_PIN={wizard.SUGGESTED_CHILD_PIN}" in open(wizard.ENV_PATH).read()
+
+
+def test_campus_pilot_location_is_written_only_when_approved():
+    """The signed site ID must reach core.config without changing family defaults."""
+    fields = {
+        "db_choice": "local",
+        "provider": "openai",
+        "openai_key": "fake-local-test-value",
+        "parent_password": "pilot-test-password-unique",
+        "child_pin": "648219",
+        "license_key": "local-unit-test-not-a-signed-license",
+        "location_id": "bede-mac-pilot-2026",
+    }
+    rendered = wizard.render_form()
+    assert 'name="location_id"' in rendered
+    assert wizard.validate(fields) == ""
+    generated = wizard.build_env_file(fields)
+    assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\n" in generated
+    assert "LICENSE_KEY=local-unit-test-not-a-signed-license\n" in generated
+    fields["location_id"] = ""
+    assert "BEDE_LOCATION_ID" not in wizard.build_env_file(fields)
+    fields["location_id"] = "../../not-a-campus"
+    assert "campus ID" in wizard.validate(fields)

@@ -875,3 +875,39 @@ def test_observation_is_separate_from_immutable_official_scores(world):
     assert after["scores"] == before["scores"]
     assert after["snapshot_sha256"] == before["snapshot_sha256"]
     assert after["snapshot_verified"] is True
+
+
+def test_teacher_can_read_only_own_campus_calendar(world):
+    url = f"{world.base()}/assessment-calendar"
+    allowed = world.client.get(url, headers=world.teacher_one.headers)
+    assert allowed.status_code == 200, allowed.text
+    cycles = allowed.json()["cycles"]
+    assert [c["cycle_key"] for c in cycles] == [
+        "valor_q1", "valor_q2", "valor_q3", "valor_q4"]
+    assert all(c["data_day_on"] is not None for c in cycles)
+    denied = world.client.get(url, headers=world.teacher_two.headers)
+    assert denied.status_code == 404
+    # Switching the supplied URL to another campus cannot borrow the grant.
+    forged = f"/pilot/campuses/{world.campus_two}/learners/{world.learner_one}/assessment-calendar"
+    assert world.client.get(forged, headers=world.teacher_one.headers).status_code == 404
+
+
+def test_admin_marks_reject_inconsistent_times_and_unexplained_interruption(world):
+    a = world.administer(purpose="progress_monitoring", window="none",
+                         measure="PSF", form=PM_FORM)
+    path = f"{world.base()}/assessments/{a['assessment_id']}/administration-log"
+    invalid = [
+        {"start_time": "2031-08-20T09:02:00+00:00",
+         "end_time": "2031-08-20T09:01:00+00:00"},
+        {"interrupted": True},
+        {"elapsed_seconds": -1},
+        {"last_item_attempted": -1},
+    ]
+    for marks in invalid:
+        response = world.client.patch(path, json={
+            "expected_state": "DRAFT", "administration_log": marks,
+        }, headers=world.teacher_one.headers)
+        assert response.status_code == 422, (marks, response.text)
+    current = world.client.get(f"{world.base()}/assessments/{a['assessment_id']}",
+                               headers=world.teacher_one.headers).json()
+    assert current["administration_log"] is None

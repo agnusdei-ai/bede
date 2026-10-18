@@ -3,7 +3,7 @@ import {
   createOfficialAssessment, decideOfficialProposal, enterOfficialScores,
   fetchOfficialAssessment, fetchOfficialAssessments, fetchOfficialDataDay,
   recordOfficialObservation, recordOfficialPlan, requestOfficialProposal,
-  transitionOfficialAssessment,
+  supersedeOfficialAssessment, transitionOfficialAssessment,
 } from '../services/api'
 import type {
   DibelsGrade, OfficialAssessment,
@@ -74,6 +74,7 @@ export default function PilotOfficialAssessmentForm({
   const [interruption, setInterruption] = useState('')
   const [fidelity, setFidelity] = useState('')
   const [reviewed, setReviewed] = useState(false)
+  const [correctionReason, setCorrectionReason] = useState('')
   const [observation, setObservation] = useState<TeacherObservation>(blankObservation)
   const [editText, setEditText] = useState('')
   const [approvedText, setApprovedText] = useState('')
@@ -159,6 +160,17 @@ export default function PilotOfficialAssessmentForm({
       setCurrent(updated)
       setMessage(`Assessment: ${readable(updated.state)}.`)
       await refresh(current.assessment_id)
+    })
+  }
+
+  async function supersede() {
+    if (!current || correctionReason.trim().length < 3) return
+    await perform(async () => {
+      const replacement = await supersedeOfficialAssessment(
+        token, campusId, learnerId, current.assessment_id, correctionReason.trim())
+      setCorrectionReason('')
+      setMessage('Correction draft created. The prior finalized assessment remains immutable and audit-linked.')
+      await refresh(replacement.assessment_id)
     })
   }
 
@@ -331,10 +343,34 @@ export default function PilotOfficialAssessmentForm({
               {current.state === 'IN_PROGRESS' && <button className="border rounded-lg px-3 py-2 text-xs" type="button" disabled={busy} onClick={() => void advance('submit')}>Complete pending review</button>}
               {current.state === 'COMPLETED_PENDING_REVIEW' && <button className="border rounded-lg px-3 py-2 text-xs" type="button" disabled={busy || !current.scores?.length || !reviewed}
                 onClick={() => void advance('finalize')}>Finalize official record</button>}
-              {(current.state === 'DRAFT' || current.state === 'IN_PROGRESS') &&
-                <button className="border border-red-200 rounded-lg px-3 py-2 text-xs" type="button" disabled={busy}
-                  onClick={() => void advance('void', 'Teacher voided an incomplete record')}>Void</button>}
+              {current.state === 'IN_PROGRESS' && <button className="border rounded-lg px-3 py-2 text-xs" type="button" disabled={busy}
+                onClick={() => void advance('interrupt')}>Mark interrupted</button>}
+              {(current.state === 'IN_PROGRESS' || current.state === 'COMPLETED_PENDING_REVIEW') &&
+                <button className="border rounded-lg px-3 py-2 text-xs disabled:opacity-40" type="button"
+                  disabled={busy || correctionReason.trim().length < 3}
+                  onClick={() => void advance('invalidate', correctionReason)}>Mark invalid</button>}
+              {current.state === 'INTERRUPTED' && <button className="border rounded-lg px-3 py-2 text-xs disabled:opacity-40"
+                type="button" disabled={busy || correctionReason.trim().length < 3}
+                onClick={() => void advance('resume', correctionReason)}>Resume with resolution</button>}
+              {current.state === 'INVALID_ADMINISTRATION' && <button className="border rounded-lg px-3 py-2 text-xs disabled:opacity-40"
+                type="button" disabled={busy || correctionReason.trim().length < 3}
+                onClick={() => void advance('resolve_invalid', correctionReason)}>Resolve invalid record</button>}
+              {(['DRAFT', 'READY_FOR_ADMINISTRATION', 'IN_PROGRESS', 'COMPLETED_PENDING_REVIEW', 'INTERRUPTED', 'INVALID_ADMINISTRATION']
+                .includes(current.state)) && <button className="border border-red-200 rounded-lg px-3 py-2 text-xs disabled:opacity-40"
+                  type="button" disabled={busy || correctionReason.trim().length < 3}
+                  onClick={() => void advance('void', correctionReason)}>Void with reason</button>}
             </div>
+            <label className="text-xs block">Resolution or correction reason
+              <textarea className={input} maxLength={500} value={correctionReason} onChange={e => setCorrectionReason(e.target.value)}
+                placeholder="Required for voids, corrections and interrupted/invalid resolutions"/>
+            </label>
+            {(['FINALIZED', 'EVIDENCE_AVAILABLE', 'TEACHER_DECISION_PENDING',
+              'TEACHER_DECISION_RECORDED', 'INSTRUCTIONAL_PLAN_READY',
+              'PROGRESS_MONITORING_SCHEDULED'].includes(current.state)) &&
+              <button type="button" className="border rounded-lg px-3 py-2 text-xs disabled:opacity-40"
+                disabled={busy || correctionReason.trim().length < 3} onClick={() => void supersede()}>
+                Supersede finalized record with audited correction
+              </button>}
             {canScore && <div className="space-y-2 border-t pt-3">
               <h5 className="font-semibold text-xs">Live marks and transcribed score</h5>
               <label className="text-xs block">Measure administration status

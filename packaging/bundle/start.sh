@@ -11,6 +11,11 @@ mkdir -p "$support_dir"
 chmod 700 "$support_dir"
 support_log="$support_dir/setup-$(date -u +%Y%m%dT%H%M%SZ)-$.log"
 phase="preflight"
+progress() {
+  local name="$1" state="$2" message="$3"
+  printf 'BEDE_PROGRESS|%s|%s|%s\n' "$name" "$state" "$message"
+}
+progress "Checking this Mac" working "Checking the installation requirements"
 diagnose_exit() {
   local status="$1"
   {
@@ -49,7 +54,9 @@ case "$actual_arch" in x86_64|amd64) actual_arch=amd64 ;; aarch64|arm64) actual_
 [[ "$required_arch" = "$actual_arch" ]] || fail "This package targets $required_arch; Docker requires $actual_arch. Choose the $actual_arch installer."
 [[ -f WIZARD_IMAGE ]] || fail "Wizard reference missing."
 [[ -f compose.yaml && -f Caddyfile ]] || fail "Installation manifest is incomplete."
+progress "Checking this Mac" done "Mac checks complete"
 phase="image-import"
+progress "Preparing Bede" working "Loading installation files"
 if [[ -f images.tar ]]; then
   docker load -i images.tar >/dev/null
 elif [[ -f images.tar.zst ]]; then
@@ -64,7 +71,9 @@ else
     docker tag "${image}@${digest}" "$image" || fail "Unable to tag verified image: $image"
   done < IMAGE_DIGESTS
 fi
+progress "Preparing Bede" done "Installation files are ready"
 phase="configuration-wizard"
+progress "Completing setup" working "Opening Bede setup in your browser"
 if [[ ! -s .env ]]; then
   echo "Launching the secure Bede setup wizard..."
   image="$(tr -d '\r\n' < WIZARD_IMAGE)"
@@ -105,11 +114,15 @@ if grep -qx 'BEDE_LAN_ENABLED=true' .env; then
   compose_files+=(-f compose.lan.yaml)
   echo "Private LAN access requested. Verify local DNS, firewall restrictions and certificate trust on each teacher Mac before enrollment."
 fi
+progress "Completing setup" done "Settings are saved"
 phase="configuration-validation"
 docker compose --env-file .env "${compose_files[@]}" config --quiet || fail "Invalid setup configuration"
+progress "Starting Bede" working "Starting local services"
 phase="container-start"
 docker compose --env-file .env "${compose_files[@]}" up -d --no-build --pull never || fail "Bede containers did not start"
+progress "Starting Bede" done "Services started"
 phase="https-health"
+progress "Confirming secure access" working "Checking the secure local connection"
 # Trigger Caddy's local certificate issuance on the loopback interface.
 # This first probe is NOT security validation; the final health test below
 # validates against the root CA exported from this instance.
@@ -129,5 +142,6 @@ for attempt in $(seq 1 45); do
   sleep 2
 done
 [[ "$ok" = 1 ]] || fail "Verified HTTPS health check failed. Inspect Bede container logs."
+progress "Confirming secure access" done "Secure connection confirmed"
 phase="completed"
 echo "Bede is healthy at https://localhost. On any teacher Mac, confirm private DNS and CA trust before using the configured HTTPS name for passkeys."

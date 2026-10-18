@@ -584,6 +584,16 @@ async def transition(campus_id: str, learner_id: str, assessment_id: str,
         if not await _score_rows(db, adm.id):
             raise _conflict("Enter at least one measure before submitting")
     if action is Action.FINALIZE:
+        # The official-entry form may save incremental marks. A finalized
+        # transcribed score explicitly carrying an official_marks record must
+        # have been reviewed by the teacher. Existing historic records that
+        # predate official_marks retain their original lifecycle contract.
+        for scored_row in await _score_rows(db, adm.id):
+            detail = _dec(scored_row.detail_enc, "pilot_assessment_scores",
+                          "detail_enc", learner, scored_row.id)
+            marks = detail.get("official_marks")
+            if marks is not None and not marks.get("teacher_reviewed"):
+                raise _conflict("Teacher review is required before finalizing official marks")
         content_sha = await _snapshot_hash(db, adm, learner)
     await _advance(db, learner, adm, teacher.id, action, expected=expected,
                    resolution=payload.resolution, content_sha256=content_sha)

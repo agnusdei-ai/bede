@@ -733,7 +733,7 @@ async def record_evidence(campus_id: str, learner_id: str, assessment_id: str,
         score_ids=json.dumps([s.id for s in scores]),
         summary_enc=_enc({
             "summary": (payload.summary or "").strip() or None,
-            "observation": payload.observation.model_dump() if payload.observation else None,
+            "observation": payload.observation.model_dump(mode="json") if payload.observation else None,
         }, "pilot_assessment_evidence", "summary_enc", learner, ev_id),
         recorded_by=teacher.id, created_at=datetime.now(timezone.utc),
     ))

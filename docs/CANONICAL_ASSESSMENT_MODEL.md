@@ -32,9 +32,10 @@ never computes a band. DIBELS is never used as a learner grade.
 Three kinds of thing are kept apart:
 
 1. **The official record.** This is the administration, its per-measure scores
-   and its item responses. Once finalized it is immutable.
-2. **Bede's interpretation.** This is a *proposal*, which is never an approval.
-3. **The teacher's decision, plan and progress-monitoring dates.** Only a
+   and its optional indexed marks and administration log. Once finalized it is immutable.
+2. **Teacher observation.** Accuracy, fluency, errors, circumstances, narration, concepts taught, interpretation and next steps live in a separate encrypted evidence record, not in official scores.
+3. **Bede's interpretation.** This is a *proposal*, which is never an approval.
+4. **The teacher's decision, plan and progress-monitoring dates.** Only a
    recorded teacher action creates these.
 
 Teacher interpretation never overwrites a score. Both the database and the
@@ -51,11 +52,11 @@ the module is missing from that list or from this document.
 
 | Table | Record | Encrypted columns |
 | --- | --- | --- |
-| `pilot_assessment_administrations` | AssessmentAdministration | `content_enc` (accommodations, notes, vendor guidance) |
-| `pilot_assessment_scores` | AssessmentScore, per measure and composite | `detail_enc` (score, unit, reason, printed labels, printed cut points) |
+| `pilot_assessment_administrations` | AssessmentAdministration | `content_enc` (accommodations, notes, vendor guidance, live administrator timing/marks) |
+| `pilot_assessment_scores` | AssessmentScore, per measure and composite | `detail_enc` (score, unit, count/error/accuracy fields, missing reason, printed labels, composite eligibility and provenance) |
 | `pilot_assessment_responses` | AssessmentResponse, item marks | `marks_enc` |
 | `pilot_assessment_transitions` | AuditEvent, the hash-chained lifecycle | `note_enc` |
-| `pilot_assessment_evidence` | EvidenceRecord | `summary_enc` |
+| `pilot_assessment_evidence` | EvidenceRecord and separate teacher interpretation | `summary_enc` (observation and summary) |
 | `pilot_assessment_proposals` | Bede's proposed next step and review date | `proposal_enc` |
 | `pilot_assessment_decisions` | TeacherDecision, hash-chained per learner | `rationale_enc` |
 | `pilot_assessment_plans` | Teacher's instructional plan, recorded only | `plan_enc` |
@@ -145,10 +146,57 @@ request race a legitimate one. The `result` column therefore always reads
 | Only `benchmark` may carry an `official_benchmark_window` (`BOY`, `MOY` or `EOY`). Every other purpose must say `none`. A progress-monitoring result is never a benchmark, whatever Data Day it falls on. | `AdministrationInput` |
 | `benchmark` requires a recorded, enabled per-campus authorization whose approved forms include the `form_id`. Without one, the API answers `403` and writes nothing. | router `_benchmark_authorization` |
 | `report_source`, `official_benchmark_window` and `vendor_next_assessment_date` are transcribed separately and never derived from `instructional_cycle`. | `AdministrationInput`, test |
-| Each measure has an `administration_status` of `scored`, `not_administered_by_rule`, `not_administered_other` or `invalid`. Only `scored` carries a raw score. Every other status needs a transcribed reason and carries no number. It is never 0 and never enters growth. | `ScoreInput`, `growth_by_measure` |
+| Measure status distinguishes `scored`, `not_administered_by_rule`, `not_administered_other`, `skipped`, `not_applicable`, `invalid`, and `voided`. Only `scored` may carry numeric marks or scores; other statuses require a reason, remain null (never zero), and are omitted from growth. | `ScoreInput`, `growth_by_measure` |
 | A composite or measure may carry a printed `benchmark_label` (Well Below, Below, At or Above Benchmark), a printed `support_label` (Most Support, Some Support, Goal or Above Goal), or both. Each is validated against its own allowed set and stored exactly as printed. Neither is computed, and they are never reconciled with each other or with the score. | `ScoreInput` |
 | Cut points printed on the report are stored per score row and returned with `provenance: "as printed on the source report"`. No band is computed from them. | `ScoreInput`, `_render_score` |
 | Vendor guidance (support areas and home activities) is stored as `vendor_guidance` and attributed to the vendor. It is never a Bede recommendation and never an approved action. A printed band and a named support area are both recorded, and neither is reconciled with the other. | `VendorGuidance`, `propose` |
+
+## Official assessment form and teacher observation
+
+The educator desk's **Official record** journey shows two connected, distinct panels.
+The left panel records authorized official DIBELS 8 metadata and educator-entered
+results; the right panel records teacher observations, cited Bede suggestions,
+approve/edit/reject decisions, and a teacher-authored instructional plan.
+
+The official panel stores: campus/learner UUID, teacher administrator, grade,
+date, edition, measure, form ID, benchmark versus progress-monitoring purpose,
+official benchmark period, Valor Data Day cycle, accommodations, and lifecycle
+state. Optional live fields are start/end, elapsed seconds, last attempted
+item **index only**, counts of correct/error/self-correction marks,
+discontinue result, interruption and administration fidelity. They are encrypted
+in the existing administration record. Before finalization the educator can
+revise these via a version-aware, hash-audited PATCH; after finalization the
+database rejects edits and a superseding record is required.
+
+Scores store the external raw value, unit, optional correct/error/accuracy
+components, reported risk/support classification, calculation version, and
+teacher-reviewed status. Bede **never derives a DIBELS composite**. Even an
+externally reported composite defaults to **not verified**. The optional
+`eligible_as_reported` state is permitted only when all educator-declared
+officially applicable measures in the **same submitted report** are present
+and scored. This does not validate the publisher's grade/window applicability:
+that still requires an authorized source/adapter. No missing measure becomes
+numeric zero.
+
+The teacher observation is an encrypted, source-linked evidence object
+separate from the official score. Its interpretation does not overwrite the
+finalized snapshot. Any Bede output is a proposal until the teacher
+approves, edits or rejects it; an authorized plan is recorded with
+`delivery_state = NOT_REQUESTED`. The teacher personally teaches.
+No learner sessions or direct tutoring are enabled by these panels.
+
+**Materials boundary:** no DIBELS item lists, passages, directions, official
+score forms or protected content are embedded, generated or redistributed.
+Open authorized materials through
+[the University of Oregon official site](https://dibels.uoregon.edu/materials/dibels),
+or enter an independently produced report. University of Oregon/Amplify
+educational-use terms still apply. The platform adapter is deliberately
+configurable for an authorized mCLASS, DIBELS Data System, or manual official
+report; this work does **not** assert any partner API access.
+
+Valor's approved instrument edition, official form identifiers,
+benchmark windows, accommodation policy, and assessment calendar must be
+confirmed by its assessment lead before any real institutional data.
 
 ## Calendar (configurable per campus)
 

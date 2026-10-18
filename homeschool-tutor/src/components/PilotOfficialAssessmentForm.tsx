@@ -87,6 +87,9 @@ export default function PilotOfficialAssessmentForm({
     setSelectedId(chosen)
     const record = await fetchOfficialAssessment(token, campusId, learnerId, chosen)
     setCurrent(record)
+    setReviewed(Boolean(record.scores?.[0]?.official_marks?.teacher_reviewed))
+    setStatus(record.scores?.[0]?.administration_status ?? 'scored')
+    setRawScore(record.scores?.[0]?.raw_score == null ? '' : String(record.scores[0].raw_score))
     try {
       const packet = await fetchOfficialDataDay(token, campusId, learnerId, record.instructional_cycle)
       setProposal(packet.proposed_next_steps.find(p => p.assessment_id === chosen) ?? null)
@@ -113,6 +116,9 @@ export default function PilotOfficialAssessmentForm({
     fetchOfficialAssessment(token, campusId, learnerId, selectedId).then(async record => {
       if (!live) return
       setCurrent(record)
+      setReviewed(Boolean(record.scores?.[0]?.official_marks?.teacher_reviewed))
+      setStatus(record.scores?.[0]?.administration_status ?? 'scored')
+      setRawScore(record.scores?.[0]?.raw_score == null ? '' : String(record.scores[0].raw_score))
       try {
         const dataDay = await fetchOfficialDataDay(token, campusId, learnerId, record.instructional_cycle)
         if (live) setProposal(dataDay.proposed_next_steps.find(p => p.assessment_id === selectedId) ?? null)

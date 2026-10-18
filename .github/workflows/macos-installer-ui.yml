@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - 'packaging/macos/**'
+      - 'scripts/pilot/**'
+      - 'scripts/setup_wizard/**'
       - '.github/workflows/macos-installer-ui.yml'
   push:
     branches: [main]
@@ -22,3 +24,26 @@ jobs:
           swiftc -parse-as-library -o "$RUNNER_TEMP/BedeInstaller.app/Contents/MacOS/BedeInstaller" packaging/macos/BedeInstallerApp.swift
       - name: Confirm release is NOT certified by compilation
         run: echo "Compile-only check; signed DMG, payload provisioning and physical Mac evidence remain required."
+
+  pilot-license:
+    name: Verify disposable pilot license issuance
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare local Python signing dependencies
+        run: python -m pip install 'pycryptodome==4.0.1'
+      - name: Prove one time campus license verifies and no private key remains
+        run: |
+          set -euo pipefail
+          python scripts/pilot/issue_one_time_campus_license.py --location-id pilot-test-campus-01 --days 7 --output "$RUNNER_TEMP/bede-test-license.txt"
+          test "$(stat -c %a "$RUNNER_TEMP/bede-test-license.txt")" = 600
+          test "$(git diff --name-only)" = homeschool-api/core/licensing.py
+          test "$(grep -c '^BEDE_LOCATION_ID=pilot-test-campus-01$' "$RUNNER_TEMP/bede-test-license.txt")" = 1
+          ! python scripts/pilot/issue_one_time_campus_license.py --location-id pilot-test-campus-01 --days 7 --output "$RUNNER_TEMP/bede-test-license.txt"
+          python -m py_compile scripts/setup_wizard/wizard.py
+          python scripts/setup_wizard/test_wizard.py
+          rm -f "$RUNNER_TEMP/bede-test-license.txt"
+          git diff --check

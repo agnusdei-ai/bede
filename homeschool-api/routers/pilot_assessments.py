@@ -360,6 +360,8 @@ def _render_score(row: PilotAssessmentScore, learner: PilotLearner) -> dict:
         "benchmark_label": d["benchmark_label"], "support_label": d["support_label"],
         "printed_cut_points": {"provenance": ca.CUT_POINT_PROVENANCE,
                                "values": d["printed_cut_points"]},
+        "official_marks": d.get("official_marks"),
+        "composite_eligible": d.get("composite_eligible"),
     }
 
 
@@ -372,7 +374,9 @@ def _score_snapshot(s: dict) -> dict:
     return {k: s[k] for k in ("measure", "is_composite", "administration_status",
                               "calculation_version", "raw_score", "score_unit", "reason",
                               "benchmark_label", "support_label")} | {
-        "printed_cut_points": s["printed_cut_points"]["values"]}
+        "printed_cut_points": s["printed_cut_points"]["values"],
+        "official_marks": s.get("official_marks"),
+        "composite_eligible": s.get("composite_eligible")}
 
 
 async def _snapshot_hash(db, adm, learner) -> str:
@@ -580,6 +584,16 @@ async def transition(campus_id: str, learner_id: str, assessment_id: str,
         if not await _score_rows(db, adm.id):
             raise _conflict("Enter at least one measure before submitting")
     if action is Action.FINALIZE:
+        # The official-entry form may save incremental marks. A finalized
+        # transcribed score explicitly carrying an official_marks record must
+        # have been reviewed by the teacher. Existing historic records that
+        # predate official_marks retain their original lifecycle contract.
+        for scored_row in await _score_rows(db, adm.id):
+            detail = _dec(scored_row.detail_enc, "pilot_assessment_scores",
+                          "detail_enc", learner, scored_row.id)
+            marks = detail.get("official_marks")
+            if marks is not None and not marks.get("teacher_reviewed"):
+                raise _conflict("Teacher review is required before finalizing official marks")
         content_sha = await _snapshot_hash(db, adm, learner)
     await _advance(db, learner, adm, teacher.id, action, expected=expected,
                    resolution=payload.resolution, content_sha256=content_sha)
@@ -675,8 +689,11 @@ async def record_evidence(campus_id: str, learner_id: str, assessment_id: str,
         id=ev_id, administration_id=adm.id, campus_id=learner.campus_id,
         learner_id=learner.id, snapshot_sha256=adm.snapshot_sha256,
         score_ids=json.dumps([s.id for s in scores]),
-        summary_enc=_enc({"summary": (payload.summary or "").strip() or None},
-                         "pilot_assessment_evidence", "summary_enc", learner, ev_id),
+        summary_enc=_enc({
+            "summary": (payload.summary or "").strip() or None,
+            "teacher_observation": (payload.teacher_observation.model_dump()
+                                    if payload.teacher_observation else None),
+        }, "pilot_assessment_evidence", "summary_enc", learner, ev_id),
         recorded_by=teacher.id, created_at=datetime.now(timezone.utc),
     ))
     await _commit(db, auth, learner)
@@ -688,7 +705,9 @@ def _render_evidence(ev: PilotAssessmentEvidence, learner: PilotLearner) -> dict
     summary = _dec(ev.summary_enc, "pilot_assessment_evidence", "summary_enc", learner, ev.id)
     return {"evidence_id": ev.id, "assessment_id": ev.administration_id,
             "snapshot_sha256": ev.snapshot_sha256, "score_ids": json.loads(ev.score_ids),
-            "summary": summary["summary"], "recorded_at": _iso(ev.created_at)}
+            "summary": summary["summary"],
+            "teacher_observation": summary.get("teacher_observation"),
+            "recorded_at": _iso(ev.created_at)}
 
 
 async def _last_decision(db, adm_id) -> Optional[PilotAssessmentDecision]:

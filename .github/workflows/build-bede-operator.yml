@@ -13,6 +13,12 @@ on:
     paths:
       - '.github/workflows/build-bede-operator.yml'
       - 'packaging/**'
+      - '.github/workflows/qualification.yml'
+      - 'homeschool-api/services/canonical_assessment.py'
+      - 'homeschool-api/routers/pilot_assessments.py'
+      - 'homeschool-tutor/src/components/PilotOfficialAssessmentForm.tsx'
+      - 'homeschool-tutor/src/components/PilotTeacherJourney.tsx'
+      - 'homeschool-tutor/src/services/api.ts'
 permissions:
   contents: read
   packages: write

@@ -67,6 +67,11 @@ on:
       - '.github/workflows/qualification.yml'
       - 'docs/SYNTHETIC_QUALIFICATION.md'
       - '.github/workflows/build-bede-operator.yml'
+      - 'homeschool-api/services/canonical_assessment.py'
+      - 'homeschool-api/routers/pilot_assessments.py'
+      - 'homeschool-tutor/src/components/PilotOfficialAssessmentForm.tsx'
+      - 'homeschool-tutor/src/components/PilotTeacherJourney.tsx'
+      - 'homeschool-tutor/src/services/api.ts'
 
 permissions:
   contents: read

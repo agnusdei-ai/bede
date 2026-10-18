@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, ClipboardList, FileCheck2, PencilLine, XCircle } from 'lucide-react'
+import PilotOfficialAssessmentForm from './PilotOfficialAssessmentForm'
 import {
   decidePilotRecommendation, fetchInstructorFrameworks, fetchPilotEvidence,
   fetchPilotLearners, fetchPilotLedger, fetchPilotRecommendations,
@@ -64,6 +65,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
   const [score, setScore] = useState('')
   const [band, setBand] = useState<EducatorAssessmentBand>('not_reported')
   const [source, setSource] = useState('')
+  const [showOfficial, setShowOfficial] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -152,6 +154,19 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
         </select>
       </label>
 
+      <div>
+        <button type="button" className="rounded-lg border border-navy-700 px-3 py-2 text-sm" aria-expanded={showOfficial}
+          onClick={() => setShowOfficial(open => !open)}>
+          {showOfficial ? 'Close official record' : 'Official DIBELS record + observations'}
+        </button>
+        {showOfficial && <div className="mt-3">
+          <PilotOfficialAssessmentForm key={learnerId} token={token}
+            campusId={learners.find(l => l.learner_id === learnerId)?.campus_id ?? ''}
+            learnerId={learnerId}
+            learnerName={learners.find(l => l.learner_id === learnerId)?.display_name ?? ''}/>
+        </div>}
+      </div>
+
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">1. Look at the learner’s work</h3>
         {evidence.length === 0
@@ -163,8 +178,8 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
               </li>))}
             </ul>}
         <details className="rounded-lg border p-3">
-          <summary className="text-sm font-medium cursor-pointer">Record an official DIBELS 8 result</summary>
-          <p className="text-xs text-gray-600 mt-2">Transcribe the independently administered report. Never enter test items, passages or answers.</p>
+          <summary className="text-sm font-medium cursor-pointer">Record legacy evidence for Bede draft</summary>
+          <p className="text-xs text-gray-600 mt-2">For existing pilot recommendations only. Use the separate official assessment record above for lifecycle, status, marks, and teacher observation. Never enter test items or passages.</p>
           <div className="grid sm:grid-cols-2 gap-3 mt-2">
             <label className="text-sm">Measure
               <select className={field + ' mt-1'} value={measure} onChange={e => setMeasure(e.target.value)}>

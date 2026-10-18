@@ -14,6 +14,12 @@ enum SetupStage: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum InstallContext: String, CaseIterable, Identifiable {
+    case campus = "Campus"
+    case homeschool = "Homeschool"
+    var id: String { rawValue }
+}
+
 struct MacCheck {
     let architecture: String
     let memoryGiB: Int
@@ -64,6 +70,8 @@ final class InstallerController: ObservableObject {
     @Published var stopped = false
     @Published var message = "Bede will guide you through the installation."
     @Published var details = false
+    @Published var context: InstallContext = .campus
+    @Published var campusID = "bede-mac-pilot-2026"
     @Published var check = MacCheck.inspect()
 
     private var process: Process?
@@ -80,8 +88,24 @@ final class InstallerController: ObservableObject {
         return env
     }
 
+    var validContext: Bool {
+        if context == .homeschool { return true }
+        return campusID.range(of: "^[a-z0-9][a-z0-9_-]{2,63}$", options: .regularExpression) != nil
+    }
+
     var prepared: Bool {
-        check.dockerReady && check.diskGiB >= 30 && check.memoryGiB >= 16
+        check.dockerReady && check.diskGiB >= 30 && check.memoryGiB >= 16 && validContext
+    }
+
+    private var installationDirectory: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Bede", isDirectory: true)
+        if context == .campus {
+            return base.appendingPathComponent("Campus", isDirectory: true)
+                .appendingPathComponent(campusID, isDirectory: true)
+        }
+        return base.appendingPathComponent("Homeschool", isDirectory: true)
+            .appendingPathComponent("local", isDirectory: true)
     }
 
     var bundleDirectory: URL? {
@@ -101,6 +125,7 @@ final class InstallerController: ObservableObject {
         finished = []
         current = .requirements
         guard prepared else {
+            if !validContext { message = "Enter the campus ID shown in your pilot license."; return }
             message = check.dockerReady
                 ? "This Mac needs at least 16 GB of memory and 30 GB of free space."
                 : "Start your container engine, then choose Check again."
@@ -110,8 +135,7 @@ final class InstallerController: ObservableObject {
             message = "Installation files are missing. Open the official Bede installer package."
             return
         }
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Bede Pilot", isDirectory: true)
+        let support = installationDirectory
         let payload = support.appendingPathComponent("bede-operator", isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
@@ -140,7 +164,10 @@ final class InstallerController: ObservableObject {
         task.executableURL = URL(fileURLWithPath: "/bin/bash")
         task.arguments = ["./start.sh"]
         task.currentDirectoryURL = payload
-        task.environment = Self.commandEnvironment()
+        var environment = Self.commandEnvironment()
+        environment["BEDE_INSTALL_CONTEXT"] = context == .campus ? "campus" : "homeschool"
+        if context == .campus { environment["BEDE_CAMPUS_ID"] = campusID }
+        task.environment = environment
         let stdout = Pipe()
         let stderr = Pipe()
         task.standardOutput = stdout
@@ -220,8 +247,7 @@ final class InstallerController: ObservableObject {
     }
 
     func openSupport() {
-        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Bede Pilot/bede-operator/bede-support")
+        let directory = installationDirectory.appendingPathComponent("bede-operator/bede-support")
         NSWorkspace.shared.open(directory)
     }
 }
@@ -250,6 +276,21 @@ struct InstallerView: View {
                 }
             }
             Divider()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Install for").font(.headline)
+                Picker("Install for", selection: $installer.context) {
+                    ForEach(InstallContext.allCases) { item in
+                        Text(item.rawValue).tag(item)
+                    }
+                }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
+                if installer.context == .campus {
+                    TextField("Campus ID", text: $installer.campusID)
+                        .textFieldStyle(.roundedBorder)
+                        .disabled(installer.running || installer.completed)
+                    Text("Use the campus ID printed with your pilot license.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
             Text(installer.completed ? "Bede is ready" : "Installation")
                 .font(.title3.weight(.semibold))
             VStack(alignment: .leading, spacing: 13) {
@@ -323,7 +364,7 @@ struct InstallerView: View {
         }
         .padding(28)
         .background(cream)
-        .frame(width: 620, height: 620)
+        .frame(width: 620, height: 700)
     }
 }
 

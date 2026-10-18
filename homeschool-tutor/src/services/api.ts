@@ -1341,6 +1341,134 @@ export const decidePilotRecommendation = (
 export const fetchPilotLedger = (token: string, learnerId: string) =>
   educatorApi<PilotLedger>(`${pilot(learnerId)}/decisions`, token)
 
+// ── Canonical DIBELS record + separate teacher observation ────────────────
+// Uses the existing campus UUID/learner UUID G1-gated routes. Official forms
+// stay at the University of Oregon / authorized provider, not in this app.
+export type OfficialMeasureStatus =
+  | 'scored' | 'not_administered_by_rule' | 'not_administered_other'
+  | 'skipped' | 'not_applicable' | 'interrupted' | 'invalid' | 'voided'
+export type OfficialAdministrationState =
+  | 'DRAFT' | 'READY_FOR_ADMINISTRATION' | 'IN_PROGRESS'
+  | 'COMPLETED_PENDING_REVIEW' | 'FINALIZED' | 'EVIDENCE_AVAILABLE'
+  | 'TEACHER_DECISION_PENDING' | 'TEACHER_DECISION_RECORDED'
+  | 'INSTRUCTIONAL_PLAN_READY' | 'PROGRESS_MONITORING_SCHEDULED'
+  | 'INTERRUPTED' | 'INVALID_ADMINISTRATION'
+  | 'VOIDED_BY_TEACHER' | 'SUPERSEDED_WITH_AUDIT_LINK'
+
+export interface OfficialMarks {
+  started_at?: string | null
+  ended_at?: string | null
+  elapsed_seconds?: number | null
+  last_item_attempted?: number | null
+  correct_marks?: number | null
+  error_marks?: number | null
+  self_corrections?: number | null
+  discontinue_rule_result?: 'not_checked' | 'met' | 'not_met' | 'not_applicable' | null
+  interruption?: string | null
+  administration_fidelity_note?: string | null
+  accuracy_percent?: number | null
+  teacher_reviewed?: boolean
+}
+export interface OfficialScoreEntry {
+  measure: string
+  administration_status: OfficialMeasureStatus
+  raw_score: number | null
+  score_unit: string | null
+  reason?: string | null
+  benchmark_label?: 'Well Below Benchmark' | 'Below Benchmark' | 'At Benchmark' | 'Above Benchmark' | null
+  support_label?: 'Most Support' | 'Some Support' | 'Goal' | 'Above Goal' | null
+  calculation_version?: string
+  official_marks?: OfficialMarks | null
+  composite_eligible?: boolean | null
+}
+export interface OfficialAssessment {
+  assessment_id: string
+  campus_id: string
+  learner_id: string
+  administrator_id: string
+  instrument: 'dibels8'
+  edition: string
+  form_id: string
+  measure: string
+  grade: DibelsGrade
+  administration_purpose: 'benchmark' | 'progress_monitoring' | 'instructional_check' | 'teacher_observation'
+  instructional_cycle: string
+  administered_at: string
+  report_source: string
+  official_benchmark_window: 'BOY' | 'MOY' | 'EOY' | 'none'
+  state: OfficialAdministrationState
+  snapshot_sha256: string | null
+  scores?: OfficialScoreEntry[]
+  finalized_at: string | null
+}
+export interface TeacherObservation {
+  accuracy_fluency?: string
+  error_patterns?: string
+  administration_circumstances?: string
+  narration_comprehension?: string
+  curriculum_already_taught?: string
+  teacher_interpretation?: string
+  suggested_next_step?: string
+}
+export interface OfficialProposal {
+  proposal_id: string
+  assessment_id: string
+  version: number
+  proposed_next_step: string
+  rationale: string[]
+  status: string
+}
+export interface OfficialDataDay {
+  proposed_next_steps: OfficialProposal[]
+  prior_teacher_decisions: Array<{ assessment_id: string; action: string; outcome: { delivery_state: 'NOT_REQUESTED' } }>
+  boundaries: { changes_official_scores: false; starts_instruction: false; delivers_instruction: false }
+}
+const officialBase = (campusId: string, learnerId: string) =>
+  `/pilot/campuses/${encodeURIComponent(campusId)}/learners/${encodeURIComponent(learnerId)}`
+export const fetchOfficialAssessments = (token: string, campusId: string, learnerId: string) =>
+  educatorApi<OfficialAssessment[]>(`${officialBase(campusId, learnerId)}/assessments`, token)
+export const fetchOfficialAssessment = (token: string, campusId: string, learnerId: string, id: string) =>
+  educatorApi<OfficialAssessment>(`${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}`, token)
+export const createOfficialAssessment = (token: string, campusId: string, learnerId: string, payload: object) =>
+  educatorApi<OfficialAssessment>(`${officialBase(campusId, learnerId)}/assessments`, token, 'POST', payload)
+export const transitionOfficialAssessment = (
+  token: string, campusId: string, learnerId: string, id: string, action: string, expectedState: OfficialAdministrationState,
+  resolution?: string,
+) => educatorApi<OfficialAssessment>(
+  `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/transitions`,
+  token, 'POST', { action, expected_state: expectedState, ...(resolution ? { resolution } : {}) },
+)
+export const enterOfficialScores = (
+  token: string, campusId: string, learnerId: string, id: string, scores: OfficialScoreEntry[],
+) => educatorApi<OfficialAssessment>(
+  `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/scores`,
+  token, 'PUT', { scores, responses: [] },
+)
+export const recordOfficialObservation = (
+  token: string, campusId: string, learnerId: string, id: string, observation: TeacherObservation,
+) => educatorApi<{ evidence_id: string }>(
+  `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/evidence`,
+  token, 'POST', { teacher_observation: observation },
+)
+export const requestOfficialProposal = (token: string, campusId: string, learnerId: string, id: string) =>
+  educatorApi<OfficialProposal | { abstained: true; reason: string }>(
+    `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/proposal`, token, 'POST')
+export const fetchOfficialDataDay = (token: string, campusId: string, learnerId: string, cycle: string) =>
+  educatorApi<OfficialDataDay>(
+    `${officialBase(campusId, learnerId)}/data-day?cycle=${encodeURIComponent(cycle)}`, token)
+export const decideOfficialProposal = (
+  token: string, campusId: string, learnerId: string, id: string, proposalId: string,
+  decision: { action: 'approve' | 'edit' | 'reject'; expected_version: number; edited_text?: string; rationale?: string },
+) => educatorApi<{ action: string; authorized_text: string | null }>(
+  `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/proposals/${encodeURIComponent(proposalId)}/decision`,
+  token, 'POST', decision,
+)
+export const recordOfficialPlan = (token: string, campusId: string, learnerId: string, id: string, text: string) =>
+  educatorApi<{ delivery_state: 'NOT_REQUESTED'; status: string }>(
+    `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/plan`,
+    token, 'POST', { plan_text: text },
+  )
+
 // ── Valor pilot: owner-led learner deletion ────────────────────────────────
 // Every call needs the administrator passkey; ElevationPrompt asks for it.
 // There is deliberately no session plan or session launch here: delivering

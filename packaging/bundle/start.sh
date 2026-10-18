@@ -2,18 +2,54 @@
 # Self-contained Bede operator bundle: no git, make, application sources, or build.
 set -euo pipefail
 cd "$(dirname "$0")"
+# Keep failure telemetry local, secret-free and actionable for a nontechnical operator.
+# No environment contents, commands, request bodies, credentials or docker logs
+# are captured. A support record is written even if preflight fails.
+umask 077
+support_dir="$(pwd)/bede-support"
+mkdir -p "$support_dir"
+chmod 700 "$support_dir"
+support_log="$support_dir/setup-$(date -u +%Y%m%dT%H%M%SZ)-$.log"
+phase="preflight"
+diagnose_exit() {
+  local status="$1"
+  {
+    printf 'timestamp_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    printf 'release_sha=%s\n' "$(if [[ -f RELEASE ]]; then tr -cd 'a-f0-9' < RELEASE | head -c 40; else printf unknown; fi)"
+    printf 'phase=%s\n' "$phase"
+    printf 'exit_status=%s\n' "$status"
+    printf 'host_os=%s\n' "$(uname -s)"
+    printf 'requested_arch=%s\n' "$(if [[ -f ARCH ]]; then tr -cd '[:alnum:]' < ARCH | head -c 16; else printf unknown; fi)"
+    printf 'docker_available=%s\n' "$(if phase="docker-preflight"
+command -v docker >/dev/null 2>&1; then echo yes; else echo no; fi)"
+    printf 'compose_available=%s\n' "$(if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo yes; else echo no; fi)"
+    printf 'docker_running=%s\n' "$(if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then echo yes; else echo no; fi)"
+    printf 'result=%s\n' "$(if [[ "$status" = 0 ]]; then echo ready_for_operator_verification; else echo setup_incomplete; fi)"
+  } > "$support_log"
+  chmod 600 "$support_log"
+  if [[ "$status" -ne 0 ]]; then
+    printf 'Setup stopped at: %s (exit %s).\n' "$phase" "$status" >&2
+    printf 'Share only this private, secret-free report with Bede support: %s\n' "$support_log" >&2
+    printf 'You can still open Open-Bede-Prepilot.html without installing anything.\n' >&2
+  else
+    printf 'Setup diagnostics: %s\n' "$support_log"
+  fi
+}
+trap 'diagnose_exit "$?"' EXIT
 fail() { printf 'Bede installation incomplete: %s\n' "$*" >&2; exit 1; }
 command -v docker >/dev/null || fail "Docker Desktop / Engine is required"
 docker compose version >/dev/null 2>&1 || fail "Docker Compose is unavailable"
 docker info >/dev/null 2>&1 || fail "Start Docker, then reopen Bede Setup"
 [[ -f images.tar || -f IMAGE_DIGESTS ]] || fail "Missing image archive or pinned registry digest manifest."
 [[ -f ARCH ]] || fail "The package CPU architecture manifest is missing."
+phase="architecture-check"
 required_arch="$(tr -d '\r\n' < ARCH)"
 actual_arch="$(docker info --format '{{.Architecture}}' | tr '[:upper:]' '[:lower:]')"
 case "$actual_arch" in x86_64|amd64) actual_arch=amd64 ;; aarch64|arm64) actual_arch=arm64 ;; esac
 [[ "$required_arch" = "$actual_arch" ]] || fail "This package targets $required_arch; Docker requires $actual_arch. Choose the $actual_arch installer."
 [[ -f WIZARD_IMAGE ]] || fail "Wizard reference missing."
 [[ -f compose.yaml && -f Caddyfile ]] || fail "Installation manifest is incomplete."
+phase="image-import"
 if [[ -f images.tar ]]; then
   docker load -i images.tar >/dev/null
 elif [[ -f images.tar.zst ]]; then
@@ -28,6 +64,7 @@ else
     docker tag "${image}@${digest}" "$image" || fail "Unable to tag verified image: $image"
   done < IMAGE_DIGESTS
 fi
+phase="configuration-wizard"
 if [[ ! -s .env ]]; then
   echo "Launching the secure Bede setup wizard..."
   image="$(tr -d '\r\n' < WIZARD_IMAGE)"
@@ -60,8 +97,11 @@ if grep -qx 'BEDE_LAN_ENABLED=true' .env; then
   compose_files+=(-f compose.lan.yaml)
   echo "Private LAN access requested. Verify local DNS, firewall restrictions and certificate trust on each teacher Mac before enrollment."
 fi
+phase="configuration-validation"
 docker compose --env-file .env "${compose_files[@]}" config --quiet || fail "Invalid setup configuration"
+phase="container-start"
 docker compose --env-file .env "${compose_files[@]}" up -d --no-build --pull never || fail "Bede containers did not start"
+phase="https-health"
 # Trigger Caddy's local certificate issuance on the loopback interface.
 # This first probe is NOT security validation; the final health test below
 # validates against the root CA exported from this instance.
@@ -81,4 +121,5 @@ for attempt in $(seq 1 45); do
   sleep 2
 done
 [[ "$ok" = 1 ]] || fail "Verified HTTPS health check failed. Inspect Bede container logs."
+phase="completed"
 echo "Bede is healthy at https://localhost. On any teacher Mac, confirm private DNS and CA trust before using the configured HTTPS name for passkeys."

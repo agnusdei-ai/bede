@@ -78,6 +78,8 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
     accuracy_fluency_notes: '', error_patterns: '', attention_circumstances: '',
     narration_comprehension: '', curriculum_concepts_taught: '',
     teacher_interpretation: '', suggested_next_step: '',
+    instructional_strategy: '', responsible_staff_role: '', follow_up_on: '',
+    implementation_evidence: '', impact_evidence: '', external_assessment_context: '',
   })
   const [summary, setSummary] = useState('')
   const [editText, setEditText] = useState('')
@@ -561,12 +563,28 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
                   ['curriculum_concepts_taught', 'Concepts already taught'],
                   ['teacher_interpretation', 'Teacher interpretation'],
                   ['suggested_next_step', 'Suggested next step'],
+                  ['instructional_strategy', 'Instructional strategy actually used or planned'],
+                  ['responsible_staff_role', 'Responsible staff role'],
+                  ['implementation_evidence', 'Evidence of implementation (what was done)'],
+                  ['impact_evidence', 'Evidence of impact (observed results; no causal claim)'],
+                  ['external_assessment_context', 'Related NWEA MAP / STAAR report reference (no protected items)'],
                 ] as const).map(([key, heading]) =>
                   <label className="block text-sm" key={key}>{heading}
-                    <textarea className={input + ' mt-1'} rows={2} maxLength={key === 'teacher_interpretation' || key === 'suggested_next_step' ? 800 : 600}
+                    <textarea className={input + ' mt-1'} rows={2} maxLength={key === 'teacher_interpretation' || key === 'suggested_next_step' ? 800
+                        : key === 'responsible_staff_role' ? 100
+                        : key === 'instructional_strategy' || key === 'external_assessment_context' ? 400 : 600}
                       value={observation[key]} onChange={e =>
                         setObservation(prev => ({ ...prev, [key]: e.target.value }))}/>
                   </label>)}
+                <label className="block text-sm">Planned follow-up checkpoint (campus calendar)
+                  <input className={input + ' mt-1'} type="date" value={observation.follow_up_on || ''}
+                    onChange={e => setObservation(prev => ({ ...prev, follow_up_on: e.target.value }))}/>
+                </label>
+                <p className="text-xs text-slate-600">
+                  Valor's district plan identifies NWEA MAP (three administrations each school year),
+                  DIBELS and STAAR as evidence sources. References here are educator-entered;
+                  Bede neither imports these reports automatically nor calculates official scores.
+                </p>
                 <label className="block text-sm">Review summary (optional)
                   <input className={input + ' mt-1'} value={summary} maxLength={600}
                     onChange={e => setSummary(e.target.value)}/>

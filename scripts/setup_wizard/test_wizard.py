@@ -56,7 +56,7 @@ def test_get_renders_form(running_wizard):
     resp = urllib.request.urlopen(f"{running_wizard}/")
     body = resp.read().decode()
     assert resp.status == 200
-    assert "Let's set up Bede" in body
+    assert "Welcome to Bede" in body
     assert 'name="anthropic_key"' in body
 
 

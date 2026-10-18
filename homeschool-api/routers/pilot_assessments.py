@@ -679,8 +679,11 @@ async def record_evidence(campus_id: str, learner_id: str, assessment_id: str,
         id=ev_id, administration_id=adm.id, campus_id=learner.campus_id,
         learner_id=learner.id, snapshot_sha256=adm.snapshot_sha256,
         score_ids=json.dumps([s.id for s in scores]),
-        summary_enc=_enc({"summary": (payload.summary or "").strip() or None},
-                         "pilot_assessment_evidence", "summary_enc", learner, ev_id),
+        summary_enc=_enc({
+            "summary": (payload.summary or "").strip() or None,
+            "teacher_observation": (payload.teacher_observation.model_dump()
+                                    if payload.teacher_observation else None),
+        }, "pilot_assessment_evidence", "summary_enc", learner, ev_id),
         recorded_by=teacher.id, created_at=datetime.now(timezone.utc),
     ))
     await _commit(db, auth, learner)
@@ -692,7 +695,9 @@ def _render_evidence(ev: PilotAssessmentEvidence, learner: PilotLearner) -> dict
     summary = _dec(ev.summary_enc, "pilot_assessment_evidence", "summary_enc", learner, ev.id)
     return {"evidence_id": ev.id, "assessment_id": ev.administration_id,
             "snapshot_sha256": ev.snapshot_sha256, "score_ids": json.loads(ev.score_ids),
-            "summary": summary["summary"], "recorded_at": _iso(ev.created_at)}
+            "summary": summary["summary"],
+            "teacher_observation": summary.get("teacher_observation"),
+            "recorded_at": _iso(ev.created_at)}
 
 
 async def _last_decision(db, adm_id) -> Optional[PilotAssessmentDecision]:

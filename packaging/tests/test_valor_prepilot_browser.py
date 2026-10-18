@@ -66,6 +66,11 @@ def main():
         page.locator("#rawScore").fill("61")
         page.locator("#verified").check()
         page.locator("#saveOfficial").click()
+        assert "Not recorded" in page.locator("#sideObs").inner_text()
+        assert "Awaiting review" in page.locator("#sideDecision").inner_text()
+        page.locator('[data-step="review"]').click()
+        page.locator('button[data-decision="approve"]').click()
+        assert "Record the official result and an observation" in page.locator("#review-error").inner_text()
         page.locator('[data-step="audit"]').click()
         with page.expect_download() as correction_info:
             page.locator("#export").click()

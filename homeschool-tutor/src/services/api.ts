@@ -1444,6 +1444,13 @@ export const enterOfficialScores = (
   `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/scores`,
   token, 'PUT', { scores, responses: [] },
 )
+export const supersedeOfficialAssessment = (
+  token: string, campusId: string, learnerId: string, id: string, reason: string,
+) => educatorApi<OfficialAssessment>(
+  `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/supersede`,
+  token, 'POST', { reason },
+)
+
 export const recordOfficialObservation = (
   token: string, campusId: string, learnerId: string, id: string, observation: TeacherObservation,
 ) => educatorApi<{ evidence_id: string }>(

@@ -1446,6 +1446,7 @@ export interface OfficialDataDay {
   proposed_next_steps: OfficialProposal[]
   prior_teacher_decisions: Array<{
     decision_id: string
+    administration_id: string
     action: 'approve' | 'edit' | 'reject'
     authorized_text: string | null
     outcome: { plan_recorded: boolean; delivery_state: 'NOT_REQUESTED' }

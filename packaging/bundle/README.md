@@ -1,5 +1,19 @@
 # Bede controlled deployment — operator package
 
+## Start here: Valor prepilot (no setup required)
+
+1. Extract this archive and open **Open-Bede-Prepilot.html** in any modern browser.
+2. Follow the four steps with the fictional learner: official result → teacher observation → Data Day decision → downloadable review record.
+3. This experience is **synthetic and self-contained**. It does not ask for passwords, API keys, a learner PIN, Docker, school-system access or personal information. It never sends data to a server and does not claim to run official assessment scoring or Bede inference.
+
+**Do not enter real learner information.** This is the low-friction review of what a school administrator will see, not the authenticated pilot or a production record. Data remains in the browser tab until closed; a local JSON review can be downloaded. The trace is illustrative, not the server's immutable audit.
+
+## When your school is ready to test an actual installation
+
+Use \`Install-Bede.command\` (Mac) or the approved platform launcher. The real software still needs Docker Engine/Compose, an authorized license, a properly configured private HTTPS origin and actual passkey verification. A first-run wizard configures the environment; the walkthrough above does not.
+
+If installation stops, the installer prints a plain-language **stage** and writes a **secret-free diagnostic** in \`bede-support/setup-*.log\` beside the installer. The report contains the package SHA, architecture, Docker readiness, stage and exit status. It intentionally does **not** collect credentials, .env files, student records, docker logs or form contents. Share only the report after inspecting it.
+
 This bundle includes Compose configuration, the Caddy TLS proxy configuration,
 and a launcher. **No source checkout or compiler is required.**
 Images are included in images.tar and keyed to an immutable Git commit SHA; no image download is required.

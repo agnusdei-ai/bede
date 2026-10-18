@@ -350,9 +350,22 @@ class TransitionInput(BaseModel):
     resolution: Optional[str] = Field(default=None, max_length=500)
 
 
+class TeacherObservationInput(BaseModel):
+    """Teacher interpretation lives outside the standardized score snapshot."""
+    model_config = ConfigDict(extra="forbid")
+    accuracy_fluency: Optional[str] = Field(default=None, max_length=250)
+    error_patterns: Optional[str] = Field(default=None, max_length=250)
+    administration_circumstances: Optional[str] = Field(default=None, max_length=250)
+    narration_comprehension: Optional[str] = Field(default=None, max_length=250)
+    curriculum_already_taught: Optional[str] = Field(default=None, max_length=250)
+    teacher_interpretation: Optional[str] = Field(default=None, max_length=350)
+    suggested_next_step: Optional[str] = Field(default=None, max_length=350)
+
+
 class EvidenceInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     summary: Optional[str] = Field(default=None, max_length=600)
+    teacher_observation: Optional[TeacherObservationInput] = None
 
 
 class DecisionInput(BaseModel):

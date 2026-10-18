@@ -19,10 +19,15 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 }
 app="$output/Bede Installer.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
-swiftc -parse-as-library -o "$app/Contents/MacOS/BedeInstaller" \
+target_arch="$(cat "$payload/ARCH")"
+if [[ "$target_arch" = arm64 ]]; then target="arm64-apple-macos14.0"; else target="x86_64-apple-macos14.0"; fi
+swiftc -target "$target" -parse-as-library -o "$app/Contents/MacOS/BedeInstaller" \
   "$root/packaging/macos/BedeInstallerApp.swift"
 cp "$root/packaging/macos/BedeIcon.png" "$app/Contents/Resources/BedeIcon.png"
 ditto "$payload" "$app/Contents/Resources/bede-operator"
+# Legacy .command launchers are not distributed in the native Mac app.
+rm -f "$app/Contents/Resources/bede-operator/Install-Bede.command" \
+  "$app/Contents/Resources/bede-operator/Verify-Bede.command"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

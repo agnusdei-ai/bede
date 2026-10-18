@@ -1415,6 +1415,12 @@ export interface OfficialTeacherObservation {
   curriculum_concepts_taught?: string
   teacher_interpretation?: string
   suggested_next_step?: string
+  instructional_strategy?: string
+  responsible_staff_role?: string
+  follow_up_on?: string | null
+  implementation_evidence?: string
+  impact_evidence?: string
+  external_assessment_context?: string
 }
 
 export interface OfficialEvidence {

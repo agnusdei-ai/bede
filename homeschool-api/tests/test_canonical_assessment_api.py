@@ -861,11 +861,21 @@ def test_observation_is_separate_from_immutable_official_scores(world):
         "curriculum_concepts_taught": "Synthetic phonemic awareness",
         "teacher_interpretation": "Teacher notes only",
         "suggested_next_step": "Review with teacher next Data Day",
+        "instructional_strategy": "Socratic guided narration",
+        "responsible_staff_role": "Classroom teacher",
+        "follow_up_on": "2031-09-03",
+        "implementation_evidence": "Synthetic teacher lesson-plan reference",
+        "impact_evidence": "Synthetic observed response; no causal attribution",
+        "external_assessment_context": "Synthetic NWEA MAP report reference only",
     }}
     url = f"{world.base()}/assessments/{aid}/evidence"
     response = world.client.post(url, json=payload, headers=world.teacher_one.headers)
     assert response.status_code == 201, response.text
     assert response.json()["observation"]["teacher_interpretation"] == "Teacher notes only"
+    assert response.json()["observation"]["follow_up_on"] == "2031-09-03"
+    assert response.json()["observation"]["responsible_staff_role"] == "Classroom teacher"
+    assert response.json()["observation"]["implementation_evidence"].startswith("Synthetic teacher")
+    assert response.json()["observation"]["impact_evidence"].startswith("Synthetic observed")
     assert world.client.post(url, json=payload, headers=world.teacher_one.headers).status_code == 409
     assert world.client.post(url, json=payload, headers=world.teacher_two.headers).status_code == 404
     packet = world.packet("valor_q1")

@@ -29,6 +29,10 @@ const measures = Object.keys(units)
 const skipStatuses: OfficialMeasureStatus[] = ['skipped', 'not_applicable', 'invalid', 'voided']
 const numberOrNull = (value: string) => value.trim() ? Number(value) : null
 const isoOrNull = (value: string) => value.trim() ? new Date(value).toISOString() : null
+const localDateTime = (iso: string) => {
+  const date = new Date(iso)
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+}
 const cleanObservation = (entries: Record<string, string>): OfficialTeacherObservation =>
   Object.fromEntries(Object.entries(entries).map(([key, value]) => [key, value.trim()])) as OfficialTeacherObservation
 
@@ -152,9 +156,34 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
     interrupted, interruption_note: interrupted ? interruptionNote : null,
     administration_fidelity_note: fidelity || null,
   }
+  // Restore saved live marks when an educator opens a record. Never copy marks
+  // from a different campus/learner into the currently selected draft.
+  useEffect(() => {
+    const marks = record?.administration_log
+    setStartTime(marks?.start_time ? localDateTime(marks.start_time) : '')
+    setEndTime(marks?.end_time ? localDateTime(marks.end_time) : '')
+    setElapsed(marks?.elapsed_seconds == null ? '' : String(marks.elapsed_seconds))
+    setLastItem(marks?.last_item_attempted == null ? '' : String(marks.last_item_attempted))
+    setCorrect(marks?.correct_marks == null ? '' : String(marks.correct_marks))
+    setErrors(marks?.error_marks == null ? '' : String(marks.error_marks))
+    setCorrections(marks?.self_corrections == null ? '' : String(marks.self_corrections))
+    setDiscontinue(marks?.discontinue_rule_result ?? 'not_recorded')
+    setFidelity(marks?.administration_fidelity_note ?? '')
+    setInterrupted(marks?.interrupted ?? false)
+    setInterruptionNote(marks?.interruption_note ?? '')
+    const score = record?.scores?.[0]
+    setScoreStatus(score?.administration_status ?? 'scored')
+    setRawScore(score?.raw_score == null ? '' : String(score.raw_score))
+    setAccuracy(score?.accuracy_percent == null ? '' : String(score.accuracy_percent))
+    setReason(score?.reason ?? '')
+    setReviewed(score?.teacher_reviewed ?? false)
+  }, [record])
+
   const selectedEvidence = packet?.cited_evidence.find(e => e.assessment_id === assessmentId)
   const decided = packet?.prior_teacher_decisions.find(d =>
-    d.authorized_text && !d.outcome.plan_recorded)
+    d.administration_id === assessmentId && d.authorized_text && !d.outcome.plan_recorded)
+  const planRecorded = packet?.prior_teacher_decisions.some(d =>
+    d.administration_id === assessmentId && d.outcome.plan_recorded) ?? false
   const locked = Boolean(record?.finalized_at || record?.state === 'VOIDED_BY_TEACHER' ||
     record?.state === 'SUPERSEDED_WITH_AUDIT_LINK')
   const canScore = record?.state === 'IN_PROGRESS' || record?.state === 'COMPLETED_PENDING_REVIEW'
@@ -277,7 +306,7 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
         </p>
         <label className="mt-3 block text-sm font-medium">Authorized learner
           <select className={input + ' mt-1'} value={learnerId}
-            onChange={e => { setLearnerId(e.target.value); setMessage('') }}>
+            onChange={e => { setLearnerId(e.target.value); setMessage(''); setDecidedText(''); setPlanText('') }}>
             {learners.map(l => <option key={l.learner_id} value={l.learner_id}>
               {l.display_name} — {l.campus_id.slice(0, 8)}
             </option>)}
@@ -352,7 +381,7 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
           </button>
           <label className="block text-sm">Open administration
             <select className={input + ' mt-1'} value={assessmentId}
-              onChange={e => { setAssessmentId(e.target.value); setMessage(''); if (learner) void refresh(learnerId, e.target.value) }}>
+              onChange={e => { setAssessmentId(e.target.value); setMessage(''); setDecidedText(''); setPlanText(''); if (learner) void refresh(learnerId, e.target.value) }}>
               <option value="">Choose a saved record</option>
               {assessments.map(a => <option key={a.assessment_id} value={a.assessment_id}>
                 {a.measure} · {a.administered_at.slice(0, 10)} · {label(a.state)}
@@ -515,7 +544,7 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
                   ['suggested_next_step', 'Suggested next step'],
                 ] as const).map(([key, heading]) =>
                   <label className="block text-sm" key={key}>{heading}
-                    <textarea className={input + ' mt-1'} rows={2} maxLength={800}
+                    <textarea className={input + ' mt-1'} rows={2} maxLength={key === 'teacher_interpretation' || key === 'suggested_next_step' ? 800 : 600}
                       value={observation[key]} onChange={e =>
                         setObservation(prev => ({ ...prev, [key]: e.target.value }))}/>
                   </label>)}
@@ -558,7 +587,7 @@ export default function PilotOfficialAssessmentPanels({ token }: { token: string
                       className="rounded-lg border border-red-300 px-3 py-2 text-sm text-red-800">Reject</button>
                   </div>
                 </div>}
-                {(decidedText || decided?.authorized_text) && <div className="space-y-2">
+                {!planRecorded && (decidedText || decided?.authorized_text) && <div className="space-y-2">
                   <p className="text-xs text-slate-600">Decision recorded. The teacher personally delivers instruction.</p>
                   <label className="block text-sm">Recorded teacher teaching plan
                     <textarea className={input + ' mt-1'} value={planText} rows={3} maxLength={2000}

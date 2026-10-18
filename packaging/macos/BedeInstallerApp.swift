@@ -69,7 +69,7 @@ final class InstallerController: ObservableObject {
     private var process: Process?
     private var pending = ""
 
-    static func commandEnvironment() -> [String: String] {
+    nonisolated static func commandEnvironment() -> [String: String] {
         var env = ProcessInfo.processInfo.environment
         let home = NSHomeDirectory()
         env["PATH"] = [
@@ -106,8 +106,33 @@ final class InstallerController: ObservableObject {
                 : "Start your container engine, then choose Check again."
             return
         }
-        guard let payload = bundleDirectory else {
+        guard let sealed = bundleDirectory else {
             message = "Installation files are missing. Open the official Bede installer package."
+            return
+        }
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Bede Pilot", isDirectory: true)
+        let payload = support.appendingPathComponent("bede-operator", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: payload.appendingPathComponent("RELEASE").path) {
+                message = "Preparing the local installation files..."
+                let staging = support.appendingPathComponent("bede-operator.pending", isDirectory: true)
+                if FileManager.default.fileExists(atPath: staging.path) {
+                    try FileManager.default.removeItem(at: staging)
+                }
+                try FileManager.default.copyItem(at: sealed, to: staging)
+                try FileManager.default.moveItem(at: staging, to: payload)
+            } else {
+                let currentRelease = (try? String(contentsOf: payload.appendingPathComponent("RELEASE"), encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let sealedRelease = (try? String(contentsOf: sealed.appendingPathComponent("RELEASE"), encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard currentRelease == sealedRelease else {
+                    message = "This Mac has another Bede pilot build. Review the installation before upgrading."
+                    return
+                }
+            }
+        } catch {
+            message = "Could not prepare the local installation files. Check available disk space."
             return
         }
 
@@ -195,8 +220,9 @@ final class InstallerController: ObservableObject {
     }
 
     func openSupport() {
-        guard let path = bundleDirectory else { return }
-        NSWorkspace.shared.open(path.appendingPathComponent("bede-support"))
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Bede Pilot/bede-operator/bede-support")
+        NSWorkspace.shared.open(directory)
     }
 }
 

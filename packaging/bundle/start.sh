@@ -6,6 +6,26 @@ cd "$(dirname "$0")"
 # No environment contents, commands, request bodies, credentials or docker logs
 # are captured. A support record is written even if preflight fails.
 umask 077
+# One Bede application with separately owned campus and homeschool data.
+install_context="${BEDE_INSTALL_CONTEXT:-homeschool}"
+case "$install_context" in
+  campus)
+    [[ "${BEDE_CAMPUS_ID:-}" =~ ^[a-z0-9][a-z0-9_-]{2,63}$ ]] || {
+      echo "A valid campus ID is needed for this pilot." >&2
+      exit 2
+    }
+    export COMPOSE_PROJECT_NAME="bede_campus_${BEDE_CAMPUS_ID//-/_}"
+    ;;
+  homeschool)
+    export BEDE_CAMPUS_ID=""
+    export COMPOSE_PROJECT_NAME="bede_homeschool_local"
+    ;;
+  *)
+    echo "Unsupported installation context." >&2
+    exit 2
+    ;;
+esac
+export BEDE_INSTALL_CONTEXT="$install_context"
 support_dir="$(pwd)/bede-support"
 mkdir -p "$support_dir"
 chmod 700 "$support_dir"
@@ -83,6 +103,7 @@ if [[ ! -s .env ]]; then
   else echo "Open http://localhost:8765 in this computer's browser"; fi
   wizard_status=0
   docker run --rm --network bridge -p 127.0.0.1:8765:8765 \
+    --env BEDE_INSTALL_CONTEXT --env BEDE_CAMPUS_ID \
     --user "$(id -u):$(id -g)" --mount "type=bind,src=$(pwd),dst=/repo" "$image" || wizard_status=$?
   if [[ "$wizard_status" -ne 0 ]]; then
     if [[ "$wizard_status" -eq 130 ]]; then

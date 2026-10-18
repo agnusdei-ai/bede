@@ -56,7 +56,7 @@ def test_get_renders_form(running_wizard):
     resp = urllib.request.urlopen(f"{running_wizard}/")
     body = resp.read().decode()
     assert resp.status == 200
-    assert "Let's set up Bede" in body
+    assert "Welcome to Bede" in body
     assert 'name="anthropic_key"' in body
 
 
@@ -130,7 +130,7 @@ def test_cancel_does_not_require_license_or_save_configuration(running_wizard):
     )
     with urllib.request.urlopen(req) as response:
         assert response.status == 200
-        assert "Setup canceled" in response.read().decode()
+        assert "Setup stopped" in response.read().decode()
     assert wizard._cancel_event.is_set()
     assert not os.path.exists(wizard.ENV_PATH)
 
@@ -218,7 +218,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     })
     assert resp.status == 200
     success_body = resp.read().decode()
-    assert "All set" in success_body
+    assert "Saving your setup" in success_body
     assert "192.168.1.50" in success_body
 
     assert os.path.exists(wizard.ENV_PATH)
@@ -658,3 +658,43 @@ def test_the_suggested_pin_is_actually_accepted(running_wizard):
     })
     assert resp.status == 200
     assert f"CHILD_PIN={wizard.SUGGESTED_CHILD_PIN}" in open(wizard.ENV_PATH).read()
+
+
+def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
+    """The site bound license must reach the API in campus mode."""
+    monkeypatch.setattr(wizard, "DEPLOYMENT_CONTEXT", "campus")
+    monkeypatch.setattr(wizard, "APPROVED_CAMPUS_ID", "bede-mac-pilot-2026")
+    fields = {
+        "db_choice": "local",
+        "provider": "openai",
+        "openai_key": "local-test-value",
+        "parent_password": "pilot-test-password-unique",
+        "child_pin": "648219",
+        "license_key": "local-unit-test-not-a-signed-license",
+        "location_id": "bede-mac-pilot-2026",
+    }
+    rendered = wizard.render_form()
+    assert 'name="location_id"' in rendered
+    assert 'name="child_pin"' in rendered
+    assert 'type="hidden" name="child_pin"' in rendered
+    assert 'Student PIN</label>' not in rendered
+    assert wizard.validate(fields) == ""
+    generated = wizard.build_env_file(fields)
+    assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\n" in generated
+    assert "EDUCATOR_PILOT_ENABLED=true\n" in generated
+    assert "LICENSE_KEY=local-unit-test-not-a-signed-license\n" in generated
+    from pathlib import Path
+    compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
+    assert "- BEDE_LOCATION_ID=${BEDE_LOCATION_ID:-}" in compose
+    assert "- EDUCATOR_PILOT_ENABLED=${EDUCATOR_PILOT_ENABLED:-false}" in compose
+
+    fields["location_id"] = ""
+    assert "campus ID" in wizard.validate(fields)
+    fields["location_id"] = "other-campus"
+    assert "campus ID" in wizard.validate(fields)
+
+    monkeypatch.setattr(wizard, "DEPLOYMENT_CONTEXT", "homeschool")
+    fields["location_id"] = ""
+    assert wizard.validate(fields) == ""
+    assert "BEDE_LOCATION_ID" not in wizard.build_env_file(fields)
+    assert "EDUCATOR_PILOT_ENABLED=true" not in wizard.build_env_file(fields)

@@ -382,6 +382,14 @@ class TeacherObservation(BaseModel):
     curriculum_concepts_taught: Optional[str] = Field(default=None, max_length=600)
     teacher_interpretation: Optional[str] = Field(default=None, max_length=800)
     suggested_next_step: Optional[str] = Field(default=None, max_length=800)
+    # District Improvement Plan: separate what was done from the evidence
+    # that learning changed; neither field is an automatic efficacy claim.
+    instructional_strategy: Optional[str] = Field(default=None, max_length=400)
+    responsible_staff_role: Optional[str] = Field(default=None, max_length=100)
+    follow_up_on: Optional[date] = None
+    implementation_evidence: Optional[str] = Field(default=None, max_length=600)
+    impact_evidence: Optional[str] = Field(default=None, max_length=600)
+    external_assessment_context: Optional[str] = Field(default=None, max_length=400)
 
 
 class EvidenceInput(BaseModel):

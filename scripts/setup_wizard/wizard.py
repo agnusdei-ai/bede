@@ -390,9 +390,9 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
       <div class="choice-desc">Advanced pilot mode: needs a stable private IP, real private DNS, trusted HTTPS and local firewall restrictions. Disabled by default.</div>
     </label>
     <div id="lan_settings" style="display:{'block' if lan_selected else 'none'}">
-      <label>Mac mini private LAN IPv4 address</label>
-      <input type="text" name="lan_ip" value="{html.escape(v.get('lan_ip', ''))}" placeholder="192.168.1.50">
-      <div class="hint">This address must belong to the Mac mini, not the teacher's Mac.</div>
+      <label>Bede computer's private network address (IPv4 or IPv6)</label>
+      <input type="text" name="lan_ip" value="{html.escape(v.get('lan_ip', ''))}" placeholder="For example: 192.168.1.50 or fd12:3456::50">
+      <div class="hint">Enter the address of the computer running Bede, not the teacher's computer. Find it in System Settings → Network.</div>
       <label>Private DNS hostname for Bede</label>
       <input type="text" name="lan_host" value="{html.escape(v.get('lan_host', ''))}" placeholder="bede-pilot.school.example.org">
       <div class="hint">Must resolve from the teacher's Mac to the Mac mini. The passkey and TLS certificate use this exact hostname. Do not enter .local, an IP, or a nonresolving placeholder.</div>
@@ -505,14 +505,17 @@ def validate_lan_fields(fields: dict) -> str:
     try:
         address = ipaddress.ip_address(ip)
     except ValueError:
-        return "Enter the Mac mini's private IPv4 address."
-    private_ranges = (
+        return "Enter a valid network address for the computer running Bede (IPv4 or IPv6)."
+    private_ipv4 = (
         ipaddress.ip_network("10.0.0.0/8"),
         ipaddress.ip_network("172.16.0.0/12"),
         ipaddress.ip_network("192.168.0.0/16"),
     )
-    if address.version != 4 or not any(address in network for network in private_ranges):
-        return "Use a private RFC 1918 IPv4 address assigned to the Mac mini."
+    private_ipv6 = ipaddress.ip_network("fc00::/7")
+    if address.version == 4 and not any(address in network for network in private_ipv4):
+        return "That address is not a private local-network address. Use the address shown in this Mac's Network settings, or turn off access from other computers."
+    if address.version == 6 and address not in private_ipv6:
+        return "For private IPv6 access, use a stable local-network address beginning with fd. Temporary, public, and link-local addresses are not supported here."
     if not 4 <= len(name) <= 253 or not re.fullmatch(
         r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", name
     ):

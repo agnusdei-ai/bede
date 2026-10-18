@@ -12,6 +12,7 @@ on:
       - 'bede-operator-v*'
     paths:
       - '.github/workflows/build-bede-operator.yml'
+      - 'packaging/**'
       - '.github/workflows/qualification.yml'
       - 'homeschool-api/services/canonical_assessment.py'
       - 'homeschool-api/routers/pilot_assessments.py'
@@ -127,6 +128,7 @@ jobs:
           bash -n dist/bede-operator/Verify-Bede.command
           python packaging/tests/test_operator_arch.py
           python packaging/tests/test_lite_offline.py
+          python -m py_compile packaging/tests/test_valor_prepilot_browser.py
           bash -n dist/bede-operator/simulation/Run-Bede-Installer-Test.command
           bash -n dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command
           python - <<'PY'
@@ -151,7 +153,7 @@ jobs:
           assert provenance['learner_delivery'] == 'NOT_REQUESTED'
           assert provenance['physical_mac'] == 'NOT_RUN'
           assert provenance['pilot_go'] == 'HOLD'
-          for name in ('images.tar','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
+          for name in ('images.tar','Open-Bede-Prepilot.html','Install-Bede.command','Install-Bede.ps1','Verify-Bede.command','compose.lan.yaml','TWO_MAC_TEACHER_PILOT.md','.env.example','Caddyfile','WIZARD_IMAGE'):
               assert (d/name).exists(), name
           PY
           python - <<'PY'
@@ -189,9 +191,32 @@ jobs:
           retention-days: 30
           compression-level: 0
 
+  prepilot-browser:
+    name: Valor offline administrator experience
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned browser harness
+        run: python -m pip install playwright==1.56.0
+      - name: Install Chromium
+        run: python -m playwright install --with-deps chromium
+      - name: Exercise offline walkthrough and local audit export
+        run: python packaging/tests/test_valor_prepilot_browser.py
+      - name: Publish standalone walkthrough for nontechnical reviewers
+        uses: actions/upload-artifact@v4
+        with:
+          name: bede-valor-prepilot-walkthrough-${{ github.sha }}
+          path: packaging/bundle/Valor-Prepilot-Walkthrough.html
+          if-no-files-found: error
+          retention-days: 30
+
   validate-launchers:
     name: Native launcher syntax
-    needs: package
+    needs: [package, prepilot-browser]
     strategy:
       fail-fast: false
       matrix:

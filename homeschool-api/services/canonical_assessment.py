@@ -43,7 +43,7 @@ AdministrationPurpose = Literal[
 OfficialWindow = Literal["BOY", "MOY", "EOY", "none"]
 MeasureStatus = Literal[
     "scored", "not_administered_by_rule", "not_administered_other",
-    "skipped", "not_applicable", "invalid", "voided",
+    "skipped", "not_applicable", "interrupted", "invalid", "voided",
 ]
 Grade = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 

@@ -238,3 +238,50 @@ jobs:
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'packaging/bundle/Install-Bede.ps1').Path, [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) { $parseErrors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+
+
+  package-mac-pilot:
+    name: Bede Mac pilot app
+    needs: package
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download sealed ARM64 operator runtime
+        uses: actions/download-artifact@v4
+        with:
+          name: bede-offline-linux-arm64-${{ github.sha }}
+          path: ${{ runner.temp }}/bede-artifact
+      - name: Prepare native payload without runtime prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/bede-artifact"
+          shasum -a 256 -c "bede-operator-$GITHUB_SHA-arm64.tar.gz.sha256"
+          tar -xzf "bede-operator-$GITHUB_SHA-arm64.tar.gz"
+          test "$(cat bede-operator/ARCH)" = arm64
+          brew list zstd >/dev/null 2>&1 || brew install zstd
+          zstd -d --rm -f bede-operator/images.tar.zst -o bede-operator/images.tar
+          test -s bede-operator/images.tar
+      - name: Compile branded Mac installer and package native app
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/macos/build-app.sh "$RUNNER_TEMP/bede-artifact/bede-operator" "$RUNNER_TEMP/native"
+          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/BedeIcon.png"
+          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/images.tar"
+          test -x "$RUNNER_TEMP/native/Bede Installer.app/Contents/MacOS/BedeInstaller"
+          codesign --force --deep --sign - "$RUNNER_TEMP/native/Bede Installer.app"
+          codesign --verify --deep --strict "$RUNNER_TEMP/native/Bede Installer.app"
+          hdiutil create -volname "Bede Pilot" -srcfolder "$RUNNER_TEMP/native/Bede Installer.app" -ov -format UDZO "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg"
+          shasum -a 256 "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg" > "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg.sha256"
+      - name: Upload qualification artifact, not a public release
+        uses: actions/upload-artifact@v4
+        with:
+          name: bede-mac-pilot-arm64-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/Bede-Pilot-Mac-arm64.dmg
+            ${{ runner.temp }}/Bede-Pilot-Mac-arm64.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

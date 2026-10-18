@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bede | Valor Executive Business Case</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#263d32;background:#f7f4eb}*{box-sizing:border-box}body{margin:0}header{background:#243c33;color:#fff;padding:24px max(24px,calc((100vw - 1100px)/2))}.brand{font:26px Georgia,serif;letter-spacing:.16em}.brand small{font:11px system-ui;letter-spacing:.10em;color:#e4d3ac}main{max-width:1100px;margin:auto;padding:32px 22px 70px}h1,h2{font-family:Georgia,serif;font-weight:normal}h1{font-size:clamp(32px,5vw,52px);margin:7px 0}h2{font-size:27px;margin:32px 0 12px}.kicker{color:#8d754a;font-weight:750;letter-spacing:.12em;text-transform:uppercase;font-size:12px}.lead{font-size:18px;line-height:1.5;max-width:760px}.muted{color:#5d6a61}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.tile,.panel{background:white;border:1px solid #e0e0d8;border-radius:12px;padding:19px}.tile strong{display:block;font:27px Georgia,serif;color:#2d5946;margin:8px 0}.tile small{color:#5f6d62}.panel{margin-top:16px}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.cards h3{font:20px Georgia,serif;margin:0 0 8px}.cards p{line-height:1.5;margin:0}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:11px;text-align:left;border-bottom:1px solid #e8e8de}td:last-child,th:last-child{text-align:right;font-variant-numeric:tabular-nums}.form{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}label{font-size:13px;font-weight:700}input{margin-top:6px;width:100%;padding:10px;font:inherit;border-radius:7px;border:1px solid #abb8ad}.warning{border-left:3px solid #b69a67;padding:12px 16px;background:#f5f0e3;color:#584c32}.foot{font-size:12px;color:#596b5e;margin-top:40px}a{color:#31644f}@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.cards,.form{grid-template-columns:1fr}}@media print{header,.tile{print-color-adjust:exact}input{border:0;padding:0}.panel{break-inside:avoid}}
+</style></head><body>
+<header><div class="brand">BEDE <small>CLASSICAL LEARNING OPERATING SYSTEM</small></div></header>
+<main>
+<p class="kicker">Valor Education · Executive decision brief · Illustrative model</p>
+<h1>More time for teaching.<br>Clearer instructional decisions.</h1>
+<p class="lead">Bede unifies the teacher's assessment evidence, Data Day review, educational diagnostics, instructional planning, and documented follow-up. Guided test preparation and original practice materials are part of the broader classical learning vision—not a promise of learner-facing delivery in this pilot.</p>
+<div class="cards"><div class="panel"><h3>Assessment accelerator</h3><p>Capture authorized scores, preserve benchmark and progress purpose, and prepare cited evidence without copying protected test content.</p></div><div class="panel"><h3>Teacher education support</h3><p>Present explainable recommendations and a teacher approve/edit/reject workflow; preserve observations and audit history.</p></div><div class="panel"><h3>Test prep & practice</h3><p>Plan standards-aligned, original practice and diagnostic follow-up. No official DIBELS passages, forms, score tables, or simulated official tests; learner practice delivery is separately qualified.</p></div></div>
+<h2>Year-one financial outlay</h2>
+<p class="muted">One campus; illustrative assumptions, not Valor actuals or an invoice. Update inputs below during pilot evaluation.</p>
+<div class="panel"><div class="form">
+<label>Teachers<input id="teachers" type="number" min="1" value="30"></label>
+<label>Weekly hours recovered / teacher<input id="hours" type="number" min="0" step=".25" value="1.5"></label>
+<label>Instructional weeks<input id="weeks" type="number" min="1" value="36"></label>
+<label>Fully loaded hourly value ($)<input id="rate" type="number" min="0" value="42"></label>
+<label>Monthly campus subscription ($)<input id="license" type="number" min="0" value="2600"></label>
+<label>Initial hardware ($)<input id="hardware" type="number" min="0" value="3000"></label>
+<label>Annual power ($)<input id="power" type="number" min="0" value="600"></label>
+<label>Annual incremental IT ($)<input id="support" type="number" min="0" value="2400"></label>
+<label>Verified annual cash costs avoided ($)<input id="avoided" type="number" min="0" value="0"></label>
+</div></div>
+<div class="grid" aria-live="polite" style="margin-top:18px">
+<div class="tile"><small>Annual teacher hours released</small><strong id="released">1,620</strong><small>Capacity, not cash savings</small></div>
+<div class="tile"><small>Teacher time opportunity value</small><strong id="value">$68,040</strong><small>Noncash unless budget expense falls</small></div>
+<div class="tile"><small>Year-one cash outlay</small><strong id="outlay">$37,200</strong><small>Software + hardware + support + power</small></div>
+<div class="tile"><small>Value less cash outlay</small><strong id="net">$30,840</strong><small>Planning comparison; not net income</small></div>
+</div>
+<div class="panel"><table><thead><tr><th>Operating and accounting view</th><th>Illustrative annual amount</th></tr></thead><tbody>
+<tr><td>Software subscription — recurring OPEX</td><td id="soft">$31,200</td></tr>
+<tr><td>Hardware purchase — capitalizable only per policy</td><td id="hard">$3,000</td></tr>
+<tr><td>Electricity and incremental IT — OPEX</td><td id="ops">$3,000</td></tr>
+<tr><td><strong>Total first-year cash spending</strong></td><td id="cash">$37,200</td></tr>
+<tr><td>Illustrative annual book expense, 3-year straight-line hardware depreciation</td><td id="book">$35,200</td></tr>
+<tr><td>Documented reductions in paid overtime / contractor expenses</td><td id="save">$0</td></tr>
+<tr><td><strong>Net first-year cash benefit (cost)</strong></td><td id="cashnet">($37,200)</td></tr>
+<tr><td>Weekly teacher time required for capacity-value break-even</td><td id="breakeven">0.82 hours</td></tr>
+</tbody></table></div>
+<p class="warning"><strong>Accounting boundary:</strong> Reallocated staff time is not payroll savings. Avoided future hires are forecasts, not historical expense reductions. Only verified reduced spending can produce a positive net cash result. Hardware depreciation treatment is illustrative and subject to Valor Finance. Prevent double-counting recovered hours and paid overtime. Local inference can avoid external API token invoices, but not electricity, compute or support costs.</p>
+<h2>Pilot executive KPIs</h2>
+<div class="panel"><table><thead><tr><th>Measurement</th><th>Proposed pilot target</th></tr></thead><tbody>
+<tr><td>Median active Data Day preparation time</td><td>≥30% reduction vs matched baseline</td></tr>
+<tr><td>Teacher decisions with review and audit</td><td>100%</td></tr>
+<tr><td>Assessment provenance and missing-measure status integrity</td><td>100%; missing ≠ zero</td></tr>
+<tr><td>External paid AI usage, while locally isolated</td><td>$0 vendor API charge, demonstrated in logs</td></tr>
+<tr><td>Net cash savings after incremental expenses</td><td>Track separately; no assumed positive outcome</td></tr>
+<tr><td>Original practice/test-prep materials</td><td>Future scope; teacher review, source and copyright safeguards</td></tr>
+</tbody></table></div>
+<p class="foot">Decision status: synthetic teacher-only Valor pilot; direct learner tutoring and student-facing test-prep delivery deferred. Physical Mac certification and owner Pilot GO are separate gates. All inputs are illustrative and editable; they do not represent observed school outcomes. <a href="Valor-Prepilot-Walkthrough.html">Explore teacher workflow</a>.</p>
+</main>
+<script>
+const ids=["teachers","hours","weeks","rate","license","hardware","power","support","avoided"];const money=n=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(n);const el=id=>document.getElementById(id);
+function update(){const a=Object.fromEntries(ids.map(k=>[k,Math.max(0,Number(el(k).value)||0)]));const hrs=a.teachers*a.hours*a.weeks,value=hrs*a.rate,license=a.license*12,outlay=license+a.hardware+a.power+a.support,book=license+a.hardware/3+a.power+a.support,net=value-outlay,cashnet=a.avoided-outlay,breakEven=(a.teachers*a.weeks*a.rate)?outlay/(a.teachers*a.weeks*a.rate):0;
+el("released").textContent=hrs.toLocaleString("en-US",{maximumFractionDigits:1});for(const [k,v] of Object.entries({value,outlay,net,soft:license,hard:a.hardware,ops:a.power+a.support,cash:outlay,book,save:a.avoided,cashnet}))el(k).textContent=v<0?"("+money(-v)+")":money(v);el("breakeven").textContent=breakEven.toFixed(2)+" hours";}
+ids.forEach(id=>el(id).addEventListener("input",update));update();
+</script></body></html>

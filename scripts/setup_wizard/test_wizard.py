@@ -130,7 +130,7 @@ def test_cancel_does_not_require_license_or_save_configuration(running_wizard):
     )
     with urllib.request.urlopen(req) as response:
         assert response.status == 200
-        assert "Setup canceled" in response.read().decode()
+        assert "Setup stopped" in response.read().decode()
     assert wizard._cancel_event.is_set()
     assert not os.path.exists(wizard.ENV_PATH)
 
@@ -218,7 +218,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     })
     assert resp.status == 200
     success_body = resp.read().decode()
-    assert "All set" in success_body
+    assert "Saving your setup" in success_body
     assert "192.168.1.50" in success_body
 
     assert os.path.exists(wizard.ENV_PATH)

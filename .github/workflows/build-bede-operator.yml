@@ -200,6 +200,13 @@ jobs:
         run: python -m playwright install --with-deps chromium
       - name: Exercise offline walkthrough and local audit export
         run: python packaging/tests/test_valor_prepilot_browser.py
+      - name: Publish standalone walkthrough for nontechnical reviewers
+        uses: actions/upload-artifact@v4
+        with:
+          name: bede-valor-prepilot-walkthrough-${{ github.sha }}
+          path: packaging/bundle/Valor-Prepilot-Walkthrough.html
+          if-no-files-found: error
+          retention-days: 30
 
   validate-launchers:
     name: Native launcher syntax

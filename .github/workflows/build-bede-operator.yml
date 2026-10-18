@@ -284,9 +284,28 @@ jobs:
           test ! -e "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/images.tar"
           test ! -e "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/images.tar.zst"
           test -x "$RUNNER_TEMP/native/Bede Installer.app/Contents/MacOS/BedeInstaller"
-          codesign --force --deep --sign - "$RUNNER_TEMP/native/Bede Installer.app"
-          codesign --verify --deep --strict "$RUNNER_TEMP/native/Bede Installer.app"
+          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/BedeInstaller.icns"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "$RUNNER_TEMP/native/Bede Installer.app/Contents/Info.plist")" = BedeInstaller.icns
+          if [[ -z "${{ secrets.BEDE_APPLE_DEVELOPER_ID_P12_BASE64 }}" || -z "${{ secrets.BEDE_APPLE_DEVELOPER_ID_P12_PASSWORD }}" || -z "${{ secrets.BEDE_APPLE_TEAM_ID }}" || -z "${{ secrets.BEDE_APPLE_NOTARY_KEY_ID }}" || -z "${{ secrets.BEDE_APPLE_NOTARY_ISSUER_ID }}" || -z "${{ secrets.BEDE_APPLE_NOTARY_PRIVATE_KEY }}" ]]; then
+            echo "::error::Trusted Mac distribution requires Developer ID signing and Apple notarization. Configure BEDE_APPLE_* release secrets."
+            exit 1
+          fi
+          security create-keychain -p "$RUNNER_TEMP" bede-release.keychain
+          security unlock-keychain -p "$RUNNER_TEMP" bede-release.keychain
+          printf '%s' "${{ secrets.BEDE_APPLE_DEVELOPER_ID_P12_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -k bede-release.keychain -P "${{ secrets.BEDE_APPLE_DEVELOPER_ID_P12_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$RUNNER_TEMP" bede-release.keychain
+          security list-keychains -d user -s bede-release.keychain
+          identity="$(security find-identity -v -p codesigning bede-release.keychain | sed -n 's/.*"\\(Developer ID Application: [^"]*\\)".*/\\1/p' | head -1)"
+          test -n "$identity" || { echo "::error::No Developer ID Application identity found"; exit 1; }
+          codesign --force --options runtime --timestamp --sign "$identity" "$RUNNER_TEMP/native/Bede Installer.app"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/native/Bede Installer.app"
           hdiutil create -volname "Bede Pilot" -srcfolder "$RUNNER_TEMP/native/Bede Installer.app" -ov -format UDZO "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg"
+          printf '%s' "${{ secrets.BEDE_APPLE_NOTARY_PRIVATE_KEY }}" > "$RUNNER_TEMP/AuthKey.p8"
+          xcrun notarytool submit "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg" --key "$RUNNER_TEMP/AuthKey.p8" --key-id "${{ secrets.BEDE_APPLE_NOTARY_KEY_ID }}" --issuer "${{ secrets.BEDE_APPLE_NOTARY_ISSUER_ID }}" --wait
+          xcrun stapler staple "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg"
+          xcrun stapler validate "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg"
+          spctl --assess --type execute --verbose=2 "$RUNNER_TEMP/native/Bede Installer.app"
           # Catch accidental reintroduction of the enormous offline Docker archive.
           dmg_bytes="$(stat -f %z "$RUNNER_TEMP/Bede-Pilot-Mac-arm64.dmg")"
           echo "Compact Mac DMG size: $dmg_bytes bytes"

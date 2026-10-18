@@ -1457,6 +1457,15 @@ export interface OfficialDataDay {
 const official = (campusId: string, learnerId: string) =>
   `/pilot/campuses/${encodeURIComponent(campusId)}/learners/${encodeURIComponent(learnerId)}`
 
+export interface OfficialAssessmentCalendar {
+  configured: boolean
+  cycles: Array<{ cycle_key: string; label: string; data_day_on: string | null }>
+}
+export const fetchOfficialAssessmentCalendar = (token: string, campusId: string, learnerId: string) =>
+  educatorApi<OfficialAssessmentCalendar>(
+    `${official(campusId, learnerId)}/assessment-calendar`, token,
+  )
+
 export const fetchOfficialAssessments = (token: string, campusId: string, learnerId: string) =>
   educatorApi<OfficialAssessment[]>(`${official(campusId, learnerId)}/assessments`, token)
 export const fetchOfficialAssessment = (token: string, campusId: string, learnerId: string, id: string) =>

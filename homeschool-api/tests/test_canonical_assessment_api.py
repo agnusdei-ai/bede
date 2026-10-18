@@ -921,3 +921,17 @@ def test_admin_marks_reject_inconsistent_times_and_unexplained_interruption(worl
     current = world.client.get(f"{world.base()}/assessments/{a['assessment_id']}",
                                headers=world.teacher_one.headers).json()
     assert current["administration_log"] is None
+
+
+def test_interrupted_measure_remains_missing_not_zero():
+    """Reconciled form contract: interrupted is a status, never a numeric zero."""
+    from services.canonical_assessment import ScoreInput
+    from pydantic import ValidationError
+
+    score = ScoreInput(measure="ORF_WC", administration_status="interrupted",
+                       reason="Administration interrupted")
+    assert score.raw_score is None
+    assert score.detail()["raw_score"] is None
+    with pytest.raises(ValidationError):
+        ScoreInput(measure="ORF_WC", administration_status="interrupted",
+                   reason="Administration interrupted", raw_score=0)

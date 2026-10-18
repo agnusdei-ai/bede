@@ -4,6 +4,7 @@ import PilotOfficialAssessmentPanels from './PilotOfficialAssessmentPanels'
 
 const mocks = vi.hoisted(() => ({
   fetchPilotLearners: vi.fn(), fetchOfficialAssessments: vi.fn(),
+  fetchOfficialAssessmentCalendar: vi.fn(),
   fetchOfficialAssessment: vi.fn(), fetchOfficialDataDay: vi.fn(),
   createOfficialAssessment: vi.fn(), updateOfficialMarks: vi.fn(),
   recordOfficialScores: vi.fn(), transitionOfficialAssessment: vi.fn(),
@@ -43,6 +44,8 @@ beforeEach(() => {
   mocks.fetchPilotLearners.mockResolvedValue([{ learner_id: learner, campus_id: campus, display_name: 'Synthetic Learner' }])
   mocks.fetchOfficialAssessments.mockResolvedValue([])
   mocks.fetchOfficialDataDay.mockResolvedValue(day)
+  mocks.fetchOfficialAssessmentCalendar.mockResolvedValue({ configured: true,
+    cycles: [{ cycle_key: 'valor_q1', label: 'Valor Q1 Data Day', data_day_on: null }] })
   mocks.createOfficialAssessment.mockResolvedValue(record())
   mocks.fetchOfficialAssessment.mockResolvedValue(record())
   mocks.recordOfficialScores.mockResolvedValue(record('IN_PROGRESS'))

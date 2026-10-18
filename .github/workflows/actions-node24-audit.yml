@@ -1,0 +1,20 @@
+name: Verify GitHub Actions Node 24 pins
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/qualification/verify_actions_node24.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/qualification/verify_actions_node24.py'
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check runtime pins and Node version
+        run: python3 scripts/qualification/verify_actions_node24.py

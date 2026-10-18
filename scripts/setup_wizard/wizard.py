@@ -423,6 +423,9 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append(f'<div class="hint">At least 6 digits, and not an obvious pattern like 111111 or 123456. Your child uses this to log in. Not sure? <strong>{SUGGESTED_CHILD_PIN}</strong> was just generated for you and is fine to use.</div>')
     body.append(f'<input type="text" name="child_pin" value="{html.escape(v.get("child_pin", ""))}" placeholder="{SUGGESTED_CHILD_PIN}">')
 
+    body.append('<label>Pilot campus ID</label>')
+    body.append('<div class="hint">For a campus license, enter the exact campus ID shown in your approved pilot license. Leave blank for a family license.</div>')
+    body.append(f'<input type="text" name="location_id" value="{html.escape(v.get("location_id", ""))}" placeholder="bede-mac-pilot-2026">')
     body.append('<label>License key</label>')
     body.append('<div class="hint">A valid license is required to finish installation. If you have not received one yet, choose Cancel setup for now below and reopen the installer when it is issued. License verification works offline.</div>')
     body.append(f'<input type="text" name="license_key" value="{html.escape(v.get("license_key", ""))}" placeholder="eyJ...">')
@@ -619,6 +622,9 @@ def validate(fields: dict) -> str:
             f"That PIN is Bede's own published example, so it's public and the app "
             f"won't start with it. {SUGGESTED_CHILD_PIN} was generated for you and works."
         )
+    campus = fields.get("location_id", "").strip()
+    if campus and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,63}", campus):
+        return "Enter the campus ID from your pilot license."
     if not fields.get("license_key", "").strip():
         return "Please enter your license key."
     return ""

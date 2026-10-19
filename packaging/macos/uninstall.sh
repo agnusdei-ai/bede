@@ -43,7 +43,7 @@ if [[ -n "$(docker ps -aq --filter "label=com.docker.compose.project=$project")"
       -n "$(docker volume ls -q --filter "label=com.docker.compose.project=$project")" ]]; then
   echo "Some Bede resources remain; local files are preserved for recovery." >&2; exit 1
 fi
-echo 'BEDE_REMOVE|Removing this installation files'
+echo 'BEDE_REMOVE|Checking certificates and local files'
 # Only delete the exact root CA previously generated for this installation.
 ca="$operator/bede-root-ca.crt"
 if [[ -f "$ca" && ! -L "$ca" ]] && openssl x509 -in "$ca" -noout -subject 2>/dev/null | grep -q 'Caddy Local Authority'; then
@@ -57,6 +57,22 @@ if [[ -f "$ca" && ! -L "$ca" ]] && openssl x509 -in "$ca" -noout -subject 2>/dev
     echo "A Bede certificate remains in the System keychain. Remove that exact certificate with administrator approval before finishing." >&2
     exit 1
   fi
+fi
+# Remove only release-specific Bede image tags when no other container uses them.
+# Never delete shared PostgreSQL/Caddy images or prune Docker globally.
+if [[ -f "$operator/IMAGE_DIGESTS" ]]; then
+  while IFS=' ' read -r image digest; do
+    case "$image" in
+      ghcr.io/agnusdei-ai/bede-api:sha-*|ghcr.io/agnusdei-ai/bede-ui:sha-*|ghcr.io/agnusdei-ai/bede-trust:sha-*|ghcr.io/agnusdei-ai/bede-wizard:sha-*)
+        docker image rm "$image" >/dev/null 2>&1 || true
+        ;;
+    esac
+  done < "$operator/IMAGE_DIGESTS"
+fi
+# Refuse anomalous linked content rather than deleting unexpected files.
+if find "$installation" -type l -print -quit | grep -q .; then
+  echo "This installation contains linked files. Manual review is needed." >&2
+  exit 1
 fi
 rm -rf -- "$installation"
 [[ ! -e "$installation" ]] || { echo "Installation files could not be removed" >&2; exit 1; }

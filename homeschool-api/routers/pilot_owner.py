@@ -29,7 +29,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import (
-    ClassicalEducator, PilotCampus, PilotLearner, PilotRosterGrant, get_db,
+    ClassicalEducator, PilotCampus, PilotEducatorCampus, PilotLearner,
+    PilotRosterGrant, get_db,
 )
 from core.deps import require_elevated_parent
 from core.pilot_journey_models import (
@@ -82,6 +83,64 @@ async def list_learners(campus_id: str, auth: dict = Depends(require_elevated_pa
                              .order_by(PilotLearner.id))).scalars().all()
     return [{**_render(r), "enabled": r.enabled} for r in rows]
 
+
+
+class CampusStopConfirm(BaseModel):
+    """A separate typed, deliberate stop; never merely a button side effect."""
+    confirm_campus_id: str = Field(min_length=36, max_length=36)
+    confirm_title: str = Field(min_length=2, max_length=100)
+
+
+@router.post("/campuses/{campus_id}/disable")
+async def disable_pilot_campus(campus_id: str, payload: CampusStopConfirm,
+                               request: Request,
+                               auth: dict = Depends(require_elevated_parent),
+                               db: AsyncSession = Depends(get_db)) -> dict:
+    """One-way emergency stop for a single invited pilot campus.
+
+    Does not remove records or pause a production school. G1 checks
+    PilotCampus.enabled at authorization time; campus shutdown invalidates
+    active teacher tokens and grant versions as defense in depth.
+    """
+    _admin(auth)
+    campus = await _campus(db, campus_id)
+    if (payload.confirm_campus_id != campus.id
+            or payload.confirm_title.strip() != campus.title):
+        raise HTTPException(status_code=422, detail="Campus stop confirmation does not match")
+    memberships = (await db.execute(select(PilotEducatorCampus).where(
+        PilotEducatorCampus.campus_id == campus.id
+    ))).scalars().all()
+    grants = (await db.execute(select(PilotRosterGrant).where(
+        PilotRosterGrant.campus_id == campus.id
+    ))).scalars().all()
+    learner_ids = (await db.execute(select(PilotLearner.id).where(
+        PilotLearner.campus_id == campus.id
+    ))).scalars().all()
+    teacher_ids = {m.educator_id for m in memberships} | {g.educator_id for g in grants}
+    for membership in memberships:
+        membership.enabled = False
+    for grant in grants:
+        grant.enabled = False
+        grant.version += 1
+    for teacher_id in teacher_ids:
+        educator = await db.get(ClassicalEducator, teacher_id)
+        if educator:
+            educator.credential_version += 1
+    campus.enabled = False
+    await db.commit()
+    from core.learner_scope import LearnerScope, evict_learner
+    for learner_id in learner_ids:
+        evict_learner(LearnerScope.institutional(campus.id, learner_id))
+    await log_event(
+        AuditEvent.PILOT_CAMPUS_DISABLED, role="parent", success=True,
+        detail=f"campus={campus.id} teachers={len(teacher_ids)} grants={len(grants)}",
+        **audit_from_request(request),
+    )
+    return {"campus_id": campus.id, "status": "disabled",
+            "memberships_disabled": len(memberships),
+            "grants_revoked": len(grants),
+            "prior_educator_sessions_invalidated": True,
+            "learner_records_preserved": True}
 
 class DeletionConfirm(BaseModel):
     # Both must match: the id guards against deleting the wrong row, the

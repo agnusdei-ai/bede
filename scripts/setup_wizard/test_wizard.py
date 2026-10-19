@@ -94,7 +94,7 @@ def test_short_parent_password_rejected(running_wizard):
             "child_pin": TEST_PIN,
         })
     assert exc_info.value.code == 400
-    assert "8 characters" in exc_info.value.read().decode()
+    assert "12 characters" in exc_info.value.read().decode()
 
 
 def test_managed_db_without_url_rejected(running_wizard):
@@ -698,3 +698,23 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
     assert wizard.validate(fields) == ""
     assert "BEDE_LOCATION_ID" not in wizard.build_env_file(fields)
     assert "EDUCATOR_PILOT_ENABLED=true" not in wizard.build_env_file(fields)
+
+
+def test_weak_administrator_password_rejected_without_configuration(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "local",
+            "parent_password": "Password",
+            "child_pin": TEST_PIN,
+            "license_key": "synthetic-license",
+        })
+    assert exc_info.value.code == 400
+    assert "12 characters" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_wizard_waits_for_native_certificate_approval(running_wizard):
+    html = wizard.render_success()
+    assert 'href="https://localhost"' not in html
+    assert "native installer verifies certificate trust" in html

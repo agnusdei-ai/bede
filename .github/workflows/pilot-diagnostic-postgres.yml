@@ -31,7 +31,7 @@ jobs:
       BEDE_REQUIRE_PG: '1'
       BEDE_CANON_PG_URL: postgresql+asyncpg://diagnostic_ci:synthetic-diagnostic-app@127.0.0.1:5432/diagnostic_ci
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false

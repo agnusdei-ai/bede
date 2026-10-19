@@ -37,7 +37,7 @@ from core.deps import require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
 from core.pilot_assessment_models import (
     PilotAssessmentAdministration, PilotAssessmentDecision, PilotAssessmentEvidence,
-    PilotAssessmentPlan, PilotAssessmentProposal, PilotAssessmentResponse,
+    PilotAssessmentPlan, PilotAssessmentFollowUp, PilotAssessmentProposal, PilotAssessmentResponse,
     PilotAssessmentScore, PilotAssessmentTransition, PilotBenchmarkAuthorization,
     PilotCampusCycle, PilotProgressMonitoringSchedule,
 )
@@ -881,6 +881,112 @@ async def schedule_progress_monitoring(campus_id: str, learner_id: str, assessme
     return {"schedule_id": sid, "assessment_id": adm.id, "plan_id": plan.id,
             "measure": payload.measure, "planned_dates": dates,
             "status": "teacher_confirmed_dates_recorded"}
+
+
+# ── Teacher-use artifact and post-teaching observation ────────────────────
+
+async def _teacher_plan(db: AsyncSession, learner: PilotLearner,
+                        assessment_id: str, plan_id: str):
+    """Only a decision-backed plan for this exact campus, learner and record."""
+    plan = await db.get(PilotAssessmentPlan, g1._id(plan_id))
+    if (plan is None or plan.administration_id != assessment_id
+            or plan.campus_id != learner.campus_id or plan.learner_id != learner.id):
+        raise _not_found()
+    decision = await db.get(PilotAssessmentDecision, plan.decision_id)
+    if (decision is None or decision.action not in ("approve", "edit")
+            or decision.administration_id != assessment_id
+            or decision.campus_id != learner.campus_id
+            or decision.learner_id != learner.id):
+        raise _conflict("Teacher approval is required before preparing an artifact")
+    return plan, decision
+
+
+@learner_router.get("/assessments/{assessment_id}/plans/{plan_id}/artifact")
+async def teacher_artifact(campus_id: str, learner_id: str, assessment_id: str,
+                           plan_id: str, auth: dict = Depends(require_educator),
+                           db: AsyncSession = Depends(get_db)) -> dict:
+    """Read-only printable teacher material, never an official DIBELS report.
+
+    Rendering cannot change a roster, assessment, assignment or delivery state.
+    """
+    _, learner = await _scope(db, auth, campus_id, learner_id)
+    adm = await _administration(db, learner, assessment_id)
+    plan, decision = await _teacher_plan(db, learner, adm.id, plan_id)
+    if (not adm.snapshot_sha256 or
+            await _snapshot_hash(db, adm, learner) != adm.snapshot_sha256):
+        raise _conflict("Official assessment snapshot must be intact")
+    body = _dec(plan.plan_enc, "pilot_assessment_plans", "plan_enc", learner, plan.id)
+    return {
+        "artifact_type": "teacher_use_instructional_plan",
+        "status": "teacher_approved_for_offline_use",
+        "campus_id": learner.campus_id, "learner_id": learner.id,
+        "assessment_id": adm.id, "assessment_snapshot_sha256": adm.snapshot_sha256,
+        "plan_id": plan.id, "decision_id": decision.id,
+        "approval_action": decision.action, "approved_by": decision.teacher_id,
+        "plan_text": body["plan_text"], "prepared_at": _iso(plan.created_at),
+        "delivery_state": "NOT_REQUESTED", "changes_official_scores": False,
+        "changes_roster": False, "sends_to_learner": False,
+        "disclaimer": "Teacher-use plan only. Not an official DIBELS score or assessment report.",
+    }
+
+
+def _render_follow_up(row: PilotAssessmentFollowUp, learner: PilotLearner) -> dict:
+    notes = _dec(row.observation_enc, "pilot_assessment_follow_ups",
+                 "observation_enc", learner, row.id)
+    return {
+        "follow_up_id": row.id, "assessment_id": row.administration_id,
+        "plan_id": row.plan_id, "decision_id": row.decision_id,
+        "campus_id": learner.campus_id, "learner_id": learner.id,
+        "teacher_id": row.teacher_id, "observed_on": _iso(row.observed_on),
+        "recorded_at": _iso(row.created_at), **notes,
+        "evidence_class": "teacher_reported_follow_up",
+        "is_official_assessment": False, "changes_roster": False,
+        "changes_official_scores": False,
+    }
+
+
+@learner_router.post("/assessments/{assessment_id}/plans/{plan_id}/follow-ups", status_code=201)
+async def record_follow_up(campus_id: str, learner_id: str, assessment_id: str,
+                           plan_id: str, payload: ca.TeacherFollowUpInput,
+                           auth: dict = Depends(require_educator),
+                           db: AsyncSession = Depends(get_db)) -> dict:
+    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    adm = await _administration(db, learner, assessment_id)
+    plan, decision = await _teacher_plan(db, learner, adm.id, plan_id)
+    row_id = str(uuid.uuid4())
+    row = PilotAssessmentFollowUp(
+        id=row_id, administration_id=adm.id, plan_id=plan.id,
+        decision_id=decision.id, campus_id=learner.campus_id,
+        learner_id=learner.id, teacher_id=teacher.id,
+        observed_on=payload.observed_on,
+        observation_enc=_enc({
+            "teaching_mode": payload.teaching_mode,
+            "observation": payload.observation.strip(),
+            "next_step": (payload.next_step or "").strip() or None,
+        }, "pilot_assessment_follow_ups", "observation_enc", learner, row_id),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(row)
+    await _commit(db, auth, learner)
+    return _render_follow_up(row, learner)
+
+
+@learner_router.get("/assessments/{assessment_id}/plans/{plan_id}/follow-ups")
+async def list_follow_ups(campus_id: str, learner_id: str, assessment_id: str,
+                          plan_id: str, auth: dict = Depends(require_educator),
+                          db: AsyncSession = Depends(get_db)) -> list[dict]:
+    _, learner = await _scope(db, auth, campus_id, learner_id)
+    adm = await _administration(db, learner, assessment_id)
+    plan, _ = await _teacher_plan(db, learner, adm.id, plan_id)
+    rows = (await db.execute(
+        select(PilotAssessmentFollowUp).where(
+            PilotAssessmentFollowUp.campus_id == learner.campus_id,
+            PilotAssessmentFollowUp.learner_id == learner.id,
+            PilotAssessmentFollowUp.administration_id == adm.id,
+            PilotAssessmentFollowUp.plan_id == plan.id,
+        ).order_by(PilotAssessmentFollowUp.created_at, PilotAssessmentFollowUp.id)
+    )).scalars().all()
+    return [_render_follow_up(row, learner) for row in rows]
 
 
 # ── Data Day packet ─────────────────────────────────────────────────────────

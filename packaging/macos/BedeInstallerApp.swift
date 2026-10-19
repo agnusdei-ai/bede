@@ -66,6 +66,8 @@ final class InstallerController: ObservableObject {
     @Published var current: SetupStage = .requirements
     @Published var finished = Set<SetupStage>()
     @Published var running = false
+    @Published var removing = false
+    @Published var removalError: String? = nil
     @Published var completed = false
     @Published var stopped = false
     @Published var message = "Bede will guide you through the installation."
@@ -106,6 +108,54 @@ final class InstallerController: ObservableObject {
         }
         return base.appendingPathComponent("Homeschool", isDirectory: true)
             .appendingPathComponent("local", isDirectory: true)
+    }
+
+    var installed: Bool {
+        FileManager.default.fileExists(atPath: installationDirectory.appendingPathComponent("bede-operator/RELEASE").path)
+    }
+
+    func removeInstallation() {
+        guard !running && !removing && installed && validContext else { return }
+        guard let script = Bundle.main.resourceURL?.appendingPathComponent("BedeUninstall.sh"),
+              FileManager.default.fileExists(atPath: script.path) else {
+            removalError = "Removal tools are missing from this installer. Please use an updated Bede installer."
+            return
+        }
+        removalError = nil
+        removing = true
+        message = "Removing Bede services and their saved data..."
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/bash")
+        task.arguments = [script.path, context == .campus ? "campus" : "homeschool", context == .campus ? campusID : ""]
+        task.environment = Self.commandEnvironment()
+        let output = Pipe()
+        let errors = Pipe()
+        task.standardOutput = output
+        task.standardError = errors
+        task.terminationHandler = { [weak self] ended in
+            let diagnostic = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.removing = false
+                self.completed = false
+                self.finished = []
+                self.current = .requirements
+                if ended.terminationStatus == 0 {
+                    self.message = "Bede was removed from this Mac. You can install it again."
+                } else {
+                    self.message = "Bede could not be completely removed."
+                    self.removalError = diagnostic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Removal stopped. Check Docker Desktop and retry." :
+                        String(diagnostic.suffix(1400))
+                }
+            }
+        }
+        do {
+            try task.run()
+        } catch {
+            removing = false
+            removalError = "Could not start removal. Please verify the installer is complete."
+        }
     }
 
     var bundleDirectory: URL? {
@@ -254,6 +304,7 @@ final class InstallerController: ObservableObject {
 
 struct InstallerView: View {
     @StateObject private var installer = InstallerController()
+    @State private var confirmRemoval = false
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)
 
@@ -314,7 +365,7 @@ struct InstallerView: View {
             .padding(18)
             .background(.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 14))
 
-            if installer.running {
+            if installer.running || installer.removing {
                 ProgressView().progressViewStyle(.linear)
                     .accessibilityLabel("Installation in progress")
             }
@@ -322,6 +373,14 @@ struct InstallerView: View {
             Text(installer.message)
                 .foregroundStyle(installer.completed ? green : .secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let error = installer.removalError {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Removal needs attention").font(.headline)
+                    Text(error).font(.caption).textSelection(.enabled)
+                }
+                .foregroundStyle(.red)
+            }
 
             if installer.details || !installer.prepared {
                 VStack(alignment: .leading, spacing: 5) {
@@ -338,12 +397,17 @@ struct InstallerView: View {
                 Button(installer.details ? "Hide Mac details" : "Mac details") {
                     installer.details.toggle()
                 }
-                .disabled(installer.running)
-                if !installer.prepared && !installer.running {
+                .disabled(installer.running || installer.removing)
+                if !installer.prepared && !installer.running && !installer.removing {
                     Button("Check again") { installer.refresh() }
                 }
                 Spacer()
-                if installer.running {
+                if installer.installed && !installer.running && !installer.removing {
+                    Button("Remove Bede", role: .destructive) { confirmRemoval = true }
+                }
+                if installer.removing {
+                    Text("Removing…").foregroundStyle(.secondary)
+                } else if installer.running {
                     Button("Stop setup") { installer.stop() }
                 } else if installer.completed {
                     Button("Open Bede") {
@@ -357,7 +421,7 @@ struct InstallerView: View {
                         .tint(green)
                         .disabled(!installer.prepared)
                 }
-                if !installer.running && !installer.completed {
+                if !installer.running && !installer.removing && !installer.completed {
                     Button("Support report") { installer.openSupport() }
                 }
             }
@@ -365,6 +429,12 @@ struct InstallerView: View {
         .padding(28)
         .background(cream)
         .frame(width: 620, height: 700)
+        .alert("Permanently remove Bede?", isPresented: $confirmRemoval) {
+            Button("Cancel", role: .cancel) { }
+            Button("Remove Bede and its data", role: .destructive) { installer.removeInstallation() }
+        } message: {
+            Text("This permanently removes the selected Bede installation, its local learning records, containers, and certificates associated with this installation. Other Docker apps and your separately stored installer and license are preserved.")
+        }
     }
 }
 

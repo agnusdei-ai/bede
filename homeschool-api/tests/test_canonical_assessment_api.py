@@ -14,7 +14,7 @@ import asyncio
 import os
 import re
 import tempfile
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -123,7 +123,7 @@ def _all_counts(client) -> dict:
         models.PilotAssessmentResponse, models.PilotAssessmentTransition,
         models.PilotAssessmentEvidence, models.PilotAssessmentProposal,
         models.PilotAssessmentDecision, models.PilotAssessmentPlan,
-        models.PilotProgressMonitoringSchedule)}
+        models.PilotAssessmentFollowUp, models.PilotProgressMonitoringSchedule)}
 
 
 def full_journey(w: World, scores=None, responses=()):
@@ -857,3 +857,99 @@ def test_new_official_marks_require_explicit_teacher_review_before_finalize(worl
     assert changed["scores"][0]["official_marks"]["teacher_reviewed"] is True
     finalized = world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
     assert finalized["snapshot_verified"] is True
+
+
+# ── Owner pilot contract: teacher-approved artifacts and offline follow-up ──
+
+def test_teacher_artifact_and_post_lesson_observation_are_scoped_and_append_only(world):
+    aid, prop = full_journey(world)
+    base = f"{world.base()}/assessments/{aid}"
+    invalid = "00000000-0000-0000-0000-000000000000"
+    assert world.client.get(f"{base}/plans/{invalid}/artifact",
+                            headers=world.teacher_one.headers).status_code == 404
+    world.decide(aid, prop["proposal_id"], {"action": "approve", "expected_version": 1})
+    planned = world.client.post(f"{base}/plan", json={"plan_text": "Teacher approved synthetic phonics activity"},
+                                headers=world.teacher_one.headers)
+    assert planned.status_code == 201, planned.text
+    plan_id = planned.json()["plan_id"]
+    route = f"{base}/plans/{plan_id}"
+    counts_before = _all_counts(world.client)
+    art = world.client.get(f"{route}/artifact", headers=world.teacher_one.headers)
+    assert art.status_code == 200, art.text
+    body = art.json()
+    assert body["plan_text"] == "Teacher approved synthetic phonics activity"
+    assert body["assessment_snapshot_sha256"]
+    assert body["status"] == "teacher_approved_for_offline_use"
+    assert body["campus_id"] == world.campus_one
+    assert body["learner_id"] == world.learner_one
+    assert body["changes_roster"] is False and body["changes_official_scores"] is False
+    assert body["sends_to_learner"] is False and body["delivery_state"] == "NOT_REQUESTED"
+    assert _all_counts(world.client) == counts_before  # Handout GET never writes.
+
+    follow = world.client.post(f"{route}/follow-ups", json={
+        "observed_on": date.today().isoformat(), "teaching_mode": "in_person",
+        "observation": "Synthetic pupil read three original practice words aloud.",
+        "next_step": "Teacher will repeat the exercise next lesson.",
+    }, headers=world.teacher_one.headers)
+    assert follow.status_code == 201, follow.text
+    row = follow.json()
+    assert row["plan_id"] == plan_id and row["decision_id"] == body["decision_id"]
+    assert row["evidence_class"] == "teacher_reported_follow_up"
+    assert row["is_official_assessment"] is False
+    assert row["changes_roster"] is False and row["changes_official_scores"] is False
+    assert _count(world.client, models.PilotAssessmentFollowUp) == 1
+
+    # Never treat the after-teaching note as an official result or a new sitting.
+    assert _count(world.client, models.PilotAssessmentAdministration) == 1
+    assert world.client.get(f"{route}/artifact", headers=world.teacher_two.headers).status_code == 404
+    assert world.client.post(f"{route}/follow-ups", json={
+        "observed_on": date.today().isoformat(), "teaching_mode": "offline",
+        "observation": "Cross campus write must be denied.",
+    }, headers=world.teacher_two.headers).status_code == 404
+    assert world.client.get(f"{route}/follow-ups", headers=world.teacher_two.headers).status_code == 404
+    others_base = f"{world.base(world.campus_two, world.learner_two)}/assessments/{aid}/plans/{plan_id}"
+    assert world.client.get(f"{others_base}/artifact", headers=world.teacher_two.headers).status_code == 404
+    assert len(world.client.get(f"{route}/follow-ups", headers=world.teacher_one.headers).json()) == 1
+    assert _count(world.client, models.PilotAssessmentFollowUp) == 1
+
+
+def test_teacher_artifact_and_follow_up_never_exist_for_rejected_or_unapproved_work(world):
+    aid, prop = full_journey(world)
+    base = f"{world.base()}/assessments/{aid}"
+    fake_plan = "00000000-0000-0000-0000-000000000000"
+    # A pending AI suggestion cannot be a teacher artifact.
+    assert world.client.get(f"{base}/plans/{fake_plan}/artifact",
+                            headers=world.teacher_one.headers).status_code == 404
+    rejected = world.decide(aid, prop["proposal_id"], {
+        "action": "reject", "expected_version": 1,
+        "rationale": "Teacher judgment: insufficient support.",
+    })
+    assert rejected["action"] == "reject"
+    assert world.client.post(f"{base}/plan", json={"plan_text": "Unapproved intervention"},
+                             headers=world.teacher_one.headers).status_code == 409
+    assert _count(world.client, models.PilotAssessmentPlan) == 0
+    assert _count(world.client, models.PilotAssessmentFollowUp) == 0
+
+
+def test_teacher_follow_up_validates_actual_observation_and_date(world):
+    aid, prop = full_journey(world)
+    world.decide(aid, prop["proposal_id"], {"action": "edit", "expected_version": 1,
+                                            "edited_text": "Teacher-selected synthetic activity"})
+    r = world.client.post(f"{world.base()}/assessments/{aid}/plan",
+                          json={"plan_text": "Teacher-selected synthetic activity"},
+                          headers=world.teacher_one.headers)
+    assert r.status_code == 201, r.text
+    route = f"{world.base()}/assessments/{aid}/plans/{r.json()['plan_id']}/follow-ups"
+    for payload in [
+        {"observed_on": (date.today() + timedelta(days=1)).isoformat(),
+         "teaching_mode": "in_person", "observation": "Future observation"},
+        {"observed_on": date.today().isoformat(),
+         "teaching_mode": "offline", "observation": "  "},
+        {"observed_on": date.today().isoformat(),
+         "teaching_mode": "remote_auto", "observation": "Not a teaching method"},
+        {"observed_on": date.today().isoformat(),
+         "teaching_mode": "offline", "observation": "A valid note", "raw_official_score": 77},
+    ]:
+        result = world.client.post(route, json=payload, headers=world.teacher_one.headers)
+        assert result.status_code == 422, (payload, result.text)
+    assert _count(world.client, models.PilotAssessmentFollowUp) == 0

@@ -111,6 +111,26 @@ def run():
                         assert expected in error_text, (context, problem, error_text)
                     outcomes.append(f"{context}/{problem}/{'weak' if credential == 'Password' else 'strong'}")
 
+                # Positive journey: submit a fake local-model configuration
+                # and verify the UI handoff plus scoped .env creation. The
+                # unsigned test entitlement is NOT valid for a live backend.
+                wizard.DEPLOYMENT_CONTEXT = "homeschool"
+                wizard.APPROVED_CAMPUS_ID = ""
+                page.goto(base)
+                page.locator('input[name="provider"][value="local"]').check()
+                page.locator('[name="local_base_url"]').fill("http://127.0.0.1:8999/v1")
+                page.locator('[name="parent_password"]').fill("synthetic-recovery-credential-4619")
+                page.locator('[name="child_pin"]').fill(wizard.SUGGESTED_CHILD_PIN)
+                page.locator('[name="license_key"]').fill(synthetic_license("valid", "homeschool"))
+                page.get_by_role("button", name="Set up Bede").click()
+                page.get_by_role("heading", name="Starting Bede").wait_for()
+                body = Path(wizard.ENV_PATH).read_text(encoding="utf-8")
+                assert "BEDE_ADAPTER_ORDER=local" in body
+                assert "LOCAL_LLM_BASE_URL=http://127.0.0.1:8999/v1" in body
+                assert "WEBAUTHN_ORIGIN=https://localhost" in body
+                assert 'href="https://localhost"' not in page.content()
+                outcomes.append("synthetic local-model setup and safe native handoff")
+
                 assert not errors, errors
                 browser.close()
         except Exception as error:

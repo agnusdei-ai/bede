@@ -9,14 +9,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { fetchAvailableLocales, login } = vi.hoisted(() => ({
+const { fetchAvailableLocales, fetchEducatorPilotMode, login } = vi.hoisted(() => ({
   fetchAvailableLocales: vi.fn(),
+  fetchEducatorPilotMode: vi.fn(),
   login: vi.fn(),
 }))
 
 vi.mock('../services/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/api')>()
-  return { ...actual, fetchAvailableLocales, login }
+  return { ...actual, fetchAvailableLocales, fetchEducatorPilotMode, login }
 })
 
 import i18n from '../i18n'
@@ -33,6 +34,8 @@ function renderLogin() {
 
 beforeEach(() => {
   fetchAvailableLocales.mockReset()
+  fetchEducatorPilotMode.mockReset()
+  fetchEducatorPilotMode.mockResolvedValue({ enabled: false, shared_child_pin_disabled: false })
   login.mockReset()
   sessionStorage.clear()
 })
@@ -160,5 +163,35 @@ describe('why you are looking at this screen', () => {
 
     await waitFor(() => expect(screen.queryByText(/por inactividad/i)).not.toBeNull())
     expect(screen.queryByText(/common\.loggedOut/)).toBeNull()
+  })
+})
+
+describe('institutional mode journey isolation', () => {
+  it('shows an explicit service error rather than homeschool roles when pilot mode cannot be read', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    fetchEducatorPilotMode.mockRejectedValue(new Error('synthetic connection failure'))
+    renderLogin()
+    await screen.findByRole('alert')
+    expect(screen.getByText(/cannot verify this installation.s access mode/i)).toBeTruthy()
+    expect(screen.queryByText('Student')).toBeNull()
+    expect(screen.queryByPlaceholderText('Enter PIN')).toBeNull()
+  })
+
+  it('recovers after retry and shows educator passkey access for school mode', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    fetchEducatorPilotMode.mockRejectedValueOnce(new Error('synthetic connection failure'))
+      .mockResolvedValueOnce({ enabled: true, shared_child_pin_disabled: true })
+    renderLogin()
+    fireEvent.click(await screen.findByRole('button', { name: /Retry connection/i }))
+    await waitFor(() => expect(screen.getByText('Classical Educator')).toBeTruthy())
+    expect(screen.queryByText('Student')).toBeNull()
+  })
+
+  it('shows homeschool student PIN only after explicit non-campus verification', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    fetchEducatorPilotMode.mockResolvedValue({ enabled: false, shared_child_pin_disabled: false })
+    renderLogin()
+    await waitFor(() => expect(screen.getByText('Student')).toBeTruthy())
+    expect(screen.queryByText('Classical Educator')).toBeNull()
   })
 })

@@ -21,6 +21,7 @@ export default function Login() {
   const [role, setRole] = useState<'parent' | 'child' | 'educator'>('parent')
   const [educatorUsername, setEducatorUsername] = useState('')
   const [educatorMode, setEducatorMode] = useState(false)
+  const [modeCheck, setModeCheck] = useState<'checking' | 'ready' | 'unavailable'>('checking')
   const [educatorPasskeyReadiness, setEducatorPasskeyReadiness] = useState<PasskeyReadiness | null>(null)
   const [credential, setCredential] = useState('')
   useEffect(() => {
@@ -46,10 +47,18 @@ export default function Login() {
   const [availableLocales, setAvailableLocales] = useState<AvailableLocale[]>([])
   const [selectedLocale, setSelectedLocale] = useState<string>('en')
 
+  const checkAccessMode = () => {
+    setModeCheck('checking')
+    fetchEducatorPilotMode()
+      .then(value => {
+        setEducatorMode(value.enabled)
+        setModeCheck('ready')
+      })
+      .catch(() => setModeCheck('unavailable'))
+  }
   useEffect(() => {
-    fetchAvailableLocales().then(setAvailableLocales)
-    fetchEducatorPilotMode().then(value => setEducatorMode(value.enabled))
-      .catch(() => setEducatorMode(false))
+    fetchAvailableLocales().then(setAvailableLocales).catch(() => setAvailableLocales([]))
+    checkAccessMode()
   }, [])
 
   // Consumed in an effect rather than a useState initializer on purpose:
@@ -289,8 +298,21 @@ export default function Login() {
           </div>
         )}
 
+        {modeCheck !== 'ready' && (
+          <div role={modeCheck === 'unavailable' ? 'alert' : 'status'}
+            className="mb-6 rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
+            {modeCheck === 'checking'
+              ? 'Checking whether this is a school or homeschool installation…'
+              : 'Bede cannot verify this installation’s access mode. Check the local Bede service before signing in.'}
+            {modeCheck === 'unavailable' && (
+              <button type="button" className="ml-3 underline font-semibold"
+                onClick={checkAccessMode}>Retry connection</button>
+            )}
+          </div>
+        )}
+
         {/* Role toggle */}
-        <div className="flex rounded-lg border border-navy-200 overflow-hidden mb-6">
+        {modeCheck === 'ready' && <div className="flex rounded-lg border border-navy-200 overflow-hidden mb-6">
           {(educatorMode ? ['parent', 'educator'] as const : ['parent', 'child'] as const).map((r) => (
             <button
               key={r}
@@ -307,9 +329,9 @@ export default function Login() {
               }
             </button>
           ))}
-        </div>
+        </div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {modeCheck === 'ready' && <form onSubmit={handleSubmit} className="space-y-4">
           {role === 'educator' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="educator-username">Instructor username</label>
@@ -378,7 +400,7 @@ export default function Login() {
           >
             {loading ? t('login.checking') : role === 'parent' ? t('login.submitParent') : role === 'educator' ? 'Continue with passkey' : t('login.submitChild')}
           </button>
-        </form>
+        </form>}
 
         <p className="text-center text-xs text-gray-400 mt-6 leading-relaxed">
           <Trans i18nKey="login.quote" components={{ italic: <em /> }} />

@@ -419,7 +419,7 @@ struct InstallerView: View {
                     Button("Install Bede") { installer.begin() }
                         .buttonStyle(.borderedProminent)
                         .tint(green)
-                        .disabled(!installer.prepared)
+                        .disabled(!installer.prepared || installer.removing)
                 }
                 if !installer.running && !installer.removing && !installer.completed {
                     Button("Support report") { installer.openSupport() }

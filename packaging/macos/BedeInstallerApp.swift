@@ -619,7 +619,7 @@ struct InstallerView: View {
                 if installer.architecture == .containerized {
                     Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
                 } else {
-                    Text("Native runtime: \\(installer.nativeRuntimeReady ? "Verified" : "Not yet qualified")")
+                    Text("Native runtime: \(installer.nativeRuntimeReady ? "Verified" : "Not yet qualified")")
                 }
             }
             .font(.callout)

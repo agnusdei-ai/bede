@@ -88,3 +88,12 @@ jobs:
         run: python -m playwright install --with-deps chromium
       - name: Exercise synthetic administrator UI journeys
         run: python packaging/tests/test_installer_wizard_ui_journeys.py
+      - name: Preserve scoped browser journey evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-installer-ui-journeys-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/bede-installer-ui-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+

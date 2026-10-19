@@ -60,6 +60,7 @@ the module is missing from that list or from this document.
 | `pilot_assessment_decisions` | TeacherDecision, hash-chained per learner | `rationale_enc` |
 | `pilot_assessment_plans` | Teacher's instructional plan, recorded only | `plan_enc` |
 | `pilot_progress_monitoring_schedules` | Teacher-confirmed progress-monitoring dates | none (dates only) |
+| `pilot_assessment_follow_ups` | Teacher-recorded classroom/offline observation after an approved plan | `observation_enc` (observation and teacher-proposed next step) |
 
 The campus-scoped configuration tables hold no learner content:
 
@@ -88,7 +89,7 @@ Triggers are created with the tables on both SQLite and Postgres:
 
 - A `pilot_assessment_administrations` row cannot be updated once `finalized_at`
   is set.
-- Score, response, transition, evidence, decision, plan and schedule rows can
+- Score, response, transition, evidence, decision, plan, follow-up and schedule rows can
   never be updated in place. During entry, scores and responses are replaced by a
   delete and an insert.
 - No score or response can be inserted under a finalized administration.
@@ -203,11 +204,14 @@ a request is in flight therefore persists nothing.
 | POST | `/assessments/{id}/plan` | Records a teacher plan. `delivery_state` is `NOT_REQUESTED`. |
 | POST | `/assessments/{id}/progress-monitoring` | Records teacher-confirmed dates. Creates no administration. |
 | POST | `/assessments/{id}/supersede` | Corrects a finalized record, with an audit link. |
+| GET | `/assessments/{id}/plans/{plan_id}/artifact` | Printable teacher-use artifact derived only from a saved, approved/edited plan; never changes official marks or sends material to the learner. |
+| POST/GET | `/assessments/{id}/plans/{plan_id}/follow-ups` | Append/read teacher observation after offline or in-person teaching; always labeled teacher-reported, not official reassessment. |
 | GET | `/data-day?cycle=…` | Returns the Data Day packet. Read only. |
 
 ### Nothing changes without a recorded teacher action
 
 No recommendation changes placement, starts instruction or schedules anything.
+Only a teacher-saved, approved/edited plan may produce a teacher-use artifact. A follow-up requires that plan and cannot change official scores, learner assignments, or roster access. The artifact is a printable instructional aid, never a vendor DIBELS score report.
 
 A proposal carries a `proposed_review_on` date. That date is taken from the
 campus's next configured Data Day, and the proposal is marked
@@ -283,7 +287,7 @@ transaction it:
    `pilot_assessment_responses`, `pilot_assessment_transitions`,
    `pilot_assessment_evidence`, `pilot_assessment_proposals`,
    `pilot_assessment_decisions`, `pilot_assessment_plans`,
-   `pilot_progress_monitoring_schedules`, **G2** `pilot_evidence`,
+   `pilot_progress_monitoring_schedules`, `pilot_assessment_follow_ups`, **G2** `pilot_evidence`,
    `pilot_recommendations`, `pilot_decisions`, `pilot_roster_grants`, and last
    `pilot_learners` (the encrypted display name);
 4. deletes any household-shaped row stored under the learner's institutional

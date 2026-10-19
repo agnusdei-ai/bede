@@ -1539,6 +1539,19 @@ const owner = (path: string) => `/pilot/owner${path}`
 
 export const fetchPilotOwnerCampuses = (token: string) =>
   educatorApi<PilotOwnerCampus[]>(owner('/campuses'), token)
+export interface PilotCampusStopResult {
+  campus_id: string
+  status: 'disabled'
+  memberships_disabled: number
+  grants_revoked: number
+  prior_educator_sessions_invalidated: boolean
+  learner_records_preserved: boolean
+}
+export const disablePilotOwnerCampus = (token: string, campusId: string, confirmTitle: string) =>
+  educatorApi<PilotCampusStopResult>(
+    owner(`/campuses/${encodeURIComponent(campusId)}/disable`),
+    token, 'POST', { confirm_campus_id: campusId, confirm_title: confirmTitle },
+  )
 export const fetchPilotOwnerLearners = (token: string, campusId: string) =>
   educatorApi<PilotOwnerLearner[]>(owner(`/campuses/${encodeURIComponent(campusId)}/learners`), token)
 export const deletePilotLearner = (

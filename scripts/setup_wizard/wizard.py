@@ -13,6 +13,8 @@ stays tiny and there's nothing to explain about extra dependencies for what
 is, functionally, one short-lived form.
 """
 import html
+import base64
+from datetime import date
 import ipaddress
 import re
 import json
@@ -45,12 +47,9 @@ from core.pin_policy import (  # noqa: E402
 # repository stops being a secret the moment it ships. See
 # homeschool-api/core/pin_policy.py.
 SUGGESTED_CHILD_PIN = suggest_pin()
-# Deliberately NOT importing core.licensing here — real signature
-# verification needs pycryptodome, and this container stays pure-stdlib on
-# purpose (see module docstring). This form only checks the field is
-# non-empty; core/config.py does the real cryptographic/expiry check when
-# the actual API container boots — if that rejects it, `make logs` shows
-# why (see docs/PRODUCTION_SETUP.md#licensing).
+# The wizard uses only standard-library preflight checks on license metadata.
+# The backend remains the authority for signature and entitlement validation.
+# Never represent decoded, unsigned metadata as a verified license.
 
 DEPLOYMENT_CONTEXT = os.environ.get("BEDE_INSTALL_CONTEXT", "homeschool").strip()
 APPROVED_CAMPUS_ID = os.environ.get("BEDE_CAMPUS_ID", "").strip()
@@ -424,12 +423,12 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
     if DEPLOYMENT_CONTEXT == "campus":
         body.append('<label>Create your administrator password</label>')
-        body.append('<div class="hint">Create a password for the person managing this Bede installation. Teachers will receive separate, approved access using passkeys.</div>')
+        body.append('<div class="hint">Set a strong temporary administrator recovery password (12 or more characters) until owner passkey enrollment is available. Teachers sign in separately with approved passkeys.</div>')
         body.append('<input type="password" name="parent_password">')
         body.append(f'<input type="hidden" name="child_pin" value="{SUGGESTED_CHILD_PIN}">')
     else:
         body.append('<label>Parent password</label>')
-        body.append('<div class="hint">At least 8 characters for the parent account.</div>')
+        body.append('<div class="hint">Use a unique parent recovery password of at least 12 characters. Passwordless parent access is not yet supported.</div>')
         body.append('<input type="password" name="parent_password">')
         body.append('<label>Student PIN</label>')
         body.append(f'<div class="hint">At least 6 digits. You can use this randomly generated suggestion: {SUGGESTED_CHILD_PIN}.</div>')
@@ -491,9 +490,9 @@ def render_success(fields: dict | None = None) -> str:
       <div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Starting Bede</h1></div></div>
       <p>Your settings have been saved. The installer is starting Bede and checking the secure connection.</p>
       <p><strong>{access_message}</strong></p>
-      <p><a href="{access_url}">{access_url}</a></p>
+      <p><strong>{access_url}</strong> (opens after the native installer verifies certificate trust)</p>
       {detail}
-      <p>Keep the installer open until it confirms setup is complete.</p>
+      <p><strong>Return to the Bede Installer window to watch installation checkpoints and complete macOS certificate approval.</strong> This browser page confirms only that settings were saved; Bede is not ready until the installer finishes its checks.</p>
     </div>
     """
     return _PAGE_HEAD + body + _PAGE_TAIL
@@ -614,6 +613,33 @@ _PROVIDER_LABELS = {
 }
 
 
+def license_preflight_error(license_key: str, context: str, campus_id: str) -> str:
+    """Give actionable expiry/context feedback without claiming signature trust."""
+    parts = license_key.strip().split(".")
+    if len(parts) != 2 or not all(parts):
+        return "Activation code format is invalid. Request a new Bede pilot activation code."
+    try:
+        payload_bytes = base64.urlsafe_b64decode(parts[0] + "=" * (-len(parts[0]) % 4))
+        if len(payload_bytes) > 8192:
+            raise ValueError("oversize")
+        payload = json.loads(payload_bytes)
+        if not isinstance(payload, dict):
+            raise ValueError("not an object")
+        expiration = payload.get("expires")
+        if expiration is not None:
+            expiry = date.fromisoformat(expiration)
+            if expiry < date.today():
+                return f"This Bede pilot activation code expired on {expiry.isoformat()}. Request a renewed pilot code."
+        if context == "campus":
+            if payload.get("tier") != "campus_location":
+                return "This activation code is not for a campus installation. Request a campus pilot code."
+            if payload.get("location_id") != campus_id:
+                return "This activation code belongs to a different campus. Check your approved campus ID."
+    except (ValueError, TypeError, KeyError, OverflowError, UnicodeDecodeError):
+        return "Activation code could not be read. Request a valid Bede pilot activation code."
+    return ""
+
+
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
     lan_error = validate_lan_fields(fields)
@@ -634,8 +660,10 @@ def validate(fields: dict) -> str:
             return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
     if fields.get("db_choice") == "managed" and not fields.get("database_url", "").strip():
         return "Please enter your database connection string, or choose \"On this computer\" instead."
-    if len(fields.get("parent_password", "")) < 8:
-        return "Parent password must be at least 8 characters."
+    if len(fields.get("parent_password", "")) < 12:
+        return "Administrator or parent recovery password must be at least 12 characters."
+    if fields.get("parent_password", "").casefold() in {"password", "password123", "password1234", "administrator", "administrator123", "bede12345678"}:
+        return "That administrator or parent password is too common. Choose a unique recovery password."
     if is_published_credential(fields.get("parent_password", "")):
         return (
             "That password is one of Bede's own published example values, so it's "
@@ -664,6 +692,9 @@ def validate(fields: dict) -> str:
         return "Enter the campus ID from your pilot license."
     if not fields.get("license_key", "").strip():
         return "Please enter your license key."
+    error = license_preflight_error(fields["license_key"], DEPLOYMENT_CONTEXT, APPROVED_CAMPUS_ID)
+    if error:
+        return error
     return ""
 
 
@@ -760,7 +791,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if os.path.exists(ENV_PATH):
             os.replace(ENV_PATH, ENV_PATH + ".backup")
-        with open(ENV_PATH, "w") as f:
+        with open(ENV_PATH, "w", encoding="utf-8", newline="\n") as f:
             f.write(build_env_file(fields))
         os.chmod(ENV_PATH, 0o600)
 

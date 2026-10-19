@@ -591,7 +591,16 @@ export async function applyLicenseKey(token: string, licenseKey: string): Promis
     body: JSON.stringify({ license_key: licenseKey }),
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.detail || 'Could not apply that license key')
+  if (!res.ok) {
+    const detail: unknown = data?.detail
+    const reason = typeof detail === 'string' ? detail :
+      Array.isArray(detail) ? detail
+        .map((entry: unknown) =>
+          typeof entry === 'object' && entry !== null && 'msg' in entry &&
+          typeof entry.msg === 'string' ? entry.msg : '')
+        .filter(Boolean).join('; ') : ''
+    throw new Error(reason || 'Could not apply that activation code. Verify the full code and try again.')
+  }
   return data.license
 }
 

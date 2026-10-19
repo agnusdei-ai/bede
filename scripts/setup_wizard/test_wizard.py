@@ -10,6 +10,7 @@ Docker daemon and is covered instead by
 daemon is actually available.
 """
 import json
+import base64
 import os
 import stat
 import threading
@@ -28,6 +29,16 @@ import wizard
 # homeschool-api/tests/test_wizard_and_api_agree_on_credentials.py for why a
 # well-shaped PIN can still be an unusable one.
 TEST_PIN = wizard.suggest_pin()
+
+def make_synthetic_entitlement(tier="trial", expiry="2099-12-31", location=None):
+    obj = {"id": "unit-fixture", "licensee": "Mock", "tier": tier, "expires": expiry}
+    if location:
+        obj["location_id"] = location
+    value = base64.urlsafe_b64encode(json.dumps(obj).encode()).decode().rstrip("=")
+    return value + ".unsigned-test-only"
+
+MOCK_ENTITLEMENT = make_synthetic_entitlement()
+
 
 
 @pytest.fixture
@@ -94,7 +105,7 @@ def test_short_parent_password_rejected(running_wizard):
             "child_pin": TEST_PIN,
         })
     assert exc_info.value.code == 400
-    assert "8 characters" in exc_info.value.read().decode()
+    assert "12 characters" in exc_info.value.read().decode()
 
 
 def test_managed_db_without_url_rejected(running_wizard):
@@ -214,7 +225,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert resp.status == 200
     success_body = resp.read().decode()
@@ -229,7 +240,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     assert "@db:5432/bede" in env
     assert "PARENT_PASSWORD=parentpass123" in env
     assert f"CHILD_PIN={TEST_PIN}" in env
-    assert "LICENSE_KEY=eyJ.test-license-key" in env
+    assert f"LICENSE_KEY={MOCK_ENTITLEMENT}" in env
     assert "CORS_ORIGINS=https://localhost,https://192.168.1.50,http://ui:80" in env
 
     mode = stat.S_IMODE(os.stat(wizard.ENV_PATH).st_mode)
@@ -243,7 +254,7 @@ def test_valid_openai_submission_writes_correct_env(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert resp.status == 200
     env = open(wizard.ENV_PATH).read()
@@ -259,7 +270,7 @@ def test_valid_mistral_submission_writes_correct_env(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     env = open(wizard.ENV_PATH).read()
     assert "BEDE_ADAPTER_ORDER=mistral" in env
@@ -275,7 +286,7 @@ def test_valid_local_submission_writes_correct_env(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     env = open(wizard.ENV_PATH).read()
     assert "BEDE_ADAPTER_ORDER=local" in env
@@ -292,7 +303,7 @@ def test_missing_credential_for_chosen_provider_rejected(running_wizard):
             "db_choice": "local",
             "parent_password": "parentpass123",
             "child_pin": TEST_PIN,
-            "license_key": "eyJ.test-license-key",
+            "license_key": MOCK_ENTITLEMENT,
         })
     assert exc_info.value.code == 400
     assert "OpenAI API key" in exc_info.value.read().decode()
@@ -306,7 +317,7 @@ def test_missing_local_server_url_rejected(running_wizard):
             "db_choice": "local",
             "parent_password": "parentpass123",
             "child_pin": TEST_PIN,
-            "license_key": "eyJ.test-license-key",
+            "license_key": MOCK_ENTITLEMENT,
         })
     assert exc_info.value.code == 400
     assert "model server" in exc_info.value.read().decode()
@@ -350,7 +361,7 @@ def test_valid_local_auto_submission_writes_correct_env_and_cleans_up_marker(run
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert resp.status == 200
     env = open(wizard.ENV_PATH).read()
@@ -374,7 +385,7 @@ def test_local_auto_without_marker_rejected(running_wizard):
             "db_choice": "local",
             "parent_password": "parentpass123",
             "child_pin": TEST_PIN,
-            "license_key": "eyJ.test-license-key",
+            "license_key": MOCK_ENTITLEMENT,
         })
     assert exc_info.value.code == 400
     assert "Local AI setup" in exc_info.value.read().decode()
@@ -391,7 +402,7 @@ def test_choosing_a_cloud_provider_still_cleans_up_a_leftover_marker(running_wiz
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     env = open(wizard.ENV_PATH).read()
     assert "BEDE_ADAPTER_ORDER=anthropic" in env
@@ -407,7 +418,7 @@ def test_omitted_provider_field_defaults_to_anthropic(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     env = open(wizard.ENV_PATH).read()
     assert "BEDE_ADAPTER_ORDER=anthropic" in env
@@ -421,7 +432,7 @@ def test_valid_managed_db_submission_has_no_local_db_settings(running_wizard):
         "database_url": "postgresql://user:pass@neon.example/db",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     env = open(wizard.ENV_PATH).read()
     assert "COMPOSE_PROFILES" not in env
@@ -434,14 +445,14 @@ def test_resubmission_backs_up_previous_env(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     _post(running_wizard, {
         "anthropic_key": "sk-ant-second",
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert os.path.exists(wizard.ENV_PATH + ".backup")
     assert "sk-ant-first" in open(wizard.ENV_PATH + ".backup").read()
@@ -454,7 +465,7 @@ def test_shutdown_signal_fires_after_success(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert wizard._shutdown_event.wait(timeout=2) is True
 
@@ -508,7 +519,7 @@ def test_success_page_includes_narration_but_no_mic(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     body = resp.read().decode()
     assert "playNarration('success')" in body
@@ -547,7 +558,7 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     main_thread.join(timeout=5)
     assert main_thread.is_alive() is False
@@ -567,7 +578,7 @@ def test_choosing_not_to_keep_mastery_writes_the_setting(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
         "keep_mastery": "no",
     })
     assert resp.status == 200
@@ -584,7 +595,7 @@ def test_the_default_install_writes_nothing_about_retention(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
         "keep_mastery": "yes",
     })
     assert resp.status == 200
@@ -600,7 +611,7 @@ def test_an_older_form_with_no_answer_keeps_todays_behaviour(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert resp.status == 200
     env = open(wizard.ENV_PATH).read()
@@ -631,7 +642,7 @@ def test_the_published_example_pin_is_refused(running_wizard):
             "db_choice": "local",
             "parent_password": "parentpass123",
             "child_pin": "602656",
-            "license_key": "eyJ.test-license-key",
+            "license_key": MOCK_ENTITLEMENT,
         })
     assert exc_info.value.code == 400
     assert "published example" in exc_info.value.read().decode()
@@ -654,7 +665,7 @@ def test_the_suggested_pin_is_actually_accepted(running_wizard):
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": wizard.SUGGESTED_CHILD_PIN,
-        "license_key": "eyJ.test-license-key",
+        "license_key": MOCK_ENTITLEMENT,
     })
     assert resp.status == 200
     assert f"CHILD_PIN={wizard.SUGGESTED_CHILD_PIN}" in open(wizard.ENV_PATH).read()
@@ -670,7 +681,7 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
         "openai_key": "local-test-value",
         "parent_password": "pilot-test-password-unique",
         "child_pin": "648219",
-        "license_key": "local-unit-test-not-a-signed-license",
+        "license_key": MOCK_ENTITLEMENT,
         "location_id": "bede-mac-pilot-2026",
     }
     rendered = wizard.render_form()
@@ -678,11 +689,12 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
     assert 'name="child_pin"' in rendered
     assert 'type="hidden" name="child_pin"' in rendered
     assert 'Student PIN</label>' not in rendered
+    fields["license_key"] = make_synthetic_entitlement(tier="campus_location", location="bede-mac-pilot-2026")
     assert wizard.validate(fields) == ""
     generated = wizard.build_env_file(fields)
     assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\n" in generated
     assert "EDUCATOR_PILOT_ENABLED=true\n" in generated
-    assert "LICENSE_KEY=local-unit-test-not-a-signed-license\n" in generated
+    assert ("LICENSE_KEY=" + fields["license_key"] + "\n") in generated
     from pathlib import Path
     compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
     assert "- BEDE_LOCATION_ID=${BEDE_LOCATION_ID:-}" in compose
@@ -698,3 +710,41 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
     assert wizard.validate(fields) == ""
     assert "BEDE_LOCATION_ID" not in wizard.build_env_file(fields)
     assert "EDUCATOR_PILOT_ENABLED=true" not in wizard.build_env_file(fields)
+
+
+def test_weak_administrator_password_rejected_without_configuration(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-test",
+            "db_choice": "local",
+            "parent_password": "Password",
+            "child_pin": TEST_PIN,
+            "license_key": MOCK_ENTITLEMENT,
+        })
+    assert exc_info.value.code == 400
+    assert "12 characters" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_wizard_waits_for_native_certificate_approval(running_wizard):
+    html = wizard.render_success()
+    assert 'href="https://localhost"' not in html
+    assert "native installer verifies certificate trust" in html
+
+def test_expired_pilot_entitlement_has_actionable_error():
+    error = wizard.license_preflight_error(
+        make_synthetic_entitlement(expiry="2025-01-01"), "homeschool", ""
+    )
+    assert "expired on 2025-01-01" in error
+
+def test_wrong_campus_entitlement_is_rejected():
+    error = wizard.license_preflight_error(
+        make_synthetic_entitlement(tier="campus_location", location="elsewhere"),
+        "campus", "approved-campus"
+    )
+    assert "different campus" in error
+
+def test_invalid_entitlement_is_rejected():
+    assert "format is invalid" in wizard.license_preflight_error(
+        "not-an-entitlement", "homeschool", ""
+    )

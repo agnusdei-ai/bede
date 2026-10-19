@@ -135,6 +135,7 @@ final class InstallerController: ObservableObject {
     @Published var removalError: String? = nil
     @Published var oldInstallers: [URL] = []
     @Published var completed = false
+    @Published var browserTrustReady = false
     @Published var stopped = false
     @Published var message = "Bede will guide you through the installation."
     @Published var details = false
@@ -289,6 +290,7 @@ final class InstallerController: ObservableObject {
         guard !running && !checkingMac else { return }
         stopped = false
         completed = false
+        browserTrustReady = false
         finished = []
         current = .requirements
         guard prepared else {
@@ -368,7 +370,9 @@ final class InstallerController: ObservableObject {
                 } else if code == 0 {
                     self.finished = Set(SetupStage.allCases)
                     self.completed = true
-                    self.message = "Bede is installed. Review the pilot checks before using it."
+                    self.browserTrustReady = false
+                    self.message = "Bede services started. Checking macOS HTTPS trust before opening the browser."
+                    self.verifyBrowserTrust()
                 } else {
                     self.completed = false
                     self.message = "Setup stopped before Bede was ready. Open the support report for details."
@@ -399,6 +403,37 @@ final class InstallerController: ObservableObject {
             if fields[2] == "working" { current = stage }
             message = String(fields[3])
         }
+    }
+
+    // Default system trust evaluation: no custom CA bypass and no URLSession
+    // challenge delegate. An independently verified service certificate is
+    // insufficient until macOS trusts it for browser access.
+    func verifyBrowserTrust() {
+        guard installed && !running && !removing else { return }
+        let session = URLSession(configuration: .ephemeral)
+        var request = URLRequest(url: URL(string: "https://localhost/api/health")!)
+        request.timeoutInterval = 7
+        session.dataTask(with: request) { [weak self] _, response, error in
+            let trusted = error == nil && (response as? HTTPURLResponse)?.statusCode == 200
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.browserTrustReady = trusted
+                self.message = trusted
+                    ? "Secure access is verified by macOS. You can open Bede."
+                    : "Bede services are installed, but macOS has not trusted the Bede HTTPS certificate. Review the certificate in Keychain Access, approve it explicitly, then check again."
+            }
+            session.invalidateAndCancel()
+        }.resume()
+    }
+
+    func revealCertificate() {
+        let certificate = installationDirectory.appendingPathComponent("bede-operator/bede-root-ca.crt")
+        guard FileManager.default.fileExists(atPath: certificate.path) else {
+            message = "The local certificate is not available yet. Complete service setup before approving trust."
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([certificate])
+        message = "Open the Bede root CA in Keychain Access. After reviewing its fingerprint and approving its trust settings, choose Check secure access."
     }
 
     func stop() {
@@ -466,7 +501,7 @@ struct InstallerView: View {
     }
 
     @ViewBuilder private var stagesSection: some View {
-        Text(installer.completed ? "Bede is ready" : "Installation")
+        Text(installer.completed && installer.browserTrustReady ? "Bede is ready" : "Installation")
             .font(.title3.weight(.semibold))
         VStack(alignment: .leading, spacing: 13) {
             ForEach(SetupStage.allCases) { stage in
@@ -566,11 +601,18 @@ struct InstallerView: View {
             } else if installer.running {
                 Button("Stop setup") { installer.stop() }
             } else if installer.completed {
-                Button("Open Bede") {
-                    NSWorkspace.shared.open(URL(string: "https://localhost")!)
+                if installer.browserTrustReady {
+                    Button("Open Bede") {
+                        NSWorkspace.shared.open(URL(string: "https://localhost")!)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(green)
+                } else {
+                    Button("Review certificate") { installer.revealCertificate() }
+                    Button("Check secure access") { installer.verifyBrowserTrust() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(green)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(green)
             } else {
                 Button("Install Bede") { installer.begin() }
                     .buttonStyle(.borderedProminent)

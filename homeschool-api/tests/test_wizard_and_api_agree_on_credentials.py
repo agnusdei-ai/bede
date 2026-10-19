@@ -21,6 +21,8 @@ is worse than no wizard, because the parent has no reason to suspect the
 tool that just told them everything was fine.
 """
 import importlib.util
+import base64
+import json
 from pathlib import Path
 
 import pytest
@@ -54,7 +56,13 @@ def _wizard_fields(**overrides) -> dict:
         "db_choice": "local",
         "parent_password": "a-real-parent-password",
         "child_pin": suggest_pin(),
-        "license_key": "eyJ.test",
+        "license_key": (
+            base64.urlsafe_b64encode(json.dumps({
+                "id": "synthetic-test", "licensee": "Synthetic test",
+                "tier": "trial", "expires": "2099-12-31",
+            }).encode("utf-8")).decode("ascii").rstrip("=")
+            + ".synthetic-only"
+        ),
     }
     fields.update(overrides)
     return fields

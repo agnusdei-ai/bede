@@ -1,0 +1,24 @@
+name: Bede native Mac preflight
+on:
+  pull_request:
+    paths:
+      - 'packaging/macos/native/**'
+      - '.github/workflows/native-macos-preflight.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/macos/native/**'
+      - '.github/workflows/native-macos-preflight.yml'
+permissions:
+  contents: read
+jobs:
+  native-preflight:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Compile Swift native preflight
+        run: swiftc -parse-as-library -emit-module -o "$RUNNER_TEMP/NativeRuntimePreflight.swiftmodule" packaging/macos/native/NativeRuntimePreflight.swift
+      - name: Verify synthetic fail-closed contracts
+        run: python3 -m unittest discover -s packaging/macos/native/tests -p 'test_*.py' -v
+      - name: Explicitly withhold native release certification
+        run: echo 'Native preflight scaffold only. No native runtime payload, signing, G1/G2/G3 or Pilot GO acceptance.'

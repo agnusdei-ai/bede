@@ -322,7 +322,7 @@ final class InstallerController: ObservableObject {
 
 struct InstallerView: View {
     @StateObject private var installer = InstallerController()
-    @Environment(\\.scenePhase) private var scenePhase
+    @Environment(\.scenePhase) private var scenePhase
     @State private var confirmRemoval = false
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)

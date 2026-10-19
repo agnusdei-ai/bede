@@ -223,6 +223,61 @@ export function storefrontPage(): string {
 </html>`;
 }
 
+/** Why checkout could not start, as a browser is told it. agnusdei.ai's
+ * membership chooser links to /checkout/family-annual directly, so every
+ * refusal on that route reaches a person, not a script. */
+export type CheckoutRefusal = "unconfigured" | "busy" | "failed";
+
+const REFUSAL_COPY: Record<CheckoutRefusal, { title: string; body: string }> = {
+  unconfigured: {
+    title: "Online checkout is not open yet",
+    body: "The Annual Family Membership will be available to buy here shortly.",
+  },
+  busy: {
+    title: "Too many attempts in a short time",
+    body: "Please wait a minute, then try Subscribe again.",
+  },
+  failed: {
+    title: "Checkout could not be started",
+    body: "Something went wrong reaching our payment provider. Please try again in a few minutes.",
+  },
+};
+
+/** The page itself. Nothing is charged or collected here; it points at the
+ * trial, which needs no checkout at all. */
+export function checkoutUnavailablePage(reason: CheckoutRefusal = "unconfigured"): string {
+  const copy = REFUSAL_COPY[reason];
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${copy.title} — Bede</title>
+<style>
+  body { margin: 0; background: #faf6ec; color: #1c2438; font-family: Georgia, serif; }
+  main { max-width: 34rem; margin: 0 auto; padding: 3rem 1.25rem; }
+  h1 { font-family: 'Palatino Linotype', Palatino, serif; font-size: 1.6rem; }
+  p { line-height: 1.6; color: #4d4a42; }
+  a.cta { display: inline-block; margin-top: .75rem; background: #47613f; color: #faf6ec; text-decoration: none; padding: .7rem 1.5rem; border-radius: 999px; font-weight: bold; }
+</style>
+</head>
+<body>
+<main>
+  <h1>${copy.title}</h1>
+  <p>Nothing was charged. ${copy.body}</p>
+  <p>You can start the ${TRIAL_DAYS}-day free trial now; it needs no card.</p>
+  <a class="cta" href="/#trial-form">Start the ${TRIAL_DAYS}-day free trial</a>
+</main>
+</body>
+</html>`;
+}
+
+const wantsHtml = (req: Request): boolean => (req.headers.get("accept") ?? "").includes("text/html");
+
+function refusalPage(reason: CheckoutRefusal, status: number, extra: Record<string, string> = {}): Response {
+  return new Response(checkoutUnavailablePage(reason), { status, headers: { ...pageHeaders(), ...extra } });
+}
+
 export function handleStorefront(req: Request): Response {
   return new Response(storefrontPage(), { status: 200, headers: pageHeaders() });
 }
@@ -234,13 +289,20 @@ export async function handleFamilyAnnualCheckout(
 ): Promise<Response> {
   const ip = clientIp(req);
   if (!limiter.check(ip, RATE_LIMITS.checkout)) {
-    return rateLimitedResponse(limiter, ip, RATE_LIMITS.checkout);
+    const refused = rateLimitedResponse(limiter, ip, RATE_LIMITS.checkout);
+    if (!wantsHtml(req)) return refused;
+    const retry = refused.headers.get("retry-after");
+    return refusalPage("busy", refused.status, retry ? { "retry-after": retry } : {});
   }
 
   const entitlement = familyAnnualEntitlement();
   if (entitlement === null) {
     // Not configured yet — say so plainly; a configured checkout is the
     // runbook's step 1. Never call Stripe with an empty price id.
+    //
+    // A browser gets a page that says what happened and offers the trial,
+    // rather than a raw JSON error. Anything else keeps the JSON answer.
+    if (wantsHtml(req)) return refusalPage("unconfigured", 503, { "retry-after": "3600" });
     return Response.json(
       { error: "checkout_not_configured" },
       { status: 503, headers: { "retry-after": "3600" } },
@@ -269,6 +331,7 @@ export async function handleFamilyAnnualCheckout(
     if (!session.url) {
       // Stripe always returns a hosted-checkout URL for this mode; a
       // missing one is a contract break — surface, don't redirect nowhere.
+      if (wantsHtml(req)) return refusalPage("failed", 502);
       return Response.json({ error: "checkout_session_failed" }, { status: 502 });
     }
     sessionUrl = session.url;
@@ -279,6 +342,7 @@ export async function handleFamilyAnnualCheckout(
     console.error(
       `[license-server] checkout session creation failed: ${err instanceof Error ? err.message : String(err)}`,
     );
+    if (wantsHtml(req)) return refusalPage("failed", 502);
     return Response.json({ error: "checkout_session_failed" }, { status: 502 });
   }
 

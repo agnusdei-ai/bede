@@ -186,6 +186,46 @@ describe("GET /checkout/family-annual", () => {
     expect(createSessionSpy).not.toHaveBeenCalled();
   });
 
+  it("answers a BROWSER with a page, not JSON, while unconfigured — the agnusdei.ai chooser links here", async () => {
+    vi.mocked(familyAnnualEntitlement).mockReturnValue(null);
+    const req = new Request("https://license.example.com/checkout/family-annual", { headers: { accept: "text/html,application/xhtml+xml" } });
+    const response = await handleFamilyAnnualCheckout(req, makeEnv(), createSlidingWindowLimiter());
+    expect(response.status).toBe(503);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(response.headers.get("content-security-policy")).toContain("default-src 'none'");
+    const body = await response.text();
+    expect(body).toContain("Nothing was charged");
+    expect(body).toContain('href="/#trial-form"');
+    expect(createSessionSpy).not.toHaveBeenCalled();
+  });
+
+  it("answers a BROWSER with a page when Stripe fails or the visitor is rate-limited, never raw JSON", async () => {
+    const html = { accept: "text/html", "cf-connecting-ip": "203.0.113.12" };
+    createSessionSpy.mockRejectedValue(new Error("stripe down"));
+    const failed = await handleFamilyAnnualCheckout(
+      new Request("https://license.example.com/checkout/family-annual", { headers: html }), makeEnv(), createSlidingWindowLimiter());
+    expect(failed.status).toBe(502);
+    expect(failed.headers.get("content-type")).toContain("text/html");
+    expect(await failed.text()).toContain("Checkout could not be started");
+
+    const limiter = createSlidingWindowLimiter();
+    let last: Response | undefined;
+    for (let i = 0; i < 12; i++) {
+      last = await handleFamilyAnnualCheckout(
+        new Request("https://license.example.com/checkout/family-annual", { headers: { ...html, "cf-connecting-ip": "203.0.113.13" } }), makeEnv(), limiter);
+    }
+    expect(last!.status).toBe(429);
+    expect(last!.headers.get("content-type")).toContain("text/html");
+    expect(await last!.text()).toContain("Too many attempts");
+  });
+
+  it("keeps answering JSON to a non-browser caller on a Stripe failure", async () => {
+    createSessionSpy.mockRejectedValue(new Error("stripe down"));
+    const response = await handleFamilyAnnualCheckout(checkoutRequest(), makeEnv(), createSlidingWindowLimiter());
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "checkout_session_failed" });
+  });
+
   it("creates a subscription-mode Checkout Session for the ONE configured price and 303s to it", async () => {
     const env = makeEnv();
     createSessionSpy.mockResolvedValue({ url: "https://checkout.stripe.com/c/pay/test_session" });

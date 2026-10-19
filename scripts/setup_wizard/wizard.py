@@ -791,7 +791,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if os.path.exists(ENV_PATH):
             os.replace(ENV_PATH, ENV_PATH + ".backup")
-        with open(ENV_PATH, "w") as f:
+        with open(ENV_PATH, "w", encoding="utf-8", newline="\n") as f:
             f.write(build_env_file(fields))
         os.chmod(ENV_PATH, 0o600)
 

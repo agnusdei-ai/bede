@@ -70,3 +70,36 @@ not change row counts; after-teaching notes append only to the correct
 plan, are visible after reload, and never create official scores or change
 rosters. These are functional checks, not Valor production-environment
 certification. No real student data is authorized by passing them.
+
+## Versioned schema and synthetic agent-state QA
+
+The strict internal envelope is `services/pilot_teacher_review_contract.py`
+(`TeacherReviewCycle`, schema version `1.1.0`). It has four separately
+validated responsibilities sharing the same tenant-bound cycle:
+
+1. `OfficialAssessment`: reported assessment status, purpose, benchmark
+   window, immutable snapshot digest and educator finalization. This remains
+   authoritative and must never be overwritten by Bede reasoning.
+2. `EvidenceReview` + `ProposedAction`: advisory observations and an
+   allowlist restricted to teacher prep, practice, grouping, observation
+   sheets and review packets. No model-generated permission or roster writes.
+3. `TeacherDecision`: the live educator identity, decision status, timestamp
+   and version that determines which proposals may be used.
+4. `GeneratedArtifact`: a paper-oriented output referencing one selected,
+   approved action and exactly the current decision/version. Delivery remains
+   `NOT_REQUESTED`.
+
+The pure envelope rejects cross-tenant references, absent learner binding,
+unfinalized DIBELS-based proposals, mixed benchmark/progress-monitoring
+purpose, implicit approval, edited/stale version, unknown actions, and
+artifacts after teacher rejection. Synthetic positive and negative scenario
+tests live in `tests/test_pilot_teacher_review_contract.py`.
+
+**Runtime separation:** the existing canonical assessment database and
+scoped G1 routes remain the actual authority for reads/writes, formal
+decisions, plan generation and follow-up. This envelope is a defensive
+validation contract; landing it does not by itself claim that every API
+response is persisted as one document or that every response has been
+automatically validated through the new envelope. The PR's artifact and
+follow-up endpoints have their own G1 authorization, snapshot and decision
+checks. Physical Mac and G3 remain separate release gates.

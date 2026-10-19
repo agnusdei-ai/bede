@@ -102,7 +102,7 @@ _PAGE_HEAD = """\
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Set up Bede</title>
+<title>Welcome to Bede</title>
 <link rel="icon" type="image/png" href="/bede-icon.png">
 <style>
   .bede-brand { display:flex; gap:18px; align-items:center; margin:0 0 24px; }

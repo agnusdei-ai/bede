@@ -37,6 +37,7 @@ done
 iconutil -c icns "$iconset" -o "$app/Contents/Resources/BedeInstaller.icns"
 rm -rf "$iconset"
 ditto "$payload" "$app/Contents/Resources/bede-operator"
+install -m 755 "$root/packaging/macos/uninstall.sh" "$app/Contents/Resources/BedeUninstall.sh"
 # Legacy .command launchers are not distributed in the native Mac app.
 rm -f "$app/Contents/Resources/bede-operator/Install-Bede.command" \
   "$app/Contents/Resources/bede-operator/Verify-Bede.command"
@@ -57,5 +58,6 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 plutil -lint "$app/Contents/Info.plist"
+test -x "$app/Contents/Resources/BedeUninstall.sh"
 chmod 755 "$app/Contents/MacOS/BedeInstaller"
 echo "Built branded Bede Installer.app. Signing and notarization are handled by the release workflow."

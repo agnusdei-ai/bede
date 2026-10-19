@@ -67,7 +67,7 @@ enum BedeBinaryHousekeeping {
             // Revalidate at deletion time: refuse symlinks and any running app.
             let props = try? url.resourceValues(forKeys: [.isSymbolicLinkKey])
             if props?.isSymbolicLink == true || url.standardizedFileURL.resolvingSymlinksInPath() == Bundle.main.bundleURL.standardizedFileURL.resolvingSymlinksInPath() {
-                failures.append("Skipped protected installer: \\(url.lastPathComponent)")
+                failures.append("Skipped protected installer: \(url.lastPathComponent)")
                 continue
             }
             let isApp = url.pathExtension.lowercased() == "app" && Bundle(url: url)?.bundleIdentifier == "ai.agnusdei.bede.installer"
@@ -78,7 +78,7 @@ enum BedeBinaryHousekeeping {
                 try fm.trashItem(at: url, resultingItemURL: &result)
                 retired += 1
             } catch {
-                failures.append("Could not move \\(url.lastPathComponent) to Trash.")
+                failures.append("Could not move \(url.lastPathComponent) to Trash.")
             }
         }
         return (retired, failures)
@@ -235,11 +235,11 @@ final class InstallerController: ObservableObject {
         let result = BedeBinaryHousekeeping.moveToTrash(selected)
         oldInstallers = BedeBinaryHousekeeping.candidates()
         if !result.failures.isEmpty {
-            removalError = result.failures.joined(separator: "\\n")
+            removalError = result.failures.joined(separator: "\n")
             message = "Some previous installer copies require attention."
         } else {
             removalError = nil
-            message = "\\(result.retired) previous installer copy/copies moved to Trash."
+            message = "\(result.retired) previous installer copy/copies moved to Trash."
         }
     }
 
@@ -569,7 +569,7 @@ struct InstallerView: View {
             Button("Keep copies", role: .cancel) { }
             Button("Move copies to Trash") { installer.retireOldInstallers() }
         } message: {
-            Text("\\(installer.oldInstallers.count) older Bede installer file(s) found in Downloads, Desktop, or Applications. Only matching Bede installer apps and DMGs will be retired; this running app and Bede's installed data are preserved.\\n\\n" + installer.oldInstallers.prefix(8).map(\\.path).joined(separator: "\\n"))
+            Text("\(installer.oldInstallers.count) older Bede installer file(s) found in Downloads, Desktop, or Applications. Only matching Bede installer apps and DMGs will be retired; this running app and Bede's installed data are preserved.\n\n" + installer.oldInstallers.prefix(8).map(\.path).joined(separator: "\n"))
         }
         .alert("Permanently remove Bede?", isPresented: $confirmRemoval) {
             Button("Cancel", role: .cancel) { }

@@ -246,9 +246,9 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Download compact ARM64 operator runtime
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
         with:
           name: bede-standard-linux-arm64-${{ github.sha }}
           path: ${{ runner.temp }}/bede-artifact
@@ -315,7 +315,7 @@ jobs:
           }
           ( cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Pilot-Mac-arm64.dmg" > "Bede-Pilot-Mac-arm64.dmg.sha256" )
       - name: Upload qualification artifact, not a public release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bede-mac-pilot-arm64-${{ github.sha }}
           path: |

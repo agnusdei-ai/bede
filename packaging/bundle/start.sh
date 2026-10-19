@@ -102,13 +102,32 @@ if [[ ! -s .env ]]; then
   echo "Launching the secure Bede setup wizard..."
   image="$(tr -d '\r\n' < WIZARD_IMAGE)"
   [[ -n "$image" ]] || fail "Wizard image missing"
-  if command -v open >/dev/null; then (sleep 2; open http://localhost:8765) &
-  elif command -v xdg-open >/dev/null; then (sleep 2; xdg-open http://localhost:8765) &
-  else echo "Open http://localhost:8765 in this computer's browser"; fi
+  # Never assume the container starts within a fixed two-second delay.
+  # The background browser helper times out and cannot keep the installer alive.
+  (
+    for attempt in $(seq 1 40); do
+      if curl -fsS --max-time 2 http://127.0.0.1:8765/ >/dev/null 2>&1; then
+        if [[ "$(uname -s)" = Darwin ]] && command -v open >/dev/null; then
+          open http://127.0.0.1:8765 >/dev/null 2>&1 || true
+        elif command -v wslview >/dev/null; then
+          wslview http://127.0.0.1:8765 >/dev/null 2>&1 || true
+        elif command -v xdg-open >/dev/null; then
+          xdg-open http://127.0.0.1:8765 >/dev/null 2>&1 || true
+        else
+          echo "Open http://127.0.0.1:8765 in your browser"
+        fi
+        exit 0
+      fi
+      sleep 0.5
+    done
+    echo "Setup did not become reachable in the browser; check Docker and restart setup." >&2
+  ) &
+  browser_helper=$!
   wizard_status=0
   docker run --rm --network bridge -p 127.0.0.1:8765:8765 \
     --env BEDE_INSTALL_CONTEXT --env BEDE_CAMPUS_ID \
     --user "$(id -u):$(id -g)" --mount "type=bind,src=$(pwd),dst=/repo" "$image" || wizard_status=$?
+  wait "$browser_helper" || true
   if [[ "$wizard_status" -ne 0 ]]; then
     if [[ "$wizard_status" -eq 130 ]]; then
       echo "Bede setup canceled. Obtain your approved license, then reopen Install-Bede.command to resume." >&2

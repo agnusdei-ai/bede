@@ -29,7 +29,7 @@ jobs:
       BEDE_PROBE_TIMEOUT_SECONDS: "360"
     steps:
       - name: Checkout trusted Bede probe code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Record isolated runner resources
         shell: bash
@@ -111,7 +111,7 @@ jobs:
 
       - name: Preserve synthetic-only evidence and model logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ministral-local-8b-real-weight-probe
           path: |

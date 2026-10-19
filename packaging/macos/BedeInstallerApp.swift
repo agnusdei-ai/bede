@@ -20,6 +20,12 @@ enum InstallContext: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum DeploymentArchitecture: String, CaseIterable, Identifiable {
+    case native = "Native macOS"
+    case containerized = "Containerized"
+    var id: String { rawValue }
+}
+
 // Searches only conventional user install/download folders, never the entire Mac.
 // A Finder/Trash approval is required; matching names alone never causes deletion.
 enum BedeBinaryHousekeeping {
@@ -142,6 +148,7 @@ final class InstallerController: ObservableObject {
     // Report completed checkpoints, not estimated transfer bytes.
     var verifiedPercent: Int { finished.count * 100 / SetupStage.allCases.count }
     var pullingImages: Bool { running && current == .files && !finished.contains(.files) }
+    @Published var architecture: DeploymentArchitecture = .native
     @Published var context: InstallContext = .campus
     @Published var campusID = "bede-mac-pilot-2026"
     @Published var check = MacCheck(architecture: "Checking", memoryGiB: 0, diskGiB: 0, dockerReady: false)
@@ -167,7 +174,7 @@ final class InstallerController: ObservableObject {
     }
 
     var prepared: Bool {
-        check.dockerReady && check.diskGiB >= 30 && check.memoryGiB >= 16 && validContext
+        architecture == .containerized && check.dockerReady && check.diskGiB >= 30 && check.memoryGiB >= 16 && validContext
     }
 
     private var installationDirectory: URL {
@@ -186,6 +193,10 @@ final class InstallerController: ObservableObject {
     }
 
     func removeInstallation() {
+        guard architecture == .containerized else {
+            removalError = "Native campus removal is not available until the native runtime is qualified."
+            return
+        }
         guard !running && !removing && installed && validContext else { return }
         guard let script = Bundle.main.resourceURL?.appendingPathComponent("BedeUninstall.sh"),
               FileManager.default.fileExists(atPath: script.path) else {
@@ -287,6 +298,10 @@ final class InstallerController: ObservableObject {
     }
 
     func begin() {
+        guard architecture == .containerized else {
+            message = "Native macOS installation is not yet available. No changes were made to this Mac."
+            return
+        }
         guard !running && !checkingMac else { return }
         stopped = false
         completed = false
@@ -490,6 +505,15 @@ struct InstallerView: View {
                     Text(item.rawValue).tag(item)
                 }
             }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
+            Picker("Deployment architecture", selection: $installer.architecture) {
+                ForEach(DeploymentArchitecture.allCases) { item in
+                    Text(item.rawValue).tag(item)
+                }
+            }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
+            if installer.architecture == .native {
+                Text("Native runtime is pending qualification; installation is unavailable until verified.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             if installer.context == .campus {
                 TextField("Campus ID", text: $installer.campusID)
                     .textFieldStyle(.roundedBorder)
@@ -569,7 +593,11 @@ struct InstallerView: View {
                 Text("Mac: \(installer.check.architecture)")
                 Text("Memory: \(installer.check.memoryGiB) GB")
                 Text("Free space: \(installer.check.diskGiB) GB")
-                Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
+                if installer.architecture == .containerized {
+                    Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
+                } else {
+                    Text("Native runtime: Not yet qualified")
+                }
             }
             .font(.callout)
             .foregroundStyle(.secondary)

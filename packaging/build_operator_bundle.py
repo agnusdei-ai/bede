@@ -38,6 +38,7 @@ shutil.copy2(root / "packaging" / "bundle" / "Verify-Bede.command", out / "Verif
 shutil.copy2(root / "packaging" / "bundle" / "Install-Bede.ps1", out / "Install-Bede.ps1")
 shutil.copy2(root / "packaging" / "bundle" / "README.md", out / "README.md")
 shutil.copy2(root / "packaging" / "bundle" / "Valor-Prepilot-Walkthrough.html", out / "Open-Bede-Prepilot.html")
+shutil.copy2(root / "packaging" / "bundle" / "Teacher-Operator-Acceptance.html", out / "Open-Bede-Teacher-Operator-Acceptance.html")
 shutil.copytree(root / "packaging" / "simulation", out / "simulation", dirs_exist_ok=True)
 shutil.copy2(root / "packaging" / "bundle" / ".env.example", out / ".env.example")
 (out / "WIZARD_IMAGE").write_text(f"{repository}-wizard:sha-{sha}-{arch}\n")

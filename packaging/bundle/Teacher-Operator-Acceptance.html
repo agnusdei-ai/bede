@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en-US"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bede | Unified Operator and Teacher Acceptance</title>
+<style>
+:root{--ink:#1c2438;--fern:#47613f;--vellum:#faf6ec;--gilt:#b8860b}*{box-sizing:border-box}
+body{font:16px/1.5 system-ui,sans-serif;background:var(--vellum);color:var(--ink);max-width:900px;margin:auto;padding:25px}
+h1,h2{font-family:Georgia,serif}header{border-bottom:3px solid var(--fern);padding-bottom:12px}
+.notice{border-left:4px solid var(--gilt);padding:12px 16px;background:white}
+fieldset{background:#fff;border:1px solid #d7d9d0;border-radius:10px;margin:20px 0;padding:18px}
+legend{font-weight:700;color:var(--fern);padding:0 6px}
+label{display:block;margin:11px 0}input[type=checkbox]{width:18px;height:18px;vertical-align:middle;margin-right:8px}
+textarea{width:100%;height:95px;display:block;margin-top:8px}
+input[type=text]{padding:8px;width:100%;max-width:520px;display:block}
+button{background:var(--fern);color:white;border:0;padding:12px 18px;border-radius:8px;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--gilt)}
+small{color:#535b56}footer{margin:25px 0;font-size:13px}@media print{button{display:none}}
+</style></head><body>
+<header><strong>AGNUS DEI TECHNOLOGIES · BEDE</strong><h1>Unified prepilot acceptance</h1><p>One installed Bede system · operator and teacher roles · synthetic learner records</p></header>
+<p class="notice"><strong>Controlled prepilot only.</strong> This document records manually witnessed evidence. Checking a box does not execute a test, provision accounts, grant access, or authorize Pilot GO. Do not enter real learner information, credentials, secrets, or private network identifiers. Nothing in this page is transmitted or saved automatically.</p>
+<p><label>Exact candidate Git SHA<input id="sha" type="text" placeholder="40-character candidate commit SHA" maxlength="40"></label>
+<label>Device / OS / architecture<input id="device" type="text" placeholder="e.g. Mac mini, macOS version, arm64"></label>
+<label>Reviewer and date<input id="review" type="text" placeholder="Operator initials / date"></label></p>
+<fieldset><legend>1 · Operator — install and authorize</legend>
+<label><input type="checkbox" data-role="operator" data-key="package">Verified approved installer archive checksum and architecture against release SHA</label>
+<label><input type="checkbox" data-role="operator" data-key="install">Completed unified installer on disposable Mac host; no source checkout needed</label>
+<label><input type="checkbox" data-role="operator" data-key="health">Confirmed Bede HTTPS application health and recorded real endpoint evidence</label>
+<label><input type="checkbox" data-role="operator" data-key="origin">Confirmed trusted HTTPS, matching DNS name and WebAuthn relying-party origin on actual teacher browser</label>
+<label><input type="checkbox" data-role="operator" data-key="admin">Verified administrator passkey and invited synthetic educator through authorized workflow</label>
+<label><input type="checkbox" data-role="operator" data-key="grant">Scoped teacher to exactly one synthetic campus and learner; second campus is separate</label>
+</fieldset>
+<fieldset><legend>2 · Teacher — evidence to instruction</legend>
+<label><input type="checkbox" data-role="teacher" data-key="passkey">Accepted invitation and signed in with passkey; canceled challenge cannot bypass verification</label>
+<label><input type="checkbox" data-role="teacher" data-key="isolation">Assigned synthetic learner visible; unassigned second-campus learner denied</label>
+<label><input type="checkbox" data-role="teacher" data-key="evidence">Opened source-identified official assessment and separate teacher observations</label>
+<label><input type="checkbox" data-role="teacher" data-key="review">Reviewed Data Day evidence and source-linked recommendation; unverified evidence abstains</label>
+<label><input type="checkbox" data-role="teacher" data-key="decision">Approved, edited or rejected a plan; confirmed durable audit and explicit teacher authority</label>
+<label><input type="checkbox" data-role="teacher" data-key="artifact">Prepared teacher-only artifact; no learner session launched or material auto-sent</label>
+<label><input type="checkbox" data-role="teacher" data-key="followup">Recorded in-person/offline follow-up; observation persisted without modifying official score</label>
+</fieldset>
+<fieldset><legend>3 · Operator — revoke, stop and recover</legend>
+<label><input type="checkbox" data-role="operator" data-key="revoke">Revoked synthetic teacher grant; existing session and fresh token cannot access learner</label>
+<label><input type="checkbox" data-role="operator" data-key="stop">Typed campus title, verified elevated passkey, disabled chosen campus; other campus unaffected</label>
+<label><input type="checkbox" data-role="operator" data-key="restart">Restarted exact installed system; campus stays disabled, data is preserved, no unintended re-enable</label>
+<label><input type="checkbox" data-role="operator" data-key="recovery">Completed documented restart/backup recovery using disposable synthetic records only</label>
+<label><input type="checkbox" data-role="operator" data-key="commerce">Confirmed pilot access is manual with no Stripe, auto-subscription or paid conversion</label>
+</fieldset>
+<fieldset><legend>4 · Evidence and decision</legend>
+<label>Redacted evidence references (CI URLs, request IDs, screenshots, notes)<textarea id="evidence" placeholder="References only; no names, tokens or learner records"></textarea></label>
+<p id="count" aria-live="polite"></p><p id="decision" aria-live="polite"><strong>Pilot GO: HOLD.</strong> Separate owner authorization is required.</p>
+<button type="button" id="export">Download local review record (JSON)</button>
+</fieldset>
+<footer>Public release authorization and real student-data processing are separate decisions. This checklist is not a certificate or automated engineering qualification.</footer>
+<script>
+const boxes=[...document.querySelectorAll('input[type=checkbox]')];
+const count=document.getElementById('count');
+function render(){count.textContent=boxes.filter(x=>x.checked).length+' of '+boxes.length+' manual checks marked complete.';}
+boxes.forEach(x=>x.addEventListener('change',render));render();
+document.getElementById('export').addEventListener('click',()=>{
+const sha=document.getElementById('sha').value.trim();
+const checks=Object.fromEntries(boxes.map(x=>[x.dataset.key,x.checked?'REVIEWER_MARKED':'NOT_VERIFIED']));
+const data={schema:'bede-valor-prepilot-manual-review-v1',candidate_sha:sha,device_os_arch:document.getElementById('device').value.trim(),
+ reviewer_and_date:document.getElementById('review').value.trim(),checks,evidence_references:document.getElementById('evidence').value.trim(),
+ automation_verified:false,pilot_go:'HOLD',real_student_data_authorized:false};
+const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});
+const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='bede-valor-manual-acceptance.json';a.click();URL.revokeObjectURL(url);
+});
+</script></body></html>

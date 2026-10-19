@@ -16,6 +16,11 @@ name: Production deployment regression
 on:
   schedule:
     - cron: '0 13 * * 1'  # every Monday, 13:00 UTC
+  pull_request:
+    paths:
+      - 'scripts/setup_wizard/**'
+      - '.github/workflows/production-regression.yml'
+      - 'packaging/**'
   push:
     branches: [main]
     paths:
@@ -239,24 +244,43 @@ jobs:
 
       - name: Run the wizard and submit the setup form (local-DB path)
         run: |
-          docker run --rm -d --name wizard -p 8765:8765 \
+          set -euo pipefail
+          # Restrict temporary setup endpoint to loopback, and always stop it.
+          trap 'docker rm -f wizard >/dev/null 2>&1 || true' EXIT
+          docker run --rm -d --name wizard -p 127.0.0.1:8765:8765 \
             -e HOST_LAN_IP=192.168.1.50 \
             -v "$(pwd)":/repo \
             --user "$(id -u):$(id -g)" \
-            bede-setup-wizard
-          for i in $(seq 1 20); do
-            curl -sf http://localhost:8765/ >/dev/null && break
+            bede-setup-wizard >/dev/null
+          ready=0
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8765/ -o "$RUNNER_TEMP/wizard-form.html"; then ready=1; break; fi
+            docker ps --filter "name=^/wizard$" --format '{{.ID}}' | grep -q . || { echo "Wizard exited before ready" >&2; exit 1; }
             sleep 0.5
           done
-          curl -sf http://localhost:8765/ | grep -q "Let's set up Bede"
-
-          curl -sf -X POST http://localhost:8765/submit \
+          test "$ready" = 1 || { echo "Wizard not ready within 20 seconds" >&2; exit 1; }
+          grep -Fq "Welcome to Bede" "$RUNNER_TEMP/wizard-form.html"
+          # The wizard intentionally terminates after saving. A TCP reset can
+          # race with the HTTP reply, so do not use curl's exit alone as success.
+          # Verify the saved configuration and clean container exit instead.
+          curl --silent --show-error --max-time 10 -X POST http://127.0.0.1:8765/submit \
             --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
             --data-urlencode "db_choice=local" \
             --data-urlencode "parent_password=cipassword123" \
             --data-urlencode "child_pin=${CI_CHILD_PIN}" \
             --data-urlencode "license_key=${CI_TEST_LICENSE_KEY}" \
-            | grep -q "All set"
+            -o "$RUNNER_TEMP/wizard-result.html" || true
+          if [[ -s "$RUNNER_TEMP/wizard-result.html" ]]; then
+            grep -Fq "Starting Bede" "$RUNNER_TEMP/wizard-result.html"
+          fi
+          for attempt in $(seq 1 20); do
+            [[ -s .env ]] && break
+            sleep 0.5
+          done
+          test -s .env || { echo "Wizard did not persist configuration" >&2; exit 1; }
+          grep -Fxq "CHILD_PIN=${CI_CHILD_PIN}" .env
+          grep -Fxq "LICENSE_KEY=${CI_TEST_LICENSE_KEY}" .env
+          grep -Fxq "COMPOSE_PROFILES=local-db" .env
 
           # wizard.py signals success by exiting its own process — confirm
           # the container actually stops on its own within a few seconds,

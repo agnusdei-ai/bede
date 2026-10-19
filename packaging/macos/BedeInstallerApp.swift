@@ -138,6 +138,9 @@ final class InstallerController: ObservableObject {
     @Published var stopped = false
     @Published var message = "Bede will guide you through the installation."
     @Published var details = false
+    // Report completed checkpoints, not estimated transfer bytes.
+    var verifiedPercent: Int { finished.count * 100 / SetupStage.allCases.count }
+    var pullingImages: Bool { running && current == .files && !finished.contains(.files) }
     @Published var context: InstallContext = .campus
     @Published var campusID = "bede-mac-pilot-2026"
     @Published var check = MacCheck(architecture: "Checking", memoryGiB: 0, diskGiB: 0, dockerReady: false)
@@ -488,9 +491,30 @@ struct InstallerView: View {
     }
 
     @ViewBuilder private var statusSection: some View {
-        if installer.running || installer.removing {
+        if installer.running || installer.completed {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("Setup checkpoints")
+                    Spacer()
+                    Text("\(installer.verifiedPercent)% complete").monospacedDigit()
+                }
+                .font(.caption)
+                ProgressView(value: Double(installer.verifiedPercent), total: 100)
+                    .progressViewStyle(.linear)
+                    .accessibilityLabel("Verified setup checkpoints")
+                    .accessibilityValue("\(installer.verifiedPercent) percent")
+                if installer.pullingImages {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Downloading verified images — transfer percentage unavailable")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } else if installer.removing {
             ProgressView().progressViewStyle(.linear)
-                .accessibilityLabel("Installation in progress")
+                .accessibilityLabel("Bede removal in progress")
         }
 
         Text(installer.message)

@@ -13,6 +13,8 @@ stays tiny and there's nothing to explain about extra dependencies for what
 is, functionally, one short-lived form.
 """
 import html
+import base64
+from datetime import date
 import ipaddress
 import re
 import json
@@ -45,12 +47,9 @@ from core.pin_policy import (  # noqa: E402
 # repository stops being a secret the moment it ships. See
 # homeschool-api/core/pin_policy.py.
 SUGGESTED_CHILD_PIN = suggest_pin()
-# Deliberately NOT importing core.licensing here — real signature
-# verification needs pycryptodome, and this container stays pure-stdlib on
-# purpose (see module docstring). This form only checks the field is
-# non-empty; core/config.py does the real cryptographic/expiry check when
-# the actual API container boots — if that rejects it, `make logs` shows
-# why (see docs/PRODUCTION_SETUP.md#licensing).
+# The wizard uses only standard-library preflight checks on license metadata.
+# The backend remains the authority for signature and entitlement validation.
+# Never represent decoded, unsigned metadata as a verified license.
 
 DEPLOYMENT_CONTEXT = os.environ.get("BEDE_INSTALL_CONTEXT", "homeschool").strip()
 APPROVED_CAMPUS_ID = os.environ.get("BEDE_CAMPUS_ID", "").strip()
@@ -614,6 +613,33 @@ _PROVIDER_LABELS = {
 }
 
 
+def license_preflight_error(license_key: str, context: str, campus_id: str) -> str:
+    """Give actionable expiry/context feedback without claiming signature trust."""
+    parts = license_key.strip().split(".")
+    if len(parts) != 2 or not all(parts):
+        return "Activation code format is invalid. Request a new Bede pilot activation code."
+    try:
+        payload_bytes = base64.urlsafe_b64decode(parts[0] + "=" * (-len(parts[0]) % 4))
+        if len(payload_bytes) > 8192:
+            raise ValueError("oversize")
+        payload = json.loads(payload_bytes)
+        if not isinstance(payload, dict):
+            raise ValueError("not an object")
+        expiration = payload.get("expires")
+        if expiration is not None:
+            expiry = date.fromisoformat(expiration)
+            if expiry < date.today():
+                return f"This Bede pilot activation code expired on {expiry.isoformat()}. Request a renewed pilot code."
+        if context == "campus":
+            if payload.get("tier") != "campus_location":
+                return "This activation code is not for a campus installation. Request a campus pilot code."
+            if payload.get("location_id") != campus_id:
+                return "This activation code belongs to a different campus. Check your approved campus ID."
+    except (ValueError, TypeError, KeyError, OverflowError, UnicodeDecodeError):
+        return "Activation code could not be read. Request a valid Bede pilot activation code."
+    return ""
+
+
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
     lan_error = validate_lan_fields(fields)
@@ -666,6 +692,9 @@ def validate(fields: dict) -> str:
         return "Enter the campus ID from your pilot license."
     if not fields.get("license_key", "").strip():
         return "Please enter your license key."
+    error = license_preflight_error(fields["license_key"], DEPLOYMENT_CONTEXT, APPROVED_CAMPUS_ID)
+    if error:
+        return error
     return ""
 
 

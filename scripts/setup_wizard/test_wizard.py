@@ -219,7 +219,7 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     assert resp.status == 200
     success_body = resp.read().decode()
     assert "Starting Bede" in success_body
-    assert "192.168.1.50" in success_body
+    assert "https://localhost" in success_body
 
     assert os.path.exists(wizard.ENV_PATH)
     env = open(wizard.ENV_PATH).read()

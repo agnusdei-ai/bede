@@ -404,6 +404,8 @@ class TeacherFollowUpInput(BaseModel):
     def _actual_observation(self):
         if not self.observation.strip():
             raise ValueError("An actual classroom observation is required")
+        if self.observed_on > date.today():
+            raise ValueError("A classroom follow-up cannot be dated in the future")
         return self
 
 

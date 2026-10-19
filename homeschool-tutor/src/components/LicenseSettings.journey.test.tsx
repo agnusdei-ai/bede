@@ -32,7 +32,9 @@ afterEach(() => cleanup())
 async function openCard() {
   render(<LicenseSettings token="synthetic-parent-token" />)
   const header = await screen.findByRole('button', { name: /License/ })
-  fireEvent.click(header)
+  // Expired license cards automatically open via their urgency effect.
+  // Wait for that effect instead of clicking (which would collapse it).
+  await screen.findByPlaceholderText('eyJ...')
   return header
 }
 

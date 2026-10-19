@@ -260,14 +260,27 @@ jobs:
           done
           test "$ready" = 1 || { echo "Wizard not ready within 20 seconds" >&2; exit 1; }
           grep -Fq "Let's set up Bede" "$RUNNER_TEMP/wizard-form.html"
-          curl -fsS --max-time 10 -X POST http://127.0.0.1:8765/submit \
+          # The wizard intentionally terminates after saving. A TCP reset can
+          # race with the HTTP reply, so do not use curl's exit alone as success.
+          # Verify the saved configuration and clean container exit instead.
+          curl --silent --show-error --max-time 10 -X POST http://127.0.0.1:8765/submit \
             --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
             --data-urlencode "db_choice=local" \
             --data-urlencode "parent_password=cipassword123" \
             --data-urlencode "child_pin=${CI_CHILD_PIN}" \
             --data-urlencode "license_key=${CI_TEST_LICENSE_KEY}" \
-            -o "$RUNNER_TEMP/wizard-result.html"
-          grep -Fq "Starting Bede" "$RUNNER_TEMP/wizard-result.html"
+            -o "$RUNNER_TEMP/wizard-result.html" || true
+          if [[ -s "$RUNNER_TEMP/wizard-result.html" ]]; then
+            grep -Fq "Starting Bede" "$RUNNER_TEMP/wizard-result.html"
+          fi
+          for attempt in $(seq 1 20); do
+            [[ -s .env ]] && break
+            sleep 0.5
+          done
+          test -s .env || { echo "Wizard did not persist configuration" >&2; exit 1; }
+          grep -Fxq "CHILD_PIN=${CI_CHILD_PIN}" .env
+          grep -Fxq "LICENSE_KEY=${CI_TEST_LICENSE_KEY}" .env
+          grep -Fxq "COMPOSE_PROFILES=local-db" .env
 
           # wizard.py signals success by exiting its own process — confirm
           # the container actually stops on its own within a few seconds,

@@ -392,6 +392,21 @@ class PlanInput(BaseModel):
     plan_text: str = Field(min_length=3, max_length=2000)
 
 
+class TeacherFollowUpInput(BaseModel):
+    """Teacher report after teaching offline; not a new official assessment."""
+    model_config = ConfigDict(extra="forbid")
+    observed_on: date
+    teaching_mode: Literal["in_person", "offline"]
+    observation: str = Field(min_length=3, max_length=1200)
+    next_step: Optional[str] = Field(default=None, max_length=600)
+
+    @model_validator(mode="after")
+    def _actual_observation(self):
+        if not self.observation.strip():
+            raise ValueError("An actual classroom observation is required")
+        return self
+
+
 class ProgressMonitoringInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     measure: str = Field(min_length=2, max_length=32)

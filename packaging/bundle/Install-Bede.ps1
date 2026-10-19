@@ -31,14 +31,19 @@ if ($LASTEXITCODE -ne 0) { Stop-Install 'The Bede containers did not start.' }
 # the exported CA. Never consider the bootstrap probe a passed health check.
 & curl.exe -k -s --max-time 5 https://localhost/api/health *> $null
 $verified = $false
-for ($i=0; $i -lt 45; $i++) {
-  & docker compose --env-file .env -f compose.yaml exec -T caddy cat /data/caddy/pki/authorities/local/root.crt 2>$null | Out-File -Encoding ascii 'bede-root-ca.crt'
-  if (Test-Path 'bede-root-ca.crt') {
+$healthDeadline = (Get-Date).AddMinutes(3)
+while ((Get-Date) -lt $healthDeadline) {
+  $caTmp = Join-Path (Get-Location).Path 'bede-root-ca.crt.tmp'
+  & docker compose --env-file .env -f compose.yaml exec -T caddy cat /data/caddy/pki/authorities/local/root.crt 2>$null | Out-File -Encoding ascii $caTmp
+  if ($LASTEXITCODE -eq 0 -and (Test-Path $caTmp) -and (Get-Item $caTmp).Length -gt 0) {
+    Move-Item -Force $caTmp 'bede-root-ca.crt'
     & curl.exe -fsS --max-time 5 --cacert bede-root-ca.crt https://localhost/api/health *> $null
-    if ($LASTEXITCODE -eq 0) { $verified=$true; break }
+    if ($LASTEXITCODE -eq 0) { $verified = $true; break }
+  } else {
+    Remove-Item $caTmp -ErrorAction SilentlyContinue
   }
   Start-Sleep -Seconds 2
 }
-if (-not $verified) { Stop-Install 'HTTPS or the API failed verification. Review Docker Desktop container logs.' }
+if (-not $verified) { Stop-Install 'Verified HTTPS did not become healthy within three minutes. Check Docker Desktop and restart Bede Setup.' }
 Write-Host 'Bede is running with verified HTTPS at https://localhost.'
 Start-Process 'https://localhost'

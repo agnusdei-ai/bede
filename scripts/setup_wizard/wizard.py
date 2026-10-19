@@ -728,6 +728,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == "/cancel":
+            # Record cancellation before sending a reply; the requesting
+            # thread may observe HTTP 200 before this handler resumes.
+            # Delay only the server shutdown, not the state transition.
+            _cancel_event.set()
             self._send_html(
                 _PAGE_HEAD
                 + '<div class="success"><div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Setup stopped</h1></div></div>'
@@ -735,7 +739,6 @@ class Handler(BaseHTTPRequestHandler):
                   "the Bede installer when you have an approved license key.</p></div>"
                 + _PAGE_TAIL
             )
-            _cancel_event.set()
             # Let the browser receive the confirmation before signaling exit.
             threading.Timer(0.5, _shutdown_event.set).start()
             return

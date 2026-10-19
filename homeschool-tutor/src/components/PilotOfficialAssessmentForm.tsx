@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   createOfficialAssessment, decideOfficialProposal, enterOfficialScores,
+  fetchTeacherArtifact, fetchTeacherFollowUps, recordTeacherFollowUp,
   fetchOfficialAssessment, fetchOfficialAssessments, fetchOfficialDataDay,
   recordOfficialObservation, recordOfficialPlan, requestOfficialProposal,
   supersedeOfficialAssessment, transitionOfficialAssessment,
@@ -8,6 +9,7 @@ import {
 import type {
   DibelsGrade, OfficialAssessment,
   OfficialMeasureStatus, OfficialProposal, OfficialScoreEntry, TeacherObservation,
+  OfficialTeacherArtifact, OfficialTeacherFollowUp,
 } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
 
@@ -79,12 +81,19 @@ export default function PilotOfficialAssessmentForm({
   const [editText, setEditText] = useState('')
   const [approvedText, setApprovedText] = useState('')
   const [planRecorded, setPlanRecorded] = useState(false)
+  const [planId, setPlanId] = useState('')
+  const [artifact, setArtifact] = useState<OfficialTeacherArtifact | null>(null)
+  const [followUps, setFollowUps] = useState<OfficialTeacherFollowUp[]>([])
+  const [followUpText, setFollowUpText] = useState('')
+  const [followUpNext, setFollowUpNext] = useState('')
+  const [followUpMode, setFollowUpMode] = useState<'in_person' | 'offline'>('in_person')
+  const [followUpDate, setFollowUpDate] = useState(dateOnly)
 
   const refresh = useCallback(async (id?: string) => {
     const items = await fetchOfficialAssessments(token, campusId, learnerId)
     setRecords(items)
     const chosen = id || selectedId || items[items.length - 1]?.assessment_id || ''
-    if (!chosen) { setSelectedId(''); setCurrent(null); setProposal(null); return }
+    if (!chosen) { setSelectedId(''); setCurrent(null); setProposal(null); setPlanId(''); setArtifact(null); setFollowUps([]); return }
     setSelectedId(chosen)
     const record = await fetchOfficialAssessment(token, campusId, learnerId, chosen)
     setCurrent(record)
@@ -94,15 +103,16 @@ export default function PilotOfficialAssessmentForm({
     try {
       const packet = await fetchOfficialDataDay(token, campusId, learnerId, record.instructional_cycle)
       setProposal(packet.proposed_next_steps.find(p => p.assessment_id === chosen) ?? null)
-      setPlanRecorded(packet.prior_teacher_decisions.some(d =>
-        d.assessment_id === chosen && d.outcome?.delivery_state === 'NOT_REQUESTED'
-        && (record.state === 'INSTRUCTIONAL_PLAN_READY' || record.state === 'PROGRESS_MONITORING_SCHEDULED')))
+      const saved = packet.prior_teacher_decisions.find(d =>
+        d.assessment_id === chosen && d.outcome?.plan_recorded)
+      setPlanRecorded(Boolean(saved))
+      setPlanId(saved?.outcome.plan_id ?? '')
     } catch { setProposal(null) }
   }, [token, campusId, learnerId, selectedId])
 
   useEffect(() => {
     let live = true
-    setSelectedId(''); setCurrent(null); setProposal(null); setApprovedText('')
+    setSelectedId(''); setCurrent(null); setProposal(null); setApprovedText(''); setPlanId(''); setArtifact(null); setFollowUps([])
     fetchOfficialAssessments(token, campusId, learnerId).then(items => {
       if (!live) return
       setRecords(items)
@@ -122,7 +132,13 @@ export default function PilotOfficialAssessmentForm({
       setRawScore(record.scores?.[0]?.raw_score == null ? '' : String(record.scores[0].raw_score))
       try {
         const dataDay = await fetchOfficialDataDay(token, campusId, learnerId, record.instructional_cycle)
-        if (live) setProposal(dataDay.proposed_next_steps.find(p => p.assessment_id === selectedId) ?? null)
+        if (live) {
+          setProposal(dataDay.proposed_next_steps.find(p => p.assessment_id === selectedId) ?? null)
+          const saved = dataDay.prior_teacher_decisions.find(d => d.assessment_id === selectedId && d.outcome?.plan_recorded)
+          setPlanRecorded(Boolean(saved))
+          setPlanId(saved?.outcome.plan_id ?? '')
+          setArtifact(null); setFollowUps([])
+        }
       } catch { if (live) setProposal(null) }
     }).catch(() => { if (live) setMessage('Assessment is unavailable or your assignment changed.') })
     return () => { live = false }
@@ -243,8 +259,39 @@ export default function PilotOfficialAssessmentForm({
     await perform(async () => {
       const result = await recordOfficialPlan(token, campusId, learnerId, current.assessment_id, approvedText)
       setPlanRecorded(true)
+      setPlanId(result.plan_id)
       setMessage(`Instructional plan saved; delivery state: ${result.delivery_state}.`)
       await refresh(current.assessment_id)
+    })
+  }
+
+  async function prepareTeacherArtifact() {
+    if (!current || !planId) return
+    await perform(async () => {
+      const content = await fetchTeacherArtifact(token, campusId, learnerId, current.assessment_id, planId)
+      setArtifact(content)
+      setMessage('Teacher-approved material ready for your in-person or offline instruction. Nothing was sent to the learner.')
+    })
+  }
+
+  async function loadFollowUps() {
+    if (!current || !planId) return
+    await perform(async () => {
+      setFollowUps(await fetchTeacherFollowUps(token, campusId, learnerId, current.assessment_id, planId))
+    })
+  }
+
+  async function saveFollowUp() {
+    if (!current || !planId || followUpText.trim().length < 3) return
+    await perform(async () => {
+      await recordTeacherFollowUp(token, campusId, learnerId, current.assessment_id, planId, {
+        observed_on: followUpDate, teaching_mode: followUpMode,
+        observation: followUpText.trim(),
+        ...(followUpNext.trim() ? { next_step: followUpNext.trim() } : {}),
+      })
+      setFollowUpText(''); setFollowUpNext('')
+      setFollowUps(await fetchTeacherFollowUps(token, campusId, learnerId, current.assessment_id, planId))
+      setMessage('Your follow-up was saved as a teacher observation, not an official reassessment.')
     })
   }
 
@@ -465,6 +512,51 @@ export default function PilotOfficialAssessmentForm({
                 disabled={busy || !approvedText.trim() || planRecorded} onClick={() => void savePlan()}>
                 {planRecorded ? 'Plan recorded' : 'Record instructional plan'}</button>
             </div>}
+          {planRecorded && planId && <div className="rounded-xl border p-3 space-y-3" aria-label="Teacher artifact and follow-up">
+            <h4 className="font-semibold text-sm">3. Prepare, teach, and follow up</h4>
+            <p className="text-xs text-slate-600">Only an authorized teacher can prepare this material after recording a plan.
+              It is for teacher use during offline or in-person lessons. Bede will not distribute it or change any roster.</p>
+            <button type="button" disabled={busy} onClick={() => void prepareTeacherArtifact()}
+              className="border rounded-lg px-3 py-2 text-sm disabled:opacity-40">Prepare teacher-use artifact</button>
+            {artifact && <article className="rounded-lg border bg-white p-3 space-y-2" aria-label="Teacher-approved instructional handout">
+              <p className="font-semibold">Bede · Teacher instructional plan</p>
+              <p className="text-xs">Learner: {learnerName} · Approved decision: {artifact.approval_action} · Offline only</p>
+              <p className="text-sm whitespace-pre-wrap">{artifact.plan_text}</p>
+              <p className="text-xs text-slate-600">{artifact.disclaimer}</p>
+              <button type="button" className="border rounded-lg px-3 py-2 text-xs" onClick={() => document.defaultView?.print()}>
+                Print teacher material</button>
+            </article>}
+            <div className="border-t pt-3 space-y-2">
+              <h5 className="font-semibold text-sm">After teaching: record your observation</h5>
+              <p className="text-xs text-slate-600">This is your observation of an in-person or offline lesson, not a new DIBELS score or automatic placement decision.</p>
+              <label className="block text-xs">Date taught
+                <input className={input} type="date" max={dateOnly()} value={followUpDate}
+                  onChange={e => setFollowUpDate(e.target.value)}/></label>
+              <label className="block text-xs">Teaching method
+                <select className={input} value={followUpMode}
+                  onChange={e => setFollowUpMode(e.target.value as 'in_person' | 'offline')}>
+                  <option value="in_person">In person</option><option value="offline">Offline activity</option>
+                </select></label>
+              <label className="block text-xs">What you observed
+                <textarea className={input} maxLength={1200} rows={3} value={followUpText}
+                  onChange={e => setFollowUpText(e.target.value)}/></label>
+              <label className="block text-xs">Possible next step (optional, not assigned)
+                <textarea className={input} maxLength={600} value={followUpNext}
+                  onChange={e => setFollowUpNext(e.target.value)}/></label>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={busy || followUpText.trim().length < 3 || !followUpDate || followUpDate > dateOnly()}
+                  onClick={() => void saveFollowUp()} className="border rounded-lg px-3 py-2 text-sm disabled:opacity-40">Save teacher follow-up</button>
+                <button type="button" disabled={busy} onClick={() => void loadFollowUps()}
+                  className="border rounded-lg px-3 py-2 text-sm disabled:opacity-40">Review follow-ups</button>
+              </div>
+              {followUps.length > 0 && <ul className="text-sm space-y-2">{followUps.map(item =>
+                <li key={item.follow_up_id} className="rounded-lg border p-2">
+                  <strong>{item.observed_on} · {item.teaching_mode === 'in_person' ? 'In person' : 'Offline'}</strong>
+                  <p className="whitespace-pre-wrap">{item.observation}</p>
+                  {item.next_step && <p className="text-xs">Suggested teacher next step: {item.next_step}</p>}
+                </li>)}</ul>}
+            </div>
+          </div>}
           <p className="text-xs font-medium text-emerald-800">Teacher delivers instruction. Bede never launches learner sessions. Delivery state: NOT_REQUESTED.</p>
         </div>
       </div>

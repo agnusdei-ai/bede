@@ -281,6 +281,10 @@ def test_no_code_path_writes_a_delivery_state():
          'learner_id=learner.id, delivery_state="NOT_REQUESTED",'),
         ("routers/pilot_assessments.py",
          '"status": "recorded", "delivery_state": "NOT_REQUESTED"}'),
+        # Read-only teacher artifact response; does not mutate any model,
+        # plan, delivery queue or learner session.
+        ("routers/pilot_assessments.py",
+         '"delivery_state": "NOT_REQUESTED", "changes_official_scores": False,'),
         ("routers/pilot_assessments.py",
          '"delivery_state": plan.delivery_state if plan else "NOT_REQUESTED"}'),
     }

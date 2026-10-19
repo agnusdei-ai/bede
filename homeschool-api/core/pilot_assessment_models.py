@@ -273,6 +273,26 @@ class PilotAssessmentPlan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
 
 
+class PilotAssessmentFollowUp(Base):
+    """An append-only, teacher-authored account of offline instruction.
+
+    References a teacher-approved plan, NOT an official reassessment.
+    It cannot change official scores, placement, grants, or lesson assignments.
+    """
+    __tablename__ = "pilot_assessment_follow_ups"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    administration_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    plan_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    decision_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    campus_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    learner_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    teacher_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    observed_on: Mapped[date] = mapped_column(Date, nullable=False)
+    observation_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, nullable=False)
+
+
 class PilotProgressMonitoringSchedule(Base):
     """Teacher-confirmed progress-monitoring dates for one plan."""
     __tablename__ = "pilot_progress_monitoring_schedules"
@@ -300,6 +320,7 @@ LEARNER_SCOPED_TABLES = (
     PilotAssessmentProposal.__table__,
     PilotAssessmentDecision.__table__,
     PilotAssessmentPlan.__table__,
+    PilotAssessmentFollowUp.__table__,
     PilotProgressMonitoringSchedule.__table__,
 )
 
@@ -313,6 +334,7 @@ APPEND_ONLY_TABLES = (
     PilotAssessmentEvidence.__table__,
     PilotAssessmentDecision.__table__,
     PilotAssessmentPlan.__table__,
+    PilotAssessmentFollowUp.__table__,
     PilotProgressMonitoringSchedule.__table__,
     # Score and response rows are replaced (delete + insert) during entry,
     # never updated in place.

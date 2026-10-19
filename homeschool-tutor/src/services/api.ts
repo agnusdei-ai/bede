@@ -1429,7 +1429,7 @@ export interface OfficialProposal {
 }
 export interface OfficialDataDay {
   proposed_next_steps: OfficialProposal[]
-  prior_teacher_decisions: Array<{ assessment_id: string; action: string; outcome: { delivery_state: 'NOT_REQUESTED' } }>
+  prior_teacher_decisions: Array<{ assessment_id: string; action: string; outcome: { plan_id: string | null; plan_recorded: boolean; delivery_state: 'NOT_REQUESTED' } }>
   boundaries: { changes_official_scores: false; starts_instruction: false; delivers_instruction: false }
 }
 const officialBase = (campusId: string, learnerId: string) =>
@@ -1480,10 +1480,40 @@ export const decideOfficialProposal = (
   token, 'POST', decision,
 )
 export const recordOfficialPlan = (token: string, campusId: string, learnerId: string, id: string, text: string) =>
-  educatorApi<{ delivery_state: 'NOT_REQUESTED'; status: string }>(
+  educatorApi<{ plan_id: string; decision_id: string; delivery_state: 'NOT_REQUESTED'; status: string }>(
     `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(id)}/plan`,
     token, 'POST', { plan_text: text },
   )
+
+export interface OfficialTeacherArtifact {
+  artifact_type: 'teacher_use_instructional_plan'
+  status: 'teacher_approved_for_offline_use'
+  campus_id: string; learner_id: string; assessment_id: string; plan_id: string
+  decision_id: string; approved_by: string; approval_action: 'approve' | 'edit'
+  assessment_snapshot_sha256: string; plan_text: string; prepared_at: string
+  delivery_state: 'NOT_REQUESTED'; disclaimer: string
+}
+export interface OfficialTeacherFollowUp {
+  follow_up_id: string; assessment_id: string; plan_id: string; decision_id: string
+  campus_id: string; learner_id: string; teacher_id: string; observed_on: string
+  teaching_mode: 'in_person' | 'offline'; observation: string; next_step: string | null
+  recorded_at: string; evidence_class: 'teacher_reported_follow_up'
+  is_official_assessment: false
+}
+
+const officialPlanPath = (campusId: string, learnerId: string, assessmentId: string, planId: string) =>
+  `${officialBase(campusId, learnerId)}/assessments/${encodeURIComponent(assessmentId)}/plans/${encodeURIComponent(planId)}`
+
+export const fetchTeacherArtifact = (token: string, campusId: string, learnerId: string, assessmentId: string, planId: string) =>
+  educatorApi<OfficialTeacherArtifact>(`${officialPlanPath(campusId, learnerId, assessmentId, planId)}/artifact`, token)
+export const fetchTeacherFollowUps = (token: string, campusId: string, learnerId: string, assessmentId: string, planId: string) =>
+  educatorApi<OfficialTeacherFollowUp[]>(`${officialPlanPath(campusId, learnerId, assessmentId, planId)}/follow-ups`, token)
+export const recordTeacherFollowUp = (
+  token: string, campusId: string, learnerId: string, assessmentId: string, planId: string,
+  body: { observed_on: string; teaching_mode: 'in_person' | 'offline'; observation: string; next_step?: string },
+) => educatorApi<OfficialTeacherFollowUp>(
+  `${officialPlanPath(campusId, learnerId, assessmentId, planId)}/follow-ups`, token, 'POST', body,
+)
 
 // ── Valor pilot: owner-led learner deletion ────────────────────────────────
 // Every call needs the administrator passkey; ElevationPrompt asks for it.

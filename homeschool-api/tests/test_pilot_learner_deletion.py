@@ -21,6 +21,7 @@ import json
 import os
 import re
 import tempfile
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -60,7 +61,8 @@ TOMBSTONE = re.compile(rf"pilot_learner_deleted campus={UUID} learner={UUID} row
 # deletion anywhere a tombstone or audit view can show it.
 CONTENT = (SHARED_DISPLAY_NAME, "Synthetic evidence summary", "Synthetic teacher plan",
            "Synthetic rationale", "Synthetic teacher annotation", "Below Benchmark",
-           "Some Support", "At Benchmark", "onset_rime_only", "Synthetic resume point")
+           "Some Support", "At Benchmark", "onset_rime_only", "Synthetic resume point",
+           "Synthetic teacher follow-up after offline instruction")
 
 
 def _pg_available() -> bool:
@@ -159,7 +161,12 @@ def journey(w: World, campus: str, learner: str, teacher: Teacher) -> tuple[str,
     w.decide(adm, prop["proposal_id"], {
         "action": "approve", "expected_version": 1,
         "confirmed_review_on": prop["proposed_review_on"], "rationale": "Synthetic rationale"}, **kw)
-    _post(w, f"{base}/assessments/{adm}/plan", {"plan_text": "Synthetic teacher plan"}, teacher, 201)
+    plan = _post(w, f"{base}/assessments/{adm}/plan", {"plan_text": "Synthetic teacher plan"}, teacher, 201)
+    _post(w, f"{base}/assessments/{adm}/plans/{plan['plan_id']}/follow-ups", {
+        "observed_on": date.today().isoformat(), "teaching_mode": "in_person",
+        "observation": "Synthetic teacher follow-up after offline instruction",
+        "next_step": "Continue synthetic classroom observation",
+    }, teacher, 201)
     _post(w, f"{base}/assessments/{adm}/progress-monitoring",
           {"measure": "PSF", "planned_dates": ["2031-09-08", "2031-09-22"]}, teacher, 201)
     return adm, prop["proposal_id"]

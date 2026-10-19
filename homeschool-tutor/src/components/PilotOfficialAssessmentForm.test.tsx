@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   transitionOfficialAssessment: vi.fn(), enterOfficialScores: vi.fn(),
   recordOfficialObservation: vi.fn(), requestOfficialProposal: vi.fn(),
   decideOfficialProposal: vi.fn(), recordOfficialPlan: vi.fn(),
+  fetchTeacherArtifact: vi.fn(), fetchTeacherFollowUps: vi.fn(), recordTeacherFollowUp: vi.fn(),
 }))
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(), ...api,
@@ -54,6 +55,43 @@ describe('pilot official assessment two-panel workflow', () => {
       .getAttribute('href')).toBe('https://dibels.uoregon.edu/materials/dibels')
     await waitFor(() => expect(api.fetchOfficialAssessment).toHaveBeenCalledWith(
       'synthetic-token', CID, LID, AID))
+  })
+
+  it('shows an approved teacher artifact and separately records an after-teaching observation', async () => {
+    const planId = '55555555-5555-4555-8555-555555555555'
+    api.fetchOfficialAssessment.mockResolvedValue({ ...record, state: 'INSTRUCTIONAL_PLAN_READY', snapshot_sha256: 'a'.repeat(64) })
+    api.fetchOfficialDataDay.mockResolvedValue({
+      ...packet,
+      prior_teacher_decisions: [{ assessment_id: AID, action: 'approve',
+        outcome: { plan_recorded: true, plan_id: planId, delivery_state: 'NOT_REQUESTED' } }],
+    })
+    api.fetchTeacherArtifact.mockResolvedValue({
+      artifact_type: 'teacher_use_instructional_plan',
+      status: 'teacher_approved_for_offline_use',
+      campus_id: CID, learner_id: LID, assessment_id: AID, plan_id: planId,
+      approval_action: 'approve', plan_text: 'Synthetic teacher-approved handout',
+      disclaimer: 'Teacher material, not an official report',
+    })
+    api.recordTeacherFollowUp.mockResolvedValue({ follow_up_id: 'synthetic-follow-up' })
+    api.fetchTeacherFollowUps.mockResolvedValue([{ follow_up_id: 'synthetic-follow-up',
+      observed_on: '2026-10-19', teaching_mode: 'in_person', observation: 'Synthetic teacher observation',
+      next_step: null }])
+    view()
+    fireEvent.click(await screen.findByRole('button', { name: 'Prepare teacher-use artifact' }))
+    expect(await screen.findByText('Synthetic teacher-approved handout')).toBeTruthy()
+    expect(api.fetchTeacherArtifact).toHaveBeenCalledWith('synthetic-token', CID, LID, AID, planId)
+    expect(screen.getByText(/not an official report/)).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('What you observed'), {
+      target: { value: 'Synthetic teacher observation' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save teacher follow-up' }))
+    await waitFor(() => expect(api.recordTeacherFollowUp).toHaveBeenCalled())
+    const [token, campusId, learnerId, assessmentId, savedPlanId, body] = api.recordTeacherFollowUp.mock.calls[0]
+    expect([token, campusId, learnerId, assessmentId, savedPlanId])
+      .toEqual(['synthetic-token', CID, LID, AID, planId])
+    expect(body.observation).toBe('Synthetic teacher observation')
+    expect(body.teaching_mode).toBe('in_person')
+    expect(await screen.findByText('Synthetic teacher observation')).toBeTruthy()
   })
 
   it('does not convert a skipped measure to a numeric zero', async () => {

@@ -12,7 +12,7 @@ class UnifiedArchitectureSelection(unittest.TestCase):
         self.assertIn('@Published var architecture: DeploymentArchitecture = .native', SWIFT)
 
     def test_native_fails_closed_without_runtime(self):
-        self.assertIn('architecture == .containerized && check.dockerReady', SWIFT)
+        self.assertIn('architecture == .containerized ? check.dockerReady : nativeRuntimeReady', SWIFT)
         self.assertIn('guard architecture == .containerized else {', SWIFT)
         self.assertIn('Native runtime components have not passed integrity, signing and service qualification.', SWIFT)
         self.assertIn('var nativeRuntimeReady: Bool', SWIFT)

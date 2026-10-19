@@ -20,6 +20,8 @@ import wizard
 
 def run():
     outcomes = []
+    evidence_dir = Path(os.environ.get("RUNNER_TEMP", tempfile.gettempdir())) / "bede-installer-ui-evidence"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as scratch:
         wizard.REPO_DIR = scratch
         wizard.ENV_PATH = str(Path(scratch) / ".env")
@@ -111,10 +113,23 @@ def run():
 
                 assert not errors, errors
                 browser.close()
+        except Exception as error:
+            # All fixture inputs are synthetic, so a screenshot is safe for CI.
+            if "page" in locals():
+                try:
+                    page.screenshot(path=str(evidence_dir / "failed-journey.png"), full_page=True)
+                except Exception:
+                    pass
+            (evidence_dir / "failure.txt").write_text(
+                f"UI journey failure ({type(error).__name__}). Completed journeys: "
+                + ", ".join(outcomes) + "\\n", encoding="utf-8"
+            )
+            raise
         finally:
             server.shutdown()
             server.server_close()
             worker.join(timeout=5)
+    (evidence_dir / "scenarios.json").write_text(json.dumps({"result": "pass", "scenarios": outcomes}, indent=2) + "\\n", encoding="utf-8")
     print("Synthetic browser journeys passed:", ", ".join(outcomes))
 
 

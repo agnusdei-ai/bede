@@ -20,6 +20,71 @@ enum InstallContext: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+// Searches only conventional user install/download folders, never the entire Mac.
+// A Finder/Trash approval is required; matching names alone never causes deletion.
+enum BedeBinaryHousekeeping {
+    static func candidates() -> [URL] {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        let roots: [(URL, Int)] = [
+            (home.appendingPathComponent("Downloads"), 3),
+            (home.appendingPathComponent("Desktop"), 4),
+            (home.appendingPathComponent("Applications"), 1),
+            (URL(fileURLWithPath: "/Applications"), 1)
+        ]
+        let activeApp = Bundle.main.bundleURL.standardizedFileURL.resolvingSymlinksInPath()
+        var found: [URL] = []
+        var seen = Set<String>()
+        for (root, maxDepth) in roots {
+            guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
+                continue
+            }
+            while let url = walker.nextObject() as? URL {
+                let depth = url.pathComponents.count - root.pathComponents.count
+                if depth > maxDepth { walker.skipDescendants(); continue }
+                let props = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                if props?.isSymbolicLink == true { walker.skipDescendants(); continue }
+                if url.pathExtension == "app" { walker.skipDescendants() }
+                let name = url.lastPathComponent.lowercased()
+                let isDmg = url.pathExtension.lowercased() == "dmg" &&
+                    (name == "bede-pilot-mac-arm64.dmg" || name == "bede-pilot-mac-amd64.dmg")
+                let isApp = url.pathExtension.lowercased() == "app" &&
+                    (Bundle(url: url)?.bundleIdentifier == "ai.agnusdei.bede.installer")
+                guard isDmg || isApp else { continue }
+                if url.standardizedFileURL.resolvingSymlinksInPath() == activeApp { continue }
+                let key = url.standardizedFileURL.path
+                if seen.insert(key).inserted { found.append(url) }
+            }
+        }
+        return found.sorted { $0.path < $1.path }
+    }
+
+    static func moveToTrash(_ files: [URL]) -> (retired: Int, failures: [String]) {
+        let fm = FileManager.default
+        var retired = 0
+        var failures: [String] = []
+        for url in files {
+            // Revalidate at deletion time: refuse symlinks and any running app.
+            let props = try? url.resourceValues(forKeys: [.isSymbolicLinkKey])
+            if props?.isSymbolicLink == true || url.standardizedFileURL.resolvingSymlinksInPath() == Bundle.main.bundleURL.standardizedFileURL.resolvingSymlinksInPath() {
+                failures.append("Skipped protected installer: \\(url.lastPathComponent)")
+                continue
+            }
+            let isApp = url.pathExtension.lowercased() == "app" && Bundle(url: url)?.bundleIdentifier == "ai.agnusdei.bede.installer"
+            let isDmg = ["bede-pilot-mac-arm64.dmg", "bede-pilot-mac-amd64.dmg"].contains(url.lastPathComponent.lowercased())
+            guard isApp || isDmg else { continue }
+            do {
+                var result: NSURL?
+                try fm.trashItem(at: url, resultingItemURL: &result)
+                retired += 1
+            } catch {
+                failures.append("Could not move \\(url.lastPathComponent) to Trash.")
+            }
+        }
+        return (retired, failures)
+    }
+}
+
 struct MacCheck {
     let architecture: String
     let memoryGiB: Int
@@ -68,6 +133,7 @@ final class InstallerController: ObservableObject {
     @Published var running = false
     @Published var removing = false
     @Published var removalError: String? = nil
+    @Published var oldInstallers: [URL] = []
     @Published var completed = false
     @Published var stopped = false
     @Published var message = "Bede will guide you through the installation."
@@ -158,9 +224,29 @@ final class InstallerController: ObservableObject {
         }
     }
 
+    func scanOldInstallers() {
+        guard !running && !removing else { return }
+        oldInstallers = BedeBinaryHousekeeping.candidates()
+    }
+
+    func retireOldInstallers() {
+        guard !running && !removing else { return }
+        let selected = oldInstallers
+        let result = BedeBinaryHousekeeping.moveToTrash(selected)
+        oldInstallers = BedeBinaryHousekeeping.candidates()
+        if !result.failures.isEmpty {
+            removalError = result.failures.joined(separator: "\\n")
+            message = "Some previous installer copies require attention."
+        } else {
+            removalError = nil
+            message = "\\(result.retired) previous installer copy/copies moved to Trash."
+        }
+    }
+
     func reconcileInstallationState() {
         guard !running && !removing else { return }
         check = MacCheck.inspect()
+        oldInstallers = BedeBinaryHousekeeping.candidates()
         // A previously successful UI session is not evidence that the
         // containers or data still exist after external Docker cleanup.
         if !installed {
@@ -324,6 +410,7 @@ struct InstallerView: View {
     @StateObject private var installer = InstallerController()
     @Environment(\.scenePhase) private var scenePhase
     @State private var confirmRemoval = false
+    @State private var confirmHousekeeping = false
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)
 
@@ -430,6 +517,13 @@ struct InstallerView: View {
                 Button("Check again") { installer.refresh() }
             }
             Spacer()
+            if !installer.running && !installer.removing {
+                Button("Find old installers") {
+                    installer.scanOldInstallers()
+                    if !installer.oldInstallers.isEmpty { confirmHousekeeping = true }
+                    else { installer.message = "No previous Bede installer copies found." }
+                }
+            }
             if installer.installed && !installer.running && !installer.removing {
                 Button("Remove Bede", role: .destructive) { confirmRemoval = true }
             }
@@ -470,6 +564,12 @@ struct InstallerView: View {
         .onAppear { installer.reconcileInstallationState() }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active { installer.reconcileInstallationState() }
+        }
+        .alert("Previous Bede installers found", isPresented: $confirmHousekeeping) {
+            Button("Keep copies", role: .cancel) { }
+            Button("Move copies to Trash") { installer.retireOldInstallers() }
+        } message: {
+            Text("\\(installer.oldInstallers.count) older Bede installer file(s) found in Downloads, Desktop, or Applications. Only matching Bede installer apps and DMGs will be retired; this running app and Bede's installed data are preserved.\\n\\n" + installer.oldInstallers.prefix(8).map(\\.path).joined(separator: "\\n"))
         }
         .alert("Permanently remove Bede?", isPresented: $confirmRemoval) {
             Button("Cancel", role: .cancel) { }

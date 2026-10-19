@@ -1078,8 +1078,9 @@ async def data_day_packet(campus_id: str, learner_id: str,
         r = _render_decision(d, learner)
         plan = plans.get(d.id)
         r["outcome"] = {"plan_recorded": plan is not None,
-                        "plan_id": plan.id if plan else None,
                         "delivery_state": plan.delivery_state if plan else "NOT_REQUESTED"}
+        if plan is not None:
+            r["outcome"]["plan_id"] = plan.id
         prior_decisions.append(r)
     pending = [
         _render_proposal(p, learner) for p in (await db.execute(

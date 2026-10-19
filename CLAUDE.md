@@ -1005,6 +1005,40 @@ Both directions are pinned — an engine with no label, and a label outliving it
 engine — and `site/index.html` is named in `test.yml`'s change filter with a
 test on the `grep -qE` line itself.
 
+**The home page's membership chooser restates facts that live elsewhere,
+and `tests/test_site_offer.py` checks each one.** `site/index.html`'s
+`#membership` section replaced the Concierge/Guided/Metered ladder that
+`docs/DECISIONS.md` entry 38 found contradicting the product on five counts.
+It offers what entry 35 sells (the Annual Family Membership through the
+License Server's own Stripe route `/checkout/family-annual`, and the
+no-card trial through the storefront's `#trial-form`), plus the Co-op
+Membership and the school pilot as conversations. Every figure in it must be
+a published one (`demo/public/launch.html`), the storefront origin must be
+`launch.html`'s, the trial length is `TRIAL_DAYS` and the slider's ceiling
+is the `seats` signed into the licence. Selection is native radio inputs, so
+it works with a keyboard and with no JavaScript; `site/assets/offer.js` only
+drives the per-child figure. **A previewed plan never shows its button**:
+only the chosen plan's link is reachable, so moving a pointer across the row
+can never change what a click buys. While no Stripe price id is configured,
+the checkout route answers a browser with a page offering the trial
+(`checkoutUnavailablePage`) rather than raw JSON, since the site now links
+to it directly. All four paths the test reads are in `test.yml`'s change
+filter.
+
+**The curriculum cards unfold facts on hover, and each fact is checked
+against the code (`tests/test_site_subject_facts.py`).** Every subject card
+carries a session length (`SUBJECT_DURATIONS`), its grades (Logic is 3–8
+because `SessionConfig` drops it for K-2, and the test drives that
+validator rather than trusting the label), and a "Record" line: tracked
+toward a mastery outcome only for the five subjects the guarantee names,
+and "never scored" for exactly the two faith subjects, which is the standing
+refusal to measure a child's spiritual life stated where a parent reads it.
+They unfold on hover, a "Show details for every subject" checkbox opens
+them all for keyboard users (no JavaScript), and on touch or phone widths
+they are always open. `curriculumColors.test.ts` accepts a card with extra
+classes but still counts every card, since each one takes an `nth-child`
+colour slot.
+
 **Music is taught inside Art & Music, not as a subject of its own.** The
 `music_knowledge` diagnostic area is a tracked area, not a timetable block:
 `Subject.art_music` stays one subject covering picture study and composer

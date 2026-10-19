@@ -2163,6 +2163,18 @@ landed, and entry 9's reasoning still holds for Network Partnership
 specifically — that one is genuinely a conversation and is published as
 "custom".
 
+**2026-10-19: the home-page section is replaced, pending sign-off.** The
+ladder is gone. In its place is a membership chooser offering exactly what
+entries 10 and 35 sell, at the published figures. The annual membership
+links to the License Server's Stripe checkout, the trial to its no-card
+form, and the Co-op Membership and the school pilot remain conversations,
+as entry 9 allows. It publishes no coaching, guide time or response-time
+promise, and nothing about the Guided Membership (entry 34) or Community
+(entry 37). `homeschool-api/tests/test_site_offer.py` pins its figures to
+their sources. Two parts of this entry stay open after it: the
+`#request-a-call` form, which the co-op button still points to, and the
+contact-agent ruling below.
+
 **No contact agent exists, and building one is not a copy change.** The only
 model surfaces in this repository are the child-facing tutor and the
 parent-authenticated sandbox; `services/mcp_client.py` is confined to the

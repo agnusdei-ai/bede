@@ -185,62 +185,139 @@
         including Latin, Greek, and Logic. Pick the ones that belong in your
         family's day.
       </p>
-      <div class="card-grid">
-        <div class="card">
+      <!-- Per-subject facts (session length, grades, what is recorded) come
+           from the product's own code; homeschool-api/tests/test_site_subject_facts.py
+           holds them to models/schemas.py. They unfold on hover or keyboard
+           focus, the toggle opens them all (works with no JavaScript), and on
+           a touch or phone-width screen they are always open. -->
+      <input class="visually-hidden" type="checkbox" id="subject-details">
+      <label class="details-toggle" for="subject-details">Show details for every subject</label>
+      <div class="card-grid subjects">
+        <div class="card subject">
           <h3>Morning Time</h3>
           <p>Bible, hymn, poetry &amp; prayer</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> A daily routine of formation, not measured toward mastery</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Living Books</h3>
           <p>The classics and Great Books, read and narrated</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 25 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Mathematics</h3>
           <p>Mathematical thinking through discovery</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Nature Study</h3>
           <p>Observation, wonder &amp; creation</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>History &amp; Geography</h3>
           <p>History told through story, and real places</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Taught and narrated; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Language Arts</h3>
           <p>Narration, copywork &amp; grammar</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Science</h3>
           <p>Botany, zoology &amp; earth science</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Art &amp; Music</h3>
           <p>Picture study and composer study: a painting looked at closely, a piece of music listened to</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> What a child knows about the music is recorded; how they respond to it never is</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Saints &amp; Catechism</h3>
           <p>Saints, catechism &amp; virtue formation</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Faith formation is never scored or measured</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Scripture &amp; Bible Study</h3>
           <p>Bible narrative, memory verses &amp; the moral law</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Faith formation is never scored or measured</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Latin &amp; Christian Foundations</h3>
           <p>Latin built on the vocabulary every Christian tradition shares</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 10 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Words learned are noted; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Greek &amp; New Testament Foundations</h3>
           <p>Koine Greek, the language the New Testament was written in</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 10 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Words learned are noted; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Logic</h3>
           <p>How an argument works, and how to use that charitably. From grade 3, never earlier</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> 3&ndash;8</li>
+            <li><span class="fact-k">Record</span> Taught and practised; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Free Study</h3>
           <p>Exploration the student directs</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Exploration the child directs, not measured toward mastery</li>
+          </ul>
         </div>
       </div>
 
@@ -417,31 +494,105 @@
     </div>
   </section>
 
-  <section>
+  <!-- Membership chooser. The prices are the published ones
+       (docs/DECISIONS.md entries 10 and 35, demo/public/launch.html), and
+       homeschool-api/tests/test_site_offer.py checks them against
+       launch.html and the License Server, along with the storefront
+       address, which must stay identical to launch.html's.
+
+       Selection is native radio inputs, so it works with a keyboard
+       (arrow keys) and with no JavaScript at all; offer.js only computes
+       the per-child figure and lets a click anywhere on a card select it.
+       Every button is an ordinary link: the annual plan goes to the
+       License Server's own Stripe checkout route, the trial to the
+       storefront's trial form (a cross-origin form here would be refused
+       by this site's form-action 'self'), and the co-op and school options
+       to a conversation, which entry 9 says they are. -->
+  <section class="offer" id="membership" aria-labelledby="membership-h">
     <div class="inner">
       <p class="eyebrow">How Families Work With Us</p>
-      <h2>One classical learning environment</h2>
+      <h2 id="membership-h">Choose how you begin</h2>
       <p class="lede flow">
-        Bede combines classical learning tools, assessment evidence, progress records, and guided Socratic assistance. Families and schools have distinct offers.
+        One membership for the whole household, priced per family and never
+        per child. Rest on a plan to read what it includes, and choose one to
+        see how to begin.
       </p>
-      <div class="card-grid tier-grid">
-        <div class="card tier-card" tabindex="0">
-          <p class="tier-name">Homeschool</p>
-          <h3>Classical learning for families</h3>
-          <div class="tier-detail">
-            <p>Parent-directed planning, records, assessment, and a child-facing Socratic learning companion. Explore family membership.</p>
-            <p><a href="/bede/launch.html">Explore Bede for families</a></p>
-          </div>
+
+      <div class="audience">
+        <!-- The radios sit beside the panels, not inside the switch, so plain
+             sibling selectors (~) can show one panel and hide the other with
+             no :has() and no JavaScript. -->
+        <input class="audience-radio" type="radio" name="audience" id="aud-family" value="family" checked>
+        <input class="audience-radio" type="radio" name="audience" id="aud-school" value="school">
+        <div class="audience-switch">
+          <label for="aud-family">For families</label>
+          <label for="aud-school">For schools &amp; campuses</label>
         </div>
-        <div class="card tier-card" tabindex="0">
-          <p class="tier-name">Charter &amp; Campus</p>
-          <h3>Teacher-directed tools for schools</h3>
-          <div class="tier-detail">
-            <p>Current Valor pilot: synthetic assessment, Data Day evidence, teacher-approved instructional plans, and progress review. Teachers deliver instruction; Bede does not tutor learners directly in this pilot. Broader campus capabilities require separate qualification.</p>
-            <p><a href="/schools/">Explore Bede for schools</a></p>
+
+        <fieldset class="plans family-plans">
+          <legend class="visually-hidden">Family plans</legend>
+          <div class="plan">
+            <input class="plan-radio" type="radio" name="plan" id="plan-annual" value="annual" checked>
+            <label class="plan-head" for="plan-annual">
+              <span class="plan-numeral" aria-hidden="true">I</span>
+              <span class="plan-name">Annual Family Membership</span>
+              <span class="plan-price"><span class="amount">$2,149</span><span class="per"> / year</span></span>
+              <span class="plan-sub">Up to six children &middot; paying yearly saves $239 over $199 a month</span>
+            </label>
+            <div class="plan-detail">
+              <p>Bede Tutor, Locuto messaging, the Family Portal, parent tools and oversight, and verified access, for the whole household.</p>
+              <div class="per-child" data-annual="2149">
+                <label for="per-child-range">Children in your household: <output class="per-child-n" for="per-child-range">3</output></label>
+                <input type="range" id="per-child-range" min="1" max="6" value="3">
+                <p class="per-child-out">That is about <strong class="per-child-amount">$59.69</strong> per child, per month.</p>
+              </div>
+              <a class="cta plan-cta" href="https://bede-license-server.agnusdei.workers.dev/checkout/family-annual">Subscribe &mdash; $2,149/year &rarr;</a>
+              <p class="plan-fine">Secure checkout by Stripe. Your license key arrives by email.</p>
+            </div>
+          </div>
+          <div class="plan">
+            <input class="plan-radio" type="radio" name="plan" id="plan-trial" value="trial">
+            <label class="plan-head" for="plan-trial">
+              <span class="plan-numeral" aria-hidden="true">II</span>
+              <span class="plan-name">Free Trial</span>
+              <span class="plan-price"><span class="amount">7 days</span><span class="per"> free</span></span>
+              <span class="plan-sub">No card needed to start</span>
+            </label>
+            <div class="plan-detail">
+              <p>The full tutor for a week, delivered as a key to your email. When the week ends, the tutor stops until you choose a membership.</p>
+              <a class="cta plan-cta" href="https://bede-license-server.agnusdei.workers.dev/#trial-form">Start the 7-day trial &rarr;</a>
+              <p class="plan-fine">One trial per household.</p>
+            </div>
+          </div>
+          <div class="plan">
+            <input class="plan-radio" type="radio" name="plan" id="plan-coop" value="coop">
+            <label class="plan-head" for="plan-coop">
+              <span class="plan-numeral" aria-hidden="true">III</span>
+              <span class="plan-name">Co-op Membership</span>
+              <span class="plan-price"><span class="amount"><span class="from">from</span> $149</span><span class="per"> / family / month</span></span>
+              <span class="plan-sub">Ten-family minimum</span>
+            </label>
+            <div class="plan-detail">
+              <p>Every family in the co-op gets the same Bede and the same tools as a Family Membership. It is arranged with your co-op directly, so it is not sold online.</p>
+              <a class="cta plan-cta" href="#request-a-call">Ask about a co-op &rarr;</a>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="plans school-plans">
+          <div class="plan plan-open">
+            <div class="plan-head">
+              <span class="plan-name">Charter &amp; Campus</span>
+              <span class="plan-sub">Teacher-directed tools for schools</span>
+            </div>
+            <div class="plan-detail">
+              <p>Current Valor pilot: synthetic assessment, Data Day evidence, teacher-approved instructional plans, and progress review. Teachers deliver instruction; Bede does not tutor learners directly in this pilot. Broader campus capabilities require separate qualification.</p>
+              <a class="cta plan-cta" href="/schools/">Explore Bede for schools &rarr;</a>
+            </div>
           </div>
         </div>
       </div>
+
       <p class="lede flow" style="margin-top: 1.5rem;">
         Each offering is designed as a complete experience. Hardware and separately
         scoped professional services, when needed, are discussed transparently,
@@ -638,5 +789,6 @@
   <script src="/assets/api-base.js"></script>
   <script src="/assets/feedback-form.js"></script>
   <script src="/assets/video.js"></script>
+  <script src="/assets/offer.js"></script>
 </body>
 </html>

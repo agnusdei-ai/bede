@@ -431,70 +431,6 @@ p.lede {
   margin: 0;
 }
 
-/* Tier cards: the headline (name, one-liner, price) is never gated behind
-   an interaction — only the "what's actually included" elaboration is.
-   Hiding the price itself behind a hover would read as a trick, not a
-   nice touch, so it stays visible at all times. */
-.tier-name {
-  font-family: Georgia, serif;
-  font-size: 0.78rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #8c887c;
-  margin: 0 0 0.3rem;
-}
-
-.tier-card h3 {
-  margin-bottom: 0.4rem;
-}
-
-.tier-price {
-  font-family: Georgia, serif;
-  font-size: 0.82rem;
-  color: var(--fern-deep);
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid var(--vellum-deep);
-  border-radius: 999px;
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  margin: 0 0 0.6rem;
-}
-
-.tier-card {
-  outline: none;
-}
-
-/* The reveal itself: a quiet unfolding of one supporting sentence, not a
-   flip, glow, or lift. Present in the DOM either way, so nothing here
-   depends on JavaScript or on a device having a pointer at all. */
-.tier-detail {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  transition: max-height 0.25s ease, opacity 0.2s ease 0.05s;
-}
-
-.tier-detail p {
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--vellum-deep);
-}
-
-.tier-card:hover .tier-detail,
-.tier-card:focus-within .tier-detail,
-.tier-card:focus .tier-detail {
-  max-height: 10rem;
-  opacity: 1;
-}
-
-/* No pointer to hover with — the detail is simply always open, same as
-   it is for a keyboard or touch visitor who never triggers :hover. */
-@media (hover: none) {
-  .tier-detail {
-    max-height: none;
-    opacity: 1;
-  }
-}
-
 /* Curriculum tab colours — one per subject, like the colored divider
    tabs in a school binder, so the fourteen subjects read as distinct at
    a glance instead of one undifferentiated green list. Fourteen hues
@@ -1442,3 +1378,231 @@ button.cta {
 .tracker-note strong {
   color: var(--ink);
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   Membership chooser (#membership on the home page).
+   A classical register rather than a SaaS pricing table: small-caps
+   labels, Roman numerals, old-style figures, a hairline frame that turns
+   gilt on the plan you choose. Motion is a quiet lift and an unfolding,
+   never a flip or glow, and it stops for prefers-reduced-motion.
+   Nothing here depends on JavaScript: selection is :checked radios.
+   ────────────────────────────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0;
+}
+
+.offer .audience { margin-top: 1.75rem; position: relative; }
+
+.audience-switch {
+  display: inline-flex;
+  border: 1px solid var(--vellum-deep);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  padding: 0.25rem;
+  margin: 0 auto 1.5rem;
+}
+.offer .inner { text-align: center; }
+.audience-radio { position: absolute; top: 0; left: 50%; opacity: 0; pointer-events: none; }
+.audience-switch label {
+  font-family: Georgia, serif;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-size: 1rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.audience-switch label:hover { color: var(--ink); }
+#aud-family:checked ~ .audience-switch label[for=aud-family],
+#aud-school:checked ~ .audience-switch label[for=aud-school] { background: var(--ink); color: var(--vellum); }
+#aud-family:focus-visible ~ .audience-switch label[for=aud-family],
+#aud-school:focus-visible ~ .audience-switch label[for=aud-school] { outline: 2px solid var(--gilt); outline-offset: 2px; }
+
+.plans {
+  border: 0; margin: 0; padding: 0; min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1.1rem;
+  text-align: left;
+  align-items: start;
+}
+.school-plans { display: none; max-width: 36rem; margin: 0 auto; grid-template-columns: 1fr; }
+#aud-school:checked ~ .family-plans { display: none; }
+#aud-school:checked ~ .school-plans { display: grid; }
+
+.plan {
+  position: relative;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--vellum-deep);
+  border-radius: 0.4rem;
+  /* the inner hairline of a classical frame */
+  box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.72), inset 0 0 0 5px rgba(184, 134, 11, 0.18), 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.plan-radio { position: absolute; opacity: 0; pointer-events: none; }
+.plan-head {
+  display: block;
+  padding: 1.25rem 1.35rem 0.9rem;
+  cursor: pointer;
+}
+.plan-numeral {
+  display: block;
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  color: var(--gilt);
+  margin-bottom: 0.35rem;
+}
+.plan-name {
+  display: block;
+  font-family: Georgia, serif;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+  font-size: 1.1rem;
+  color: var(--ink);
+}
+.plan-price {
+  display: block;
+  font-family: 'Palatino Linotype', Palatino, serif;
+  font-variant-numeric: oldstyle-nums;
+  margin: 0.45rem 0 0.2rem;
+  color: var(--fern-deep);
+}
+.plan-price .amount { font-size: 1.85rem; }
+.plan-price .from, .plan-price .per { font-size: 0.9rem; color: var(--prose); }
+.plan-sub { display: block; font-size: 0.85rem; line-height: 1.45; color: var(--prose); }
+
+.plan-detail {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  padding: 0 1.35rem;
+  transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.25s ease;
+}
+.plan-detail p { font-size: 0.88rem; line-height: 1.55; color: #55534b; margin: 0 0 0.75rem; }
+.plan-detail .plan-fine { font-size: 0.78rem; color: #6b675c; margin: 0.6rem 0 0; }
+.plan-cta { font-size: 0.98rem; padding: 0.7rem 1.5rem; min-height: 44px; line-height: 1.4; }
+/* Only the chosen plan's button can be reached; a previewed plan shows its
+   details but not its button, so moving the pointer across the row can
+   never change what a click buys. */
+.plan .plan-cta, .plan .plan-fine { display: none; }
+
+/* Preview: hover or keyboard focus unfolds the details. */
+.plan:hover, .plan:focus-within { transform: translateY(-2px); box-shadow: inset 0 0 0 4px rgba(255,255,255,0.72), inset 0 0 0 5px rgba(184,134,11,0.35), 0 6px 18px rgba(28, 36, 56, 0.10); }
+.plan:hover .plan-detail, .plan:focus-within .plan-detail { max-height: 26rem; opacity: 1; padding-bottom: 1.25rem; }
+
+/* Chosen: details open and its button shown. These use only the sibling
+   combinator, never :has(), so a browser without :has() still shows the
+   chosen plan's button; only the gilt frame below is an enhancement. Each
+   :has() rule stands alone, because one unsupported selector in a list
+   makes the browser drop the whole rule. */
+.plan-radio:checked ~ .plan-detail { max-height: 26rem; opacity: 1; padding-bottom: 1.25rem; }
+.plan-radio:checked ~ .plan-detail .plan-cta { display: inline-block; }
+.plan-radio:checked ~ .plan-detail .plan-fine { display: block; }
+.plan-radio:checked ~ .plan-head .plan-numeral::after { content: " \00b7  chosen"; letter-spacing: 0.08em; font-variant: small-caps; }
+.plan-radio:focus-visible ~ .plan-head { outline: 2px solid var(--gilt); outline-offset: -2px; border-radius: 0.3rem; }
+.plan-open .plan-detail { max-height: 26rem; opacity: 1; padding-bottom: 1.25rem; }
+.plan-open .plan-cta { display: inline-block; }
+.plan-open {
+  border-color: var(--gilt);
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,0.8), inset 0 0 0 5px var(--gilt), 0 6px 18px rgba(28, 36, 56, 0.10);
+}
+.plan:has(.plan-radio:checked) {
+  border-color: var(--gilt);
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,0.8), inset 0 0 0 5px var(--gilt), 0 6px 18px rgba(28, 36, 56, 0.10);
+}
+
+.per-child { border-top: 1px solid var(--vellum-deep); padding-top: 0.75rem; margin: 0 0 0.9rem; }
+.per-child label { font-size: 0.85rem; color: var(--ink-soft); display: block; }
+.per-child output { font-weight: bold; color: var(--ink); }
+.per-child input[type=range] { width: 100%; accent-color: var(--fern); margin: 0.4rem 0; }
+.per-child .per-child-out { margin: 0; font-variant-numeric: oldstyle-nums; }
+
+/* No pointer to hover with, or a phone-width screen where the cards stack:
+   every plan's details are simply open, with no unfolding to wait for. */
+@media (hover: none), (pointer: coarse), (max-width: 40rem) {
+  .plan-detail { max-height: none; opacity: 1; padding-bottom: 1.1rem; transition: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .plan, .plan-detail, .audience-switch label { transition: none; }
+  .plan:hover, .plan:focus-within { transform: none; }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Hover-to-learn-more, for information rather than for choosing.
+   The curriculum cards carry three facts each (session length, grades,
+   what is recorded). They unfold on hover or on keyboard focus, the
+   "Show details" toggle opens them all, and on a touch or phone-width
+   screen they are simply open. The text is in the page either way, so a
+   screen reader and a search engine read it without any interaction.
+   ────────────────────────────────────────────────────────────────── */
+.subjects .card.subject {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.subjects .card.subject:hover,
+.subjects .card.subject:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.subject-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.2s ease;
+}
+/* Dark text on the light card, whatever the band around it sets: the
+   curriculum band's own text is light, and would otherwise be inherited. */
+.subject-facts { color: var(--ink-soft); }
+.subject-facts .fact-k { color: var(--ink); }
+.subject-facts li { padding: 0.2rem 0; border-top: 1px solid rgba(0, 0, 0, 0.12); }
+/* A card that unfolds must not stretch its neighbours in the same row. */
+.card-grid.subjects { align-items: start; }
+.subject-facts .fact-k {
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-weight: bold;
+  margin-right: 0.35rem;
+}
+.subjects .card.subject:hover .subject-facts,
+.subjects .card.subject:focus-within .subject-facts,
+#subject-details:checked ~ .subjects .subject-facts {
+  max-height: 12rem;
+  opacity: 1;
+  margin-top: 0.6rem;
+}
+.details-toggle {
+  display: inline-block;
+  font-family: Georgia, serif;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-size: 0.95rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  margin: 0 0 1.1rem;
+  cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+#subject-details:checked + .details-toggle { background: var(--gilt-light); color: var(--ink); border-color: var(--gilt-light); }
+#subject-details:focus-visible + .details-toggle { outline: 2px solid var(--gilt-light); outline-offset: 3px; }
+@media (hover: none), (pointer: coarse), (max-width: 40rem) {
+  .subject-facts { max-height: none; opacity: 1; margin-top: 0.6rem; transition: none; }
+  .details-toggle { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .subjects .card.subject, .subject-facts { transition: none; }
+  .subjects .card.subject:hover, .subjects .card.subject:focus-within { transform: none; }
+}
+

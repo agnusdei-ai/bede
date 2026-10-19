@@ -587,10 +587,10 @@ struct InstallerView: View {
             }
             Spacer()
             if !installer.running && !installer.removing {
-                Button("Find old installers") {
+                Button("Clean Up Installer Files") {
                     installer.scanOldInstallers()
                     if !installer.oldInstallers.isEmpty { confirmHousekeeping = true }
-                    else { installer.message = "No previous Bede installer copies found." }
+                    else { installer.message = "No older Bede installer files found." }
                 }
             }
             if installer.installed && !installer.running && !installer.removing {

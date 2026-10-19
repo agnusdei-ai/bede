@@ -37,9 +37,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Prepare bundle generator
@@ -171,7 +171,7 @@ jobs:
           tar -czf bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator
           sha256sum bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
       - name: Publish standard network installer separately
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
           path: |
@@ -181,7 +181,7 @@ jobs:
           retention-days: 30
           compression-level: 0
       - name: Publish complete Offline installer separately
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bede-offline-linux-${{ matrix.arch }}-${{ github.sha }}
           path: |
@@ -196,8 +196,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Install pinned browser harness
@@ -207,7 +207,7 @@ jobs:
       - name: Exercise offline walkthrough and local audit export
         run: python packaging/tests/test_valor_prepilot_browser.py
       - name: Publish standalone walkthrough for nontechnical reviewers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bede-valor-prepilot-walkthrough-${{ github.sha }}
           path: packaging/bundle/Valor-Prepilot-Walkthrough.html
@@ -223,7 +223,7 @@ jobs:
         os: [ubuntu-24.04, macos-15, windows-2022]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: macOS and Linux launcher syntax
         if: runner.os != 'Windows'
         run: |

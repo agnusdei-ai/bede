@@ -185,62 +185,139 @@
         including Latin, Greek, and Logic. Pick the ones that belong in your
         family's day.
       </p>
-      <div class="card-grid">
-        <div class="card">
+      <!-- Per-subject facts (session length, grades, what is recorded) come
+           from the product's own code; homeschool-api/tests/test_site_subject_facts.py
+           holds them to models/schemas.py. They unfold on hover or keyboard
+           focus, the toggle opens them all (works with no JavaScript), and on
+           a touch or phone-width screen they are always open. -->
+      <input class="visually-hidden" type="checkbox" id="subject-details">
+      <label class="details-toggle" for="subject-details">Show details for every subject</label>
+      <div class="card-grid subjects">
+        <div class="card subject">
           <h3>Morning Time</h3>
           <p>Bible, hymn, poetry &amp; prayer</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> A daily routine of formation, not measured toward mastery</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Living Books</h3>
           <p>The classics and Great Books, read and narrated</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 25 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Mathematics</h3>
           <p>Mathematical thinking through discovery</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Nature Study</h3>
           <p>Observation, wonder &amp; creation</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>History &amp; Geography</h3>
           <p>History told through story, and real places</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Taught and narrated; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Language Arts</h3>
           <p>Narration, copywork &amp; grammar</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Science</h3>
           <p>Botany, zoology &amp; earth science</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Art &amp; Music</h3>
           <p>Picture study and composer study: a painting looked at closely, a piece of music listened to</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> What a child knows about the music is recorded; how they respond to it never is</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Saints &amp; Catechism</h3>
           <p>Saints, catechism &amp; virtue formation</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Faith formation is never scored or measured</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Scripture &amp; Bible Study</h3>
           <p>Bible narrative, memory verses &amp; the moral law</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Faith formation is never scored or measured</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Latin &amp; Christian Foundations</h3>
           <p>Latin built on the vocabulary every Christian tradition shares</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 10 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Words learned are noted; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Greek &amp; New Testament Foundations</h3>
           <p>Koine Greek, the language the New Testament was written in</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 10 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Words learned are noted; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Logic</h3>
           <p>How an argument works, and how to use that charitably. From grade 3, never earlier</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> 3&ndash;8</li>
+            <li><span class="fact-k">Record</span> Taught and practised; not one of the five tracked subjects</li>
+          </ul>
         </div>
-        <div class="card">
+        <div class="card subject">
           <h3>Free Study</h3>
           <p>Exploration the student directs</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Exploration the child directs, not measured toward mastery</li>
+          </ul>
         </div>
       </div>
 

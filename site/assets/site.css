@@ -1534,3 +1534,75 @@ button.cta {
   .plan:hover, .plan:focus-within { transform: none; }
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Hover-to-learn-more, for information rather than for choosing.
+   The curriculum cards carry three facts each (session length, grades,
+   what is recorded). They unfold on hover or on keyboard focus, the
+   "Show details" toggle opens them all, and on a touch or phone-width
+   screen they are simply open. The text is in the page either way, so a
+   screen reader and a search engine read it without any interaction.
+   ────────────────────────────────────────────────────────────────── */
+.subjects .card.subject {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.subjects .card.subject:hover,
+.subjects .card.subject:focus-within {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.subject-facts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.2s ease;
+}
+/* Dark text on the light card, whatever the band around it sets: the
+   curriculum band's own text is light, and would otherwise be inherited. */
+.subject-facts { color: var(--ink-soft); }
+.subject-facts .fact-k { color: var(--ink); }
+.subject-facts li { padding: 0.2rem 0; border-top: 1px solid rgba(0, 0, 0, 0.12); }
+/* A card that unfolds must not stretch its neighbours in the same row. */
+.card-grid.subjects { align-items: start; }
+.subject-facts .fact-k {
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-weight: bold;
+  margin-right: 0.35rem;
+}
+.subjects .card.subject:hover .subject-facts,
+.subjects .card.subject:focus-within .subject-facts,
+#subject-details:checked ~ .subjects .subject-facts {
+  max-height: 12rem;
+  opacity: 1;
+  margin-top: 0.6rem;
+}
+.details-toggle {
+  display: inline-block;
+  font-family: Georgia, serif;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+  font-size: 0.95rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  margin: 0 0 1.1rem;
+  cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+#subject-details:checked + .details-toggle { background: var(--gilt-light); color: var(--ink); border-color: var(--gilt-light); }
+#subject-details:focus-visible + .details-toggle { outline: 2px solid var(--gilt-light); outline-offset: 3px; }
+@media (hover: none), (pointer: coarse), (max-width: 40rem) {
+  .subject-facts { max-height: none; opacity: 1; margin-top: 0.6rem; transition: none; }
+  .details-toggle { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .subjects .card.subject, .subject-facts { transition: none; }
+  .subjects .card.subject:hover, .subjects .card.subject:focus-within { transform: none; }
+}
+

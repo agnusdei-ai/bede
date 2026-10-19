@@ -1025,6 +1025,20 @@ the checkout route answers a browser with a page offering the trial
 to it directly. All four paths the test reads are in `test.yml`'s change
 filter.
 
+**The curriculum cards unfold facts on hover, and each fact is checked
+against the code (`tests/test_site_subject_facts.py`).** Every subject card
+carries a session length (`SUBJECT_DURATIONS`), its grades (Logic is 3–8
+because `SessionConfig` drops it for K-2, and the test drives that
+validator rather than trusting the label), and a "Record" line: tracked
+toward a mastery outcome only for the five subjects the guarantee names,
+and "never scored" for exactly the two faith subjects, which is the standing
+refusal to measure a child's spiritual life stated where a parent reads it.
+They unfold on hover, a "Show details for every subject" checkbox opens
+them all for keyboard users (no JavaScript), and on touch or phone widths
+they are always open. `curriculumColors.test.ts` accepts a card with extra
+classes but still counts every card, since each one takes an `nth-child`
+colour slot.
+
 **Music is taught inside Art & Music, not as a subject of its own.** The
 `music_knowledge` diagnostic area is a tracked area, not a timetable block:
 `Subject.art_music` stays one subject covering picture study and composer

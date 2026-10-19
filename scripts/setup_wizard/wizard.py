@@ -492,7 +492,7 @@ def render_success(fields: dict | None = None) -> str:
       <p><strong>{access_message}</strong></p>
       <p><strong>{access_url}</strong> (opens after the native installer verifies certificate trust)</p>
       {detail}
-      <p>Keep the installer open until it confirms setup is complete.</p>
+      <p><strong>Return to the Bede Installer window to watch installation checkpoints and complete macOS certificate approval.</strong> This browser page confirms only that settings were saved; Bede is not ready until the installer finishes its checks.</p>
     </div>
     """
     return _PAGE_HEAD + body + _PAGE_TAIL

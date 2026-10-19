@@ -158,6 +158,24 @@ final class InstallerController: ObservableObject {
         }
     }
 
+    func reconcileInstallationState() {
+        guard !running && !removing else { return }
+        check = MacCheck.inspect()
+        // A previously successful UI session is not evidence that the
+        // containers or data still exist after external Docker cleanup.
+        if !installed {
+            completed = false
+            finished = []
+            current = .requirements
+            removalError = nil
+            message = "Bede is not installed for this location. You can install it now."
+        } else if completed && !check.dockerReady {
+            completed = false
+            finished = []
+            message = "Bede is installed, but Docker is not running. Start Docker and check again."
+        }
+    }
+
     var bundleDirectory: URL? {
         guard let resources = Bundle.main.resourceURL else { return nil }
         let payload = resources.appendingPathComponent("bede-operator", isDirectory: true)
@@ -292,8 +310,8 @@ final class InstallerController: ObservableObject {
     }
 
     func refresh() {
-        check = MacCheck.inspect()
-        message = prepared ? "This Mac is ready." : "Review the requirements below."
+        reconcileInstallationState()
+        if installed { message = "Bede installation files detected. Verify the running service before using Bede." }
     }
 
     func openSupport() {
@@ -304,6 +322,7 @@ final class InstallerController: ObservableObject {
 
 struct InstallerView: View {
     @StateObject private var installer = InstallerController()
+    @Environment(\\.scenePhase) private var scenePhase
     @State private var confirmRemoval = false
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)
@@ -429,6 +448,10 @@ struct InstallerView: View {
         .padding(28)
         .background(cream)
         .frame(width: 620, height: 700)
+        .onAppear { installer.reconcileInstallationState() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active { installer.reconcileInstallationState() }
+        }
         .alert("Permanently remove Bede?", isPresented: $confirmRemoval) {
             Button("Cancel", role: .cancel) { }
             Button("Remove Bede and its data", role: .destructive) { installer.removeInstallation() }

@@ -424,12 +424,12 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
 
     if DEPLOYMENT_CONTEXT == "campus":
         body.append('<label>Create your administrator password</label>')
-        body.append('<div class="hint">Create a password for the person managing this Bede installation. Teachers will receive separate, approved access using passkeys.</div>')
+        body.append('<div class="hint">Set a strong temporary administrator recovery password (12 or more characters) until owner passkey enrollment is available. Teachers sign in separately with approved passkeys.</div>')
         body.append('<input type="password" name="parent_password">')
         body.append(f'<input type="hidden" name="child_pin" value="{SUGGESTED_CHILD_PIN}">')
     else:
         body.append('<label>Parent password</label>')
-        body.append('<div class="hint">At least 8 characters for the parent account.</div>')
+        body.append('<div class="hint">Use a unique parent recovery password of at least 12 characters. Passwordless parent access is not yet supported.</div>')
         body.append('<input type="password" name="parent_password">')
         body.append('<label>Student PIN</label>')
         body.append(f'<div class="hint">At least 6 digits. You can use this randomly generated suggestion: {SUGGESTED_CHILD_PIN}.</div>')
@@ -491,7 +491,7 @@ def render_success(fields: dict | None = None) -> str:
       <div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Starting Bede</h1></div></div>
       <p>Your settings have been saved. The installer is starting Bede and checking the secure connection.</p>
       <p><strong>{access_message}</strong></p>
-      <p><a href="{access_url}">{access_url}</a></p>
+      <p><strong>{access_url}</strong> (opens after the native installer verifies certificate trust)</p>
       {detail}
       <p>Keep the installer open until it confirms setup is complete.</p>
     </div>
@@ -634,8 +634,10 @@ def validate(fields: dict) -> str:
             return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
     if fields.get("db_choice") == "managed" and not fields.get("database_url", "").strip():
         return "Please enter your database connection string, or choose \"On this computer\" instead."
-    if len(fields.get("parent_password", "")) < 8:
-        return "Parent password must be at least 8 characters."
+    if len(fields.get("parent_password", "")) < 12:
+        return "Administrator or parent recovery password must be at least 12 characters."
+    if fields.get("parent_password", "").casefold() in {"password", "password123", "password1234", "administrator", "administrator123", "bede12345678"}:
+        return "That administrator or parent password is too common. Choose a unique recovery password."
     if is_published_credential(fields.get("parent_password", "")):
         return (
             "That password is one of Bede's own published example values, so it's "

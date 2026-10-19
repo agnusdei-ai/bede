@@ -259,7 +259,7 @@ jobs:
             sleep 0.5
           done
           test "$ready" = 1 || { echo "Wizard not ready within 20 seconds" >&2; exit 1; }
-          grep -Fq "Let's set up Bede" "$RUNNER_TEMP/wizard-form.html"
+          grep -Fq "Welcome to Bede" "$RUNNER_TEMP/wizard-form.html"
           # The wizard intentionally terminates after saving. A TCP reset can
           # race with the HTTP reply, so do not use curl's exit alone as success.
           # Verify the saved configuration and clean container exit instead.

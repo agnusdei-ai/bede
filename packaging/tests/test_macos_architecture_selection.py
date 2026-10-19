@@ -1,7 +1,7 @@
 from pathlib import Path
 import unittest
 
-SWIFT = (Path(__file__).resolve().parents[1] / "BedeInstallerApp.swift").read_text()
+SWIFT = (Path(__file__).resolve().parents[1] / "macos" / "BedeInstallerApp.swift").read_text()
 
 class UnifiedArchitectureSelection(unittest.TestCase):
     def test_both_modes_present(self):

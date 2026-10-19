@@ -140,7 +140,8 @@ final class InstallerController: ObservableObject {
     @Published var details = false
     @Published var context: InstallContext = .campus
     @Published var campusID = "bede-mac-pilot-2026"
-    @Published var check = MacCheck.inspect()
+    @Published var check = MacCheck(architecture: "Checking", memoryGiB: 0, diskGiB: 0, dockerReady: false)
+    @Published var checkingMac = false
 
     private var process: Process?
     private var pending = ""
@@ -244,21 +245,31 @@ final class InstallerController: ObservableObject {
     }
 
     func reconcileInstallationState() {
-        guard !running && !removing else { return }
-        check = MacCheck.inspect()
-        oldInstallers = BedeBinaryHousekeeping.candidates()
-        // A previously successful UI session is not evidence that the
-        // containers or data still exist after external Docker cleanup.
-        if !installed {
-            completed = false
-            finished = []
-            current = .requirements
-            removalError = nil
-            message = "Bede is not installed for this location. You can install it now."
-        } else if completed && !check.dockerReady {
-            completed = false
-            finished = []
-            message = "Bede is installed, but Docker is not running. Start Docker and check again."
+        guard !running && !removing && !checkingMac else { return }
+        checkingMac = true
+        // File enumeration and Docker subprocesses may block or fail during
+        // the first Gatekeeper-authorized launch. Keep both off SwiftUI's main
+        // actor, and avoid reentrant refreshes on window activation.
+        Task.detached(priority: .userInitiated) {
+            let inspected = MacCheck.inspect()
+            let candidates = BedeBinaryHousekeeping.candidates()
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.check = inspected
+                self.oldInstallers = candidates
+                self.checkingMac = false
+                if !self.installed {
+                    self.completed = false
+                    self.finished = []
+                    self.current = .requirements
+                    self.removalError = nil
+                    self.message = "Bede is not installed for this location. You can install it now."
+                } else if self.completed && !inspected.dockerReady {
+                    self.completed = false
+                    self.finished = []
+                    self.message = "Bede is installed, but Docker is not running. Start Docker and check again."
+                }
+            }
         }
     }
 
@@ -272,8 +283,7 @@ final class InstallerController: ObservableObject {
     }
 
     func begin() {
-        guard !running else { return }
-        check = MacCheck.inspect()
+        guard !running && !checkingMac else { return }
         stopped = false
         completed = false
         finished = []
@@ -541,7 +551,7 @@ struct InstallerView: View {
                 Button("Install Bede") { installer.begin() }
                     .buttonStyle(.borderedProminent)
                     .tint(green)
-                    .disabled(!installer.prepared || installer.removing)
+                    .disabled(!installer.prepared || installer.removing || installer.checkingMac)
             }
             if !installer.running && !installer.removing && !installer.completed {
                 Button("Support report") { installer.openSupport() }

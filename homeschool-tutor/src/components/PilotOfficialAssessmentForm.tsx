@@ -523,7 +523,7 @@ export default function PilotOfficialAssessmentForm({
               <p className="text-xs">Learner: {learnerName} · Approved decision: {artifact.approval_action} · Offline only</p>
               <p className="text-sm whitespace-pre-wrap">{artifact.plan_text}</p>
               <p className="text-xs text-slate-600">{artifact.disclaimer}</p>
-              <button type="button" className="border rounded-lg px-3 py-2 text-xs" onClick={() => window.print()}>
+              <button type="button" className="border rounded-lg px-3 py-2 text-xs" onClick={() => document.defaultView?.print()}>
                 Print teacher material</button>
             </article>}
             <div className="border-t pt-3 space-y-2">

@@ -327,123 +327,143 @@ struct InstallerView: View {
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 19) {
-            HStack(alignment: .center, spacing: 16) {
-                if let image = Bundle.main.url(forResource: "BedeIcon", withExtension: "png"),
-                   let icon = NSImage(contentsOf: image) {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .clipShape(RoundedRectangle(cornerRadius: 13))
-                        .accessibilityLabel("Bede")
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Welcome to Bede").font(.system(size: 29, weight: .semibold, design: .serif))
-                    Text("Prepare Bede for your pilot on this Mac.")
-                        .foregroundStyle(.secondary)
-                }
+    private var headerSection: some View {
+        HStack(alignment: .center, spacing: 16) {
+            if let image = Bundle.main.url(forResource: "BedeIcon", withExtension: "png"),
+               let icon = NSImage(contentsOf: image) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .accessibilityLabel("Bede")
             }
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Install for").font(.headline)
-                Picker("Install for", selection: $installer.context) {
-                    ForEach(InstallContext.allCases) { item in
-                        Text(item.rawValue).tag(item)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome to Bede").font(.system(size: 29, weight: .semibold, design: .serif))
+                Text("Prepare Bede for your pilot on this Mac.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        Divider()
+    }
+
+    private var contextSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Install for").font(.headline)
+            Picker("Install for", selection: $installer.context) {
+                ForEach(InstallContext.allCases) { item in
+                    Text(item.rawValue).tag(item)
+                }
+            }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
+            if installer.context == .campus {
+                TextField("Campus ID", text: $installer.campusID)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(installer.running || installer.completed)
+                Text("Use the campus ID printed with your pilot license.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var stagesSection: some View {
+        Text(installer.completed ? "Bede is ready" : "Installation")
+            .font(.title3.weight(.semibold))
+        VStack(alignment: .leading, spacing: 13) {
+            ForEach(SetupStage.allCases) { stage in
+                HStack(spacing: 11) {
+                    if installer.finished.contains(stage) {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(green)
+                    } else if installer.running && installer.current == stage {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "circle").foregroundStyle(.secondary)
                     }
-                }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
-                if installer.context == .campus {
-                    TextField("Campus ID", text: $installer.campusID)
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(installer.running || installer.completed)
-                    Text("Use the campus ID printed with your pilot license.")
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text(stage.rawValue)
+                        .foregroundStyle(installer.finished.contains(stage) || installer.current == stage
+                            ? .primary : .secondary)
+                    Spacer()
                 }
+                .accessibilityElement(children: .combine)
             }
-            Text(installer.completed ? "Bede is ready" : "Installation")
-                .font(.title3.weight(.semibold))
-            VStack(alignment: .leading, spacing: 13) {
-                ForEach(SetupStage.allCases) { stage in
-                    HStack(spacing: 11) {
-                        if installer.finished.contains(stage) {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(green)
-                        } else if installer.running && installer.current == stage {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Image(systemName: "circle").foregroundStyle(.secondary)
-                        }
-                        Text(stage.rawValue)
-                            .foregroundStyle(installer.finished.contains(stage) || installer.current == stage
-                                ? .primary : .secondary)
-                        Spacer()
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(18)
-            .background(.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 14))
+        }
+        .padding(18)
+        .background(.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 14))
+    }
 
-            if installer.running || installer.removing {
-                ProgressView().progressViewStyle(.linear)
-                    .accessibilityLabel("Installation in progress")
-            }
+    private var statusSection: some View {
+        if installer.running || installer.removing {
+            ProgressView().progressViewStyle(.linear)
+                .accessibilityLabel("Installation in progress")
+        }
 
-            Text(installer.message)
-                .foregroundStyle(installer.completed ? green : .secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        Text(installer.message)
+            .foregroundStyle(installer.completed ? green : .secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let error = installer.removalError {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Removal needs attention").font(.headline)
-                    Text(error).font(.caption).textSelection(.enabled)
-                }
-                .foregroundStyle(.red)
+        if let error = installer.removalError {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Removal needs attention").font(.headline)
+                Text(error).font(.caption).textSelection(.enabled)
             }
+            .foregroundStyle(.red)
+        }
 
-            if installer.details || !installer.prepared {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Mac: \(installer.check.architecture)")
-                    Text("Memory: \(installer.check.memoryGiB) GB")
-                    Text("Free space: \(installer.check.diskGiB) GB")
-                    Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        if installer.details || !installer.prepared {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Mac: \(installer.check.architecture)")
+                Text("Memory: \(installer.check.memoryGiB) GB")
+                Text("Free space: \(installer.check.diskGiB) GB")
+                Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
             }
-            Spacer(minLength: 4)
-            HStack {
-                Button(installer.details ? "Hide Mac details" : "Mac details") {
-                    installer.details.toggle()
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var actionsSection: some View {
+        HStack {
+            Button(installer.details ? "Hide Mac details" : "Mac details") {
+                installer.details.toggle()
+            }
+            .disabled(installer.running || installer.removing)
+            if !installer.prepared && !installer.running && !installer.removing {
+                Button("Check again") { installer.refresh() }
+            }
+            Spacer()
+            if installer.installed && !installer.running && !installer.removing {
+                Button("Remove Bede", role: .destructive) { confirmRemoval = true }
+            }
+            if installer.removing {
+                Text("Removing…").foregroundStyle(.secondary)
+            } else if installer.running {
+                Button("Stop setup") { installer.stop() }
+            } else if installer.completed {
+                Button("Open Bede") {
+                    NSWorkspace.shared.open(URL(string: "https://localhost")!)
                 }
-                .disabled(installer.running || installer.removing)
-                if !installer.prepared && !installer.running && !installer.removing {
-                    Button("Check again") { installer.refresh() }
-                }
-                Spacer()
-                if installer.installed && !installer.running && !installer.removing {
-                    Button("Remove Bede", role: .destructive) { confirmRemoval = true }
-                }
-                if installer.removing {
-                    Text("Removing…").foregroundStyle(.secondary)
-                } else if installer.running {
-                    Button("Stop setup") { installer.stop() }
-                } else if installer.completed {
-                    Button("Open Bede") {
-                        NSWorkspace.shared.open(URL(string: "https://localhost")!)
-                    }
+                .buttonStyle(.borderedProminent)
+                .tint(green)
+            } else {
+                Button("Install Bede") { installer.begin() }
                     .buttonStyle(.borderedProminent)
                     .tint(green)
-                } else {
-                    Button("Install Bede") { installer.begin() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(green)
-                        .disabled(!installer.prepared || installer.removing)
-                }
-                if !installer.running && !installer.removing && !installer.completed {
-                    Button("Support report") { installer.openSupport() }
-                }
+                    .disabled(!installer.prepared || installer.removing)
             }
+            if !installer.running && !installer.removing && !installer.completed {
+                Button("Support report") { installer.openSupport() }
+            }
+        }
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 19) {
+            headerSection
+            contextSection
+            stagesSection
+            statusSection
+            Spacer(minLength: 4)
+            actionsSection
         }
         .padding(28)
         .background(cream)

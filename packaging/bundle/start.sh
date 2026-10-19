@@ -76,7 +76,11 @@ case "$actual_arch" in x86_64|amd64) actual_arch=amd64 ;; aarch64|arm64) actual_
 [[ -f compose.yaml && -f Caddyfile ]] || fail "Installation manifest is incomplete."
 progress "Checking this Mac" done "Mac checks complete"
 phase="image-import"
-progress "Preparing Bede" working "Loading installation files"
+if [[ -f images.tar || -f images.tar.zst ]]; then
+  progress "Preparing Bede" working "Loading the Bede container images"
+else
+  progress "Preparing Bede" working "Downloading verified Bede container images"
+fi
 if [[ -f images.tar ]]; then
   docker load -i images.tar >/dev/null
 elif [[ -f images.tar.zst ]]; then
@@ -91,7 +95,7 @@ else
     docker tag "${image}@${digest}" "$image" || fail "Unable to tag verified image: $image"
   done < IMAGE_DIGESTS
 fi
-progress "Preparing Bede" done "Installation files are ready"
+progress "Preparing Bede" done "Bede container images are ready"
 phase="configuration-wizard"
 progress "Completing setup" working "Opening Bede setup in your browser"
 if [[ ! -s .env ]]; then

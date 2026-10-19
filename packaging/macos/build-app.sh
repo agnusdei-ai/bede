@@ -24,7 +24,20 @@ if [[ "$target_arch" = arm64 ]]; then target="arm64-apple-macos14.0"; else targe
 swiftc -target "$target" -parse-as-library -o "$app/Contents/MacOS/BedeInstaller" \
   "$root/packaging/macos/BedeInstallerApp.swift"
 cp "$root/packaging/macos/BedeIcon.png" "$app/Contents/Resources/BedeIcon.png"
+# Finder and Launch Services require an .icns asset, not only a PNG.
+iconset="$output/BedeInstaller.iconset"
+mkdir -p "$iconset"
+for n in 16 32 128 256 512; do
+  sips -s format png -z "$n" "$n" "$root/packaging/macos/BedeIcon.png" --out "$iconset/icon_${n}x${n}.png" >/dev/null
+  if [[ "$n" -lt 512 ]]; then
+    double=$((n * 2))
+    sips -s format png -z "$double" "$double" "$root/packaging/macos/BedeIcon.png" --out "$iconset/icon_${n}x${n}@2x.png" >/dev/null
+  fi
+done
+iconutil -c icns "$iconset" -o "$app/Contents/Resources/BedeInstaller.icns"
+rm -rf "$iconset"
 ditto "$payload" "$app/Contents/Resources/bede-operator"
+install -m 755 "$root/packaging/macos/uninstall.sh" "$app/Contents/Resources/BedeUninstall.sh"
 # Legacy .command launchers are not distributed in the native Mac app.
 rm -f "$app/Contents/Resources/bede-operator/Install-Bede.command" \
   "$app/Contents/Resources/bede-operator/Verify-Bede.command"
@@ -37,6 +50,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Bede Installer</string>
 <key>CFBundleDisplayName</key><string>Bede Installer</string>
 <key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleIconFile</key><string>BedeInstaller.icns</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
@@ -44,5 +58,6 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 plutil -lint "$app/Contents/Info.plist"
+test -x "$app/Contents/Resources/BedeUninstall.sh"
 chmod 755 "$app/Contents/MacOS/BedeInstaller"
-echo "Built Bede Installer.app. This pilot build is not Developer ID signed or notarized."
+echo "Built branded Bede Installer.app. Signing and notarization are handled by the release workflow."

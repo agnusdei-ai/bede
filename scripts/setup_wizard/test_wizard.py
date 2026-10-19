@@ -139,7 +139,7 @@ def test_form_has_separate_cancel_button_and_license_guidance(running_wizard):
     body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
     assert '<form action="/cancel" method="post">' in body
     assert "Cancel setup for now" in body
-    assert "A valid license is required" in body
+    assert "Enter the activation code provided for your Bede pilot" in body
 
 
 def test_main_entrypoint_returns_clean_browser_cancel(tmp_path, monkeypatch):
@@ -218,8 +218,8 @@ def test_valid_local_db_submission_writes_correct_env(running_wizard):
     })
     assert resp.status == 200
     success_body = resp.read().decode()
-    assert "Saving your setup" in success_body
-    assert "192.168.1.50" in success_body
+    assert "Starting Bede" in success_body
+    assert "https://localhost" in success_body
 
     assert os.path.exists(wizard.ENV_PATH)
     env = open(wizard.ENV_PATH).read()

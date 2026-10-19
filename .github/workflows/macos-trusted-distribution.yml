@@ -1,0 +1,83 @@
+name: Bede Mac trusted distribution (manual gate)
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Bede operator workflow run that produced the Mac engineering candidate
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-character source commit SHA
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: read
+jobs:
+  developer-id-distribution:
+    name: Developer ID sign and notarize Mac candidate
+    runs-on: macos-15
+    environment: mac-trusted-distribution
+    timeout-minutes: 90
+    env:
+      APPLE_P12_B64: ${{ secrets.BEDE_APPLE_DEVELOPER_ID_P12_BASE64 }}
+      APPLE_P12_PASSWORD: ${{ secrets.BEDE_APPLE_DEVELOPER_ID_P12_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.BEDE_APPLE_TEAM_ID }}
+      APPLE_KEY_ID: ${{ secrets.BEDE_APPLE_NOTARY_KEY_ID }}
+      APPLE_ISSUER_ID: ${{ secrets.BEDE_APPLE_NOTARY_ISSUER_ID }}
+      APPLE_NOTARY_KEY: ${{ secrets.BEDE_APPLE_NOTARY_PRIVATE_KEY }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - name: Verify trusted distribution prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Source SHA must be a full commit hash"; exit 1; }
+          for field in APPLE_P12_B64 APPLE_P12_PASSWORD APPLE_TEAM_ID APPLE_KEY_ID APPLE_ISSUER_ID APPLE_NOTARY_KEY; do
+            [[ -n "${!field}" ]] || { echo "::error::Missing required Apple Developer ID or notarization secret: $field"; exit 1; }
+          done
+      - name: Download exact engineering build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: bede-mac-engineering-unnotarized-arm64-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/candidate
+      - name: Verify checksum, re-sign, notarize and assess
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate"
+          shasum -a 256 -c Bede-Engineering-Mac-arm64.dmg.sha256
+          test -s NOT_FOR_DISTRIBUTION.txt
+          mkdir -p "$RUNNER_TEMP/mounted" "$RUNNER_TEMP/signed"
+          hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/mounted" Bede-Engineering-Mac-arm64.dmg
+          ditto "$RUNNER_TEMP/mounted/Bede Installer.app" "$RUNNER_TEMP/signed/Bede Installer.app"
+          hdiutil detach "$RUNNER_TEMP/mounted"
+          printf '%s' "$APPLE_P12_B64" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security create-keychain -p "$RUNNER_TEMP" bede-release.keychain
+          security unlock-keychain -p "$RUNNER_TEMP" bede-release.keychain
+          security import "$RUNNER_TEMP/developer-id.p12" -k bede-release.keychain -P "$APPLE_P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$RUNNER_TEMP" bede-release.keychain
+          security list-keychains -d user -s bede-release.keychain
+          identity="$(security find-identity -v -p codesigning bede-release.keychain | sed -n 's/.*"\\(Developer ID Application: [^"]*\\)".*/\\1/p' | head -1)"
+          [[ -n "$identity" ]] || { echo "::error::No Developer ID Application identity"; exit 1; }
+          codesign --force --deep --options runtime --timestamp --sign "$identity" "$RUNNER_TEMP/signed/Bede Installer.app"
+          codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/signed/Bede Installer.app"
+          hdiutil create -volname "Bede Installer" -srcfolder "$RUNNER_TEMP/signed/Bede Installer.app" -ov -format UDZO "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg"
+          printf '%s' "$APPLE_NOTARY_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/developer-id.p12"
+          xcrun notarytool submit "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg" --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_KEY_ID" --issuer "$APPLE_ISSUER_ID" --wait
+          xcrun stapler staple "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg"
+          xcrun stapler validate "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg"
+          spctl --assess --type execute --verbose=2 "$RUNNER_TEMP/signed/Bede Installer.app"
+          (cd "$RUNNER_TEMP" && shasum -a 256 Bede-Trusted-Mac-arm64.dmg > Bede-Trusted-Mac-arm64.dmg.sha256)
+      - name: Upload trusted build only after Apple verification
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-trusted-mac-arm64-${{ inputs.source_sha }}
+          path: |
+            ${{ runner.temp }}/Bede-Trusted-Mac-arm64.dmg
+            ${{ runner.temp }}/Bede-Trusted-Mac-arm64.dmg.sha256
+          if-no-files-found: error
+          retention-days: 30

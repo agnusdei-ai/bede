@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'packaging/macos/**'
+      - 'packaging/tests/test_macos_uninstall_contract.py'
       - 'scripts/pilot/**'
       - 'scripts/setup_wizard/**'
       - '.github/workflows/macos-installer-ui.yml'
@@ -22,6 +23,11 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/BedeInstaller.app/Contents/MacOS"
           swiftc -parse-as-library -o "$RUNNER_TEMP/BedeInstaller.app/Contents/MacOS/BedeInstaller" packaging/macos/BedeInstallerApp.swift
+      - name: Check bundled removal tool contract
+        run: |
+          grep -F "BedeUninstall.sh" packaging/macos/build-app.sh
+          grep -F "BedeUninstall.sh" packaging/macos/BedeInstallerApp.swift
+          bash -n packaging/macos/uninstall.sh
       - name: Confirm release is NOT certified by compilation
         run: echo "Compile-only check; signed DMG, payload provisioning and physical Mac evidence remain required."
 
@@ -29,8 +35,8 @@ jobs:
     name: Verify disposable pilot license issuance
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
       - name: Prepare local Python signing dependencies
@@ -47,3 +53,18 @@ jobs:
           python -m pytest -q scripts/setup_wizard/test_wizard.py
           rm -f "$RUNNER_TEMP/bede-test-license.txt"
           git diff --check
+
+  removal-matrix:
+    name: Synthetic removal (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Verify scoped installation cleanup with mocked Docker
+        run: python -m unittest -v packaging/tests/test_macos_uninstall_contract.py

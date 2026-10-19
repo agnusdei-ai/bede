@@ -20,6 +20,71 @@ enum InstallContext: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+// Searches only conventional user install/download folders, never the entire Mac.
+// A Finder/Trash approval is required; matching names alone never causes deletion.
+enum BedeBinaryHousekeeping {
+    static func candidates() -> [URL] {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser
+        let roots: [(URL, Int)] = [
+            (home.appendingPathComponent("Downloads"), 3),
+            (home.appendingPathComponent("Desktop"), 4),
+            (home.appendingPathComponent("Applications"), 1),
+            (URL(fileURLWithPath: "/Applications"), 1)
+        ]
+        let activeApp = Bundle.main.bundleURL.standardizedFileURL.resolvingSymlinksInPath()
+        var found: [URL] = []
+        var seen = Set<String>()
+        for (root, maxDepth) in roots {
+            guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey], options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
+                continue
+            }
+            while let url = walker.nextObject() as? URL {
+                let depth = url.pathComponents.count - root.pathComponents.count
+                if depth > maxDepth { walker.skipDescendants(); continue }
+                let props = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+                if props?.isSymbolicLink == true { walker.skipDescendants(); continue }
+                if url.pathExtension == "app" { walker.skipDescendants() }
+                let name = url.lastPathComponent.lowercased()
+                let isDmg = url.pathExtension.lowercased() == "dmg" &&
+                    (name == "bede-pilot-mac-arm64.dmg" || name == "bede-pilot-mac-amd64.dmg")
+                let isApp = url.pathExtension.lowercased() == "app" &&
+                    (Bundle(url: url)?.bundleIdentifier == "ai.agnusdei.bede.installer")
+                guard isDmg || isApp else { continue }
+                if url.standardizedFileURL.resolvingSymlinksInPath() == activeApp { continue }
+                let key = url.standardizedFileURL.path
+                if seen.insert(key).inserted { found.append(url) }
+            }
+        }
+        return found.sorted { $0.path < $1.path }
+    }
+
+    static func moveToTrash(_ files: [URL]) -> (retired: Int, failures: [String]) {
+        let fm = FileManager.default
+        var retired = 0
+        var failures: [String] = []
+        for url in files {
+            // Revalidate at deletion time: refuse symlinks and any running app.
+            let props = try? url.resourceValues(forKeys: [.isSymbolicLinkKey])
+            if props?.isSymbolicLink == true || url.standardizedFileURL.resolvingSymlinksInPath() == Bundle.main.bundleURL.standardizedFileURL.resolvingSymlinksInPath() {
+                failures.append("Skipped protected installer: \(url.lastPathComponent)")
+                continue
+            }
+            let isApp = url.pathExtension.lowercased() == "app" && Bundle(url: url)?.bundleIdentifier == "ai.agnusdei.bede.installer"
+            let isDmg = ["bede-pilot-mac-arm64.dmg", "bede-pilot-mac-amd64.dmg"].contains(url.lastPathComponent.lowercased())
+            guard isApp || isDmg else { continue }
+            do {
+                var result: NSURL?
+                try fm.trashItem(at: url, resultingItemURL: &result)
+                retired += 1
+            } catch {
+                failures.append("Could not move \(url.lastPathComponent) to Trash.")
+            }
+        }
+        return (retired, failures)
+    }
+}
+
 struct MacCheck {
     let architecture: String
     let memoryGiB: Int
@@ -66,6 +131,9 @@ final class InstallerController: ObservableObject {
     @Published var current: SetupStage = .requirements
     @Published var finished = Set<SetupStage>()
     @Published var running = false
+    @Published var removing = false
+    @Published var removalError: String? = nil
+    @Published var oldInstallers: [URL] = []
     @Published var completed = false
     @Published var stopped = false
     @Published var message = "Bede will guide you through the installation."
@@ -106,6 +174,92 @@ final class InstallerController: ObservableObject {
         }
         return base.appendingPathComponent("Homeschool", isDirectory: true)
             .appendingPathComponent("local", isDirectory: true)
+    }
+
+    var installed: Bool {
+        FileManager.default.fileExists(atPath: installationDirectory.appendingPathComponent("bede-operator/RELEASE").path)
+    }
+
+    func removeInstallation() {
+        guard !running && !removing && installed && validContext else { return }
+        guard let script = Bundle.main.resourceURL?.appendingPathComponent("BedeUninstall.sh"),
+              FileManager.default.fileExists(atPath: script.path) else {
+            removalError = "Removal tools are missing from this installer. Please use an updated Bede installer."
+            return
+        }
+        removalError = nil
+        removing = true
+        message = "Removing Bede services and their saved data..."
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/bash")
+        task.arguments = [script.path, context == .campus ? "campus" : "homeschool", context == .campus ? campusID : ""]
+        task.environment = Self.commandEnvironment()
+        let output = Pipe()
+        let errors = Pipe()
+        task.standardOutput = output
+        task.standardError = errors
+        task.terminationHandler = { [weak self] ended in
+            let diagnostic = String(decoding: errors.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.removing = false
+                self.completed = false
+                self.finished = []
+                self.current = .requirements
+                if ended.terminationStatus == 0 {
+                    self.message = "Bede was removed from this Mac. You can install it again."
+                } else {
+                    self.message = "Bede could not be completely removed."
+                    self.removalError = diagnostic.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Removal stopped. Check Docker Desktop and retry." :
+                        String(diagnostic.suffix(1400))
+                }
+            }
+        }
+        do {
+            try task.run()
+        } catch {
+            removing = false
+            removalError = "Could not start removal. Please verify the installer is complete."
+        }
+    }
+
+    func scanOldInstallers() {
+        guard !running && !removing else { return }
+        oldInstallers = BedeBinaryHousekeeping.candidates()
+    }
+
+    func retireOldInstallers() {
+        guard !running && !removing else { return }
+        let selected = oldInstallers
+        let result = BedeBinaryHousekeeping.moveToTrash(selected)
+        oldInstallers = BedeBinaryHousekeeping.candidates()
+        if !result.failures.isEmpty {
+            removalError = result.failures.joined(separator: "\n")
+            message = "Some previous installer copies require attention."
+        } else {
+            removalError = nil
+            message = "\(result.retired) previous installer copy/copies moved to Trash."
+        }
+    }
+
+    func reconcileInstallationState() {
+        guard !running && !removing else { return }
+        check = MacCheck.inspect()
+        oldInstallers = BedeBinaryHousekeeping.candidates()
+        // A previously successful UI session is not evidence that the
+        // containers or data still exist after external Docker cleanup.
+        if !installed {
+            completed = false
+            finished = []
+            current = .requirements
+            removalError = nil
+            message = "Bede is not installed for this location. You can install it now."
+        } else if completed && !check.dockerReady {
+            completed = false
+            finished = []
+            message = "Bede is installed, but Docker is not running. Start Docker and check again."
+        }
     }
 
     var bundleDirectory: URL? {
@@ -242,8 +396,8 @@ final class InstallerController: ObservableObject {
     }
 
     func refresh() {
-        check = MacCheck.inspect()
-        message = prepared ? "This Mac is ready." : "Review the requirements below."
+        reconcileInstallationState()
+        if installed { message = "Bede installation files detected. Verify the running service before using Bede." }
     }
 
     func openSupport() {
@@ -254,117 +408,175 @@ final class InstallerController: ObservableObject {
 
 struct InstallerView: View {
     @StateObject private var installer = InstallerController()
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var confirmRemoval = false
+    @State private var confirmHousekeeping = false
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 19) {
-            HStack(alignment: .center, spacing: 16) {
-                if let image = Bundle.main.url(forResource: "BedeIcon", withExtension: "png"),
-                   let icon = NSImage(contentsOf: image) {
-                    Image(nsImage: icon)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .clipShape(RoundedRectangle(cornerRadius: 13))
-                        .accessibilityLabel("Bede")
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Welcome to Bede").font(.system(size: 29, weight: .semibold, design: .serif))
-                    Text("Prepare Bede for your pilot on this Mac.")
-                        .foregroundStyle(.secondary)
-                }
+    @ViewBuilder private var headerSection: some View {
+        HStack(alignment: .center, spacing: 16) {
+            if let image = Bundle.main.url(forResource: "BedeIcon", withExtension: "png"),
+               let icon = NSImage(contentsOf: image) {
+                Image(nsImage: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 13))
+                    .accessibilityLabel("Bede")
             }
-            Divider()
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Install for").font(.headline)
-                Picker("Install for", selection: $installer.context) {
-                    ForEach(InstallContext.allCases) { item in
-                        Text(item.rawValue).tag(item)
-                    }
-                }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
-                if installer.context == .campus {
-                    TextField("Campus ID", text: $installer.campusID)
-                        .textFieldStyle(.roundedBorder)
-                        .disabled(installer.running || installer.completed)
-                    Text("Use the campus ID printed with your pilot license.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome to Bede").font(.system(size: 29, weight: .semibold, design: .serif))
+                Text("Prepare Bede for your pilot on this Mac.")
+                    .foregroundStyle(.secondary)
             }
-            Text(installer.completed ? "Bede is ready" : "Installation")
-                .font(.title3.weight(.semibold))
-            VStack(alignment: .leading, spacing: 13) {
-                ForEach(SetupStage.allCases) { stage in
-                    HStack(spacing: 11) {
-                        if installer.finished.contains(stage) {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(green)
-                        } else if installer.running && installer.current == stage {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Image(systemName: "circle").foregroundStyle(.secondary)
-                        }
-                        Text(stage.rawValue)
-                            .foregroundStyle(installer.finished.contains(stage) || installer.current == stage
-                                ? .primary : .secondary)
-                        Spacer()
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-            }
-            .padding(18)
-            .background(.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 14))
+        }
+        Divider()
+    }
 
-            if installer.running {
-                ProgressView().progressViewStyle(.linear)
-                    .accessibilityLabel("Installation in progress")
+    private var contextSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Install for").font(.headline)
+            Picker("Install for", selection: $installer.context) {
+                ForEach(InstallContext.allCases) { item in
+                    Text(item.rawValue).tag(item)
+                }
+            }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
+            if installer.context == .campus {
+                TextField("Campus ID", text: $installer.campusID)
+                    .textFieldStyle(.roundedBorder)
+                    .disabled(installer.running || installer.completed)
+                Text("Use the campus ID printed with your pilot license.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
+        }
+    }
 
-            Text(installer.message)
-                .foregroundStyle(installer.completed ? green : .secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if installer.details || !installer.prepared {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Mac: \(installer.check.architecture)")
-                    Text("Memory: \(installer.check.memoryGiB) GB")
-                    Text("Free space: \(installer.check.diskGiB) GB")
-                    Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 4)
-            HStack {
-                Button(installer.details ? "Hide Mac details" : "Mac details") {
-                    installer.details.toggle()
-                }
-                .disabled(installer.running)
-                if !installer.prepared && !installer.running {
-                    Button("Check again") { installer.refresh() }
-                }
-                Spacer()
-                if installer.running {
-                    Button("Stop setup") { installer.stop() }
-                } else if installer.completed {
-                    Button("Open Bede") {
-                        NSWorkspace.shared.open(URL(string: "https://localhost")!)
+    @ViewBuilder private var stagesSection: some View {
+        Text(installer.completed ? "Bede is ready" : "Installation")
+            .font(.title3.weight(.semibold))
+        VStack(alignment: .leading, spacing: 13) {
+            ForEach(SetupStage.allCases) { stage in
+                HStack(spacing: 11) {
+                    if installer.finished.contains(stage) {
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(green)
+                    } else if installer.running && installer.current == stage {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "circle").foregroundStyle(.secondary)
                     }
+                    Text(stage.rawValue)
+                        .foregroundStyle(installer.finished.contains(stage) || installer.current == stage
+                            ? .primary : .secondary)
+                    Spacer()
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(18)
+        .background(.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    @ViewBuilder private var statusSection: some View {
+        if installer.running || installer.removing {
+            ProgressView().progressViewStyle(.linear)
+                .accessibilityLabel("Installation in progress")
+        }
+
+        Text(installer.message)
+            .foregroundStyle(installer.completed ? green : .secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+        if let error = installer.removalError {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Removal needs attention").font(.headline)
+                Text(error).font(.caption).textSelection(.enabled)
+            }
+            .foregroundStyle(.red)
+        }
+
+        if installer.details || !installer.prepared {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Mac: \(installer.check.architecture)")
+                Text("Memory: \(installer.check.memoryGiB) GB")
+                Text("Free space: \(installer.check.diskGiB) GB")
+                Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private var actionsSection: some View {
+        HStack {
+            Button(installer.details ? "Hide Mac details" : "Mac details") {
+                installer.details.toggle()
+            }
+            .disabled(installer.running || installer.removing)
+            if !installer.prepared && !installer.running && !installer.removing {
+                Button("Check again") { installer.refresh() }
+            }
+            Spacer()
+            if !installer.running && !installer.removing {
+                Button("Find old installers") {
+                    installer.scanOldInstallers()
+                    if !installer.oldInstallers.isEmpty { confirmHousekeeping = true }
+                    else { installer.message = "No previous Bede installer copies found." }
+                }
+            }
+            if installer.installed && !installer.running && !installer.removing {
+                Button("Remove Bede", role: .destructive) { confirmRemoval = true }
+            }
+            if installer.removing {
+                Text("Removing…").foregroundStyle(.secondary)
+            } else if installer.running {
+                Button("Stop setup") { installer.stop() }
+            } else if installer.completed {
+                Button("Open Bede") {
+                    NSWorkspace.shared.open(URL(string: "https://localhost")!)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(green)
+            } else {
+                Button("Install Bede") { installer.begin() }
                     .buttonStyle(.borderedProminent)
                     .tint(green)
-                } else {
-                    Button("Install Bede") { installer.begin() }
-                        .buttonStyle(.borderedProminent)
-                        .tint(green)
-                        .disabled(!installer.prepared)
-                }
-                if !installer.running && !installer.completed {
-                    Button("Support report") { installer.openSupport() }
-                }
+                    .disabled(!installer.prepared || installer.removing)
             }
+            if !installer.running && !installer.removing && !installer.completed {
+                Button("Support report") { installer.openSupport() }
+            }
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 19) {
+            headerSection
+            contextSection
+            stagesSection
+            statusSection
+            Spacer(minLength: 4)
+            actionsSection
         }
         .padding(28)
         .background(cream)
         .frame(width: 620, height: 700)
+        .onAppear { installer.reconcileInstallationState() }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active { installer.reconcileInstallationState() }
+        }
+        .alert("Previous Bede installers found", isPresented: $confirmHousekeeping) {
+            Button("Keep copies", role: .cancel) { }
+            Button("Move copies to Trash") { installer.retireOldInstallers() }
+        } message: {
+            Text("\(installer.oldInstallers.count) older Bede installer file(s) found in Downloads, Desktop, or Applications. Only matching Bede installer apps and DMGs will be retired; this running app and Bede's installed data are preserved.\n\n" + installer.oldInstallers.prefix(8).map(\.path).joined(separator: "\n"))
+        }
+        .alert("Permanently remove Bede?", isPresented: $confirmRemoval) {
+            Button("Cancel", role: .cancel) { }
+            Button("Remove Bede and its data", role: .destructive) { installer.removeInstallation() }
+        } message: {
+            Text("This permanently removes the selected Bede installation, its local learning records, containers, and certificates associated with this installation. Other Docker apps and your separately stored installer and license are preserved.")
+        }
     }
 }
 

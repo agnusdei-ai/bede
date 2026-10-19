@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import {
-  deletePilotLearner, fetchEducatorPilotMode, fetchPilotDeletionReceipts,
+  deletePilotLearner, disablePilotOwnerCampus, fetchEducatorPilotMode, fetchPilotDeletionReceipts,
   fetchPilotOwnerCampuses, fetchPilotOwnerLearners,
 } from '../services/api'
 import type { PilotDeletionReceipt, PilotOwnerCampus, PilotOwnerLearner } from '../services/api'
@@ -111,6 +111,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
   const [learners, setLearners] = useState<PilotOwnerLearner[]>([])
   const [learnerId, setLearnerId] = useState('')
   const [confirmName, setConfirmName] = useState('')
+  const [confirmCampusName, setConfirmCampusName] = useState('')
   const [receipt, setReceipt] = useState<{ name: string; data: PilotDeletionReceipt } | null>(null)
   const [receipts, setReceipts] = useState<PilotDeletionReceipt[]>([])
   const [busy, setBusy] = useState(false)
@@ -136,7 +137,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
   }
 
   useEffect(() => {
-    if (!open || !campusId) return
+    if (!open || !campusId || campuses.find(c => c.campus_id === campusId)?.enabled === false) return
     void run(async () => {
       const ls = await fetchPilotOwnerLearners(token, campusId)
       setLearners(ls); setLearnerId(ls[0]?.learner_id ?? '')
@@ -145,12 +146,30 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
       notFound: 'This campus may have been disabled or removed. Refresh the page to see the current list.',
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, campusId, token])
+  }, [open, campusId, token, campuses])
 
   useEffect(() => { setConfirmName('') }, [learnerId])
+  useEffect(() => { setConfirmCampusName('') }, [campusId])
 
   if (!enabled) return null
   const learner = learners.find(l => l.learner_id === learnerId)
+  const selectedCampus = campuses.find(c => c.campus_id === campusId)
+
+  const stopCampus = () => run(async () => {
+    if (!selectedCampus || !selectedCampus.enabled) return
+    await disablePilotOwnerCampus(token, selectedCampus.campus_id, confirmCampusName)
+    setCampuses(prev => prev.map(c => c.campus_id === campusId ? { ...c, enabled: false } : c))
+    setLearners([])
+    setLearnerId('')
+    setConfirmCampusName('')
+    setNotice('This pilot campus is disabled. Educator access was revoked. Learner records remain stored; no learner data was erased.')
+  }, e => describeFailure(e, {
+    action: 'disable this pilot campus',
+    forbidden: PASSKEY_NEEDED,
+    invalid: 'The campus name did not match. Nothing was disabled.',
+    notFound: 'This campus is already disabled or unavailable. Refresh the page to confirm.',
+    server: 'Check the campus status before trying again. No completion was confirmed.',
+  }))
 
   const remove = () => run(async () => {
     if (!learner) return
@@ -193,18 +212,42 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
           ? (!busy && !error && <p className="text-sm text-gray-500">There are no pilot campuses yet.</p>)
           : <label className="block text-sm">Campus
               <select className={field + ' mt-1'} value={campusId} onChange={e => setCampusId(e.target.value)}>
-                {campuses.map(c => <option key={c.campus_id} value={c.campus_id}>{c.title}</option>)}
+                {campuses.map(c => <option key={c.campus_id} value={c.campus_id}>{c.title}{c.enabled ? '' : ' (disabled)'}</option>)}
               </select>
             </label>}
-        {campusId && learners.length === 0 && !busy && !error &&
+        {selectedCampus && selectedCampus.enabled && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2">
+            <h3 className="text-sm font-semibold text-navy-800">Stop this pilot campus</h3>
+            <p className="text-xs text-gray-700">
+              Stops educator access to this campus and revokes assignments and current sessions.
+              The campus stays disabled until separately reviewed. Learner records are preserved.
+              Other campuses remain available. This requires your administrator passkey.
+            </p>
+            <label className="block text-sm">Type the campus name <strong>{selectedCampus.title}</strong> to stop access
+              <input className={field + ' mt-1'} value={confirmCampusName}
+                autoComplete="off" onChange={e => setConfirmCampusName(e.target.value)} />
+            </label>
+            <button type="button" disabled={busy || confirmCampusName.trim() !== selectedCampus.title}
+              onClick={() => void stopCampus()}
+              className="rounded-lg border border-amber-700 px-4 py-2 text-sm font-medium text-amber-950 disabled:opacity-40">
+              Disable campus access
+            </button>
+          </div>
+        )}
+        {selectedCampus && !selectedCampus.enabled && (
+          <p role="status" className="text-sm text-amber-950">
+            Campus disabled. All learner records are retained and educator access is stopped.
+          </p>
+        )}
+        {selectedCampus?.enabled && campusId && learners.length === 0 && !busy && !error &&
           <p className="text-sm text-gray-500">This campus has no pilot learners.</p>}
-        {learners.length > 0 && <label className="block text-sm">Learner
+        {selectedCampus?.enabled && learners.length > 0 && <label className="block text-sm">Learner
           <select className={field + ' mt-1'} value={learnerId} onChange={e => setLearnerId(e.target.value)}>
             {learners.map(l => <option key={l.learner_id} value={l.learner_id}>{l.display_name}</option>)}
           </select>
         </label>}
 
-        {learner && (
+        {selectedCampus?.enabled && learner && (
           <div className="rounded-xl border border-gray-300 p-3 space-y-2">
             <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-900">
               <Trash2 size={16} aria-hidden="true"/> Delete {learner.display_name}'s active pilot records

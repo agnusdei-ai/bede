@@ -327,7 +327,7 @@ struct InstallerView: View {
     private let green = Color(red: 0.29, green: 0.38, blue: 0.32)
     private let cream = Color(red: 0.97, green: 0.95, blue: 0.92)
 
-    private var headerSection: some View {
+    @ViewBuilder private var headerSection: some View {
         HStack(alignment: .center, spacing: 16) {
             if let image = Bundle.main.url(forResource: "BedeIcon", withExtension: "png"),
                let icon = NSImage(contentsOf: image) {
@@ -365,7 +365,7 @@ struct InstallerView: View {
         }
     }
 
-    private var stagesSection: some View {
+    @ViewBuilder private var stagesSection: some View {
         Text(installer.completed ? "Bede is ready" : "Installation")
             .font(.title3.weight(.semibold))
         VStack(alignment: .leading, spacing: 13) {
@@ -390,7 +390,7 @@ struct InstallerView: View {
         .background(.white.opacity(0.80), in: RoundedRectangle(cornerRadius: 14))
     }
 
-    private var statusSection: some View {
+    @ViewBuilder private var statusSection: some View {
         if installer.running || installer.removing {
             ProgressView().progressViewStyle(.linear)
                 .accessibilityLabel("Installation in progress")
@@ -452,7 +452,6 @@ struct InstallerView: View {
             if !installer.running && !installer.removing && !installer.completed {
                 Button("Support report") { installer.openSupport() }
             }
-        }
         }
     }
 

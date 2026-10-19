@@ -99,6 +99,7 @@ class AuditEvent:
     PILOT_GRANT_APPROVED       = "pilot.roster_grant_approved"
     PILOT_GRANT_REVOKED        = "pilot.roster_grant_revoked"
     PILOT_MEMBERSHIP_DISABLED  = "pilot.campus_membership_disabled"
+    PILOT_CAMPUS_DISABLED      = "pilot.campus_disabled"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

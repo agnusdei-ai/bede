@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   fetchPilotDeletionReceipts: vi.fn(),
   fetchPilotOwnerLearners: vi.fn(),
   deletePilotLearner: vi.fn(),
+  disablePilotOwnerCampus: vi.fn(),
 }))
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(),
@@ -75,6 +76,43 @@ describe('PilotOwnerPanel', () => {
       expect(text).not.toMatch(s)
     }
     expect(screen.queryByRole('button', { name: /save plan|teach|start session|deliver/i })).toBeNull()
+  })
+
+  it('requires the exact selected campus name before a deliberate pilot stop', async () => {
+    api.disablePilotOwnerCampus.mockResolvedValue({
+      campus_id: C, status: 'disabled', memberships_disabled: 1,
+      grants_revoked: 1, prior_educator_sessions_invalidated: true,
+      learner_records_preserved: true,
+    })
+    render(<PilotOwnerPanel token="t"/>)
+    await openPanel()
+    const stop = screen.getByRole('button', { name: 'Disable campus access' }) as HTMLButtonElement
+    expect(stop.disabled).toBe(true)
+    const typed = screen.getByLabelText(/Type the campus name/)
+    fireEvent.change(typed, { target: { value: 'Synthetic Campus' } })
+    expect(stop.disabled).toBe(true)
+    fireEvent.change(typed, { target: { value: 'Synthetic Campus One' } })
+    expect(stop.disabled).toBe(false)
+    fireEvent.click(stop)
+    await waitFor(() => expect(api.disablePilotOwnerCampus).toHaveBeenCalledWith(
+      't', C, 'Synthetic Campus One'))
+    expect(await screen.findByText(/learner records are retained and educator access is stopped/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Disable campus access' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete these records' })).toBeNull()
+  })
+
+  it('does not mark a campus disabled if administrator authorization fails', async () => {
+    api.disablePilotOwnerCampus.mockRejectedValue(
+      new ApiRequestError(403, 'Verified administrator passkey required'))
+    render(<PilotOwnerPanel token="t"/>)
+    await openPanel()
+    fireEvent.change(screen.getByLabelText(/Type the campus name/),
+      { target: { value: 'Synthetic Campus One' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Disable campus access' }))
+    await waitFor(() => expect(api.disablePilotOwnerCampus).toHaveBeenCalledTimes(1))
+    expect((await screen.findByRole('alert')).textContent).toMatch(/administrator passkey/)
+    expect(screen.getByRole('button', { name: 'Disable campus access' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Delete these records' })).toBeTruthy()
   })
 
   it('deletes only after the exact name is typed', async () => {

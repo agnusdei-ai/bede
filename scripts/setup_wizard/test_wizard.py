@@ -694,7 +694,7 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
     generated = wizard.build_env_file(fields)
     assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\n" in generated
     assert "EDUCATOR_PILOT_ENABLED=true\n" in generated
-    assert "LICENSE_KEY=local-unit-test-not-a-signed-license\n" in generated
+    assert ("LICENSE_KEY=" + fields["license_key"] + "\n") in generated
     from pathlib import Path
     compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
     assert "- BEDE_LOCATION_ID=${BEDE_LOCATION_ID:-}" in compose
@@ -730,3 +730,21 @@ def test_wizard_waits_for_native_certificate_approval(running_wizard):
     html = wizard.render_success()
     assert 'href="https://localhost"' not in html
     assert "native installer verifies certificate trust" in html
+
+def test_expired_pilot_entitlement_has_actionable_error():
+    error = wizard.license_preflight_error(
+        make_synthetic_entitlement(expiry="2025-01-01"), "homeschool", ""
+    )
+    assert "expired on 2025-01-01" in error
+
+def test_wrong_campus_entitlement_is_rejected():
+    error = wizard.license_preflight_error(
+        make_synthetic_entitlement(tier="campus_location", location="elsewhere"),
+        "campus", "approved-campus"
+    )
+    assert "different campus" in error
+
+def test_invalid_entitlement_is_rejected():
+    assert "format is invalid" in wizard.license_preflight_error(
+        "not-an-entitlement", "homeschool", ""
+    )

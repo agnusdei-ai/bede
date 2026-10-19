@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Bede native macOS runtime provenance",
+  "type": "object",
+  "required": [
+    "source_sha",
+    "architecture",
+    "components",
+    "sha256",
+    "signature_status",
+    "pilot_go"
+  ],
+  "properties": {
+    "source_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "architecture": {
+      "const": "arm64"
+    },
+    "components": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string"
+      }
+    },
+    "sha256": {
+      "type": "object"
+    },
+    "signature_status": {
+      "enum": [
+        "verified"
+      ]
+    },
+    "pilot_go": {
+      "const": "HOLD"
+    }
+  },
+  "additionalProperties": false
+}

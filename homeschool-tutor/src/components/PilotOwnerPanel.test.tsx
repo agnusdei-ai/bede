@@ -96,7 +96,7 @@ describe('PilotOwnerPanel', () => {
     fireEvent.click(stop)
     await waitFor(() => expect(api.disablePilotOwnerCampus).toHaveBeenCalledWith(
       't', C, 'Synthetic Campus One'))
-    expect(await screen.findByText(/Learner records are retained and educator access is stopped/)).toBeTruthy()
+    expect(await screen.findByText(/learner records are retained and educator access is stopped/i)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Disable campus access' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Delete these records' })).toBeNull()
   })

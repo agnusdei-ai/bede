@@ -73,6 +73,7 @@ GUARDS = {
     ('GET', '/pilot/me/learners/{learner_id}/instruction'): 'require_educator',
     ('GET', '/pilot/owner/campuses'): 'require_elevated_parent',
     ('GET', '/pilot/owner/campuses/{campus_id}/learners'): 'require_elevated_parent',
+    ('POST', '/pilot/owner/campuses/{campus_id}/disable'): 'require_elevated_parent',
     ('POST', '/pilot/owner/campuses/{campus_id}/learners/{learner_id}/delete'): 'require_elevated_parent',
     ('GET', '/pilot/owner/deletion-receipts'): 'require_elevated_parent',
     ('GET', '/pilot/me/learners/{learner_id}/diagnostic'): 'require_educator',

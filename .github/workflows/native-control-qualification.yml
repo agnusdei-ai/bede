@@ -1,0 +1,48 @@
+name: Native macOS control qualification
+on:
+  pull_request:
+    paths:
+      - 'packaging/macos/native/**'
+      - 'packaging/macos/BedeInstallerApp.swift'
+      - '.github/workflows/native-control-qualification.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/macos/native/**'
+      - 'packaging/macos/BedeInstallerApp.swift'
+      - '.github/workflows/native-control-qualification.yml'
+permissions:
+  contents: read
+jobs:
+  native-control:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Compile native executable
+        run: |
+          set -euo pipefail
+          swiftc -target arm64-apple-macos14.0 -parse-as-library packaging/macos/native/BedeNativeControl.swift -o /tmp/bede-native-control
+          test -x /tmp/bede-native-control
+      - name: Synthetic campus provisioning and error journeys
+        run: |
+          set -euo pipefail
+          export BEDE_NATIVE_TEST_ROOT="$(mktemp -d)"
+          trap 'rm -rf "$BEDE_NATIVE_TEST_ROOT"' EXIT
+          /tmp/bede-native-control provision campus-alpha > /tmp/bede-alpha.json
+          /tmp/bede-native-control provision campus-beta > /tmp/bede-beta.json
+          /tmp/bede-native-control status campus-alpha > /tmp/bede-status.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open('/tmp/bede-status.json'))
+          assert a['campusID']=='campus-alpha'
+          assert a['architecture']=='native-macos'
+          assert a['pilotGO']=='HOLD'
+          PY
+          if /tmp/bede-native-control provision campus-alpha; then echo 'duplicate campus was allowed' >&2; exit 1; fi
+          if /tmp/bede-native-control provision ../escape; then echo 'path traversal was allowed' >&2; exit 1; fi
+          if /tmp/bede-native-control status missing-campus; then echo 'missing campus was allowed' >&2; exit 1; fi
+          /tmp/bede-native-control status campus-beta > /dev/null
+          python3 packaging/tests/test_macos_architecture_selection.py
+      - name: Scope declaration
+        run: echo 'Control-plane provisioning only. API, inference, teacher UI, signed payload and physical G1/G2/G3 are NOT qualified.'

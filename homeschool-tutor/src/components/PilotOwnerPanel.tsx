@@ -146,7 +146,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
       notFound: 'This campus may have been disabled or removed. Refresh the page to see the current list.',
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, campusId, token, campuses])
+  }, [open, campusId, token])
 
   useEffect(() => { setConfirmName('') }, [learnerId])
   useEffect(() => { setConfirmCampusName('') }, [campusId])

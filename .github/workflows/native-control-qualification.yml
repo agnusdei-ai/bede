@@ -50,6 +50,7 @@ jobs:
           /tmp/bede-native-control status campus-alpha > /dev/null
           /tmp/bede-native-control status campus-beta > /dev/null
           python3 packaging/tests/test_macos_architecture_selection.py
+          python3 -m unittest discover -s packaging/tests -p 'test_native_supervisor.py' -v
       - name: Compile synthetic native diagnostic service
         run: |
           set -euo pipefail

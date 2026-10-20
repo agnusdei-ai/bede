@@ -17,7 +17,9 @@ struct NativeSmokeService {
             fputs("BEDE_NATIVE_ERROR: specify a nonzero local port\n", stderr)
             exit(2)
         }
-        let listener = try NWListener(using: .tcp, on: endpoint)
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: endpoint)
+        let listener = try NWListener(using: parameters)
         listener.service = nil
         listener.newConnectionHandler = { connection in
             connection.start(queue: .global(qos: .utility))

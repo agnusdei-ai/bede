@@ -170,11 +170,116 @@
   .bede-theme .classical-kicker,
   .bede-theme .classical-principles,
   .bede-theme .stage-label {
-    font-size: 0.68rem;
-    line-height: 1.55;
-    letter-spacing: 0.07em;
-    overflow-wrap: anywhere;
+    font-size: 0.78rem;
+    line-height: 1.65;
+    letter-spacing: 0.06em;
+    overflow-wrap: break-word;
   }
+  /* Separate the label, title, and explanation at narrow iPhone widths.
+     Keep the hero's light-on-dark colors distinct from paper sections. */
+  .bede-theme .classical-kicker {
+    margin: 0 0 1.25rem;
+    color: #efdbad;
+  }
+  .bede-theme .classical-hero h1 { margin: 0 0 1.4rem; }
+  .bede-theme .classical-hero-copy > p:not(.classical-kicker):not(.hero-footnote) {
+    margin: 0 0 1.5rem;
+    color: #fbf8f1;
+  }
+  .bede-theme .classical-hero-copy .hero-footnote {
+    margin: 1.25rem 0 0;
+    color: #f0ece3;
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+  .bede-theme .classical-section-heading .eyebrow,
+  .bede-theme .classical-path-copy .eyebrow,
+  .bede-theme .bede-family-trial__copy .eyebrow,
+  .bede-theme .bede-outcomes__guidance .eyebrow,
+  .bede-theme .school-kicker,
+  .bede-theme .stage-label {
+    margin: 0 0 0.9rem;
+    color: #654b25;
+    font-size: 0.78rem;
+    line-height: 1.65;
+  }
+  .bede-theme .classical-section-heading h2 {
+    margin: 0 0 1.1rem;
+  }
+  .bede-theme .classical-section-heading > p:not(.eyebrow) {
+    margin-top: 0;
+    color: #364650;
+  }
+  .bede-theme .classical-nav a,
+  .bede-theme .footer-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    font-size: 0.82rem;
+  }
+  .bede-theme :where(p, li, dd, blockquote) {
+    -webkit-hyphens: none;
+    hyphens: none;
+  }
+  .bede-theme .classical-header {
+    gap: 1rem;
+    padding: 1rem 1.25rem 0.85rem;
+  }
+  .bede-theme .classical-brand small {
+    margin-top: 0.2rem;
+    color: #45545e;
+    font-size: 0.62rem;
+    letter-spacing: 0.2em;
+  }
+  .bede-theme .classical-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.75rem;
+    width: 100%;
+    padding-top: 0.55rem;
+    border-top: 1px solid var(--bede-rule);
+  }
+  .bede-theme .classical-nav a {
+    min-width: 0;
+    padding: 0.65rem 0;
+    gap: 0.35rem;
+    line-height: 1.4;
+  }
+  .bede-theme .classical-nav .nav-demo {
+    border-bottom: 0;
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .bede-theme footer {
+    padding: 1.75rem 1.25rem;
+    padding-bottom: max(1.75rem, env(safe-area-inset-bottom));
+    text-align: left;
+  }
+  .bede-theme .footer-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.3rem 1.25rem;
+    margin: 0 0 1.5rem;
+  }
+  .bede-theme .footer-links a {
+    min-width: 0;
+    padding-block: 0.45rem;
+    line-height: 1.5;
+    color: #fbf8f1;
+    text-decoration-thickness: 1px;
+  }
+  .bede-theme .footer-copyright {
+    max-width: 36ch;
+    margin: 0;
+    padding-top: 1rem;
+    border-top: 1px solid #657078;
+    color: #f0ece3;
+    font-size: 0.8rem;
+    line-height: 1.65;
+    text-wrap: balance;
+  }
+  .bede-theme main > .bede-family-trial { padding-block: 2rem; }
   .bede-theme .classical-principles { gap: 0.7rem 1rem; }
   .bede-theme .classical-principles span { line-height: 1.5; }
   .bede-theme .classical-path { min-width: 0; }

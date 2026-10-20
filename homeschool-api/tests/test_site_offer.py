@@ -1,11 +1,8 @@
 """The home page's membership chooser states facts that live elsewhere.
 
-`site/index.html`'s #membership section publishes prices, a trial length, a
-seat count and the address of the Stripe storefront. Each of those already has
-a source of truth — docs/DECISIONS.md entries 10 and 35 as printed on
-`demo/public/launch.html`, and the License Server's own code — and a static
-page is exactly where a copy goes stale without anything erroring. These
-tests fail when the chooser and its sources disagree.
+The retired chooser fixture records prices, trial length, seats, and checkout
+routes. Keep checking those against the licensing implementation. The live
+marketing pages now use email inquiries and do not publish plan pricing.
 """
 import re
 from pathlib import Path
@@ -44,10 +41,10 @@ def _storefront_origins(html: str) -> set[str]:
     return {m.group(1) for h in _hrefs(html) if (m := re.match(r"(https://[^/]*license-server[^/]*)", h))}
 
 
-def test_the_storefront_address_is_the_one_launch_html_uses():
-    site, launch = _storefront_origins(OFFER), _storefront_origins(LAUNCH)
-    assert len(launch) == 1, f"launch.html should name one storefront, found {launch}"
-    assert site == launch, f"the chooser links {site}, launch.html links {launch}"
+def test_launch_uses_pricing_inquiries_instead_of_public_checkout():
+    assert not _storefront_origins(LAUNCH)
+    for plan in ("family", "co-op", "school"):
+        assert f"mailto:info@agnusdei.ai?subject=Bede%20{plan}%20pricing%20request" in LAUNCH
 
 
 def test_the_annual_button_goes_to_a_real_checkout_route():
@@ -70,10 +67,15 @@ def test_the_trial_length_is_the_signed_one():
         "the chooser names a trial length other than TRIAL_DAYS"
 
 
-@pytest.mark.parametrize("figure", ["$2,149", "$199", "$239", "$149"])
-def test_every_price_in_the_chooser_is_a_published_price(figure):
+@pytest.mark.parametrize("figure", ["$2,149", "$199", "$239"])
+def test_legacy_prices_remain_consistent_with_the_storefront(figure):
     assert figure in OFFER, f"{figure} is missing from the chooser"
-    assert figure in LAUNCH, f"{figure} is not on launch.html, the published price list"
+    assert figure in STOREFRONT, f"{figure} is missing from the licensing storefront"
+    assert figure not in LAUNCH, f"{figure} must not be published on the marketing page"
+
+def test_legacy_coop_price_is_not_a_public_marketing_offer():
+    assert "$149" in OFFER
+    assert "$149" not in LAUNCH
 
 
 def test_no_other_dollar_figure_appears():

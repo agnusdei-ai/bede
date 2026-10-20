@@ -67,6 +67,19 @@ the file rather than in someone's memory:
 |---|---|---|---|
 | `live-oak.jpg` | Supplied by the founder (original camera file, IMG_4847) | Owned by Agnus Dei Technologies | Kristian Gonzalez |
 | `meadow-grasses.jpg` | Supplied by the founder (original camera file, IMG_4841) | Owned by Agnus Dei Technologies | Kristian Gonzalez |
+| `children-reading.jpg` | [Pexels photo 8466915](https://www.pexels.com/photo/children-reading-books-8466915/) | [Pexels License](https://www.pexels.com/license/), item license checked October 19, 2026 | Anastasia Shuraeva |
+| `family-reading.jpg` | [Pexels photo 7105615](https://www.pexels.com/photo/a-mother-and-her-kids-reading-a-book-7105615/) | [Pexels License](https://www.pexels.com/license/), item license checked October 19, 2026 | Kindel Media |
+| `teacher-storytime.jpg` | [Pexels photo 8466901](https://www.pexels.com/photo/man-reading-in-front-of-children-8466901/) | [Pexels License](https://www.pexels.com/license/), item license checked October 19, 2026 | Anastasia Shuraeva |
+
+The three Pexels images are locally served illustrative stock photographs,
+not Bede customers, Valor students, testimonials, or endorsements. The pages
+state this explicitly. They are not used as trademarks or evidence of
+outcomes. No Valor photographs, logos, or testimonials are reused.
+
+These foreground images use descriptive alt text, explicit dimensions, and
+lazy loading below the hero. The custom line icons on the home page are
+original inline SVG, not AI-generated photographic content. No third-party
+image requests or font services are introduced.
 
 Both were shot at a public venue. Each was rotated to its true orientation
 from EXIF, then cropped **specifically** to remove things that should not

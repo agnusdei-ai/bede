@@ -1,17 +1,21 @@
 # Agnus Dei Technologies
 
-> Agnus Dei Technologies, LLC makes Bede, a Socratic AI tutor for classical homeschool and school programs. Bede asks questions rather than giving answers, runs short daily subject sessions beside the family's or school's own curriculum, and records work as factual observations rather than grades of character or faith.
+> Agnus Dei Technologies, LLC makes Bede, a human-led classical learning operating system with a K–8 focus. The homeschool offer includes a parent-directed Socratic learning companion. The current school pilot is teacher-directed, synthetic-data-only, and does not directly tutor learners. Broader school tutoring requires separate qualification.
 
 ## Key pages
 
-- [Home](https://agnusdei.ai/): what Bede is and how a family uses it.
+- [Home](https://agnusdei.ai/): the two offers and the human-led cycle of planning, practice, application, and reflection.
+- [Homeschool families](https://agnusdei.ai/homeschool/): parent-directed K–8 learning, optional Christian subjects, and family or co-op next steps.
 - [FAQ](https://agnusdei.ai/faq/): the method, faith across Christian traditions, data, and the learner's guarantee.
 - [Co-ops](https://agnusdei.ai/educators/): what a co-op would need before putting Bede in front of member families.
-- [Charter and campus schools](https://agnusdei.ai/schools/): what a campus licence includes and does not include.
+- [Charter and campus schools](https://agnusdei.ai/schools/): teacher-led evaluation, current pilot limits, qualification requirements, and campus pricing.
 - [Privacy and data disclosure](https://agnusdei.ai/privacy/): every cookie, storage item and third party.
 
 ## Facts
 
-- Bede is self-hosted for families and schools; student data is encrypted at rest with AES-256-GCM.
-- A campus licence covers unlimited enrolled learner seats at one licensed location. AI throughput, simultaneous capacity, uptime and hardware are not unlimited. Mac mini hardware is sold separately.
+- Bede's household product is self-hosted; student data is encrypted at rest with AES-256-GCM. Real school learner data and direct tutoring require separate institutional, security, and deployment qualification.
+- A campus license covers unlimited enrolled learner seats at one licensed location. AI throughput, simultaneous capacity, uptime and hardware are not unlimited. Mac mini hardware is sold separately.
 - Bede does not administer or score DIBELS assessments.
+- Adults guide application activities and interpret the work. Practical scenarios on the site are illustrative pedagogy, not automated features or measured results. Accelerated learning and transfer have not yet been established by an independent outcome study.
+- Family faith subjects are optional; a nondevotional public charter scope must be agreed and verified before use. No charter approval or compliance certification is implied.
+- Supported mobile, tablet, and desktop browsers serve different tasks. On-the-go access requires an approved connection to the installation; standard household use connects to a home-network host. Offline tutoring, automatic cross-device session handoff, and identical device features are not promised.

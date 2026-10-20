@@ -18,6 +18,9 @@
   <link rel="stylesheet" href="/assets/inquiry.css" />
   <script src="/assets/bede-motion.js" defer></script>
   <link rel="stylesheet" href="/assets/streamlined.css" />
+  <script src="/assets/faq-topics.js" defer></script>
+  <link rel="stylesheet" href="/assets/faq-reader.css" />
+  <script src="/assets/faq-reader.js" defer></script>
 </head>
 <body class="classical-offers bede-theme">
 
@@ -54,9 +57,17 @@
 
   <section class="band-curriculum">
     <div class="inner">
+      <div class="faq-reader-tools" hidden>
+        <div class="faq-reader-buttons" role="group" aria-label="Save or share the FAQ">
+          <button type="button" data-faq-copy>Copy FAQ</button>
+          <button type="button" data-faq-print>Print FAQ</button>
+        </div>
+        <p class="faq-reader-hint">Copy or print every question and answer, including closed sections. You can also save a PDF from the print dialog.</p>
+        <p id="faq-reader-status" role="status" aria-live="polite"></p>
+      </div>
       <div class="faq">
         <p class="faq-group">Further reading</p>
-<details class="streamlined-detail"><summary>How the adult-led learning rhythm works</summary><div class="streamlined-detail__body">    <section class="classical-stage-band" id="human-led" aria-labelledby="human-led-title">
+<details id="adult-led-learning" class="streamlined-detail"><summary>How the adult-led learning rhythm works</summary><div class="streamlined-detail__body">    <section class="classical-stage-band" id="human-led" aria-labelledby="human-led-title">
       <div class="classical-section">
         <div class="classical-section-heading">
           <p class="eyebrow">HUMAN-LED. EVIDENCE-INFORMED. APPLIED.</p>
@@ -104,7 +115,7 @@
       <div class="classical-review-strip"><strong>Look for application, not just completion.</strong><p>Can the learner explain without copying, choose a useful approach, support a conclusion, and use the idea in an unfamiliar example? Review an initial attempt, a later attempt, and a delayed check. These are suggested adult review questions, not a validated scoring system.</p></div>
     </section>
 
-</div></details><details class="streamlined-detail"><summary>Books, technology, and the place of the screen</summary><div class="streamlined-detail__body">  <section>
+</div></details><details id="books-and-technology" class="streamlined-detail"><summary>Books, technology, and the place of the screen</summary><div class="streamlined-detail__body">  <section>
     <div class="inner">
       <p class="eyebrow">Classical studies &amp; modern tools</p>
       <h2>More thinking. Not more screen time.</h2>
@@ -138,7 +149,7 @@
     </div>
   </section>
 
-<p class="classical-connectivity">On-the-go sessions need a supported device and a connection to your approved Bede installation. The standard household setup connects to a host on your home network; use away from that network requires separately configured, approved access. This is not a promise of offline tutoring, automatic session handoff, or identical features on every device. Voice and handwriting depend on browser, permissions, and input support.</p></div></details><details class="streamlined-detail"><summary>The complete family curriculum and learning details</summary><div class="streamlined-detail__body">  <section id="family-traditions">
+<p class="classical-connectivity">On-the-go sessions need a supported device and a connection to your approved Bede installation. The standard household setup connects to a host on your home network; use away from that network requires separately configured, approved access. This is not a promise of offline tutoring, automatic session handoff, or identical features on every device. Voice and handwriting depend on browser, permissions, and input support.</p></div></details><details id="family-curriculum" class="streamlined-detail"><summary>The complete family curriculum and learning details</summary><div class="streamlined-detail__body">  <section id="family-traditions">
     <div class="inner">
       <p class="eyebrow">The homeschool offer · One Table, Many Traditions</p>
       <h2>Built for Christian families, whatever your church</h2>
@@ -645,6 +656,11 @@
           <p>A computer you already own. There is an installer for Windows, one for macOS on both Apple Silicon and Intel, and one for Linux. Bede runs on that machine in your house rather than on someone else's server. The children then connect to it from their own tablets or from whatever device is free.</p>
           <p>Two ways to provide the intelligence, and you can change your mind later from the parent screen without touching a config file. Point Bede at a cloud provider and lessons go to that provider. Run a model on the same machine instead and no lesson text leaves the house at all. The local option asks more of the hardware, which is the honest trade. The installers will offer to set it up and choose a model sized to the computer you actually have.</p>
         </details>
+        <details id="homeschool-trial">
+          <summary>How does the 30-day homeschool trial work?</summary>
+          <p>Homeschool families can try Bede with no charge for the first 30 days. <a href="mailto:info@agnusdei.ai?subject=Homeschool%20onboarding%20and%2030-day%20trial">Request a family onboarding session</a> to discuss your family’s goals and how to begin.</p>
+          <p>This trial is for homeschool families. A nominal professional-services fee applies to school pilots for onsite implementation and customization on certified hardware.</p>
+        </details>
         <details id="guarantee">
           <summary>Can homeschool families cancel their learning plan?</summary>
           <p>Homeschool families who are dissatisfied because their learning outcomes have not been achieved can cancel their learning plan at the end of a full month.</p>
@@ -652,8 +668,8 @@
         </details>
         <details>
           <summary>What does it cost?</summary>
-          <p>The public Bede demo beta runs through October 31, 2026, and is free to try without an account or payment card. This does not change commercial memberships or the separate, invite-only campus pilot.</p>
-          <p>Beyond the beta, one Family Membership covers your whole household &mdash; up to six children &mdash; at <strong>$199 a month, or $2,149 a year</strong>, with no per-child fees. It carries Bede, Locuto secure messaging, and the Family Portal together. Co-ops join from $149 per family per month at a ten-family minimum, and schools and organizations are a conversation of their own. The full table, including what it works out to per child, is on the <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede <span aria-hidden="true">&rarr;</span></a>.</p>
+          <p>The public Bede demo beta runs through October 31, 2026, and is free to try without an account or payment card. The public demo is separate from the 30-day homeschool trial and the invite-only school pilot.</p>
+          <p>For families who continue beyond the 30-day homeschool trial, one Family Membership covers your whole household &mdash; up to six children &mdash; at <strong>$199 a month, or $2,149 a year</strong>, with no per-child fees. It carries Bede, Locuto secure messaging, and the Family Portal together. Co-ops join from $149 per family per month at a ten-family minimum, and schools and organizations are a conversation of their own. The full table, including what it works out to per child, is on the <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede <span aria-hidden="true">&rarr;</span></a>.</p>
           <p>A published price does not replace the call. <a href="/#request-a-call">Request one</a> and a person walks through the year your children would actually have &mdash; how many children, which subjects, what you already own &mdash; before you decide anything. Anything that is not a pricing question is better sent to <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.</p>
         </details>
       </div>

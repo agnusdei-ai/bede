@@ -166,6 +166,42 @@
   background: var(--bede-paper);
   border-color: var(--bede-ink);
 }
+/* School inquiry actions use the same ink-on-gold treatment as primary CTAs,
+   including visited/hover states; legacy forest backgrounds are not retained. */
+.bede-theme .school-contact-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 0.85rem 1.2rem;
+  border: 1px solid #b99a5b;
+  border-radius: 3px;
+  background: #c4a45f;
+  color: var(--bede-ink);
+  font: 700 0.9rem/1.5 var(--bede-font-interface);
+  text-align: center;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+.bede-theme .school-contact-link:visited {
+  color: var(--bede-ink);
+}
+.bede-theme .school-contact-link:hover {
+  background: #dbc58d;
+  border-color: #a98a4c;
+  color: var(--bede-ink);
+}
+.bede-theme .school-contact-link:active {
+  background: #c4a45f;
+  color: var(--bede-ink);
+}
+.bede-theme .school-contact-link:focus-visible {
+  outline: 3px solid #735321;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--bede-paper);
+}
 .bede-theme .classical-button.outline:hover {
   color: var(--bede-ink);
   background: var(--bede-paper-warm);
@@ -352,6 +388,9 @@
     line-height: 1.5;
     color: #fbf8f1;
     text-decoration-thickness: 1px;
+  }
+  .bede-theme .footer-links a[href="/inquire/"] {
+    grid-column: 1 / -1;
   }
   .bede-theme .footer-copyright {
     max-width: 36ch;

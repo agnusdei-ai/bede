@@ -65,3 +65,16 @@ duplicate-click protection, missing configuration, and truthful failure states.
 Production validation still requires checking the deployed form/API versions
 and a controlled email send authorized by the owner. Mocked tests do not prove
 that an email reached either live inbox.
+
+## Shared appearance
+
+All marketing footers, including `/inquire/`, use `footer-links` on their
+navigation and `footer-copyright` on the copyright paragraph. These classes
+provide the shared mobile grid, link spacing, touch targets, and typography.
+The final engagement link spans both mobile columns. New pages must retain
+these classes rather than relying on adjacent inline links.
+
+School inquiry links use the shared ink-on-gold CTA treatment in
+`streamlined.css`, including visited, hover, active, and keyboard-focus
+states. Do not restore the legacy green background with inherited ink text.
+The mobile-marketing and school-CTA regression tests protect these contracts.

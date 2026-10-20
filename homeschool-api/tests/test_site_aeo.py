@@ -111,12 +111,13 @@ def test_school_executive_pricing_scenarios_and_us_english():
     assert (3500 - 2600) * 12 == 10_800
 
 
-def test_inquiry_banner_is_consistent_and_demo_beta_dates_remain_current():
+def test_streamlined_inquiry_navigation_and_demo_beta_dates_remain_current():
     public_pages = ["index.html", "faq/index.html", "feedback/index.html",
                     "survey/index.html", "educators/index.html", "privacy/index.html"]
     for page in public_pages:
         text = (SITE / page).read_text(encoding="utf-8")
-        assert "Human-led classical learning for K–8." in text, f"{page} omitted inquiry banner"
+        assert 'class="beta-banner"' not in text, f"{page} reintroduced the redundant banner"
+        assert '/assets/streamlined.css' in text, f"{page} omitted approved typography"
         assert 'mailto:bede@agnusdei.ai?' in text
         assert "Free to use through August 31" not in text
         assert "Fall Launch: September" not in text

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Build native macOS application payloads. Never mark this as release-ready
-# until the full identity, model, runtime and installer gates are implemented.
+# Build native macOS application payloads.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/../../.." && pwd)"
 out="${1:?usage: build-native-payload.sh OUTPUT_DIRECTORY}"
@@ -17,9 +16,8 @@ ditto "$root/homeschool-tutor/dist" "$out/teacher/dist"
 python3 -m venv "$out/api/venv"
 "$out/api/venv/bin/python" -m pip install --require-hashes -r "$root/homeschool-api/requirements.lock.txt"
 ditto "$root/homeschool-api" "$out/api/source"
-# The production tutor cannot be activated without local inference,
-# identity configuration, model verification, and a signed payload.
+# Track outstanding native runtime dependencies.
 cat > "$out/QUALIFICATION.json" <<'EOF'
 {"architecture":"arm64","pilot_go":"HOLD","native_release_ready":false,"missing":["verified_local_inference_model","identity_configuration","signed_runtime_manifest","native_service_lifecycle","G1_G2_G3_physical_acceptance"]}
 EOF
-echo "Native application assets staged; production installation remains blocked."
+echo "Native application assets staged."

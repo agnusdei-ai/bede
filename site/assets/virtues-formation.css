@@ -1,0 +1,357 @@
+.bede-formation {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(118deg, rgba(227, 201, 130, 0.12), transparent 42%),
+    var(--bede-paper-warm, #f2ecdf);
+  border-block: 1px solid var(--bede-rule, #d9d0c0);
+}
+
+.bede-formation .bede-formation__inner {
+  width: min(100% - 3rem, 72rem);
+  margin-inline: auto;
+}
+
+.bede-formation .bede-formation__heading {
+  max-width: 52rem;
+  margin: 0 auto 2.15rem;
+  text-align: center;
+}
+
+.bede-formation .bede-formation__heading .eyebrow {
+  margin: 0 0 0.55rem;
+  color: #705429;
+}
+
+.bede-formation .bede-formation__heading h2 {
+  margin: 0;
+  font-family: var(--bede-font-editorial, Georgia, Cambria, "Times New Roman", serif);
+  font-size: clamp(2.15rem, 4.8vw, 3.6rem);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  color: var(--bede-ink, #1b2b3b);
+}
+
+.bede-formation .bede-formation__heading h2 em {
+  color: var(--bede-forest, #415744);
+  font-weight: 400;
+}
+
+.bede-formation .bede-formation__lede {
+  max-width: 44rem;
+  margin: 1rem auto 0;
+  color: var(--bede-ink-soft, #394957);
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.bede-formation .bede-formation__pillars {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 auto 2.75rem;
+  border-block: 1px solid var(--bede-rule, #d9d0c0);
+}
+
+.bede-formation .bede-formation__pillars p {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  column-gap: 0.7rem;
+  row-gap: 0.12rem;
+  min-width: 0;
+  margin: 0;
+  padding: 1rem 1.25rem;
+}
+
+.bede-formation .bede-formation__pillars p + p {
+  border-left: 1px solid var(--bede-rule, #d9d0c0);
+}
+
+.bede-formation .bede-formation__pillars span {
+  grid-row: span 2;
+  align-self: center;
+  color: var(--bede-gold, #92703b);
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.bede-formation .bede-formation__pillars strong {
+  color: var(--bede-ink, #1b2b3b);
+  font-family: var(--bede-font-editorial, Georgia, Cambria, "Times New Roman", serif);
+  font-size: 1.14rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.bede-formation .bede-formation__pillars small {
+  color: var(--bede-muted, #536067);
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.bede-formation .bede-formation__practice {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.72fr) minmax(0, 2fr);
+  gap: clamp(1.5rem, 5vw, 4.5rem);
+  align-items: start;
+}
+
+.bede-formation .bede-formation__practice-intro {
+  position: sticky;
+  top: 1.5rem;
+  padding-top: 0.35rem;
+}
+
+.bede-formation .bede-formation__overline {
+  margin: 0 0 0.6rem;
+  color: #705429;
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  line-height: 1.6;
+  text-transform: uppercase;
+}
+
+.bede-formation .bede-formation__practice-intro > p:last-child {
+  max-width: 25ch;
+  margin: 0;
+  color: var(--bede-ink, #1b2b3b);
+  font-family: var(--bede-font-editorial, Georgia, Cambria, "Times New Roman", serif);
+  font-size: clamp(1.35rem, 2.1vw, 1.8rem);
+  line-height: 1.4;
+}
+
+.bede-formation .bede-formation__virtues {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--bede-rule, #d9d0c0);
+}
+
+.bede-formation .bede-formation__virtues li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 1rem 1.05rem 1.1rem 0;
+  border-bottom: 1px solid var(--bede-rule, #d9d0c0);
+}
+
+.bede-formation .bede-formation__virtues li:nth-child(2n) {
+  padding-inline: 1.05rem 0;
+  border-left: 1px solid var(--bede-rule, #d9d0c0);
+}
+
+.bede-formation .bede-formation__number {
+  padding-top: 0.16rem;
+  color: var(--bede-gold, #92703b);
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.bede-formation .bede-formation__virtues h3 {
+  margin: 0 0 0.2rem;
+  color: var(--bede-ink, #1b2b3b);
+  font-family: var(--bede-font-editorial, Georgia, Cambria, "Times New Roman", serif);
+  font-size: 1.18rem;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.bede-formation .bede-formation__virtues li p {
+  margin: 0;
+  color: var(--bede-ink-soft, #394957);
+  font-size: 0.91rem;
+  line-height: 1.62;
+}
+
+.bede-formation .bede-formation__faith {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(0, 1.7fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  margin-top: 3rem;
+  padding: clamp(1.35rem, 3.5vw, 2.4rem);
+  background: var(--bede-ink, #1b2b3b);
+  color: var(--bede-paper, #fbf8f1);
+  border-left: 4px solid var(--bede-gold, #92703b);
+}
+
+.bede-formation .bede-formation__faith .bede-formation__overline {
+  color: var(--bede-gold-light, #e3c982);
+}
+
+.bede-formation .bede-formation__faith-heading h3 {
+  max-width: 18ch;
+  margin: 0;
+  color: var(--bede-paper, #fbf8f1);
+  font-family: var(--bede-font-editorial, Georgia, Cambria, "Times New Roman", serif);
+  font-size: clamp(1.45rem, 2.5vw, 2rem);
+  font-weight: 400;
+  line-height: 1.28;
+}
+
+.bede-formation .bede-formation__faith-copy > p {
+  margin: 0;
+  color: #f0ece3;
+  font-size: 0.91rem;
+  line-height: 1.72;
+}
+
+.bede-formation .bede-formation__bridges {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin: 1rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bede-formation .bede-formation__bridges li {
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(227, 201, 130, 0.55);
+  color: #f0ece3;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.bede-formation .bede-formation__bridges strong,
+.bede-formation .bede-formation__context strong {
+  color: var(--bede-gold-light, #e3c982);
+}
+
+.bede-formation .bede-formation__faith-copy .bede-formation__context {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(251, 248, 241, 0.22);
+  color: #d9dedc;
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.79rem;
+  line-height: 1.7;
+}
+
+.bede-formation .bede-formation__source {
+  display: inline-block;
+  margin-top: 0.8rem;
+  color: var(--bede-paper, #fbf8f1);
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.78rem;
+  font-weight: 650;
+  text-decoration-color: var(--bede-gold-light, #e3c982);
+  text-underline-offset: 0.22em;
+}
+
+.bede-formation .bede-formation__source span {
+  padding-left: 0.15rem;
+  color: var(--bede-gold-light, #e3c982);
+}
+
+@media (max-width: 760px) {
+  .bede-formation .bede-formation__inner {
+    width: min(100% - 2.25rem, 42rem);
+  }
+
+  .bede-formation .bede-formation__pillars {
+    margin-bottom: 2.1rem;
+  }
+
+  .bede-formation .bede-formation__pillars p {
+    column-gap: 0.45rem;
+    padding: 0.85rem 0.65rem;
+  }
+
+  .bede-formation .bede-formation__pillars strong {
+    font-size: 1rem;
+  }
+
+  .bede-formation .bede-formation__pillars small {
+    font-size: 0.7rem;
+  }
+
+  .bede-formation .bede-formation__practice {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .bede-formation .bede-formation__practice-intro {
+    position: static;
+  }
+
+  .bede-formation .bede-formation__practice-intro > p:last-child {
+    max-width: 42ch;
+    font-size: 1.35rem;
+  }
+
+  .bede-formation .bede-formation__faith {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .bede-formation .bede-formation__heading {
+    margin-bottom: 1.5rem;
+  }
+
+  .bede-formation .bede-formation__heading h2 {
+    font-size: clamp(2rem, 10vw, 2.65rem);
+  }
+
+  .bede-formation .bede-formation__pillars {
+    grid-template-columns: 1fr;
+    margin-bottom: 1.75rem;
+  }
+
+  .bede-formation .bede-formation__pillars p {
+    grid-template-columns: 1.7rem minmax(0, 1fr);
+    padding: 0.7rem 0;
+  }
+
+  .bede-formation .bede-formation__pillars p + p {
+    border-top: 1px solid var(--bede-rule, #d9d0c0);
+    border-left: 0;
+  }
+
+  .bede-formation .bede-formation__pillars span {
+    grid-row: span 2;
+  }
+
+  .bede-formation .bede-formation__virtues {
+    grid-template-columns: 1fr;
+  }
+
+  .bede-formation .bede-formation__virtues li,
+  .bede-formation .bede-formation__virtues li:nth-child(2n) {
+    padding: 0.85rem 0;
+    border-left: 0;
+  }
+
+  .bede-formation .bede-formation__faith {
+    padding: 1.2rem;
+  }
+
+  .bede-formation .bede-formation__bridges {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bede-formation *,
+  .bede-formation *::before,
+  .bede-formation *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

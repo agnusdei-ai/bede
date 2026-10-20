@@ -24,6 +24,8 @@ def campus_path(identifier):
     return path
 
 def record(path, identifier):
+    if (path / "campus.json").is_symlink():
+        raise ValueError("campus metadata symlink refused")
     value = json.loads((path / "campus.json").read_text())
     if value.get("campusID") != identifier or value.get("architecture") != "native-macos":
         raise ValueError("invalid campus record")
@@ -41,6 +43,8 @@ def start(path, identifier, payload, port):
     if not (1024 <= port <= 65535):
         raise ValueError("invalid port")
     pidfile = path / "native-service.json"
+    if pidfile.is_symlink():
+        raise ValueError("process-state symlink refused")
     if pidfile.exists():
         old = json.loads(pidfile.read_text())
         if live(old["pid"]):
@@ -55,13 +59,22 @@ def start(path, identifier, payload, port):
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError("native executable missing")
     logs = path / "logs"
+    if logs.is_symlink() or (logs / "native-service.log").is_symlink():
+        raise ValueError("service log symlink refused")
     logs.mkdir(mode=0o700, exist_ok=True)
     with (logs / "native-service.log").open("ab") as output:
         proc = subprocess.Popen([str(executable)], stdin=subprocess.DEVNULL,
                                 stdout=output, stderr=output, start_new_session=True,
                                 env={**os.environ, "BEDE_SYNTHETIC_ONLY": "1",
                                      "BEDE_NATIVE_PORT": str(port)})
-    state = {"pid": proc.pid, "port": port, "executable": str(executable)}
+    started_at = subprocess.run(["/bin/ps", "-p", str(proc.pid), "-o", "lstart="],
+                                capture_output=True, text=True, check=False).stdout.strip()
+    if not started_at:
+        proc.terminate()
+        proc.wait(timeout=3)
+        raise RuntimeError("cannot verify process start identity")
+    state = {"pid": proc.pid, "port": port, "executable": str(executable),
+             "started_at": started_at}
     pidfile.write_text(json.dumps(state))
     pidfile.chmod(0o600)
     try:
@@ -90,6 +103,8 @@ def start(path, identifier, payload, port):
 def stop(path, identifier):
     record(path, identifier)
     pidfile = path / "native-service.json"
+    if pidfile.is_symlink():
+        raise ValueError("process-state symlink refused")
     if not pidfile.exists():
         return {"running": False}
     state = json.loads(pidfile.read_text())
@@ -100,7 +115,9 @@ def stop(path, identifier):
     if not command:
         pidfile.unlink()
         return {"running": False}
-    if command.split()[0] != state["executable"]:
+    started_at = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "lstart="],
+                                capture_output=True, text=True, check=False).stdout.strip()
+    if command.split()[0] != state["executable"] or not started_at or started_at != state.get("started_at"):
         raise RuntimeError("process identity changed; refusing to signal")
     os.kill(pid, signal.SIGTERM)
     for _ in range(30):

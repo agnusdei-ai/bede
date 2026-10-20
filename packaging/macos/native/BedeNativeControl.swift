@@ -4,14 +4,15 @@ import Darwin
 // Native macOS control-plane utility. No Docker, shell invocation, or network
 // listener. This does NOT implement the tutor API, inference, or teacher UI.
 enum NativeError: Error, CustomStringConvertible {
-    case usage, invalidCampus, alreadyExists, missingCampus, invalidState
+    case usage, invalidCampus, alreadyExists, missingCampus, invalidState, unsupportedRemoval
     var description: String {
         switch self {
-        case .usage: return "usage: bede-native-control provision|status|diagnose <campus-id>"
+        case .usage: return "usage: bede-native-control provision|status|diagnose|remove <campus-id>"
         case .invalidCampus: return "Invalid campus identifier"
         case .alreadyExists: return "Campus already exists; refusing to overwrite"
         case .missingCampus: return "Campus not provisioned"
         case .invalidState: return "Campus metadata failed validation"
+        case .unsupportedRemoval: return "Native campus removal requires a qualified runtime shutdown and explicit confirmation"
         }
     }
 }
@@ -55,6 +56,13 @@ struct NativeControl {
             throw error
         }
     }
+    // No service has been deployed yet; refuse destructive removal rather than
+    // deleting a campus directory while future services may still be running.
+    func remove(_ id: String) throws -> Never {
+        _ = try status(id)
+        throw NativeError.unsupportedRemoval
+    }
+
     func status(_ id: String) throws -> CampusRecord {
         let target = try directory(id)
         let metadata = target.appendingPathComponent("campus.json")
@@ -79,6 +87,7 @@ struct Main {
             switch args[0] {
             case "provision": record = try control.provision(args[1])
             case "status", "diagnose": record = try control.status(args[1])
+            case "remove": try control.remove(args[1])
             default: throw NativeError.usage
             }
             let encoded = try JSONEncoder().encode(record)

@@ -22,6 +22,7 @@ for (const page of pages) {
     assert.match(html, /mailto:info@agnusdei\.ai\?subject=/);
     assert.match(html, /href="\/assets\/spacing-motion\.css"/);
     assert.match(html, /src="\/assets\/bede-motion\.js" defer/);
+    assert.doesNotMatch(html, /footer-photo-credit/);
     for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"#?]+)[^"]*"/g)) {
       assert.ok(existsSync(join(root, match[1])), `Missing asset: ${match[1]}`);
     }
@@ -45,18 +46,35 @@ test("approved virtues replace the empty companion panel in production", () => {
   const html = read("index.html");
   const section = html.match(/<section class="classical-section bede-formation"[\s\S]*?<\/section>/)?.[0];
   assert.ok(section, "Approved formation section must be present.");
-  assert.doesNotMatch(html, /id="video-wrap"/);
+  assert.match(html, /id="video-wrap"/);
+  assert.match(html, /src="\/assets\/video\.js" defer/);
+  assert.match(section, /youtube\.com\/watch\?v=M7OV1-RrK2M/);
   assert.match(html, /href="\/assets\/virtues-formation\.css"/);
   assert.equal((html.match(/id="meet-bede-title"/g) || []).length, 1);
   for (const virtue of ["Courage", "Humility", "Wonder", "Attentiveness", "Honesty", "Gratitude", "Perseverance", "Kindness"]) {
     assert.ok(section.includes(`<h3>${virtue}</h3>`), virtue);
   }
-  for (const gift of ["wisdom", "understanding", "counsel", "fortitude", "knowledge", "piety", "fear of the Lord"]) {
-    assert.ok(section.includes(gift), gift);
-  }
   assert.match(section, /Faith and character are never assessed or scored/);
-  assert.match(section, /not a required charter-school lesson/);
-  assert.match(section, /vatican\.va\/content\/catechism/);
+  assert.doesNotMatch(html, /For families choosing faith-led formation|vatican\.va\/content\/catechism|The seven gifts/i);
+});
+test("video loads only after play and retains the YouTube referrer fix", () => {
+  let clicked;
+  let markup = "";
+  const wrapper = {
+    classList: { add() {} },
+    set innerHTML(value) { markup = value; },
+    get innerHTML() { return markup; },
+    querySelector() { return { addEventListener: (_, callback) => { clicked = callback; } }; },
+  };
+  vm.runInNewContext(read("assets/video.js"), {
+    document: { getElementById: () => wrapper },
+  });
+  assert.match(markup, /Watch: Meet Bede/);
+  assert.doesNotMatch(markup, /<iframe/);
+  assert.equal(typeof clicked, "function");
+  clicked();
+  assert.match(markup, /youtube-nocookie\.com\/embed\/M7OV1-RrK2M\?autoplay=1/);
+  assert.match(markup, /referrerpolicy="strict-origin-when-cross-origin"/);
 });
 test("production motion does not interfere with links or leak preview behavior", () => {
   const script = read("assets/bede-motion.js");

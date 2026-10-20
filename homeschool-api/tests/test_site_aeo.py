@@ -7,7 +7,7 @@ visible copy. These guards keep the three telling the same story:
   - every sitemap URL is a real page, and robots.txt points at the sitemap;
   - the FAQPage JSON-LD on /schools/ mirrors the visible questions and answers,
     because markup that says something the page does not is a misleading claim;
-  - no standalone metered diagnostics or undecided school prices, or a claim the
+  - plan pricing is provided by email, with no public rates, or a claim the
     product does not make (percentile ranking, an expired beta date).
 
 Each check was written to fail on the defect it names; see the PR for the
@@ -62,55 +62,38 @@ def test_schools_faq_jsonld_mirrors_the_visible_faq():
     assert markup == visible, "FAQPage JSON-LD and the visible FAQ have diverged"
 
 
-def test_school_budget_uses_approved_founding_rate_and_fair_contract_terms():
-    # The approved campus promotion is a public budget price, not a checkout.
+def test_school_plans_require_email_pricing_and_preserve_scope():
     page = SCHOOLS.read_text(encoding="utf-8")
     launch = (SITE.parent / "demo" / "public" / "launch.html").read_text(encoding="utf-8")
-    pricing = (SITE.parent / "docs" / "VALOR_PRICING.md").read_text(encoding="utf-8")
-    for source in (page, launch, pricing):
-        for amount in ("$2,600", "$3,500", "$900", "$10,800", "$31,200"):
-            assert amount in source, f"{amount} missing from organizational source"
-        assert "$2,700" not in source, "superseded founding price reappeared"
-    assert "Over 25% off" in page
-    assert "12-month" in page and "billed monthly" in launch
-    assert "mutually agreed written" in page and pricing
+    for source in (page, launch):
+        assert not re.search(r"\$\s*\d|&#(?:36|x24);|&dollar;|USD\s*\d|\d+\s*%\s*off", source, re.I)
+        assert "provided in response to an email request" in source
+        assert "mailto:info@agnusdei.ai?subject=Bede%20school%20pricing%20request" in source
+        assert "synthetic data only" in source or "synthetic-data-only" in source
+        assert "mutually agreed written" in source
     assert "each additional campus" in page.lower()
-    assert 3500 - 2600 == 900
-    assert 900 * 12 == 10800
-    assert 2600 * 12 == 31200
-    assert 25 * 104 == 2600
     assert "site/assets/schools-pricing.css" not in page  # Website URLs are root-relative.
     assert '/assets/schools-pricing.css' in page
-    assert '/assets/schools-print.js' in page
+    assert '/assets/schools-print.js' not in page
     assert (SITE / "assets" / "schools-pricing.css").exists()
-    assert (SITE / "assets" / "schools-print.js").exists()
 
 
 
-def test_school_executive_pricing_scenarios_and_us_english():
+def test_school_inquiry_replaces_public_tables_and_uses_us_english():
     page = SCHOOLS.read_text(encoding="utf-8")
     assert '<html lang="en-US">' in page
-    assert page.count('class="school-budget-table') == 2
-    assert 'The $950 paid evaluation is not the current invite-only Valor pilot' in page
-    assert 'nominal professional-services fee' in page
-    assert 'onsite implementation and customization on certified hardware' in page
-    assert '$2,600 rate lasts for the signed 12-month term' in page
-    assert '104 learners at $25 each equals $2,600/month' in page
-    for enrolled in (25, 50, 75, 100):
-        monthly = enrolled * 25
-        annual = monthly * 12
-        row = (
-            f'<tr><th scope="row">{enrolled}</th>'
-            f'<td>${monthly:,}</td><td>${annual:,}</td><td>$2,600</td>'
-        )
-        assert row in page, f"missing or incorrect scenario for {enrolled} learners"
+    assert 'class="school-budget-table' not in page
+    assert 'id="school-budget"' in page  # Preserve inbound anchor links.
+    assert 'id="print-school-budget"' not in page
+    assert 'school evaluation requires its own signed scope' in page
+    assert 'onsite implementation and customization' in page.lower()
+    assert 'certified hardware' in page
+    assert 'No direct student tutoring' in page
     for british_spelling in ("licence", "enrolment", "organisation", "organisational",
                              "centre", "programme", "behaviour", "colour"):
         assert not re.search(rf"\b{british_spelling}\b", page, re.I), (
             f"US English copy regressed: {british_spelling}"
         )
-    assert 2600 * 12 == 31_200
-    assert (3500 - 2600) * 12 == 10_800
 
 
 def test_streamlined_inquiry_navigation_and_demo_beta_dates_remain_current():

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-US">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -343,16 +343,14 @@
       <hr class="rule" aria-hidden="true">
     </div>
 
-    <p class="price-intro">Homeschool membership for families and co-ops.</p>
-    <p class="price-sub">Homeschool offer</p>
+    <p class="price-intro">Explore the right setting for your learners.</p>
+    <p class="price-sub">Current pricing for every plan is provided in response to an email request.</p>
 
     <div class="tiers">
       <article class="tier featured">
         <p class="flag">Family Membership</p>
         <h3>Everything, for your household</h3>
-        <p class="amount">$199<span class="per">/month</span></p>
         <p>Up to six children.</p>
-        <p class="alt">or <strong>$2,149/year</strong> &mdash; save $239</p>
         <ul class="includes">
           <li>Bede Tutor</li>
           <li>Locuto messaging</li>
@@ -360,45 +358,20 @@
           <li>Parent tools and oversight</li>
           <li>Verified access</li>
         </ul>
-        <!-- The storefront is the License Server's own page — the annual
-             membership and the free 7-day trial are both rendered there,
-             so both buttons carry its origin and the storefront decides
-             the offer layout. This page is static HTML served under
-             script-src 'self' (site/_headers), so no inline-script config
-             point exists: these two hrefs ARE the configuration. Keep them
-             identical, and update both when the License Server's actual
-             deployment host is finalized (license-server/wrangler.jsonc).
-             The storefront must be reachable before this page ships the
-             links — see the PR's merge-order note. -->
         <div class="actions">
-          <a class="btn btn-primary" href="https://bede-license-server.agnusdei.workers.dev/">Subscribe</a>
-          <a class="btn btn-secondary" href="https://bede-license-server.agnusdei.workers.dev/">Start 7-day free trial</a>
+          <a class="btn btn-primary" href="mailto:info@agnusdei.ai?subject=Bede%20family%20pricing%20request">Request family pricing</a>
+          <a class="btn btn-secondary" href="https://agnusdei.ai/homeschool/">Explore family learning</a>
         </div>
       </article>
 
       <article class="tier">
         <h3>Co-op Membership</h3>
-        <p class="amount"><span class="from">from</span> $149<span class="per">/family/month</span></p>
-        <p>Ten-family minimum.</p>
+        <p>Discuss your group, curriculum, and setup before choosing a plan.</p>
+        <a class="btn btn-secondary" href="mailto:info@agnusdei.ai?subject=Bede%20co-op%20pricing%20request">Request co-op pricing</a>
       </article>
 
 
     </div>
-
-    <h3 class="effective-head" id="effective-heading">What that works out to</h3>
-    <table class="effective" aria-labelledby="effective-heading">
-      <caption>Family Membership at $199 per month, divided by household size.</caption>
-      <thead>
-        <tr><th scope="col">Children</th><th scope="col">Per child, per month</th></tr>
-      </thead>
-      <tbody>
-        <tr><th scope="row">1 child</th><td>$199</td></tr>
-        <tr class="pre-highlight"><th scope="row">2 children</th><td>$99.50</td></tr>
-        <tr class="highlight"><th scope="row">3 children</th><td>$66.33</td></tr>
-        <tr><th scope="row">4 children</th><td>$49.75</td></tr>
-        <tr><th scope="row">5 or 6</th><td>Even less</td></tr>
-      </tbody>
-    </table>
 
     <div class="section-head" style="margin-top:56px;">
       <h2 id="organization-pricing-heading">Charter &amp; campus organizations</h2>
@@ -408,31 +381,28 @@
 
     <div class="cards" aria-labelledby="organization-pricing-heading">
       <article class="tier">
-        <h3>Paid Controlled Evaluation</h3>
-        <p class="amount">$950 <span class="per">total</span></p>
-        <p>A separately contracted 6&ndash;8 week evaluation for approximately 15&ndash;25 learners; not the current free invite-only Valor pilot. One fixed fee, not a monthly charge.</p>
+        <h3>School Evaluation</h3>
+        <p>A separately agreed evaluation scope, subject to deployment qualification. School demonstrations are teacher-directed and synthetic-data-only, with no direct student tutoring. No customer agreement, school endorsement, or approved deployment is implied.</p>
       </article>
 
       <article class="tier">
         <h3>Per-Learner Campus</h3>
-        <p class="amount">$25<span class="per">/learner/month</span></p>
-        <p>For approximately 25&ndash;100 learners, with a 25-seat minimum and 12-month commitment, billed monthly.</p>
+        <p>Discuss enrollment, capacity, and the proposed deployment before choosing a per-learner plan.</p>
       </article>
 
       <article class="tier featured">
-        <p class="flag">Founding Campus</p>
-        <h3>Unlimited Learner Seats</h3>
-        <p class="amount">$2,600<span class="per">/campus/month</span></p>
-        <p class="alt"><del>$3,500/month standard rate</del> &mdash; <strong>over 25% off</strong></p>
-        <p><strong>Save $900 per month, or $10,800 over 12 months.</strong> Total software commitment: $31,200, billed monthly for 12 months. Unlimited enrolled learner seats at one licensed campus. Eligible founding-campus agreements entered Fall 2026 through Spring 2027 keep their signed promotional rate throughout the 12-month term.</p>
+        <p class="flag">Campus Plans</p>
+        <h3>Plan around your campus</h3>
+        <p>Request a campus proposal that accounts for your learners, equipment, integrations, and support needs. Each physical campus requires its own license.</p>
       </article>
     </div>
 
     <div class="price-notes">
-      <p><strong>This is separate from the homeschool offer.</strong> Standard teacher tools, learner progress reporting, educator access controls, and limited remote onboarding are included.</p>
+      <p><strong>This is separate from the homeschool offer.</strong> Broader school capabilities require a signed scope and institutional, security, and deployment qualification before real learner data or direct tutoring.</p>
       <p><strong>Flexible and fair:</strong> schools may move between per-learner and per-campus pricing by mutually agreed written contract amendment, with a new effective billing date and the 12-month commitment continuing unless expressly amended. No double-billing for the same campus period.</p>
       <p>One license per physical campus. Apple Silicon hardware is sold separately. Custom SIS/LMS integrations, bespoke curriculum work, onsite services, and custom infrastructure require separate scope and approval. Unlimited enrolled seats does not guarantee unlimited concurrent inference.</p>
-      <p><a href="/schools/">View and print the charter-school executive budget summary &rarr;</a></p>
+      <p><a class="btn btn-primary" href="mailto:info@agnusdei.ai?subject=Bede%20school%20pricing%20request">Request school plan pricing &rarr;</a></p>
+      <p><a href="https://agnusdei.ai/schools/">Review the current school pilot scope &rarr;</a></p>
     </div>
 
     <div class="price-notes">
@@ -571,7 +541,7 @@
       <div class="answer">
         <p>
           The free public Bede demo beta is scheduled through <strong>October&nbsp;31, 2026</strong>.
-          It is separate from paid family memberships and the invite-only Valor campus pilot.
+          It is separate from paid family memberships and synthetic school demonstrations.
           No automatic conversion or continuing access is promised.
         </p>
       </div>

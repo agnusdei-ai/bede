@@ -1,18 +1,11 @@
 """
-The beta survey is one instrument delivered three ways — two hosted pages
-on the marketing site and one in-app prompt — and all three post to
-POST /feedback under the same category so their answers pool into a single
-pile in the operator's inbox. See docs/BETA_SURVEY.md.
+The in-app beta survey posts to POST /feedback. The hosted survey and
+educator pages now direct visitors to an email inquiry instead of collecting
+answers in a web form. Keep the API category contract and explicitly guard
+that inquiry-only boundary.
 
-That category string is therefore the same fact written in four places:
-this Python enum, two HTML files, and a TypeScript call site. Nothing in a
-static site's markup is type-checked against a pydantic Literal, so a typo
-in a `data-category` attribute would not fail a build — it would 422 at the
-moment a real parent pressed submit, after they had filled the form in,
-which is the worst time to find out and the least likely to be reported.
-
-Per CLAUDE.md's "Carry Out the Decision" rule: where the same fact lives in
-more than one place, add the check that fails when they drift.
+Keep the in-app category aligned with the API and email label. Do not
+reintroduce hosted answer collection just to satisfy the retired form tests.
 """
 import re
 from pathlib import Path
@@ -26,7 +19,7 @@ from services.email_service import _CATEGORY_LABELS, _feedback_prefix
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SURVEY_CATEGORY = "beta_survey"
 
-# Every file that names the category, and what it is.
+# Hosted inquiry pages and the remaining in-app survey instrument.
 HOSTED_PAGES = [
     REPO_ROOT / "site" / "survey" / "index.html",
     REPO_ROOT / "site" / "educators" / "index.html",
@@ -62,18 +55,16 @@ def test_the_survey_has_a_readable_label_in_the_email_body():
 
 
 @pytest.mark.parametrize("page", HOSTED_PAGES, ids=lambda p: p.name and p.parent.name)
-def test_each_hosted_survey_page_posts_a_category_the_api_accepts(page):
+def test_each_hosted_survey_page_uses_email_instead_of_collecting_answers(page):
     assert page.exists(), f"{page} is missing"
-    declared = re.findall(r'data-category="([^"]+)"', page.read_text(encoding="utf-8"))
-    assert declared, f"{page} declares no data-category for the shared form script"
-    for category in declared:
-        # Raises if the page names something the API would 422.
-        FeedbackRequest(category=category, message="answers")
-    assert SURVEY_CATEGORY in declared
+    text = page.read_text(encoding="utf-8")
+    assert 'mailto:info@agnusdei.ai?' in text
+    assert not re.search(r"<form\b", text, re.IGNORECASE)
+    assert 'data-category=' not in text
 
 
-def test_the_in_app_prompt_posts_the_same_category_as_the_hosted_pages():
-    """Pooling only works if all three agree. The modal calls
+def test_the_in_app_prompt_posts_the_category_the_api_accepts():
+    """The remaining in-app instrument calls
     submitFeedback(token, '<category>', ...), so the string is a literal in
     that file and can be read out of it directly."""
     assert IN_APP_MODAL.exists(), f"{IN_APP_MODAL} is missing"

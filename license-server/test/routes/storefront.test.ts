@@ -1,6 +1,6 @@
 /**
  * Storefront + checkout tests — the one rendered surface and its one
- * payment path. The page must reproduce the PUBLISHED figures verbatim
+ * payment path. The page must reproduce the pricing reference verbatim
  * (the storefront never invents prices), carry exactly ONE subscribe CTA
  * to /checkout/family-annual (never a processor picker), and handle the
  * ?welcome=1 banner. The checkout route is tested against a mocked Stripe
@@ -69,40 +69,44 @@ beforeEach(() => {
 
 describe("GET / — the storefront page", () => {
   /**
-   * "PUBLISHED" means published on demo/public/launch.html, so the figures are
-   * READ from that page rather than restated here. Restating them made this a
-   * second copy of the same four numbers: a marketing decision to move the
+   * The marketing launch page is now inquiry-only. Read figures from the
+   * existing customer pricing reference, not from that public page.
+   * Restating them made this a second copy of the same four numbers: a decision to move the
    * annual price would leave the storefront charging the old one with this
-   * test still green, and moving all three together would leave the published
-   * page stale with nothing erroring either way. The drifting fact is a PRICE,
+   * test still green, and moving all three together would leave the pricing
+   * reference stale with nothing erroring either way. The drifting fact is a PRICE,
    * which is the most consequential thing in this component to get wrong, and
    * docs/LICENSE_SERVER_SETUP.md §5 already states the obligation in prose
    * ("stop and fix the page before selling anything"). Each figure must be
-   * unique on that page, so an ambiguous match fails loudly instead of
+   * unique in that reference, so an ambiguous match fails loudly instead of
    * silently pinning whichever one matched first.
    *
    * demo/** is already in frontend-tests.yml's change filter (the demo's own
    * suites need it), so a launch.html edit reaches this guard.
    */
-  const PUBLISHED = readFileSync(
+  const PRICING_REFERENCE = readFileSync(
+    join(import.meta.dirname, "..", "..", "..", "docs", "marketing", "membership-pricing.html"),
+    "utf8",
+  );
+  const LAUNCH = readFileSync(
     join(import.meta.dirname, "..", "..", "..", "demo", "public", "launch.html"),
     "utf8",
   );
 
-  /** Reads ONE figure off the published page. `expect` is what the storefront
+  /** Reads ONE figure from the pricing reference. `expect` is what the storefront
    * must then contain — some figures are published as contiguous text and some
    * are split by markup (`$199<span class="per">/month</span>`), so the
    * expected string is built from the capture group where there is one. */
   function publishedFigure(label: string, pattern: RegExp, build: (m: RegExpMatchArray) => string): string {
-    const matches = [...PUBLISHED.matchAll(pattern)];
+    const matches = [...PRICING_REFERENCE.matchAll(pattern)];
     const found = new Set(matches.map(build));
-    expect(found.size, `${label}: expected exactly one on launch.html, saw ${[...found]}`).toBe(1);
+    expect(found.size, `${label}: expected exactly one in the pricing reference, saw ${[...found]}`).toBe(1);
     return [...found][0] as string;
   }
 
   const identity = (m: RegExpMatchArray) => m[0];
 
-  it("renders the figures demo/public/launch.html publishes — never its own", () => {
+  it("preserves the customer pricing reference without requiring public launch prices", () => {
     const page = storefrontPage();
     for (const [label, pattern, build] of [
       ["annual price", /\$[\d,]+\/year/g, identity],
@@ -118,30 +122,16 @@ describe("GET / — the storefront page", () => {
   });
 
   /**
-   * The trial LENGTH is not a price, so launch.html is not its authority.
-   *
-   * It is `TRIAL_DAYS` — a number signed into every trial key and enforced
-   * offline by `core/licensing.py`, so the page cannot be right and the code
-   * wrong; only the page can be stale. Pinning it the other way round (which
-   * this test did until decision 36 cut the term to 7) meant the
-   * published page could hold the storefront to a term the product no longer
-   * grants, and the failure read as a storefront bug.
-   *
-   * So the direction is reversed for this one figure: the storefront renders
-   * `TRIAL_DAYS`, and launch.html must AGREE with it. That is what caught
-   * launch.html still advertising 30 days the moment the term changed, which
-   * is a live false claim to a prospective family rather than an internal
-   * drift.
+   * TRIAL_DAYS remains the signed license contract. Preserve the storefront's
+   * trial check without requiring the inquiry-only launch page to advertise
+   * a trial or rate. This marketing change does not change billing behavior.
    */
-  it("renders the trial term from TRIAL_DAYS, and launch.html agrees with it", () => {
+  it("renders the trial term from TRIAL_DAYS without advertising it on the inquiry page", () => {
     const page = storefrontPage();
     expect(page).toContain(`${TRIAL_DAYS}-day free trial`);
 
-    const published = [...PUBLISHED.matchAll(/(\d+)-day free trial/g)].map((m) => Number(m[1]));
-    expect(published.length, "launch.html should advertise the trial exactly once").toBe(1);
-    expect(published[0], "launch.html advertises a trial term the product does not grant").toBe(
-      TRIAL_DAYS,
-    );
+    expect(LAUNCH).not.toMatch(/\d+-day free trial|\$\s*\d/);
+    expect(LAUNCH).toContain('mailto:info@agnusdei.ai?subject=Bede%20family%20pricing%20request');
   });
 
   it("carries exactly ONE subscribe CTA — /checkout/family-annual — and no processor picker", () => {

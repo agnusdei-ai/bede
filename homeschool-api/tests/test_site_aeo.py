@@ -85,7 +85,7 @@ def test_school_inquiry_replaces_public_tables_and_uses_us_english():
     assert 'class="school-budget-table' not in page
     assert 'id="school-budget"' in page  # Preserve inbound anchor links.
     assert 'id="print-school-budget"' not in page
-    assert 'school evaluation is not the current invite-only Valor pilot' in page
+    assert 'school evaluation requires its own signed scope' in page
     assert 'onsite implementation and customization' in page.lower()
     assert 'certified hardware' in page
     assert 'No direct student tutoring' in page

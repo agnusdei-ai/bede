@@ -23,6 +23,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const SITE = join(__dirname, '../../site')
+// Legacy forms are not currently public. Keep their shared script tested
+// against frozen fixtures rather than silently deleting its behavior coverage.
+const FORM_PAGES = join(__dirname, '../../tests/fixtures/marketing-before-inquiry')
 const SCRIPT = readFileSync(join(SITE, 'assets/feedback-form.js'), 'utf8')
 const API_BASE_ASSET = readFileSync(join(SITE, 'assets/api-base.js'), 'utf8')
 const BUILD_SCRIPT = readFileSync(join(__dirname, '../../scripts/build_pages_site.sh'), 'utf8')
@@ -47,7 +50,7 @@ const SURVEYS = PAGES.filter((p) => p.category === 'beta_survey')
  * scope faithfully enough for what is being asserted here.
  */
 function mount(file: string, apiBase = '') {
-  const html = readFileSync(join(SITE, file), 'utf8')
+  const html = readFileSync(join(FORM_PAGES, file), 'utf8')
   document.documentElement.innerHTML = html.replace(/^[\s\S]*?<body>/, '').replace(/<\/body>[\s\S]*$/, '')
   // What assets/api-base.js does on a real page, before the form script
   // runs — empty in the repo, filled in by the build.
@@ -265,7 +268,7 @@ describe('where the forms send', () => {
   })
 
   it.each(PAGES)('$name loads api-base.js before the form script', ({ file }) => {
-    const html = readFileSync(join(SITE, file), 'utf8')
+    const html = readFileSync(join(FORM_PAGES, file), 'utf8')
     const base = html.indexOf('/assets/api-base.js')
     const script = html.indexOf('/assets/feedback-form.js')
     expect(base, 'api-base.js is not loaded at all').toBeGreaterThan(-1)
@@ -400,8 +403,8 @@ describe('the home form delivers its structured answers', () => {
     // All four forms land in one inbox. The home page asking "K-2" while
     // the feedback page asks "K–2 (Grammar)" would make the same answer
     // two different strings to whoever reads them.
-    const home = readFileSync(join(SITE, 'index.html'), 'utf8')
-    const feedback = readFileSync(join(SITE, 'feedback/index.html'), 'utf8')
+    const home = readFileSync(join(FORM_PAGES, 'index.html'), 'utf8')
+    const feedback = readFileSync(join(FORM_PAGES, 'feedback/index.html'), 'utf8')
     for (const value of ['K-2', '3-5', '6-8', 'Older']) {
       expect(home).toContain(`name="stages" value="${value}"`)
       expect(feedback).toContain(`name="stages" value="${value}"`)

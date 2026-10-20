@@ -1,0 +1,762 @@
+/*
+ * Bede public-site cohesion layer.
+ * Load after the source page stylesheets. Add `bede-theme` to the body;
+ * the approved reference preview intentionally does not opt in.
+ *
+ * One quiet institutional vocabulary: bookish display and reading text,
+ * a clear system-sans interface voice, warm paper, ink navy, and restrained gilt.
+ * All typefaces are locally available system stacks; this file makes no requests.
+ */
+
+.bede-theme {
+  --bede-ink: #1b2b3b;
+  --bede-ink-soft: #394957;
+  --bede-paper: #fbf8f1;
+  --bede-paper-warm: #f2ecdf;
+  --bede-paper-deep: #e7decd;
+  --bede-gold: #92703b;
+  --bede-gold-light: #e3c982;
+  --bede-forest: #415744;
+  --bede-forest-deep: #304333;
+  --bede-muted: #536067;
+  --bede-rule: #d9d0c0;
+  --bede-alert: #7e4137;
+  --bede-shadow: 0 12px 30px rgba(31, 42, 49, 0.08);
+
+  --bede-font-editorial: Georgia, Cambria, "Times New Roman", serif;
+  --bede-font-reading: Georgia, Cambria, "Times New Roman", serif;
+  --bede-font-interface: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --ink: var(--bede-ink);
+  --ink-soft: var(--bede-ink-soft);
+  --fern: var(--bede-forest);
+  --fern-deep: var(--bede-forest-deep);
+  --vellum: var(--bede-paper);
+  --vellum-deep: var(--bede-paper-warm);
+  --gilt: var(--bede-gold);
+  --gilt-light: var(--bede-gold-light);
+  --madder: var(--bede-alert);
+  --prose: var(--bede-ink-soft);
+
+  --offer-gold: #c4a45f;
+  --offer-navy: var(--bede-ink);
+  --offer-paper: var(--bede-paper);
+
+  color: var(--bede-ink);
+  background: var(--bede-paper);
+  font-family: var(--bede-font-reading);
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  color-scheme: light;
+}
+
+.bede-theme *,
+.bede-theme *::before,
+.bede-theme *::after {
+  box-sizing: border-box;
+}
+
+/* Legacy page-specific font shorthands must not override the shared families.
+   Only font-family is enforced; component sizes and emphasis remain intact. */
+body.bede-theme :is(h1, h2, h3, h4, h5, h6, blockquote) {
+  font-family: var(--bede-font-editorial) !important;
+}
+
+body.bede-theme :is(button, input, select, textarea, .classical-nav a,
+  .classical-brand small, .classical-button, .classical-kicker, .eyebrow,
+  .classical-principles, .stage-label, .classical-human-cycle small,
+  .classical-evidence-note, .classical-scope, .classical-photo-note,
+  .classical-text-link, .classical-connectivity, .classical-reading-context,
+  .footer-links, .footer-copyright, .skip-link, .school-kicker, .school-tag,
+  .school-print-button, .school-small, .fact-k) {
+  font-family: var(--bede-font-interface) !important;
+}
+
+.bede-theme :where(h1, h2, h3, h4, h5, h6, blockquote, .cycle-number, .bede-curriculum-entry::before) {
+  font-family: var(--bede-font-editorial);
+  font-weight: 400;
+  text-wrap: pretty;
+}
+
+.bede-theme :where(p, li, blockquote, figcaption, dd) {
+  font-family: var(--bede-font-reading);
+}
+
+.bede-theme :where(button, input, select, textarea, .classical-nav, .classical-button,
+  .classical-kicker, .eyebrow, .classical-principles, .stage-label,
+  .classical-human-cycle small, .classical-evidence-note, .classical-scope,
+  .classical-photo-note, .classical-text-link, .classical-connectivity,
+  .footer-links, .footer-copyright, .skip-link, .school-kicker, .school-tag,
+  .school-print-button, .school-small, .pill-label, .plan-numeral) {
+  font-family: var(--bede-font-interface);
+}
+
+.bede-theme :where(h1, h2, h3, h4, h5, h6, p, ul, ol, figure, blockquote) {
+  overflow-wrap: break-word;
+}
+
+.bede-theme :where(a) {
+  color: var(--bede-ink);
+  text-decoration-color: var(--bede-gold);
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+
+.bede-theme :where(a:hover) {
+  color: var(--bede-forest-deep);
+  text-decoration-thickness: 2px;
+}
+
+.bede-theme :where(:focus-visible) {
+  outline: 3px solid #8c6326;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.bede-theme .skip-link {
+  background: var(--bede-paper);
+  color: var(--bede-ink);
+  box-shadow: var(--bede-shadow);
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+}
+
+/* Shared institutional masthead and navigation */
+.bede-theme .classical-header {
+  background: var(--bede-paper);
+  border-bottom: 1px solid var(--bede-rule);
+}
+
+.bede-theme .classical-brand,
+.bede-theme .classical-nav a {
+  color: var(--bede-ink);
+}
+
+.bede-theme .classical-brand span {
+  font-family: var(--bede-font-editorial);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.bede-theme .classical-brand small {
+  color: var(--bede-muted);
+  font-family: var(--bede-font-interface);
+  font-size: 0.57rem;
+  font-weight: 600;
+  letter-spacing: 0.25em;
+}
+
+.bede-theme .classical-nav a {
+  font-size: 0.76rem;
+  font-weight: 650;
+  letter-spacing: 0.025em;
+  text-decoration-color: var(--bede-gold);
+  text-underline-offset: 0.4em;
+}
+
+.bede-theme .classical-nav .nav-demo {
+  border-color: var(--bede-gold);
+}
+
+.bede-theme .beta-banner {
+  background: var(--bede-paper-warm);
+  border-block: 1px solid var(--bede-rule);
+  color: var(--bede-ink);
+  font-family: var(--bede-font-interface);
+}
+
+.bede-theme .beta-banner a {
+  color: var(--bede-ink);
+  font-weight: 700;
+}
+
+.bede-theme .beta-banner strong {
+  color: var(--bede-ink);
+}
+
+/* Editorial hierarchy: generous but measured titles, readable long-form copy. */
+.bede-theme .classical-hero {
+  background-color: var(--bede-ink);
+  color: var(--bede-paper);
+}
+
+.bede-theme .classical-hero h1 {
+  color: var(--bede-paper);
+  font-family: var(--bede-font-editorial);
+  font-size: clamp(2.25rem, 3.6vw, 3.65rem);
+  max-width: none;
+  font-weight: 400;
+  line-height: 1.09;
+  letter-spacing: -0.035em;
+}
+
+.bede-theme .classical-hero h1 em {
+  color: var(--bede-gold-light);
+  font-family: inherit;
+}
+
+.bede-theme .classical-hero-copy > p:not(.classical-kicker):not(.hero-footnote) {
+  max-width: 47ch;
+  color: #f0ece3;
+  font-size: clamp(1.02rem, 1.4vw, 1.12rem);
+  line-height: 1.78;
+}
+
+.bede-theme .classical-kicker {
+  color: var(--bede-gold-light);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  line-height: 1.8;
+}
+
+.bede-theme .hero-footnote {
+  color: #ddd9d0;
+  font-family: var(--bede-font-interface);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.bede-theme .classical-hero-photo figcaption {
+  color: var(--bede-paper);
+  font-family: var(--bede-font-editorial);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.bede-theme .classical-principles {
+  background: var(--bede-paper-warm);
+  border-bottom: 1px solid var(--bede-rule);
+  color: var(--bede-ink-soft);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.075em;
+}
+
+.bede-theme .classical-section-heading .eyebrow,
+.bede-theme .classical-path-copy .eyebrow,
+.bede-theme .eyebrow {
+  color: #705429;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.8;
+}
+
+.bede-theme .classical-section h2,
+.bede-theme .classical-callout h2,
+.bede-theme .school-supporting-details h2,
+.bede-theme .school-budget h2 {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-editorial);
+  font-size: clamp(2rem, 3.35vw, 3.2rem);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.16;
+}
+
+.bede-theme .classical-section-heading > p:last-child,
+.bede-theme .classical-section > p,
+.bede-theme .classical-path p,
+.bede-theme .classical-stages p,
+.bede-theme .classical-feature-grid p,
+.bede-theme .classical-human-cycle p,
+.bede-theme .classical-callout > p,
+.bede-theme .school-supporting-details p,
+.bede-theme .school-scope-notice p {
+  color: var(--bede-ink-soft);
+  font-size: 0.98rem;
+  line-height: 1.8;
+}
+
+.bede-theme .classical-path h3,
+.bede-theme .classical-stages h3,
+.bede-theme .classical-feature-grid h3,
+.bede-theme .classical-human-cycle h3,
+.bede-theme .school-supporting-details h3 {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-editorial);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.bede-theme .classical-section-heading {
+  max-width: 48rem;
+}
+
+.bede-theme .classical-path,
+.bede-theme .classical-feature-grid article {
+  border-color: var(--bede-rule);
+}
+
+.bede-theme .classical-path {
+  background: #fffdf8;
+}
+
+.bede-theme .classical-path-copy {
+  color: var(--bede-ink);
+}
+
+.bede-theme .classical-path .classical-scope {
+  color: var(--bede-muted);
+  border-color: var(--bede-rule);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+
+.bede-theme .classical-text-link {
+  color: var(--bede-ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+}
+
+.bede-theme .classical-photo-note {
+  color: #5b625f;
+  font-size: 0.7rem;
+  line-height: 1.75;
+}
+
+/* Stable shared palette for the alternating paper and navy sections. */
+.bede-theme .classical-stage-band {
+  background: #f0eee6;
+  border-color: #d6d8cd;
+}
+
+.bede-theme .classical-human-cycle li {
+  border-color: #aeb6a7;
+}
+
+.bede-theme .cycle-number {
+  color: #586a50;
+  font-family: var(--bede-font-editorial);
+  font-variant-numeric: oldstyle-nums;
+}
+
+.bede-theme .classical-human-cycle small {
+  color: #40513b;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.bede-theme .classical-evidence-note {
+  color: #465348;
+  border-color: #c2c8ba;
+  font-size: 0.78rem;
+  line-height: 1.8;
+}
+
+.bede-theme .classical-evidence-note a {
+  color: var(--bede-ink);
+}
+
+.bede-theme .classical-stages .stage-label {
+  color: #705429;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.bede-theme .classical-stages .application-prompt {
+  color: var(--bede-forest-deep);
+  border-color: var(--bede-rule);
+}
+
+.bede-theme .classical-review-strip {
+  background: var(--bede-paper-warm);
+  border-color: var(--bede-gold);
+}
+
+.bede-theme .classical-review-strip p {
+  color: var(--bede-ink-soft);
+  font-size: 0.93rem;
+  line-height: 1.8;
+}
+
+.bede-theme .classical-feature-grid article {
+  border-top-color: #bfa875;
+}
+
+.bede-theme .classical-callout {
+  background: #eee5d5;
+  color: var(--bede-ink);
+}
+
+.bede-theme .classical-origin blockquote {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-editorial);
+  font-size: clamp(1.1rem, 1.7vw, 1.3rem);
+  line-height: 1.8;
+}
+
+.bede-theme .classical-origin cite {
+  color: var(--bede-muted);
+  font-family: var(--bede-font-interface);
+  font-size: 0.82rem;
+}
+
+/* Buttons, calls to action, and small labels use one purposeful UI voice. */
+.bede-theme .classical-button,
+.bede-theme .school-print-button {
+  border: 1px solid #b99a5b;
+  border-radius: 2px;
+  background: #c4a45f;
+  color: var(--bede-ink);
+  font-family: var(--bede-font-interface);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1.45;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.bede-theme .classical-button:hover,
+.bede-theme .school-print-button:hover {
+  background: #dbc58d;
+  border-color: #a98a4c;
+  color: var(--bede-ink);
+}
+
+.bede-theme .classical-button.outline {
+  background: transparent;
+  border-color: rgba(251, 248, 241, 0.65);
+  color: var(--bede-paper);
+}
+
+.bede-theme .classical-button.outline:hover {
+  background: rgba(251, 248, 241, 0.1);
+  border-color: var(--bede-gold-light);
+}
+
+.bede-theme .classical-button.ink {
+  background: var(--bede-ink);
+  border-color: var(--bede-ink);
+  color: var(--bede-paper);
+}
+
+.bede-theme .classical-button.ink:hover {
+  background: #2d4153;
+  border-color: #2d4153;
+}
+
+.bede-theme .classical-button:active,
+.bede-theme .school-print-button:active {
+  transform: translateY(1px);
+}
+
+.bede-theme .classical-device-band {
+  background: var(--bede-ink);
+  color: var(--bede-paper);
+}
+
+.bede-theme .classical-device-layout h2 {
+  color: var(--bede-paper);
+}
+
+.bede-theme .classical-device-layout .eyebrow {
+  color: var(--bede-gold-light);
+}
+
+.bede-theme .classical-device-layout > div > p {
+  color: #e8e5dd;
+  line-height: 1.8;
+}
+
+.bede-theme .classical-device-layout .classical-reading-philosophy {
+  color: #f0dfb5;
+  font-family: var(--bede-font-editorial);
+}
+
+.bede-theme .classical-device-layout .classical-reading-context,
+.bede-theme .classical-device-layout .classical-connectivity {
+  color: #d2d9de;
+  font-family: var(--bede-font-interface);
+}
+
+/* Scope notice, pricing, tables, disclosure and form controls. */
+.bede-theme .classical-offers .school-scope-notice {
+  background: #edf0e8;
+  border-left-color: var(--bede-forest);
+  color: var(--bede-ink);
+}
+
+.bede-theme .school-scope-notice h2 {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-editorial);
+}
+
+.bede-theme .school-budget {
+  color: var(--bede-ink);
+}
+
+.bede-theme .school-budget h2,
+.bede-theme .school-budget h3,
+.bede-theme .school-budget-detail-grid h3 {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-editorial);
+}
+
+.bede-theme .school-budget p,
+.bede-theme .school-budget td,
+.bede-theme .school-budget th {
+  color: var(--bede-ink-soft);
+}
+
+.bede-theme .school-kicker,
+.bede-theme .school-tag,
+.bede-theme .school-small,
+.bede-theme .school-budget-footer,
+.bede-theme .plan-numeral {
+  font-family: var(--bede-font-interface);
+}
+
+.bede-theme .school-kicker,
+.bede-theme .school-tag {
+  color: #705429;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.bede-theme .school-offer-banner {
+  background: var(--bede-ink);
+  color: var(--bede-paper);
+}
+
+.bede-theme .school-offer-banner :where(p, strong, span) {
+  color: inherit;
+}
+
+.bede-theme .school-offer-banner .school-tag {
+  color: var(--bede-gold-light);
+}
+
+.bede-theme .school-major,
+.bede-theme .school-annual-price {
+  font-family: var(--bede-font-editorial);
+}
+
+.bede-theme .school-budget-table {
+  border-color: var(--bede-rule);
+  background: #fffdf8;
+  color: var(--bede-ink);
+}
+
+.bede-theme .school-budget-table :where(th, td) {
+  border-color: var(--bede-rule);
+}
+
+.bede-theme .school-budget-table thead th {
+  background: #eae3d5;
+  color: var(--bede-ink);
+  font-family: var(--bede-font-interface);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+}
+
+.bede-theme .school-budget-table tbody th {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-interface);
+  font-weight: 650;
+}
+
+.bede-theme .school-budget-table .school-featured > * {
+  background: #f2ead8;
+}
+
+.bede-theme .school-small {
+  color: #4f5a5f;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.bede-theme .school-budget-footer {
+  border-color: var(--bede-rule);
+  color: var(--bede-muted);
+  font-size: 0.72rem;
+}
+
+.bede-theme .school-scroll:focus-visible {
+  outline-offset: 3px;
+}
+
+.bede-theme :where(input, select, textarea) {
+  max-width: 100%;
+  border: 1px solid #aaa18f;
+  border-radius: 2px;
+  background: #fffdf8;
+  color: var(--bede-ink);
+  font-family: var(--bede-font-interface);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.bede-theme :where(input, select, textarea)::placeholder {
+  color: #626b6e;
+  opacity: 1;
+}
+
+.bede-theme :where(label, legend) {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-interface);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.bede-theme :where(button) {
+  font-family: var(--bede-font-interface);
+}
+
+.bede-theme :where(details) {
+  border-color: var(--bede-rule);
+}
+
+.bede-theme :where(summary) {
+  color: var(--bede-ink);
+  font-family: var(--bede-font-editorial);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.bede-theme :where(details > p) {
+  color: var(--bede-ink-soft);
+  font-family: var(--bede-font-reading);
+  line-height: 1.75;
+}
+
+.bede-theme .pill-label {
+  color: #596267;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+}
+
+.bede-theme .pill {
+  border-color: var(--bede-rule);
+  background: #fffdf8;
+  color: var(--bede-forest-deep);
+  font-family: var(--bede-font-interface);
+  font-size: 0.78rem;
+}
+
+/* Shared footer: quiet closing matter, not a second navigation spectacle. */
+.bede-theme > footer,
+.bede-theme footer {
+  background: var(--bede-ink);
+  color: var(--bede-paper);
+}
+
+.bede-theme footer a {
+  color: var(--bede-paper);
+  text-decoration-color: var(--bede-gold-light);
+}
+
+.bede-theme .footer-links {
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.8;
+}
+
+.bede-theme .footer-copyright {
+  color: #d6d8d7;
+  font-size: 0.72rem;
+  line-height: 1.7;
+}
+
+@media (max-width: 760px) {
+  .bede-theme .classical-hero h1 {
+    font-size: clamp(2.15rem, 8vw, 3.2rem);
+    line-height: 1.11;
+  }
+
+  .bede-theme .classical-section h2,
+  .bede-theme .classical-callout h2,
+  .bede-theme .school-supporting-details h2,
+  .bede-theme .school-budget h2 {
+    font-size: clamp(1.85rem, 7vw, 2.65rem);
+  }
+
+  .bede-theme .classical-hero-copy > p:not(.classical-kicker):not(.hero-footnote),
+  .bede-theme .classical-section-heading > p:last-child,
+  .bede-theme .classical-section > p,
+  .bede-theme .classical-path p,
+  .bede-theme .classical-stages p,
+  .bede-theme .classical-feature-grid p,
+  .bede-theme .classical-human-cycle p {
+    font-size: 0.97rem;
+    line-height: 1.75;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bede-theme *,
+  .bede-theme *::before,
+  .bede-theme *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .bede-theme {
+    background: #fff;
+    color: #17212b;
+    font-size: 10.5pt;
+    -webkit-font-smoothing: auto;
+    color-scheme: light;
+  }
+
+  .bede-theme :where(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th, a, cite) {
+    color: #17212b !important;
+  }
+
+  .bede-theme .classical-hero,
+  .bede-theme .classical-device-band,
+  .bede-theme .school-offer-banner,
+  .bede-theme footer {
+    background: #fff !important;
+    color: #17212b !important;
+    border-color: #9d9d9d;
+  }
+
+  .bede-theme .classical-hero h1 em,
+  .bede-theme .classical-kicker,
+  .bede-theme .classical-device-layout .eyebrow,
+  .bede-theme .school-offer-banner .school-tag {
+    color: #17212b !important;
+  }
+
+  .bede-theme .classical-button,
+  .bede-theme .school-print-button,
+  .bede-theme .classical-actions,
+  .bede-theme .classical-header,
+  .bede-theme .beta-banner,
+  .bede-theme .classical-hero-photo {
+    display: none !important;
+  }
+
+  .bede-theme .classical-section,
+  .bede-theme .school-budget {
+    max-width: none;
+    padding: 0.6rem 0;
+  }
+
+  .bede-theme .classical-path,
+  .bede-theme .classical-feature-grid article,
+  .bede-theme .classical-human-cycle li,
+  .bede-theme .school-budget-table tr {
+    break-inside: avoid;
+  }
+
+  .bede-theme a {
+    text-decoration: none;
+  }
+}

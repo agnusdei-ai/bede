@@ -52,13 +52,16 @@ def _pages_with_forms():
     return [p for p in _PAGES if "<form" in p.read_text()]
 
 
-def test_the_site_still_has_the_forms_this_file_is_about():
+def test_the_site_has_the_current_inquiry_only_contacts():
     """A guard on the guard: if the forms move or are renamed, the test
     below would pass by vacuously finding nothing to check. Deliberately
     not a count — adding a fifth form page is ordinary work that the
     parametrized test already covers, and a hardcoded number would fail
     that change while proving nothing."""
-    assert _pages_with_forms(), "no page under site/ contains a <form>"
+    home = (_SITE / "index.html").read_text()
+    assert 'mailto:bede@agnusdei.ai?' in home
+    assert 'mailto:info@agnusdei.ai?' in home
+    assert not _pages_with_forms(), "the current marketing site is inquiry-only"
 
 
 @pytest.mark.parametrize(

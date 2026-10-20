@@ -111,12 +111,13 @@ def test_school_executive_pricing_scenarios_and_us_english():
     assert (3500 - 2600) * 12 == 10_800
 
 
-def test_beta_banner_date_is_current_across_public_surfaces():
+def test_inquiry_banner_is_consistent_and_demo_beta_dates_remain_current():
     public_pages = ["index.html", "faq/index.html", "feedback/index.html",
                     "survey/index.html", "educators/index.html", "privacy/index.html"]
     for page in public_pages:
         text = (SITE / page).read_text(encoding="utf-8")
-        assert "October 31, 2026" in text, f"{page} omitted beta end date"
+        assert "Human-led classical learning for K–8." in text, f"{page} omitted inquiry banner"
+        assert 'mailto:bede@agnusdei.ai?' in text
         assert "Free to use through August 31" not in text
         assert "Fall Launch: September" not in text
     launch = (SITE.parent / "demo" / "public" / "launch.html").read_text(encoding="utf-8")

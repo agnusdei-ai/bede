@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-US">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,12 +7,35 @@
   <meta name="description" content="What agnusdei.ai actually collects: every cookie, every piece of browser storage, and every third party contacted, on the marketing site and the interactive demo alike." />
   <link rel="canonical" href="https://agnusdei.ai/privacy/" />
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
+
+
   <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/classical-offers.css" />
+  <link rel="stylesheet" href="/assets/reading-motion.css" />
+  <link rel="stylesheet" href="/assets/curriculum-layout.css" />
+  <link rel="stylesheet" href="/assets/cohesive-theme.css" />
+  <link rel="stylesheet" href="/assets/spacing-motion.css" />
+  <link rel="stylesheet" href="/assets/inquiry.css" />
+  <script src="/assets/bede-motion.js" defer></script>
 </head>
-<body>
-  <div class="beta-banner">
-    <strong>Bede public beta through October 31, 2026.</strong> The public demo is free to try, with no account or payment card required.
-  </div>
+<body class="classical-offers bede-theme">
+
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="classical-header">
+      <a class="classical-brand" href="/" aria-label="Agnus Dei Technologies home">
+        <img src="/assets/agnus-dei-logo.png" alt="" width="54" height="54" />
+        <span>AGNUS DEI<small>TECHNOLOGIES</small></span>
+      </a>
+      <nav class="classical-nav" aria-label="Main navigation">
+        <a href="/schools/">For Schools</a>
+        <a href="/homeschool/">For Homeschool</a>
+        <a href="/#human-led">Our Approach</a>
+        <a class="nav-demo" href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede <span aria-hidden="true">&rarr;</span></a>
+      </nav>
+    </header>
+    <div class="beta-banner"><strong>Human-led classical learning for K–8.</strong> Curious about Bede? <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Inquire about a Learn about Bede session &rarr;</a></div>
+    <main id="main-content">
+
 
   <div class="band">
     <section class="page-head">
@@ -36,12 +59,11 @@
       <h2>The marketing site, and the demo, are not the same product</h2>
       <p>
         The pages you are reading now (the home page, this page,
-        the FAQ, the feedback form, and the two survey pages for
-        parents and co-op leaders) are static. They contact nothing at
-        all while you read them. The single exception is the moment you
-        press send on one of the forms, and it goes to our own server and
-        nowhere else, described below. The interactive demo at
-        <a href="/bede/">agnusdei.ai/bede/</a> is a different thing
+        the FAQ, and the educator and family inquiry pages) are static.
+        The current website uses email links rather than online forms,
+        registration, or checkout. Opening an email link launches your
+        email application; nothing is sent unless you choose to send it.
+        The interactive demo under <code>/bede/</code> is a different thing
         entirely: a separate, time-limited, fully-featured free trial
         that runs in the cloud, on our own servers, so you can try Bede
         without installing anything. It is not the product a family
@@ -61,36 +83,33 @@
         No cookie is set anywhere on these pages. No browser storage of
         any kind (localStorage, sessionStorage, IndexedDB) is used. No
         font, script, analytics tag, tag manager, or chat widget is
-        loaded from any outside origin. The one exception is a single
-        embedded video on the home page, and it is click-to-play: no
-        request reaches YouTube until a visitor presses play themselves.
+        loaded from any outside origin. Motion and illustrations use
+        files served by this website. They do not send information to
+        an animation or analytics service.
       </p>
       <p>
-        Two things do leave your browser, and only when you choose to make
-        them. Pressing play on that video contacts YouTube. Pressing send
-        on the feedback form or either survey posts what you typed to our
-        own API, which emails it to us and stores nothing. Both are
-        listed below. Until you do one of those, these pages make no
-        network request of any kind. The membership buttons on the home
-        page are ordinary links that take you to our licensing storefront;
-        they are listed below too.
+        Inquiry links open your email application. Learn about Bede
+        session inquiries go to <code>bede@agnusdei.ai</code>; educator and
+        homeschool interviews and onboarding requests go to
+        <code>info@agnusdei.ai</code>. Your email provider handles any message
+        you choose to send. No payment details are collected on these pages.
       </p>
       <table class="tracker-table">
         <tr><th>Item</th><th>Category</th><th>Notes</th></tr>
         <tr>
-          <td>YouTube video embed (home page)</td>
+          <td>Video embeds, when present</td>
           <td>Marketing / embedded video</td>
           <td>Loaded only after a visitor clicks &ldquo;Watch: Meet Bede.&rdquo; Served via YouTube's privacy-enhanced <code>youtube-nocookie.com</code> domain. Nothing is requested from YouTube before that click. When you do press play, your browser tells YouTube which site the video is playing on &mdash; this site's own address and nothing more, never the page you were reading or anything you typed. YouTube refuses to play an embedded video without that, so it is the minimum required rather than a choice we made; every other request on this site sends no referring address at all.</td>
         </tr>
         <tr>
-          <td>Forms: &ldquo;Request a call&rdquo; (home page), feedback, and the two surveys</td>
+          <td>Email inquiries</td>
           <td>Strictly necessary</td>
-          <td>Sent only when you press send. What you typed goes to our own API and is emailed straight to us through Resend; it is not written to any database, and no analytics or form service is involved. If we cannot be reached, your own email program opens with your answers in it instead, so nothing is lost. On the feedback form and both surveys, name and email are optional &mdash; leave them blank and we have no way to know who you are. On &ldquo;Request a call&rdquo; an email address is required, because it is the only way a person can call you back; that request reaches our sales address rather than the general one, and nothing else about it is treated differently.</td>
+          <td>These pages have no online inquiry or registration form. Email links open your email application with a recipient and subject. You decide what to include and whether to send it; a click alone does not submit a request or create an account.</td>
         </tr>
         <tr>
-          <td>Membership buttons (home page)</td>
+          <td>Payments and enrollment</td>
           <td>Strictly necessary</td>
-          <td>Plain links, followed only when you click one. &ldquo;Subscribe&rdquo; and &ldquo;Start the 7-day trial&rdquo; take you to our licensing storefront at <code>bede-license-server.agnusdei.workers.dev</code>; paying there is handled by Stripe&rsquo;s own checkout page, which is where your card details go, never to us. The links carry nothing about you and nothing you chose on this page. The plan you pick and the children slider are worked out in your browser by a script served from this site; nothing about them is sent or stored.</td>
+          <td>The current marketing offer is inquiry-only. It does not link to checkout, request payment details, activate a trial, or enroll a family or educator.</td>
         </tr>
       </table>
 
@@ -98,7 +117,7 @@
       <p>
         The demo asks for your consent before it collects anything, and
         explains what it collects and for how long in its own
-        <a href="/bede/privacy.html">Privacy Notice</a>, which this page
+        <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede <span aria-hidden="true">&rarr;</span></a>, which this page
         links back to. What follows is the technical inventory behind
         that notice.
       </p>
@@ -293,23 +312,26 @@
         this page, write to
         <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>. For the
         demo specifically, see the Parental Rights section of its
-        <a href="/bede/privacy.html">Privacy Notice</a>.
+        <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede <span aria-hidden="true">&rarr;</span></a>.
       </p>
 
     </div>
   </section>
 
-  <footer>
-    <div class="footer-links">
-      <a href="/">Home</a>
-      <a href="/faq/">FAQ</a>
-      <a href="/bede/">Demo</a>
-      <a href="/#request-a-call">Schedule Onboarding</a>
-      <a href="/feedback/">Feedback</a>
-      <a href="/educators/">Co-ops</a>
-      <a href="/privacy/">Privacy</a>
-    </div>
-    <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
-  </footer>
+
+</main>
+    <footer>
+      <nav class="footer-links" aria-label="Footer navigation">
+        <a href="/">Home</a>
+        <a href="/schools/">For Schools</a>
+        <a href="/homeschool/">For Homeschool</a>
+        <a href="/educators/">For Educators</a>
+        <a href="/faq/">FAQ</a>
+        <a href="/privacy/" aria-current="page">Privacy</a>
+        <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede</a>
+        <a href="mailto:info@agnusdei.ai?subject=Educator%20or%20homeschool%20interview%20and%20onboarding%20inquiry">Interviews &amp; onboarding</a>
+      </nav>
+      <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+    </footer>
 </body>
 </html>

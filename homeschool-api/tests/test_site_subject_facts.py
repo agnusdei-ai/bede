@@ -28,7 +28,7 @@ STAGE_GATED_FROM_GRADE_3 = {Subject.logic}
 
 def _cards() -> dict[str, dict[str, str]]:
     out = {}
-    for m in re.finditer(r'<div class="card subject">\s*<h3>(.*?)</h3>.*?<ul class="subject-facts">(.*?)</ul>', CURRICULUM, re.S):
+    for m in re.finditer(r'<li class="bede-curriculum-entry">\s*<h3>(.*?)</h3>.*?<ul class="subject-facts">(.*?)</ul>', CURRICULUM, re.S):
         facts = dict(re.findall(r'<span class="fact-k">(\w+)</span>\s*([^<]*)</li>', m.group(2)))
         out[html.unescape(m.group(1))] = {k: html.unescape(v).strip() for k, v in facts.items()}
     return out
@@ -77,7 +77,7 @@ def test_record_line_says_the_right_kind_of_thing(subject):
 
 
 def test_the_five_named_in_the_lede_are_the_five_marked_tracked():
-    lede = re.search(r"The\s+five core subjects the guarantee tracks are(.*?)\.\s*</p>", CURRICULUM, re.S).group(1)
+    lede = re.search(r"The\s+five core subjects with tracked mastery outcomes are(.*?)\.\s*</p>", CURRICULUM, re.S).group(1)
     named = {s for s in Subject if html.unescape(SUBJECT_LABELS[s]) in html.unescape(re.sub(r"\s+", " ", lede))}
     assert named == GUARANTEE
 

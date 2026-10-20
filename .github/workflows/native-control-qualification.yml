@@ -43,6 +43,12 @@ jobs:
           if /tmp/bede-native-control provision ../escape; then echo 'path traversal was allowed' >&2; exit 1; fi
           if /tmp/bede-native-control status missing-campus; then echo 'missing campus was allowed' >&2; exit 1; fi
           /tmp/bede-native-control status campus-beta > /dev/null
+          if /tmp/bede-native-control remove campus-alpha > /tmp/bede-remove.out 2> /tmp/bede-remove.err; then
+            echo 'Unsafe native campus removal was permitted' >&2; exit 1
+          fi
+          grep -q 'requires a qualified runtime shutdown' /tmp/bede-remove.err
+          /tmp/bede-native-control status campus-alpha > /dev/null
+          /tmp/bede-native-control status campus-beta > /dev/null
           python3 packaging/tests/test_macos_architecture_selection.py
       - name: Scope declaration
         run: echo 'Control-plane provisioning only. API, inference, teacher UI, signed payload and physical G1/G2/G3 are NOT qualified.'

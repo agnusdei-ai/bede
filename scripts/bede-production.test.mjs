@@ -44,7 +44,8 @@ test("all curriculum subjects, descriptions, and facts survive graduation", () =
   assert.equal((faq.match(/class="fact-k"/g) || []).length, 42);
   assert.match(html, /Read the curriculum and learning FAQs/);
   assert.match(faq, /separately configured, approved access/);
-  assert.match(faq, /independent outcome study/);
+  assert.doesNotMatch(faq, /independent outcome study/);
+  assert.match(faq, /cancel their learning plan at the end of a full month/);
   assert.match(html, /teacher-only and synthetic-data-only\. No direct student tutoring/);
   assert.match(html, /data-reading-stage/);
   assert.match(html, /A little device time\. A great deal of reading\./);

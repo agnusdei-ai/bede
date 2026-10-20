@@ -1,18 +1,12 @@
-"""
-The beta survey is one instrument delivered three ways — two hosted pages
-on the marketing site and one in-app prompt — and all three post to
-POST /feedback under the same category so their answers pool into a single
-pile in the operator's inbox. See docs/BETA_SURVEY.md.
+"""Validate beta-survey category integrity without inventing public submission forms.
 
-That category string is therefore the same fact written in four places:
-this Python enum, two HTML files, and a TypeScript call site. Nothing in a
-static site's markup is type-checked against a pydantic Literal, so a typo
-in a `data-category` attribute would not fail a build — it would 422 at the
-moment a real parent pressed submit, after they had filled the form in,
-which is the worst time to find out and the least likely to be reported.
+The active Bede website is inquiry-only. /survey/ and /educators/ must not
+expose form fields or a POST workflow; interviews use explicit email links.
+The in-app survey remains an authorized POST /feedback client and must use
+the category accepted by the API and rendered by the email service.
 
-Per CLAUDE.md's "Carry Out the Decision" rule: where the same fact lives in
-more than one place, add the check that fails when they drift.
+If public survey forms are restored later, update the offer and tests
+together rather than adding unused data-category attributes to static pages.
 """
 import re
 from pathlib import Path
@@ -26,7 +20,7 @@ from services.email_service import _CATEGORY_LABELS, _feedback_prefix
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SURVEY_CATEGORY = "beta_survey"
 
-# Every file that names the category, and what it is.
+# Former survey pages: currently inquiry-only, not active submission channels.
 HOSTED_PAGES = [
     REPO_ROOT / "site" / "survey" / "index.html",
     REPO_ROOT / "site" / "educators" / "index.html",
@@ -61,18 +55,30 @@ def test_the_survey_has_a_readable_label_in_the_email_body():
     assert _CATEGORY_LABELS[SURVEY_CATEGORY] != SURVEY_CATEGORY
 
 
-@pytest.mark.parametrize("page", HOSTED_PAGES, ids=lambda p: p.name and p.parent.name)
-def test_each_hosted_survey_page_posts_a_category_the_api_accepts(page):
+@pytest.mark.parametrize("page", HOSTED_PAGES, ids=lambda p: p.parent.name)
+def test_public_survey_pages_are_inquiry_only(page):
+    """Fail if a hosted survey silently reappears without authorization.
+
+    Do not add dummy data-category attributes to make an obsolete test pass.
+    No learner or family responses should be collected by these public pages.
+    """
     assert page.exists(), f"{page} is missing"
-    declared = re.findall(r'data-category="([^"]+)"', page.read_text(encoding="utf-8"))
-    assert declared, f"{page} declares no data-category for the shared form script"
-    for category in declared:
-        # Raises if the page names something the API would 422.
-        FeedbackRequest(category=category, message="answers")
-    assert SURVEY_CATEGORY in declared
+    html = page.read_text(encoding="utf-8")
+    assert not re.search(r"<form\\b", html, re.IGNORECASE), (
+        f"{page} must remain inquiry-only; public survey form found"
+    )
+    assert not re.search(r"\\bdata-category\\s*=", html), (
+        f"{page} declares an unused feedback submission category"
+    )
+    assert not re.search(
+        r'<script[^>]+src=["\\\']/assets/feedback-form\\.js', html, re.IGNORECASE
+    ), f"{page} must not load the public feedback form submission script"
+    assert "mailto:info@agnusdei.ai?" in html, (
+        f"{page} needs a working inquiry contact"
+    )
 
 
-def test_the_in_app_prompt_posts_the_same_category_as_the_hosted_pages():
+def test_the_in_app_prompt_posts_the_accepted_survey_category():
     """Pooling only works if all three agree. The modal calls
     submitFeedback(token, '<category>', ...), so the string is a literal in
     that file and can be read out of it directly."""

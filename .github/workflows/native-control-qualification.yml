@@ -1,0 +1,85 @@
+name: Native macOS control qualification
+on:
+  pull_request:
+    paths:
+      - 'packaging/macos/native/**'
+      - 'packaging/macos/BedeInstallerApp.swift'
+      - '.github/workflows/native-control-qualification.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'packaging/macos/native/**'
+      - 'packaging/macos/BedeInstallerApp.swift'
+      - '.github/workflows/native-control-qualification.yml'
+permissions:
+  contents: read
+jobs:
+  native-control:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Compile native executable
+        run: |
+          set -euo pipefail
+          swiftc -target arm64-apple-macos14.0 -parse-as-library packaging/macos/native/BedeNativeControl.swift -o /tmp/bede-native-control
+          test -x /tmp/bede-native-control
+      - name: Synthetic campus provisioning and error journeys
+        run: |
+          set -euo pipefail
+          export BEDE_NATIVE_TEST_ROOT="$(mktemp -d)"
+          trap 'rm -rf "$BEDE_NATIVE_TEST_ROOT"' EXIT
+          /tmp/bede-native-control provision campus-alpha > /tmp/bede-alpha.json
+          /tmp/bede-native-control provision campus-beta > /tmp/bede-beta.json
+          /tmp/bede-native-control status campus-alpha > /tmp/bede-status.json
+          python3 - <<'PY'
+          import json
+          a=json.load(open('/tmp/bede-status.json'))
+          assert a['campusID']=='campus-alpha'
+          assert a['architecture']=='native-macos'
+          assert a['pilotGO']=='HOLD'
+          PY
+          if /tmp/bede-native-control provision campus-alpha; then echo 'duplicate campus was allowed' >&2; exit 1; fi
+          if /tmp/bede-native-control provision ../escape; then echo 'path traversal was allowed' >&2; exit 1; fi
+          if /tmp/bede-native-control status missing-campus; then echo 'missing campus was allowed' >&2; exit 1; fi
+          /tmp/bede-native-control status campus-beta > /dev/null
+          if /tmp/bede-native-control remove campus-alpha > /tmp/bede-remove.out 2> /tmp/bede-remove.err; then
+            echo 'Unsafe native campus removal was permitted' >&2; exit 1
+          fi
+          grep -q 'requires a qualified runtime shutdown' /tmp/bede-remove.err
+          /tmp/bede-native-control status campus-alpha > /dev/null
+          /tmp/bede-native-control status campus-beta > /dev/null
+          python3 packaging/tests/test_macos_architecture_selection.py
+      - name: Compile synthetic native diagnostic service
+        run: |
+          set -euo pipefail
+          swiftc -target arm64-apple-macos14.0 -parse-as-library packaging/macos/native/BedeNativeSmokeService.swift -o /tmp/bede-native-smoke
+          test -x /tmp/bede-native-smoke
+      - name: Synthetic local health, teacher-placeholder, and fail-closed journeys
+        run: |
+          set -euo pipefail
+          if BEDE_NATIVE_PORT=18743 /tmp/bede-native-smoke >/tmp/bede-native-rejected.out 2>/tmp/bede-native-rejected.err; then
+            echo "Native service accepted non-synthetic launch" >&2; exit 1
+          fi
+          grep -q 'synthetic mode is required' /tmp/bede-native-rejected.err
+          BEDE_SYNTHETIC_ONLY=1 BEDE_NATIVE_PORT=18743 /tmp/bede-native-smoke >/tmp/bede-native-smoke.out 2>/tmp/bede-native-smoke.err &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl --fail --silent --max-time 1 http://127.0.0.1:18743/health > /tmp/bede-health.json; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import json
+          with open('/tmp/bede-health.json') as f:
+              data=json.load(f)
+          assert data['pilotGO']=='HOLD'
+          assert data['status']=='synthetic-only'
+          PY
+          curl --fail --silent http://127.0.0.1:18743/ | grep -q 'Teacher login and inference are not enabled'
+          test "$(curl -s -o /tmp/bede-missing.json -w '%{http_code}' http://127.0.0.1:18743/api/teacher)" = 404
+          ! curl --fail --silent --max-time 2 http://127.0.0.1:18743/api/inference
+          kill "$pid"
+          wait "$pid" || true
+      - name: Scope declaration
+        run: echo 'Control-plane provisioning only. API, inference, teacher UI, signed payload and physical G1/G2/G3 are NOT qualified.'

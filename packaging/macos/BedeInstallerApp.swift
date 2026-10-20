@@ -173,8 +173,31 @@ final class InstallerController: ObservableObject {
         return campusID.range(of: "^[a-z0-9][a-z0-9_-]{2,63}$", options: .regularExpression) != nil
     }
 
+    // The native choice must never silently fall back to a Docker-backed runtime.
+    // Native installation becomes available only with a complete, qualified payload.
+    var nativeRuntimeReady: Bool {
+        guard let root = Bundle.main.resourceURL?.appendingPathComponent("bede-native", isDirectory: true) else { return false }
+        let fm = FileManager.default
+        let manifest = root.appendingPathComponent("NATIVE_RUNTIME_MANIFEST.json")
+        guard let data = try? Data(contentsOf: manifest),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object["architecture"] as? String == "arm64",
+              object["signature_status"] as? String == "verified",
+              object["pilot_go"] as? String == "HOLD",
+              let components = object["components"] as? [String: String] else { return false }
+        for name in ["bede-api", "bede-inference", "bede-teacher"] {
+            guard let expected = components[name], expected.count == 64,
+                  expected.allSatisfy({ $0.isHexDigit }),
+                  fm.isExecutableFile(atPath: root.appendingPathComponent("bin/\\(name)").path) else { return false }
+        }
+        // Integrity and code-signature verification must be enforced by the native
+        // runtime installer before this flag may be used to enable installation.
+        return false
+    }
+
     var prepared: Bool {
-        architecture == .containerized && check.dockerReady && check.diskGiB >= 30 && check.memoryGiB >= 16 && validContext
+        let resourcesReady = check.diskGiB >= 30 && check.memoryGiB >= 16 && validContext
+        return resourcesReady && (architecture == .containerized ? check.dockerReady : nativeRuntimeReady)
     }
 
     private var installationDirectory: URL {
@@ -299,7 +322,7 @@ final class InstallerController: ObservableObject {
 
     func begin() {
         guard architecture == .containerized else {
-            message = "Native macOS installation is not yet available. No changes were made to this Mac."
+            message = "Native runtime components have not passed integrity, signing and service qualification. Installation was not started; no changes were made."
             return
         }
         guard !running && !checkingMac else { return }
@@ -511,7 +534,7 @@ struct InstallerView: View {
                 }
             }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
             if installer.architecture == .native {
-                Text("Native runtime is pending qualification; installation is unavailable until verified.")
+                Text("Native installation requires signed and verified native API, inference and teacher components.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if installer.context == .campus {
@@ -596,7 +619,7 @@ struct InstallerView: View {
                 if installer.architecture == .containerized {
                     Text("Container engine: \(installer.check.dockerReady ? "Ready" : "Not running")")
                 } else {
-                    Text("Native runtime: Not yet qualified")
+                    Text("Native runtime: \(installer.nativeRuntimeReady ? "Verified" : "Not yet qualified")")
                 }
             }
             .font(.callout)

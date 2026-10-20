@@ -140,6 +140,90 @@
   padding-inline: 0;
 }
 
+/* Keep interactive affordances clear against both ink and paper surfaces. */
+.bede-theme :where(:focus-visible) {
+  outline: 3px solid #8c6326;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px var(--bede-paper);
+}
+.bede-theme .classical-nav a,
+.bede-theme .footer-links a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.bede-theme .classical-button,
+.bede-theme .school-print-button {
+  min-height: 44px;
+  padding-block: 0.65rem;
+  border-radius: 3px;
+  font-weight: 700;
+  text-decoration: none;
+  touch-action: manipulation;
+}
+.bede-theme .classical-button.outline {
+  color: var(--bede-ink);
+  background: var(--bede-paper);
+  border-color: var(--bede-ink);
+}
+.bede-theme .classical-button.outline:hover {
+  color: var(--bede-ink);
+  background: var(--bede-paper-warm);
+  border-color: var(--bede-ink);
+}
+.bede-theme .classical-hero .classical-button.outline,
+.bede-theme .classical-device-band .classical-button.outline {
+  color: var(--bede-paper);
+  background: transparent;
+  border-color: #e3c982;
+}
+.bede-theme .classical-hero .classical-button.outline:hover,
+.bede-theme .classical-device-band .classical-button.outline:hover {
+  color: var(--bede-ink);
+  background: var(--bede-paper);
+  border-color: var(--bede-paper);
+}
+.bede-theme .classical-demo-launch.classical-button {
+  gap: 0.5rem;
+  background: #c4a45f;
+  border-color: #c4a45f;
+  color: var(--bede-ink);
+}
+.bede-theme .classical-demo-launch.classical-button:hover {
+  background: #dbc58d;
+  border-color: #dbc58d;
+  color: var(--bede-ink);
+}
+.bede-theme .demo-launch-note {
+  max-width: 52ch;
+  color: var(--bede-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.65;
+}
+.bede-theme .classical-hero .demo-launch-note {
+  color: #f0ece3;
+}
+.bede-theme .classical-hero .classical-hero-copy > p.demo-launch-note {
+  margin: 1.1rem 0 0;
+  max-width: 52ch;
+  color: #f0ece3;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.bede-theme footer .footer-photo-credit {
+  color: #d6d8d7;
+  opacity: 1;
+}
+.bede-theme .streamlined-detail {
+  border-radius: 3px;
+  box-shadow: 0 3px 12px rgba(31, 42, 49, 0.04);
+}
+.bede-theme .streamlined-detail > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
 @media (max-width: 760px) {
   .bede-theme { font-size: 16px; }
   .bede-theme .classical-hero h1 {
@@ -301,6 +385,8 @@
   }
   .bede-theme .school-budget-table { font-size: 0.9rem; }
   .bede-theme .streamlined-detail { padding-inline: 0.8rem; }
+  .bede-theme .classical-demo-launch.classical-button { width: 100%; }
+  .bede-theme .demo-launch-note { font-size: 0.9rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

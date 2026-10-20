@@ -9,16 +9,17 @@ const root = fileURLToPath(new URL("../site/", import.meta.url));
 const pages = ["", "schools", "homeschool", "faq", "educators", "privacy", "feedback", "survey", "trackers"];
 const read = file => readFileSync(join(root, file), "utf8");
 for (const page of pages) {
-  test(`${page || "home"}: standalone, complete assets, real navigation, inquiry-only`, () => {
+  test(`${page || "home"}: standalone, complete assets, demo navigation, no checkout`, () => {
     const html = read(join(page, "index.html"));
     assert.match(html, /class="classical-offers bede-theme"/);
     assert.equal((html.match(/<header class="classical-header"/g) || []).length, 1);
     assert.equal((html.match(/<header\b/g) || []).length, page === "" ? 2 : 1);
     assert.equal((html.match(/<main\b/g) || []).length, 1);
     assert.equal((html.match(/<footer\b/g) || []).length, 1);
-    assert.doesNotMatch(html, /<iframe|__mockup|preview-action|UNPUBLISHED SITE PREVIEW|postMessage|<form\b/i);
-    assert.doesNotMatch(html, /href="[^"]*(?:checkout|trial-form|\/bede\/)/);
-    assert.match(html, /mailto:bede@agnusdei\.ai\?subject=/);
+    assert.doesNotMatch(html, /<iframe|__mockup|preview-action|UNPUBLISHED SITE PREVIEW|postMessage/i);
+    assert.equal((html.match(/<form\b/gi) || []).length, page === "survey" ? 1 : 0);
+    assert.doesNotMatch(html, /href="[^"]*(?:checkout|trial-form)/);
+    assert.match(html, /class="nav-demo" href="\/bede\/"/);
     assert.match(html, /mailto:info@agnusdei\.ai\?subject=/);
     assert.match(html, /href="\/assets\/spacing-motion\.css"/);
     assert.match(html, /href="\/assets\/streamlined\.css"/);

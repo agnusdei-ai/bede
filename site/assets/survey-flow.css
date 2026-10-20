@@ -1,0 +1,41 @@
+.bede-theme .survey-flow {
+  max-width: 43rem;
+  margin-inline: auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border: 1px solid #b9afa0;
+  border-top: 4px solid #8d7045;
+  border-radius: .4rem;
+  background: #fffdf8;
+  color: #263746;
+  text-align: left;
+  box-shadow: 0 8px 28px #2637460a;
+}
+.survey-flow [hidden] { display: none !important; }
+.bede-theme .survey-progress { margin: 0 0 1.75rem; color: #45545e; font: 600 .85rem/1.6 system-ui, sans-serif; }
+.bede-theme .survey-step h2 { margin: 0 0 1.5rem; font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.25; }
+.survey-step h2:focus { outline: none; }
+.survey-flow label { display: block; margin: 1.25rem 0 .5rem; font: 600 1rem/1.5 system-ui, sans-serif; }
+.survey-flow label span { font-weight: 400; color: #45545e; }
+.survey-flow :is(input:not([type="checkbox"]), select, textarea) {
+  display: block; width: 100%; min-height: 48px; padding: .8rem;
+  color: #263746; background: #fff; border: 1px solid #66727b;
+  border-radius: .25rem; font: 1rem/1.5 system-ui, sans-serif;
+}
+.survey-flow textarea { resize: vertical; }
+.survey-flow textarea::placeholder { color: #59656d; opacity: 1; }
+.survey-flow :is(input, select, textarea, button):focus-visible { outline: 3px solid #735321; outline-offset: 3px; }
+.bede-theme .survey-hint { font-size: .9rem; line-height: 1.65; color: #45545e; }
+.survey-flow .survey-consent { display: block; padding: .9rem; border: 1px solid #b9afa0; background: #f1ecdf; font-size: .95rem; }
+.survey-consent input { width: 20px; height: 20px; accent-color: #263746; vertical-align: middle; margin-right: .5rem; }
+.survey-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .8rem; margin-top: 2rem; }
+.survey-actions button { min-height: 48px; padding: .8rem 1.4rem; border: 1px solid #263746; border-radius: .25rem; background: #263746; color: #fbf8f1; font: 700 1rem/1.4 system-ui, sans-serif; cursor: pointer; }
+.survey-actions #survey-back { background: #fffdf8; color: #263746; }
+.survey-actions button:hover { background: #344c5f; color: #fff; }
+.survey-actions button:disabled { cursor: wait; }
+.bede-theme .survey-status { max-width: 43rem; margin: 1.25rem auto; font-size: .95rem; color: #364650; line-height: 1.65; }
+.survey-review { padding: 1rem; background: #f1ecdf; border-left: 3px solid #8d7045; overflow-wrap: anywhere; }
+.bede-theme .survey-review p { margin: 0 0 .8rem; font: .9rem/1.6 system-ui, sans-serif; }
+.bede-theme .survey-review p:last-child { margin-bottom: 0; }
+.survey-flow #form-overflow { margin-top: 1rem; }
+.survey-flow #form-overflow .cta { display: inline-block; margin: .75rem .75rem 0 0; padding: .75rem; background: #263746; color: #fbf8f1; }
+@media (max-width: 480px) { .survey-actions button { flex: 1; } }

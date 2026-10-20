@@ -129,3 +129,10 @@ def test_ci_covers_the_new_page_styles_and_photographs():
     for path in ("site/homeschool/index.html", "site/assets/classical-offers.css",
                  "site/assets/photos/children-reading.jpg"):
         assert any(re.search(line.split("'")[1], path) for line in filters), path
+
+
+def test_marketing_pages_only_load_feedback_script_when_a_form_exists():
+    for page in PAGES:
+        text = page.read_text()
+        if 'src="/assets/feedback-form.js"' in text:
+            assert re.search(r"<form\b", text), page

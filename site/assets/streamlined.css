@@ -203,6 +203,13 @@
 .bede-theme .classical-hero .demo-launch-note {
   color: #f0ece3;
 }
+.bede-theme .classical-hero .classical-hero-copy > p.demo-launch-note {
+  margin: 1.1rem 0 0;
+  max-width: 52ch;
+  color: #f0ece3;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
 .bede-theme footer .footer-photo-credit {
   color: #d6d8d7;
   opacity: 1;

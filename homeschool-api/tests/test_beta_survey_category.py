@@ -71,7 +71,7 @@ def test_public_survey_pages_are_inquiry_only(page):
         f"{page} declares an unused feedback submission category"
     )
     assert not re.search(
-        r'<script[^>]+src=["\\\']/assets/feedback-form\\.js', html, re.IGNORECASE
+        r"""<script[^>]+src=["\']/assets/feedback-form\.js""", html, re.IGNORECASE
     ), f"{page} must not load the public feedback form submission script"
     assert "mailto:info@agnusdei.ai?" in html, (
         f"{page} needs a working inquiry contact"

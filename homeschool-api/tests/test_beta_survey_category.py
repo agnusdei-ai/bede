@@ -1,8 +1,7 @@
 """
-The in-app beta survey posts to POST /feedback. The hosted survey and
-educator pages now direct visitors to an email inquiry instead of collecting
-answers in a web form. Keep the API category contract and explicitly guard
-that inquiry-only boundary.
+The single hosted survey and the in-app beta survey post to POST /feedback.
+The educator page links to that same hosted survey, rather than collecting
+a second set of answers. Keep the category and delivery contract aligned.
 
 Keep the in-app category aligned with the API and email label. Do not
 reintroduce hosted answer collection just to satisfy the retired form tests.
@@ -54,13 +53,21 @@ def test_the_survey_has_a_readable_label_in_the_email_body():
     assert _CATEGORY_LABELS[SURVEY_CATEGORY] != SURVEY_CATEGORY
 
 
-@pytest.mark.parametrize("page", HOSTED_PAGES, ids=lambda p: p.name and p.parent.name)
-def test_each_hosted_survey_page_uses_email_instead_of_collecting_answers(page):
-    assert page.exists(), f"{page} is missing"
-    text = page.read_text(encoding="utf-8")
-    assert 'mailto:info@agnusdei.ai?' in text
+def test_one_hosted_survey_posts_the_category_the_api_accepts():
+    text = HOSTED_PAGES[0].read_text(encoding="utf-8")
+    declared = re.findall(r'data-category="([^"]+)"', text)
+    assert declared == [SURVEY_CATEGORY]
+    for category in declared:
+        FeedbackRequest(category=category, message="answers")
+    assert len(re.findall(r"<form\b", text, re.IGNORECASE)) == 1
+    assert 'method="post"' in text
+    assert '/assets/feedback-form.js' in text
+
+
+def test_educators_use_the_same_survey_instead_of_a_second_form():
+    text = HOSTED_PAGES[1].read_text(encoding="utf-8")
+    assert 'href="/survey/"' in text
     assert not re.search(r"<form\b", text, re.IGNORECASE)
-    assert 'data-category=' not in text
 
 
 def test_the_in_app_prompt_posts_the_category_the_api_accepts():

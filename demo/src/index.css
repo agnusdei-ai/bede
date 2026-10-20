@@ -6,10 +6,19 @@
   html {
     font-family: 'Georgia', Cambria, 'Times New Roman', serif;
     -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
   }
 
   body {
     @apply text-gray-800 bg-parchment-50;
+    color: #202b38;
+    color-scheme: light;
+    min-width: 320px;
+  }
+
+  ::selection {
+    color: #17212b;
+    background: #eacc97;
   }
 }
 
@@ -22,7 +31,36 @@
     @apply w-full px-3 py-2.5 border border-sage-200 rounded-lg text-sm
            focus:outline-none focus:ring-2 focus:ring-sage-400
            bg-white placeholder-gray-400;
+    border-color: #788577;
+    color: #202b38;
   }
+
+  .input::placeholder {
+    color: #59656b;
+    opacity: 1;
+  }
+}
+
+/* Utility classes are common in the demo's compact labels and notes. Raise
+   the palest gray to a readable ink-soft tone without changing the palette. */
+.text-gray-400,
+.text-gray-500 {
+  color: #59656b;
+}
+
+button {
+  min-height: 44px;
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid #8c6326 !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 2px #faf6ec;
+}
+
+a:not([class*='text-']) {
+  text-underline-offset: 0.18em;
 }
 
 /* Smooth scrollbar */

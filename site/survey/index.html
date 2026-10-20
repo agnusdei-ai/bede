@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Beta survey for parents &mdash; Agnus Dei Technologies</title>
-  <meta name="description" content="For families using Bede in the beta: whether the method is working, what it did to your teaching day, and what a year should cost. Five minutes, anonymous unless you want a reply." />
+  <title>Share your Bede experience &mdash; Agnus Dei Technologies</title>
+  <meta name="description" content="One short survey for parents, educators, co-ops, and school leaders. Share your experience and needs, then send your answers to the Bede team." />
   <link rel="canonical" href="https://agnusdei.ai/survey/" />
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
 
@@ -18,6 +18,10 @@
   <link rel="stylesheet" href="/assets/inquiry.css" />
   <script src="/assets/bede-motion.js" defer></script>
   <link rel="stylesheet" href="/assets/streamlined.css" />
+  <link rel="stylesheet" href="/assets/survey-flow.css" />
+  <script src="/assets/api-base.js" defer></script>
+  <script src="/assets/survey-flow.js" defer></script>
+  <script src="/assets/feedback-form.js" defer></script>
 </head>
 <body class="classical-offers bede-theme">
 
@@ -31,7 +35,7 @@
         <a href="/schools/">For Schools</a>
         <a href="/homeschool/">For Homeschool</a>
         <a href="/#human-led">Our Approach</a>
-        <a class="nav-demo" href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede <span aria-hidden="true">&rarr;</span></a>
+        <a class="nav-demo" href="/bede/">Try the demo <span aria-hidden="true">&rarr;</span></a>
       </nav>
     </header>
     <main id="main-content">
@@ -41,18 +45,13 @@
     <section class="page-head">
       <div class="inner" style="max-width: 44rem;">
         <a class="backlink" href="/">&larr; Agnus Dei Technologies</a>
-        <h1>The beta survey</h1>
+        <p class="eyebrow">ONE SURVEY · FOUR SHORT STEPS</p>
+        <h1>Tell us what would help.</h1>
         <p class="lede">
-          About five minutes. It asks three things: whether the teaching
-          is actually working for your children, what Bede did to your own
-          day, and what a year of this should cost. Nothing here asks you
-          to rate your child. Skip anything you would rather not answer,
-          and leave the last two boxes blank to stay anonymous.
+          For parents, educators, co-ops, and school leaders—whether you have tried Bede or are just exploring. About two minutes. Contact details are optional; please do not include student names, records, or other sensitive information.
         </p>
         <p class="lede">
-          If what you have is a bug or something confusing, the
-          <a href="/feedback/">feedback form</a> is the better place for
-          it and we read those first.
+          Haven’t tried it yet? <a href="/bede/">Launch the Bede demo</a>, or share what you need below.
         </p>
       </div>
     </section>
@@ -60,33 +59,61 @@
 
   <section class="band-curriculum">
     <div class="inner">
-      <!-- method="post" is a safety net, not a route: nothing here
-           accepts a POST. feedback-form.js intercepts submit and sends the
-           answers itself, but if that script ever fails to load or parse,
-           the button falls through to a NATIVE submit of this form.
-           Without a method that is a GET to this same static page, which
-           puts every answered field - name, email, and long free-text
-           answers - into the query string, and so into browser history
-           and any URL-logging intermediary. As a POST the same failure
-           loses the answers instead of publishing them, and the mailto
-           line in the note below is already on screen as the way to send
-           them. Keeping type="submit" on the button preserves
-           Enter-to-submit and the browser's own required-field
-           validation. -->
-      <aside class="classical-callout"><p class="eyebrow">BEGIN WITH A CONVERSATION</p><h2>We’d like to hear from you.</h2><p>For classical educator and homeschool interviews or platform onboarding requests, email our team. No online registration or payment is requested.</p><a class="classical-button ink" href="mailto:info@agnusdei.ai?subject=Educator%20or%20homeschool%20interview%20and%20onboarding%20inquiry">Email info@agnusdei.ai &rarr;</a></aside>
+      <!-- POST prevents accidental disclosure of answers in a query string
+           if scripts fail. Email remains available without JavaScript. -->
+      <form id="feedback-form" class="survey-flow" method="post" data-category="beta_survey" data-tag="[Bede website survey]" data-mail-subject="Bede survey response">
+        <p class="survey-progress" id="survey-progress" aria-live="polite">Four short steps. All answers stay on this page until you send.</p>
+        <div class="survey-step" role="group" aria-labelledby="survey-role-title">
+          <h2 id="survey-role-title" tabindex="-1">1. Your setting</h2>
+          <label for="survey-role">Which best describes you? <span>(required)</span></label>
+          <select id="survey-role" name="setting" required>
+            <option value="">Choose your setting</option><option>Parent or homeschool family</option><option>Educator or co-op leader</option><option>School or campus leader</option><option>Other</option>
+          </select>
+        </div>
+        <div class="survey-step" role="group" aria-labelledby="survey-experience-title">
+          <h2 id="survey-experience-title" tabindex="-1">2. Your experience</h2>
+          <label for="survey-experience">Have you used Bede? <span>(required)</span></label>
+          <select id="survey-experience" name="experience" required>
+            <option value="">Choose an answer</option><option>I tried the public demo</option><option>I use Bede already</option><option>Not yet; I am exploring</option>
+          </select>
+          <label for="survey-impression">What worked well, or felt confusing? <span>(optional)</span></label>
+          <textarea id="survey-impression" name="impression" rows="4" maxlength="400" placeholder="A short example is helpful."></textarea>
+        </div>
+        <div class="survey-step" role="group" aria-labelledby="survey-needs-title">
+          <h2 id="survey-needs-title" tabindex="-1">3. What matters to you</h2>
+          <label for="survey-needs">What would make Bede more useful in your setting? <span>(optional)</span></label>
+          <textarea id="survey-needs" name="needs" rows="5" maxlength="500" placeholder="Tell us about a task, a missing feature, or a question."></textarea>
+          <p class="survey-hint">Please describe your workflow, not an individual student. No documents or uploads are needed.</p>
+        </div>
+        <div class="survey-step" role="group" aria-labelledby="survey-send-title">
+          <h2 id="survey-send-title" tabindex="-1">4. Review and send</h2>
+          <div id="survey-review" class="survey-review" hidden></div>
+          <label for="survey-name">Your name <span>(optional)</span></label>
+          <input id="survey-name" name="name" autocomplete="name" maxlength="60">
+          <label for="survey-email">Email for a reply <span>(optional)</span></label>
+          <input id="survey-email" name="email" type="email" autocomplete="email" maxlength="254">
+          <label class="survey-consent"><input name="permission" type="checkbox" value="I agree to email these answers to the Bede team." required> I agree to send these answers to the Bede team by email. <span>(required)</span></label>
+          <p class="survey-hint">We use your answers to improve Bede and reply if you provide an email. <a href="/privacy/">Read our privacy notice.</a></p>
+        </div>
+        <div class="survey-actions">
+          <button type="button" id="survey-back" hidden>Back</button>
+          <button type="button" id="survey-next" hidden>Continue <span aria-hidden="true">&rarr;</span></button>
+          <button class="cta" type="submit" id="survey-send">Send survey <span aria-hidden="true">&rarr;</span></button>
+        </div>
+      </form>
+      <p id="form-note" class="survey-status" role="status" aria-live="polite">The send button emails your answers through our service when available. Otherwise it opens an email draft for you to send; opening a draft is not confirmation of delivery.</p>
+      <noscript><p>This guided form needs JavaScript. You can instead email your setting, experience, and needs to <a href="mailto:info@agnusdei.ai?subject=Bede%20survey%20response">info@agnusdei.ai</a>.</p></noscript>
     </div>
   </section>
 
   <section class="band-closing">
     <div class="inner" style="max-width: 40rem;">
-      <p class="eyebrow">Co-ops</p>
-      <h2>Do you help run a co-op?</h2>
+      <p class="eyebrow">Questions about a plan?</p>
+      <h2>Let’s discuss your next step.</h2>
       <p class="lede">
-        There is a separate set of questions for the people who run co-ops:
-        who decides, who would host it, and what would have to be true
-        before you put an AI tutor in front of your member families.
+        Pricing and onboarding details for every plan are provided in response to an email inquiry. Completing this survey does not create an account, enroll you, or request payment.
       </p>
-      <a class="cta gilt" href="/educators/">The co-op survey &rarr;</a>
+      <a class="cta gilt" href="mailto:info@agnusdei.ai?subject=Bede%20plan%20pricing%20request">Email the Bede team &rarr;</a>
     </div>
   </section>
 
@@ -103,7 +130,8 @@
         <a href="/educators/">For Educators</a>
         <a href="/faq/">FAQ</a>
         <a href="/privacy/">Privacy</a>
-        <a href="mailto:bede@agnusdei.ai?subject=Learn%20about%20Bede%20session%20inquiry">Learn about Bede</a>
+        <a href="/bede/">Launch Bede demo</a>
+        <a href="/survey/" aria-current="page">Share your experience</a>
         <a href="mailto:info@agnusdei.ai?subject=Educator%20or%20homeschool%20interview%20and%20onboarding%20inquiry">Interviews &amp; onboarding</a>
       </nav>
       <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>

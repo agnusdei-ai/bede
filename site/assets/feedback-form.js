@@ -1,6 +1,5 @@
 // ── The one form script for every form page on this site ──────────────
-// Used by /feedback/ (tell us what to fix), /survey/ (the beta parent
-// survey) and /educators/ (the co-op educator survey). Each page
+// Used by forms such as /survey/ (the single website survey). Each page
 // configures itself through data- attributes on its own <form>; there is
 // no per-page copy of this file and no per-page question list in here.
 //
@@ -133,7 +132,8 @@ function handOffToClipboard(body, why) {
     ? `${why} Your answers are below, ready to copy — please paste them into an email to ${FEEDBACK_TO} and we will read them the same.`
     : `You answered enough that this is too long for an email link to carry. Nothing is lost: your answers are below, ready to copy. Paste them into an email to ${FEEDBACK_TO}.`;
 
-  if (form.querySelector('#form-overflow')) return;
+  // Rebuild after an edit so repeated attempts never hand off stale answers.
+  form.querySelector('#form-overflow')?.remove();
 
   const wrap = document.createElement('div');
   wrap.className = 'field';
@@ -141,6 +141,7 @@ function handOffToClipboard(body, why) {
 
   const area = document.createElement('textarea');
   area.readOnly = true;
+  area.setAttribute('aria-label', 'Your complete survey or feedback response');
   area.rows = 8;
   area.value = body;
 
@@ -178,7 +179,7 @@ function handOffToClipboard(body, why) {
 function handOffToMail(body, why) {
   const url = `mailto:${FEEDBACK_TO}?subject=${encodeURIComponent(MAIL_SUBJECT)}&body=${encodeURIComponent(body)}`;
   if (url.length > MAILTO_SAFE_LENGTH) {
-    handOffToClipboard(body, why ? 'We could not reach the server just now.' : '');
+    handOffToClipboard(body, why || '');
     return;
   }
   // Recorded before handing off so the assembled message can be
@@ -215,9 +216,8 @@ async function sendViaApi(message) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       category: CATEGORY,
-      // The endpoint caps message at 2000 characters; trim here so a
-      // long answer is shortened visibly rather than 422'd on arrival.
-      message: message.slice(0, 2000),
+      // The submit handler routes oversized answers to a lossless handoff.
+      message,
       ...(email ? { contact_email: email } : {}),
     }),
   });
@@ -235,7 +235,11 @@ form.addEventListener('submit', async (e) => {
   // every form on this site lands in the same inbox.
   const body = TAG + '\n\n' + lines.join('\n\n') + '\n';
 
-  if (!API_BASE) { handOffToMail(body); return; }
+  if (body.length > 2000) { handOffToClipboard(body, 'Your full response exceeds the online message limit.'); return; }
+  if (!API_BASE) {
+    handOffToMail(body, 'Your email app will open a draft with your answers. Please choose Send there to deliver it; it has not been sent by this page.');
+    return;
+  }
 
   button.disabled = true;
   const original = button.textContent;

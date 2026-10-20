@@ -10,6 +10,8 @@
 // to handing the visitor's answers to their own mail client (or, for a
 // long survey, back to them to copy), so a local preview and a build with
 // no variable set both still work.
+// The separate business inquiry form does not auto-open an email app:
+// it explicitly reports that no submission was sent if this URL is empty.
 //
 // Loaded as its own file rather than an inline <script> so the site's CSP
 // (site/_headers) can keep script-src 'self' with no 'unsafe-inline'.

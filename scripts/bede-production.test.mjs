@@ -6,7 +6,7 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../site/", import.meta.url));
-const pages = ["", "schools", "homeschool", "faq", "educators", "privacy", "feedback", "survey", "trackers"];
+const pages = ["", "schools", "homeschool", "faq", "educators", "privacy", "feedback", "survey", "trackers", "inquire"];
 const read = file => readFileSync(join(root, file), "utf8");
 for (const page of pages) {
   test(`${page || "home"}: standalone, complete assets, demo navigation, no checkout`, () => {
@@ -17,10 +17,10 @@ for (const page of pages) {
     assert.equal((html.match(/<main\b/g) || []).length, 1);
     assert.equal((html.match(/<footer\b/g) || []).length, 1);
     assert.doesNotMatch(html, /<iframe|__mockup|preview-action|UNPUBLISHED SITE PREVIEW|postMessage/i);
-    assert.equal((html.match(/<form\b/gi) || []).length, page === "survey" ? 1 : 0);
+    assert.equal((html.match(/<form\b/gi) || []).length, ["survey", "inquire"].includes(page) ? 1 : 0);
     assert.doesNotMatch(html, /href="[^"]*(?:checkout|trial-form)/);
     assert.match(html, /class="nav-demo" href="\/bede\/"/);
-    assert.match(html, /mailto:info@agnusdei\.ai\?subject=/);
+    assert.match(html, /href="\/inquire\/(?:\?audience=[a-z_]+)?"/);
     assert.match(html, /href="\/assets\/spacing-motion\.css"/);
     assert.match(html, /href="\/assets\/streamlined\.css"/);
     assert.doesNotMatch(html, /class="beta-banner"/);

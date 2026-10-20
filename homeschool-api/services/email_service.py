@@ -255,7 +255,9 @@ def email_configured() -> bool:
     )
 
 
-async def send_email(to_address: str, subject: str, html_body: str) -> bool:
+async def send_email(
+    to_address: str, subject: str, html_body: str, *, reply_to: str | None = None
+) -> bool:
     """Returns True if Resend accepted the send request. Never logs
     to_address — only the caller decides what's safe to log, and even then
     should never include the address itself."""
@@ -275,6 +277,7 @@ async def send_email(to_address: str, subject: str, html_body: str) -> bool:
                 "to": [to_address],
                 "subject": subject,
                 "html": html_body,
+                **({"reply_to": reply_to} if reply_to else {}),
             },
         )
         resp.raise_for_status()

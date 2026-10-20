@@ -62,3 +62,4 @@ else
 fi
 
 echo "Done — publish/ is ready to deploy."
+echo "Business inquiries also require this API backend's /inquiries route and configured Resend delivery."

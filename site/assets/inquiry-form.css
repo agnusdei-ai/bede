@@ -1,0 +1,21 @@
+.inquiry-main { padding: clamp(2rem, 7vw, 5rem) 1.25rem; }
+.inquiry-intro, .inquiry-help, #inquiry-status { max-width: 43rem; margin: 0 auto 2rem; }
+.bede-theme .inquiry-intro h1 { font-size: clamp(2rem, 7vw, 3.2rem); line-height: 1.15; }
+.bede-theme .inquiry-intro p { line-height: 1.7; }
+#inquiry-form section + section { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #b9afa0; }
+.bede-theme #inquiry-form h2 { font-size: clamp(1.5rem, 5vw, 2rem); text-align: left; }
+.inquiry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.25rem; }
+.inquiry-grid > div { min-width: 0; }
+.inquiry-options { padding: 1rem; margin: 1.5rem 0; border: 1px solid #66727b; }
+.inquiry-options legend { font: 600 1rem/1.5 system-ui, sans-serif; padding-inline: .25rem; }
+.inquiry-options legend span { font-weight: 400; }
+#inquiry-form .inquiry-options label { display: flex; align-items: center; gap: .75rem; min-height: 44px; margin: .25rem 0; font-weight: 400; }
+.inquiry-options input { width: 20px; height: 20px; flex-shrink: 0; accent-color: #263746; }
+#inquiry-send { min-height: 48px; margin-top: .5rem; }
+#inquiry-status:not(:empty) { padding: 1.25rem; margin-top: 1.5rem; background: #fffdf8; border: 2px solid #66727b; white-space: pre-line; }
+#inquiry-status:focus { outline: 3px solid #735321; outline-offset: 3px; }
+.inquiry-help { margin-top: 2rem; }
+@media (max-width: 560px) {
+  .inquiry-grid { grid-template-columns: 1fr; }
+  #inquiry-send { width: 100%; }
+}

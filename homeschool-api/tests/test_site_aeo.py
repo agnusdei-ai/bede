@@ -68,7 +68,7 @@ def test_school_plans_require_email_pricing_and_preserve_scope():
     for source in (page, launch):
         assert not re.search(r"\$\s*\d|&#(?:36|x24);|&dollar;|USD\s*\d|\d+\s*%\s*off", source, re.I)
         assert "provided in response to an email request" in source
-        assert "mailto:info@agnusdei.ai?subject=Bede%20school%20pricing%20request" in source
+        assert "/inquire/?audience=charter_school" in source
         assert "synthetic data only" in source or "synthetic-data-only" in source
         assert "mutually agreed written" in source
     assert "each additional campus" in page.lower()

@@ -17,7 +17,7 @@ for (const page of ["", "homeschool"]) {
     assert.match(html, /AI-assisted/);
     assert.match(html, /lesson planning/i);
     assert.match(html, /learning records/);
-    assert.match(html, /mailto:info@agnusdei.ai\?subject=Bede%20family%20onboarding%20and%20pricing%20request/);
+    assert.match(html, /href="\/inquire\/\?audience=homeschool"/);
     assert.doesNotMatch(html, /guaranteed acceleration|proven faster|automatically charged/i);
   });
 }
@@ -37,7 +37,7 @@ test("school inquiries preserve pilot limitations and implementation qualificati
 test("FAQ explains email pricing for every plan and preserves cancellation policy", () => {
   const html = read("faq");
   assert.match(html, /household memberships, co-ops, school evaluations, and campus plans/);
-  assert.match(html, /mailto:info@agnusdei.ai\?subject=Bede%20plan%20pricing%20request/);
+  assert.match(html, /href="\/inquire\/"/);
   assert.match(html, /cancel their learning plan at the end of a full month/);
 });
 

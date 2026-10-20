@@ -307,7 +307,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         ip = request.client.host if request.client else "0.0.0.0"
         path = request.url.path
 
-        if "/auth/recovery/" in path:
+        if path.rstrip("/") == "/inquiries" and request.method == "POST":
+            # Public owner-directed business mail, separate from demo
+            # sessions and from the much larger general API allowance.
+            bucket, limit = "inquiries", 3
+        elif "/auth/recovery/" in path:
             # Own bucket, separate from plain "auth" — see config.py's
             # rate_limit_account_recovery_per_minute comment for why a
             # shared bucket with /auth/login was a real bug: the exact

@@ -43,8 +43,8 @@ def _storefront_origins(html: str) -> set[str]:
 
 def test_launch_uses_pricing_inquiries_instead_of_public_checkout():
     assert not _storefront_origins(LAUNCH)
-    for plan in ("family", "co-op", "school"):
-        assert f"mailto:info@agnusdei.ai?subject=Bede%20{plan}%20pricing%20request" in LAUNCH
+    for plan in ("homeschool", "coop", "charter_school"):
+        assert f"/inquire/?audience={plan}" in LAUNCH
 
 
 def test_the_annual_button_goes_to_a_real_checkout_route():

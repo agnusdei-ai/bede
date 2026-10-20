@@ -131,7 +131,7 @@ describe("GET / — the storefront page", () => {
     expect(page).toContain(`${TRIAL_DAYS}-day free trial`);
 
     expect(LAUNCH).not.toMatch(/\d+-day free trial|\$\s*\d/);
-    expect(LAUNCH).toContain('mailto:info@agnusdei.ai?subject=Bede%20family%20pricing%20request');
+    expect(LAUNCH).toContain('/inquire/?audience=homeschool');
   });
 
   it("carries exactly ONE subscribe CTA — /checkout/family-annual — and no processor picker", () => {

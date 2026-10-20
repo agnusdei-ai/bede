@@ -60,6 +60,26 @@ def test_check_rate_allows_again_once_the_window_rolls(monkeypatch):
 
 # ── RateLimitMiddleware ──────────────────────────────────────────────────────
 
+def test_public_inquiry_has_its_own_three_per_minute_budget(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    monkeypatch.setattr(middleware, "log_event", AsyncMock())
+    app = FastAPI()
+    app.add_middleware(RateLimitMiddleware)
+
+    @app.post("/inquiries")
+    def inquiry():
+        return {"sent": True}
+
+    @app.get("/health")
+    def health():
+        return {"ok": True}
+
+    with TestClient(app) as client:
+        assert [client.post("/inquiries").status_code for _ in range(4)] == [200, 200, 200, 429]
+        assert client.get("/health").status_code == 200
+
+
 def _rate_limited_app() -> FastAPI:
     app = FastAPI()
     app.add_middleware(RateLimitMiddleware)

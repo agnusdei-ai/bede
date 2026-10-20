@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan your Bede engagement — Agnus Dei Technologies</title>
+  <meta name="description" content="Request Bede pricing, a demo, or implementation guidance for a homeschool family, co-op, or charter school through one short inquiry form." />
+  <link rel="canonical" href="https://agnusdei.ai/inquire/" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/assets/site.css" />
+  <link rel="stylesheet" href="/assets/classical-offers.css" />
+  <link rel="stylesheet" href="/assets/cohesive-theme.css" />
+  <link rel="stylesheet" href="/assets/spacing-motion.css" />
+  <script src="/assets/bede-motion.js" defer></script>
+  <link rel="stylesheet" href="/assets/streamlined.css" />
+  <link rel="stylesheet" href="/assets/survey-flow.css" />
+  <link rel="stylesheet" href="/assets/inquiry-form.css" />
+  <script src="/assets/api-base.js" defer></script>
+  <script src="/assets/inquiry-form.js" defer></script>
+</head>
+<body class="classical-offers bede-theme">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="classical-header">
+    <a class="classical-brand" href="/" aria-label="Agnus Dei Technologies home">
+      <img src="/assets/agnus-dei-logo.png" alt="" width="54" height="54" />
+      <span>AGNUS DEI<small>TECHNOLOGIES</small></span>
+    </a>
+    <nav class="classical-nav" aria-label="Main navigation">
+      <a href="/schools/">For Schools</a><a href="/homeschool/">For Homeschool</a>
+      <a href="/#human-led">Our Approach</a>
+      <a class="nav-demo" href="/bede/">Try the demo <span aria-hidden="true">&rarr;</span></a>
+    </nav>
+  </header>
+  <main id="main-content" class="inquiry-main">
+    <div class="inquiry-intro">
+      <p class="eyebrow">Families · Co-ops · Charter schools</p>
+      <h1>Tell us what you need.</h1>
+      <p>Request pricing, a guided demo, or help planning an implementation. A few details help our team recommend the right next step. Estimates are fine.</p>
+      <p class="survey-hint">This is a business inquiry, not enrollment or approval for student use. Please do not include student names, records, or sensitive information.</p>
+    </div>
+    <form id="inquiry-form" class="survey-flow" method="post">
+      <p class="survey-hint">All fields are required unless marked optional.</p>
+      <section aria-labelledby="inquiry-contact-heading">
+        <h2 id="inquiry-contact-heading">1. About you</h2>
+        <label for="inquiry-audience">I’m inquiring for</label>
+        <select id="inquiry-audience" name="audience" required>
+          <option value="">Choose your setting</option>
+          <option value="homeschool">A homeschool family</option>
+          <option value="coop">A co-op</option>
+          <option value="charter_school">A charter school</option>
+        </select>
+        <div class="inquiry-grid">
+          <div><label for="inquiry-name">Your name</label><input id="inquiry-name" name="name" autocomplete="name" maxlength="100" required /></div>
+          <div><label for="inquiry-email">Reply email</label><input id="inquiry-email" name="email" type="email" autocomplete="email" maxlength="254" required /></div>
+        </div>
+        <label for="inquiry-role">Your role</label>
+        <select id="inquiry-role" name="role" required>
+          <option value="">Choose your role</option><option>Parent / guardian</option><option>Co-op leader</option>
+          <option>Educator</option><option>School administrator</option><option>School / board representative</option><option>Other</option>
+        </select>
+        <div data-audiences="coop charter_school" hidden>
+          <label for="inquiry-organization">Co-op or school name</label>
+          <input id="inquiry-organization" name="organization" autocomplete="organization" maxlength="150" disabled />
+        </div>
+        <label for="inquiry-location">City and state <span>(optional)</span></label>
+        <input id="inquiry-location" name="location" autocomplete="address-level2" maxlength="120" />
+      </section>
+      <section aria-labelledby="inquiry-scope-heading">
+        <h2 id="inquiry-scope-heading">2. Size and setting</h2>
+        <label for="inquiry-learners">Estimated learners</label>
+        <input id="inquiry-learners" name="learners" type="number" inputmode="numeric" min="1" max="100000" step="1" required />
+        <fieldset class="inquiry-options"><legend>Grade bands <span>(select all that apply)</span></legend>
+          <label><input name="grades" type="checkbox" value="K–2" /> Kindergarten–grade 2</label>
+          <label><input name="grades" type="checkbox" value="3–5" /> Grades 3–5</label>
+          <label><input name="grades" type="checkbox" value="6–8" /> Grades 6–8</label>
+        </fieldset>
+        <div data-audiences="coop" hidden>
+          <label for="inquiry-families">Estimated participating families</label>
+          <input id="inquiry-families" name="families" type="number" inputmode="numeric" min="1" max="100000" step="1" disabled />
+        </div>
+        <div data-audiences="coop charter_school" hidden class="inquiry-grid">
+          <div><label for="inquiry-educators">Educators / staff involved</label><input id="inquiry-educators" name="educators" type="number" inputmode="numeric" min="1" max="10000" step="1" disabled /></div>
+          <div><label for="inquiry-sites">Locations / campuses</label><input id="inquiry-sites" name="sites" type="number" inputmode="numeric" min="1" max="1000" step="1" disabled /></div>
+        </div>
+        <label for="inquiry-deployment">Deployment preference</label>
+        <select id="inquiry-deployment" name="deployment" required>
+          <option value="">Choose a preference</option><option>Hosted</option><option>On-site / private</option><option>Need guidance</option>
+        </select>
+        <p class="survey-hint">These preferences help us scope the discussion; they do not confirm availability or approve a school deployment.</p>
+      </section>
+      <section aria-labelledby="inquiry-next-heading">
+        <h2 id="inquiry-next-heading">3. Next steps</h2>
+        <fieldset class="inquiry-options"><legend>What would help? <span>(select all that apply)</span></legend>
+          <label><input name="interests" type="checkbox" value="Demo" /> A guided demo</label>
+          <label><input name="interests" type="checkbox" value="Plan and pricing" /> Plan and pricing information</label>
+          <label><input name="interests" type="checkbox" value="Implementation" /> Implementation planning</label>
+          <label><input name="interests" type="checkbox" value="Training and onboarding" /> Training and onboarding</label>
+        </fieldset>
+        <label for="inquiry-timing">Target timing</label>
+        <select id="inquiry-timing" name="timing" required>
+          <option value="">Choose your timing</option><option>Within 30 days</option><option>Within 90 days</option><option>Next school term</option><option>Exploring</option>
+        </select>
+        <label for="inquiry-notes">Anything else we should plan for? <span>(optional)</span></label>
+        <textarea id="inquiry-notes" name="notes" maxlength="1200" rows="5" placeholder="Goals, existing devices or systems, support needs, or budget and procurement constraints. No student records."></textarea>
+        <div hidden aria-hidden="true"><label for="inquiry-website">Leave blank</label><input id="inquiry-website" name="website" tabindex="-1" autocomplete="off" maxlength="200" /></div>
+        <label class="survey-consent"><input name="consent" type="checkbox" required /> I agree to email these details to Agnus Dei Technologies and receive a response about this inquiry.</label>
+        <p id="inquiry-routing" class="survey-hint">Family inquiries go to bede@agnusdei.ai; co-op and charter-school inquiries go to info@agnusdei.ai.</p>
+        <p class="survey-hint">See our <a href="/privacy/">privacy notice</a>. Sending this form does not book a session, enroll anyone, or commit you to payment.</p>
+        <button class="classical-button" id="inquiry-send" type="submit">Send inquiry <span aria-hidden="true">&rarr;</span></button>
+      </section>
+    </form>
+    <div id="inquiry-status" role="status" aria-live="polite" tabindex="-1"></div>
+    <p class="inquiry-help">If the form is unavailable, email <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> or <a href="mailto:bede@agnusdei.ai">bede@agnusdei.ai</a>. We never treat opening an email draft as a sent inquiry.</p>
+    <noscript><p>JavaScript is needed to send this form. Please use one of the email links above instead.</p></noscript>
+  </main>
+  <footer class="classical-footer">
+    <nav aria-label="Footer navigation"><a href="/">Home</a><a href="/schools/">For Schools</a><a href="/homeschool/">For Homeschool</a><a href="/educators/">For Educators</a><a href="/faq/">FAQ</a><a href="/privacy/">Privacy</a><a href="/bede/">Launch Bede demo</a><a href="/survey/">Share your experience</a><a href="/inquire/" aria-current="page">Plan your engagement</a></nav>
+    <p>© 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+  </footer>
+</body>
+</html>

@@ -52,15 +52,15 @@ def _pages_with_forms():
     return [p for p in _PAGES if "<form" in p.read_text()]
 
 
-def test_the_site_has_one_shared_survey_and_email_inquiry_contacts():
-    """The requested single survey must exist, so the POST guard below
-    cannot pass vacuously, and new duplicate survey pages cannot sneak in."""
+def test_the_site_has_one_shared_survey_and_one_business_inquiry_form():
+    """Keep business intake distinct from the single product survey."""
     home = (_SITE / "index.html").read_text()
-    assert 'mailto:bede@agnusdei.ai?' in home
-    assert 'mailto:info@agnusdei.ai?' in home
+    assert 'href="/inquire/?audience=homeschool"' in home
     survey = _SITE / "survey" / "index.html"
-    assert _pages_with_forms() == [survey]
+    inquiry = _SITE / "inquire" / "index.html"
+    assert _pages_with_forms() == sorted([survey, inquiry])
     assert survey.read_text().count("<form") == 1
+    assert inquiry.read_text().count("<form") == 1
 
 
 @pytest.mark.parametrize(

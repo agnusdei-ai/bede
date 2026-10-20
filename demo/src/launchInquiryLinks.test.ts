@@ -7,10 +7,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
 const launch = readFileSync(join(root, 'demo/public/launch.html'), 'utf8')
 
 describe('launch page email pricing requests', () => {
-  it.each(['family', 'co-op', 'school'])('offers an explicit %s pricing request', (plan) => {
+  it.each(['homeschool', 'coop', 'charter_school'])('offers an explicit %s pricing request', (plan) => {
     document.documentElement.innerHTML = launch
     const link = document.querySelector<HTMLAnchorElement>(
-      `a[href="mailto:info@agnusdei.ai?subject=Bede%20${plan}%20pricing%20request"]`,
+      `a[href="/inquire/?audience=${plan}"]`,
     )
     expect(link).not.toBeNull()
     expect(link!.textContent).toMatch(/request.*pricing/i)

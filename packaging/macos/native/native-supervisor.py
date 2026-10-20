@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -45,6 +46,11 @@ def start(path, identifier, payload, port):
         if live(old["pid"]):
             raise ValueError("service already running")
         pidfile.unlink()
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind(("127.0.0.1", port))
+        except OSError as exc:
+            raise RuntimeError("native service port unavailable") from exc
     executable = payload.resolve() / "bin" / "bede-native-smoke"
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError("native executable missing")
@@ -58,18 +64,28 @@ def start(path, identifier, payload, port):
     state = {"pid": proc.pid, "port": port, "executable": str(executable)}
     pidfile.write_text(json.dumps(state))
     pidfile.chmod(0o600)
-    for _ in range(30):
-        if proc.poll() is not None:
-            raise RuntimeError("native service exited during startup")
-        try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.5) as response:
-                health = json.load(response)
-            if health.get("status") == "synthetic-only":
-                return {"running": True, "pid": proc.pid, "health": health}
-        except (OSError, ValueError):
-            time.sleep(0.2)
-    stop(path, identifier)
-    raise RuntimeError("native health check timed out")
+    try:
+        for _ in range(30):
+            if proc.poll() is not None:
+                raise RuntimeError("native service exited during startup")
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.5) as response:
+                    health = json.load(response)
+                if health.get("status") == "synthetic-only":
+                    return {"running": True, "pid": proc.pid, "health": health}
+            except (OSError, ValueError):
+                time.sleep(0.2)
+        raise RuntimeError("native health check timed out")
+    except Exception:
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=3)
+        pidfile.unlink(missing_ok=True)
+        raise
 
 def stop(path, identifier):
     record(path, identifier)

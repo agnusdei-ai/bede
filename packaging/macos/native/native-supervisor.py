@@ -127,6 +127,28 @@ def stop(path, identifier):
         time.sleep(0.1)
     raise RuntimeError("process did not exit; manual intervention required")
 
+def status(path, identifier):
+    record(path, identifier)
+    pidfile = path / "native-service.json"
+    if pidfile.is_symlink():
+        raise ValueError("process-state symlink refused")
+    if not pidfile.exists():
+        return {"running": False, "pid": None}
+    state = json.loads(pidfile.read_text())
+    pid = state["pid"]
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        raise ValueError("invalid process identifier")
+    command = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "command="],
+                             capture_output=True, text=True, check=False).stdout.strip()
+    if not command:
+        return {"running": False, "pid": pid}
+    started_at = subprocess.run(["/bin/ps", "-p", str(pid), "-o", "lstart="],
+                                capture_output=True, text=True, check=False).stdout.strip()
+    if (command.split()[0] != state.get("executable") or
+            not started_at or started_at != state.get("started_at")):
+        raise RuntimeError("process identity changed; refusing to report running")
+    return {"running": True, "pid": pid}
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("start", "stop", "status", "recover"))
@@ -147,10 +169,7 @@ def main():
         stop(path, args.campus)
         result = start(path, args.campus, args.payload, args.port)
     else:
-        record(path, args.campus)
-        pidfile = path / "native-service.json"
-        state = json.loads(pidfile.read_text()) if pidfile.exists() else {}
-        result = {"running": bool(state and live(state["pid"])), "pid": state.get("pid")}
+        result = status(path, args.campus)
     print(json.dumps(result))
 
 if __name__ == "__main__":

@@ -44,7 +44,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO = join(__dirname, '../..')
 
 const SITE_CSS = readFileSync(join(REPO, 'site/assets/site.css'), 'utf8')
-const SITE_HTML = readFileSync(join(REPO, 'site/index.html'), 'utf8')
+const SITE_HTML = readFileSync(join(REPO, 'site/faq/index.html'), 'utf8')
 
 /** The accent rules, in `nth-child` order, with the subject each names. */
 function parseAccentRules(): { index: number; h: number; s: number; l: number; label: string }[] {

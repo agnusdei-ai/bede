@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "homeschool-api"))
 from models.schemas import SUBJECT_DURATIONS, SUBJECT_LABELS, Subject  # noqa: E402
 
-SITE = (ROOT / "site/index.html").read_text()
+SITE = (ROOT / "site/faq/index.html").read_text()
 CURRICULUM = SITE[SITE.index('<section class="curriculum band-curriculum">'):]
 CURRICULUM = CURRICULUM[: CURRICULUM.index("</section>")]
 

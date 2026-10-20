@@ -21,6 +21,8 @@ for (const page of pages) {
     assert.match(html, /mailto:bede@agnusdei\.ai\?subject=/);
     assert.match(html, /mailto:info@agnusdei\.ai\?subject=/);
     assert.match(html, /href="\/assets\/spacing-motion\.css"/);
+    assert.match(html, /href="\/assets\/streamlined\.css"/);
+    assert.doesNotMatch(html, /class="beta-banner"/);
     assert.match(html, /src="\/assets\/bede-motion\.js" defer/);
     assert.doesNotMatch(html, /footer-photo-credit/);
     for (const match of html.matchAll(/(?:src|href)="(\/assets\/[^"#?]+)[^"]*"/g)) {
@@ -37,8 +39,13 @@ for (const page of pages) {
 }
 test("all curriculum subjects, descriptions, and facts survive graduation", () => {
   const html = read("index.html");
-  assert.equal((html.match(/class="bede-curriculum-entry"/g) || []).length, 14);
-  assert.equal((html.match(/class="fact-k"/g) || []).length, 42);
+  const faq = read("faq/index.html");
+  assert.equal((faq.match(/class="bede-curriculum-entry"/g) || []).length, 14);
+  assert.equal((faq.match(/class="fact-k"/g) || []).length, 42);
+  assert.match(html, /Read the curriculum and learning FAQs/);
+  assert.match(faq, /separately configured, approved access/);
+  assert.match(faq, /independent outcome study/);
+  assert.match(html, /teacher-only and synthetic-data-only\. No direct student tutoring/);
   assert.match(html, /data-reading-stage/);
   assert.match(html, /A little device time\. A great deal of reading\./);
 });

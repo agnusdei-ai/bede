@@ -40,7 +40,7 @@ import pytest
 from routers.diagnostic import _SUMMARY_BUILDERS
 
 REPO = Path(__file__).resolve().parents[2]
-SITE_INDEX = REPO / "site" / "index.html"
+SITE_INDEX = REPO / "site" / "faq" / "index.html"
 EN_LOCALE = REPO / "homeschool-tutor" / "src" / "i18n" / "locales" / "en.json"
 
 # subject_area -> the i18n key whose label the Progress page shows a parent.

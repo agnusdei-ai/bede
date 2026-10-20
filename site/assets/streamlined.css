@@ -1,0 +1,208 @@
+.bede-theme {
+  --bede-ink: #263746;
+  --bede-ink-soft: #45545e;
+  --bede-paper: #fbf8f1;
+  --bede-paper-warm: #f1ecdf;
+  --bede-paper-deep: #e8dfcf;
+  --bede-gold: #8d7045;
+  --bede-gold-light: #dfc98e;
+  --bede-forest: #536451;
+  --bede-forest-deep: #3e4d40;
+  --bede-muted: #657078;
+  --bede-rule: #d9d1c2;
+  --bede-font-editorial: Georgia, Cambria, "Times New Roman", serif;
+  --bede-font-reading: Georgia, Cambria, "Times New Roman", serif;
+  --bede-font-interface: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.68;
+  letter-spacing: 0;
+  word-spacing: normal;
+  overflow-wrap: anywhere;
+}
+
+.bede-theme :where(*, *::before, *::after) { box-sizing: border-box; }
+.bede-theme :where(p, li, dd, blockquote) {
+  max-width: 70ch;
+  font-family: var(--bede-font-reading) !important;
+  font-size: 1rem;
+  line-height: 1.72;
+  letter-spacing: 0;
+  word-spacing: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.bede-theme :where(h1, h2, h3, h4, h5, h6, summary, blockquote) {
+  font-family: var(--bede-font-editorial) !important;
+  letter-spacing: -0.018em;
+  line-height: 1.22;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+.bede-theme :where(button, input, select, textarea, label, legend, nav, .eyebrow,
+  .classical-kicker, .classical-principles, .classical-human-cycle small,
+  .classical-evidence-note, .classical-scope, .classical-text-link, .classical-connectivity,
+  .stage-label, .fact-k, .footer-links, .footer-copyright, .pill-label,
+  .school-kicker, .school-tag, .school-small, .school-budget-footer, .plan-numeral) {
+  font-family: var(--bede-font-interface) !important;
+  letter-spacing: 0.01em;
+}
+.bede-theme .classical-hero h1 {
+  max-width: none;
+  font-size: clamp(2rem, 4.4vw, 3.1rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.bede-theme .classical-hero-copy > p:not(.classical-kicker):not(.hero-footnote) {
+  max-width: 42ch;
+  font-size: 1.06rem;
+  line-height: 1.7;
+}
+.bede-theme .classical-section h2,
+.bede-theme .classical-callout h2,
+.bede-theme .school-supporting-details h2,
+.bede-theme .school-budget h2 {
+  font-size: clamp(1.8rem, 3.2vw, 2.7rem);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.bede-theme .classical-section-heading > p:last-child,
+.bede-theme .classical-path p,
+.bede-theme .classical-stages p,
+.bede-theme .classical-human-cycle p,
+.bede-theme .school-supporting-details p,
+.bede-theme .school-budget p {
+  font-size: 1rem;
+  line-height: 1.72;
+}
+.bede-theme .classical-path h3,
+.bede-theme .classical-stages h3,
+.bede-theme .classical-human-cycle h3,
+.bede-theme .school-supporting-details h3 {
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.bede-theme .classical-nav { gap: clamp(0.6rem, 1.5vw, 1.4rem); }
+.bede-theme .classical-nav a,
+.bede-theme .footer-links a { line-height: 1.55; }
+.bede-theme .beta-banner { line-height: 1.6; }
+.bede-theme .classical-button,
+.bede-theme .school-print-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.4;
+}
+.bede-theme .classical-scope {
+  max-width: 42ch;
+  line-height: 1.65;
+  letter-spacing: 0;
+}
+.bede-theme .classical-evidence-note {
+  letter-spacing: 0;
+  line-height: 1.7;
+}
+.bede-theme .classical-hero-photo img,
+.bede-theme .classical-path > img { display: block; }
+.bede-theme .streamlined-approach .classical-evidence-note { margin-top: 1.4rem; }
+.bede-theme .streamlined-curriculum-intro {
+  padding-block: clamp(2.75rem, 6vw, 5rem);
+  background: #f3efe5;
+  border-block: 1px solid var(--bede-rule);
+}
+.bede-theme .streamlined-curriculum-intro .classical-text-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+}
+.bede-theme .streamlined-detail {
+  margin: 0.6rem 0;
+  padding: 0.15rem 1rem;
+  border: 1px solid var(--bede-rule);
+  background: #fffdf8;
+}
+.bede-theme .streamlined-detail > summary {
+  padding: 1rem 0;
+  cursor: pointer;
+  font-size: 1.08rem;
+  font-weight: 500;
+}
+.bede-theme .streamlined-detail__body {
+  padding-bottom: 1rem;
+}
+.bede-theme .streamlined-detail__body > section {
+  margin: 1.5rem 0;
+}
+.bede-theme .streamlined-detail__body .inner {
+  width: 100%;
+  max-width: 72rem;
+  padding-inline: 0;
+}
+
+@media (max-width: 760px) {
+  .bede-theme { font-size: 16px; }
+  .bede-theme .classical-hero h1 {
+    max-width: none;
+    font-size: clamp(1.8rem, 8vw, 2.5rem);
+    line-height: 1.24;
+    letter-spacing: -0.02em;
+  }
+  .bede-theme .classical-hero-copy > p:not(.classical-kicker):not(.hero-footnote) {
+    max-width: 34ch;
+    font-size: 1rem;
+    line-height: 1.72;
+  }
+  .bede-theme .classical-section h2,
+  .bede-theme .classical-callout h2,
+  .bede-theme .school-supporting-details h2,
+  .bede-theme .school-budget h2 {
+    font-size: clamp(1.75rem, 7.2vw, 2.2rem);
+    line-height: 1.2;
+  }
+  .bede-theme :where(p, li, dd, blockquote) {
+    font-size: 1rem;
+    line-height: 1.72;
+  }
+  .bede-theme .classical-section-heading .eyebrow,
+  .bede-theme .classical-path-copy .eyebrow,
+  .bede-theme .eyebrow,
+  .bede-theme .classical-kicker,
+  .bede-theme .classical-principles,
+  .bede-theme .stage-label {
+    font-size: 0.68rem;
+    line-height: 1.55;
+    letter-spacing: 0.07em;
+    overflow-wrap: anywhere;
+  }
+  .bede-theme .classical-principles { gap: 0.7rem 1rem; }
+  .bede-theme .classical-principles span { line-height: 1.5; }
+  .bede-theme .classical-path { min-width: 0; }
+  .bede-theme .classical-path-copy { min-width: 0; }
+  .bede-theme .classical-path h3 br,
+  .bede-theme .classical-section h2 br { display: none; }
+  .bede-theme .classical-hero-copy,
+  .bede-theme .classical-section-heading,
+  .bede-theme .school-supporting-details { min-width: 0; }
+  .bede-theme .classical-actions { flex-wrap: wrap; }
+  .bede-theme .classical-actions > * { max-width: 100%; }
+  .bede-theme .classical-inquiry-note,
+  .bede-theme .classical-reading-context,
+  .bede-theme .classical-connectivity {
+    font-size: 0.88rem;
+    line-height: 1.65;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+  }
+  .bede-theme .school-budget-table { font-size: 0.9rem; }
+  .bede-theme .streamlined-detail { padding-inline: 0.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bede-theme *, .bede-theme *::before, .bede-theme *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

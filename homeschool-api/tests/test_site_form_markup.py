@@ -2,13 +2,13 @@
 Two things about the static site's markup that fail silently in public.
 
 **1. A form with no method degrades into a GET that publishes its answers.**
-None of the four forms on this site has an `action`; `feedback-form.js`
-intercepts submit and sends the answers itself. But the buttons are real
+The single survey form has no `action`; `feedback-form.js` intercepts
+submit and sends the answers itself. But the buttons are real
 `type="submit"` buttons, so if that one script ever fails to load or parse —
 a blocked request, a bad deploy, a syntax error — the browser performs a
 NATIVE submit. Without `method`, that is a GET to the same static page, which
-puts every answered field into the query string: name, email, and on the two
-survey pages several paragraphs of free text, landing in browser history and
+puts every answered field into the query string: name, email, and
+several paragraphs of free text, landing in browser history and
 in any URL-logging intermediary between the visitor and Cloudflare. CSP's
 `form-action 'self'` keeps it on this origin; it does not stop it being
 written down. As a POST the same failure loses the answers instead of
@@ -52,16 +52,15 @@ def _pages_with_forms():
     return [p for p in _PAGES if "<form" in p.read_text()]
 
 
-def test_the_site_has_the_current_inquiry_only_contacts():
-    """A guard on the guard: if the forms move or are renamed, the test
-    below would pass by vacuously finding nothing to check. Deliberately
-    not a count — adding a fifth form page is ordinary work that the
-    parametrized test already covers, and a hardcoded number would fail
-    that change while proving nothing."""
+def test_the_site_has_one_shared_survey_and_email_inquiry_contacts():
+    """The requested single survey must exist, so the POST guard below
+    cannot pass vacuously, and new duplicate survey pages cannot sneak in."""
     home = (_SITE / "index.html").read_text()
     assert 'mailto:bede@agnusdei.ai?' in home
     assert 'mailto:info@agnusdei.ai?' in home
-    assert not _pages_with_forms(), "the current marketing site is inquiry-only"
+    survey = _SITE / "survey" / "index.html"
+    assert _pages_with_forms() == [survey]
+    assert survey.read_text().count("<form") == 1
 
 
 @pytest.mark.parametrize(

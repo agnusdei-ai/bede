@@ -760,3 +760,11 @@ body.bede-theme :is(button, input, select, textarea, .classical-nav a,
     text-decoration: none;
   }
 }
+
+/* Attribution belongs in the footer, separate from the editorial narrative. */
+.bede-theme footer .footer-photo-credit {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  opacity: 0.65;
+}

@@ -50,5 +50,36 @@ jobs:
           /tmp/bede-native-control status campus-alpha > /dev/null
           /tmp/bede-native-control status campus-beta > /dev/null
           python3 packaging/tests/test_macos_architecture_selection.py
+      - name: Compile synthetic native diagnostic service
+        run: |
+          set -euo pipefail
+          swiftc -target arm64-apple-macos14.0 -parse-as-library packaging/macos/native/BedeNativeSmokeService.swift -o /tmp/bede-native-smoke
+          test -x /tmp/bede-native-smoke
+      - name: Synthetic local health, teacher-placeholder, and fail-closed journeys
+        run: |
+          set -euo pipefail
+          if BEDE_NATIVE_PORT=18743 /tmp/bede-native-smoke >/tmp/bede-native-rejected.out 2>/tmp/bede-native-rejected.err; then
+            echo "Native service accepted non-synthetic launch" >&2; exit 1
+          fi
+          grep -q 'synthetic mode is required' /tmp/bede-native-rejected.err
+          BEDE_SYNTHETIC_ONLY=1 BEDE_NATIVE_PORT=18743 /tmp/bede-native-smoke >/tmp/bede-native-smoke.out 2>/tmp/bede-native-smoke.err &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in {1..30}; do
+            if curl --fail --silent --max-time 1 http://127.0.0.1:18743/health > /tmp/bede-health.json; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import json
+          with open('/tmp/bede-health.json') as f:
+              data=json.load(f)
+          assert data['pilotGO']=='HOLD'
+          assert data['status']=='synthetic-only'
+          PY
+          curl --fail --silent http://127.0.0.1:18743/ | grep -q 'Teacher login and inference are not enabled'
+          test "$(curl -s -o /tmp/bede-missing.json -w '%{http_code}' http://127.0.0.1:18743/api/teacher)" = 404
+          ! curl --fail --silent --max-time 2 http://127.0.0.1:18743/api/inference
+          kill "$pid"
+          wait "$pid" || true
       - name: Scope declaration
         run: echo 'Control-plane provisioning only. API, inference, teacher UI, signed payload and physical G1/G2/G3 are NOT qualified.'

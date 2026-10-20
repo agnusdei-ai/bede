@@ -12,7 +12,8 @@ for (const page of pages) {
   test(`${page || "home"}: standalone, complete assets, real navigation, inquiry-only`, () => {
     const html = read(join(page, "index.html"));
     assert.match(html, /class="classical-offers bede-theme"/);
-    assert.equal((html.match(/<header\b/g) || []).length, 1);
+    assert.equal((html.match(/<header class="classical-header"/g) || []).length, 1);
+    assert.equal((html.match(/<header\b/g) || []).length, page === "" ? 2 : 1);
     assert.equal((html.match(/<main\b/g) || []).length, 1);
     assert.equal((html.match(/<footer\b/g) || []).length, 1);
     assert.doesNotMatch(html, /<iframe|__mockup|preview-action|UNPUBLISHED SITE PREVIEW|postMessage|<form\b/i);
@@ -39,6 +40,23 @@ test("all curriculum subjects, descriptions, and facts survive graduation", () =
   assert.equal((html.match(/class="fact-k"/g) || []).length, 42);
   assert.match(html, /data-reading-stage/);
   assert.match(html, /A little device time\. A great deal of reading\./);
+});
+test("approved virtues replace the empty companion panel in production", () => {
+  const html = read("index.html");
+  const section = html.match(/<section class="classical-section bede-formation"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(section, "Approved formation section must be present.");
+  assert.doesNotMatch(html, /id="video-wrap"/);
+  assert.match(html, /href="\/assets\/virtues-formation\.css"/);
+  assert.equal((html.match(/id="meet-bede-title"/g) || []).length, 1);
+  for (const virtue of ["Courage", "Humility", "Wonder", "Attentiveness", "Honesty", "Gratitude", "Perseverance", "Kindness"]) {
+    assert.ok(section.includes(`<h3>${virtue}</h3>`), virtue);
+  }
+  for (const gift of ["wisdom", "understanding", "counsel", "fortitude", "knowledge", "piety", "fear of the Lord"]) {
+    assert.ok(section.includes(gift), gift);
+  }
+  assert.match(section, /Faith and character are never assessed or scored/);
+  assert.match(section, /not a required charter-school lesson/);
+  assert.match(section, /vatican\.va\/content\/catechism/);
 });
 test("production motion does not interfere with links or leak preview behavior", () => {
   const script = read("assets/bede-motion.js");

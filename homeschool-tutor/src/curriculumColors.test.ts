@@ -78,16 +78,18 @@ function parseCurriculumCards(): { title: string; description: string }[] {
   const end = SITE_HTML.indexOf('</section>', start)
   const section = SITE_HTML.slice(start, end)
 
-  // A card may carry extra classes (the hover facts add "subject"), but it is
-  // still a card and still takes an nth-child slot.
-  const cards = [...section.matchAll(/<div class="card(?: [^"]*)?">\s*<h3>(.*?)<\/h3>\s*<p>(.*?)<\/p>/gs)].map(
-    (m) => ({ title: decode(m[1].trim()), description: decode(m[2].trim()) }),
-  )
-  if (cards.length === 0) throw new Error('No cards parsed from the curriculum section.')
-  // Every .card in the section must have been parsed; a card shaped differently
-  // would otherwise be invisible to this guard while still taking an nth-child
-  // slot and shifting every colour after it.
-  const declared = (section.match(/class="card(?:"| [^"]*")/g) ?? []).length
+  // The editorial reading list and legacy card grid share one subject order.
+  const entries = [...section.matchAll(/<li class="bede-curriculum-entry">\\s*<h3>(.*?)<\\/h3>\\s*<p>(.*?)<\\/p>/gs)]
+  const legacy = [...section.matchAll(/<div class="card(?: [^"]*)?">\\s*<h3>(.*?)<\\/h3>\\s*<p>(.*?)<\\/p>/gs)]
+  const matches = entries.length > 0 ? entries : legacy
+  const cards = matches.map((m) => ({
+    title: decode(m[1].trim()),
+    description: decode(m[2].trim()),
+  }))
+  if (cards.length === 0) throw new Error('No curriculum subjects parsed.')
+  const declared = entries.length > 0
+    ? (section.match(/class="bede-curriculum-entry"/g) ?? []).length
+    : (section.match(/class="card(?:"| [^"]*")/g) ?? []).length
   expect(cards.length).toBe(declared)
   return cards
 }

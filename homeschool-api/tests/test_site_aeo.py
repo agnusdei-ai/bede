@@ -91,7 +91,9 @@ def test_school_executive_pricing_scenarios_and_us_english():
     page = SCHOOLS.read_text(encoding="utf-8")
     assert '<html lang="en-US">' in page
     assert page.count('class="school-budget-table') == 2
-    assert 'The $950 paid evaluation is not the current free' in page
+    assert 'The $950 paid evaluation is not the current invite-only Valor pilot' in page
+    assert 'nominal professional-services fee' in page
+    assert 'onsite implementation and customization on certified hardware' in page
     assert '$2,600 rate lasts for the signed 12-month term' in page
     assert '104 learners at $25 each equals $2,600/month' in page
     for enrolled in (25, 50, 75, 100):

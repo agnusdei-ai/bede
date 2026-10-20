@@ -13,7 +13,11 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-SITE = (ROOT / "site/index.html").read_text()
+# The chooser is retired from the inquiry-only website. Preserve the existing
+# licensing/price consistency checks against its frozen pre-retirement fixture.
+# The live-site contract is checked by scripts/bede-production.test.mjs.
+LEGACY = ROOT / "tests/fixtures/marketing-before-inquiry"
+SITE = (LEGACY / "index.html").read_text()
 LAUNCH = (ROOT / "demo/public/launch.html").read_text()
 OFFER_JS = ROOT / "site/assets/offer.js"
 LS = ROOT / "license-server/src"
@@ -128,7 +132,7 @@ def test_no_retired_tier_reappears():
 
 
 def test_the_privacy_inventory_names_the_same_trial_and_storefront():
-    privacy = (ROOT / "site/privacy/index.html").read_text()
+    privacy = (LEGACY / "privacy/index.html").read_text()
     days = int(re.search(r"export const TRIAL_DAYS = (\d+);", ISSUE).group(1))
     host = next(iter(_storefront_origins(OFFER))).removeprefix("https://")
     row = re.search(r"<td>Membership buttons \(home page\)</td>.*?</tr>", privacy, re.S)

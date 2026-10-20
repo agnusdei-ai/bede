@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bede — Classical Learning Operating System | Agnus Dei Technologies</title>
+  <meta name="description" content="Bede combines classical learning tools and an AI-assisted Socratic companion for families, with governed educator workflows for schools." />
+  <link rel="canonical" href="https://agnusdei.ai/" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="stylesheet" href="/assets/site.css" />
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://agnusdei.ai/#org",
+      "name": "Agnus Dei Technologies, LLC",
+      "url": "https://agnusdei.ai/",
+      "logo": "https://agnusdei.ai/assets/agnus-dei-logo.png",
+      "description": "Maker of Bede, a classical learning operating system with an AI-assisted learning companion."
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "Bede",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web, self-hosted",
+      "description": "A classical learning operating system combining planning, evidence, progress, and guided Socratic learning assistance.",
+      "publisher": {
+        "@id": "https://agnusdei.ai/#org"
+      },
+      "url": "https://agnusdei.ai/"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+  <div class="beta-banner">
+    <strong>Bede public beta through October 31, 2026.</strong> Try the public homeschool demo free, without an account or payment card.
+    <a href="/bede/launch.html">Explore Bede and membership options &rarr;</a>
+  </div>
+
+  <div class="band hero-band">
+    <main class="hero">
+      <img class="emblem" src="/assets/agnus-dei-logo.png" alt="Agnus Dei Technologies" />
+      <h1>Agnus Dei Technologies</h1>
+      <p class="motto">Bede — The Classical Learning Operating System</p>
+      <p class="mission">
+        Bede brings lesson planning, learning records, and progress together with an AI-assisted Socratic companion. Living books and real-world discovery remain central; parents and teachers direct the learning.
+      </p>
+      <img class="bede-portrait" src="/assets/bede-portrait.png" alt="Bede, your child's AI tutor" />
+      <a class="cta" href="/bede/">Meet Bede &rarr;</a>
+      <p class="cta-sub light">Free to try. No account, no card.</p>
+      <!-- Pillars sit below the call to action on purpose: they are the
+           supporting philosophy, and putting them above pushed the button
+           off the first screen on both desktop and phone. -->
+      <div class="pillars">
+        <div class="pillar">
+          <h3>Comprehension</h3>
+          <p>Render truth in the learner's own words, reasoning, and work.</p>
+        </div>
+        <div class="pillar">
+          <h3>Compassion</h3>
+          <p>Instruct in the spirit of patience, mercy, and attentiveness.</p>
+        </div>
+        <div class="pillar">
+          <h3>Conscience</h3>
+          <p>Help guide the learner to freely choose their answers, to encourage good choices adaptively over time.</p>
+        </div>
+      </div>
+      <div class="video-wrap" id="video-wrap"></div>
+    </main>
+
+    <section class="founder">
+      <div class="inner" style="max-width: 40rem;">
+        <p class="eyebrow">From the Founder</p>
+        <blockquote>
+          &ldquo;I named Bede after the Venerable Bede, a Benedictine monk who
+          chronicled the History of the early institutions that formed the
+          Church we know today. The persona also honors a monk who taught
+          me at Portsmouth Abbey, weaving Christian Doctrine, Humanities,
+          and History together in his courses. He was a patient mentor
+          and counselor who taught in the style of Socrates, and he
+          shaped how I teach today.&rdquo;
+        </blockquote>
+        <cite>Kristian Gonzalez, Founder. A lifelong learner, AI enthusiast, architect, and developer.</cite>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">Classical, Not STEM</p>
+      <h2>Formed, not just informed</h2>
+      <p class="lede flow">
+        Most tutoring apps chase mastery the way a video course does. Watch a
+        lecture, drill a skill, clear a checkpoint, earn the next badge. That
+        is a fine way to learn a formula. It is not how a child becomes a
+        person, and it is not what we built Bede to do.
+      </p>
+
+      <div class="compare">
+        <div class="compare-col before">
+          <h3>The video-lecture model</h3>
+          <ul>
+            <li><strong>Watches, then drills.</strong> A lecture, then practice problems, until the skill-tree node turns green.</li>
+            <li><strong>Measures what is easy to measure.</strong> Math and STEM skills, estimated from the work a child does. Bede does not rank children against one another. A dashboard can grade a multiple-choice answer. It cannot grade a conscience.</li>
+            <li><strong>Lives on the screen.</strong> The lecture, the practice, and the proof of mastery all happen in the same tab, on the same device.</li>
+            <li><strong>Teaches the subject.</strong> Content delivered, skill checked, badge earned. Character formation is not part of what the app measures.</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <h3>Bede's classical model</h3>
+          <ul>
+            <li><strong>Asks, then sends outside.</strong> A Socratic conversation, then narration, handwriting, and nature study away from the screen. It introduces the lesson. It does not consume it.</li>
+            <li><strong>Forms the whole child.</strong> Faith, character, and discipline sit beside academics on purpose, governed by a written constitution rather than a marketing claim.</li>
+            <li><strong>Keeps the outdoors and the real book at the center.</strong> Nature study and living books are subjects in their own right, not a break from the "real" lesson.</li>
+            <li><strong>Forms the person.</strong> Comprehension, compassion, and conscience are the three pillars above. They run through every subject, not just the academic ones.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">One Table, Many Traditions</p>
+      <h2>Built for Christian families, whatever your church</h2>
+      <p class="lede flow">
+        Our roots are Catholic: the founder's, and the Venerable Bede's.
+        That is a history, not a gate. Scripture &amp; Bible Study and
+        Saints &amp; Catechism are two separate subjects, and you can
+        enable either, both, or neither.
+      </p>
+
+      <div class="card-grid" style="margin-bottom: 2rem;">
+        <div class="card">
+          <h3>Scripture &amp; Bible Study</h3>
+          <p>Bible narrative, memory verses, and the moral law the text plainly teaches, without asserting one tradition's doctrine or canon as though every Christian holds it.</p>
+        </div>
+        <div class="card">
+          <h3>Saints &amp; Catechism</h3>
+          <p>The Catholic module, openly so: saints, catechism, and virtue formation from a real published series. Unchanged, undiluted, entirely optional.</p>
+        </div>
+      </div>
+
+      <p class="lede flow" style="margin-bottom: 1.25rem;">
+        Name your church tradition and the Bible you already read at home,
+        and Bede works from them. It quotes the public-domain translations
+        directly. For the copyrighted ones, it paraphrases and cites the
+        reference, rather than presenting wording it cannot verify as an
+        exact quotation.
+      </p>
+      <div class="pill-group">
+        <p class="pill-label">Protestant editions</p>
+        <div class="pill-row">
+          <span class="pill">KJV</span>
+          <span class="pill">NKJV</span>
+          <span class="pill">ESV</span>
+          <span class="pill">NIV</span>
+          <span class="pill">NASB</span>
+          <span class="pill">NLT</span>
+          <span class="pill">CSB</span>
+        </div>
+      </div>
+      <div class="pill-group">
+        <p class="pill-label">Catholic editions</p>
+        <div class="pill-row">
+          <span class="pill">RSV-CE</span>
+          <span class="pill">NABRE</span>
+          <span class="pill">NRSV-CE</span>
+          <span class="pill">Douay-Rheims</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="curriculum band-curriculum">
+    <div class="inner">
+      <h2>The Curriculum</h2>
+      <p class="lede">
+        Fourteen subjects in a classical week inspired by Charlotte Mason, now
+        including Latin, Greek, and Logic. Pick the ones that belong in your
+        family's day.
+      </p>
+      <!-- Per-subject facts (session length, grades, what is recorded) come
+           from the product's own code; homeschool-api/tests/test_site_subject_facts.py
+           holds them to models/schemas.py. They unfold on hover or keyboard
+           focus, the toggle opens them all (works with no JavaScript), and on
+           a touch or phone-width screen they are always open. -->
+      <input class="visually-hidden" type="checkbox" id="subject-details">
+      <label class="details-toggle" for="subject-details">Show details for every subject</label>
+      <div class="card-grid subjects">
+        <div class="card subject">
+          <h3>Morning Time</h3>
+          <p>Bible, hymn, poetry &amp; prayer</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> A daily routine of formation, not measured toward mastery</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Living Books</h3>
+          <p>The classics and Great Books, read and narrated</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 25 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Mathematics</h3>
+          <p>Mathematical thinking through discovery</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Nature Study</h3>
+          <p>Observation, wonder &amp; creation</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>History &amp; Geography</h3>
+          <p>History told through story, and real places</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Taught and narrated; not one of the five tracked subjects</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Language Arts</h3>
+          <p>Narration, copywork &amp; grammar</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Science</h3>
+          <p>Botany, zoology &amp; earth science</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> One of the five subjects tracked toward a mastery outcome you name</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Art &amp; Music</h3>
+          <p>Picture study and composer study: a painting looked at closely, a piece of music listened to</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> What a child knows about the music is recorded; how they respond to it never is</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Saints &amp; Catechism</h3>
+          <p>Saints, catechism &amp; virtue formation</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Faith formation is never scored or measured</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Scripture &amp; Bible Study</h3>
+          <p>Bible narrative, memory verses &amp; the moral law</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Faith formation is never scored or measured</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Latin &amp; Christian Foundations</h3>
+          <p>Latin built on the vocabulary every Christian tradition shares</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 10 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Words learned are noted; not one of the five tracked subjects</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Greek &amp; New Testament Foundations</h3>
+          <p>Koine Greek, the language the New Testament was written in</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 10 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Words learned are noted; not one of the five tracked subjects</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Logic</h3>
+          <p>How an argument works, and how to use that charitably. From grade 3, never earlier</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 15 minutes</li>
+            <li><span class="fact-k">Grades</span> 3&ndash;8</li>
+            <li><span class="fact-k">Record</span> Taught and practised; not one of the five tracked subjects</li>
+          </ul>
+        </div>
+        <div class="card subject">
+          <h3>Free Study</h3>
+          <p>Exploration the student directs</p>
+          <ul class="subject-facts">
+            <li><span class="fact-k">Session</span> 20 minutes</li>
+            <li><span class="fact-k">Grades</span> K&ndash;8</li>
+            <li><span class="fact-k">Record</span> Exploration the child directs, not measured toward mastery</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="lede flow" style="margin-top: 1.5rem;">
+        Not every subject works toward a tracked mastery outcome. Morning
+        Time and Free Study are daily routines of formation and creative
+        reinforcement, not academic topics measured toward mastery. The
+        five core subjects the guarantee tracks are Mathematics, Language
+        Arts, Living Books, Science, and Nature Study.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">Learning Together</p>
+      <h2>The pod: one child or ten, each in their own conversation</h2>
+      <p class="lede">
+        Siblings, a co-op, a tutor's cohort, or one child at your kitchen
+        table. Up to ten.
+      </p>
+
+      <p class="lede flow" style="margin-bottom: 1.5rem;">
+        A <em>delivered</em> lesson has one level: one explanation, many
+        listeners, nobody obliged to think. An <em>asked</em> lesson has no
+        level, because the next question depends on the answer just given.
+        Every child is in a conversation of their own, so different ages stop
+        being a scheduling problem. One child is a pod of one, and needs no
+        second.
+      </p>
+
+      <div class="card-grid">
+        <div class="card">
+          <h3>Each child, their own thread</h3>
+          <p>Own subjects, own grade, own pacing and session length. Two children can share a morning without sharing a lesson.</p>
+        </div>
+        <div class="card">
+          <h3>The question fits the age</h3>
+          <p>A six-year-old gets one simple thing at a time. An eleven-year-old gets a counterexample and defends a position.</p>
+        </div>
+        <div class="card">
+          <h3>No child is ranked against another</h3>
+          <p>Not a policy: built so it cannot happen. No score, no order, no per-child total anywhere.</p>
+        </div>
+      </div>
+
+      <p class="lede" style="margin-top: 1.5rem;">
+        You choose the subjects, books, and topics for each child. Children
+        never see one another's records. The record is yours.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">One Environment</p>
+      <h2>A membership carries three things, together</h2>
+      <div class="card-grid">
+        <div class="card">
+          <h3>Bede</h3>
+          <p>The Socratic tutor itself &mdash; thoughtful dialogue, classical formation, one conversation per child.</p>
+        </div>
+        <div class="card">
+          <h3>Locuto</h3>
+          <p>Secure messaging for your family, your co-op, and the communities you actually trust. No public feeds, no strangers.</p>
+        </div>
+        <div class="card">
+          <h3>Family Portal</h3>
+          <p>Where you plan the year and see how it is going &mdash; plans, progress, schedules, and parent oversight in one place.</p>
+        </div>
+      </div>
+      <p class="lede" style="margin-top: 1.5rem;">
+        One price for the household, up to six children, with no per-child
+        fees. <a href="/bede/launch.html">Membership &amp; Charter Pricing
+        details &rarr;</a>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">Plainly Stated</p>
+      <h2>What Bede does, and what it will not do</h2>
+      <p class="lede flow">
+        The studio is the outdoors and the book, never the screen. Bede
+        introduces a concept and helps reinforce it, then sends your
+        child back to the real work: telling it back aloud, writing and
+        drawing it by hand, and remembering it later.
+      </p>
+
+      <div class="compare">
+        <div class="compare-col after">
+          <h3>What it does</h3>
+          <ul>
+            <li><strong>Teaches from your books.</strong> You choose the subjects and texts. Bede anchors the lesson on what you are already reading.</li>
+            <li><strong>Asks, rather than tells.</strong> Socratic questions paced for the Grammar and Logic stages, backing off to a hint after a round or two rather than pressing.</li>
+            <li><strong>Works in hand and voice.</strong> Narration aloud, writing and drawing by hand, and a check later on what actually stuck.</li>
+            <li><strong>Keeps a real record.</strong> Narration history; mastery in mathematics, reading foundations, reading &amp; spelling, writing, language exposure and music knowledge; and a summary after every sitting.</li>
+            <li><strong>Runs on your hardware.</strong> Windows, macOS, or Linux, with an installer for each, on a computer you already own. Encrypted at rest, in your house, optionally with the model itself local so no lesson text leaves at all.</li>
+          </ul>
+        </div>
+        <div class="compare-col before">
+          <h3>What it will not do</h3>
+          <ul>
+            <li><strong>Act as a spiritual advisor.</strong> Doctrine and pastoral counsel stay with you and your own pastor, priest, or minister.</li>
+            <li><strong>Score your child's faith.</strong> No metric on prayer, no progress bar on belief: a written rule, not a setting.</li>
+            <li><strong>Replace you.</strong> The parent is the curriculum director. Bede implements your plan. It does not overrule your judgment.</li>
+            <li><strong>Claim what it has not earned.</strong> No invented certainty, no invented evidence, and no pretending to remember a conversation it never had.</li>
+            <li><strong>Hold on to your data.</strong> One button deletes a student completely: transcripts, narrations, mastery, voice profile. Not archived.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">In Practice</p>
+      <h2>Speaking and writing, the way a child actually can</h2>
+      <p class="lede flow">
+        A seven-year-old can say a full sentence long before they can type
+        one. Bede is built around that fact rather than around a keyboard.
+      </p>
+
+      <div class="card-grid">
+        <div class="card">
+          <h3>Talk instead of type</h3>
+          <p>Press and hold to speak an answer, the same gesture as a walkie-talkie, or switch on "Voice on" mode to go fully hands-free. A child who can say the answer does not need to spell it first.</p>
+        </div>
+        <div class="card">
+          <h3>A real page to write and draw on</h3>
+          <p>When Bede asks for a narration, math worked out, or a nature sketch, a full page opens on the tablet: pencil, pen, and eraser, ruled to match the work &mdash; composition lines, graph paper, music staff, or blank &mdash; sized like a real sheet of paper.</p>
+        </div>
+        <div class="card">
+          <h3>Bede knows who's speaking</h3>
+          <p>Each child has a short voice check at the start of a session, so a young reader is never stuck typing a PIN. It's a convenience, not a lock: you can always step in and override it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="inner">
+      <p class="eyebrow">What We Are Aiming For</p>
+      <h2>Expected outcomes, and where they come from</h2>
+      <p class="lede flow">
+        These are the outcomes Bede is built to produce, tested in the
+        founder's own family. Not a study, not a cohort, not yet a claim
+        about your children. That is what the beta is for, and we would
+        rather say so than dress up a sample of one.
+      </p>
+
+      <div class="card-grid" style="margin-bottom: 1.5rem;">
+        <div class="card">
+          <h3>Knowledge that stays</h3>
+          <p>Retention is the point, so it is worked at directly: narration in the child's own words, writing and drawing by hand, and check-backs on what was taught earlier rather than moving on and never asking again. What held is recorded, not assumed.</p>
+        </div>
+        <div class="card">
+          <h3>Digital instruction, kept in its place</h3>
+          <p>The screen introduces a concept and helps reinforce it. The reading, narrating, and observing happen away from it. The guardrails are not a policy page. Bede's limits live in a written constitution that is verified every time the software starts.</p>
+        </div>
+        <div class="card">
+          <h3>A program you co-lead</h3>
+          <p>You name up to three mastery outcomes per core area each term. Bede steers sessions toward them and records the evidence, and the Progress page groups the concepts your child actually demonstrated subject by subject.</p>
+        </div>
+      </div>
+
+      <p class="fineprint" style="text-align: center;">
+        Mastery is tracked for each child who engages with the work. Bede
+        can invite a reluctant learner, and it is patient about it, but it
+        cannot compel one. A tutor that claimed otherwise would be lying
+        to you.
+      </p>
+    </div>
+  </section>
+
+  <!-- Membership chooser. The prices are the published ones
+       (docs/DECISIONS.md entries 10 and 35, demo/public/launch.html), and
+       homeschool-api/tests/test_site_offer.py checks them against
+       launch.html and the License Server, along with the storefront
+       address, which must stay identical to launch.html's.
+
+       Selection is native radio inputs, so it works with a keyboard
+       (arrow keys) and with no JavaScript at all; offer.js only computes
+       the per-child figure and lets a click anywhere on a card select it.
+       Every button is an ordinary link: the annual plan goes to the
+       License Server's own Stripe checkout route, the trial to the
+       storefront's trial form (a cross-origin form here would be refused
+       by this site's form-action 'self'), and the co-op and school options
+       to a conversation, which entry 9 says they are. -->
+  <section class="offer" id="membership" aria-labelledby="membership-h">
+    <div class="inner">
+      <p class="eyebrow">How Families Work With Us</p>
+      <h2 id="membership-h">Choose how you begin</h2>
+      <p class="lede flow">
+        One membership for the whole household, priced per family and never
+        per child. Rest on a plan to read what it includes, and choose one to
+        see how to begin.
+      </p>
+
+      <div class="audience">
+        <!-- The radios sit beside the panels, not inside the switch, so plain
+             sibling selectors (~) can show one panel and hide the other with
+             no :has() and no JavaScript. -->
+        <input class="audience-radio" type="radio" name="audience" id="aud-family" value="family" checked>
+        <input class="audience-radio" type="radio" name="audience" id="aud-school" value="school">
+        <div class="audience-switch">
+          <label for="aud-family">For families</label>
+          <label for="aud-school">For schools &amp; campuses</label>
+        </div>
+
+        <fieldset class="plans family-plans">
+          <legend class="visually-hidden">Family plans</legend>
+          <div class="plan">
+            <input class="plan-radio" type="radio" name="plan" id="plan-annual" value="annual" checked>
+            <label class="plan-head" for="plan-annual">
+              <span class="plan-numeral" aria-hidden="true">I</span>
+              <span class="plan-name">Annual Family Membership</span>
+              <span class="plan-price"><span class="amount">$2,149</span><span class="per"> / year</span></span>
+              <span class="plan-sub">Up to six children &middot; paying yearly saves $239 over $199 a month</span>
+            </label>
+            <div class="plan-detail">
+              <p>Bede Tutor, Locuto messaging, the Family Portal, parent tools and oversight, and verified access, for the whole household.</p>
+              <div class="per-child" data-annual="2149">
+                <label for="per-child-range">Children in your household: <output class="per-child-n" for="per-child-range">3</output></label>
+                <input type="range" id="per-child-range" min="1" max="6" value="3">
+                <p class="per-child-out">That is about <strong class="per-child-amount">$59.69</strong> per child, per month.</p>
+              </div>
+              <a class="cta plan-cta" href="https://bede-license-server.agnusdei.workers.dev/checkout/family-annual">Subscribe &mdash; $2,149/year &rarr;</a>
+              <p class="plan-fine">Secure checkout by Stripe. Your license key arrives by email.</p>
+            </div>
+          </div>
+          <div class="plan">
+            <input class="plan-radio" type="radio" name="plan" id="plan-trial" value="trial">
+            <label class="plan-head" for="plan-trial">
+              <span class="plan-numeral" aria-hidden="true">II</span>
+              <span class="plan-name">Free Trial</span>
+              <span class="plan-price"><span class="amount">7 days</span><span class="per"> free</span></span>
+              <span class="plan-sub">No card needed to start</span>
+            </label>
+            <div class="plan-detail">
+              <p>The full tutor for a week, delivered as a key to your email. When the week ends, the tutor stops until you choose a membership.</p>
+              <a class="cta plan-cta" href="https://bede-license-server.agnusdei.workers.dev/#trial-form">Start the 7-day trial &rarr;</a>
+              <p class="plan-fine">One trial per household.</p>
+            </div>
+          </div>
+          <div class="plan">
+            <input class="plan-radio" type="radio" name="plan" id="plan-coop" value="coop">
+            <label class="plan-head" for="plan-coop">
+              <span class="plan-numeral" aria-hidden="true">III</span>
+              <span class="plan-name">Co-op Membership</span>
+              <span class="plan-price"><span class="amount"><span class="from">from</span> $149</span><span class="per"> / family / month</span></span>
+              <span class="plan-sub">Ten-family minimum</span>
+            </label>
+            <div class="plan-detail">
+              <p>Every family in the co-op gets the same Bede and the same tools as a Family Membership. It is arranged with your co-op directly, so it is not sold online.</p>
+              <a class="cta plan-cta" href="#request-a-call">Ask about a co-op &rarr;</a>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="plans school-plans">
+          <div class="plan plan-open">
+            <div class="plan-head">
+              <span class="plan-name">Charter &amp; Campus</span>
+              <span class="plan-sub">Teacher-directed tools for schools</span>
+            </div>
+            <div class="plan-detail">
+              <p>Current Valor pilot: synthetic assessment, Data Day evidence, teacher-approved instructional plans, and progress review. Teachers deliver instruction; Bede does not tutor learners directly in this pilot. Broader campus capabilities require separate qualification.</p>
+              <a class="cta plan-cta" href="/schools/">Explore Bede for schools &rarr;</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="lede flow" style="margin-top: 1.5rem;">
+        Each offering is designed as a complete experience. Hardware and separately
+        scoped professional services, when needed, are discussed transparently,
+        not presented as required educational feature upgrades.
+      </p>
+    </div>
+  </section>
+
+    <section class="band-closing">
+    <div class="inner">
+      <p class="eyebrow">See It in Action</p>
+      <h2>Three simple steps</h2>
+      <div class="workflow-strip">
+        <div class="workflow-step">
+          <strong>Set the Day</strong>
+          <span>Pick the subjects, the grade, and the book you are reading together, once, in Parent Setup.</span>
+        </div>
+        <div class="workflow-arrow">&#10132;</div>
+        <div class="workflow-step">
+          <strong>Engage in Dialogue</strong>
+          <span>Bede leads a Socratic conversation, listening and adjusting to how your child answers.</span>
+        </div>
+        <div class="workflow-arrow">&#10132;</div>
+        <div class="workflow-step">
+          <strong>Review the Growth</strong>
+          <span>Read a measured summary after each session, backed by the mastery record.</span>
+        </div>
+      </div>
+
+      <p class="limit" style="margin-bottom: 2.25rem;">
+        Bede's persona and hard limits live in a written constitution,
+        checked for tampering every time the software starts. Alter it
+        and Bede refuses to run at all. Sessions stop on their own.
+        Breaks are mandatory every hour.
+      </p>
+
+      <div class="guarantee">
+        <h3>The learner's guarantee</h3>
+        <p>
+          <strong>Pick one topic. Thirty days.</strong> You name it, from
+          Mathematics, Language Arts, Living Books, Science, or Nature
+          Study. Bede works it daily as the hands-on tutor. If your learner
+          has not reached mastery in thirty days, we refund the annual
+          cost in full, coaching included. It takes about two focused
+          hours a day and a household media pledge on school days.
+          <a href="/faq/#guarantee">Read the full guarantee</a>.
+        </p>
+      </div>
+
+      <!-- method="post" is a safety net, not a route: nothing here
+           accepts a POST. feedback-form.js intercepts submit and sends the
+           answers itself, but if that script ever fails to load or parse,
+           the button falls through to a NATIVE submit of this form.
+           Without a method that is a GET to this same static page, which
+           puts every answered field - name, email, and long free-text
+           answers - into the query string, and so into browser history
+           and any URL-logging intermediary. As a POST the same failure
+           loses the answers instead of publishing them, and the mailto
+           line in the note below is already on screen as the way to send
+           them. Keeping type="submit" on the button preserves
+           Enter-to-submit and the browser's own required-field
+           validation. -->
+      <form class="form-block" id="request-a-call"
+            method="post"
+            data-category="plans"
+            data-tag="[Website: onboarding / pricing request]"
+            data-mail-subject="Bede onboarding &amp; pricing request"
+            data-mail-to="sales@agnusdei.ai">
+        <div class="field">
+          <label class="q" for="call_name">Your name</label>
+          <input type="text" id="call_name" name="name" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label class="q" for="call_email">Email</label>
+          <span class="hint">So a person can actually reach you &mdash; this is the one field that matters here.</span>
+          <input type="email" id="call_email" name="email" autocomplete="email" placeholder="you@example.com" required />
+        </div>
+        <!-- Choices, not sentences. This used to be one text box asking
+             "How many children, and their grades?" with the example
+             "e.g. two, grades 2 and 5" - which asks a visitor on a phone
+             to compose a sentence, and asks us to interpret whatever they
+             composed. A count and a set of stages are both short known
+             lists, so they are a dropdown and a set of tiles. The stage
+             values are the same four strings the feedback and survey pages
+             already use, so every form in the one inbox speaks the same
+             vocabulary. -->
+        <div class="field">
+          <label class="q" for="call_children">How many children are you teaching?</label>
+          <select id="call_children" name="children">
+            <option value="">Select a number&hellip;</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6 or more">6 or more</option>
+          </select>
+        </div>
+        <fieldset class="field">
+          <legend>Which stages are they in?</legend>
+          <span class="hint">Tick as many as apply.</span>
+          <div class="choices">
+            <label><input type="checkbox" name="stages" value="K-2" /> K&ndash;2</label>
+            <label><input type="checkbox" name="stages" value="3-5" /> 3&ndash;5</label>
+            <label><input type="checkbox" name="stages" value="6-8" /> 6&ndash;8</label>
+            <label><input type="checkbox" name="stages" value="Older" /> Older than 8th</label>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend>What would you like to know?</legend>
+          <span class="hint">Tick anything you would like the call to cover.</span>
+          <div class="choices">
+            <label>
+              <input type="checkbox" name="topics" value="Pricing" />
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h6.2L17 10.8 10.8 17 3 9.2V3Z"/><circle cx="6.6" cy="6.6" r="1.1"/></svg>
+              Pricing
+            </label>
+            <label>
+              <input type="checkbox" name="topics" value="Getting started and setup" />
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 13.5V17"/></svg>
+              Getting started and setup
+            </label>
+            <label>
+              <input type="checkbox" name="topics" value="Whether it fits our family" />
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="2.6"/><path d="M2.5 16.5c0-2.5 2-4.2 4.5-4.2s4.5 1.7 4.5 4.2"/><circle cx="14.5" cy="8.4" r="2"/><path d="M13 12.6c2.6-.5 4.5 1.2 4.5 3.9"/></svg>
+              Whether it fits our family
+            </label>
+            <label>
+              <input type="checkbox" name="topics" value="Time commitment and scheduling" />
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="7.2"/><path d="M10 5.6V10l3 1.8"/></svg>
+              Time commitment and scheduling
+            </label>
+            <label>
+              <input type="checkbox" name="topics" value="Subjects and curriculum" />
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4.2c2.6-.9 4.6-.6 7 .8v11c-2.4-1.4-4.4-1.7-7-.8V4.2Z"/><path d="M17 4.2c-2.6-.9-4.6-.6-7 .8v11c2.4-1.4 4.4-1.7 7-.8V4.2Z"/></svg>
+              Subjects and curriculum
+            </label>
+            <label>
+              <input type="checkbox" name="topics" value="Using it in a co-op" />
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="4.8" r="2"/><circle cx="4.6" cy="12" r="2"/><circle cx="15.4" cy="12" r="2"/><path d="M8.4 6.4 6.2 10.4M11.6 6.4l2.2 4M6.6 12.8h6.8"/></svg>
+              Using it in a co-op
+            </label>
+          </div>
+        </fieldset>
+        <div class="field">
+          <label class="q" for="call_details">Anything else we should know?</label>
+          <span class="hint">Optional &mdash; and the one place to write freely. A sentence about your family, a question we have not listed, whatever you would say on the call.</span>
+          <textarea id="call_details" name="details"></textarea>
+        </div>
+        <button type="submit" class="cta gilt">Request a call &rarr;</button>
+        <p class="form-note" id="form-note">
+          This goes straight to us and nowhere else: no form service,
+          no analytics, no tracker. The price is not a secret &mdash;
+          <a href="/bede/launch.html">one Family Membership, published
+          plainly</a> &mdash; but a person still reads this and walks you
+          through the year your children would actually have before you
+          decide. If we cannot be reached, your own email program opens with
+          this filled in instead, so nothing you typed is lost. Either way
+          you can write to
+          <a href="mailto:sales@agnusdei.ai">sales@agnusdei.ai</a> directly.
+        </p>
+      </form>
+      <p class="cta-sub light">
+        <a href="/bede/">try the demo first</a> (free, no account, no card)
+        &nbsp;&middot;&nbsp;
+        <a href="/bede/launch.html">see membership &amp; pricing</a>
+        &nbsp;&middot;&nbsp;
+        <a href="/feedback/">send feedback</a>
+      </p>
+
+      <div class="notes pill-row">
+        <span class="pill">Encrypted at rest</span>
+        <span class="pill">Runs on your own network</span>
+        <span class="pill">Every Christian tradition welcome</span>
+        <span class="pill">Built around the books you own</span>
+        <span class="pill">Two-factor &amp; device control</span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">Home</a>
+      <a href="/faq/">FAQ</a>
+      <a href="/bede/">Demo</a>
+      <a href="#request-a-call">Schedule Onboarding</a>
+      <a href="/feedback/">Feedback</a>
+      <a href="/educators/">Co-ops</a>
+      <a href="/schools/">Charter &amp; campus schools</a>
+      <a href="/privacy/">Privacy</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 Agnus Dei Technologies, LLC. All rights reserved.</p>
+  </footer>
+  <script src="/assets/api-base.js"></script>
+  <script src="/assets/feedback-form.js"></script>
+  <script src="/assets/video.js"></script>
+  <script src="/assets/offer.js"></script>
+</body>
+</html>

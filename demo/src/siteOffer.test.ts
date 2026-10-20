@@ -16,8 +16,10 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-const SITE = join(__dirname, '../../site')
-const SCRIPT = readFileSync(join(SITE, 'assets/offer.js'), 'utf8')
+// Preserve behavior coverage of the retired chooser without reactivating it.
+// The current inquiry-only pages have independent production contract tests.
+const SITE = join(__dirname, '../../tests/fixtures/marketing-before-inquiry')
+const SCRIPT = readFileSync(join(__dirname, '../../site/assets/offer.js'), 'utf8')
 
 function mount() {
   const html = readFileSync(join(SITE, 'index.html'), 'utf8')

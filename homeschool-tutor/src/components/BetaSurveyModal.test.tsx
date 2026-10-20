@@ -6,7 +6,9 @@
  * and the split is invisible until someone tries to count.
  *
  * So the load-bearing tests below compare this component's wire values
- * against site/survey/index.html itself, rather than against a copy of it.
+ * against the frozen survey instrument. The public website is currently
+ * inquiry-only, but changing its offer must not change the in-app survey's
+ * established wire values or silently split historical response categories.
  * Same technique as i18n/docQuotes.test.ts and demo/src/surveyForms.test.ts.
  */
 import { readFileSync } from 'node:fs'
@@ -22,7 +24,7 @@ const submitFeedback = vi.hoisted(() => vi.fn())
 vi.mock('../services/api', () => ({ submitFeedback }))
 
 const HOSTED_SURVEY = readFileSync(
-  join(__dirname, '../../../site/survey/index.html'),
+  join(__dirname, '../../../tests/fixtures/marketing-before-inquiry/survey/index.html'),
   'utf8',
 )
 

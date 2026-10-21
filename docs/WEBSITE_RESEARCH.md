@@ -1,9 +1,10 @@
 # Research & Findings website page
 
 Public route: `/research/`. Scope: evidence for the tutoring method, not an
-evaluation of Bede. The owner requested brief copy without inline citations,
-academic footnotes, or long study summaries. Supporting evidence is retained
-here for review, not added to public copy. Reviewed October 20, 2026.
+evaluation of Bede. The owner now requests natural hyperlink citations, colorful
+short-session learning visuals, and removal of the affiliation disclaimer.
+Keep academic footnotes and long study summaries out of public copy. Detailed
+evidence remains here for review. Reviewed October 20, 2026.
 
 ## Claim audit
 
@@ -27,14 +28,36 @@ here for review, not added to public copy. Reviewed October 20, 2026.
 
 - No product-performance claim, guaranteed gain, school endorsement, partnership,
   or subjective ranking such as “advanced school.”
-- Institution examples are explicitly independent and not affiliations.
-- No visible citations, bibliography, external study links, trackers, or new form.
-- Keep public main copy below 325 words, with short sections and the shared
+- Institution examples retain their own names and populations, with direct
+  supporting hyperlinks, not an affiliation disclaimer or a claim of partnership.
+- Six natural source hyperlinks; no numbered footnotes, bibliography, trackers,
+  or new form.
+- Keep public main copy below 425 words, with short sections and the shared
   ink/gold CTA treatment. Do not turn it into a literature review.
 - Link `/research/` once in all eleven marketing footers and list it in the
   sitemap. Retain even two-column mobile rows and visible keyboard focus.
 - Recheck sources before changing numerical claims. Older foundational research
   is dated honestly; no numerical conversion into months or percentage gains.
+
+## Short-session progression visuals
+
+- The 20-minute plan is explicitly illustrative, not a studied protocol,
+  recommended clinical/educational dose, or predicted rate of acceleration.
+  Four labeled stages total 20 minutes: 4 inquiry, 6 guided practice, 6 independent
+  work, and 4 adult review. Desktop segment widths reflect that allocation;
+  narrow screens use labeled cards instead of a compressed chart.
+- Color-coded learning goals show support → independent solving → next-session
+  recall → transfer. These are goals to check, not fabricated learner scores,
+  guaranteed milestones, or a projection of Bede outcomes.
+- Critical inquiry, test prep, topic reinforcement, and practice problems are
+  example sprint focuses. AI supplies prompts/feedback; adults guide and check,
+  and the learner attempts work without hints.
+- Compare actual before/after checks and revisit later. Do not draw an invented
+  improvement curve, assign a percent acceleration, or extrapolate the Tutor
+  CoPilot result to parent-led Bede sessions.
+- Native HTML figures/lists and CSS provide text-equivalent, labeled color
+  visuals, no new client scripts or external chart dependencies. Link and panel
+  contrast and 320–1440px layouts must be browser-checked in both device schemes.
 
 ## Related audience-copy cleanup
 

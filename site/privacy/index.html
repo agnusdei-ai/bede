@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Privacy &amp; Data Disclosure &mdash; Agnus Dei Technologies</title>
-  <meta name="description" content="What agnusdei.ai actually collects: every cookie, every piece of browser storage, and every third party contacted, on the marketing site and the interactive demo alike." />
+  <meta name="description" content="How agnusdei.ai uses Cloudflare analytics, inquiry and survey information, browser storage, and outside services." />
   <link rel="canonical" href="https://agnusdei.ai/privacy/" />
   <link rel="icon" type="image/png" href="/assets/favicon.png" />
 
@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="/assets/inquiry.css" />
   <script src="/assets/bede-motion.js" defer></script>
   <link rel="stylesheet" href="/assets/streamlined.css" />
+  <link rel="stylesheet" href="/assets/privacy.css" />
 </head>
 <body class="classical-offers bede-theme">
 
@@ -34,7 +35,7 @@
         <a class="nav-demo" href="/bede/">Try the demo <span aria-hidden="true">&rarr;</span></a>
       </nav>
     </header>
-    <main id="main-content">
+    <main id="main-content" class="privacy-page">
 
 
   <div class="band">
@@ -43,10 +44,8 @@
         <a class="backlink" href="/">&larr; Agnus Dei Technologies</a>
         <h1>Privacy &amp; Data Disclosure</h1>
         <p class="lede">
-          A plain accounting of what this domain actually does: every
-          cookie, every piece of browser storage, and every outside
-          service contacted, with no rounding up. Last reviewed
-          2026-08-05.
+          How the website and hosted demo use information, browser storage,
+          and outside services. Last reviewed 2026-10-20.
         </p>
       </div>
     </section>
@@ -58,11 +57,9 @@
       <p class="eyebrow">Two Different Things Share This Domain</p>
       <h2>The marketing site, and the demo, are not the same product</h2>
       <p>
-        The pages you are reading now (the home page, this page,
-        the FAQ, and the educator and family inquiry pages) are static.
-        The current website uses email links rather than online forms,
-        registration, or checkout. Opening an email link launches your
-        email application; nothing is sent unless you choose to send it.
+        The public pages introduce Bede. You can send a business inquiry
+        at <a href="/inquire/">/inquire/</a>, share feedback at
+        <a href="/survey/">/survey/</a>, or use an email link.
         The interactive demo under <code>/bede/</code> is a different thing
         entirely: a separate, time-limited, fully-featured free trial
         that runs in the cloud, on our own servers, so you can try Bede
@@ -75,31 +72,34 @@
         biometric profile leaves that house unless the family
         deliberately configures a cloud AI provider themselves. The
         table below is split accordingly: the marketing site first, then
-        the demo, since only the demo collects anything at all.
+        the demo. Website forms and analytics also handle information,
+        as described below.
       </p>
 
       <h2>The marketing site (this domain, outside <code>/bede/</code>)</h2>
       <p>
-        No cookie is set anywhere on these pages. No browser storage of
-        any kind (localStorage, sessionStorage, IndexedDB) is used. No
-        font, script, analytics tag, tag manager, or chat widget is
-        loaded from any outside origin. Motion and illustrations use
-        files served by this website. They do not send information to
-        an animation or analytics service.
+        Styles, fonts, motion, and illustrations use files served by this
+        website. A Cloudflare measurement script is included in the page
+        HTML, as described below. Inquiry and survey answers are not saved
+        in browser storage.
       </p>
       <p>
-        Inquiry links open your email application. The website survey sends your answers and optional contact details to our team through the feedback email service when available; otherwise it hands them to your email app. Please do not include student records or sensitive information. Learn about Bede
-        session inquiries go to <code>bede@agnusdei.ai</code>; educator and
-        homeschool interviews and onboarding requests go to
-        <code>info@agnusdei.ai</code>. Your email provider handles any message
-        you choose to send. No payment details are collected on these pages.
+        Forms send information only when you choose to submit them.
+        Email links open your email application; you decide whether to send.
+        Please do not include student records or sensitive information.
+        No payment details are collected on these pages.
       </p>
       <table class="tracker-table">
         <tr><th>Item</th><th>Category</th><th>Notes</th></tr>
+        <tr id="cloudflare-analytics">
+          <td>Cloudflare Web Analytics</td>
+          <td>Page-view and performance measurement</td>
+          <td>Hosting includes a measurement script from <code>static.cloudflareinsights.com</code> on public pages and the hosted demo. Browser checks on 2026-10-20 found that the site's Content Security Policy blocks its load. The beacon is designed for page-view and loading-performance measurement. <a href="https://www.cloudflare.com/web-analytics/">Cloudflare describes its Web Analytics</a> as using no cookies, localStorage, or visitor fingerprinting for analytics. This website currently has no analytics preference control.</td>
+        </tr>
         <tr>
           <td>Video embeds, when present</td>
           <td>Marketing / embedded video</td>
-          <td>Loaded only after a visitor clicks &ldquo;Watch: Meet Bede.&rdquo; Served via YouTube's privacy-enhanced <code>youtube-nocookie.com</code> domain. Nothing is requested from YouTube before that click. When you do press play, your browser tells YouTube which site the video is playing on &mdash; this site's own address and nothing more, never the page you were reading or anything you typed. YouTube refuses to play an embedded video without that, so it is the minimum required rather than a choice we made; every other request on this site sends no referring address at all.</td>
+          <td>Loaded only after you choose &ldquo;Watch: Meet Bede.&rdquo; The embed uses YouTube's privacy-enhanced <code>youtube-nocookie.com</code> domain. Playing connects your browser to YouTube and its media services, which receive connection and playback information.</td>
         </tr>
         <tr>
           <td>Email inquiries</td>
@@ -125,15 +125,16 @@
 
       <h2>The interactive demo (<code>/bede/</code>)</h2>
       <p>
-        The demo asks for your consent before it collects anything, and
-        explains what it collects and for how long in its own
-        <a href="/bede/">Launch Bede demo <span aria-hidden="true">&rarr;</span></a>, which this page
-        links back to. What follows is the technical inventory behind
-        that notice.
+        The demo also includes the <a href="#cloudflare-analytics">Cloudflare
+        script described above</a>, whose load is currently blocked.
+        Its separate data-use consent step covers tutoring features;
+        it does not control that beacon.
+        <a href="/bede/">Launch Bede demo <span aria-hidden="true">&rarr;</span></a>.
+        The browser storage and service inventory follows.
       </p>
 
       <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Cookies</h3>
-      <p>None. The demo sets no cookie of any kind.</p>
+      <p>The demo application does not set cookies. Cloudflare describes its analytics as cookie-free; demo browser storage is listed below.</p>
 
       <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Browser storage</h3>
       <table class="tracker-table">
@@ -274,8 +275,8 @@
         </tr>
         <tr>
           <td>Resend</td>
-          <td>Your feedback or survey answers and, if you choose to leave one, a reply email address</td>
-          <td>Delivers the optional feedback and survey forms to our own inbox</td>
+          <td>Business inquiry contact details and engagement information; feedback or survey answers and an optional reply email address</td>
+          <td>Emails inquiries and feedback to our team</td>
         </tr>
         <tr>
           <td>Wikipedia / Wikimedia<br><em>(contacted by your browser directly)</em></td>
@@ -285,35 +286,23 @@
       </table>
 
       <p class="tracker-note" style="margin-top: 0.75rem;">
-        <strong>One of those rows is not like the others.</strong> OpenAI,
-        Mistral, Claude and Resend are contacted by <em>our</em> server, so
-        they never see your browser or your IP address. Wikipedia and
-        Wikimedia are contacted by <em>your own browser</em>, the same way
-        they would be if you opened the article yourself, which means they
-        see your IP address and we are not in the middle of it. We think
-        showing a child the real painting is worth that, but it is a
-        different kind of request and it would be misleading to list it in
-        the same breath as the rest.
+        AI and email services are contacted by our server. Wikipedia and
+        Wikimedia are contacted by your browser and receive connection
+        information. Cloudflare handles website requests; its included
+        analytics beacon is currently blocked as described above.
       </p>
 
       <div class="tracker-note">
-        <strong>No consent banner on this page.</strong> A cookie/consent
-        banner exists to disclose non-essential tracking: advertising,
-        cross-site tracking, or analytics profiling. This review found
-        none, anywhere on this domain. Every item above is either
-        strictly necessary for a feature to work, or a saved preference
-        the visitor chose themselves. The one place this domain collects
-        anything at all, the demo, already gates that collection behind
-        its own explicit, affirmative consent step before anything is
-        stored. Adding a second, generic banner on top of that would not
-        disclose anything a visitor does not already see.
+        <strong>Your choices.</strong> You choose whether to submit a form,
+        send an email, play an embedded video, or activate demo tutoring.
+        The demo's data-use notice is separate from the included analytics script.
       </div>
 
       <h2>What we do not do</h2>
       <p>
-        We do not sell personal data, and we never have. We do not use
-        anything on this domain for advertising. We do not run
-        analytics, an ad pixel, or a tracking script of any kind.
+        We do not sell personal data or use this website for advertising.
+        The included Cloudflare analytics script is described separately
+        from the email and AI services above.
       </p>
 
       <h2>Requesting your data, or asking a question</h2>

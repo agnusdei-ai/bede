@@ -1,0 +1,17 @@
+/* Keep service domains and storage-key names readable on narrow screens. */
+.bede-theme .privacy-page {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bede-theme .privacy-page .tracker-table th,
+.bede-theme .privacy-page .tracker-table td,
+.bede-theme .privacy-page .tracker-table code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+@media (max-width: 760px) {
+  .bede-theme .privacy-page .tracker-table th,
+  .bede-theme .privacy-page .tracker-table td {
+    padding-inline: 0.2rem;
+  }
+}

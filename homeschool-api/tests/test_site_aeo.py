@@ -34,7 +34,7 @@ def _jsonld(path: Path) -> list:
 def _visible_faq(path: Path) -> list[tuple[str, str]]:
     text = path.read_text(encoding="utf-8")
     pairs = re.findall(
-        r"<details>\s*<summary>(.*?)</summary>\s*<p>(.*?)</p>\s*</details>", text, re.S
+        r"<details\b[^>]*>\s*<summary>(.*?)</summary>\s*<p>(.*?)</p>\s*</details>", text, re.S
     )
     return [(q.strip(), a.strip()) for q, a in pairs]
 
@@ -59,6 +59,7 @@ def test_schools_faq_jsonld_mirrors_the_visible_faq():
     faq = next(b for b in _jsonld(SCHOOLS) if b.get("@type") == "FAQPage")
     markup = [(e["name"], e["acceptedAnswer"]["text"]) for e in faq["mainEntity"]]
     visible = _visible_faq(SCHOOLS)
+    assert visible, "School FAQ extraction must include styled details elements"
     assert markup == visible, "FAQPage JSON-LD and the visible FAQ have diverged"
 
 

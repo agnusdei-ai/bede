@@ -71,7 +71,8 @@ that an email reached either live inbox.
 All marketing footers, including `/inquire/`, use `footer-links` on their
 navigation and `footer-copyright` on the copyright paragraph. These classes
 provide the shared mobile grid, link spacing, touch targets, and typography.
-The final engagement link spans both mobile columns. New pages must retain
+The final engagement link spans both mobile columns only when the link count
+is odd; an even count retains paired rows. New pages must retain
 these classes rather than relying on adjacent inline links.
 
 School inquiry links use the shared ink-on-gold CTA treatment in

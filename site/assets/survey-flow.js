@@ -21,7 +21,7 @@
     back.hidden = current === 0;
     next.hidden = current === steps.length - 1;
     send.hidden = current !== steps.length - 1;
-    progress.textContent = `Step ${current + 1} of ${steps.length} · Your answers are not sent until you choose Send survey.`;
+    progress.textContent = `Step ${current + 1} of ${steps.length}`;
     if (current === steps.length - 1) {
       review.replaceChildren();
       for (const control of survey.querySelectorAll('[name="setting"], [name="experience"], [name="impression"], [name="needs"]')) {

@@ -1,0 +1,61 @@
+/* An intentionally short, reading-first page; use the shared ink/gold palette. */
+.bede-theme .research-page {
+  width: 100%;
+  max-width: 52rem;
+  margin-inline: auto;
+  padding: clamp(2.5rem, 6vw, 4.5rem) 1.25rem;
+  color: var(--bede-ink);
+}
+.bede-theme .research-intro { margin-bottom: 2.5rem; }
+.bede-theme .research-intro .eyebrow {
+  margin-bottom: 0.85rem;
+  color: #705429;
+  font-size: 0.75rem;
+  line-height: 1.6;
+}
+.bede-theme .research-page h1 {
+  margin: 0 0 1.2rem;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.18;
+}
+.bede-theme .research-page .research-lede {
+  max-width: 45ch;
+  font-size: 1.12rem;
+  color: var(--bede-ink-soft);
+}
+.bede-theme .research-section {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--bede-rule);
+}
+.bede-theme .research-section h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(1.6rem, 3.4vw, 2rem);
+}
+.bede-theme .research-finding { margin-block: 1.5rem; }
+.bede-theme .research-finding h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+.bede-theme .research-finding p { margin: 0; }
+.bede-theme .research-page .research-note {
+  margin-block: 1.25rem;
+  color: var(--bede-ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.bede-theme .research-page .classical-button {
+  max-width: 100%;
+  min-height: 48px;
+  margin-top: 0.6rem;
+  background: #c4a45f;
+  color: var(--bede-ink);
+}
+.bede-theme .research-page .classical-button:hover {
+  background: #dbc58d;
+  color: var(--bede-ink);
+}
+@media (max-width: 760px) {
+  .bede-theme .research-page { padding-top: 2.25rem; }
+  .bede-theme .research-page .classical-button { width: 100%; }
+}

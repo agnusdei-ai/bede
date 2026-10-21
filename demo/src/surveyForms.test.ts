@@ -313,7 +313,10 @@ describe('where the forms send', () => {
     form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))
 
     await vi.waitFor(() => expect(form.dataset.mailto).toMatch(/^mailto:/))
-    expect(note.textContent).toMatch(/nothing you typed is lost/i)
+    expect(note.textContent).toMatch(/choose Send in your email app/i)
+    expect(note.textContent).not.toMatch(/response was accepted/i)
+    expect(form.hidden).toBe(false)
+    expect((form.querySelector('input[type="radio"]') as HTMLInputElement).checked).toBe(true)
   })
 })
 

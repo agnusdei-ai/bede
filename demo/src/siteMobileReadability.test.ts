@@ -25,22 +25,22 @@ describe('shared mobile marketing styles', () => {
   })
 
   it('loads the shared fix on every marketing page', () => {
-    for (const page of ['', 'schools/', 'homeschool/', 'faq/', 'educators/', 'privacy/', 'feedback/', 'survey/', 'trackers/', 'inquire/']) {
+    for (const page of ['', 'schools/', 'homeschool/', 'faq/', 'educators/', 'privacy/', 'feedback/', 'survey/', 'trackers/', 'inquire/', 'research/']) {
       const html = readFileSync(join(root, `site/${page}index.html`), 'utf8')
       expect(html, page || 'home').toContain('/assets/streamlined.css')
     }
   })
   it('uses the same footer layout classes on every marketing page', () => {
-    for (const page of ['', 'schools/', 'homeschool/', 'faq/', 'educators/', 'privacy/', 'feedback/', 'survey/', 'trackers/', 'inquire/']) {
+    for (const page of ['', 'schools/', 'homeschool/', 'faq/', 'educators/', 'privacy/', 'feedback/', 'survey/', 'trackers/', 'inquire/', 'research/']) {
       document.documentElement.innerHTML = readFileSync(join(root, `site/${page}index.html`), 'utf8')
       const nav = document.querySelector('footer nav[aria-label="Footer navigation"]')
       expect(nav, page || 'home').not.toBeNull()
       expect(nav!.classList.contains('footer-links'), page || 'home').toBe(true)
-      expect(nav!.querySelectorAll('a'), page || 'home').toHaveLength(9)
+      expect(nav!.querySelectorAll('a'), page || 'home').toHaveLength(10)
       expect(document.querySelector('footer .footer-copyright'), page || 'home').not.toBeNull()
     }
   })
-  it('gives the final mobile inquiry link a complete row', () => {
-    expect(mobile).toMatch(/\.footer-links a\[href="\/inquire\/"\]\s*\{\s*grid-column:\s*1\s*\/\s*-1;/)
+  it('only spans the final mobile inquiry link when the link count is odd', () => {
+    expect(mobile).toMatch(/\.footer-links a\[href="\/inquire\/"\]:last-child:nth-child\(odd\)\s*\{\s*grid-column:\s*1\s*\/\s*-1;/)
   })
 })

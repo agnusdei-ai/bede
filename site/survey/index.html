@@ -48,7 +48,7 @@
         <p class="eyebrow">ONE SURVEY · FOUR SHORT STEPS</p>
         <h1>Tell us what would help.</h1>
         <p class="lede">
-          For parents, educators, co-ops, and school leaders—whether you have tried Bede or are just exploring. About two minutes. Contact details are optional; please do not include student names, records, or other sensitive information.
+          For families, educators, and school teams. About two minutes. Contact details are optional; please leave out student names or records.
         </p>
         <p class="lede">
           Haven’t tried it yet? <a href="/bede/">Launch the Bede demo</a>, or share what you need below.
@@ -62,7 +62,7 @@
       <!-- POST prevents accidental disclosure of answers in a query string
            if scripts fail. Email remains available without JavaScript. -->
       <form id="feedback-form" class="survey-flow" method="post" data-category="beta_survey" data-tag="[Bede website survey]" data-mail-subject="Bede survey response">
-        <p class="survey-progress" id="survey-progress" aria-live="polite">Four short steps. All answers stay on this page until you send.</p>
+        <p class="survey-progress" id="survey-progress" aria-live="polite">Four short steps.</p>
         <div class="survey-step" role="group" aria-labelledby="survey-role-title">
           <h2 id="survey-role-title" tabindex="-1">1. Your setting</h2>
           <label for="survey-role">Which best describes you? <span>(required)</span></label>
@@ -83,7 +83,6 @@
           <h2 id="survey-needs-title" tabindex="-1">3. What matters to you</h2>
           <label for="survey-needs">What would make Bede more useful in your setting? <span>(optional)</span></label>
           <textarea id="survey-needs" name="needs" rows="5" maxlength="500" placeholder="Tell us about a task, a missing feature, or a question."></textarea>
-          <p class="survey-hint">Please describe your workflow, not an individual student. No documents or uploads are needed.</p>
         </div>
         <div class="survey-step" role="group" aria-labelledby="survey-send-title">
           <h2 id="survey-send-title" tabindex="-1">4. Review and send</h2>
@@ -92,8 +91,8 @@
           <input id="survey-name" name="name" autocomplete="name" maxlength="60">
           <label for="survey-email">Email for a reply <span>(optional)</span></label>
           <input id="survey-email" name="email" type="email" autocomplete="email" maxlength="254">
-          <label class="survey-consent"><input name="permission" type="checkbox" value="I agree to email these answers to the Bede team." required> I agree to send these answers to the Bede team by email. <span>(required)</span></label>
-          <p class="survey-hint">We use your answers to improve Bede and reply if you provide an email. <a href="/privacy/">Read our privacy notice.</a></p>
+          <label class="survey-consent"><input name="permission" type="checkbox" value="I agree to email these answers to the Bede team." required> I agree to email my answers to the Bede team. <span>(required)</span></label>
+          <p class="survey-hint">We use responses to improve Bede and reply. <a href="/privacy/">Privacy notice.</a></p>
         </div>
         <div class="survey-actions">
           <button type="button" id="survey-back" hidden>Back</button>
@@ -101,8 +100,8 @@
           <button class="cta" type="submit" id="survey-send">Send survey <span aria-hidden="true">&rarr;</span></button>
         </div>
       </form>
-      <p id="form-note" class="survey-status" role="status" aria-live="polite">The send button emails your answers through our service when available. Otherwise it opens an email draft for you to send; opening a draft is not confirmation of delivery.</p>
-      <noscript><p>This guided form needs JavaScript. You can instead email your setting, experience, and needs to <a href="mailto:info@agnusdei.ai?subject=Bede%20survey%20response">info@agnusdei.ai</a>.</p></noscript>
+      <p id="form-note" class="survey-status" role="status" aria-live="polite">Send your answers here. If your email app opens, choose Send there.</p>
+      <noscript><p>Email your answers to <a href="mailto:info@agnusdei.ai?subject=Bede%20survey%20response">info@agnusdei.ai</a>.</p></noscript>
     </div>
   </section>
 
@@ -129,6 +128,7 @@
         <a href="/homeschool/">For Homeschool</a>
         <a href="/educators/">For Educators</a>
         <a href="/faq/">FAQ</a>
+        <a href="/research/">Research &amp; Findings</a>
         <a href="/privacy/">Privacy</a>
         <a href="/bede/">Launch Bede demo</a>
         <a href="/survey/" aria-current="page">Share your experience</a>

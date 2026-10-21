@@ -19,9 +19,9 @@
       });
     });
     routing.textContent = audience.value === 'homeschool'
-      ? 'This inquiry will be emailed to bede@agnusdei.ai.'
-      : audience.value ? 'This inquiry will be emailed to info@agnusdei.ai.'
-        : 'Family inquiries go to bede@agnusdei.ai; co-op and charter-school inquiries go to info@agnusdei.ai.';
+      ? 'Email to: bede@agnusdei.ai'
+      : audience.value ? 'Email to: info@agnusdei.ai'
+        : 'Family: bede@agnusdei.ai. Co-op or school: info@agnusdei.ai.';
   }
   function validateSelections() {
     ['grades', 'interests'].forEach(name => {
@@ -50,14 +50,14 @@
     });
     const base = String(window.BEDE_API_BASE || '').replace(/\/+$/, '');
     if (!base) {
-      status.textContent = 'Your inquiry has not been sent. Online email delivery is unavailable. Your answers remain here; please try again later or use the email links below.';
+      status.textContent = 'Your inquiry has not been sent. Please try again later or email info@agnusdei.ai.';
       status.focus();
       return;
     }
     sending = true;
     button.disabled = true;
     button.textContent = 'Sending inquiry…';
-    status.textContent = 'Sending your inquiry securely…';
+    status.textContent = 'Sending your inquiry…';
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);
     try {
@@ -71,9 +71,9 @@
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result.sent !== true) throw new Error('Inquiry not accepted');
       form.hidden = true;
-      status.textContent = 'Thank you. Our email service accepted your inquiry for delivery to the Bede team. We’ll respond to the email address you provided. This does not confirm enrollment, a booking, or an implementation agreement.';
+      status.textContent = 'Thank you. Our email service accepted your inquiry. We’ll reply by email.';
     } catch {
-      status.textContent = 'Your inquiry was not confirmed as sent. Your answers remain here. Please try again, or contact us using the email links below. If a request timed out, please check for a response before resending.';
+      status.textContent = 'Your inquiry was not confirmed as sent. Your answers remain here. Retry or email info@agnusdei.ai. If it timed out, check for a reply first.';
     } finally {
       clearTimeout(timeout);
       sending = false;

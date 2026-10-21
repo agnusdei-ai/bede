@@ -6,7 +6,7 @@ import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../site/", import.meta.url));
-const pages = ["", "schools", "homeschool", "faq", "educators", "privacy", "feedback", "survey", "trackers", "inquire"];
+const pages = ["", "schools", "homeschool", "faq", "educators", "privacy", "feedback", "survey", "trackers", "inquire", "research"];
 const read = file => readFileSync(join(root, file), "utf8");
 for (const page of pages) {
   test(`${page || "home"}: standalone, complete assets, demo navigation, no checkout`, () => {

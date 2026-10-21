@@ -55,7 +55,7 @@
 }
 .bede-theme .sprint-timeline {
   display: grid;
-  grid-template-columns: 4fr 6fr 6fr 4fr;
+  grid-template-columns: 2fr 1fr 2fr;
   gap: 0.4rem;
   padding: 0;
   margin: 0;
@@ -68,9 +68,8 @@
   color: #fff;
   background: #335a86;
 }
-.bede-theme .sprint-timeline .sprint-guided { background: #226c63; }
+.bede-theme .sprint-timeline .sprint-break { background: #e8e3d8; color: #263746; }
 .bede-theme .sprint-timeline .sprint-independent { background: #725085; }
-.bede-theme .sprint-timeline .sprint-review { background: #c4a45f; color: #263746; }
 .bede-theme .sprint-timeline strong,
 .bede-theme .sprint-timeline span,
 .bede-theme .sprint-timeline small { display: block; color: inherit; }
@@ -141,7 +140,7 @@
 @media (max-width: 760px) {
   .bede-theme .research-page { padding-top: 2.25rem; }
   .bede-theme .research-page .classical-button { width: 100%; }
-  .bede-theme .sprint-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bede-theme .sprint-timeline { grid-template-columns: minmax(0, 1fr); }
   .bede-theme .learning-progression { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
   .bede-theme .learning-progression li:nth-child(2)::after { display: none; }
 }

@@ -41,14 +41,22 @@ evidence remains here for review. Reviewed October 20, 2026.
 
 ## Short-session progression visuals
 
-- The 20-minute plan is explicitly illustrative, not a studied protocol,
+- The owner-directed 50-minute subject session is explicitly illustrative, not a studied protocol,
   recommended clinical/educational dose, or predicted rate of acceleration.
-  Four labeled stages total 20 minutes: 4 inquiry, 6 guided practice, 6 independent
-  work, and 4 adult review. Desktop segment widths reflect that allocation;
+  Three labeled blocks total 50 minutes: sprint 1 (20), a break (10), and
+  sprint 2 (20), all focused on one subject. Sprint 1 suggests 10 minutes of
+  inquiry and 10 of guided practice; sprint 2 suggests 12 of independent work
+  and 8 of adult review. The break is
+  included in the total, not added to 50 minutes. Desktop segment widths reflect that allocation;
   narrow screens use labeled cards instead of a compressed chart.
 - Color-coded learning goals show support → independent solving → next-session
   recall → transfer. These are goals to check, not fabricated learner scores,
   guaranteed milestones, or a projection of Bede outcomes.
+- Keep the owner's concise note: “Learner progression may vary.”
+- Bede already has optional 20-minute break prompts (`docs/SPECIAL_NEEDS.md`,
+  “Offer a break every 20 minutes”). The website routine respects that optional
+  rhythm; it does not change tutor timers, require a 10-minute software-enforced
+  break, or claim every learner reaches mastery in one session.
 - Critical inquiry, test prep, topic reinforcement, and practice problems are
   example sprint focuses. AI supplies prompts/feedback; adults guide and check,
   and the learner attempts work without hints.

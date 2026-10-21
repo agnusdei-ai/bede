@@ -26,10 +26,20 @@ describe('Research & Findings', () => {
     expect(readFileSync(resolve(root, 'site/sitemap.xml'), 'utf8')).toContain('https://agnusdei.ai/research/')
   })
 
-  it('keeps copy short without inline citations, bibliography, or external links', () => {
+  it('uses natural hyperlink citations without a bibliography or extra disclaimer copy', () => {
     const main = page()
-    expect(main.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(325)
-    expect(main.querySelectorAll('sup, [role="doc-bibliography"], a[href^="http"]')).toHaveLength(0)
+    expect(main.textContent!.trim().split(/\s+/).length).toBeLessThanOrEqual(425)
+    expect(main.querySelectorAll('sup, [role="doc-bibliography"]')).toHaveLength(0)
+    const citations = [...main.querySelectorAll<HTMLAnchorElement>('a[href^="https://"]')]
+    expect(citations.map(a => a.href)).toEqual([
+      'https://eric.ed.gov/?id=EJ744802',
+      'https://journals.sagepub.com/doi/10.3102/00028312231208687',
+      'https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/20072004.pdf',
+      'https://eric.ed.gov/?id=ED661562',
+      'https://www.nature.com/articles/s41598-025-97652-6',
+      'https://www.nps.k12.nj.us/press-releases/bill-gates-visits-first-avenue-school-commends-innovative-use-of-technology',
+    ])
+    for (const link of citations) expect(link.textContent!.trim().length).toBeGreaterThan(12)
     expect(main.textContent).not.toMatch(/\[\d+\]|references|bibliography/i)
     expect(document.querySelectorAll('form, script:not([src])')).toHaveLength(0)
     expect(document.querySelectorAll('script')).toHaveLength(1)
@@ -49,22 +59,61 @@ describe('Research & Findings', () => {
     expect(text).not.toMatch(/4%|guarantee|twice as fast|Bede improves/i)
   })
 
-  it('distinguishes institutional examples from endorsements and measured outcomes', () => {
+  it('describes third-party examples without claims of affiliation or Bede outcomes', () => {
     const text = page().textContent!
-    expect(text).toContain('Independent examples; no affiliation or endorsement is implied')
+    expect(text).not.toMatch(/Independent examples|no affiliation|endorsement is implied|Results vary/)
     expect(text).toContain('documented using Khanmigo')
-    expect(text).toContain('Results vary')
+    expect(text).not.toMatch(/Bede.*(?:proved|validated|accelerates|increases mastery)|our.*(?:partner|school|trial)/i)
     expect(html).not.toMatch(/valor/i)
     expect(document.querySelector('main a[href="/bede/"]')).not.toBeNull()
   })
 
-  it('retains supporting sources in project documentation rather than public copy', () => {
+  it('retains the deeper source audit in project documentation', () => {
     expect(audit).toContain('https://eric.ed.gov/?id=EJ744802')
     expect(audit).toContain('https://eric.ed.gov/?id=ED661562')
     expect(audit).toContain('https://www.nature.com/articles/s41598-025-97652-6')
     expect(audit).toContain('https://www.nps.k12.nj.us/')
     expect(audit).toContain('correlational')
     expect(audit).toContain('without AI')
+  })
+
+  it('visualizes an explicitly illustrative adult-guided sprint, not invented outcomes', () => {
+    const main = page()
+    expect(main.querySelector('figcaption')!.textContent).toBe('Example: two 20-minute sprints + a 10-minute break')
+    expect(main.querySelector('.sprint-timeline')!.getAttribute('aria-label')).toContain('Illustrative 50-minute plan')
+    const stages = [...main.querySelectorAll<HTMLElement>('.sprint-timeline li')]
+    expect(stages.map(s => Number(s.dataset.minutes))).toEqual([20, 10, 20])
+    expect(stages.reduce((sum, s) => sum + Number(s.dataset.minutes), 0)).toBe(50)
+    expect(stages[1].classList.contains('sprint-break')).toBe(true)
+    expect(stages[0].textContent).toContain('Sprint 1')
+    expect(stages[2].textContent).toContain('Sprint 2')
+    expect(main.querySelectorAll('.practice-modes li')).toHaveLength(4)
+    expect(main.querySelectorAll('.learning-progression li')).toHaveLength(4)
+    expect(main.textContent).toMatch(/Parent and educator guidance/)
+    expect(main.textContent).toContain('Critical inquiry')
+    expect(main.textContent).toContain('Test prep')
+    expect(main.textContent).toContain('Topic reinforcement')
+    expect(main.textContent).toContain('Practice problems')
+    expect(main.textContent).toContain('practice with AI prompts and feedback')
+    expect(main.textContent).toContain('learner solves without hints')
+    expect(main.textContent).toContain('Recall next session')
+    expect(main.textContent).toContain('Compare a short check before and after practice')
+    expect(main.textContent).toContain('Learner progression may vary')
+    expect(main.textContent).not.toContain('Illustrative 20-minute plan')
+    expect(main.querySelectorAll('canvas, input, form, iframe')).toHaveLength(0)
+    expect(main.textContent).not.toMatch(/\d+\s*%|guaranteed|times faster|predicted gains/i)
+  })
+
+  it('uses labeled colors, proportional desktop timing, and responsive layouts', () => {
+    expect(styles).toContain('grid-template-columns: 2fr 1fr 2fr')
+    expect(styles).toContain('background: #335a86')
+    expect(styles).toContain('background: #226c63')
+    expect(styles).toContain('background: #725085')
+    expect(styles).toContain('background: #c4a45f')
+    expect(styles).toContain('text-decoration: underline')
+    expect(styles).toContain('padding: 2rem 0 0')
+    expect(styles).toContain('@media (max-width: 360px)')
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr)')
   })
 
   it.each(routes)('has exactly one research link in the shared %s footer', (route) => {

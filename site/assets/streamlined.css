@@ -389,7 +389,7 @@
     color: #fbf8f1;
     text-decoration-thickness: 1px;
   }
-  .bede-theme .footer-links a[href="/inquire/"] {
+  .bede-theme .footer-links a[href="/inquire/"]:last-child:nth-child(odd) {
     grid-column: 1 / -1;
   }
   .bede-theme .footer-copyright {

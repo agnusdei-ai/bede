@@ -35,8 +35,8 @@
     <div class="inquiry-intro">
       <p class="eyebrow">Families · Co-ops · Charter schools</p>
       <h1>Tell us what you need.</h1>
-      <p>Request pricing, a guided demo, or help planning an implementation. A few details help our team recommend the right next step. Estimates are fine.</p>
-      <p class="survey-hint">This is a business inquiry, not enrollment or approval for student use. Please do not include student names, records, or sensitive information.</p>
+      <p>Tell us about your family, co-op, or school. We’ll help with pricing, demos, and next steps. Estimates are fine.</p>
+      <p class="survey-hint">Please leave out student names, records, or sensitive information.</p>
     </div>
     <form id="inquiry-form" class="survey-flow" method="post">
       <p class="survey-hint">All fields are required unless marked optional.</p>
@@ -86,7 +86,7 @@
         <select id="inquiry-deployment" name="deployment" required>
           <option value="">Choose a preference</option><option>Hosted</option><option>On-site / private</option><option>Need guidance</option>
         </select>
-        <p class="survey-hint">These preferences help us scope the discussion; they do not confirm availability or approve a school deployment.</p>
+        <p class="survey-hint">Preferences help us plan; school deployments require separate approval.</p>
       </section>
       <section aria-labelledby="inquiry-next-heading">
         <h2 id="inquiry-next-heading">3. Next steps</h2>
@@ -101,17 +101,17 @@
           <option value="">Choose your timing</option><option>Within 30 days</option><option>Within 90 days</option><option>Next school term</option><option>Exploring</option>
         </select>
         <label for="inquiry-notes">Anything else we should plan for? <span>(optional)</span></label>
-        <textarea id="inquiry-notes" name="notes" maxlength="1200" rows="5" placeholder="Goals, existing devices or systems, support needs, or budget and procurement constraints. No student records."></textarea>
+        <textarea id="inquiry-notes" name="notes" maxlength="1200" rows="5" placeholder="Goals, devices, systems, support needs, or budget."></textarea>
         <div hidden aria-hidden="true"><label for="inquiry-website">Leave blank</label><input id="inquiry-website" name="website" tabindex="-1" autocomplete="off" maxlength="200" /></div>
-        <label class="survey-consent"><input name="consent" type="checkbox" required /> I agree to email these details to Agnus Dei Technologies and receive a response about this inquiry.</label>
-        <p id="inquiry-routing" class="survey-hint">Family inquiries go to bede@agnusdei.ai; co-op and charter-school inquiries go to info@agnusdei.ai.</p>
-        <p class="survey-hint">See our <a href="/privacy/">privacy notice</a>. Sending this form does not book a session, enroll anyone, or commit you to payment.</p>
+        <label class="survey-consent"><input name="consent" type="checkbox" required /> I agree to email these details and receive a reply.</label>
+        <p id="inquiry-routing" class="survey-hint">Family: bede@agnusdei.ai. Co-op or school: info@agnusdei.ai.</p>
+        <p class="survey-hint"><a href="/privacy/">Privacy notice</a>. No enrollment or payment at this step.</p>
         <button class="classical-button" id="inquiry-send" type="submit">Send inquiry <span aria-hidden="true">&rarr;</span></button>
       </section>
     </form>
     <div id="inquiry-status" role="status" aria-live="polite" tabindex="-1"></div>
-    <p class="inquiry-help">If the form is unavailable, email <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a> or <a href="mailto:bede@agnusdei.ai">bede@agnusdei.ai</a>. We never treat opening an email draft as a sent inquiry.</p>
-    <noscript><p>JavaScript is needed to send this form. Please use one of the email links above instead.</p></noscript>
+    <p class="inquiry-help">If the form is unavailable, please feel free to email <a href="mailto:info@agnusdei.ai">info@agnusdei.ai</a>.</p>
+    <noscript><p>Please use the email link above to send an inquiry.</p></noscript>
   </main>
   <footer class="classical-footer">
     <nav class="footer-links" aria-label="Footer navigation">
@@ -120,6 +120,7 @@
       <a href="/homeschool/">For Homeschool</a>
       <a href="/educators/">For Educators</a>
       <a href="/faq/">FAQ</a>
+      <a href="/research/">Research &amp; Findings</a>
       <a href="/privacy/">Privacy</a>
       <a href="/bede/">Launch Bede demo</a>
       <a href="/survey/">Share your experience</a>

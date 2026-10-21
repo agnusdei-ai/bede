@@ -71,7 +71,7 @@ describe('single guided website survey', () => {
     expect(body.contact_email).toBe('reviewer@example.test')
     expect(body.message).toContain('Help reviewing academic evidence.')
     expect(form.hidden).toBe(true)
-    expect(document.getElementById('form-note')?.textContent).toContain('reached us')
+    expect(document.getElementById('form-note')?.textContent).toContain('response was accepted')
     expect(local).not.toHaveBeenCalled()
   })
   it('requires send permission and never submits early', () => {
@@ -96,7 +96,8 @@ describe('single guided website survey', () => {
     expect(form.dataset.mailto).toMatch(/^mailto:info@agnusdei.ai/)
     expect(decodeURIComponent(form.dataset.mailto!)).toContain('Not yet; I am exploring')
     expect(form.hidden).toBe(false)
-    expect(document.getElementById('form-note')?.textContent).toContain('has not been sent')
+    expect(document.getElementById('form-note')?.textContent).toContain('choose Send')
+    expect(document.getElementById('form-note')?.textContent).not.toContain('response was accepted')
   })
   it('preserves oversized answers instead of truncating them', async () => {
     const fetch = vi.fn()
@@ -127,6 +128,6 @@ describe('single guided website survey', () => {
     const copy = document.querySelector<HTMLTextAreaElement>('#form-overflow textarea')
     expect(copy?.value).toContain('é'.repeat(400))
     expect(copy?.value).toContain('ß'.repeat(500))
-    expect(document.getElementById('form-note')?.textContent).not.toContain('reached us')
+    expect(document.getElementById('form-note')?.textContent).not.toContain('response was accepted')
   })
 })

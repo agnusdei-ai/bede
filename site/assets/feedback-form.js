@@ -129,8 +129,8 @@ function collect() {
  */
 function handOffToClipboard(body, why) {
   note.textContent = why
-    ? `${why} Your answers are below, ready to copy — please paste them into an email to ${FEEDBACK_TO} and we will read them the same.`
-    : `You answered enough that this is too long for an email link to carry. Nothing is lost: your answers are below, ready to copy. Paste them into an email to ${FEEDBACK_TO}.`;
+    ? `${why} Copy your answers below and email them to ${FEEDBACK_TO}.`
+    : `Copy your answers below and email them to ${FEEDBACK_TO}.`;
 
   // Rebuild after an edit so repeated attempts never hand off stale answers.
   form.querySelector('#form-overflow')?.remove();
@@ -237,21 +237,21 @@ form.addEventListener('submit', async (e) => {
 
   if (body.length > 2000) { handOffToClipboard(body, 'Your full response exceeds the online message limit.'); return; }
   if (!API_BASE) {
-    handOffToMail(body, 'Your email app will open a draft with your answers. Please choose Send there to deliver it; it has not been sent by this page.');
+    handOffToMail(body, 'Review your answers and choose Send in your email app.');
     return;
   }
 
   button.disabled = true;
   const original = button.textContent;
   button.textContent = 'Sending…';
-  note.textContent = 'Sending — this can take a moment if the server has been idle.';
+  note.textContent = 'Sending…';
   try {
     await sendViaApi(body);
     form.hidden = true;
-    note.textContent = 'Thank you — that reached us. If you left an email we will reply to it.';
+    note.textContent = 'Thank you — your response was accepted. We’ll reply if you left an email.';
   } catch (err) {
     button.disabled = false;
     button.textContent = original;
-    handOffToMail(body, 'We could not reach the server just now, so we have opened your email program with your answers instead — nothing you typed is lost.');
+    handOffToMail(body, 'Online sending is unavailable. Choose Send in your email app instead.');
   }
 });

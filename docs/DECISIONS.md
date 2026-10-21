@@ -2175,6 +2175,15 @@ their sources. Two parts of this entry stay open after it: the
 `#request-a-call` form, which the co-op button still points to, and the
 contact-agent ruling below.
 
+**2026-10-21: the chooser is itself retired.** The owner made the public
+offer inquiry-only (#666, #675): every plan goes to `/inquire/` as an email
+inquiry and no published page links to checkout. That supersedes this
+entry's point about the `#request-a-call` form; it is recorded here as what
+the site now does, not as a ruling on this entry's self-service model, which
+the owner has not restated. The chooser's guards now run against a frozen fixture
+(`tests/fixtures/marketing-before-inquiry/`). The contact-agent ruling below
+is still open.
+
 **No contact agent exists, and building one is not a copy change.** The only
 model surfaces in this repository are the child-facing tutor and the
 parent-authenticated sandbox; `services/mcp_client.py` is confined to the

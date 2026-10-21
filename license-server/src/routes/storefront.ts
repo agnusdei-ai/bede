@@ -223,9 +223,9 @@ export function storefrontPage(): string {
 </html>`;
 }
 
-/** Why checkout could not start, as a browser is told it. agnusdei.ai's
- * membership chooser links to /checkout/family-annual directly, so every
- * refusal on that route reaches a person, not a script. */
+/** Why checkout could not start, as a browser is told it. A page that links
+ * to /checkout/family-annual (the retired agnusdei.ai chooser did, and a
+ * future one may) sends a person here, not a script. */
 export type CheckoutRefusal = "unconfigured" | "busy" | "failed";
 
 const REFUSAL_COPY: Record<CheckoutRefusal, { title: string; body: string }> = {

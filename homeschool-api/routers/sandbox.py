@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sse_starlette.sse import EventSourceResponse
 
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
+from services import model_experiment
 from core.config import settings
 from core.demo_code_session import (
     has_message_quota as demo_code_has_message_quota,
@@ -130,6 +131,7 @@ async def demo_chat(
     core/policy.py's table, enforced by require_demo_preview.
     """
     demo_code = auth.get("code", "")
+    model_experiment.bind(demo_code)
     # The actual LLM10 enforcement point (see core/demo_code_session.py's
     # _MAX_MESSAGES_PER_CODE) — checked BEFORE record_message increments, so
     # an over-quota turn is never double-counted and never reaches

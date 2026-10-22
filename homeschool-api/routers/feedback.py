@@ -4,6 +4,7 @@ from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.deps import require_auth
 from models.schemas import FeedbackRequest
+from services import model_experiment
 from services.email_service import feedback_configured, send_feedback
 
 router = APIRouter(prefix="/feedback", tags=["feedback"])
@@ -28,9 +29,14 @@ async def submit_feedback(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feedback isn't enabled on this deployment")
 
     role = auth.get("role", "unknown")
+    message = req.message
+    # Temporary demo model experiment: the session's arm is revealed only
+    # here, in the operator's own inbox, after the guess has been sent.
+    if role == "demo_code" and model_experiment.enabled() and auth.get("code"):
+        message = f"{message}\n\n[model experiment arm: {model_experiment.arm_for(auth['code'])}]"
     sent = await send_feedback(
         category=req.category,
-        message=req.message,
+        message=message,
         role=role,
         rating=req.rating,
         contact_email=req.contact_email,

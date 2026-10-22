@@ -9,6 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
+from services import model_experiment
 from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
@@ -192,6 +193,7 @@ async def chat(
         # name/grade they set once at /auth/demo-code are theirs to make.
         req.session_config = await _demo_session_config(auth.get("code"))
         db = None
+        model_experiment.bind(auth.get("code"))
     elif role == "educator":
         # An educator must not be able to swap student_name or inject a
         # different curriculum in the request body. Check assignment FIRST,

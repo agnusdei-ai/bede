@@ -45,6 +45,7 @@ proceeds. Both calls go through the same adapter as ordinary tutoring.
   policies](https://openai.com/policies/).
 - **Mistral** — `https://api.mistral.ai`. See [Mistral's Privacy
   Policy](https://mistral.ai/terms/).
+- **OpenRouter** (public demo only, temporary) — `https://openrouter.ai/api/v1`, while the blind model comparison in `docs/DEMO_MODEL_EXPERIMENT.md` is switched on, for the demo sessions assigned its open arm. The operator restricts it to providers with zero data retention and no training. See [OpenRouter's Privacy Policy](https://openrouter.ai/privacy). Removed with the experiment.
 - **A self-hosted local model — nothing leaves your machine at all.** The
   local adapter (`LOCAL_LLM_BASE_URL`) points at a vLLM server you run
   yourself (open-weight `Qwen/Qwen3-Coder-30B-A3B-Instruct` by default) —

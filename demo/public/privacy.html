@@ -36,7 +36,7 @@
 <body>
 
 <h1>Privacy Notice — Public Beta Demo</h1>
-<p class="sub">Applies only to the free public demo at this domain. Last updated 2026-08-03.</p>
+<p class="sub">Applies only to the free public demo at this domain. Last updated 2026-10-22.</p>
 
 <p>
   This page covers the <strong>public beta demo</strong> only — the version anyone can try
@@ -71,7 +71,7 @@
   </tr>
   <tr>
     <td>The conversation itself</td>
-    <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with our configured backup provider instead &mdash; Mistral by default, or Claude (Anthropic) if we've configured that as the backup instead.</td>
+    <td>Sent in real time to OpenAI, our primary AI provider for this demo, so Bede can generate its responses. If OpenAI is briefly unavailable, the same turn is automatically retried with our configured backup provider instead &mdash; Mistral by default, or Claude (Anthropic) if we've configured that as the backup instead. During a temporary comparison we are running, about half of demo sessions send the conversation instead to an open-weight AI model (such as Google's Gemma) through OpenRouter, Inc., which passes it to a hosting provider configured not to retain it or train on it. The safety check that screens each message always stays with our usual providers.</td>
     <td><strong>Never stored by us, under any circumstance.</strong> It exists on our side only for the
       length of the live session. Each provider processes it as our service provider to power Bede's replies
       and does not use it to train its models.</td>
@@ -173,7 +173,7 @@
     OpenAI (primary) and, only if OpenAI is briefly unavailable, our configured backup — Mistral
     by default, or Claude (Anthropic) if we've configured that as the backup instead — so Bede
     can generate its tutoring responses. Never stored by us and never used by any of these
-    providers to train their models, per their own terms.</li>
+    providers to train their models, per their own terms. During a temporary comparison we are running, about half of demo sessions send the conversation instead to an open-weight AI model (such as Google's Gemma) through OpenRouter, Inc., which passes it to a hosting provider configured not to retain it or train on it. The safety check that screens each message always stays with our usual providers.</li>
   <li><strong>Your voice, if you use the microphone</strong> <em>(optional)</em> — the audio
     passes through our server to OpenAI's transcription service to be turned into text, and is
     not stored beyond that one turn by us or by OpenAI. Bede's own spoken reply is generated as
@@ -216,7 +216,8 @@
   it only with the service providers that make the demo work — OpenAI (to generate Bede's
   responses and synthesize its spoken voice), our configured backup text provider (Mistral by
   default, or Claude/Anthropic if we've configured that instead, used only if OpenAI is briefly
-  unavailable), and Resend (to deliver an optional feedback
+  unavailable), OpenRouter (only for the sessions in the temporary model comparison described
+  above), and Resend (to deliver an optional feedback
   email) — each of whom is contractually and technically limited to using it for that
   purpose. We may also disclose information if required by law or to protect someone's
   safety.

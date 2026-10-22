@@ -92,7 +92,6 @@ exists in the codebase but isn't configured for this deployment.
 | OpenAI | Conversation text (primary AI provider); Bede's reply text (text-to-speech); **microphone audio, when a visitor uses voice input** (speech-to-text) | Generate and voice Bede's tutoring responses, and turn a visitor's speech into text |
 | Mistral | Conversation text, only on automatic failover if OpenAI errors — **default backup** | Backup AI provider, live circuit-breaker failover |
 | Anthropic (Claude) | Conversation text, only on automatic failover if OpenAI errors — **only if configured as the backup instead of Mistral** (`ANTHROPIC_API_KEY` set AND selected via `core/provider_state.py`'s secondary override) | Alternate backup AI provider, same mechanism as Mistral |
-| OpenRouter, Inc. | Conversation text for the roughly half of demo sessions assigned the open arm, **only while the temporary blind model comparison is switched on** (`docs/DEMO_MODEL_EXPERIMENT.md`). Never the moderation classifier's input, which stays with the providers above | Routes those sessions to an open-weight tutor model on a hosting provider restricted to zero data retention and no training |
 | Resend | Feedback message + optional reply email | Deliver the feedback form to the operator's own inbox |
 | Render | All of the above, as the host running `bede-demo-api` and its Postgres database | Infrastructure hosting |
 | Cloudflare | Static site/demo asset delivery | Infrastructure hosting (no personal information reaches this layer — it serves static files only) |

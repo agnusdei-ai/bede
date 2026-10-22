@@ -18,6 +18,7 @@ from services.adapters.router import FailoverClient
 pytestmark = pytest.mark.asyncio
 
 SALT = "test-salt"
+SECRET_NAME = "Wren-7Q4"
 
 
 @pytest.fixture(autouse=True)
@@ -31,6 +32,7 @@ def _clean(monkeypatch):
 @pytest.fixture
 def armed(monkeypatch):
     monkeypatch.setattr(settings, "demo_model_experiment_salt", SALT)
+    monkeypatch.setattr(settings, "demo_model_experiment_name", SECRET_NAME)
     monkeypatch.setattr(settings, "experiment_llm_base_url", "https://openrouter.example/api/v1")
     monkeypatch.setattr(settings, "experiment_llm_api_key", "sk-test")
     monkeypatch.setattr(settings, "experiment_tutor_model", "google/gemma-4-31b-it")
@@ -45,13 +47,13 @@ def _code_for(arm: str) -> str:
 
 
 async def test_off_by_default_even_when_a_code_is_bound():
-    model_experiment.bind("anything")
+    model_experiment._bound_code.set("anything")
     assert model_experiment.enabled() is False
     assert model_experiment.current_arm() is None
 
 
 @pytest.mark.parametrize("missing", [
-    "demo_model_experiment_salt", "experiment_llm_base_url",
+    "demo_model_experiment_salt", "demo_model_experiment_name", "experiment_llm_base_url",
     "experiment_llm_api_key", "experiment_tutor_model",
 ])
 async def test_every_setting_is_required(armed, monkeypatch, missing):
@@ -80,7 +82,7 @@ async def test_unbound_requests_never_reach_the_open_model(armed):
 
 
 async def test_baseline_arm_keeps_the_production_order(armed):
-    model_experiment.bind(_code_for(model_experiment.ARM_BASELINE))
+    model_experiment._bound_code.set(_code_for(model_experiment.ARM_BASELINE))
     assert model_experiment.ADAPTER_NAME not in FailoverClient(settings)._live_order()
 
 
@@ -100,7 +102,7 @@ class _Fake:
 async def test_open_arm_is_served_by_the_open_model_and_fails_over(armed, monkeypatch):
     import openai
 
-    model_experiment.bind(_code_for(model_experiment.ARM_OPEN))
+    model_experiment._bound_code.set(_code_for(model_experiment.ARM_OPEN))
     client = FailoverClient(settings)
     assert client._live_order()[0] == model_experiment.ADAPTER_NAME
 
@@ -135,7 +137,7 @@ async def test_the_open_client_is_built_from_the_experiment_settings(armed):
 async def test_moderation_never_runs_on_the_open_model(armed, monkeypatch):
     from services import moderation
 
-    model_experiment.bind(_code_for(model_experiment.ARM_OPEN))
+    model_experiment._bound_code.set(_code_for(model_experiment.ARM_OPEN))
     seen = []
 
     class _Recorder:
@@ -158,10 +160,15 @@ def _request() -> Request:
 
 
 @pytest.mark.usefixtures("demo_db")
-async def test_the_real_demo_chat_path_binds_the_session_for_its_whole_stream(armed, monkeypatch):
+@pytest.mark.parametrize("name,enrolled", [
+    (SECRET_NAME, True), ("  wren-7q4 ", True), ("Ellie", False), (None, False),
+])
+async def test_only_the_operators_own_sessions_are_enrolled(armed, monkeypatch, name, enrolled):
+    """The real /tutor/chat path: a session started with the secret name is
+    bound for its whole stream; every other visitor stays on production."""
     from routers.tutor import chat
 
-    code = await demo_code_session.generate_code(student_name="Ellie", grade="4")
+    code = await demo_code_session.generate_code(student_name=name, grade="4")
     seen = []
 
     async def spy_stream(*args, **kwargs):
@@ -175,7 +182,7 @@ async def test_the_real_demo_chat_path_binds_the_session_for_its_whole_stream(ar
     )
     response = await chat(req, _request(), auth={"role": "demo_code", "code": code}, db=None)
     [c async for c in response.body_iterator]
-    assert seen == [model_experiment.arm_for(code)]
+    assert seen == [model_experiment.arm_for(code) if enrolled else None]
 
 
 @pytest.mark.usefixtures("demo_db")
@@ -183,7 +190,7 @@ async def test_the_sandbox_demo_path_binds_the_session(armed, monkeypatch):
     from models.schemas import SandboxDemoChatRequest
     from routers.sandbox import demo_chat
 
-    code = await demo_code_session.generate_code()
+    code = await demo_code_session.generate_code(student_name=SECRET_NAME)
     seen = []
 
     async def spy_stream(*args, **kwargs):
@@ -199,8 +206,11 @@ async def test_the_sandbox_demo_path_binds_the_session(armed, monkeypatch):
     assert seen == [model_experiment.arm_for(code)]
 
 
-@pytest.mark.parametrize("role,revealed", [("demo_code", True), ("parent", False)])
-async def test_the_arm_is_revealed_only_in_demo_feedback(armed, monkeypatch, role, revealed):
+@pytest.mark.usefixtures("demo_db")
+@pytest.mark.parametrize("role,name,revealed", [
+    ("demo_code", SECRET_NAME, True), ("demo_code", "Ellie", False), ("parent", SECRET_NAME, False),
+])
+async def test_the_arm_is_revealed_only_in_the_operators_feedback(armed, monkeypatch, role, name, revealed):
     from models.schemas import FeedbackRequest
     from routers import feedback
 
@@ -216,9 +226,9 @@ async def test_the_arm_is_revealed_only_in_demo_feedback(armed, monkeypatch, rol
     monkeypatch.setattr(settings, "feedback_email", "ops@example.com")
     monkeypatch.setattr(feedback, "send_feedback", fake_send)
     monkeypatch.setattr(feedback, "log_event", fake_log)
-    code = _code_for(model_experiment.ARM_OPEN)
+    code = await demo_code_session.generate_code(student_name=name)
     await feedback.submit_feedback(
         FeedbackRequest(category="other", message="My guess: open"),
         _request(), auth={"role": role, "code": code},
     )
-    assert ("[model experiment arm: open]" in sent[0]) is revealed
+    assert ("[model experiment arm:" in sent[0]) is revealed

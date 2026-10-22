@@ -99,15 +99,6 @@ set. Both the public notice and this policy's own vendor language were
 written to name both possibilities rather than asserting one — see
 `docs/INFORMATION_SECURITY_POLICY.md` §5's table.
 
-**2026-10-22, a temporary third vendor:** a blind model comparison
-(`docs/DEMO_MODEL_EXPERIMENT.md`) sends the conversation for about half
-of demo sessions to an open-weight model through OpenRouter, Inc., while
-it is switched on. The moderation classifier never moves. The public
-notice and `docs/INFORMATION_SECURITY_POLICY.md` §5 name it for as long
-as the code exists, and all three lose it together when the experiment
-is removed. Retention is unchanged: the conversation is still never
-stored by us.
-
 Any future change to which AI vendor is primary OR secondary must update
 this policy, `docs/INFORMATION_SECURITY_POLICY.md` §5, and the public
 notice in the same change — that is the actual commitment this section

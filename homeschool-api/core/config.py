@@ -131,6 +131,7 @@ class Settings(BaseSettings):
     # experiment is off. Removed after the experiment; see
     # docs/DEMO_MODEL_EXPERIMENT.md.
     demo_model_experiment_salt: str = ""
+    demo_model_experiment_name: str = ""
     experiment_llm_base_url: str = ""
     experiment_llm_api_key: str = ""
     experiment_tutor_model: str = ""

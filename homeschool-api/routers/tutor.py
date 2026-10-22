@@ -193,7 +193,7 @@ async def chat(
         # name/grade they set once at /auth/demo-code are theirs to make.
         req.session_config = await _demo_session_config(auth.get("code"))
         db = None
-        model_experiment.bind(auth.get("code"))
+        await model_experiment.bind(auth.get("code"))
     elif role == "educator":
         # An educator must not be able to swap student_name or inject a
         # different curriculum in the request body. Check assignment FIRST,

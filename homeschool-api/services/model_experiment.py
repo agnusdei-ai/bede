@@ -1,8 +1,15 @@
 """Temporary, blind demo experiment: today's stack vs. US-developed open models.
 
-Off unless every one of DEMO_MODEL_EXPERIMENT_SALT, EXPERIMENT_LLM_BASE_URL,
-EXPERIMENT_LLM_API_KEY and EXPERIMENT_TUTOR_MODEL is set, so no deployment
-changes behaviour without all four. Built to be REMOVED after the experiment:
+Off unless every one of DEMO_MODEL_EXPERIMENT_SALT, DEMO_MODEL_EXPERIMENT_NAME,
+EXPERIMENT_LLM_BASE_URL, EXPERIMENT_LLM_API_KEY and EXPERIMENT_TUTOR_MODEL is
+set, so no deployment changes behaviour without all five.
+
+**Only the operator's own sessions are ever enrolled.** A demo session takes
+part only when the learner name typed at the code screen is exactly
+DEMO_MODEL_EXPERIMENT_NAME, a secret phrase only the operator knows. Every
+other visitor stays on the production stack, so no visitor's conversation
+ever reaches the experiment's host, and the public Privacy Notice, which
+names that stack, stays accurate without any change. Built to be REMOVED after the experiment:
 this module, its config block, the `bind()` calls in routers/tutor.py and
 routers/sandbox.py, the hook in services/adapters/router.py, and the
 disclosure lines naming OpenRouter all go together (docs/DEMO_MODEL_EXPERIMENT.md).
@@ -22,7 +29,8 @@ EXPERIMENT_TUTOR_MODEL. Three things deliberately do NOT move:
   its call, and the classifier stays on the production stack in both arms.
   A visitor cannot perceive moderation, so this costs the blind test nothing.
 * **Voice.** Text-to-speech and transcription are not chat-model calls.
-* **Real families.** Only demo_code sessions are ever bound.
+* **Everyone else.** Real families are never bound, and a demo visitor is
+  bound only if they typed the operator's secret phrase as the name.
 
 If the open model errors, the turn fails over to the production stack exactly
 as any provider failure does, so a visitor is never left without an answer.
@@ -59,6 +67,7 @@ _client: Any = None
 def enabled() -> bool:
     if not (
         settings.demo_model_experiment_salt
+        and settings.demo_model_experiment_name
         and settings.experiment_llm_base_url
         and settings.experiment_llm_api_key
         and settings.experiment_tutor_model
@@ -75,11 +84,30 @@ def arm_for(code: str) -> str:
     return ARM_OPEN if digest[0] & 1 else ARM_BASELINE
 
 
-def bind(code: Optional[str]) -> None:
-    """Bind this request's demo code. Called only for the demo_code role.
-    Each request runs in its own context copy, so this never leaks into
-    another request and needs no reset."""
-    if code:
+async def is_enrolled(code: Optional[str]) -> bool:
+    """True only for a demo session the operator started with the secret
+    name. Fails closed: any lookup error means not enrolled."""
+    if not code or not enabled():
+        return False
+    try:
+        from core.demo_code_session import get_personalization
+
+        name, _grade = await get_personalization(code)
+    except Exception:
+        return False
+    if not name:
+        return False
+    return hmac.compare_digest(
+        name.strip().casefold().encode(),
+        settings.demo_model_experiment_name.strip().casefold().encode(),
+    )
+
+
+async def bind(code: Optional[str]) -> None:
+    """Bind this request's demo code if, and only if, the session is
+    enrolled. Called only for the demo_code role. Each request runs in its
+    own context copy, so this never leaks into another request."""
+    if await is_enrolled(code):
         _bound_code.set(code)
 
 

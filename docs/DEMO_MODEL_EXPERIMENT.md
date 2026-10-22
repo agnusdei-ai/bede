@@ -19,7 +19,15 @@ The code exists only for this experiment and is removed afterwards (see
 | Tutor turn, including every tool call | OpenAI `gpt-4.1-mini`, then Mistral/Claude on failover | `EXPERIMENT_TUTOR_MODEL` through OpenRouter, then the baseline on failover |
 | Pre-turn safety classifier | Production stack | **Production stack** |
 | Voice (text-to-speech, transcription) | OpenAI | OpenAI |
+| Every other demo visitor | Production stack | Production stack |
 | Real families, any non-demo role | Never assigned an arm | Never assigned an arm |
+
+**Only your own sessions take part.** A demo session is enrolled only when
+the learner name typed at the code screen is exactly
+`DEMO_MODEL_EXPERIMENT_NAME`, a secret phrase only you know (matched
+ignoring case and surrounding spaces). No visitor's conversation reaches
+OpenRouter, so the public Privacy Notice, which names the production stack,
+stays accurate and is not changed.
 
 Tool calls cannot be split off to a second, faster model. Bede makes them
 inline in the tutor's own streamed reply and feeds results back to the same
@@ -39,13 +47,9 @@ without the salt.
 
 ## Before switching it on
 
-All five are required, and the first two are what the public Privacy Notice
-now promises:
-
 1. **In OpenRouter's privacy settings, turn off providers that may train on
-   prompts and require zero data retention.** The notice says the
-   conversation goes to a host "configured not to retain it or train on it".
-   That is true only once these settings are on.
+   prompts and require zero data retention.** Only your own sessions go
+   there, but there is no reason to leave the default on.
 2. **Allow only US-developed models** if the provenance criterion is the
    point of the run: Gemma (Google) and gpt-oss (OpenAI).
 3. **Create a dedicated API key with a low credit limit** (a few dollars is
@@ -62,27 +66,30 @@ now promises:
 In the Render dashboard, on `bede-demo-api`:
 
 - `EXPERIMENT_LLM_API_KEY`: the OpenRouter key.
+- `DEMO_MODEL_EXPERIMENT_NAME`: the phrase you will type as the learner's
+  name, e.g. `Wren-7Q4`. Make it something no visitor would type.
 - `DEMO_MODEL_EXPERIMENT_SALT`: any long random string, e.g. the output of
   `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`. Keep it to
   yourself; anyone holding it can compute which arm a code is on.
 - `EXPERIMENT_LLM_BASE_URL` and `EXPERIMENT_TUTOR_MODEL` come from
   `render.yaml`. Change the model here for the second run.
 
-The experiment is off until both secrets are set. It refuses a base URL that
+The experiment is off until all three secrets are set. It refuses a base URL that
 isn't `https`.
 
 ## Running it blind
 
-1. Start a fresh demo session for each trial (log out and back in, so you get
-   a new code and a fresh coin flip).
+1. Start a fresh demo session for each trial, typing the secret phrase as the
+   learner's name (log out and back in, so you get a new code and a fresh
+   coin flip).
 2. Use the demo the way a family would: a few turns, a subject with a picture
    or a narration, ideally one Spanish session.
 3. **Before the session ends, write your guess in the feedback form**,
    either the in-session feedback button or the end-of-session survey's text
    box: `Guess: open` or `Guess: baseline`, plus one line on why.
 4. The feedback email in your inbox carries the answer on its last line:
-   `[model experiment arm: open]`. Only demo feedback carries it, and only
-   while the experiment is on.
+   `[model experiment arm: open]`. Only feedback from an enrolled session
+   carries it.
 
 A failover from the open model to production is invisible to you during the
 session, so an open-arm session that failed over will read as baseline. The
@@ -121,13 +128,9 @@ The experiment is removed as one change, and every item goes in that change:
 - `model_experiment.bind(...)` in `routers/tutor.py` and `routers/sandbox.py`
 - `model_experiment.suspended()` in `services/moderation.py`
 - the arm line in `routers/feedback.py`
-- the four experiment keys in `render.yaml`, and the two secrets in Render
-- the OpenRouter lines in `demo/public/privacy.html`,
-  `demo/public/privacy.es.html`, `site/privacy/index.html`,
-  `docs/INFORMATION_SECURITY_POLICY.md` §5, `docs/VENDOR_DATA_FLOW.md`, and
-  `docs/RETENTION_POLICY.md`'s 2026-10-22 note (amended to say it ended)
+- the five experiment keys in `render.yaml`, and the three secrets in Render
 - the OpenRouter key, revoked in OpenRouter's dashboard
 - this file, and its entry in `CLAUDE.md`
 
 Afterwards, `grep -rn "model_experiment\|OpenRouter\|EXPERIMENT_" .` should
-find nothing except the retention policy's dated history.
+find nothing.

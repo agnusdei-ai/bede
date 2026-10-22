@@ -131,7 +131,7 @@ async def demo_chat(
     core/policy.py's table, enforced by require_demo_preview.
     """
     demo_code = auth.get("code", "")
-    model_experiment.bind(demo_code)
+    await model_experiment.bind(demo_code)
     # The actual LLM10 enforcement point (see core/demo_code_session.py's
     # _MAX_MESSAGES_PER_CODE) — checked BEFORE record_message increments, so
     # an over-quota turn is never double-counted and never reaches

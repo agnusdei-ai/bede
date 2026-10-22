@@ -126,6 +126,16 @@ class Settings(BaseSettings):
     local_llm_api_key: str = "not-needed"
     local_llm_model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
 
+    # ── Temporary blind demo model experiment (services/model_experiment.py) ──
+    # All four of the salt, base URL, key and tutor model must be set, or the
+    # experiment is off. Removed after the experiment; see
+    # docs/DEMO_MODEL_EXPERIMENT.md.
+    demo_model_experiment_salt: str = ""
+    demo_model_experiment_name: str = ""
+    experiment_llm_base_url: str = ""
+    experiment_llm_api_key: str = ""
+    experiment_tutor_model: str = ""
+
     # ── OpenAI chat adapter (secondary; distinct from OpenAI TTS above) ────────
     # Reuses OPENAI_API_KEY (defined below for TTS) as the credential, plus this
     # model. Only used for tutoring when "openai" is added to BEDE_ADAPTER_ORDER.

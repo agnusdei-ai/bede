@@ -116,6 +116,23 @@ services:
       # docs/PROVIDER_ADAPTERS.md default (local,anthropic) or its own choice.
       - key: BEDE_ADAPTER_ORDER
         value: openai,mistral,anthropic
+      # TEMPORARY blind model experiment (services/model_experiment.py,
+      # docs/DEMO_MODEL_EXPERIMENT.md). Off until all three secrets below are
+      # entered in the dashboard; deleting DEMO_MODEL_EXPERIMENT_SALT turns
+      # it off without a code change. Remove this whole block with the
+      # rest of the experiment.
+      - key: EXPERIMENT_LLM_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: EXPERIMENT_TUTOR_MODEL
+        value: google/gemma-4-31b-it
+      - key: EXPERIMENT_LLM_API_KEY
+        sync: false
+      - key: DEMO_MODEL_EXPERIMENT_SALT
+        sync: false
+      # The learner name only the operator types at the demo code screen.
+      # Every other visitor stays on the production stack.
+      - key: DEMO_MODEL_EXPERIMENT_NAME
+        sync: false
       # Neither of these was ever declared here before — without them,
       # services/email_service.py's email_configured() is False, which
       # silently no-ops the post-session summary email, the distress alert,

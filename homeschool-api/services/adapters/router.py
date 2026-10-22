@@ -59,6 +59,7 @@ from typing import Any, Dict, List, Optional
 
 from core.config import settings as _global_settings
 from core import provider_state
+from services import model_experiment
 from .anthropic_adapter import build_anthropic_client
 from .openai_compatible_adapter import OpenAICompatibleClient
 
@@ -451,6 +452,8 @@ class FailoverClient:
         self.messages = _FailoverMessages(self)
 
     def _adapter(self, name: str) -> Any:
+        if name == model_experiment.ADAPTER_NAME:
+            return model_experiment.client()
         if name not in self._built:
             self._built[name] = _build(name, self._settings)
         return self._built[name]
@@ -463,6 +466,11 @@ class FailoverClient:
         case fall back to the full (overridden) configured order rather than
         refusing service."""
         configured = provider_state.effective_order(_configured_order(self._settings))
+        # Temporary demo experiment (services/model_experiment.py): a session
+        # on the open arm tries the open model first and fails over to the
+        # production order like any other provider failure.
+        if model_experiment.current_arm() == model_experiment.ARM_OPEN:
+            configured = [model_experiment.ADAPTER_NAME] + configured
         live = [n for n in configured if not self._breaker.is_open(n)]
         return live or configured
 

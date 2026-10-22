@@ -7,8 +7,8 @@ student-scoped encryption layer; this module never stores plaintext scores.
 from __future__ import annotations
 
 from sqlalchemy import (
-    Column, DateTime, ForeignKeyConstraint, Integer, LargeBinary, MetaData,
-    String, Table, UniqueConstraint,
+    Boolean, Column, DateTime, ForeignKeyConstraint, Integer, LargeBinary, MetaData,
+    String, Table,
 )
 
 from services.curriculum.flag import curriculum_engine_enabled
@@ -47,7 +47,7 @@ lessons = Table(
     Column("owner_educator_id", String(100), nullable=False),
     Column("visibility", String(30), nullable=False),
     Column("status", String(30), nullable=False),
-    Column("generated", Integer, nullable=False),
+    Column("generated", Boolean, nullable=False),
     Column("rights_status", String(40), nullable=False),
     Column("review_id", String(100)),
     Column("body_enc", LargeBinary, nullable=False),

@@ -292,10 +292,9 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
 
 
 async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
-    """Drained by the SSE endpoint. Self-cleans on normal completion (a
-    'done' item) or the consumer disconnecting early (the finally block) —
-    the periodic sweep below is only the backstop for a session nobody ever
-    reads from at all. A session owned by someone else reports the same
+    """Drained by the SSE endpoint. Self-cleans on normal completion (a 'done' item); a transient
+    disconnect releases the reader lock while preserving the owner-bound
+    recording until reconnection or the bounded TTL sweep. A session owned by someone else reports the same
     "unknown or expired" message a truly-missing session would — see
     push_chunk's docstring for why an ownership mismatch must never read
     differently from a 404."""
@@ -345,7 +344,15 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
                 "after %.2fs, %d item(s) delivered, without a 'done'",
                 session_id, time.monotonic() - attached_at, items_yielded,
             )
-        _discard(session_id)
+        if completed_normally:
+            _discard(session_id)
+        else:
+            # A transient SSE disconnect must not destroy a still-active
+            # recording. The same authenticated owner may reconnect and
+            # continue uploading audio; the bounded TTL sweeper reclaims
+            # abandoned sessions and cancels their workers.
+            session.active_reader = False
+            session.last_touched = time.monotonic()
 
 
 def _discard(session_id: str) -> None:

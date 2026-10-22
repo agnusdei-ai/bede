@@ -9,6 +9,7 @@ import FeedbackModal from '../components/FeedbackModal'
 import ThemePicker from '../components/ThemePicker'
 import MeetBede from '../components/MeetBede'
 import DebugOverlay from '../components/DebugOverlay'
+import LessonFocusClock from '../components/LessonFocusClock'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useMeetBede } from '../hooks/useMeetBede'
 import { emailSessionSummary, fetchSessionSummary, fetchStudentConfig, isFeedbackEnabled } from '../services/api'
@@ -398,6 +399,10 @@ export default function TutorSession() {
         </button>
 
         <div className="flex-1" />
+
+        {/* Quiet focus-time indicator; the separate safety clocks below still
+            enforce wall-clock caps and mandatory break duration. */}
+        <LessonFocusClock paused={isPaused} />
 
         {/* Timer — only visible in warning zone or on break */}
         {(isWarning || isOnBreak) && (

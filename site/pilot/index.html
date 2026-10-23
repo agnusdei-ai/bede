@@ -8,20 +8,34 @@
 <link rel="icon" href="/assets/favicon.png" type="image/png">
 <link rel="stylesheet" href="/assets/site.css"><link rel="stylesheet" href="/assets/classical-offers.css"><link rel="stylesheet" href="/assets/cohesive-theme.css">
 <style>
-.pilot-wrap{max-width:850px;margin:auto;padding:3rem 1.5rem 5rem}.pilot-kicker{letter-spacing:.13em;text-transform:uppercase;font-size:.8rem}.pilot-wrap h1{font-size:clamp(2.3rem,6vw,4.2rem);line-height:1.1}.pilot-wrap p{max-width:65ch;line-height:1.7}.pilot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:2rem 0}.pilot-panel{border:1px solid #c8c0ab;border-radius:10px;padding:1.4rem}.pilot-panel h2{font-size:1.25rem}.pilot-cta{display:inline-block;padding:.85rem 1.4rem;background:#35463c;color:white!important;border-radius:5px;text-decoration:none;font-weight:600;margin:.7rem .6rem .7rem 0}.pilot-cta:focus-visible{outline:3px solid #a58b4c;outline-offset:3px}.pilot-muted{font-size:.9rem;color:#4d504b}
+.pilot-hero{background:#1b2b3b;color:#fbf8f1;padding:clamp(3rem,6vw,5rem) 1.5rem;border-bottom:4px solid #c4a45f}
+.pilot-hero-inner,.pilot-content{max-width:850px;margin:auto}
+.pilot-hero h1{color:#fff;font-size:clamp(2.3rem,6vw,4.2rem);line-height:1.1;margin:.6rem 0 1.4rem}
+.pilot-hero h1 em,.pilot-kicker{color:#e3c982}
+.pilot-kicker{letter-spacing:.13em;text-transform:uppercase;font:700 .8rem/1.5 system-ui,sans-serif}
+.pilot-hero p{color:#f0ece3;max-width:65ch;line-height:1.7}
+.pilot-content{padding:2.5rem 1.5rem 5rem}
+.pilot-content p{max-width:65ch;line-height:1.7}
+.pilot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin:2rem 0}
+.pilot-panel{background:#fffdfa;border:1px solid #d9d0c0;border-top:3px solid #c4a45f;border-radius:6px;padding:1.4rem}
+.pilot-panel h2{color:#1b2b3b;font-size:1.25rem}
+.pilot-cta{display:inline-block;padding:.85rem 1.4rem;background:#e3c982;color:#1b2b3b!important;border:1px solid #e3c982;border-radius:3px;text-decoration:none;font:700 .86rem/1.4 system-ui,sans-serif;margin:.7rem .6rem .7rem 0}
+.pilot-cta:hover{background:#f0dba9}
+.pilot-cta:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.pilot-muted{font-size:.9rem;color:#d9dfdf!important}
 </style>
 </head>
 <body class="classical-offers bede-theme">
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="classical-header"><a class="classical-brand" href="/" aria-label="Agnus Dei Technologies home"><img src="/assets/agnus-dei-logo.png" alt="" width="54" height="54"><span>AGNUS DEI<small>TECHNOLOGIES</small></span></a><nav class="classical-nav" aria-label="Main navigation"><a href="/schools/">For Schools</a><a href="/homeschool/">For Homeschool</a><a href="/bede/">Bede Demo</a></nav></header>
-<main id="main" class="pilot-wrap">
+<main id="main"><section class="pilot-hero"><div class="pilot-hero-inner">
 <p class="pilot-kicker">Bede / Guided Pilot</p>
-<h1>Classical learning, guided by educators.</h1>
+<h1>Classical learning, <em>guided by educators.</em></h1>
 <p>Apply to join Bede's four-week, supervised pilot. Bede helps teachers and homeschooling parents plan instruction, review learning evidence, and approve each follow-up. Applications are reviewed before invitations are issued.</p>
 <a class="pilot-cta" href="/inquire/?audience=charter_school">School or executive sponsor: apply →</a>
 <a class="pilot-cta" href="/inquire/?audience=homeschool">Homeschool family: apply →</a>
 <p class="pilot-muted">These links open our existing secure business inquiry form. Submitting a request does not create a learner account, grant software access, or authorize student-data collection.</p>
-<div class="pilot-grid">
+</div></section><div class="pilot-content"><div class="pilot-grid">
 <section class="pilot-panel"><h2>1. Discovery</h2><p>Tell us about your organization or family, grade bands, estimated learner and educator counts, deployment needs, and intended timeline. Do not submit student names or records.</p></section>
 <section class="pilot-panel"><h2>2. Owner review</h2><p>Agnus Dei reviews each request and contacts eligible sponsors. Pilot enrollment and access remain invitation-only and manually approved.</p></section>
 <section class="pilot-panel"><h2>3. Data qualification</h2><p>Before any real student records are introduced, the authorized school administrator or executive must approve participating cohorts, observation roles, permitted data uses, and the end-of-pilot deletion plan.</p></section>
@@ -31,6 +45,6 @@
 <p>Student data is not requested through this website form. The institution must authorize any later use of real learner records. If the pilot ends without a paid license, access is revoked and a verified data-deletion process must address retained records and backups; uninstall alone is not proof of deletion.</p>
 <p>Feedback may inform Agnus Dei's product and instructional evaluation processes using privacy-preserving analysis. Pilot responses are not used to train or fine-tune AI models.</p>
 <p><a href="/privacy/">Privacy information</a> · <a href="/schools/">School program</a> · <a href="/bede/">Try the public demo with fictional examples</a></p>
-</main>
+</div></main>
 <footer><p style="text-align:center;padding:2rem">© Agnus Dei Technologies, LLC</p></footer>
 </body></html>

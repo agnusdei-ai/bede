@@ -402,7 +402,7 @@ export default function TutorSession() {
 
         {/* Quiet focus-time indicator; the separate safety clocks below still
             enforce wall-clock caps and mandatory break duration. */}
-        <LessonFocusClock paused={isPaused} />
+        <LessonFocusClock paused={isPaused} instructor={role === 'parent' || role === 'educator'} capMinutes={sessionCapMin} />
 
         {/* Timer — only visible in warning zone or on break */}
         {(isWarning || isOnBreak) && (

@@ -112,9 +112,16 @@ def test_every_test_job_still_tests(job_name: str, scope: str, test_file: str) -
     commands = [c["argv"] for c in json.loads(result.stdout)["commands"]
                 if c["scope"] == scope]
     assert ["npx", "tsc", "--noEmit"] in commands, f"{job_name} no longer type-checks"
-    assert any(c[:3] == ["npx", "vitest", "run"]
-               and test_file.split(scope + "/", 1)[1] in c
-               for c in commands), f"{job_name} no longer executes its affected tests"
+    # Static imports select individual Vitest files. A dynamic import must
+    # widen to npm test (the entire suite); accepting that is *stronger*
+    # coverage, not a silent skip of this test.
+    affected = any(
+        c[:3] == ["npx", "vitest", "run"]
+        and test_file.split(scope + "/", 1)[1] in c
+        for c in commands
+    )
+    full_suite = ["npm", "test"] in commands
+    assert affected or full_suite, f"{job_name} no longer executes its tests"
 
 
 def test_the_audit_still_covers_both_projects() -> None:

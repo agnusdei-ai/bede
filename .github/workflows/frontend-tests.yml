@@ -56,14 +56,21 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
+      tutor: ${{ steps.filter.outputs.tutor }}
+      demo: ${{ steps.filter.outputs.demo }}
+      license: ${{ steps.filter.outputs.license }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - id: filter
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - id: legacy_filter
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
+          # Keep legacy contract-filter assertions alive during selector migration.
+          # The selector can only broaden coverage; a disagreement must fail closed.
           # Anything that is not a pull_request (push to main,
           # workflow_dispatch) runs the full set — the skip is a PR-only
           # optimisation, and failing open here costs CI minutes rather than
@@ -86,12 +93,38 @@ jobs:
           # compute relevant=false for exactly that edit and never run the
           # guard written for it — the same vacuous-coverage trap
           # test_decision_register.py documents for the backend filter.
-          if git diff --name-only "$BASE_SHA" HEAD \
+          if git diff --name-only "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA" \
                | grep -qE '^(homeschool-tutor/|demo/|license-server/|docs/LICENSE_SERVER_SETUP\.md|homeschool-api/core/licensing\.py|homeschool-api/core/tier_display\.py|site/assets/site\.css|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|\.github/workflows/frontend-tests\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
           fi
+      - id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          LEGACY_RELEVANT: ${{ steps.legacy_filter.outputs.relevant }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            python3 scripts/qa/selector.py --full --output qa-plan.json
+          else
+            python3 scripts/qa/selector.py --base "$BASE_SHA" --head "$HEAD_SHA" --output qa-plan.json
+          fi
+          python3 - <<'PY'
+          import json, os
+          p = json.load(open('qa-plan.json'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              relevant = False
+              for key, output in [('homeschool-tutor', 'tutor'), ('demo', 'demo'), ('license-server', 'license')]:
+                  scope = p['scopes'][key]
+                  selected = bool(scope['full'] or scope['tests'])
+                  f.write(output + '=' + str(selected).lower() + '\n')
+                  relevant |= selected
+              if os.environ['LEGACY_RELEVANT'] == 'true' and not relevant:
+                  raise SystemExit('Legacy frontend contract is unmapped in QA selector')
+              f.write('relevant=' + str(relevant).lower() + '\n')
+          PY
   # Its own job, for the reason homeschool-api/tests/test_dependency_audit_job.py
   # records about the backend: as a STEP inside a test job, a failing audit left
   # `Type-check` and `Run tests` SKIPPED — so an advisory published by a stranger
@@ -141,10 +174,13 @@ jobs:
 
   homeschool-tutor-tests:
     needs: changes
-    if: needs.changes.outputs.relevant == 'true'
+    if: needs.changes.outputs.tutor == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
@@ -153,19 +189,37 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-tutor
         run: npm ci
-      - name: Type-check
-        working-directory: homeschool-tutor
-        run: npx tsc --noEmit
-      - name: Run tests
-        working-directory: homeschool-tutor
-        run: npm test
+      - name: Select affected tests
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            python3 scripts/qa/selector.py --full --output qa-plan.json
+          else
+            python3 scripts/qa/selector.py --base "$BASE_SHA" --head "$HEAD_SHA" --output qa-plan.json
+          fi
+      - name: Run affected tests, type checks and capture evidence
+        run: python3 scripts/qa/runner.py --repo . --plan qa-plan.json --scope homeschool-tutor --report qa-evidence/homeschool-tutor-tests.json
+      - name: Preserve QA evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
+        with:
+          name: qa-homeschool-tutor-tests-evidence
+          path: qa-evidence/homeschool-tutor-tests.json
+          if-no-files-found: warn
+          retention-days: 14
 
   demo-tests:
     needs: changes
-    if: needs.changes.outputs.relevant == 'true'
+    if: needs.changes.outputs.demo == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
@@ -174,28 +228,37 @@ jobs:
       - name: Install dependencies
         working-directory: demo
         run: npm ci
-      - name: Type-check
-        working-directory: demo
-        run: npx tsc --noEmit
-      - name: Run tests
-        working-directory: demo
-        run: npm test
+      - name: Select affected tests
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            python3 scripts/qa/selector.py --full --output qa-plan.json
+          else
+            python3 scripts/qa/selector.py --base "$BASE_SHA" --head "$HEAD_SHA" --output qa-plan.json
+          fi
+      - name: Run affected tests, type checks and capture evidence
+        run: python3 scripts/qa/runner.py --repo . --plan qa-plan.json --scope demo --report qa-evidence/demo-tests.json
+      - name: Preserve QA evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
+        with:
+          name: qa-demo-tests-evidence
+          path: qa-evidence/demo-tests.json
+          if-no-files-found: warn
+          retention-days: 14
 
-  # The license server is a Cloudflare Worker, not a Vite app, but it is the
-  # same npm discipline: lockfile-fresh npm ci, hard npm-audit gate (shared
-  # with the job above), tsc type-checks, and a vitest suite. Its suite runs
-  # TWO projects: the node project (real-SQLite D1 fake, Stripe fixtures) and
-  # the workerd project — the Ed25519 signing proof that must execute inside
-  # the actual Workers runtime (spec D1), via @cloudflare/vitest-pool-workers.
-  # The cross-language half of that proof runs in test.yml's api-tests job:
-  # homeschool-api/tests/test_license_server_cross_language.py verifies a
-  # Worker-generated signed vector under the UNMODIFIED core/licensing.py.
   license-server-tests:
     needs: changes
-    if: needs.changes.outputs.relevant == 'true'
+    if: needs.changes.outputs.license == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
@@ -204,12 +267,24 @@ jobs:
       - name: Install dependencies
         working-directory: license-server
         run: npm ci
-      - name: Type-check (worker source)
-        working-directory: license-server
-        run: npx tsc --noEmit
-      - name: Type-check (tests, node types)
-        working-directory: license-server
-        run: npx tsc --noEmit -p tsconfig.test.json
-      - name: Run tests (node + workerd projects)
-        working-directory: license-server
-        run: npx vitest run
+      - name: Select affected tests
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ]; then
+            python3 scripts/qa/selector.py --full --output qa-plan.json
+          else
+            python3 scripts/qa/selector.py --base "$BASE_SHA" --head "$HEAD_SHA" --output qa-plan.json
+          fi
+      - name: Run affected tests, type checks and capture evidence
+        run: python3 scripts/qa/runner.py --repo . --plan qa-plan.json --scope license-server --report qa-evidence/license-server-tests.json
+      - name: Preserve QA evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
+        with:
+          name: qa-license-server-tests-evidence
+          path: qa-evidence/license-server-tests.json
+          if-no-files-found: warn
+          retention-days: 14

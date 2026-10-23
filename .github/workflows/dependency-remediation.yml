@@ -28,17 +28,23 @@ jobs:
           for package in homeschool-tutor demo license-server; do
             (cd "$package" && npm audit --json > "../dependency-agent-evidence/$package-before.json") || true
           done
-      - name: Resolve compatible security updates
+      - name: Resolve only advisory-backed compatible security updates
         shell: bash
         run: |
           set -euo pipefail
           for package in homeschool-tutor demo license-server; do
             (
               cd "$package"
-              npm update --package-lock-only --ignore-scripts
+              # npm update alone can keep vulnerable subgraphs while moving
+              # unrelated packages. npm audit fix selects advisory-backed
+              # compatible resolutions; without --force, no major upgrades.
+              # --package-lock-only means this step never edits manifests.
+              npm audit fix --package-lock-only --ignore-scripts
               npm ci
             )
           done
+      - name: Validate manifest/lock parity after security remediation
+        run: python3 scripts/qa/validate_dependencies.py
       - name: Verify all security audit gates
         run: python3 scripts/npm_audit_gate.py homeschool-tutor demo license-server
       - name: Verify frontend suites and type checks

@@ -605,8 +605,8 @@ async def test_an_abandoned_sessions_worker_is_stopped_too(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_many_turns_leave_nothing_running(monkeypatch):
-    """The reported shape, directly: ten turns in a row must leave ten
-    finished tasks, not ten parked ones."""
+    """Ten turns leave no worker after completion or bounded TTL cleanup;
+    early SSE disconnects must remain reconnectable before expiry."""
 
     async def fake_transcribe(audio_bytes, language="en"):
         return {"text": "hello", "language": language}
@@ -634,6 +634,16 @@ async def test_many_turns_leave_nothing_running(monkeypatch):
             await stream.aclose()
 
     await asyncio.sleep(0)
+    # Five completed turns should already have cleaned up. The five early
+    # disconnects intentionally remain reconnectable until bounded expiry,
+    # not forever and not discarded on a temporary SSE network interruption.
+    assert len(st._sessions) == 5
+    assert all(not st._sessions[sid].finished for sid in st._sessions)
+    for session in st._sessions.values():
+        session.last_touched -= st._SESSION_TTL_SECONDS + 1
+    monkeypatch.setattr(st, "_SWEEP_INTERVAL_SECONDS", 0)
+    await st._sweep_loop()
+    await asyncio.sleep(0)
     still_running = [w for w in workers if not (w.done() or w.cancelled())]
-    assert not still_running, f"{len(still_running)} of 10 worker tasks leaked"
+    assert not still_running, f"{len(still_running)} of 10 worker tasks leaked after TTL"
     assert st._sessions == {}

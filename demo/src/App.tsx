@@ -2752,44 +2752,61 @@ function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
             </p>
           )}
           {!loading && summary && (
-            <div className="bg-white rounded-xl border border-navy-100 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-gray-800">{summary.student_name} — {summary.subject_area}</h2>
-                <span className="text-xs text-gray-400">{summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'}</span>
-              </div>
-              {summary.calibration && (
-                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
-                  Bede is still forming a first picture of how {summary.student_name} approaches math, based on{' '}
-                  {summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'} so far — treat this as
-                  an early signal, not a settled read.
-                </p>
-              )}
-              <div className="space-y-2 mb-3">
-                {summary.domains.map((d) => (
-                  <div key={d.domain}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-gray-600">{d.domain}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${_LEVEL_STYLES[d.level] ?? ''}`}>{d.level}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-navy-400" style={{ width: `${Math.round(d.average_probability * 100)}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {summary.gaps.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Gaps</p>
-                  <p className="text-xs text-gray-600">{summary.gaps.map((s) => s.label).join(', ')}</p>
+            <section aria-label="Diagnostic assessment" className="space-y-3">
+              <div className="bg-white rounded-xl border border-navy-100 p-4 space-y-2">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-amber-700">Assessment overview</p>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <h2 className="text-base font-display font-bold text-navy-800 break-words">{summary.student_name} — {summary.subject_area}</h2>
+                  <span className="text-xs text-gray-600 bg-parchment-100 rounded-lg px-2 py-1">{summary.evidence_count} observation{summary.evidence_count === 1 ? '' : 's'}</span>
                 </div>
-              )}
-              {summary.next_steps.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 mb-1">Next steps</p>
-                  <p className="text-xs text-gray-600">{summary.next_steps.map((s) => s.label).join(', ')}</p>
+                <p className="text-sm text-gray-600 leading-relaxed">{summary.calibration || summary.evidence_count < 3
+                  ? 'Early evidence only. These observations are not a complete assessment. Skills without direct evidence are not confirmed gaps.'
+                  : 'These are estimated learning signals. Review the evidence before making teaching decisions.'}</p>
+                <p className="text-xs text-gray-500">Session preview only. Progress across sessions is not recorded here.</p>
+              </div>
+              <div className="bg-white rounded-xl border border-navy-100 p-4">
+                <h3 className="text-sm font-bold text-navy-800 mb-1">Mathematics domains</h3>
+                <p className="text-xs text-gray-500 mb-3">Estimated signals, not test scores. Expand a domain to see its estimate.</p>
+                <div className="space-y-2">
+                  {summary.domains.map((d) => (
+                    <details key={d.domain} className="border border-gray-200 rounded-lg px-3 py-2">
+                      <summary className="cursor-pointer flex items-center justify-between gap-2 text-sm text-gray-800">
+                        <span className="min-w-0">{d.domain}</span>
+                        <span className="text-xs text-gray-500 shrink-0">{summary.calibration || summary.evidence_count < 3 ? 'Early signal' : d.level}</span>
+                      </summary>
+                      <div className="mt-3">
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden" role="img" aria-label={`Estimated domain signal: ${Math.round(d.average_probability * 100)} percent`}>
+                          <div className="h-full bg-navy-400" style={{ width: `${Math.round(d.average_probability * 100)}%` }} />
+                        </div>
+                        <p className="mt-2 text-xs text-gray-500">Model estimate: {Math.round(d.average_probability * 100)}%. Not a verified mastery score.</p>
+                      </div>
+                    </details>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+              <div className="bg-white rounded-xl border border-navy-100 p-4 space-y-3">
+                <h3 className="text-sm font-bold text-navy-800">Instructional review</h3>
+                <p className="text-xs text-gray-600">These lists are generated from the current diagnostic estimate. A teacher or parent should confirm them through instruction.</p>
+                <details className="border border-gray-200 rounded-lg p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-navy-800">Possible areas to investigate ({summary.gaps.length})</summary>
+                  {summary.gaps.length ? (
+                    <ul className="mt-3 space-y-2 list-disc pl-5 text-sm text-gray-700">
+                      {summary.gaps.map((s, i) => <li key={i}>{s.label}</li>)}
+                    </ul>
+                  ) : <p className="mt-2 text-sm text-gray-500">No areas suggested yet.</p>}
+                </details>
+                <details className="border border-gray-200 rounded-lg p-3" open>
+                  <summary className="cursor-pointer text-sm font-semibold text-navy-800">Suggested teaching checks ({summary.next_steps.length})</summary>
+                  {summary.next_steps.length ? (
+                    <ol className="mt-3 space-y-2 list-decimal pl-5 text-sm text-gray-700">
+                      {summary.next_steps.slice(0, 5).map((s, i) => <li key={i}>{s.label}</li>)}
+                    </ol>
+                  ) : <p className="mt-2 text-sm text-gray-500">Continue a short lesson to gather evidence.</p>}
+                  {summary.next_steps.length > 5 && <details className="mt-3"><summary className="cursor-pointer text-xs text-navy-600">Show {summary.next_steps.length - 5} more suggestions</summary><ol start={6} className="mt-2 space-y-2 list-decimal pl-5 text-sm text-gray-700">{summary.next_steps.slice(5).map((s, i) => <li key={i}>{s.label}</li>)}</ol></details>}
+                </details>
+                <p className="text-xs text-gray-500">Suggestions are not assigned automatically. The educator decides what to teach next.</p>
+              </div>
+            </section>
           )}
 
           <div className="space-y-3">

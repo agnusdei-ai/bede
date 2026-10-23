@@ -1,4 +1,4 @@
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, cleanup } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LessonFocusClock from './LessonFocusClock'
 
@@ -8,7 +8,7 @@ describe('LessonFocusClock', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-22T18:00:00Z'))
   })
-  afterEach(() => { vi.useRealTimers() })
+  afterEach(() => { cleanup(); vi.useRealTimers() })
 
   it('counts active lesson time while a break is paused, then resumes', () => {
     const { rerender } = render(<LessonFocusClock paused={false} />)

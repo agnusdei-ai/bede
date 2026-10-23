@@ -58,7 +58,6 @@ export default function LessonFocusClock({
   return instructor ? (
     <button
       type="button"
-      role="timer"
       aria-label={`${accessibleLabel}. Tap to show ${remaining ? 'elapsed' : 'remaining'} time.`}
       title={`${description} Tap to switch between elapsed and countdown.`}
       className={`${compact} focus-visible:outline focus-visible:outline-2 focus-visible:outline-sage-600`}

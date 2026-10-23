@@ -14,7 +14,10 @@
   },
   "overrides": {
     "sharp": "0.35.5",
-    "undici@7.29.0": "7.29.1"
+    "undici@7.29.0": "7.29.1",
+    "@cloudflare/vitest-pool-workers": {
+      "zod": "4.6.6"
+    }
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.23.0",
@@ -22,7 +25,7 @@
     "@types/better-sqlite3": "^9.6.0",
     "better-sqlite3": "^12.11.1",
     "typescript": "^5.6.3",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "wrangler": "^4.149.0"
   },
   "engines": {

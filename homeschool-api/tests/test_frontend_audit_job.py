@@ -84,11 +84,44 @@ def test_no_test_job_runs_an_audit_step(job_name: str) -> None:
     )
 
 
-@pytest.mark.parametrize("job_name", TEST_JOBS)
-def test_every_test_job_still_tests(job_name: str) -> None:
+@pytest.mark.parametrize(
+    "job_name,scope,test_file",
+    [
+        ("homeschool-tutor-tests", "homeschool-tutor", "homeschool-tutor/src/palette.test.ts"),
+        ("demo-tests", "demo", "demo/src/App.test.tsx"),
+    ],
+)
+def test_every_test_job_still_tests(job_name: str, scope: str, test_file: str) -> None:
+    """Check the actual QA selector contract, not an obsolete command string."""
+    import subprocess
+    import sys
+
+    repo = WORKFLOW.parents[2]
     body = _runs(_workflow()["jobs"][job_name])
-    assert "npm test" in body or "vitest" in body, f"{job_name} no longer runs tests"
-    assert "tsc" in body, f"{job_name} no longer type-checks"
+    assert (
+        f"scripts/qa/runner.py --repo . --plan qa-plan.json --scope {scope}"
+        in body
+    ), f"{job_name} no longer invokes the QA test runner"
+    assert "scripts/qa/selector.py --base" in body
+    assert "scripts/qa/selector.py --full" in body
+    assert (repo / "scripts/qa/runner.py").is_file()
+    result = subprocess.run(
+        [sys.executable, "scripts/qa/selector.py", "--file", test_file],
+        cwd=repo, capture_output=True, text=True, check=True,
+    )
+    commands = [c["argv"] for c in json.loads(result.stdout)["commands"]
+                if c["scope"] == scope]
+    assert ["npx", "tsc", "--noEmit"] in commands, f"{job_name} no longer type-checks"
+    # Static imports select individual Vitest files. A dynamic import must
+    # widen to npm test (the entire suite); accepting that is *stronger*
+    # coverage, not a silent skip of this test.
+    affected = any(
+        c[:3] == ["npx", "vitest", "run"]
+        and test_file.split(scope + "/", 1)[1] in c
+        for c in commands
+    )
+    full_suite = ["npm", "test"] in commands
+    assert affected or full_suite, f"{job_name} no longer executes its tests"
 
 
 def test_the_audit_still_covers_both_projects() -> None:
@@ -116,11 +149,25 @@ def test_the_audit_goes_through_the_allowlist_aware_gate() -> None:
 
 
 def test_the_audit_is_gated_on_the_same_change_filter_as_the_tests() -> None:
-    """It must run exactly when the suites it accompanies run."""
+    """The audit must run for the union of selected test packages.
+
+    Per-package tests can skip unrelated packages, but an npm dependency
+    finding must not be missed just because only one package changed.
+    """
     jobs = _workflow()["jobs"]
-    for job_name in TEST_JOBS:
+    assert jobs[AUDIT_JOB].get("if") == "needs.changes.outputs.relevant == 'true'"
+    outputs = jobs["changes"]["outputs"]
+    filter_body = _runs(jobs["changes"])
+    assert "relevant |= selected" in filter_body, "Missing union of frontend scopes"
+    for job_name, output in (
+        ("homeschool-tutor-tests", "tutor"), ("demo-tests", "demo"),
+        ("license-server-tests", "license"),
+    ):
         assert jobs[AUDIT_JOB].get("needs") == jobs[job_name].get("needs")
-        assert jobs[AUDIT_JOB].get("if") == jobs[job_name].get("if")
+        assert output in outputs
+        assert jobs[job_name].get("if") == (
+            f"needs.changes.outputs.{output} == 'true'"
+        )
 
 
 @pytest.mark.parametrize("job_name", [AUDIT_JOB, *TEST_JOBS])

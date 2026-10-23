@@ -19,6 +19,7 @@ export default defineConfig({
         test: {
           name: "node",
           environment: "node",
+          setupFiles: ["./test/helpers/no-network.ts"],
           include: ["test/**/*.test.ts"],
           exclude: ["test/runtime-signing.test.ts"],
         },

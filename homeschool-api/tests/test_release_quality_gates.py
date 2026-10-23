@@ -142,8 +142,15 @@ def test_the_skip_gate_exists_and_every_required_job_hangs_off_it(name):
     for job_name in _required_contexts() & set(jobs):
         job = jobs[job_name]
         assert job.get("needs") == "changes", f"{name}:{job_name} does not depend on `changes`"
-        assert "needs.changes.outputs.relevant" in str(job.get("if", "")), (
-            f"{name}:{job_name} is not conditioned on the `changes` output"
+        condition = str(job.get("if", ""))
+        import re
+        match = re.fullmatch(
+            r"needs\.changes\.outputs\.(relevant|tutor|demo|license) == 'true'",
+            condition,
+        )
+        assert match, f"{name}:{job_name} is not conditioned on a known changes output"
+        assert match.group(1) in jobs["changes"]["outputs"], (
+            f"{name}:{job_name} refers to a missing changes output"
         )
 
 

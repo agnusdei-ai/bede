@@ -21,9 +21,9 @@ from pathlib import Path
 
 PATTERNS = (
     ("security_audit", r"GHSA-|CVE-|vulnerabilit|pip.audit|audit gate"),
-    ("dependency_lock", r"ERR!|npm ci|lockfile|package.lock|hash mismatch|npm EUSAGE"),
+    ("outdated_test", r"(?m)^FAILED tests/|AssertionError|TestingLibraryElementError|AssertionFailed|toHaveTextContent"),
     ("type_or_build", r"TS\d{4}|TypeError|SyntaxError|Build failed|error TS\d+"),
-    ("outdated_test", r"AssertionError|TestingLibraryElementError|AssertionFailed|toHaveTextContent"),
+    ("dependency_lock", r"npm (?:ERR!|error)|EUSAGE|lockfile.*(?:missing|mismatch|corrupt)|hash mismatch"),
     ("environment", r"ModuleNotFoundError|Cannot find module|ENOENT|Connection refused|DATABASE_URL"),
     ("authorization", r"forbidden|unauthorized|401|403|cross.campus|webauthn"),
     ("test_flakiness", r"timed out|TimeoutError|race condition|flaky"),
@@ -47,14 +47,14 @@ def run_command(argv: list[str], cwd: Path, timeout: int) -> dict:
     try:
         result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
                                 errors="replace", timeout=timeout, check=False)
-        output = sanitize((result.stdout or "")[-9000:] + "\n" + (result.stderr or "")[-9000:])
+        output = sanitize((result.stdout or "")[-24000:] + "\n" + (result.stderr or "")[-9000:])
         code = result.returncode
     except (OSError, subprocess.TimeoutExpired) as exc:
         output, code = sanitize(str(exc)), 124
     return {"command": argv, "cwd": str(cwd), "exit_code": code,
             "duration_seconds": round(time.monotonic() - start, 2),
             "category": "pass" if code == 0 else categorize(output),
-            "diagnostic_excerpt": "\n".join(output.splitlines()[-30:])[-4000:] if code else ""}
+            "diagnostic_excerpt": "\n".join(output.splitlines()[-90:])[-10000:] if code else ""}
 
 
 def missing_local_install(result: dict) -> bool:
@@ -161,6 +161,17 @@ def main() -> int:
                f"{len(result['results'])} test command attempts; "
                f"{result['runner_seconds']}s")
     print(summary)
+    for attempt in result["results"]:
+        if attempt["exit_code"]:
+            message = attempt["diagnostic_excerpt"]
+            print(
+                f"QA FAIL [{attempt['category']}] "
+                f"{' '.join(attempt['command'])} (exit {attempt['exit_code']})",
+                file=sys.stderr,
+            )
+            # Emit the actual failure summary in CI even when this runner
+            # captured stdout. The JSON evidence remains the full audit trail.
+            print(message[-10000:], file=sys.stderr)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fp:
             fp.write("### " + summary + "\n\n")

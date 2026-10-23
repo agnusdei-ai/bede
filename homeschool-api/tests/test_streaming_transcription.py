@@ -79,6 +79,9 @@ async def test_finish_without_any_prior_chunk_emits_an_empty_final_then_done():
 
     assert first == {"type": "final", "text": ""}
     assert second == {"type": "done"}
+    assert session_id not in st._sessions, (
+        "Closing a successful SSE response must not retain its worker until TTL"
+    )
 
 
 @pytest.mark.asyncio
@@ -624,9 +627,16 @@ async def test_many_turns_leave_nothing_running(monkeypatch):
         # is what a twenty-minute sitting actually looks like.
         if turn % 2 == 0:
             st.finish_session(session_id)
-            async for item in st.events(session_id):
-                if item["type"] == "done":
-                    break
+            stream = st.events(session_id)
+            try:
+                async for item in stream:
+                    if item["type"] == "done":
+                        break
+            finally:
+                # Breaking out of async-for does not call aclose(). Explicitly
+                # model SSE response finalization, including immediate close
+                # after the terminal "done" event.
+                await stream.aclose()
         else:
             stream = st.events(session_id)
             async for item in stream:

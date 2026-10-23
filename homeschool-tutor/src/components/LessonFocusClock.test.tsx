@@ -42,8 +42,9 @@ describe('LessonFocusClock', () => {
 
   it('respects a configured cap and remains display-only', () => {
     render(<LessonFocusClock paused={false} instructor capMinutes={45} />)
-    fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByRole('button').textContent).toContain('45:00')
-    expect(screen.getByRole('button').title).toMatch(/wall-clock session limit remains enforced/)
+    const clock = screen.getByRole('button', { name: /Lesson time elapsed/ })
+    fireEvent.click(clock)
+    expect(clock.textContent).toContain('45:00')
+    expect(clock.title).toMatch(/wall-clock session limit remains enforced/)
   })
 })

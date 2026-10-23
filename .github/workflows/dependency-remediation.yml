@@ -1,0 +1,94 @@
+name: Dependency remediation agent
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependency-remediation-agent
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+      - name: Capture baseline audit
+        shell: bash
+        run: |
+          mkdir -p dependency-agent-evidence
+          for package in homeschool-tutor demo license-server; do
+            (cd "$package" && npm audit --json > "../dependency-agent-evidence/$package-before.json") || true
+          done
+      - name: Resolve compatible security updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          for package in homeschool-tutor demo license-server; do
+            (
+              cd "$package"
+              npm update --package-lock-only --ignore-scripts
+              npm ci
+            )
+          done
+      - name: Verify all security audit gates
+        run: python3 scripts/npm_audit_gate.py homeschool-tutor demo license-server
+      - name: Verify frontend suites and type checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          for package in homeschool-tutor demo license-server; do
+            (cd "$package" && npx tsc --noEmit)
+          done
+          (cd homeschool-tutor && npm test)
+          (cd demo && npm test)
+          (cd license-server && npx tsc --noEmit -p tsconfig.test.json && npx vitest run)
+      - name: Capture post-update audit
+        if: always()
+        shell: bash
+        run: |
+          for package in homeschool-tutor demo license-server; do
+            (cd "$package" && npm audit --json > "../dependency-agent-evidence/$package-after.json") || true
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: dependency-remediation-evidence
+          path: dependency-agent-evidence/
+          retention-days: 30
+      - name: Ensure dependency-only changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- homeschool-tutor/package.json demo/package.json license-server/package.json
+          if git diff --name-only | grep -vE '^(homeschool-tutor|demo|license-server)/package-lock.json$'; then
+            echo "Unexpected changes outside the three lockfiles" >&2
+            exit 1
+          fi
+      - name: Open remediation PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- homeschool-tutor/package-lock.json demo/package-lock.json license-server/package-lock.json; then
+            echo "No lockfile changes necessary" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="automation/dependency-security-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add homeschool-tutor/package-lock.json demo/package-lock.json license-server/package-lock.json
+          git commit -m "fix(deps): resolve compatible audited npm dependencies"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "fix(deps): audited lockfile remediation" --body "Automated compatible lockfile remediation. Baseline/post audit evidence is attached to the originating workflow run. All three frontend suites, typechecks, and the existing npm audit gate passed before this PR was opened. Merge only when the exact-head required CI checks are green."
+          echo "Remediation PR opened; exact-head CI qualification and guarded merge still required." >> "$GITHUB_STEP_SUMMARY"

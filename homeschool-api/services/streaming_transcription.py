@@ -319,10 +319,15 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
         while True:
             item = await session.queue.get()
             items_yielded += 1
-            yield item
+            # Set completion before yielding. An SSE consumer is permitted to
+            # close immediately after receiving "done" rather than requesting
+            # another generator item; its finally block must still discard
+            # the completed session, not retain it as a reconnectable hold.
             if item.get("type") == "done":
                 completed_normally = True
+                yield item
                 break
+            yield item
     finally:
         if not completed_normally:
             # This generator is being torn down WITHOUT ever seeing "done" —

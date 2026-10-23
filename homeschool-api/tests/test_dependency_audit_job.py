@@ -32,6 +32,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import json
+
 import pytest
 import yaml
 
@@ -82,10 +84,31 @@ def test_the_test_job_runs_no_audit_step() -> None:
 
 
 def test_the_test_job_still_runs_the_tests() -> None:
+    """The QA runner must invoke pytest; a wrapper name alone is not a gate."""
+    import subprocess
+    import sys
+
+    repo = WORKFLOW.parents[2]
     job = _workflow()["jobs"][TEST_JOB]
-    assert "pytest tests/" in _runs(job), (
-        f"{TEST_JOB} no longer runs the backend suite at all."
+    body = _runs(job)
+    assert "scripts/qa/runner.py --repo . --plan qa-plan.json --scope backend" in body
+    assert "scripts/qa/selector.py --base" in body
+    assert "scripts/qa/selector.py --full" in body
+    assert (repo / "scripts/qa/runner.py").is_file()
+    result = subprocess.run(
+        [sys.executable, "scripts/qa/selector.py", "--file",
+         "homeschool-api/tests/test_dependency_audit_job.py"],
+        cwd=repo, capture_output=True, text=True, check=True,
     )
+    selected = json.loads(result.stdout)["commands"]
+    assert any(
+        c["scope"] == "backend"
+        and c["cwd"] == "homeschool-api"
+        and c["argv"][:3] == ["python", "-m", "pytest"]
+        and "tests/test_dependency_audit_job.py" in c["argv"]
+        for c in selected
+    ), "The backend contract test is not reachable through the QA selector"
+
 
 
 def test_the_audit_still_covers_both_lockfiles() -> None:

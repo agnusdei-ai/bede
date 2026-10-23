@@ -60,6 +60,23 @@ class ReliabilityTests(unittest.TestCase):
             self.assertEqual(call.call_count, 1)
             self.assertEqual(result["merge_status"], "blocked")
 
+    def test_pytest_failure_is_not_mislabeled_dependency_lock(self):
+        log = (
+            "FAILED tests/test_contract.py::test_runs - AssertionError:\n"
+            "assert 'pytest tests/' in 'lockfile-freshness step output'"
+        )
+        self.assertEqual(runner.categorize(log), "outdated_test")
+
+    def test_error_excerpts_stay_in_run_evidence(self):
+        fake = type("Completed", (), {
+            "stdout": "FAILED tests/test_contract.py::test_runs - AssertionError",
+            "stderr": "", "returncode": 1,
+        })()
+        with patch.object(runner.subprocess, "run", return_value=fake):
+            result = runner.run_command(["python", "-m", "pytest", "tests/", "-q"], Path("."), 30)
+        self.assertIn("FAILED tests/test_contract.py", result["diagnostic_excerpt"])
+        self.assertEqual(result["category"], "outdated_test")
+
     def test_secret_masking(self):
         self.assertNotIn("my-real-secret", runner.sanitize("EXPERIMENT_LLM_API_KEY=my-real-secret"))
         self.assertEqual(runner.categorize("GHSA-XXXX blocked"), "security_audit")

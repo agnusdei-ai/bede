@@ -10,7 +10,7 @@
  * path implements, so a drift in the contract fails here.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestD1 } from "../helpers/d1sqlite";
 import { createSlidingWindowLimiter } from "../../src/ratelimit";
 import type { Env } from "../../src/types";
@@ -151,7 +151,8 @@ describe("tier 2: the licence key the family already holds", () => {
     const e = env();
     await seedPaidLicence(e);
     const provider = workingProvider();
-    const res = await handleCancelConfirm(post({ license_key: KEY }), e, limiter, { provider });
+    const sendConfirmation = vi.fn(async () => {});
+    const res = await handleCancelConfirm(post({ license_key: KEY }), e, limiter, { provider, sendConfirmation });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       outcome: string;
@@ -163,6 +164,8 @@ describe("tier 2: the licence key the family already holds", () => {
     expect(provider.cancelCalls).toEqual([SUB_ID]);
     expect(body.paid_access_ends_at).toBe("2027-10-12T00:00:00.000Z");
     expect(body.claims.mayClaimChargesStopped).toBe(true);
+    expect(sendConfirmation).toHaveBeenCalledWith(expect.objectContaining({ to: EMAIL }));
+    expect(body.claims.mayClaimEmailSent).toBe(true);
   });
 
   it("records the confirmed cancellation", async () => {
@@ -170,6 +173,7 @@ describe("tier 2: the licence key the family already holds", () => {
     await seedPaidLicence(e);
     await handleCancelConfirm(post({ license_key: KEY }), e, limiter, {
       provider: workingProvider(),
+      sendConfirmation: async () => {},
     });
     const row = await e.DB.prepare(
       `select status, license_id, confirmed_at from cancellation_requests`,
@@ -354,6 +358,7 @@ describe("tier 1: the emailed one-time link", () => {
     });
     const first = await handleCancelConfirm(post({ token }), e, limiter, {
       provider: workingProvider(),
+      sendConfirmation: async () => {},
     });
     expect(first.status).toBe(200);
     // A link that survives its own use could cancel something the customer

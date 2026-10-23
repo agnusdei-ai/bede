@@ -166,10 +166,10 @@ async def test_events_on_a_completely_unknown_session_yields_an_error_immediatel
 
 
 @pytest.mark.asyncio
-async def test_events_disconnecting_early_still_removes_the_session(monkeypatch):
+async def test_events_disconnecting_early_allows_reconnect(monkeypatch):
     """The consumer (SSE endpoint) can stop iterating before 'done' — a
-    client disconnect, not just normal completion. The generator's own
-    finally block must still clean up rather than leaking the session."""
+    client disconnect, not normal completion. Keep the owned session until
+    a reconnect or the bounded TTL sweep."""
     async def fake_transcribe(audio_bytes, language="en"):
         return {"text": "partial text", "language": language}
 
@@ -182,6 +182,12 @@ async def test_events_disconnecting_early_still_removes_the_session(monkeypatch)
     await asyncio.wait_for(gen.__anext__(), timeout=2)
     await gen.aclose()  # early disconnect, before 'done'
 
+    assert session_id in st._sessions
+    assert st._sessions[session_id].active_reader is False
+    assert st.push_chunk(session_id, b"more audio") is True
+    assert st.finish_session(session_id) is True
+    resumed = [item async for item in st.events(session_id)]
+    assert resumed[-1] == {"type": "done"}
     assert session_id not in st._sessions
 
 
@@ -209,7 +215,8 @@ async def test_events_torn_down_early_logs_a_warning_naming_the_session(monkeypa
         await asyncio.wait_for(gen.__anext__(), timeout=2)  # the one partial — attaches active_reader
         await gen.aclose()  # torn down here, before 'finish'/'done' ever arrives
 
-    assert session_id not in st._sessions
+    assert session_id in st._sessions
+    assert not st._sessions[session_id].active_reader
     warnings = [r for r in caplog.records if "torn down early" in r.message]
     assert len(warnings) == 1
     assert f"session={session_id}" in warnings[0].message
@@ -560,8 +567,8 @@ async def test_the_worker_task_does_not_outlive_its_session(monkeypatch):
 @pytest.mark.asyncio
 async def test_an_abandoned_sessions_worker_is_stopped_too(monkeypatch):
     """The consumer disconnecting early is the ordinary case on a tablet — a
-    child navigates away mid-turn. events() already drops the session from the
-    dict there; the task has to go with it."""
+    child navigates away mid-turn. A recoverable recording is retained only
+    until the TTL sweeper; then its task is cancelled."""
 
     async def fake_transcribe(audio_bytes, language="en"):
         return {"text": "hello", "language": language}
@@ -581,6 +588,15 @@ async def test_an_abandoned_sessions_worker_is_stopped_too(monkeypatch):
         break
     await stream.aclose()
 
+    assert session_id in st._sessions
+    assert session.worker and not session.worker.done()
+    session.last_touched -= st._SESSION_TTL_SECONDS + 1
+    # Sweep exactly the idle session; don't sleep for the production TTL.
+    import time
+    now = time.monotonic()
+    for sid, live in list(st._sessions.items()):
+        if now - live.last_touched > st._SESSION_TTL_SECONDS:
+            st._discard(sid)
     await asyncio.sleep(0)
     assert session.worker.done() or session.worker.cancelled(), (
         "worker task survived a consumer that disconnected"

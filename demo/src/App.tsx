@@ -2599,12 +2599,6 @@ function DemoSandboxScreen({ token, onBack, onSessionInvalid }: {
 // only: nothing here survives past this demo code's own lifetime. See
 // homeschool-api/routers/diagnostic.py.
 
-const _LEVEL_STYLES: Record<string, string> = {
-  secure: 'bg-emerald-100 text-emerald-700',
-  developing: 'bg-amber-100 text-amber-700',
-  gap: 'bg-red-100 text-red-700',
-}
-
 function DiagnosticViewScreen({ token, onBack, onSessionInvalid }: {
   token: string
   onBack: () => void

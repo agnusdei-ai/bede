@@ -63,6 +63,19 @@ class SelectorTests(unittest.TestCase):
         self.assertTrue(plan["scopes"]["backend"]["full"])
         self.assertTrue(plan["critical"])
 
+    def test_backend_voice_contract_runs_both_consuming_clients(self):
+        plan = selector.select(self.root, [
+            "homeschool-api/services/streaming_transcription.py"
+        ])
+        self.assertTrue(plan["critical"])
+        self.assertTrue(plan["scopes"]["homeschool-tutor"]["full"])
+        self.assertTrue(plan["scopes"]["demo"]["full"])
+        self.assertFalse(plan["scopes"]["license-server"]["full"])
+        self.assertIn(
+            ["npm", "test"],
+            [c["argv"] for c in plan["commands"] if c["scope"] == "demo"],
+        )
+
     def test_shared_api_contract_broadens_frontend_and_backend(self):
         plan = selector.select(self.root, ["demo/src/api.ts"])
         self.assertTrue(all(x["full"] for x in plan["scopes"].values()))

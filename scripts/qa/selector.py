@@ -36,6 +36,14 @@ CROSS = (
     "homeschool-api/core/licensing.py", "homeschool-api/core/tier_display.py",
     "homeschool-tutor/src/services/api.ts", "demo/src/api.ts",
 )
+# Voice endpoints and their backend session protocol are used by both React
+# clients. Python import tracing alone cannot discover this HTTP boundary.
+# Any wire/lifecycle change must execute the two frontend contract suites.
+VOICE_CONTRACT_PATHS = {
+    "homeschool-api/services/streaming_transcription.py",
+    "homeschool-api/services/transcription.py",
+    "homeschool-api/routers/voice.py",
+}
 DOC_TESTS = {
     "docs/DECISIONS.md": "test_decision_register.py",
     "docs/RETENTION_POLICY.md": "test_coppa_compliance.py",
@@ -195,6 +203,10 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
             scopes["backend"]["tests"].append("tests/" + DOC_TESTS[name])
         if name.startswith("homeschool-api/"):
             known = True
+            if name in VOICE_CONTRACT_PATHS:
+                broad("homeschool-tutor", "backend voice wire/lifecycle contract")
+                broad("demo", "backend voice wire/lifecycle contract")
+                critical = True
             if name.endswith(("requirements.in", "requirements-dev.in",
                               "requirements.lock.txt", "requirements-dev.lock.txt")):
                 broad("backend", "Python dependency boundary")

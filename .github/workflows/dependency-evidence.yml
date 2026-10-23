@@ -1,0 +1,51 @@
+name: Dependency evidence
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory:
+    name: Dependency inventory and SBOM
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [homeschool-tutor, demo, license-server]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: ${{ matrix.package }}/package-lock.json
+      - name: Install exact locked dependencies
+        working-directory: ${{ matrix.package }}
+        run: npm ci
+      - name: Generate CycloneDX inventory from lockfile
+        working-directory: ${{ matrix.package }}
+        run: |
+          mkdir -p ../dependency-evidence/${{ matrix.package }}
+          npm sbom --sbom-format=cyclonedx --package-lock-only > ../dependency-evidence/${{ matrix.package }}/sbom.cdx.json
+          npm ls --all --json > ../dependency-evidence/${{ matrix.package }}/dependency-tree.json
+      - name: Record exact lockfile identity
+        shell: bash
+        run: |
+          sha256sum "${{ matrix.package }}/package-lock.json" > "dependency-evidence/${{ matrix.package }}/lockfile.sha256"
+          {
+            echo "### ${{ matrix.package }} dependency evidence"
+            echo ""
+            echo "- Lockfile: \`$(cat dependency-evidence/${{ matrix.package }}/lockfile.sha256)\`"
+            echo "- CycloneDX SBOM and dependency tree attached as build artifacts."
+            echo "- Security blocking gate remains in frontend-tests.yml; this job does not override it."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dependency-evidence-${{ matrix.package }}
+          path: dependency-evidence/${{ matrix.package }}/
+          retention-days: 30

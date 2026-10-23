@@ -188,6 +188,8 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
         scopes[scope]["reasons"].append(why)
 
     for name in files:
+        if name in DOC_TESTS:
+            scopes["backend"]["tests"].append("tests/" + DOC_TESTS[name])
         if name.startswith("homeschool-api/"):
             known = True
             if name.endswith(("requirements.in", "requirements-dev.in",
@@ -224,8 +226,6 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
                 critical = True
         elif name.startswith(IGNORED_PREFIXES) or name.endswith((".md", ".txt", ".svg", ".png", ".webp")):
             known = True
-            if name in DOC_TESTS:
-                scopes["backend"]["tests"].append("tests/" + DOC_TESTS[name])
             # Marketing docs without application dependencies do not run
             # unit tests. They still pass source-map/self-test validation.
         else:
@@ -245,6 +245,11 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
             continue
         prefix = "homeschool-api" if scope == "backend" else scope
         chosen, fallback = consumers(root, prefix, changed)
+        # A deleted, renamed or unmaterialized changed module cannot be
+        # analyzed via the working tree; the deletion may break its consumers.
+        if any(n.startswith(prefix + "/") and Path(n).suffix in SUFFIXES
+               and not (root / n).exists() for n in files):
+            fallback = True
         scopes[scope]["tests"].extend(chosen)
         if fallback:
             broad(scope, "affected import graph has no provable tests")

@@ -27,7 +27,7 @@ describe('LessonFocusClock', () => {
     const { rerender } = render(<LessonFocusClock paused={false} capMinutes={120} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     rerender(<LessonFocusClock paused={false} instructor capMinutes={120} />)
-    const toggle = screen.getByRole('timer')
+    const toggle = screen.getByRole('button', { name: /Lesson time elapsed/ })
     fireEvent.click(toggle)
     expect(toggle).toHaveTextContent('120:00')
     expect(toggle).toHaveAccessibleName(/Lesson time remaining/)
@@ -42,8 +42,8 @@ describe('LessonFocusClock', () => {
 
   it('respects a configured cap and remains display-only', () => {
     render(<LessonFocusClock paused={false} instructor capMinutes={45} />)
-    fireEvent.click(screen.getByRole('timer'))
-    expect(screen.getByRole('timer')).toHaveTextContent('45:00')
-    expect(screen.getByRole('timer').title).toMatch(/wall-clock session limit remains enforced/)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByRole('button')).toHaveTextContent('45:00')
+    expect(screen.getByRole('button').title).toMatch(/wall-clock session limit remains enforced/)
   })
 })

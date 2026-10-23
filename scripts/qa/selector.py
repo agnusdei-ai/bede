@@ -31,6 +31,9 @@ CROSS = (
     "docs/RETENTION_POLICY.md", "docs/DATA_RETENTION.md",
     "docs/INFORMATION_SECURITY_POLICY.md", "docs/SYNTHETIC_QUALIFICATION.md",
     "site/privacy/index.html", "demo/public/privacy.html",
+    "site/index.html", "site/assets/site.css",
+    "docs/LICENSE_SERVER_SETUP.md",
+    "homeschool-api/core/licensing.py", "homeschool-api/core/tier_display.py",
     "homeschool-tutor/src/services/api.ts", "demo/src/api.ts",
 )
 DOC_TESTS = {
@@ -210,6 +213,7 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
                 broad(p, "sensitive frontend or authorization boundary")
             if p == "license-server":
                 broad("backend", "cross-language license verification")
+                broad("license-server", "Worker runtime and license-signing contract")
                 critical = True
         elif name in CROSS or name.startswith((
             "scripts/setup_wizard/", "scripts/trust_service/",

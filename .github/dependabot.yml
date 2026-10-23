@@ -46,6 +46,12 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 0
 
+  - package-ecosystem: "npm"
+    directory: "/license-server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+
   # Pinned action versions are a supply-chain surface of their own — a
   # compromised or yanked action tag runs with this workflow's token.
   - package-ecosystem: "github-actions"

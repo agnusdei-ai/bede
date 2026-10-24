@@ -70,6 +70,9 @@ class CoppaProviderPolicyTests(unittest.TestCase):
             "http://localhost.evil.example/v1",
             "http://user:secret@localhost:11434/v1",
             "http://169.254.169.254/v1",
+            "http://[::ffff:169.254.169.254]/v1",
+            "http://[::ffff:8.8.8.8]/v1",
+            "http://0.0.0.0:11434/v1",
             "http://localhost:99999/v1",
             "file:///tmp/local",
         )

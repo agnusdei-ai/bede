@@ -32,6 +32,26 @@ An API request flag cannot override a provider's terms or account-level processi
 | Production privacy notice matches observed network traffic and deployment | UNVERIFIED |
 | Security incident procedure, access review and periodic assessment evidence | UNVERIFIED |
 
+## School pilot fail-closed model routing (candidate change)
+
+The institutional educator pilot enables the existing local-only model/audio
+egress gate automatically whenever `EDUCATOR_PILOT_ENABLED=true` and the
+instance is not a public demo (`DEMO_PIN` unset). This applies even if
+`BEDE_COPPA_ENFORCE=false`. Forced model selection, live overrides and
+fallbacks must not route to an unqualified cloud provider. A separate
+explicit `BEDE_COPPA_ENFORCE=true` continues to enforce the same restriction
+outside the pilot, including the public demo. Existing non-pilot, non-enforced
+deployments are unchanged; they remain **unqualified for real child data**
+until their provider/privacy evidence is independently verified.
+
+This is a bounded technical mitigation, **not** a provider no-training
+attestation, consent determination or legal certification. The configured
+`local` endpoint must itself be inspected for private ownership and network
+egress; a provider called "local" is not proof of data residency. Direct
+external child-data features and any non-adapter network routes still require
+the shared outbound-boundary qualification below. Pilot GO and real learner
+data authorization remain HOLD.
+
 ## Engineering acceptance (next narrow implementation)
 
 1. Introduce a deny-by-default provider-qualification registry keyed by provider **and feature/endpoint**, with a separately controlled approval artifact and expiry; never infer approval from API credentials.

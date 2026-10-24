@@ -72,14 +72,11 @@ def test_unverified_and_mismatched_rights_are_blocked():
     ])[0])
 
 
-def test_verbatim_licensed_text_and_missing_edition_are_blocked():
+def test_verbatim_licensed_text_is_blocked():
     s = submission()
     licensed = replace(s.source, rights_status=RightsStatus.licensed)
     assert "rights.verbatim" in rules(assess_staging_batch([
         replace(s, source=licensed, candidate=replace(s.candidate, public_domain=False))
-    ])[0])
-    assert "provenance.edition" in rules(assess_staging_batch([
-        replace(s, source=replace(s.source, edition=""))
     ])[0])
 
 

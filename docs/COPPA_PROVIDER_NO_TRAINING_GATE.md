@@ -26,13 +26,13 @@ An API request flag cannot override a provider's terms or account-level processi
 | API-level no-store/no-training options, where supported; wire-level negative tests | UNVERIFIED |
 | Provider retention, abuse-monitoring exceptions, subprocessors and deletion terms | UNVERIFIED |
 | Voice transcription/TTS, moderation, embeddings, summaries and telemetry separately qualified | UNVERIFIED |
-| Live routing/failover cannot select an unqualified provider | NOT ENFORCED BY ROUTER |
+| Live routing/failover cannot select an unqualified provider | PILOT: local-only model adapter enforced in #713; direct feature-specific egress and endpoint attestation remain NOT VERIFIED |
 | Consent/parent verification, review/export/deletion journey tested end-to-end | UNVERIFIED |
 | School authorization, limited educational purpose, vendor contract and student-data restrictions | UNVERIFIED |
 | Production privacy notice matches observed network traffic and deployment | UNVERIFIED |
 | Security incident procedure, access review and periodic assessment evidence | UNVERIFIED |
 
-## School pilot fail-closed model routing (candidate change)
+## School pilot fail-closed model routing (implemented in #713)
 
 The institutional educator pilot enables the existing local-only model/audio
 egress gate automatically whenever `EDUCATOR_PILOT_ENABLED=true` and the
@@ -46,6 +46,16 @@ until their provider/privacy evidence is independently verified.
 
 This is a bounded technical mitigation, **not** a provider no-training
 attestation, consent determination or legal certification. The configured
+`local` endpoint is additionally guarded at adapter construction in the
+subsequent endpoint-hardening PR: while COPPA enforcement is active, public
+DNS names, public IP addresses, malformed URLs, embedded credentials, and
+link-local metadata addresses are rejected. Localhost, Docker Desktop's
+`host.docker.internal`, and private LAN IPs remain eligible for the selected
+Mac-host path. This is an address-shape check only: it does not attest actual
+DNS resolution, host ownership, HTTP redirects, TLS identity, or outbound
+firewall enforcement. Those require independent operational verification.
+
+The configured
 `local` endpoint must itself be inspected for private ownership and network
 egress; a provider called "local" is not proof of data residency. Direct
 external child-data features and any non-adapter network routes still require

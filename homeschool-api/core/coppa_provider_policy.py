@@ -8,9 +8,14 @@ Never treat a credential, request flag or privacy statement as approval.
 from __future__ import annotations
 
 import os
+from ipaddress import ip_address, ip_network
+from urllib.parse import urlsplit
 
 _EXTERNAL = frozenset({"openai", "anthropic", "mistral"})
 _TRUE = frozenset({"1", "true", "yes", "on"})
+_PRIVATE_MODEL_NETWORKS = tuple(ip_network(cidr) for cidr in (
+    "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7",
+))
 
 
 def enforcement_enabled() -> bool:
@@ -35,6 +40,41 @@ def approved_provider(name: str) -> bool:
     if not enforcement_enabled():
         return True
     return name == "local"
+
+
+
+def require_qualified_local_endpoint(base_url: str) -> None:
+    """Reject cloud/ambiguous endpoints masquerading as the local adapter.
+
+    Applies only when child-data egress enforcement is active. This is an
+    address-shape guard, not DNS, routing, TLS or host ownership attestation.
+    The school-managed Mac host may be reached through Docker Desktop's
+    host.docker.internal name or a private LAN IP.
+    """
+    if not enforcement_enabled():
+        return
+    if not isinstance(base_url, str) or not base_url:
+        raise PermissionError("COPPA: local model endpoint is not qualified")
+    try:
+        parsed = urlsplit(base_url)
+        hostname = parsed.hostname
+        port = parsed.port  # Reject malformed/out-of-range ports.
+        if (parsed.scheme not in ("http", "https") or
+                not hostname or not parsed.netloc or
+                parsed.username is not None or parsed.password is not None or
+                parsed.query or parsed.fragment or port == 0):
+            raise ValueError("Malformed or ambiguous endpoint")
+        if hostname in ("localhost", "host.docker.internal"):
+            return
+        address = ip_address(hostname)
+        # Normalize IPv4-mapped IPv6 before applying exact network rules.
+        address = getattr(address, "ipv4_mapped", None) or address
+        if address.is_loopback or any(address in network for network in _PRIVATE_MODEL_NETWORKS
+                                      if address.version == network.version):
+            return
+    except (ValueError, TypeError):
+        pass
+    raise PermissionError("COPPA: local model endpoint is not qualified")
 
 
 def require_external_feature(feature: str) -> None:

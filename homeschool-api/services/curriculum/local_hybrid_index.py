@@ -191,7 +191,7 @@ def search_chunks(
             vector_score=round(cosine[i], 8),
         )
         for i, chunk in enumerate(allowed)
-        if raw_bm25[i] > 0 or cosine[i] > 0
+        if raw_bm25[i] > 0  # No false hits from hash collisions without lexical evidence.
     )
     return tuple(sorted(
         hits, key=lambda hit: (-hit.score, hit.chunk_id, hit.version),

@@ -55,7 +55,10 @@ def _pages_with_forms():
 def test_the_site_has_one_shared_survey_and_one_business_inquiry_form():
     """Keep business intake distinct from the single product survey."""
     home = (_SITE / "index.html").read_text()
-    assert 'href="/inquire/?audience=homeschool"' in home
+    assert (
+        'href="/inquire/?audience=homeschool"' in home
+        or 'href="mailto:info@agnusdei.ai?subject=Family%20or%20co-op%20onboarding"' in home
+    )
     survey = _SITE / "survey" / "index.html"
     inquiry = _SITE / "inquire" / "index.html"
     assert _pages_with_forms() == sorted([survey, inquiry])

@@ -1,6 +1,14 @@
 {
   "_comment": "Python (pip-audit) vulnerability findings this repo has deliberately decided NOT to fix by upgrading, with the reason recorded here rather than only in a workflow comment. Read by .github/workflows/test.yml's pip-audit step, which turns each \"python\" entry into a --ignore-vuln flag, and by scripts/npm_audit_gate.py for the \"npm\" list (npm audit has no --ignore flag, so the filtering is done on the parsed JSON instead). This file exists because test.yml and frontend-tests.yml's own header comments already referenced it as the established escape hatch ('record why it is unreachable in .github/audit-allowlist.json') before it was ever actually built -- CLAUDE.md's own standing rule is to carry a stated decision through to the code that enforces it, not just describe it. Every entry needs an id, package, fix_version (from pip-audit's own output), reason, and added date. A red pip-audit gate for anything NOT listed here still means upgrade the pin -- this file is for genuinely irreconcilable constraints, never a shortcut around one that could just be fixed.",
-  "python": [],
+  "python": [
+    {
+      "id": "GHSA-xmj3-9gf7-h52w",
+      "package": "setuptools",
+      "fix_version": "84.1.0",
+      "reason": "Temporary compatibility exception: setuptools<84 preserves pkg_resources required by webrtcvad through resemblyzer and voice authentication. This advisory requires Windows plus attacker-controlled namespace metadata passed to setuptools.wheel.Wheel.install_as_egg. The deployed Linux API is not affected by that Windows path interpretation, application code does not call this legacy installer, and installs use trusted hash-locked requirements rather than user-provided wheels. Do not broaden this exception to other setuptools advisories. Retire it when webrtcvad/resemblyzer no longer requires pkg_resources and setuptools>=84.1.0 can pass voice-authentication tests.",
+      "added": "2026-10-24"
+    }
+  ],
   "npm": [
     {
       "id": "GHSA-vfj7-8cjw-p6xm",

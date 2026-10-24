@@ -1,4 +1,5 @@
 """Synthetic SQLite qualification for curriculum staging and human promotion."""
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -242,6 +243,29 @@ async def test_source_tampering_denies_review_and_rolls_back(monkeypatch, tamper
                     decision=ReviewDecision.approve,
                 )
             assert (await db.execute(select(reviews))).all() == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_existing_source_retrieval_metadata_cannot_be_silently_replaced(monkeypatch):
+    engine, Session, author, reviewer, outsider = await setup(monkeypatch)
+    try:
+        async with Session() as db:
+            await stage_lesson(db, token(author), submission())
+            await review_staged_lesson(
+                db, token(reviewer), "campus-a", "lesson-1",
+                decision=ReviewDecision.reject,
+            )
+            next_submission = submission()
+            next_submission = replace(
+                next_submission,
+                source=replace(next_submission.source,
+                               retrieved_at=datetime(2025, 10, 24, tzinfo=timezone.utc)),
+            )
+            with pytest.raises(CurriculumWorkflowDenied):
+                await stage_lesson(db, token(author), next_submission)
+            assert len((await db.execute(select(lessons))).all()) == 1
     finally:
         await engine.dispose()
 

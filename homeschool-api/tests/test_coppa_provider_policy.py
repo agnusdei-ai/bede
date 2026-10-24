@@ -6,7 +6,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from core.coppa_provider_policy import approved_provider, require_external_feature
+from core.coppa_provider_policy import (approved_provider, require_external_feature,
+                                        require_qualified_local_endpoint)
 
 
 class CoppaProviderPolicyTests(unittest.TestCase):
@@ -59,6 +60,52 @@ class CoppaProviderPolicyTests(unittest.TestCase):
               patch.object(settings, "bede_force_adapter", "not-an-adapter")):
             with self.assertRaises(PermissionError):
                 get_default_client()
+
+    def test_pilot_rejects_public_urls_masquerading_as_local(self):
+        from core.config import settings
+        from services.adapters.router import get_default_client
+        bad = (
+            "https://api.example.org/v1",
+            "http://8.8.8.8:11434/v1",
+            "http://localhost.evil.example/v1",
+            "http://user:secret@localhost:11434/v1",
+            "http://169.254.169.254/v1",
+            "http://localhost:99999/v1",
+            "file:///tmp/local",
+        )
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", True),
+              patch.object(settings, "demo_pin", ""),
+              patch.object(settings, "bede_force_adapter", "local")):
+            for url in bad:
+                with self.subTest(url=url):
+                    with self.assertRaises(PermissionError):
+                        require_qualified_local_endpoint(url)
+                    with patch.object(settings, "local_llm_base_url", url):
+                        with self.assertRaises(PermissionError):
+                            get_default_client()
+
+    def test_pilot_allows_known_mac_and_private_local_endpoints(self):
+        from core.config import settings
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", True),
+              patch.object(settings, "demo_pin", "")):
+            for url in (
+                "http://localhost:11434/v1",
+                "http://127.0.0.1:11434/v1",
+                "http://host.docker.internal:11434/v1",
+                "http://192.168.1.42:11434/v1",
+                "http://10.0.0.5:11434/v1",
+                "http://[::1]:11434/v1",
+            ):
+                with self.subTest(url=url):
+                    self.assertIsNone(require_qualified_local_endpoint(url))
+
+    def test_nonpilot_legacy_behavior_unchanged(self):
+        from core.config import settings
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", False)):
+            self.assertIsNone(require_qualified_local_endpoint("https://example.org/v1"))
 
     def test_public_demo_remains_opt_in_not_pilot(self):
         from core.config import settings

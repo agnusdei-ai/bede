@@ -11,7 +11,9 @@ from core.coppa_provider_policy import approved_provider, require_external_featu
 
 class CoppaProviderPolicyTests(unittest.TestCase):
     def test_legacy_mode_preserves_existing_routing(self):
-        with patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}):
+        from core.config import settings
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", False)):
             self.assertTrue(approved_provider("openai"))
             self.assertTrue(approved_provider("mistral"))
 

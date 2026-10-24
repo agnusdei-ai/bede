@@ -223,6 +223,7 @@ jobs:
       contents: write        # to push a branch — NOT to push to main
       pull-requests: write   # to open the PR
       issues: write          # to report a cause that lives outside the repo
+      id-token: write        # required for the repair action's OIDC handshake; repair job only
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

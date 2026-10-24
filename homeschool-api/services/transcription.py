@@ -296,6 +296,8 @@ async def aclose_http_client() -> None:
 
 
 async def _transcribe_openai(audio_bytes: bytes, language: str) -> dict:
+    from core.coppa_provider_policy import require_external_feature
+    require_external_feature("transcription")
     """Returns the same {text, language} shape the local backend does, with
     an added "error" key on failure — callers (routers/voice.py's
     /transcribe, services/streaming_transcription.py's worker) already treat

@@ -59,6 +59,7 @@ from typing import Any, Dict, List, Optional
 
 from core.config import settings as _global_settings
 from core import provider_state
+from core.coppa_provider_policy import approved_provider
 from services import model_experiment
 from .anthropic_adapter import build_anthropic_client
 from .openai_compatible_adapter import OpenAICompatibleClient
@@ -81,7 +82,7 @@ def configured_adapters(settings: Any = _global_settings) -> List[str]:
     """Which adapters currently have credentials configured, in
     KNOWN_ADAPTERS order (not preference order) — what the parent UI shows
     as selectable in the AI-provider switcher (core/provider_state.py)."""
-    return [name for name in _KNOWN_ADAPTERS if _is_configured(name, settings)]
+    return [name for name in _KNOWN_ADAPTERS if _is_configured(name, settings) and approved_provider(name)]
 
 
 def preference_order(settings: Any = _global_settings) -> List[str]:
@@ -113,6 +114,8 @@ def _is_configured(name: str, settings: Any) -> bool:
 
 
 def _build(name: str, settings: Any) -> Any:
+    if not approved_provider(name):
+        raise PermissionError("COPPA provider qualification required")
     if name == "anthropic":
         return build_anthropic_client(settings.anthropic_api_key)
     if name == "local":
@@ -137,7 +140,7 @@ def _build(name: str, settings: Any) -> Any:
 
 
 def _configured_order(settings: Any) -> List[str]:
-    return [name for name in _order(settings) if _is_configured(name, settings)]
+    return [name for name in _order(settings) if _is_configured(name, settings) and approved_provider(name)]
 
 
 def current_primary_adapter(settings: Any = _global_settings) -> Optional[str]:
@@ -469,7 +472,7 @@ class FailoverClient:
         # Temporary demo experiment (services/model_experiment.py): a session
         # on the open arm tries the open model first and fails over to the
         # production order like any other provider failure.
-        if model_experiment.current_arm() == model_experiment.ARM_OPEN:
+        if model_experiment.current_arm() == model_experiment.ARM_OPEN and approved_provider(model_experiment.ADAPTER_NAME):
             configured = [model_experiment.ADAPTER_NAME] + configured
         live = [n for n in configured if not self._breaker.is_open(n)]
         return live or configured

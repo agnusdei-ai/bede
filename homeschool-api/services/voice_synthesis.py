@@ -152,6 +152,8 @@ def synthesis_configured() -> bool:
 
 
 async def _synthesize_openai(text: str) -> Optional[bytes]:
+    from core.coppa_provider_policy import require_external_feature
+    require_external_feature("speech synthesis")
     """OpenAI TTS — returns AAC bytes (see AUDIO_FORMAT), or None if every attempt fails
     (network error, auth failure, or a non-retryable/exhausted-retry
     status). See module docstring for why retrying transient failures

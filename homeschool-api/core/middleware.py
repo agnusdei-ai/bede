@@ -27,6 +27,7 @@ from starlette.responses import JSONResponse
 from core import instance_id, license_state
 from core.audit import AuditEvent, log_event
 from core.config import settings
+from core.security_alerts import alert_blocked_access
 
 # ── Rate limiting ─────────────────────────────────────────────────────────────
 # Sliding window: a sorted list of timestamps per (ip, bucket), trimmed from
@@ -174,6 +175,7 @@ class ExfiltrationGuard(BaseHTTPMiddleware):
                     success=False,
                     detail=f"Blocked endpoint: {path}",
                 )
+                await alert_blocked_access("prohibited_endpoint", request.client.host if request.client else "unknown")
                 return JSONResponse({"detail": "Not found"}, status_code=404)
 
         response = await call_next(request)
@@ -208,6 +210,7 @@ class ExfiltrationGuard(BaseHTTPMiddleware):
                         success=False,
                         detail=f"Blocked pattern in response: {path}",
                     )
+                    await alert_blocked_access("sensitive_response", request.client.host if request.client else "unknown")
                     return JSONResponse(
                         {"detail": "Response blocked by data policy"}, status_code=500
                     )

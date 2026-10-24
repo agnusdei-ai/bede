@@ -59,7 +59,7 @@ from typing import Any, Dict, List, Optional
 
 from core.config import settings as _global_settings
 from core import provider_state
-from core.coppa_provider_policy import approved_provider
+from core.coppa_provider_policy import approved_provider, require_qualified_local_endpoint
 from services import model_experiment
 from .anthropic_adapter import build_anthropic_client
 from .openai_compatible_adapter import OpenAICompatibleClient
@@ -119,6 +119,7 @@ def _build(name: str, settings: Any) -> Any:
     if name == "anthropic":
         return build_anthropic_client(settings.anthropic_api_key)
     if name == "local":
+        require_qualified_local_endpoint(settings.local_llm_base_url)
         return OpenAICompatibleClient(
             base_url=settings.local_llm_base_url,
             api_key=settings.local_llm_api_key,

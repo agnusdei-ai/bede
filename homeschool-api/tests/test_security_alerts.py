@@ -17,7 +17,7 @@ class SecurityAlertTests(unittest.IsolatedAsyncioTestCase):
     async def test_default_mailbox_and_redacted_payload(self):
         sender = AsyncMock(return_value=True)
         with patch.dict(os.environ, {"BEDE_SECURITY_ALERT_EMAIL": "bede@agnusdei.ai"}), patch(
-            "services.email_service.send_email", sender
+            "core.security_alerts._send_alert_email", sender
         ):
             ok = await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.10")
         self.assertTrue(ok)
@@ -29,20 +29,20 @@ class SecurityAlertTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_duplicate_is_suppressed(self):
         sender = AsyncMock(return_value=True)
-        with patch("services.email_service.send_email", sender):
+        with patch("core.security_alerts._send_alert_email", sender):
             await security_alerts.alert_blocked_access("sensitive_response", "192.0.2.20")
             await security_alerts.alert_blocked_access("sensitive_response", "192.0.2.20")
         sender.assert_awaited_once()
 
     async def test_delivery_failure_is_retryable(self):
         sender = AsyncMock(side_effect=[False, True])
-        with patch("services.email_service.send_email", sender):
+        with patch("core.security_alerts._send_alert_email", sender):
             self.assertFalse(await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.40"))
             self.assertTrue(await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.40"))
         self.assertEqual(sender.await_count, 2)
 
     async def test_alert_failure_does_not_expose_or_unblock(self):
-        with patch("services.email_service.send_email", AsyncMock(side_effect=RuntimeError("offline"))):
+        with patch("core.security_alerts._send_alert_email", AsyncMock(side_effect=RuntimeError("offline"))):
             self.assertFalse(await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.30"))
 
 

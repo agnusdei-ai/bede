@@ -17,7 +17,7 @@ for (const page of ["", "homeschool"]) {
     assert.match(html, /AI-assisted/);
     assert.match(html, /lesson planning/i);
     assert.match(html, /learning records/);
-    assert.match(html, /href="\/inquire\/\?audience=homeschool"/);
+    assert.match(html, /href="\/inquire\/\?audience=homeschool"|href="mailto:info@agnusdei\.ai\?subject=Family%20or%20co-op%20onboarding"/);
     assert.doesNotMatch(html, /guaranteed acceleration|proven faster|automatically charged/i);
   });
 }
@@ -53,7 +53,10 @@ for (const path of [...htmlFiles(site), fileURLToPath(new URL("../demo/public/la
     const html = readFileSync(path, "utf8");
     // Inspect raw HTML too: prices in metadata and JSON-LD are public disclosures.
     assert.doesNotMatch(html, /\$\s*\d|&#(?:36|x24);|&dollar;|USD\s*\d|\d+\s*(?:%|percent)\s*off/i);
-    assert.doesNotMatch(html, /no per-child fees|no charge for the first|30-day.*trial|7-day free trial|nominal professional-services fee/i);
+    assert.doesNotMatch(html, /no per-child fees|no charge for the first|30-day.*trial|7-day free trial/i);
+    // Only the approved concise educator offer may state the nominal services fee.
+    const outsideApprovedOffer = html.replace(/<section class="classical-stage-band bede-family-trial bede-offers-brief"[\s\S]*?<\/section>/, "");
+    assert.doesNotMatch(outsideApprovedOffer, /nominal professional-services fee/i);
   });
 }
 

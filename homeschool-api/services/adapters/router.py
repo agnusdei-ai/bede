@@ -246,7 +246,16 @@ def get_default_client(settings: Any = _global_settings) -> Any:
     )
     try:
         return _build(fallback, settings)
+    except PermissionError:
+        # A policy denial must NEVER become a fallback to an unqualified
+        # external model, even when no configured adapter is available.
+        raise
     except Exception:
+        # Preserve legacy boot behavior only when Anthropic is permitted.
+        # Under school-pilot or explicit COPPA enforcement this must fail
+        # closed rather than constructing an unqualified cloud client.
+        if not approved_provider("anthropic"):
+            raise PermissionError("COPPA provider qualification required")
         return build_anthropic_client(settings.anthropic_api_key)
 
 

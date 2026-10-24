@@ -12,6 +12,12 @@ log = logging.getLogger(__name__)
 _last_alert: dict[str, float] = {}
 
 
+async def _send_alert_email(recipient: str, subject: str, html_body: str) -> bool:
+    """Keep optional email transport imports outside the lightweight security gate."""
+    from services.email_service import send_email
+    return await send_email(recipient, subject=subject, html_body=html_body)
+
+
 async def alert_blocked_access(reason: str, source_ip: str) -> bool:
     recipient = os.environ.get("BEDE_SECURITY_ALERT_EMAIL", "bede@agnusdei.ai").strip()
     if not recipient:
@@ -23,8 +29,7 @@ async def alert_blocked_access(reason: str, source_ip: str) -> bool:
         return False
     log.warning("security.access_blocked rule=%s source_fingerprint=%s", reason, fingerprint)
     try:
-        from services.email_service import send_email
-        delivered = await send_email(
+        delivered = await _send_alert_email(
             recipient,
             subject="Bede blocked a learner-data access attempt",
             html_body=(

@@ -105,6 +105,17 @@ def test_teacher_private_rights_never_visible_to_campus():
     assert search_chunks("algebra", [misclassified], SearchScope("campus-a")) == ()
 
 
+
+def test_missing_source_edition_is_excluded_even_if_nonverbatim():
+    original = record("missing-edition", "fractions")
+    from dataclasses import replace
+    unsafe = IndexedChunk(
+        replace(original.chunk, source_edition=""),
+        owner_educator_id=original.owner_educator_id,
+    )
+    assert search_chunks("fractions", [unsafe], SearchScope("campus-a")) == ()
+
+
 def test_duplicate_versions_fail_closed():
     entry = record("same", "fractions")
     with pytest.raises(LocalIndexDenied, match="Duplicate"):

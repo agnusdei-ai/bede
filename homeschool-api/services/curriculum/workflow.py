@@ -89,6 +89,12 @@ async def _actor(db, token: dict, campus: str, *, reviewer: bool = False) -> str
         raise CurriculumWorkflowDenied("Curriculum action not permitted") from exc
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize UTC timestamps across SQLite and PostgreSQL deserialization."""
+    return (value.replace(tzinfo=timezone.utc) if value.tzinfo is None
+            else value.astimezone(timezone.utc))
+
+
 def _candidate_snapshot(c: ContentCandidate) -> dict:
     return dict(
         id=c.id, title=c.title, subject=c.subject.value, source=c.source,
@@ -188,6 +194,7 @@ async def stage_lesson(
             ))
         elif any((
             source_row["edition"] != source.edition,
+            _as_utc(source_row["retrieved_at"]) != _as_utc(source.retrieved_at),
             source_row["source_url"] != source.source_url,
             source_row["content_hash"] != source.content_hash,
             source_row["rights_status"] != source.rights_status.value,
@@ -251,16 +258,11 @@ async def review_staged_lesson(
                                   sources.c.source_id == source.source_id)
             .with_for_update()
         )).mappings().first()
-        # SQLite may deserialize timezone-aware timestamps as naive UTC.
-        # Normalize only for comparison; a different retrieval timestamp,
-        # edition, hash, verifier or rights claim must block promotion.
-        def as_utc(value: datetime) -> datetime:
-            return (value.replace(tzinfo=timezone.utc) if value.tzinfo is None
-                    else value.astimezone(timezone.utc))
-
+        # Source rights, edition and retrieval metadata must still match the
+        # immutable staged snapshot at the moment of human promotion.
         if (source_row is None or source_row["content_hash"] != source.content_hash or
                 source_row["edition"] != source.edition or
-                as_utc(source_row["retrieved_at"]) != as_utc(source.retrieved_at) or
+                _as_utc(source_row["retrieved_at"]) != _as_utc(source.retrieved_at) or
                 source_row["rights_status"] != source.rights_status.value or
                 source_row["source_url"] != source.source_url or
                 source_row["rights_verified_by"] != submission.rights_verified_by):

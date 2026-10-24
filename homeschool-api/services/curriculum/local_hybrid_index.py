@@ -98,6 +98,8 @@ def _eligible(item: IndexedChunk, scope: SearchScope) -> bool:
     chunk = item.chunk
     if chunk.campus_id != scope.campus_id or chunk.status != ItemStatus.approved:
         return False
+    if not isinstance(chunk.source_edition, str) or not chunk.source_edition.strip():
+        return False  # Do not return excerpts with an unidentifiable source edition.
     # Licensed reuse requires a separately authenticated license-scope contract.
     # Unknown rights are excluded even if a forged review object is supplied.
     if chunk.rights_status not in (

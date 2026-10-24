@@ -223,13 +223,18 @@ async def test_no_repeat_approval_or_parallel_pending_stage(monkeypatch):
         await engine.dispose()
 
 
+@pytest.mark.parametrize("tampered", [
+    {"content_hash": "tampered"},
+    {"edition": "Unverified substituted edition"},
+    {"retrieved_at": datetime(2025, 10, 24, tzinfo=timezone.utc)},
+])
 @pytest.mark.asyncio
-async def test_source_tampering_denies_review_and_rolls_back(monkeypatch):
+async def test_source_tampering_denies_review_and_rolls_back(monkeypatch, tampered):
     engine, Session, author, reviewer, outsider = await setup(monkeypatch)
     try:
         async with Session() as db:
             await stage_lesson(db, token(author), submission())
-            await db.execute(update(sources).values(content_hash="tampered"))
+            await db.execute(update(sources).values(**tampered))
             await db.commit()
             with pytest.raises(CurriculumWorkflowDenied):
                 await review_staged_lesson(

@@ -22,6 +22,7 @@ async def alert_blocked_access(reason: str, source_ip: str) -> bool:
     if now - _last_alert.get(key, float("-inf")) < 300:
         return False
     _last_alert[key] = now
+    log.warning("security.access_blocked rule=%s source_fingerprint=%s", reason, fingerprint)
     try:
         from services.email_service import send_email
         return await send_email(

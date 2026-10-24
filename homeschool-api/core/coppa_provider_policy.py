@@ -1,8 +1,9 @@
-"""COPPA model egress qualification.
+"""Child-data model egress qualification.
 
-Opt-in enforcement preserves existing deployments while qualification is staged.
-Set BEDE_COPPA_ENFORCE=true before accepting child data. Never treat a
-provider credential, request flag, or public privacy statement as approval.
+School pilot mode automatically blocks unqualified external model routes,
+regardless of the legacy opt-in environment flag. Outside the school pilot,
+BEDE_COPPA_ENFORCE remains opt-in to avoid changing public demo behavior.
+Never treat a credential, request flag or privacy statement as approval.
 """
 from __future__ import annotations
 
@@ -13,7 +14,16 @@ _TRUE = frozenset({"1", "true", "yes", "on"})
 
 
 def enforcement_enabled() -> bool:
-    return os.environ.get("BEDE_COPPA_ENFORCE", "").strip().lower() in _TRUE
+    """Enforce local-only inference for the real school pilot, fail closed.
+
+    Import settings lazily: this module is also imported by the provider
+    router while the application initializes. The demo is a separate
+    synthetic-only surface and retains its existing opt-in behavior.
+    """
+    if os.environ.get("BEDE_COPPA_ENFORCE", "").strip().lower() in _TRUE:
+        return True
+    from core.config import settings
+    return bool(settings.educator_pilot_enabled and not settings.is_demo_deployment)
 
 
 def approved_provider(name: str) -> bool:

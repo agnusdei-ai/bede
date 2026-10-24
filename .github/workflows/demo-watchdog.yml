@@ -1,7 +1,10 @@
 name: Demo watchdog
 
-# Drives the public demo's real first user journey in a real browser, and
-# on failure hands the evidence to an agent that proposes a repair.
+# Drives the public demo's real first user journey in a real browser.
+# GOVERNANCE HOLD (2026-10-24, #709): the unattended write-capable repair
+# job is DISABLED until main requires PRs and checks, and a failing-check
+# block test proves enforcement. The read-only browser check still runs.
+# Do not reactivate repair merely because its OIDC error can be fixed.
 #
 # WHY THIS EXISTS
 #
@@ -203,9 +206,10 @@ jobs:
 
   repair:
     needs: check
-    # `always()` so this evaluates even though `check` failed — without it
-    # the whole point (repair on failure) never runs.
-    if: always() && needs.check.result == 'failure' && (github.event_name == 'schedule' || inputs.repair)
+    # Fail closed: active main ruleset 19940347 has no mandatory PR or CI
+    # checks (#709). An unattended contents:write agent could push to main.
+    # Re-enable only in a reviewed PR after a failing-check block test.
+    if: ${{ false }}
     runs-on: ubuntu-24.04
     # An agent reading a report and opening a PR, with a hard stop. This is
     # the job that spends money and holds write permissions, so it does not
@@ -220,10 +224,7 @@ jobs:
       group: demo-watchdog-repair
       cancel-in-progress: false
     permissions:
-      contents: write        # to push a branch — NOT to push to main
-      pull-requests: write   # to open the PR
-      issues: write          # to report a cause that lives outside the repo
-      id-token: write        # required for the repair action's OIDC handshake; repair job only
+      contents: read        # defense in depth while the repair job is paused
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

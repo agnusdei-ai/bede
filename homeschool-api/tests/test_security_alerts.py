@@ -34,6 +34,13 @@ class SecurityAlertTests(unittest.IsolatedAsyncioTestCase):
             await security_alerts.alert_blocked_access("sensitive_response", "192.0.2.20")
         sender.assert_awaited_once()
 
+    async def test_delivery_failure_is_retryable(self):
+        sender = AsyncMock(side_effect=[False, True])
+        with patch("services.email_service.send_email", sender):
+            self.assertFalse(await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.40"))
+            self.assertTrue(await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.40"))
+        self.assertEqual(sender.await_count, 2)
+
     async def test_alert_failure_does_not_expose_or_unblock(self):
         with patch("services.email_service.send_email", AsyncMock(side_effect=RuntimeError("offline"))):
             self.assertFalse(await security_alerts.alert_blocked_access("prohibited_endpoint", "192.0.2.30"))

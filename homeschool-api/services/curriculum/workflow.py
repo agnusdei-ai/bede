@@ -251,7 +251,16 @@ async def review_staged_lesson(
                                   sources.c.source_id == source.source_id)
             .with_for_update()
         )).mappings().first()
+        # SQLite may deserialize timezone-aware timestamps as naive UTC.
+        # Normalize only for comparison; a different retrieval timestamp,
+        # edition, hash, verifier or rights claim must block promotion.
+        def as_utc(value: datetime) -> datetime:
+            return (value.replace(tzinfo=timezone.utc) if value.tzinfo is None
+                    else value.astimezone(timezone.utc))
+
         if (source_row is None or source_row["content_hash"] != source.content_hash or
+                source_row["edition"] != source.edition or
+                as_utc(source_row["retrieved_at"]) != as_utc(source.retrieved_at) or
                 source_row["rights_status"] != source.rights_status.value or
                 source_row["source_url"] != source.source_url or
                 source_row["rights_verified_by"] != submission.rights_verified_by):

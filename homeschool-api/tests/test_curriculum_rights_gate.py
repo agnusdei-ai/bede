@@ -109,6 +109,14 @@ def test_unknown_skill_and_duplicate_candidate_ids_are_blocked(monkeypatch):
     assert all("id.duplicate" in rules(verdict) for verdict in verdicts)
 
 
+
+def test_malformed_https_authority_fails_closed():
+    s = submission()
+    malformed = replace(s.source, source_url="https://[invalid-ipv6")
+    assert "provenance.source_url" in rules(assess_staging_batch([
+        replace(s, source=malformed)
+    ])[0])
+
 def test_missing_campus_and_unrecognized_rights_status_are_blocked():
     s = submission()
     assert "scope.campus_required" in rules(assess_staging_batch([

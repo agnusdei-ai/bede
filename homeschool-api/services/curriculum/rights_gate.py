@@ -73,9 +73,21 @@ def _provenance_findings(submission: StagingSubmission) -> list[Finding]:
     if candidate.source not in (source.source_id, source.source_url):
         block("provenance.citation_mismatch", "Candidate must cite this source id or URL.")
 
-    parsed = urlsplit(source.source_url)
     if source.rights_status in (RightsStatus.public_domain_verified, RightsStatus.licensed):
-        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+        # urlsplit() raises ValueError on malformed bracketed hosts and some
+        # invalid Unicode authorities. Untrusted source metadata must produce
+        # a blocking verdict, never abort validation of the entire batch.
+        try:
+            parsed = urlsplit(source.source_url)
+            valid_https = (
+                parsed.scheme == "https"
+                and bool(parsed.hostname)
+                and not parsed.username
+                and not parsed.password
+            )
+        except ValueError:
+            valid_https = False
+        if not valid_https:
             block("provenance.source_url", "Externally sourced works require an HTTPS source URL.")
 
     if candidate.public_domain != (source.rights_status == RightsStatus.public_domain_verified):

@@ -45,7 +45,7 @@ def _provenance_findings(submission: StagingSubmission) -> list[Finding]:
     def block(rule: str, message: str) -> None:
         findings.append(Finding(rule, message))
 
-    if not submission.campus_id.strip():
+    if not isinstance(submission.campus_id, str) or not submission.campus_id.strip():
         block("scope.campus_required", "A staging submission requires a campus scope.")
 
     if source is None:
@@ -87,9 +87,9 @@ def _provenance_findings(submission: StagingSubmission) -> list[Finding]:
         if not source.edition.strip():
             block("provenance.edition", "Verbatim text requires a cited source edition.")
 
-    if not submission.rights_evidence_ref.strip():
+    if not isinstance(submission.rights_evidence_ref, str) or not submission.rights_evidence_ref.strip():
         block("rights.evidence_required", "Staging requires a rights evidence reference.")
-    if not is_human_reviewer(submission.rights_verified_by):
+    if not isinstance(submission.rights_verified_by, str) or not is_human_reviewer(submission.rights_verified_by):
         block("rights.verifier_required", "Staging requires a named human rights verifier.")
 
     return findings

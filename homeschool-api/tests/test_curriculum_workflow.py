@@ -1,6 +1,6 @@
 """Synthetic SQLite qualification for curriculum staging and human promotion."""
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -243,6 +243,24 @@ async def test_source_tampering_denies_review_and_rolls_back(monkeypatch, tamper
                     decision=ReviewDecision.approve,
                 )
             assert (await db.execute(select(reviews))).all() == []
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_source_timestamp_with_offset_round_trips_without_false_tamper(monkeypatch):
+    engine, Session, author, reviewer, outsider = await setup(monkeypatch)
+    try:
+        async with Session() as db:
+            s = submission()
+            offset_time = NOW.astimezone(timezone(timedelta(hours=-5)))
+            s = replace(s, source=replace(s.source, retrieved_at=offset_time))
+            await stage_lesson(db, token(author), s)
+            review_id, version = await review_staged_lesson(
+                db, token(reviewer), "campus-a", "lesson-1",
+                decision=ReviewDecision.approve,
+            )
+            assert review_id and version == 2
     finally:
         await engine.dispose()
 

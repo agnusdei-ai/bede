@@ -1,10 +1,10 @@
 name: Demo watchdog
 
 # Drives the public demo's real first user journey in a real browser.
-# GOVERNANCE HOLD (2026-10-24, #709): the unattended write-capable repair
-# job is DISABLED until main requires PRs and checks, and a failing-check
-# block test proves enforcement. The read-only browser check still runs.
-# Do not reactivate repair merely because its OIDC error can be fixed.
+# SAFETY HOLD (2026-10-24): unattended write-capable repair is disabled.
+# The read-only browser monitor remains active. Issue #709 was withdrawn;
+# enabling repair requires a separate, reviewed least-privilege design that
+# cannot push to main, not a new repository administration release gate.
 #
 # WHY THIS EXISTS
 #
@@ -24,10 +24,9 @@ name: Demo watchdog
 # ── A DELIBERATE DEPARTURE, STATED PLAINLY ────────────────────────────────────
 #
 # Every other workflow here is `permissions: contents: read`, and
-# adversarial-probe.yml argues at length for `workflow_dispatch` only:
-# "a human deliberately decides ... it never fires unattended". This one is
-# scheduled AND writes. That inversion was requested explicitly by the
-# repository owner, and is bounded rather than open:
+# adversarial-probe.yml argues at length for `workflow_dispatch` only.
+# The scheduled browser monitor is read-only. The legacy repair design below
+# is inactive; any future write-capable replacement requires separate review:
 #
 #   * The agent CANNOT MERGE. It opens a pull request and stops. The
 #     site/demo human sign-off rule is not suspended for automation.
@@ -67,7 +66,7 @@ name: Demo watchdog
 # `timeout-minutes` on both jobs, and a `check` that is superseded by the
 # next tick rather than wedging the group behind a run that never started.
 #
-# The `repair` gate is already correct for this case and needs no change:
+# The legacy `repair` gate is disabled; it must not activate on this case:
 # it requires `needs.check.result == 'failure'`, and a starved job is
 # `cancelled`, so the agent stayed skipped throughout. Keep it that way —
 # never widen that condition to `!= 'success'`, or a GitHub capacity blip
@@ -206,13 +205,13 @@ jobs:
 
   repair:
     needs: check
-    # Fail closed: active main ruleset 19940347 has no mandatory PR or CI
-    # checks (#709). An unattended contents:write agent could push to main.
-    # Re-enable only in a reviewed PR after a failing-check block test.
+    # Fail closed: an unattended contents:write agent could push to main.
+    # Issue #709 is closed not planned, not a release prerequisite.
+    # A future reviewed repair design must independently prevent direct pushes.
     if: ${{ false }}
     runs-on: ubuntu-24.04
     # An agent reading a report and opening a PR, with a hard stop. This is
-    # the job that spends money and holds write permissions, so it does not
+    # the legacy job that could spend money and write; it remains disabled so it does not
     # get the 6-hour default.
     timeout-minutes: 30
     concurrency:

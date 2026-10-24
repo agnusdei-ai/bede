@@ -20,6 +20,7 @@
   <script src="/assets/bede-motion.js" defer></script>
   <link rel="stylesheet" href="/assets/streamlined.css" />
   <link rel="stylesheet" href="/assets/learning-outcomes.css" />
+  <link id="demo-launch-css" rel="stylesheet" href="/assets/demo-launch.css" />
 </head>
 <body class="classical-offers bede-theme">
 
@@ -29,11 +30,11 @@
         <img src="/assets/agnus-dei-logo.png" alt="" width="54" height="54" />
         <span>AGNUS DEI<small>TECHNOLOGIES</small></span>
       </a>
-      <nav class="classical-nav" aria-label="Main navigation">
+      <nav class="classical-nav" aria-label="Main navigation" data-bede-demo-nav="true">
         <a href="/schools/">For Schools</a>
         <a href="/homeschool/" aria-current="page">For Homeschool</a>
         <a href="/#human-led">Our Approach</a>
-        <a class="nav-demo" href="/bede/">Try the demo <span aria-hidden="true">&rarr;</span></a>
+        <a class="nav-demo bede-demo-nav-link" href="/bede/" target="_blank" rel="noopener noreferrer" aria-label="Launch the Bede public demo (opens in new tab)">Launch demo</a>
       </nav>
     </header>
 
@@ -93,14 +94,39 @@
   </section>
 
 
-  <section class="classical-stage-band bede-family-trial" id="family-trial" aria-labelledby="family-trial-title">
-    <div class="bede-family-trial__inner">
-      <div class="bede-family-trial__copy">
-        <p class="eyebrow">START WITH YOUR FAMILY</p>
-        <h2 id="family-trial-title">See how Bede could fit your day.</h2>
-        <p>Tell us about your learners, the books you use, and your home setup. We’ll explain onboarding and provide current plan pricing in response to your email request.</p>
+
+  <section class="bede-demo-launch" id="try-bede" aria-labelledby="try-bede-title">
+    <div class="bede-demo-launch__inner">
+      <img class="bede-demo-launch__portrait" src="/assets/bede-portrait.png" alt="Illustrated portrait of Bede" width="512" height="512" />
+      <div class="bede-demo-launch__copy">
+        <p class="bede-demo-launch__eyebrow">A PUBLIC PREVIEW</p>
+        <h2 id="try-bede-title">Try Bede</h2>
+        <p class="bede-demo-launch__lead">Meet your learning companion.</p>
+        <p class="bede-demo-launch__description">Explore Bede with the adult leading and real learning at the center.</p>
+        <p class="bede-demo-launch__note">For classical educators and homeschooling families or co-ops.</p>
       </div>
-      <a class="classical-button ink bede-family-trial__action" href="/inquire/?audience=homeschool">Request onboarding &amp; pricing <span aria-hidden="true">&rarr;</span></a>
+      <a class="bede-demo-launch__action" href="/bede/" target="_blank" rel="noopener noreferrer" aria-label="Launch the Bede public demo (opens in new tab)">
+        <span>Launch Bede demo</span><span class="bede-demo-launch__arrow" aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </section>
+
+<section class="classical-stage-band bede-family-trial bede-offers-brief" id="family-trial" data-bede-brief-offers aria-labelledby="bede-offers-title">
+    <div class="bede-offers-brief__inner">
+      <p class="eyebrow">ONE BEDE. TWO OFFERS.</p>
+      <h2 id="bede-offers-title">Choose your path.</h2>
+      <div class="bede-offers-brief__paths">
+        <article>
+          <h3>Classical educators</h3>
+          <p>Teacher-led pilots, with onsite implementation and customization on certified hardware. A nominal professional-services fee applies.</p>
+          <a href="mailto:info@agnusdei.ai?subject=Classical%20educator%20onboarding">Discuss educator onboarding <span aria-hidden="true">&rarr;</span></a>
+        </article>
+        <article>
+          <h3>Homeschooling families &amp; co-ops</h3>
+          <p>Learning shaped around your books and goals. Families begin with 30 days at no charge; co-op options are discussed during onboarding.</p>
+          <a href="mailto:info@agnusdei.ai?subject=Family%20or%20co-op%20onboarding">Request family or co-op onboarding <span aria-hidden="true">&rarr;</span></a>
+        </article>
+      </div>
     </div>
   </section>
 

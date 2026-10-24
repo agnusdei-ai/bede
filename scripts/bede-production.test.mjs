@@ -19,7 +19,7 @@ for (const page of pages) {
     assert.doesNotMatch(html, /<iframe|__mockup|preview-action|UNPUBLISHED SITE PREVIEW|postMessage/i);
     assert.equal((html.match(/<form\b/gi) || []).length, ["survey", "inquire"].includes(page) ? 1 : 0);
     assert.doesNotMatch(html, /href="[^"]*(?:checkout|trial-form)/);
-    assert.match(html, /class="nav-demo" href="\/bede\/"/);
+    assert.match(html, /class="nav-demo bede-demo-nav-link" href="\/bede\/"/);
     assert.match(html, /href="\/inquire\/(?:\?audience=[a-z_]+)?"/);
     assert.match(html, /href="\/assets\/spacing-motion\.css"/);
     assert.match(html, /href="\/assets\/streamlined\.css"/);

@@ -130,6 +130,23 @@ const PROFILES = {
   ipad: { name: 'ipad (emulated)', ctx: devices['iPad (gen 7)'] },
 };
 
+// Keep the journey's entry control aligned with the actual en-US UI. A stale
+// hardcoded "Generate my code" selector previously marked all devices broken
+// even while the current "Start Bede demo" button was present.
+function entryButtonLabel() {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const locale = JSON.parse(readFileSync(join(here, '..', 'demo', 'src', 'i18n', 'locales', 'en.json'), 'utf8'));
+    const label = locale?.codeScreen?.generateCode;
+    if (typeof label === 'string' && label.trim()) return label;
+  } catch {
+    // Permit standalone runs outside a source checkout, as with picture study.
+  }
+  return 'Start Bede demo';
+}
+
+const ENTRY_BUTTON_LABEL = entryButtonLabel();
+
 const PROFILE = PROFILES[process.env.DEVICE_PROFILE || 'desktop'] || PROFILES.desktop;
 
 /** Everything the run observed. Emitted whole, pass or fail. */
@@ -297,10 +314,10 @@ try {
   // Matched by role/text rather than a CSS class so a styling change does
   // not produce a false alarm — this check must fail for real reasons only,
   // or it will be ignored, which is worse than not having it.
-  const button = page.getByRole('button', { name: /generate my code/i }).first();
+  const button = page.getByRole('button', { name: ENTRY_BUTTON_LABEL, exact: true }).first();
   await button.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {
     report.failedStep = 'find-button';
-    report.summary = 'The "Generate my code" button never appeared — the app may not have mounted.';
+    report.summary = `The "${ENTRY_BUTTON_LABEL}" button never appeared — the app may not have mounted.`;
   });
   if (report.failedStep) finish(1);
 
@@ -310,16 +327,19 @@ try {
   // Success = the app leaves the entry screen. Failure = the inline error
   // the demo shows, which is deliberately vague to a visitor and therefore
   // useless on its own — the diagnostics below are what explain it.
-  const outcome = await Promise.race([
+  // The button temporarily loses its text while loading, so disappearance
+  // of its accessible name is NOT proof of login. Wait for the entry form
+  // itself to unmount, or a visible error. Promise.any ignores whichever
+  // observation times out first instead of prematurely reporting failure.
+  const outcome = await Promise.any([
     page
       .getByText(/could not reach the server|could not start a session|not enabled|too many/i)
       .first()
       .waitFor({ state: 'visible', timeout: TIMEOUT_MS })
       .then(() => 'error'),
     page
-      .getByRole('button', { name: /generate my code/i })
-      .first()
-      .waitFor({ state: 'hidden', timeout: TIMEOUT_MS })
+      .locator('#student-name')
+      .waitFor({ state: 'detached', timeout: TIMEOUT_MS })
       .then(() => 'started'),
   ]).catch(() => 'timeout');
 

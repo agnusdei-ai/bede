@@ -188,7 +188,7 @@ async def stage_lesson(
             await db.execute(insert(sources).values(
                 campus_id=campus, source_id=source.source_id,
                 edition=source.edition, source_url=source.source_url,
-                retrieved_at=source.retrieved_at, content_hash=source.content_hash,
+                retrieved_at=_as_utc(source.retrieved_at), content_hash=source.content_hash,
                 rights_status=source.rights_status.value,
                 rights_verified_by=submission.rights_verified_by,
             ))

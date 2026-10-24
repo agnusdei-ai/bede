@@ -1,7 +1,7 @@
 """Privacy-safe security notifications for blocked learner-data access.
 
 No learner content, credentials, request bodies, or raw IP addresses in mail.
-The recipient must be explicitly configured by the local operator.
+The default recipient is the Bede security mailbox; operators can override it.
 """
 import hashlib
 import logging
@@ -13,7 +13,7 @@ _last_alert: dict[str, float] = {}
 
 
 async def alert_blocked_access(reason: str, source_ip: str) -> bool:
-    recipient = os.environ.get("BEDE_SECURITY_ALERT_EMAIL", "").strip()
+    recipient = os.environ.get("BEDE_SECURITY_ALERT_EMAIL", "bede@agnusdei.ai").strip()
     if not recipient:
         return False
     fingerprint = hashlib.sha256(source_ip.encode("utf-8")).hexdigest()[:12]

@@ -27,6 +27,17 @@ sources = Table(
     Column("retrieved_at", DateTime(timezone=True), nullable=False),
 )
 
+reviewer_grants = Table(
+    "curriculum_reviewer_grants", metadata,
+    Column("campus_id", String(36), primary_key=True),
+    Column("educator_id", String(36), primary_key=True),
+    # Provisioning belongs to an independently authorized administrator.
+    # Curriculum code has no self-grant operation or publicly mounted router.
+    Column("granted_by", String(100), nullable=False),
+    Column("issued_at", DateTime(timezone=True), nullable=False),
+    Column("enabled", Boolean, nullable=False),
+)
+
 reviews = Table(
     "curriculum_reviews", metadata,
     Column("campus_id", String(36), primary_key=True),

@@ -1,0 +1,42 @@
+name: PR security gate
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provenance-and-alerts:
+    name: Provenance and security alerts
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check source provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f homeschool-api/core/security_alerts.py
+          test -f homeschool-api/tests/test_security_alerts.py
+          test -f .github/workflows/codeql.yml
+          git log -1 --format='%H %s'
+          git diff --check
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for p in Path(".github/workflows").glob("*.yml"):
+              text = p.read_text()
+              for action in re.findall(r"(?m)^\s*-?\s*uses:\s*([^\s#]+)", text):
+                  if action.startswith("./") or action.startswith("docker://"):
+                      continue
+                  if not re.fullmatch(r"[^@]+@[0-9a-f]{40}", action):
+                      raise SystemExit(f"Unpinned action in {p}: {action}")
+          print("Workflow action SHA provenance: PASS")
+          PY
+      - name: Run focused synthetic security-alert tests
+        working-directory: homeschool-api
+        run: python3 -m unittest discover -s tests -p test_security_alerts.py -v
+      - name: Verify CodeQL enforcement remains configured
+        run: |
+          grep -q 'scripts/check_codeql_sarif.py' .github/workflows/codeql.yml
+          test -f scripts/check_codeql_sarif.py

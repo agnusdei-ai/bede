@@ -64,7 +64,9 @@ def require_qualified_local_endpoint(base_url: str) -> None:
         if hostname in ("localhost", "host.docker.internal"):
             return
         address = ip_address(hostname)
-        if address.is_loopback or address.is_private:
+        if address.is_loopback or (address.is_private and not (
+            address.is_link_local or address.is_unspecified or address.is_multicast
+        )):
             return
     except (ValueError, TypeError):
         pass

@@ -17,6 +17,24 @@ log = logging.getLogger(__name__)
 # addresses. Rotation on restart is intentional: no persistent tracking ID.
 _FINGERPRINT_KEY = secrets.token_bytes(32)
 _last_alert: dict[str, float] = {}
+# Keep successful alert fingerprints only for the active deduplication window.
+# A stream of distinct blocked sources must not grow process memory forever.
+_ALERT_DEDUP_SECONDS = 300
+_MAX_TRACKED_ALERTS = 2048
+
+
+def _prune_alert_history(now: float) -> None:
+    """Expire old fingerprints and bound retained successful deliveries."""
+    expired = [key for key, timestamp in _last_alert.items()
+               if now - timestamp >= _ALERT_DEDUP_SECONDS]
+    for key in expired:
+        _last_alert.pop(key, None)
+    overflow = len(_last_alert) - _MAX_TRACKED_ALERTS
+    if overflow > 0:
+        oldest = sorted(_last_alert, key=_last_alert.__getitem__)[:overflow]
+        for key in oldest:
+            _last_alert.pop(key, None)
+
 
 
 async def _send_alert_email(recipient: str, subject: str, html_body: str) -> bool:
@@ -32,7 +50,7 @@ async def alert_blocked_access(reason: str, source_ip: str) -> bool:
     fingerprint = hmac.new(_FINGERPRINT_KEY, source_ip.encode("utf-8"), hashlib.sha256).hexdigest()[:12]
     key = f"{reason}:{fingerprint}"
     now = time.monotonic()
-    if now - _last_alert.get(key, float("-inf")) < 300:
+    if now - _last_alert.get(key, float("-inf")) < _ALERT_DEDUP_SECONDS:
         return False
     log.warning("security.access_blocked rule=%s source_fingerprint=%s", reason, fingerprint)
     try:
@@ -47,6 +65,7 @@ async def alert_blocked_access(reason: str, source_ip: str) -> bool:
         )
         if delivered:
             _last_alert[key] = now
+            _prune_alert_history(now)
         return delivered
     except Exception:
         log.exception("Unable to deliver blocked-access alert")

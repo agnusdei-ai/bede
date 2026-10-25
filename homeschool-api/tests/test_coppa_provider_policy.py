@@ -24,6 +24,37 @@ class CoppaProviderPolicyTests(unittest.TestCase):
             for provider in ("openai", "anthropic", "mistral", "experiment"):
                 self.assertFalse(approved_provider(provider))
 
+    def test_direct_anthropic_factory_denied_before_sdk_construction(self):
+        """Router bypasses cannot create a cloud client in enforced pilot mode."""
+        from core.config import settings
+        from services.adapters.anthropic_adapter import build_anthropic_client
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true"}),
+              patch.object(settings, "educator_pilot_enabled", False),
+              patch("anthropic.AsyncAnthropic") as sdk_factory):
+            with self.assertRaises(PermissionError):
+                build_anthropic_client("synthetic-only")
+            sdk_factory.assert_not_called()
+
+        # The institutional pilot wins over a concurrently enabled demo flag.
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", True),
+              patch.object(settings, "demo_pin", "synthetic-demo"),
+              patch("anthropic.AsyncAnthropic") as sdk_factory):
+            with self.assertRaises(PermissionError):
+                build_anthropic_client("synthetic-only")
+            sdk_factory.assert_not_called()
+
+    def test_direct_anthropic_factory_preserves_nonpilot_behavior(self):
+        """Ordinary nonpilot clients still use the unchanged SDK interface."""
+        from core.config import settings
+        from services.adapters.anthropic_adapter import build_anthropic_client
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", False),
+              patch("anthropic.AsyncAnthropic") as sdk_factory):
+            client = build_anthropic_client("synthetic-only")
+            self.assertIs(client, sdk_factory.return_value)
+            sdk_factory.assert_called_once_with(api_key="synthetic-only")
+
     def test_external_audio_is_denied(self):
         with patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true"}):
             for feature in ("transcription", "speech synthesis"):

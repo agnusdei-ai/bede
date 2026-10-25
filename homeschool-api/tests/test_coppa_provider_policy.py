@@ -30,6 +30,33 @@ class CoppaProviderPolicyTests(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     require_external_feature(feature)
 
+    def test_demo_switch_cannot_downgrade_active_school_pilot(self):
+        """An accidentally mixed demo/pilot configuration stays fail-closed."""
+        from core.config import settings
+        from core.coppa_provider_policy import enforcement_enabled
+        from services.adapters.router import get_default_client
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", True),
+              patch.object(settings, "demo_pin", "demo-enabled"),
+              patch.object(settings, "anthropic_api_key", "synthetic-not-real"),
+              patch.object(settings, "bede_force_adapter", "anthropic")):
+            self.assertTrue(enforcement_enabled())
+            self.assertFalse(approved_provider("anthropic"))
+            with self.assertRaises(PermissionError):
+                require_external_feature("transcription")
+            with self.assertRaises(PermissionError):
+                get_default_client()
+
+    def test_demo_without_school_pilot_retains_existing_policy(self):
+        """The dedicated public demo is not implicitly a school pilot."""
+        from core.config import settings
+        from core.coppa_provider_policy import enforcement_enabled
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
+              patch.object(settings, "educator_pilot_enabled", False),
+              patch.object(settings, "demo_pin", "demo-enabled")):
+            self.assertFalse(enforcement_enabled())
+            self.assertTrue(approved_provider("anthropic"))
+
     def test_real_school_pilot_auto_enforces_without_opt_in(self):
         from core.config import settings
         from services.adapters.router import get_default_client, resolve_with_failover

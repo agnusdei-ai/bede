@@ -40,8 +40,11 @@ is the **teacher's** count, read off the page and labelled as such.
    and a script for hints. They approve it (optionally with edits) or discard
    it. A decided set can't be changed again.
 
-Delivery to the child, the re-checks themselves, and pattern history arrive
-in later pull requests (see "Build order" below).
+The parent's screen is the **Practice from a graded quiz** card on each
+student's Progress page (`homeschool-tutor/src/components/PracticeCoach.tsx`);
+`docs/PARENT_SETUP.md` §5 walks a parent through it. Delivery to the child,
+the re-checks themselves, and pattern history arrive in later pull requests
+(see "Build order" below).
 
 ## Where the photos go
 
@@ -117,10 +120,12 @@ repository: they show a child's handwriting and a school's own worksheet.
 
 ## Build order
 
-1. **This change:** core pipeline, Latin pack, reading, confirm, diagnose,
-   plan, approve, parent-only API.
-2. **Parent screens:** upload, review with flagged fields highlighted,
-   approve or edit, printable worksheet, English and Spanish.
+1. **Done:** core pipeline, Latin pack, reading, confirm, diagnose, plan,
+   approve, parent-only API.
+2. **Done:** parent screens. Upload, review with flagged fields highlighted
+   (planning is blocked until each is settled), approve with items removed,
+   discard, printable worksheet, English and Spanish. Typing a quiz in by
+   hand is available in the API but not yet on screen.
 3. **Delivery to the child, inside an ordinary Bede session:** re-checks at
    +3/+7 days, mixed review of mastered items, pattern history recorded as
    events about the work, never labels about the child.

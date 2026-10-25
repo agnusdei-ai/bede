@@ -1158,6 +1158,56 @@ mistake, remove the erroneous entry and create a replacement. All records
 are encrypted and included in student-data deletion. Read the full scope and
 limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
 
+### Turn a graded quiz into practice
+
+When your child brings home a graded quiz or worksheet, open **Pod
+Dashboard → Progress**, choose the student, and find **Practice from a
+graded quiz**. Today it works for **Latin**; more subjects will follow.
+
+1. **Choose the subject and photograph the pages.** You can add up to six
+   pages, as JPEG or PNG. The card tells you where the photos will be read:
+   - **On this computer's own AI model**, if your install has one. Nothing
+     is sent anywhere else.
+   - **By your AI provider** (for example OpenAI), if there is no local
+     model. You must tick the box agreeing to that for this upload. Without
+     the tick, nothing is sent.
+
+   Bede keeps only what it reads off the page, never the photos, and it does
+   not record names, schools, teachers or dates.
+2. **Check the reading.** You'll see every question with your child's answer
+   and the teacher's mark, all editable. Anything Bede wasn't sure of is
+   highlighted with the reason, for example "the macron on the ī is
+   unclear". Fix it if it's wrong, then press **Looks right**. You can't go
+   on until every highlighted answer is settled, because Bede never builds
+   practice on a guess.
+3. **Read what Bede found.** The card shows:
+   - the teacher's own count (for example "12 of 13, by the teacher's
+     marks"). Bede does not grade the quiz itself;
+   - **What to work on**: the pattern behind each miss, for example "wrote
+     *avis* (bird) for *anas* (duck): the general word for the specific one";
+   - **Just for you**: things you might mention that the teacher didn't mark,
+     such as answering in single words when the instructions asked for
+     sentences. These are never shown to your child;
+   - **What was solid.**
+4. **Approve, change or discard the practice.** Bede drafts about 5–10
+   minutes of practice on the pattern, using only words from your child's
+   own word banks and never the exact question they missed. Untick any item
+   you don't want, read the **What to say** hints, and then:
+   - **Approve** it;
+   - **Print worksheet** to do it on paper; or
+   - **Discard** it.
+
+   Nothing reaches your child unless you approve it.
+
+A circle left white for *alba* (white) on a colour question is a correct
+answer, and Bede treats it as one.
+
+Coming next: approved practice will appear in your child's ordinary Bede
+lesson, followed by short re-checks after 3 and 7 days. Until then, use
+**Print worksheet** or sit with your child and work through the set
+together. See [Practice Coach](PRACTICE_COACH.md) for how it works and what
+it deliberately does not do.
+
 ### Teach one approved subject now
 
 On **Today's Pod**, select **Teach one subject now** in the student's

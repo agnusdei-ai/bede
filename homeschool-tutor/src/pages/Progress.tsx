@@ -6,6 +6,7 @@ import { ArrowLeft, Lock, BookOpen, AlertCircle } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
 import EducatorAssessments from '../components/EducatorAssessments'
+import PracticeCoach from '../components/PracticeCoach'
 import SubjectCoverage from '../components/SubjectCoverage'
 import MasteryOverview from '../components/MasteryOverview'
 import type { MasteryArea } from '../components/MasteryOverview'
@@ -902,6 +903,10 @@ export default function Progress() {
                 diagnostic mastery estimates. They remain independently
                 sourced evidence, subject to parent review and correction. */}
             <EducatorAssessments token={token} studentName={activeStudent} />
+            {/* Parent-only: a photographed, graded quiz becomes practice the
+                parent approves before the child sees any of it. See
+                docs/PRACTICE_COACH.md. */}
+            <PracticeCoach token={token} studentName={activeStudent} />
             <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}

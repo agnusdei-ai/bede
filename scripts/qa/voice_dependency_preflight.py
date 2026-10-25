@@ -63,8 +63,8 @@ def assess(versions: dict[str, str], resemblyzer_requirements: list[str],
         "Exactly one VAD distribution may be installed; overlapping providers are unsafe.")
     add("module_provenance", len(providers) == 1 and imported_from == providers,
         "The installed distribution supplying the webrtcvad module must match the sole VAD provider.")
-    add("resemblyzer_metadata_compatible", len(providers) == 1 and declared <= providers,
-        "Resemblyzer's declared VAD dependencies must be satisfied by the actual distribution; "
+    add("resemblyzer_metadata_compatible", len(providers) == 1 and declared == providers,
+        "Resemblyzer must explicitly require exactly the installed VAD distribution; "
         "webrtcvad-wheels does not satisfy a hard webrtcvad distribution requirement.")
     return checks
 

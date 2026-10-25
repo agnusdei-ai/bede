@@ -35,6 +35,14 @@ class VoiceDependencyPreflightTests(unittest.TestCase):
         self.assertEqual(checks["resemblyzer_metadata_compatible"], "FAIL")
         self.assertEqual(checks["single_vad_distribution"], "PASS")
 
+    def test_missing_or_unrelated_vad_metadata_fails_closed(self):
+        for requirements in ([], ["numpy>=1.0"]):
+            with self.subTest(requirements=requirements):
+                checks = self.results(
+                    self.fork, requirements, ["webrtcvad-wheels"]
+                )
+                self.assertEqual(checks["resemblyzer_metadata_compatible"], "FAIL")
+
     def test_rejects_two_overlapping_vad_distributions(self):
         versions = {**self.fork, "webrtcvad": "2.0.10"}
         checks = self.results(

@@ -1,0 +1,69 @@
+{
+  "_fixture": "latin_quiz_1",
+  "_note": "Hand-typed from a parent's two photos of a graded Latin quiz. The photos are deliberately NOT in this repository: they show a child's handwriting and a school's own worksheet. No name, school, teacher or date is recorded. The reading test against the real photos runs by hand (scripts/practice_golden_eval.py); everything below runs in CI.",
+
+  "assessment": {
+    "subject": "latin",
+    "sections": [
+      {
+        "label": "Part 1",
+        "instructions": "Using the word bank, answer in complete Latin sentences.",
+        "required_format": "complete_sentence",
+        "word_bank": ["canis", "fēlēs", "mūs", "avis", "anas", "natat", "currit", "edit", "bibit", "dormit", "volat", "est"],
+        "items": [
+          {"number": 1, "prompt": "Quid est?",  "stimulus": "picture: dog running",   "student_response": "canis",  "teacher_mark": "correct",   "confidence": 0.95},
+          {"number": 2, "prompt": "Quid agit?", "stimulus": "picture: dog running",   "student_response": "currit", "teacher_mark": "correct",   "confidence": 0.95},
+          {"number": 3, "prompt": "Quid est?",  "stimulus": "picture: bird flying",   "student_response": "avis",   "teacher_mark": "correct",   "confidence": 0.95},
+          {"number": 4, "prompt": "Quid agit?", "stimulus": "picture: bird flying",   "student_response": "volat",  "teacher_mark": "correct",   "confidence": 0.95},
+          {"number": 5, "prompt": "Quid est?",  "stimulus": "picture: duck on water", "student_response": "avis",   "teacher_mark": "incorrect", "teacher_correction": "anas", "confidence": 0.93},
+          {"number": 6, "prompt": "Quid agit?", "stimulus": "picture: duck on water", "student_response": "natat",  "teacher_mark": "correct",   "confidence": 0.9}
+        ]
+      },
+      {
+        "label": "Part 2",
+        "instructions": "Use the word bank to fill in the blanks.",
+        "required_format": "single_word",
+        "word_bank": ["lentē", "rēmōs", "somnium", "vīta"],
+        "items": [
+          {"number": 1, "prompt": "Dūc, dūc, ___ dūc,", "student_response": "rēmōs",   "teacher_mark": "correct", "confidence": 0.9},
+          {"number": 2, "prompt": "___ in aquā.",       "student_response": "lentē",   "teacher_mark": "correct", "confidence": 0.7, "ask_parent": "The handwritten n may read as h"},
+          {"number": 3, "prompt": "Hilarē … ___ est",   "student_response": "somnium", "teacher_mark": "correct", "confidence": 0.9},
+          {"number": 4, "prompt": "… est ___.",         "student_response": "vīta",    "teacher_mark": "correct", "confidence": 0.7, "ask_parent": "The macron on the i is unclear"}
+        ]
+      },
+      {
+        "label": "Part 3",
+        "instructions": "Fill in the circle with the correct color.",
+        "required_format": "color_fill",
+        "items": [
+          {"number": 1, "prompt": "Alba",  "student_response": "uncolored", "teacher_mark": "correct", "confidence": 0.9},
+          {"number": 2, "prompt": "Fusca", "student_response": "brown",     "teacher_mark": "correct", "confidence": 0.95},
+          {"number": 3, "prompt": "Flava", "student_response": "yellow",    "teacher_mark": "correct", "confidence": 0.95}
+        ]
+      }
+    ]
+  },
+
+  "expected_teacher_mark_count": {"correct": 12, "total": 13, "source": "teacher_marks"},
+  "expected_ask_parent_refs": ["Part 2 #2", "Part 2 #4"],
+
+  "expected_diagnosis": {
+    "must_include": [
+      {"category": "latin.vocab.hypernym_substitution", "item_ref": "Part 1 #5", "audience": "parent_and_child"},
+      {"category": "core.instruction.format",           "item_ref": "Part 1",    "audience": "parent_only"}
+    ],
+    "must_include_strengths": ["latin.verbs.action_words", "latin.macrons", "latin.colors"],
+    "must_not_include": [
+      {"category": "core.unanswered",       "item_ref": "Part 3 #1"},
+      {"category": "latin.macron_omission", "item_ref": "Part 2 #4"}
+    ]
+  },
+
+  "expected_practice_constraints": {
+    "targets_include": ["latin.vocab.hypernym_substitution", "core.instruction.format"],
+    "max_minutes": 10,
+    "vocabulary_limited_to_word_banks": true,
+    "must_not_repeat_verbatim": [{"prompt": "Quid est?", "stimulus": "picture: duck on water"}],
+    "recheck_schedule": ["+3d", "+7d"]
+  }
+}

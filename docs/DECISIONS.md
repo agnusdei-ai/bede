@@ -2202,3 +2202,35 @@ conversation), entry 10 (the memberships actually sold), entry 26 (monthly),
 entry 34 (the Guided Membership's open delivery parameters), entry 35 (what
 goes self-serve), entry 36 (the trial's own copy conflict, still open),
 entry 37 (the tier this gates contact against).
+
+---
+
+## 39. `[PRODUCT]` The Practice Coach: what it may do with a photographed quiz
+
+**Status:** closed
+
+**Decided (2026-10-25, owner approved "as recommended").** Bede may read a
+graded worksheet a parent photographs, diagnose the pattern behind each miss,
+and draft practice the parent approves. Six rulings shape it, each carried
+into code in `docs/PRACTICE_COACH.md`'s first build:
+
+1. **Where photos are read.** On the household's local model when one is
+   configured, never falling back. Otherwise on the household's configured
+   cloud provider **only with the parent's consent for that upload**, named
+   before anything is sent.
+2. **Golden fixtures are hand-typed, never real photos.** A golden quiz is a
+   real child's handwriting on a school's worksheet, and this repository is
+   public. The reading is checked against the real photos by hand
+   (`homeschool-api/scripts/practice_golden_eval.py`).
+3. **Drills are parent-approved and parent-started.** The existing "never a
+   drill" rules for in-lesson phonics and language check-ins are unchanged;
+   a Practice Coach drill is a separate thing a parent chose.
+4. **Days practised, never streaks.** A streak that resets to zero tells a
+   child they failed whenever the family travels. Speed is never rewarded.
+5. **Pattern history describes the work, never the child.** "Format not met
+   on 2 of 3 assessments", not "skips instructions". The count shown is the
+   teacher's marks; Bede keeps no grade of its own.
+6. **Not on the public demo.** Every route is parent-only.
+
+**Related:** entry 20 (which model reads the photos is the household's own
+provider choice, not this feature's).

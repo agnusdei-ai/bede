@@ -137,12 +137,18 @@ class CoppaProviderPolicyTests(unittest.TestCase):
               patch.object(settings, "educator_pilot_enabled", False)):
             self.assertIsNone(require_qualified_local_endpoint("https://example.org/v1"))
 
-    def test_public_demo_remains_opt_in_not_pilot(self):
+    def test_public_demo_switch_cannot_override_pilot_policy(self):
+        """Mixed demo/pilot mode must never disable local-only inference.
+
+        Demo-only behavior is independently covered above. This former
+        legacy expectation would otherwise contradict the security fix.
+        """
         from core.config import settings
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
               patch.object(settings, "educator_pilot_enabled", True),
               patch.object(settings, "demo_pin", "synthetic-demo-only")):
-            self.assertTrue(approved_provider("anthropic"))
+            self.assertFalse(approved_provider("anthropic"))
+            self.assertTrue(approved_provider("local"))
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true"}),
               patch.object(settings, "educator_pilot_enabled", True),
               patch.object(settings, "demo_pin", "synthetic-demo-only")):

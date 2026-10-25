@@ -384,9 +384,11 @@ async def test_original_lesson_and_revision_each_require_independent_approval(mo
             ]
             assert rows[1].review_id == first_review
             assert rows[3].review_id == second_review
-            assert (await db.execute(select(reviews.c.review_id))).scalars().all() == [
-                first_review, second_review,
-            ]
+            recorded_reviews = (await db.execute(
+                select(reviews.c.review_id)
+            )).scalars().all()
+            assert len(recorded_reviews) == 2
+            assert set(recorded_reviews) == {first_review, second_review}
     finally:
         await engine.dispose()
 

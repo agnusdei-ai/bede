@@ -1,5 +1,7 @@
 """Synthetic regression coverage for privacy-safe blocked-access notifications."""
 import asyncio
+import hashlib
+import hmac
 import os
 import sys
 import unittest
@@ -26,6 +28,35 @@ class SecurityAlertTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(args.args[0], "bede@agnusdei.ai")
         self.assertNotIn("192.0.2.10", args.kwargs["html_body"])
         self.assertIn("prohibited_endpoint", args.kwargs["html_body"])
+
+    async def test_fingerprint_uses_secret_key_not_reversible_plain_ip_hash(self):
+        ip = "192.0.2.10"
+        key = b"bede-synthetic-test-key-only-1234"
+        sender = AsyncMock(return_value=True)
+        with patch.object(security_alerts, "_FINGERPRINT_KEY", key), patch(
+            "core.security_alerts._send_alert_email", sender
+        ):
+            self.assertTrue(await security_alerts.alert_blocked_access("prohibited_endpoint", ip))
+        html = sender.await_args.kwargs["html_body"]
+        expected = hmac.new(key, ip.encode("utf-8"), hashlib.sha256).hexdigest()[:12]
+        unsafe_plain = hashlib.sha256(ip.encode("utf-8")).hexdigest()[:12]
+        self.assertIn(f"Source fingerprint: {expected}", html)
+        self.assertNotEqual(expected, unsafe_plain)
+        self.assertNotIn(unsafe_plain, html)
+        self.assertNotIn(ip, html)
+
+    async def test_fingerprint_rotates_with_secret_without_exposing_ip(self):
+        ip = "192.0.2.99"
+        sender = AsyncMock(return_value=True)
+        with patch("core.security_alerts._send_alert_email", sender):
+            with patch.object(security_alerts, "_FINGERPRINT_KEY", b"a" * 32):
+                self.assertTrue(await security_alerts.alert_blocked_access("prohibited_endpoint", ip))
+            with patch.object(security_alerts, "_FINGERPRINT_KEY", b"b" * 32):
+                self.assertTrue(await security_alerts.alert_blocked_access("prohibited_endpoint", ip))
+        self.assertEqual(sender.await_count, 2)
+        first, second = [call.kwargs["html_body"] for call in sender.await_args_list]
+        self.assertNotEqual(first, second)
+        self.assertNotIn(ip, first + second)
 
     async def test_duplicate_is_suppressed(self):
         sender = AsyncMock(return_value=True)

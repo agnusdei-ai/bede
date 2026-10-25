@@ -1,0 +1,50 @@
+name: Issue 726 one-time hash regeneration (temporary)
+
+on:
+  push:
+    branches: [fix/issue726-setuptools-voice-20261025]
+    paths:
+      - homeschool-api/requirements.in
+      - .github/workflows/issue726-locks.yml
+
+permissions:
+  contents: write
+
+jobs:
+  hash-locked-security-fix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Obtain authentic PyPI hashes and patch only setuptools
+        working-directory: homeschool-api
+        run: |
+          python -m pip install --quiet packaging
+          python - <<'PY'
+          from pathlib import Path
+          from packaging.specifiers import SpecifierSet
+          from scripts.security_patch import vulnerabilities, choose_fix, rewrite_pin
+          assert vulnerabilities("setuptools", "83.0.0"), "Baseline advisory not reproduced; stop"
+          candidate, blocked = choose_fix("setuptools", "83.0.0", SpecifierSet(">=84.1.0"))
+          assert candidate is not None and blocked is None, blocked
+          assert not vulnerabilities("setuptools", candidate), "Replacement has an advisory"
+          for lock in ("requirements.lock.txt", "requirements-dev.lock.txt"):
+              rewrite_pin(Path(lock), "setuptools", "83.0.0", candidate)
+          print("Updated both locks with authentic PyPI hashes:", candidate)
+          PY
+          python scripts/check_lockfile_consistency.py
+      - name: Commit only generated hashes to the isolated remediation branch
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf 'homeschool-api/requirements-dev.lock.txt\nhomeschool-api/requirements.lock.txt')"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add homeschool-api/requirements.lock.txt homeschool-api/requirements-dev.lock.txt
+          git commit -m 'fix(deps): refresh setuptools security hashes for issue 726'
+          git push origin HEAD:fix/issue726-setuptools-voice-20261025

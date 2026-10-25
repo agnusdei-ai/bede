@@ -5,6 +5,9 @@ Safari/Windows/Linux journeys remain an owner-run release acceptance gate.
 """
 import re
 from datetime import timedelta
+
+from fastapi import HTTPException
+from sqlalchemy import select
 from types import SimpleNamespace
 
 import pytest
@@ -13,7 +16,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from core.config import settings
-from core.database import Base, EducatorWebAuthnChallenge, EducatorWebAuthnCredential
+from core.database import (
+    Base, ClassicalEducator, EducatorPasskeyInvitation,
+    EducatorWebAuthnChallenge, EducatorWebAuthnCredential,
+)
 from core.encryption import initialize_encryption
 from services import educator_passkey_runtime as runtime
 from services import educator_invites as invites
@@ -106,6 +112,70 @@ async def test_delivered_one_time_school_mailbox_invitation(db, monkeypatch):
     await db.commit()
     with pytest.raises(ValueError):
         await invites.validate_invitation(db, ticket, token)
+
+
+
+@pytest.mark.asyncio
+async def test_failed_invitation_delivery_rolls_back_educator_and_allows_retry(db, monkeypatch):
+    """An email outage must not strand an unregistered educator username."""
+    from routers import educator_passkeys as routes
+
+    monkeypatch.setattr(settings, "educator_pilot_enabled", True)
+    monkeypatch.setattr(settings, "demo_pin", "")
+    monkeypatch.setattr(routes, "email_configured", lambda: True)
+    monkeypatch.setattr(invites, "email_configured", lambda: True)
+
+    async def fail_send(*args):
+        return False
+
+    monkeypatch.setattr(invites, "send_email", fail_send)
+    request = routes.InviteRequest(
+        username="synthetic.invite.teacher", institutional_email="teacher@example.edu"
+    )
+    admin = {"role": "parent", "auth_method": "webauthn_uv"}
+    with pytest.raises(HTTPException) as exc:
+        await routes.invite_educator(request, admin=admin, db=db)
+    assert exc.value.status_code == 503
+    assert (await db.execute(select(ClassicalEducator))).scalars().all() == []
+    assert (await db.execute(select(EducatorPasskeyInvitation))).scalars().all() == []
+
+    delivered = []
+
+    async def succeed_send(address, subject, body):
+        delivered.append(address)
+        return True
+
+    monkeypatch.setattr(invites, "send_email", succeed_send)
+    result = await routes.invite_educator(request, admin=admin, db=db)
+    assert result["sent"] is True
+    assert delivered == ["teacher@example.edu"]
+    educators = (await db.execute(select(ClassicalEducator))).scalars().all()
+    tickets = (await db.execute(select(EducatorPasskeyInvitation))).scalars().all()
+    assert len(educators) == len(tickets) == 1
+    assert tickets[0].educator_id == educators[0].id
+
+
+@pytest.mark.asyncio
+async def test_invalid_invitation_configuration_rolls_back_uncommitted_educator(db, monkeypatch):
+    """A fail-closed invitation preflight must not reserve the username."""
+    from routers import educator_passkeys as routes
+
+    monkeypatch.setattr(settings, "educator_pilot_enabled", True)
+    monkeypatch.setattr(settings, "demo_pin", "")
+    monkeypatch.setattr(settings, "webauthn_origin", "http://unqualified.example.edu")
+    monkeypatch.setattr(routes, "email_configured", lambda: True)
+    monkeypatch.setattr(invites, "email_configured", lambda: True)
+    with pytest.raises(HTTPException) as exc:
+        await routes.invite_educator(
+            routes.InviteRequest(
+                username="synthetic.bad-origin", institutional_email="teacher@example.edu"
+            ),
+            admin={"role": "parent", "auth_method": "webauthn_uv"},
+            db=db,
+        )
+    assert exc.value.status_code == 422
+    assert (await db.execute(select(ClassicalEducator))).scalars().all() == []
+    assert (await db.execute(select(EducatorPasskeyInvitation))).scalars().all() == []
 
 
 @pytest.mark.asyncio

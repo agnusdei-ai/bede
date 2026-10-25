@@ -91,11 +91,21 @@ async def invite_educator(
         # Current schema requires legacy columns. Fill with high-entropy
         # UNKNOWN secrets; never return them to any caller. The old password
         # route is disabled independently and cannot sign in.
-        created = await provision_educator(db, username, secrets.token_urlsafe(48))
+        # Keep educator identity and invitation in one transaction: a failed
+        # delivery must not strand a credential-less account or block retry.
+        created = await provision_educator(
+            db, username, secrets.token_urlsafe(48), commit=False,
+        )
         ok = await issue_invitation(db, created["id"], school_email)
     except ValueError as exc:
+        await db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception:
+        await db.rollback()
+        raise
     if not ok:
+        # issue_invitation rolls back a failed send, including the new account.
+        await db.rollback()
         raise HTTPException(status_code=503, detail="School invitation delivery failed")
     return {"sent": True, "username": username, "message": "Passkey invite sent to verified school mailbox"}
 

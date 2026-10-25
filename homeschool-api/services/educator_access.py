@@ -44,7 +44,7 @@ def _aware(dt: datetime | None) -> datetime | None:
     return dt.replace(tzinfo=timezone.utc) if dt and dt.tzinfo is None else dt
 
 
-async def provision_educator(db, username: str, password: str) -> dict:
+async def provision_educator(db, username: str, password: str, *, commit: bool = True) -> dict:
     name = normalize_username(username)
     if len(password) < 14 or len(password) > 256:
         raise ValueError("Use an educator password of 14 to 256 characters")
@@ -61,7 +61,12 @@ async def provision_educator(db, username: str, password: str) -> dict:
         password_salt=salt,
         totp_enc=encrypt_json({"secret": secret}, _otp_aad(identifier)),
     ))
-    await db.commit()
+    # Invitation enrollment must remain in the same transaction as its
+    # one-time delivery ticket. Other legacy callers retain auto-commit.
+    if commit:
+        await db.commit()
+    else:
+        await db.flush()
     return {
         "id": identifier, "username": name,
         # Show exactly once to the elevated parent for secure handoff.

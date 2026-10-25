@@ -363,6 +363,19 @@ class OpenAICompatibleClient:
         self, *, base_url: str = "", api_key: str = "", model: str = "",
         strict_local_transport: bool = False,
     ) -> None:
+        # Enforce at the adapter construction boundary too, not just the
+        # router. A direct caller must not bypass school-pilot egress policy
+        # by omitting strict_local_transport or selecting an experiment URL.
+        from core.coppa_provider_policy import (
+            enforcement_enabled, require_qualified_local_endpoint,
+        )
+        enforced = enforcement_enabled()
+        if strict_local_transport and not enforced:
+            raise PermissionError("Strict local transport requires active egress policy")
+        if enforced:
+            require_qualified_local_endpoint(base_url)
+            strict_local_transport = True
+
         # Lazy import: keeps `openai` off the import path for Anthropic-only
         # (default) deployments — see this module's docstring.
         from openai import AsyncOpenAI
@@ -375,12 +388,6 @@ class OpenAICompatibleClient:
             # follow server redirects. Both defeat an address-only local
             # endpoint check. Use an explicit isolated transport for the
             # institutional pilot, shared by streaming and nonstreaming calls.
-            from core.coppa_provider_policy import (
-                enforcement_enabled, require_qualified_local_endpoint,
-            )
-            if not enforcement_enabled():
-                raise PermissionError("Strict local transport requires active egress policy")
-            require_qualified_local_endpoint(base_url)
             import httpx
             client_kwargs["http_client"] = httpx.AsyncClient(
                 follow_redirects=False,

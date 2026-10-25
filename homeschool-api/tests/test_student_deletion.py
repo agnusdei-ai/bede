@@ -21,6 +21,8 @@ from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
     EducatorAssessmentEvidence,
+    PracticeAssessment,
+    PracticeSetRecord,
     EducatorRosterAssignment,
     Base,
     DiagnosticEvidenceLog,
@@ -114,6 +116,14 @@ async def _seed_all_tables(db, student_name: str):
     db.add(EducatorRosterAssignment(
         educator_id="test-instructor", student_name=student_name,
     ))
+    db.add(PracticeAssessment(
+        student_name=student_name, subject="latin", status="confirmed",
+        detail_enc=encrypt_json({"subject": "latin"}),
+    ))
+    db.add(PracticeSetRecord(
+        student_name=student_name, assessment_id=1, status="draft",
+        detail_enc=encrypt_json({"practice_set": {}}),
+    ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     await db.commit()
 
@@ -130,6 +140,8 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("skill_activity_log", SkillActivityLog),
         ("adaptive_instruction_traces", AdaptiveInstructionTrace),
         ("educator_assessment_evidence", EducatorAssessmentEvidence),
+        ("practice_assessments", PracticeAssessment),
+        ("practice_sets", PracticeSetRecord),
         ("educator_roster_assignments", EducatorRosterAssignment),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),

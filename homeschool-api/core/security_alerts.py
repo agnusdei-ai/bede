@@ -4,11 +4,18 @@ No learner content, credentials, request bodies, or raw IP addresses in mail.
 The default recipient is the Bede security mailbox; operators can override it.
 """
 import hashlib
+import hmac
 import logging
 import os
+import secrets
 import time
 
 log = logging.getLogger(__name__)
+# A plain SHA-256 hash of an IPv4 address is reversible by enumeration.
+# Use a private per-process HMAC key so alert fingerprints remain stable for
+# in-process deduplication but cannot be recovered from mail/logs by guessing
+# addresses. Rotation on restart is intentional: no persistent tracking ID.
+_FINGERPRINT_KEY = secrets.token_bytes(32)
 _last_alert: dict[str, float] = {}
 
 
@@ -22,7 +29,7 @@ async def alert_blocked_access(reason: str, source_ip: str) -> bool:
     recipient = os.environ.get("BEDE_SECURITY_ALERT_EMAIL", "bede@agnusdei.ai").strip()
     if not recipient:
         return False
-    fingerprint = hashlib.sha256(source_ip.encode("utf-8")).hexdigest()[:12]
+    fingerprint = hmac.new(_FINGERPRINT_KEY, source_ip.encode("utf-8"), hashlib.sha256).hexdigest()[:12]
     key = f"{reason}:{fingerprint}"
     now = time.monotonic()
     if now - _last_alert.get(key, float("-inf")) < 300:

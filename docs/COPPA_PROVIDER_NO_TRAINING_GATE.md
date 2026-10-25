@@ -35,9 +35,11 @@ An API request flag cannot override a provider's terms or account-level processi
 ## School pilot fail-closed model routing (implemented in #713)
 
 The institutional educator pilot enables the existing local-only model/audio
-egress gate automatically whenever `EDUCATOR_PILOT_ENABLED=true` and the
-instance is not a public demo (`DEMO_PIN` unset). This applies even if
-`BEDE_COPPA_ENFORCE=false`. Forced model selection, live overrides and
+egress gate automatically whenever `EDUCATOR_PILOT_ENABLED=true`, **even if
+`DEMO_PIN` is accidentally set on the same deployment**. A public-demo switch
+must never downgrade the school pilot's egress restrictions. This applies even
+if `BEDE_COPPA_ENFORCE=false`; a dedicated public demo with
+`EDUCATOR_PILOT_ENABLED=false` retains its existing behavior. Forced model selection, live overrides and
 fallbacks must not route to an unqualified cloud provider. A separate
 explicit `BEDE_COPPA_ENFORCE=true` continues to enforce the same restriction
 outside the pilot, including the public demo. Existing non-pilot, non-enforced

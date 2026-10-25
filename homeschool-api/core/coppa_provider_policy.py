@@ -1,7 +1,7 @@
 """Child-data model egress qualification.
 
 School pilot mode automatically blocks unqualified external model routes,
-regardless of the legacy opt-in environment flag. Outside the school pilot,
+even if a public-demo switch is also configured by mistake. Outside the school pilot,
 BEDE_COPPA_ENFORCE remains opt-in to avoid changing public demo behavior.
 Never treat a credential, request flag or privacy statement as approval.
 """
@@ -28,7 +28,11 @@ def enforcement_enabled() -> bool:
     if os.environ.get("BEDE_COPPA_ENFORCE", "").strip().lower() in _TRUE:
         return True
     from core.config import settings
-    return bool(settings.educator_pilot_enabled and not settings.is_demo_deployment)
+    # A public-demo switch must never downgrade an explicitly enabled
+    # institutional pilot to unrestricted cloud routing. If both flags are
+    # accidentally enabled, prefer the stricter local-only boundary.
+    # The public demo alone (educator_pilot_enabled=False) is unchanged.
+    return bool(settings.educator_pilot_enabled)
 
 
 def approved_provider(name: str) -> bool:

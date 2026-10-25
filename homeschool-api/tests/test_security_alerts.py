@@ -58,6 +58,39 @@ class SecurityAlertTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotEqual(first, second)
         self.assertNotIn(ip, first + second)
 
+    async def test_successful_alert_prunes_expired_fingerprints(self):
+        sender = AsyncMock(return_value=True)
+        security_alerts._last_alert.update({
+            "expired": 699.0,
+            "recent": 999.0,
+        })
+        with patch("core.security_alerts.time.monotonic", return_value=1000.0), patch(
+            "core.security_alerts._send_alert_email", sender
+        ):
+            self.assertTrue(await security_alerts.alert_blocked_access(
+                "prohibited_endpoint", "192.0.2.50"
+            ))
+        self.assertNotIn("expired", security_alerts._last_alert)
+        self.assertIn("recent", security_alerts._last_alert)
+        self.assertEqual(len(security_alerts._last_alert), 2)
+
+    async def test_many_distinct_sources_cannot_grow_alert_cache_unbounded(self):
+        limit = security_alerts._MAX_TRACKED_ALERTS
+        security_alerts._last_alert.update({
+            f"prior:{index}": 800.0 + index / (limit + 1)
+            for index in range(limit)
+        })
+        sender = AsyncMock(return_value=True)
+        with patch("core.security_alerts.time.monotonic", return_value=1000.0), patch(
+            "core.security_alerts._send_alert_email", sender
+        ):
+            self.assertTrue(await security_alerts.alert_blocked_access(
+                "prohibited_endpoint", "192.0.2.51"
+            ))
+        self.assertEqual(len(security_alerts._last_alert), limit)
+        self.assertNotIn("prior:0", security_alerts._last_alert)
+        sender.assert_awaited_once()
+
     async def test_duplicate_is_suppressed(self):
         sender = AsyncMock(return_value=True)
         with patch("core.security_alerts._send_alert_email", sender):

@@ -18,4 +18,10 @@ import anthropic
 
 
 def build_anthropic_client(api_key: str) -> anthropic.AsyncAnthropic:
+    # Guard the factory itself: a direct caller must not bypass the router's
+    # institutional pilot provider policy. Check before constructing an SDK
+    # client so a denied request cannot instantiate a cloud transport.
+    from core.coppa_provider_policy import approved_provider
+    if not approved_provider("anthropic"):
+        raise PermissionError("COPPA provider qualification required")
     return anthropic.AsyncAnthropic(api_key=api_key)

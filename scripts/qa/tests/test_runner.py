@@ -78,7 +78,7 @@ class ReliabilityTests(unittest.TestCase):
         self.assertEqual(result["category"], "outdated_test")
 
     def test_secret_masking(self):
-        self.assertNotIn("my-real-secret", runner.sanitize("EXPERIMENT_LLM_API_KEY=my-real-secret"))
+        self.assertNotIn("my-real-secret", runner.sanitize("OPENAI_API_KEY=my-real-secret"))
         self.assertEqual(runner.categorize("GHSA-XXXX blocked"), "security_audit")
 
     def test_manifest_mismatch_is_detected(self):

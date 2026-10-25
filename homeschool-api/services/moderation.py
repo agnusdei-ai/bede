@@ -122,21 +122,16 @@ async def classify_child_message(text: str, student_name: Optional[str] = None) 
 
     try:
         from services.ai_service import _client  # single shared client/connection pool, not a second one
-        from services import model_experiment
-
-        # Safety screening never moves to an experimental model: it fails
-        # open, so a model that answers badly here would silently disable it.
-        with model_experiment.suspended():
-            response = await asyncio.wait_for(
-                _client.messages.create(
-                    model=settings.session_model,
-                    max_tokens=_MAX_TOKENS,
-                    temperature=0,
-                    system=_SYSTEM_PROMPT,
-                    messages=[{"role": "user", "content": f"<message_to_classify>{text}</message_to_classify>"}],
-                ),
-                timeout=_TIMEOUT_SECONDS,
-            )
+        response = await asyncio.wait_for(
+            _client.messages.create(
+                model=settings.session_model,
+                max_tokens=_MAX_TOKENS,
+                temperature=0,
+                system=_SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": f"<message_to_classify>{text}</message_to_classify>"}],
+            ),
+            timeout=_TIMEOUT_SECONDS,
+        )
 
         try:
             from core.api_usage import record_usage

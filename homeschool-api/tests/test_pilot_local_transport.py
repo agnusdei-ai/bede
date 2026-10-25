@@ -68,6 +68,39 @@ class PilotLocalTransportTests(unittest.TestCase):
             transport_factory.assert_not_called()
             sdk_factory.assert_not_called()
 
+    def test_direct_adapter_cannot_bypass_school_pilot_egress(self):
+        """Even non-router callers cannot opt out of the enforced boundary."""
+        from services.adapters.openai_compatible_adapter import OpenAICompatibleClient
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true"}),
+              patch("httpx.AsyncClient") as transport_factory,
+              patch("openai.AsyncOpenAI") as sdk_factory):
+            for url in ("", "https://public.example.invalid/v1",
+                        "http://169.254.169.254/v1"):
+                with self.subTest(url=url):
+                    with self.assertRaises(PermissionError):
+                        OpenAICompatibleClient(
+                            base_url=url, strict_local_transport=False,
+                        )
+            transport_factory.assert_not_called()
+            sdk_factory.assert_not_called()
+
+    def test_direct_local_adapter_automatically_uses_strict_transport(self):
+        """A caller cannot silently inherit proxies or follow redirects."""
+        from services.adapters.openai_compatible_adapter import OpenAICompatibleClient
+        with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true",
+                                      "HTTPS_PROXY": "https://public.example.invalid"}),
+              patch("httpx.AsyncClient") as transport_factory,
+              patch("openai.AsyncOpenAI") as sdk_factory):
+            OpenAICompatibleClient(
+                base_url="http://127.0.0.1:11434/v1",
+                strict_local_transport=False,
+            )
+            kwargs = transport_factory.call_args.kwargs
+            self.assertIs(kwargs["trust_env"], False)
+            self.assertIs(kwargs["follow_redirects"], False)
+            self.assertIs(sdk_factory.call_args.kwargs["http_client"],
+                          transport_factory.return_value)
+
     def test_legacy_nonpilot_adapter_unchanged(self):
         from core.config import settings
         from services.adapters.router import get_default_client

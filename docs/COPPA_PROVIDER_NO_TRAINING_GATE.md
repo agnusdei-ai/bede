@@ -53,7 +53,14 @@ link-local metadata addresses are rejected. Localhost, Docker Desktop's
 `host.docker.internal`, and private LAN IPs remain eligible for the selected
 Mac-host path. This is an address-shape check only: it does not attest actual
 DNS resolution, host ownership, HTTP redirects, TLS identity, or outbound
-firewall enforcement. Those require independent operational verification.
+firewall enforcement. A subsequent focused transport hardening change configures
+the institutional pilot's local OpenAI-compatible HTTP client with
+`follow_redirects=False` and `trust_env=False`, preventing automatic
+redirect following and inheritance of environment HTTP(S) proxies for this
+adapter. It preserves long local-inference timeouts and leaves nonpilot
+adapters unchanged. **DNS resolution, direct network egress, DNS rebinding,
+host ownership, transport/TLS trust, and independent outbound-firewall
+attestation remain unverified.** These require operational verification.
 
 The configured
 `local` endpoint must itself be inspected for private ownership and network

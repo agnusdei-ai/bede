@@ -59,7 +59,8 @@ from typing import Any, Dict, List, Optional
 
 from core.config import settings as _global_settings
 from core import provider_state
-from core.coppa_provider_policy import approved_provider, require_qualified_local_endpoint
+from core.coppa_provider_policy import (approved_provider, enforcement_enabled,
+                                        require_qualified_local_endpoint)
 from services import model_experiment
 from .anthropic_adapter import build_anthropic_client
 from .openai_compatible_adapter import OpenAICompatibleClient
@@ -124,6 +125,7 @@ def _build(name: str, settings: Any) -> Any:
             base_url=settings.local_llm_base_url,
             api_key=settings.local_llm_api_key,
             model=settings.local_llm_model,
+            strict_local_transport=enforcement_enabled(),
         )
     if name == "openai":
         return OpenAICompatibleClient(

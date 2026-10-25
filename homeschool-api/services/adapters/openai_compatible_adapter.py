@@ -359,7 +359,10 @@ class OpenAICompatibleClient:
     still required by the OpenAI SDK even for a keyless local server — pass any
     non-empty placeholder (see `local_llm_api_key`'s default)."""
 
-    def __init__(self, *, base_url: str = "", api_key: str = "", model: str = "") -> None:
+    def __init__(
+        self, *, base_url: str = "", api_key: str = "", model: str = "",
+        strict_local_transport: bool = False,
+    ) -> None:
         # Lazy import: keeps `openai` off the import path for Anthropic-only
         # (default) deployments — see this module's docstring.
         from openai import AsyncOpenAI
@@ -367,6 +370,25 @@ class OpenAICompatibleClient:
         client_kwargs: Dict[str, Any] = {"api_key": api_key or "not-needed"}
         if base_url:
             client_kwargs["base_url"] = base_url
+        if strict_local_transport:
+            # The SDK's default HTTP client can inherit HTTP(S)_PROXY and
+            # follow server redirects. Both defeat an address-only local
+            # endpoint check. Use an explicit isolated transport for the
+            # institutional pilot, shared by streaming and nonstreaming calls.
+            from core.coppa_provider_policy import (
+                enforcement_enabled, require_qualified_local_endpoint,
+            )
+            if not enforcement_enabled():
+                raise PermissionError("Strict local transport requires active egress policy")
+            require_qualified_local_endpoint(base_url)
+            import httpx
+            client_kwargs["http_client"] = httpx.AsyncClient(
+                follow_redirects=False,
+                trust_env=False,
+                # Match the SDK's long inference timeout; the default httpx
+                # 5-second read timeout would break normal local generation.
+                timeout=httpx.Timeout(600.0, connect=5.0),
+            )
         self._openai = AsyncOpenAI(**client_kwargs)
         self._model = model
         self.messages = _Messages(self)

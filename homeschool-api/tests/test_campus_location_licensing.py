@@ -127,6 +127,7 @@ def test_license_state_fails_closed_on_wrong_location(signing_key, monkeypatch):
 def test_manual_issuer_mints_expiring_campus_key(signing_key, tmp_path, monkeypatch, capsys):
     pem = tmp_path / "test-only-ed25519.pem"
     pem.write_text(signing_key.export_key(format="PEM"))
+    monkeypatch.setenv("BEDE_LICENSE_LEDGER", str(tmp_path / "ledger.csv"))
     monkeypatch.setattr(sys, "argv", [
         "issue_license.py", "--tier", "campus_location",
         "--licensee", "Test Site License",
@@ -148,6 +149,7 @@ def test_manual_issuer_fails_without_site_or_attempts_numeric_seats(
 ):
     pem = tmp_path / "throwaway.pem"
     pem.write_text(signing_key.export_key(format="PEM"))
+    monkeypatch.setenv("BEDE_LICENSE_LEDGER", str(tmp_path / "ledger.csv"))
     base = ["issue_license.py", "--tier", "campus_location",
             "--licensee", "Test Site License", "--days", "31",
             "--private-key", str(pem)]

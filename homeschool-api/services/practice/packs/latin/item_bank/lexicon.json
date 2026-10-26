@@ -1,0 +1,97 @@
+{
+  "_note": "Meanings and relations only. Practice never uses a word from here unless it is also in one of the child's own word banks.",
+  "nouns": {
+    "canis": {
+      "gloss": "dog",
+      "broader": "animal",
+      "can": [
+        "currit",
+        "edit",
+        "bibit",
+        "dormit",
+        "natat"
+      ]
+    },
+    "fēlēs": {
+      "gloss": "cat",
+      "broader": "animal",
+      "can": [
+        "currit",
+        "edit",
+        "bibit",
+        "dormit"
+      ]
+    },
+    "mūs": {
+      "gloss": "mouse",
+      "broader": "animal",
+      "can": [
+        "currit",
+        "edit",
+        "bibit",
+        "dormit"
+      ]
+    },
+    "avis": {
+      "gloss": "bird",
+      "broader": "animal",
+      "can": [
+        "volat",
+        "edit",
+        "bibit",
+        "dormit"
+      ]
+    },
+    "anas": {
+      "gloss": "duck",
+      "broader": "avis",
+      "can": [
+        "natat",
+        "volat",
+        "edit",
+        "bibit",
+        "dormit"
+      ]
+    }
+  },
+  "verbs": {
+    "currit": {
+      "gloss": "runs",
+      "scene": "running"
+    },
+    "volat": {
+      "gloss": "flies",
+      "scene": "flying"
+    },
+    "natat": {
+      "gloss": "swims",
+      "scene": "swimming"
+    },
+    "edit": {
+      "gloss": "eats",
+      "scene": "eating"
+    },
+    "bibit": {
+      "gloss": "drinks",
+      "scene": "drinking"
+    },
+    "dormit": {
+      "gloss": "sleeps",
+      "scene": "sleeping"
+    }
+  },
+  "colors": {
+    "alba": {
+      "gloss": "white",
+      "fill": "uncolored"
+    },
+    "fusca": {
+      "gloss": "brown",
+      "fill": "brown"
+    },
+    "flava": {
+      "gloss": "yellow",
+      "fill": "yellow"
+    }
+  }
+}

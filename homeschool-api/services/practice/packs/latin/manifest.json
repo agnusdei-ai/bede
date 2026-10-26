@@ -1,0 +1,15 @@
+{
+  "id": "latin",
+  "display_name": "Latin",
+  "grade_bands": ["K-2", "3-5", "6-8"],
+  "item_types": ["picture_question", "word_bank_blank", "color_fill"],
+  "detects": [
+    "latin.vocab.hypernym_substitution",
+    "latin.vocab.confusable_pair",
+    "latin.vocab.unknown_word",
+    "latin.macron_omission",
+    "latin.question.what_vs_doing",
+    "latin.unclassified"
+  ],
+  "_note": "Taxonomy categories not listed in `detects` (verb person/number, noun endings, word order, translation direction) are recorded so the parent can tag them by hand; this pack does not yet detect them automatically."
+}

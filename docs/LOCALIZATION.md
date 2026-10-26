@@ -372,6 +372,12 @@ Four homes for the same defect, all now closed:
 | The empty-turn refusal fallbacks | an English sentence ending a Spanish lesson |
 | The app's own subject names | "Morning Time" in the sidebar; the product had no `subjects` translations at all, only the demo did |
 
+The celebration card has since lost its server wording in every locale.
+Its frame, "I noticed you saw that ___", stacked on the model's own
+noticing verb and produced "I noticed you saw that you noticed…" in
+English too, so the model now writes the whole sentence
+(`tests/test_celebration_wording.py`).
+
 **The rule this leaves.** Anything the server composes and sends to a child
 — a card's wording, a fallback sentence, a label handed to the model — must
 be written per locale, exactly like `safeguarding_response` and its siblings

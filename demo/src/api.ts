@@ -710,6 +710,7 @@ export async function* streamTutorChat(
   drawingImageDataUrl: string | null,
   signal?: AbortSignal,
   timeOfDay?: TimeOfDay | null,
+  previousSubject?: Subject | null,
 ): AsyncGenerator<StreamChunk> {
   const localDate = deriveLocalDate()
   // The debug panel is the only way a report like "greeting doesn't match
@@ -739,6 +740,9 @@ export async function* streamTutorChat(
           drawing_image: drawingImageDataUrl ? stripDataUrlPrefix(drawingImageDataUrl) : null,
           local_date: localDate,
           local_time_of_day: timeOfDay ?? null,
+          // The subject the visitor just came from, so Bede marks the change
+          // instead of greeting them again (TutorRequest.previous_subject).
+          previous_subject: previousSubject ?? null,
         }),
         signal,
       })

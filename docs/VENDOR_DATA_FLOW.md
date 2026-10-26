@@ -26,7 +26,12 @@ subject's guidance, the processing-style note, any parent-supplied
 for the current subject, and the child's current message. If the child
 used the handwriting canvas, that turn also includes the drawing as a
 base64-encoded image (only reaches the model intact with a vision-capable
-provider — see `docs/PROVIDER_ADAPTERS.md`'s note on this). End-of-session
+provider — see `docs/PROVIDER_ADAPTERS.md`'s note on this). If a parent
+uses the Practice Coach (`docs/PRACTICE_COACH.md`), the photographed pages
+of a graded worksheet are sent the same way, as base64 images, for one
+reading call: to the local model when one is configured, and to a cloud
+provider **only after the parent confirms it for that upload**. The pages are
+never stored by Bede. End-of-session
 summaries (`generate_session_summary`) send the session's message history
 to produce the parent-facing report. A separate, second call
 (`services/moderation.py`'s `classify_child_message`, AIUC-1 B005) sends

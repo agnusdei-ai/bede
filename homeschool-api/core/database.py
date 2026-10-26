@@ -726,6 +726,52 @@ class EducatorAssessmentEvidence(Base):
     )
 
 
+class PracticeAssessment(Base):
+    """A graded worksheet as the parent confirmed it (docs/PRACTICE_COACH.md).
+
+    Holds the structured reading only. The photo it came from is never stored
+    anywhere: it exists only inside the request that read it. `detail_enc` is
+    encrypted with the student's own key, so deleting the student
+    crypto-shreds it. `status` is "needs_review" until the parent confirms the
+    reading, then "confirmed".
+    """
+    __tablename__ = "practice_assessments"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    subject: Mapped[str] = mapped_column(String(30), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="needs_review")
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+
+
+class PracticeSetRecord(Base):
+    """A practice set drafted from a confirmed assessment.
+
+    Nothing reaches the child unless `status` is "approved", and only a parent
+    can make it so. "discarded" is final. Encrypted with the student's key.
+    """
+    __tablename__ = "practice_sets"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    assessment_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), index=True, nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class SessionTranscript(Base):
     """Encrypted full session transcript saved at session end for parent review."""
     __tablename__ = "session_transcripts"

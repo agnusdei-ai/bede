@@ -629,7 +629,7 @@ interface ChatScreenProps {
   // and surfaced here for the Continuing Mastery card's own framing line,
   // so a visitor sees Bede is actually aware of the material they typed in.
   currentUnit?: string | null
-  runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) => AsyncGenerator<StreamChunk>
+  runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal, previousSubject: Subject | null) => AsyncGenerator<StreamChunk>
   // Only used for POST /tutor/extract-narration (see handleNarrationFile
   // below) — runChat already has its own token baked in via closure.
   token: string
@@ -1092,6 +1092,17 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
     restored && subjects.includes(restored.subject) ? restored.subject : (subjects[0] ?? 'living_books')
   )
   const [subjectsCompleted, setSubjectsCompleted] = useState<Subject[]>(() => restored?.subjectsCompleted ?? [])
+  // The subject the visitor was on before this one, sent as previous_subject
+  // so Bede marks the change instead of greeting them again on every subject
+  // (the backend's _subject_transition_note). Updated during render rather
+  // than in an effect so it is already correct when the new subject's opener
+  // fires; the comparison makes a repeated render a no-op.
+  const lastSeenSubjectRef = useRef<Subject>(subject)
+  const previousSubjectRef = useRef<Subject | null>(null)
+  if (lastSeenSubjectRef.current !== subject) {
+    previousSubjectRef.current = lastSeenSubjectRef.current
+    lastSeenSubjectRef.current = subject
+  }
   const [messages, setMessages] = useState<DisplayMessage[]>(() => restored?.messages ?? [])
   // Continuing Mastery card's data source (see the JSX below, right after
   // the subject picker): the real last exchange in each subject the visitor
@@ -1480,7 +1491,7 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
     // silently break that, which is worse than the bug it prevents.
     const shownAidIds = new Set<string>()
     try {
-      for await (const chunk of runChat(subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal)) {
+      for await (const chunk of runChat(subject, historyForApi(), childMessage, drawingImage, abortRef.current.signal, previousSubjectRef.current)) {
         if (chunk.type === 'text') {
           fullText += chunk.content
           pendingSpeech += chunk.content
@@ -3050,8 +3061,8 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
   }, [token])
 
   const runChat = useCallback(
-    (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal) =>
-      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, timeOfDay),
+    (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal, previousSubject: Subject | null) =>
+      streamTutorChat(token, config!, subject, history, childMessage, drawingImage, signal, timeOfDay, previousSubject),
     [token, config, timeOfDay],
   )
 

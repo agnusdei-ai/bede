@@ -62,3 +62,6 @@ qualification-out-quarantine/
 qualification-out-tmp/
 
 mac-check-out/
+
+# Licence issuance ledger (scripts/issue_license.py): names customers, never commit
+bede-license-ledger.csv

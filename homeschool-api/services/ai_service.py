@@ -466,20 +466,24 @@ TUTOR_TOOLS = [
             "properties": {
                 "specific_insight": {
                     "type": "string",
-                    # `_process_tool_use` appends this after the literal words
-                    # "I noticed you saw that " — a live transcript showed the
-                    # model filling this in third person using the child's own
-                    # name ("...that Norah recognized..."), which reads as
-                    # Bede narrating about the child to someone else rather
-                    # than speaking to her, right after addressing her
-                    # directly as "you" earlier in the very same card. Phrase
-                    # explicitly required since nothing here previously said
-                    # what grammatical person continues that sentence.
+                    # This used to be a clause the server appended after a
+                    # fixed frame, "I noticed you saw that ___". The model
+                    # naturally starts the clause with a noticing verb of its
+                    # own, so children read "I noticed you saw that you
+                    # noticed...", on every celebration. The frame is gone:
+                    # this field is now the whole observation, written the way
+                    # a person says it. It stays second person for the
+                    # original reason (a transcript showed it written about
+                    # the child by name, as if to someone else). Still no
+                    # quotable English example, for the reason given in the
+                    # tool description above.
                     "description": (
-                        "The exact thing the child discovered or reasoned well — one short clause, not a full "
-                        "sentence, and phrased in second person to continue the sentence \"I noticed you saw "
-                        "that ___\" (e.g. \"you connected the two ideas\"). Never third person and never the "
-                        "child's own name here, even if you address them by name elsewhere in this same card."
+                        "One short, complete sentence spoken straight to the child that names the exact thing "
+                        "they discovered or reasoned well, said the way a person would naturally say it aloud. "
+                        "Address the child directly in second person; never third person and never the child's "
+                        "own name here, even if you address them by name elsewhere in this same card. Use at "
+                        "most one verb of noticing or seeing, never one stacked on another, and vary the "
+                        "wording from one celebration to the next rather than repeating a set formula."
                     ),
                 },
                 "encouragement": {
@@ -2101,6 +2105,9 @@ never preachy, never forced.
 8. Speak to them as a person of full dignity, made in the image of God, whose mind is to be formed not filled — a \
 soul to be cultivated, not a vessel to be poured into.
 9. When the child's message is exactly "[START]", you are opening this subject for today. If the subject context \
+below includes a <subject_change> block, the child has just come from another subject with you: do not greet them \
+again, and wherever this rule says to greet {config.student_name}, mark the change of subject the way that block \
+describes instead. If the subject context \
 below includes a <lesson_resume> block, follow its own opening instructions instead of this rule's default — that \
 is the parent's explicit, highest-priority account of where this subject stopped. Otherwise, if it includes "Where \
 this subject left off," greet {config.student_name} warmly by name, briefly reorient them to that resume point in \
@@ -2587,14 +2594,60 @@ sound is happening.
         return ""
 
 
-def _time_of_day_note(time_of_day: Optional[str]) -> str:
+def _subject_transition_note(
+    previous_subject: Optional[Subject], subject: Subject, student_name: str, locale: str = "en",
+) -> str:
+    """
+    Tells Bede the child has just come from another subject, so the opener
+    marks the change instead of starting cold.
+
+    Each subject's conversation history is sent empty (SocraticChat.tsx's
+    opener and getApiMessages both slice to the current subject), so Bede
+    had no way to know a change had happened at all. The reported result:
+    every subject opened with a fresh greeting, and the new subject was
+    spoken about in the previous one's register. This gives the opener the
+    one fact it lacked and asks for what a human tutor does at the same
+    moment: no second hello, one natural sentence acknowledging the move,
+    then the new subject's own vocabulary, examples and kind of question.
+
+    Returns "" for the first subject of a sitting, or when the previous and
+    current subjects are the same (a reload, not a change).
+    """
+    if previous_subject is None or previous_subject == subject:
+        return ""
+    name = _sanitize_parent_field(student_name) or "the child"
+    return (
+        f"\n<subject_change>{name} has just finished {subject_label(previous_subject, locale)} with you and is now "
+        f"moving on to {subject_label(subject, locale)}. You have been together all along, so this is a change of "
+        "subject, not the start of the day: do not greet them again or reintroduce yourself. Open with one short, "
+        "natural sentence that marks the move, said in your own words and different each time, and then speak as "
+        "the tutor of THIS subject. Use its own vocabulary, examples and kind of question, as the subject context "
+        "above describes, and set the previous subject's topic aside unless the child connects the two "
+        "themselves.</subject_change>"
+    )
+
+
+def _time_of_day_note(time_of_day: Optional[str], already_greeted: bool = False) -> str:
     """
     Bede has no built-in sense of wall-clock time — time_of_day is derived
-    from the child's own device clock at login (sessionStore.ts's
-    deriveTimeOfDay) and sent on every chat turn, so a session that starts
-    well into the evening doesn't greet or pray as though it were morning.
+    from the child's own device clock (sessionStore.ts's deriveTimeOfDay)
+    and sent on every chat turn, so a session that starts well into the
+    evening doesn't greet or pray as though it were morning.
     None whenever the client didn't send one (older clients, the sandbox).
+
+    already_greeted is True once the child has come from another subject
+    (TutorRequest.previous_subject). The greeting instruction below used to
+    fire on every subject, so a child moving from Mathematics to History was
+    told "Good evening" again each time, as if they had just arrived. Past
+    the first subject this note only reports the time of day and forbids a
+    second greeting; _subject_transition_note says how to open instead.
     """
+    if already_greeted and time_of_day in ("morning", "afternoon", "evening"):
+        return (
+            f"\nIt is currently {time_of_day} where the child is. You have already greeted them earlier in this "
+            "sitting, so do NOT open this subject with \"Good morning\", \"Good afternoon\", \"Good evening\" "
+            "or any other fresh greeting."
+        )
     if time_of_day == "morning":
         return (
             "\nIt is currently morning where the child is. If you are opening today's FIRST subject (see the note "
@@ -3154,6 +3207,7 @@ async def _build_subject_prompt(
     music_vector: Optional[dict] = None,
     music_evidence_count: int = 0,
     adaptive_instruction_note: str = "",
+    previous_subject: Optional[Subject] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -3175,7 +3229,8 @@ async def _build_subject_prompt(
     visual_aids_note = _get_visual_aids_context(subject, config, history, today=local_date)
     composer_note = _get_composer_context(subject, config, today=local_date)
     session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
-    time_of_day_note = _time_of_day_note(time_of_day)
+    time_of_day_note = _time_of_day_note(time_of_day, already_greeted=previous_subject is not None)
+    transition_note = _subject_transition_note(previous_subject, subject, config.student_name, locale)
     # Poetry co-study belongs where Mater Amabilis puts poetry: the Morning
     # Time opening and the Living Books literature block. Other subjects
     # stay lean. English locale gets services/poetry_catalog.py's verbatim
@@ -3256,7 +3311,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3333,14 +3388,12 @@ _CARD_PHRASES = {
         "handwriting_title": "Time to Write or Draw",
         "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
         "hint_plain": "Let me ask it this way: {hint}",
-        "celebration": "{encouragement} I noticed you saw that {insight}.",
     },
     "es": {
         "narration_title": "Momento de Narración",
         "handwriting_title": "Hora de Escribir o Dibujar",
         "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
         "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
-        "celebration": "{encouragement} Me di cuenta de que viste que {insight}.",
     },
 }
 
@@ -3362,6 +3415,16 @@ def handwriting_card_titles() -> set:
     return {phrases["handwriting_title"] for phrases in _CARD_PHRASES.values()}
 
 
+def _as_sentence(text: str) -> str:
+    """Capitalise the first letter and end with punctuation, so a clause the
+    model wrote reads as a sentence once it stands on its own in a card."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    text = text[0].upper() + text[1:]
+    return text if text[-1] in ".!?…" else text + "."
+
+
 def _process_tool_use(tool_name: str, tool_input: dict, locale: str = "en") -> str:
     """Convert tool calls into natural tutor responses, in the session's
     own language — see _CARD_PHRASES for why the locale argument exists."""
@@ -3381,11 +3444,12 @@ def _process_tool_use(tool_name: str, tool_input: dict, locale: str = "en") -> s
         return "🔍 " + phrases["hint_plain"].format(hint=hint)
 
     if tool_name == "celebrate_discovery":
-        insight = tool_input["specific_insight"]
-        encouragement = tool_input["encouragement"]
-        card = "✨ " + phrases["celebration"].format(
-            encouragement=encouragement, insight=insight
-        )
+        insight = _as_sentence(tool_input["specific_insight"])
+        encouragement = tool_input["encouragement"].strip()
+        # No server wording here, in any locale: a fixed frame around the
+        # model's sentence is what produced "I noticed you saw that you
+        # noticed..." (see specific_insight's schema comment).
+        card = "✨ " + f"{encouragement} {insight}".strip()
         # Optional, same shape as connect_to_faith's reflection_question just
         # below — see that field's own description for why it exists.
         follow_up = (tool_input.get("next_question") or "").strip()
@@ -4479,6 +4543,7 @@ async def stream_tutor_response(
     locale: str = "en",
     role: Optional[str] = None,
     session_id: Optional[str] = None,
+    previous_subject: Optional[Subject] = None,
     time_remaining_seconds: Optional[int] = None,
     ip: str = "unknown",
     user_agent: str = "",
@@ -4617,7 +4682,7 @@ async def stream_tutor_response(
     subject_prompt_text = await _build_subject_prompt(
         config, subject, demo_code=demo_code, db_vector=db_vector, db_evidence_count=db_evidence_count,
         history=history, time_of_day=time_of_day, local_date=local_date, processing_style=processing_style,
-        locale=locale, bookmark=bookmark,
+        locale=locale, bookmark=bookmark, previous_subject=previous_subject,
         time_remaining_seconds=time_remaining_seconds,
         music_vector=music_vector, music_evidence_count=music_evidence_count,
         adaptive_instruction_note=adaptive_instruction_note,

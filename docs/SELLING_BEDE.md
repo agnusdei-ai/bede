@@ -205,13 +205,44 @@ prompt without the License card knowing elevation exists.
 
 ---
 
+## The issuance ledger: your count of pilots and customers
+
+Every run of `issue_license.py` appends one row to a CSV file before it
+prints the key: issue date, expiry, tier, seats, location, licensee string,
+the `--customer` you name, the licence id, and a short fingerprint of the
+key. Open it in Numbers or Excel; one row is one key issued.
+
+- **It is written first.** If the row cannot be written, the key is not
+  printed, so no key leaves without a record.
+- **It never holds the key.** The fingerprint lets you match a key a
+  customer sends you to its row; it cannot be used as a key.
+- **It stays out of the repository.** It names customers and this repository
+  is public, so a ledger path inside the repository is refused. The default is
+  `~/bede-license-ledger.csv`; set `$BEDE_LICENSE_LEDGER` or pass `--ledger`
+  to keep it elsewhere.
+- **It counts keys, not installs.** Bede does not report back from a
+  family's or pilot's computer, so one key used on two machines is still one
+  row.
+
+For a pilot tester:
+
+```bash
+python scripts/issue_license.py --tier trial \
+    --licensee "trial-pilot-01" --customer "Pilot tester name or email" \
+    --seats 6 --days 30 \
+    --private-key ~/.bede-license-private.pem
+```
+
+A hand-issued pilot's length is your choice through `--days`. The self-serve
+trial is 30 days, which is what most pilots should get.
+
 ## Trials, and what makes one actually end
 
 A trial is a signed license with an expiry and nothing else:
 
 ```bash
 python scripts/issue_license.py --tier trial \
-    --licensee "trial-a1b2c3" --seats 6 --days 7 \
+    --licensee "trial-a1b2c3" --seats 6 --days 30 \
     --private-key ~/.bede-license-private.pem
 ```
 
@@ -219,7 +250,7 @@ python scripts/issue_license.py --tier trial \
 a trial that cannot expire is not a trial. [Entry 29](DECISIONS.md) sanctions
 exactly this shape — *"a signed-license tier only, verified by
 `core/licensing.py`, expiring, and carrying no commercial meaning"* — while
-forbidding a fourth *commercial* tier. So the trial (7 days — decision 36) is
+forbidding a fourth *commercial* tier. So the trial (30 days — decision 36, as amended 2026-10-26) is
 in scope; a
 "Trial Membership" alongside Family/Co-op/Network is not.
 
@@ -298,7 +329,7 @@ a reason to delay a first sale.
 | Revocation before expiry | A key verifies until its own expiry date, which is now genuinely enforced daily — but you cannot cut it short. Short-date the key instead, or handle it commercially. | §11 Phase 2 |
 | Activation limits | Nothing stops one household's key being used on a second server. `core/licensing.py` says plainly that this is a trust-and-verify gate for honest self-hosters, not DRM — and every self-hoster has the source anyway. | §11 Phase 2 (`max_activations` = 2) |
 | Automated issuance and delivery | You mint and send each key by hand. Fine at ten customers; not at two hundred. | §11 Phase 1 |
-| A customer record | The only record a sale leaves is your own invoice. Keep a ledger from the first sale — customer, licensee string, tier, seats, issue date, expiry — because Phase 4 migrates existing licenses into the server's database and will need exactly that. | §11 Phase 4 |
+| A customer record beyond the ledger | `issue_license.py` writes one row per key it mints to a local CSV ledger (below), which is the count of pilots and customers. Nothing reports installs back, so it records keys issued, not machines running. Phase 4 migrates these rows into the server's database. | §11 Phase 4 |
 | Monthly re-issue | Enforcement works (the daily refresh), but a fresh key each month is minted and pasted by hand. | §11 Phase 1 |
 
 ---
@@ -311,7 +342,7 @@ a reason to delay a first sale.
 2. **Decide annual or monthly.** Both are enforceable now; monthly additionally
    means minting and pasting a key each month until §11 Phase 1 automates it,
    and [entry 26](DECISIONS.md) still owes a ruling on the contract vocabulary.
-3. **Start the ledger** in step 1's own spreadsheet, not later.
+3. **Pick where the ledger lives** (`--ledger` or `$BEDE_LICENSE_LEDGER`, default `~/bede-license-ledger.csv`), outside the repository, and back it up with your other business records.
 4. **Sell `x86_64`.** Treat ARM as unverified until a board boots
    ([entry 23](DECISIONS.md)).
 5. **Mint `--seats 6`** for a Family Membership, so the published cap is the

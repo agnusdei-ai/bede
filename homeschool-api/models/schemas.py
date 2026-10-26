@@ -771,6 +771,14 @@ class TutorRequest(BaseModel):
     # invitation. Clamped non-negative; an absurd value is harmless because
     # every rule keyed on it is a floor rather than a ceiling.
     time_remaining_seconds: Optional[int] = Field(default=None, ge=0, le=86_400)
+    # The subject the child was on immediately before this one, in this same
+    # sitting. Each subject's conversation history starts empty, so without
+    # this Bede cannot know the child has just come from somewhere else: it
+    # greeted them afresh ("Good evening!") at every subject and opened each
+    # new one as though the lesson were only beginning. None means this is
+    # the first subject of the sitting, or an older client that does not
+    # send it; both keep today's behaviour of greeting the child.
+    previous_subject: Optional[Subject] = None
 
 
 class NarrationUploadRequest(BaseModel):

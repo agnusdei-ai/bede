@@ -2001,6 +2001,22 @@ ruling puts the guide outside the trial, so both pages now contradict the
 product on two counts. They are under the `site/` carve-out and need explicit
 sign-off, so they are stated here rather than quietly changed.
 
+**Amended (2026-10-12, owner ruling).** The term was cut to **7 days**, and the
+trial became one that converts to a subscription on a card, collected only after
+a pre-card notice and an explicit recurring authorization
+(`license-server/src/conversion.ts`). This amendment is recorded late: it was
+carried into the code and `docs/PAYMENTS_AND_CANCELLATION.md` but never written
+here, so this entry went on saying 30 days while the product said 7.
+
+**Amended (2026-10-26, owner ruling). The term is 30 days again**, because 7
+days is too short to verify a learning outcome. The conversion design from the
+2026-10-12 amendment is unchanged. `TRIAL_DAYS` is 30 in
+`license-server/src/license/issue.ts`. The one notice now goes out a week before
+each key's own expiry (day 23 of 30, the same day the in-app warning appears),
+never earlier than day 2, computed per key so a 7-day key issued in the
+intervening two weeks still gets its notice on day 2. Signed keys keep their own
+term; nothing extends or shortens one already issued.
+
 **Related:** entry 10 (the membership), entry 29 (no commercial trial tier —
 the signed `trial` tier carries no commercial meaning and still does not),
 entry 34 (the Guided Membership, which is where guide time lives),
@@ -2202,3 +2218,35 @@ conversation), entry 10 (the memberships actually sold), entry 26 (monthly),
 entry 34 (the Guided Membership's open delivery parameters), entry 35 (what
 goes self-serve), entry 36 (the trial's own copy conflict, still open),
 entry 37 (the tier this gates contact against).
+
+---
+
+## 39. `[PRODUCT]` The Practice Coach: what it may do with a photographed quiz
+
+**Status:** closed
+
+**Decided (2026-10-25, owner approved "as recommended").** Bede may read a
+graded worksheet a parent photographs, diagnose the pattern behind each miss,
+and draft practice the parent approves. Six rulings shape it, each carried
+into code in `docs/PRACTICE_COACH.md`'s first build:
+
+1. **Where photos are read.** On the household's local model when one is
+   configured, never falling back. Otherwise on the household's configured
+   cloud provider **only with the parent's consent for that upload**, named
+   before anything is sent.
+2. **Golden fixtures are hand-typed, never real photos.** A golden quiz is a
+   real child's handwriting on a school's worksheet, and this repository is
+   public. The reading is checked against the real photos by hand
+   (`homeschool-api/scripts/practice_golden_eval.py`).
+3. **Drills are parent-approved and parent-started.** The existing "never a
+   drill" rules for in-lesson phonics and language check-ins are unchanged;
+   a Practice Coach drill is a separate thing a parent chose.
+4. **Days practised, never streaks.** A streak that resets to zero tells a
+   child they failed whenever the family travels. Speed is never rewarded.
+5. **Pattern history describes the work, never the child.** "Format not met
+   on 2 of 3 assessments", not "skips instructions". The count shown is the
+   teacher's marks; Bede keeps no grade of its own.
+6. **Not on the public demo.** Every route is parent-only.
+
+**Related:** entry 20 (which model reads the photos is the household's own
+provider choice, not this feature's).

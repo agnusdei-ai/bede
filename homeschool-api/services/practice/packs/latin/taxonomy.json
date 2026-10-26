@@ -1,0 +1,61 @@
+{
+  "categories": {
+    "latin.vocab.hypernym_substitution": {
+      "description": "Gave the general word where the specific one was asked for.",
+      "example": "avis (bird) for anas (duck), both in the word bank",
+      "remediation_strategy": "Picture-pair discrimination between the general and specific word, then the same pair in a full sentence."
+    },
+    "latin.vocab.confusable_pair": {
+      "description": "Swapped two words of the same kind from the word bank.",
+      "example": "canis for fēlēs",
+      "remediation_strategy": "Side-by-side discrimination of the two words with their meanings, then mixed recall."
+    },
+    "latin.vocab.unknown_word": {
+      "description": "Wrote a word that is not in the word bank.",
+      "example": "a guessed or English word",
+      "remediation_strategy": "Re-introduce the word bank meanings, then picture-to-word retrieval."
+    },
+    "latin.macron_omission": {
+      "description": "Right word, missing a macron the teacher marked.",
+      "example": "rēmos for rēmōs",
+      "remediation_strategy": "Say the long vowel aloud while writing it, then copy-and-check practice."
+    },
+    "latin.question.what_vs_doing": {
+      "description": "Answered what something is when asked what it is doing, or the reverse.",
+      "example": "volat for Quid est?",
+      "remediation_strategy": "Pair each question with its kind of answer: Quid est? names it, Quid agit? says the action."
+    },
+    "latin.verb.person_number": {
+      "description": "Wrong verb ending for the subject.",
+      "example": "natant for one duck",
+      "remediation_strategy": "Ending-substitution drill with one and many."
+    },
+    "latin.noun.case_ending": {
+      "description": "Wrong noun ending for its job in the sentence.",
+      "example": "rēmī for rēmōs",
+      "remediation_strategy": "Chant the ending, then fill-ins that need it."
+    },
+    "latin.word_order": {
+      "description": "Words in an order that changes or hides the meaning.",
+      "example": "",
+      "remediation_strategy": "Build sentences from word cards, reading each aloud."
+    },
+    "latin.translation_direction": {
+      "description": "Translated the wrong way, Latin for English or English for Latin.",
+      "example": "",
+      "remediation_strategy": "Read the instruction aloud first, then a short translate-this-way set."
+    },
+    "latin.unclassified": {
+      "description": "A miss this pack cannot explain; the parent is asked.",
+      "example": "",
+      "remediation_strategy": "No practice is generated until the parent describes the miss."
+    }
+  },
+  "strengths": {
+    "latin.verbs.action_words": "Named the action correctly when asked Quid agit?",
+    "latin.nouns.naming": "Named the animal correctly when asked Quid est?",
+    "latin.macrons": "Wrote macrons where the word needs them",
+    "latin.colors": "Matched every colour word to its colour",
+    "latin.word_bank_fill": "Chose the right word from the bank for every blank"
+  }
+}

@@ -270,7 +270,7 @@ npx wrangler deploy
 Wrangler prints the Worker's URL (`https://<your-worker-subdomain>.workers.dev`).
 Opening it in a browser renders the storefront page: the Annual Family card
 and the trial card, carrying the published figures verbatim — $2,149/year,
-up to six children; 7-day trial, no card to start — and one path into checkout, no
+up to six children; 30-day trial, no card to start — and one path into checkout, no
 processor choice. If the page shows figures that do not match
 `demo/public/launch.html` and [`DECISIONS.md`](DECISIONS.md) entry 10, stop
 and fix the page before selling anything: the storefront never invents
@@ -279,12 +279,12 @@ prices the marketing pages do not already state.
 ## 5a. The trial reminder runs itself
 
 `wrangler deploy` also registers the daily cron trigger in
-`license-server/wrangler.jsonc` (14:00 UTC). It emails any trial inside its
-final week once — see `src/reminders.ts` — using the same `RESEND_API_KEY` and
+`license-server/wrangler.jsonc` (14:00 UTC). It emails any trial once, a week before it ends (day 23 of
+a 30-day trial) — see `src/reminders.ts` — using the same `RESEND_API_KEY` and
 `RESEND_FROM_ADDRESS` secrets section 4 already set. There is nothing further
 to configure.
 
-**It cannot extend a trial, by construction.** A trial's 7 days are signed
+**It cannot extend a trial, by construction.** A trial's 30 days are signed
 into the key, and the family's own instance enforces that offline. So if this
 job never runs, or Resend is down for a week, the trial still ends on time and
 the only thing lost is the courtesy email. Verify it with
@@ -323,7 +323,7 @@ family runs with no operator in the loop — the whole point of the service.
 
 1. On the storefront, enter an email on the trial card — no card, no
    checkout, same page.
-2. A `trial` license signed with a 7-day baked-in expiry arrives by email
+2. A `trial` license signed with a 30-day baked-in expiry arrives by email
    immediately. One active trial per email; a second request for the same
    email is refused.
 3. Paste into a family instance as above.

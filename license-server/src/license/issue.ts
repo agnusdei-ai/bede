@@ -52,8 +52,11 @@ export function utcDate(offsetDays = 0): string {
  * — "long nominal signed expiry"). */
 export const NOMINAL_PAID_EXPIRY_YEARS = 5;
 
-/** The trial's baked-in signed expiry: **7 days** (decision 36, the
- * owner supersession of 2026-10-12; it was 30 until then). The spec's trial
+/** The trial's baked-in signed expiry: **30 days**. Owner ruling of
+ * 2026-10-26, restoring decision 36's original term: 7 days (the owner
+ * supersession of 2026-10-12) is too short to verify a learning outcome.
+ * Keys already signed for 7 days keep their own term; nothing here changes
+ * a signed key. The spec's trial
  * lock still holds — "trials must expire, so here the signed payload _is_
  * the authority" — and no server row extends it; every server path defers to
  * this date.
@@ -64,9 +67,10 @@ export const NOMINAL_PAID_EXPIRY_YEARS = 5;
  * the whole trial (it fired on the first cron run, saying "your trial is
  * ending" on day 0 — it still FIRED, which is why it looked fine), and
  * `homeschool-tutor/src/utils/licenseUrgency.ts`'s 7-day floor made the
- * in-app warning light from the minute of issue. Both are fixed alongside
- * this; see each file. */
-export const TRIAL_DAYS = 7;
+ * in-app warning light from the minute of issue. Both were fixed then, and
+ * both now size themselves from the key's own term, so moving back to 30
+ * needed no second fix; see each file. */
+export const TRIAL_DAYS = 30;
 
 function plusYearsIso(dateIso: string, years: number): string {
   const parts = dateIso.split("-");

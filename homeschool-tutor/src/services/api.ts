@@ -438,7 +438,8 @@ export async function* streamTutorChat(
   timeOfDay?: TimeOfDay | null,
   localDate?: string | null,
   sessionId?: string | null,
-  timeRemainingSeconds?: number | null
+  timeRemainingSeconds?: number | null,
+  previousSubject?: Subject | null
 ): AsyncGenerator<StreamChunk> {
   // The debug panel is the only way a report like "greeting doesn't match
   // the time of day" or "wrong week's poem" can actually be diagnosed
@@ -471,6 +472,9 @@ export async function* streamTutorChat(
           // keep no profile between sessions (see the backend's
           // retain_mastery_profiles). Ignored entirely otherwise.
           session_id: sessionId ?? null,
+          // The subject the child just came from, so Bede marks the change
+          // instead of greeting them again (TutorRequest.previous_subject).
+          previous_subject: previousSubject ?? null,
           // Seconds left on whichever of the child's clocks runs out first
           // (TutorSession.tsx's taskBudgetSecs). Lets Bede decline to START a
           // narration or a drawing the block cannot hold, rather than the
@@ -1562,3 +1566,132 @@ export const deletePilotLearner = (
 )
 export const fetchPilotDeletionReceipts = (token: string) =>
   educatorApi<PilotDeletionReceipt[]>(owner('/deletion-receipts'), token)
+
+
+// ── Practice Coach (docs/PRACTICE_COACH.md) ──────────────────────────────
+// Parent-only. The backend reads, diagnoses and drafts; nothing reaches the
+// child until a parent approves a set.
+
+export type TeacherMark = 'correct' | 'incorrect' | 'partial' | 'unmarked'
+
+export interface PracticeItemReading {
+  number: number
+  prompt: string
+  stimulus?: string | null
+  student_response?: string | null
+  teacher_mark: TeacherMark
+  teacher_correction?: string | null
+  confidence: number
+  ask_parent?: string | null
+}
+
+export interface PracticeSection {
+  label: string
+  instructions: string
+  required_format: 'complete_sentence' | 'single_word' | 'color_fill' | 'free' | 'unknown'
+  word_bank: string[]
+  items: PracticeItemReading[]
+}
+
+export interface GradedAssessment {
+  subject: string
+  sections: PracticeSection[]
+}
+
+export interface PracticeReading {
+  id: number
+  status: 'needs_review' | 'confirmed'
+  assessment: GradedAssessment
+  ask_parent: string[]
+  teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
+}
+
+export interface PracticeSetItem {
+  kind: 'drill' | 'sentence_habit' | 'retrieval'
+  target: string
+  prompt: string
+  expected_answer: string
+  hint: string
+}
+
+export interface PracticeSetDraft {
+  targets: string[]
+  mode: 'drill' | 'retrieval'
+  est_minutes: number
+  items: PracticeSetItem[]
+  parent_script: string
+  recheck_schedule: string[]
+}
+
+export interface PracticePlan {
+  summary: string
+  diagnosis: {
+    errors: { item_ref: string; category: string; evidence: string; audience: 'parent_and_child' | 'parent_only' }[]
+    strengths: { category: string; note: string }[]
+    ask_parent: string[]
+  }
+  practice_set: PracticeSetDraft | null
+  set_id: number | null
+  status: 'draft' | null
+}
+
+export interface ReadingRoute {
+  local_available: boolean
+  cloud_provider: string | null
+}
+
+/** A refusal the parent can act on: the backend wants consent to send the
+ *  pages to `provider` for this upload only. */
+export class PracticeConsentRequired extends Error {
+  constructor(public provider: string | null, message: string) {
+    super(message)
+  }
+}
+
+async function practiceFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/practice${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    if (res.status === 409 && detail && typeof detail === 'object' && (detail as { consent_required?: boolean }).consent_required) {
+      const d = detail as { provider: string | null; message: string }
+      throw new PracticeConsentRequired(d.provider, d.message)
+    }
+    throw new Error(typeof detail === 'string' ? detail : 'The practice coach could not complete that step.')
+  }
+  return res.json()
+}
+
+export const fetchPracticePacks = (token: string) =>
+  practiceFetch<{ id: string; display_name: string }[]>(token, '/packs')
+
+export const fetchReadingRoute = (token: string) =>
+  practiceFetch<ReadingRoute>(token, '/reading-route')
+
+export const readPracticePhotos = (
+  token: string, studentName: string,
+  body: { subject: string; pages: { data: string }[]; route?: 'local' | 'cloud'; cloud_consent: boolean },
+) => practiceFetch<PracticeReading>(token, `/${encodeURIComponent(studentName)}/assessments/read`, {
+  method: 'POST', body: JSON.stringify(body),
+})
+
+export const confirmPracticeReading = (token: string, studentName: string, id: number, assessment: GradedAssessment) =>
+  practiceFetch<PracticeReading>(token, `/${encodeURIComponent(studentName)}/assessments/${id}`, {
+    method: 'PUT', body: JSON.stringify({ assessment }),
+  })
+
+export const planPractice = (token: string, studentName: string, id: number) =>
+  practiceFetch<PracticePlan>(token, `/${encodeURIComponent(studentName)}/assessments/${id}/plan`, { method: 'POST' })
+
+export const approvePracticeSet = (token: string, studentName: string, setId: number, practiceSet?: PracticeSetDraft) =>
+  practiceFetch<{ id: number; status: 'approved' }>(token, `/${encodeURIComponent(studentName)}/sets/${setId}/approve`, {
+    method: 'POST', body: JSON.stringify({ practice_set: practiceSet ?? null }),
+  })
+
+export const discardPracticeSet = (token: string, studentName: string, setId: number) =>
+  practiceFetch<{ id: number; status: 'discarded' }>(token, `/${encodeURIComponent(studentName)}/sets/${setId}/discard`, {
+    method: 'POST',
+  })

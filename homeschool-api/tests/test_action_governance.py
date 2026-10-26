@@ -263,7 +263,7 @@ def test_a_hint_resets_the_follow_up_depth():
 def test_a_celebration_resets_the_follow_up_depth():
     history = [
         _assistant("What do you notice?"), _child(),
-        _assistant(ai_service._CELEBRATION_CARD_PREFIX + "Well done! I noticed you saw that."), _child(),
+        _assistant(ai_service._CELEBRATION_CARD_PREFIX + "Well done! You spotted the pattern."), _child(),
     ]
     assert ai_service._consecutive_question_turns(history) == 0
 

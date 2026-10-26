@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
-import { getApiMessages, useSessionStore } from '../store/sessionStore'
+import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
@@ -521,6 +521,7 @@ export default function SocraticChat({
       state.localDate,
       state.sessionId,
       remainingSecsRef.current,
+      previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening])
@@ -561,6 +562,7 @@ export default function SocraticChat({
       state.localDate,
       state.sessionId,
       remainingSecsRef.current,
+      previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
   }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
@@ -629,6 +631,7 @@ export default function SocraticChat({
       localDate,
       sessionId,
       remainingSecsRef.current,
+      previousSubjectOf(useSessionStore.getState()),
     )
     await consumeTurnStream(stream)
   }, [

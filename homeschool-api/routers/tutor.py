@@ -363,6 +363,7 @@ async def chat(
                     drawing_image=req.drawing_image,
                     demo_code=auth.get("code") if is_demo_code else None,
                     time_of_day=req.local_time_of_day,
+                    previous_subject=req.previous_subject,
                     local_date=req.local_date,
                     locale=auth.get("locale", "en"),
                     role=role,

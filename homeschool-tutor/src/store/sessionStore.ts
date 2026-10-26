@@ -26,6 +26,24 @@ export function deriveTimeOfDay(date: Date): TimeOfDay {
   return 'evening'
 }
 
+// The subject the child was on immediately before the current one, sent with
+// each chat turn as previous_subject so Bede marks a change of subject
+// instead of greeting the child again (see the backend's
+// _subject_transition_note). Subjects only change through nextSubject(),
+// which appends the outgoing subject to subjectsCompleted, so the last
+// entry is the previous subject. endSession() also appends the CURRENT
+// subject, which is skipped so a finished day never names itself.
+export function previousSubjectOf(state: {
+  subjectsCompleted: Subject[]
+  currentSubject: Subject
+}): Subject | null {
+  for (let i = state.subjectsCompleted.length - 1; i >= 0; i--) {
+    const s = state.subjectsCompleted[i]
+    if (s !== state.currentSubject) return s
+  }
+  return null
+}
+
 // The device's own local calendar date (YYYY-MM-DD), sent alongside
 // timeOfDay so the backend's weekly poetry/prayer rotation
 // (services/poetry_catalog.py, services/prayer_catalog.py) picks the

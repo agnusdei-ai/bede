@@ -438,7 +438,8 @@ export async function* streamTutorChat(
   timeOfDay?: TimeOfDay | null,
   localDate?: string | null,
   sessionId?: string | null,
-  timeRemainingSeconds?: number | null
+  timeRemainingSeconds?: number | null,
+  previousSubject?: Subject | null
 ): AsyncGenerator<StreamChunk> {
   // The debug panel is the only way a report like "greeting doesn't match
   // the time of day" or "wrong week's poem" can actually be diagnosed
@@ -471,6 +472,9 @@ export async function* streamTutorChat(
           // keep no profile between sessions (see the backend's
           // retain_mastery_profiles). Ignored entirely otherwise.
           session_id: sessionId ?? null,
+          // The subject the child just came from, so Bede marks the change
+          // instead of greeting them again (TutorRequest.previous_subject).
+          previous_subject: previousSubject ?? null,
           // Seconds left on whichever of the child's clocks runs out first
           // (TutorSession.tsx's taskBudgetSecs). Lets Bede decline to START a
           // narration or a drawing the block cannot hold, rather than the

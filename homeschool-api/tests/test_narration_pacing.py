@@ -44,9 +44,10 @@ def test_invite_handwriting_tool_knows_about_the_notebook_upload_option():
 
 
 def test_celebrate_discovery_specific_insight_requires_second_person_phrasing():
-    """Regression for a real live transcript: _process_tool_use appends
-    specific_insight after the literal words "I noticed you saw that ",
-    but the model wrote it in third person using the child's own name
+    """Regression for a real live transcript: specific_insight is the sentence
+    the celebration card speaks to the child (it once continued a fixed
+    "I noticed you saw that " frame, since removed), but the model wrote it
+    in third person using the child's own name
     ("...that Norah recognized our shared responsibility...") right after
     addressing her as "you" earlier in the same card — reading as Bede
     narrating about the child to someone else rather than speaking to her.

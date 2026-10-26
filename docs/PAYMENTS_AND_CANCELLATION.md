@@ -333,7 +333,7 @@ belongs with the exact-duration work in §7.
 
 | Trigger | Notice |
 | --- | --- |
-| Trial day 2 | Trial-ending note. Names no price, cadence or recurrence |
+| A week before trial end (day 23 of 30) | Trial-ending note. Names no price, cadence or recurrence |
 | Before card collection | The full material terms, against the chosen plan |
 | At authorization | Retainable acknowledgement; consent record retained |
 | Initial term of a year or more | Renewal notice, 15–45 days before renewal |
@@ -342,17 +342,19 @@ belongs with the exact-duration work in §7.
 | Other material change | Retainable change notice, with cancellation information |
 
 Only the first exists. One cron runs (`0 14 * * *`) and it drives the day-2
-trial notice alone; the day-2 notice is **not** an annual renewal reminder and
-must never be counted as one. A seven-day trial does not reach the
-longer-trial expiry-reminder threshold, which is a fact about that one
-requirement and changes nothing about the rest of this table.
+trial notice alone; that notice is **not** an annual renewal reminder and
+must never be counted as one. Whether a longer-trial expiry-reminder
+requirement applies to a 30-day term is for counsel to confirm; the seven-day
+term was below it, and the 30-day term's notice goes out a week before expiry
+either way.
 
 ## 7. Trial duration
 
-The term is seven days. The payload's `expires` is a date, and
-`is_expired` is `expires < date.today()`, so enforcement is calendar-date:
-between 144 and 192 elapsed hours depending on the hour of issue. Exact
-168-hour enforcement is a **separately scoped** change — the payload carries
+The term is 30 days (owner ruling 2026-10-26; it was seven days from
+2026-10-12, which is too short to verify a learning outcome). The payload's
+`expires` is a date, and `is_expired` is `expires < date.today()`, so
+enforcement is calendar-date, accurate to within a day depending on the hour
+of issue. Exact-duration enforcement is a **separately scoped** change — the payload carries
 an instant, both verifiers compare instants, and already-issued date-only keys
 are read as end-of-day UTC so no live key shortens. Published copy must claim
 exact duration only once enforcement matches it.

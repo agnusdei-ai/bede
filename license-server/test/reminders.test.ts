@@ -12,6 +12,8 @@ import { createTestD1 } from "./helpers/d1sqlite";
 import type { Env } from "../src/types";
 import {
   NOTICE_DAY_OF_TRIAL,
+  NOTICE_DAYS_BEFORE_EXPIRY,
+  noticeDayFor,
   trialDayOf,
   daysUntil,
   dueForReminder,
@@ -80,13 +82,25 @@ async function seedTrial(
 beforeEach(() => sendSpy.mockReset());
 
 describe("the trial term and the notice point", () => {
-  /** Decision 36's acceptance criterion, stated as one assertion. */
-  it("expires in exactly 7 days", () => {
-    expect(TRIAL_DAYS).toBe(7);
+  /** The owner ruling of 2026-10-26, stated as one assertion: 7 days was
+   * too short to verify a learning outcome. */
+  it("expires in exactly 30 days", () => {
+    expect(TRIAL_DAYS).toBe(30);
   });
 
-  it("sends the notice on day 2 of the trial, not a window before expiry", () => {
+  it("sends the notice in the final week, never before day 2", () => {
+    expect(NOTICE_DAYS_BEFORE_EXPIRY).toBe(7);
     expect(NOTICE_DAY_OF_TRIAL).toBe(2);
+    expect(noticeDayFor("2026-10-01", "2026-10-31")).toBe(23); // a 30-day key
+    expect(noticeDayFor("2026-10-01", "2026-10-08")).toBe(2); // a 7-day key
+    expect(noticeDayFor("not-a-date", "2026-10-08")).toBeNaN();
+  });
+
+  it("does not remind a 30-day trial until its final week", () => {
+    const issued = "2026-09-19"; // day 22 on TODAY
+    expect(dueForReminder(issued, "2026-10-19", TODAY)).toBe(false);
+    expect(dueForReminder("2026-09-18", "2026-10-18", TODAY)).toBe(true); // day 23
+    expect(dueForReminder("2026-10-09", "2026-11-08", TODAY)).toBe(false); // day 2 of 30
   });
 
   /**
@@ -145,13 +159,14 @@ describe("the trial term and the notice point", () => {
    * weeks late. Reading the key's own signed `issued` makes the term
    * irrelevant.
    */
-  it("places a key signed under the OLD 30-day term at its own day 2", () => {
+  it("still reminds a 7-day key, signed under the short policy, on its own day 2", () => {
     const issued = "2026-10-09"; // two days ago
-    const expires = "2026-11-08"; // a 30-day term
+    const expires = "2026-10-16"; // a 7-day term
     expect(trialDayOf(issued, TODAY)).toBe(2);
     expect(dueForReminder(issued, expires, TODAY)).toBe(true);
-    // What the term-assuming arithmetic would have answered:
-    expect(TRIAL_DAYS - daysUntil(expires, TODAY)).toBeLessThan(NOTICE_DAY_OF_TRIAL);
+    // What sizing the notice from TRIAL_DAYS (30) would have answered: day 23,
+    // which a 7-day key never reaches, so it would have expired unreminded.
+    expect(TRIAL_DAYS - NOTICE_DAYS_BEFORE_EXPIRY).toBeGreaterThan(7);
   });
 
   it("catches up rather than dropping a notice a missed cron run skipped", () => {
@@ -235,20 +250,20 @@ describe("sending", () => {
   });
 
   it("describes a key by ITS OWN term, not the current one", async () => {
-    // A trial minted before decision 36 carries 30 days. Telling that family
-    // their "7-day trial" ends in three weeks would be wrong and confusing,
-    // so the term is read off the key rather than from TRIAL_DAYS.
+    // A trial minted during the short policy carries 7 days. Telling that
+    // family about a "30-day trial" would be wrong, so the term is read off
+    // the key rather than from TRIAL_DAYS.
     const env = makeEnv();
     await seedTrial(env, {
       id: "lic-old",
       email: "old@example.com",
       issued: "2026-10-09",
-      expires: "2026-11-08", // a 30-day term
+      expires: "2026-10-16", // a 7-day term
     });
     expect((await sendDueTrialReminders(env, TODAY)).sent).toBe(1);
 
     const call = sendSpy.mock.calls[0]?.[0] as SentEmail;
-    expect(call.html).toContain("30-day free trial");
+    expect(call.html).toContain("7-day free trial");
     expect(call.html).not.toContain(`${TRIAL_DAYS}-day free trial`);
   });
 

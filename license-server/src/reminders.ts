@@ -8,7 +8,8 @@
  * takes effect on an instance nobody restarts; and `LicenseGate` then refuses
  * every path but `/auth/`, `/mfa/`, `/admin/license` and `/health`. That chain
  * is already built, already tested, and works with no network at all — a
- * self-hosted instance that never reaches this server still stops on day 8.
+ * self-hosted instance that never reaches this server still stops the day
+ * after its signed expiry.
  *
  * **So a failed notice must never extend a trial, and cannot.** The expiry is
  * inside the signed payload. Nothing in this file can move it, which is the
@@ -29,7 +30,17 @@
  * derived from the signed expiry rather than a second stored date, so it
  * cannot disagree with the authority the client enforces.
  *
- * **Why day 2 of 7**, and the arithmetic that rules out the obvious
+ * **When, for each term.** The notice goes out `NOTICE_DAYS_BEFORE_EXPIRY`
+ * (7) days before the key's own expiry, in the trial's final week, which is
+ * also when `licenseUrgency.ts`'s in-app warning appears for a 30-day term,
+ * so the email and the app agree. It is never earlier than
+ * `NOTICE_DAY_OF_TRIAL` (2), which is what governs a short term: a 7-day key
+ * signed during the 2026-10-12 to 2026-10-26 policy still gets its notice on
+ * day 2. Both are computed from the key's own signed `issued` and `expires`,
+ * never from `TRIAL_DAYS`, so a change of policy never strands a key already
+ * running.
+ *
+ * **Why day 2 is the floor**, and the arithmetic that rules out the obvious
  * alternatives: decision 36 requires 24 hours of notice BEFORE a card is
  * requested, and conversion at the end of day 7. A notice at the 24-hour
  * limit — day 6 — leaves a card-collection window of a single instant, which
@@ -70,9 +81,22 @@ import { createResendClient, trialEndingEmail } from "./email/resend";
 import { trialExpiresDate, trialIssuedDate } from "./routes/trial";
 import { storefrontUrl } from "./config";
 
-/** Which day OF the trial the notice goes out, counted forward from issuance.
- * See the module docstring for why 2 rather than 0, 1 or 6. */
+/** The EARLIEST day of a trial the notice may go out, counted forward from
+ * issuance. See the module docstring for why 2 rather than 0, 1 or 6. */
 export const NOTICE_DAY_OF_TRIAL = 2;
+
+/** How many days before a key's own expiry the notice goes out, unless that
+ * would be earlier than `NOTICE_DAY_OF_TRIAL`. */
+export const NOTICE_DAYS_BEFORE_EXPIRY = 7;
+
+/** Which day of its own trial a key's notice is due: `term - 7`, floored at
+ * day 2. Day 23 of a 30-day key; day 2 of a 7-day key. NaN for an
+ * undecodable date. */
+export function noticeDayFor(issued: string, expires: string): number {
+  const term = trialDayOf(issued, expires);
+  if (Number.isNaN(term)) return Number.NaN;
+  return Math.max(NOTICE_DAY_OF_TRIAL, term - NOTICE_DAYS_BEFORE_EXPIRY);
+}
 
 /** A bound on one run, so a pathological row count cannot turn a scheduled
  * job into an unbounded scan. The expiry lives inside the signed key, so SQL
@@ -108,7 +132,7 @@ export function trialDayOf(issued: string, today: string): number {
 /**
  * Whether a trial expiring on `expires` should get its notice today.
  *
- * On or after `NOTICE_DAY_OF_TRIAL` and not yet past the expiry. "On or
+ * On or after the key's `noticeDayFor` and not yet past the expiry. "On or
  * after" rather than "exactly on" deliberately: a missed cron run (an
  * outage, a deploy) must not silently cost a family their only notice, and
  * the `trial_reminders` primary key already makes a second send impossible,
@@ -123,8 +147,9 @@ export function dueForReminder(issued: string, expires: string, today: string): 
   const left = daysUntil(expires, today);
   if (Number.isNaN(left) || left < 0) return false;
   const day = trialDayOf(issued, today);
-  if (Number.isNaN(day)) return false;
-  return day >= NOTICE_DAY_OF_TRIAL;
+  const due = noticeDayFor(issued, expires);
+  if (Number.isNaN(day) || Number.isNaN(due)) return false;
+  return day >= due;
 }
 
 export interface ReminderRun {

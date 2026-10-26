@@ -2001,6 +2001,22 @@ ruling puts the guide outside the trial, so both pages now contradict the
 product on two counts. They are under the `site/` carve-out and need explicit
 sign-off, so they are stated here rather than quietly changed.
 
+**Amended (2026-10-12, owner ruling).** The term was cut to **7 days**, and the
+trial became one that converts to a subscription on a card, collected only after
+a pre-card notice and an explicit recurring authorization
+(`license-server/src/conversion.ts`). This amendment is recorded late: it was
+carried into the code and `docs/PAYMENTS_AND_CANCELLATION.md` but never written
+here, so this entry went on saying 30 days while the product said 7.
+
+**Amended (2026-10-26, owner ruling). The term is 30 days again**, because 7
+days is too short to verify a learning outcome. The conversion design from the
+2026-10-12 amendment is unchanged. `TRIAL_DAYS` is 30 in
+`license-server/src/license/issue.ts`. The one notice now goes out a week before
+each key's own expiry (day 23 of 30, the same day the in-app warning appears),
+never earlier than day 2, computed per key so a 7-day key issued in the
+intervening two weeks still gets its notice on day 2. Signed keys keep their own
+term; nothing extends or shortens one already issued.
+
 **Related:** entry 10 (the membership), entry 29 (no commercial trial tier —
 the signed `trial` tier carries no commercial meaning and still does not),
 entry 34 (the Guided Membership, which is where guide time lives),

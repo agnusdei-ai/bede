@@ -1318,8 +1318,9 @@ email arrives with a new license key, log in with the parent password, open
 current license (who it's for, how many students, when it renews) and a box
 to paste the new key into. Press **Apply** and it takes effect right away.
 
-If you are on the **7-day free trial**, you will get one email a couple of days
-in, telling you the date it ends and what happens then.
+If you are on the **30-day free trial**, you will get one email a week before
+it ends, telling you the date it ends and what happens then. Thirty days is
+long enough to see whether your child is actually learning with Bede.
 
 **No card is taken to start a trial, and none is kept on file.** So nothing can
 be charged while you are trying Bede out. If you decide to continue, you

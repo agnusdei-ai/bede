@@ -8,9 +8,22 @@ const text = (path) => readFileSync(new URL(path, root), "utf8");
 
 test("the homepage exposes the tour without removing the public demo", () => {
   const home = text("site/index.html");
-  assert.match(home, /href="\/bede\/tour\/">Take a guided tour/);
+  assert.match(home, /class="classical-button" href="\/bede\/tour\/">Watch Bede overview/);
   assert.match(home, /href="\/bede\/"/);
   assert.match(home, /M7OV1-RrK2M/);
+});
+
+test("the overview stays easy to find in every shared header and footer", () => {
+  const pages = ["", "schools/", "homeschool/", "educators/", "faq/", "feedback/", "inquire/", "privacy/", "research/", "survey/", "trackers/"];
+  for (const page of pages) {
+    const html = text(`site/${page}index.html`);
+    for (const label of ["Main navigation", "Footer navigation"]) {
+      const nav = html.match(new RegExp(`<nav[^>]*aria-label="${label}"[^>]*>([\\s\\S]*?)</nav>`))?.[1];
+      assert.ok(nav, `${page || "home"}: ${label} exists`);
+      assert.match(nav, /href="\/bede\/tour\/">Bede overview<\/a>/, `${page || "home"}: ${label} overview link`);
+      assert.match(nav, /href="\/bede\/"/, `${page || "home"}: public demo remains available`);
+    }
+  }
 });
 
 test("Cloudflare assembles the walkthrough beside the existing demo", () => {

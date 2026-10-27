@@ -20,6 +20,7 @@ cd "$(dirname "$0")/.."
 
 echo "Building demo..."
 (cd demo && npm ci && npm run build)
+(cd demo && ./node_modules/.bin/vite build --config vite.tour.config.ts)
 
 echo "Assembling publish/ ..."
 rm -rf publish
@@ -27,6 +28,8 @@ mkdir -p publish
 cp -r site/* publish/
 mkdir -p publish/bede
 cp -r demo/dist/* publish/bede/
+mkdir -p publish/bede/tour
+cp -r demo/dist-tour/* publish/bede/tour/
 
 # The site's forms (/feedback/, /survey/, /educators/) post to the same
 # API and the same Resend inbox the in-app feedback does. They need its

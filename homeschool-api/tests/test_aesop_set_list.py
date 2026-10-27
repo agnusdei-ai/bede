@@ -21,6 +21,12 @@ from services.catalog_service import get_readings
 READINGS = get_readings("y1-aesop")
 
 
+@pytest.fixture(autouse=True)
+def _engine_on(monkeypatch):
+    # Positive tests run with the curriculum engine explicitly enabled.
+    monkeypatch.setenv("CURRICULUM_ENGINE_ENABLED", "true")
+
+
 def _config(**changes):
     base = dict(student_name="Ada", grade="1", grade_stage=GradeStage.foundations)
     base.update(changes)
@@ -89,3 +95,30 @@ async def test_the_real_living_books_prompt_carries_this_weeks_fable():
     prompt = await _build_subject_prompt(_config(), Subject.living_books, local_date=today)
     expected = _fable_of_the_week_note(_config(), Subject.living_books, today)
     assert expected and expected in prompt
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("value", [None, "", "false", "0", "off"])
+async def test_flag_off_adds_no_fable_note(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("CURRICULUM_ENGINE_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("CURRICULUM_ENGINE_ENABLED", value)
+    config = _config()
+    assert _fable_of_the_week_note(config, Subject.living_books, date(2026, 1, 5)) == ""
+    prompt = await _build_subject_prompt(config, Subject.living_books, local_date=date(2026, 1, 5))
+    assert "<fable_of_the_week>" not in prompt
+    assert "Aesop fable" not in prompt
+
+
+@pytest.mark.asyncio
+async def test_flag_off_prompt_is_identical_to_no_readings(monkeypatch):
+    # With the flag off, the Living Books prompt must be byte-identical to
+    # one built when the set list does not exist at all.
+    monkeypatch.delenv("CURRICULUM_ENGINE_ENABLED", raising=False)
+    config = _config()
+    off = await _build_subject_prompt(config, Subject.living_books, local_date=date(2026, 1, 5))
+    monkeypatch.setattr("services.catalog_service.get_readings", lambda _id: [])
+    monkeypatch.setenv("CURRICULUM_ENGINE_ENABLED", "true")
+    absent = await _build_subject_prompt(config, Subject.living_books, local_date=date(2026, 1, 5))
+    assert off == absent

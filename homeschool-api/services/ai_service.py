@@ -2445,7 +2445,14 @@ def _fable_of_the_week_note(
     chosen by calendar week, and consecutive weeks give consecutive fables.
     The theme is given for Bede's own guidance only. The Year 1 teaching note
     says to let the child find the moral, so the note forbids stating it.
+
+    Gated behind CURRICULUM_ENGINE_ENABLED (default off), like the rest of
+    the curriculum engine, so the current release's prompts are unchanged
+    until that flag is deliberately turned on.
     """
+    from services.curriculum.flag import curriculum_engine_enabled
+    if not curriculum_engine_enabled():
+        return ""
     if subject != Subject.living_books or config.current_unit or _infer_year(config) != 1:
         return ""
     try:

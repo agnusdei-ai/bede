@@ -1602,6 +1602,10 @@ learned from the story and lets them find it themselves.
 If you type your own current unit for Living Books, Bede follows that
 instead and the fable list steps aside.
 
+The fable list is part of Bede's new curriculum features, which are off
+until whoever runs your server turns on `CURRICULUM_ENGINE_ENABLED`. Until
+then, Living Books works exactly as before.
+
 ## Reading and spelling (grades 3-8)
 
 Bede measured reading only up to 2nd grade. Phonics covers decoding for

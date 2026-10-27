@@ -93,8 +93,8 @@ evenly across the year's terms (11 per trimester term, or four near-equal
 quarters), one fable per ISO calendar week, plus one "choice week" per term
 when the child picks a favourite to retell. The `theme` is for Bede's own
 guidance only; the prompt forbids stating it or the moral to the child.
-A parent's own `current_unit` suppresses the note, as it does the rest of
-the catalog. Fable titles only, never fable text: the family reads from
+The note is off unless `CURRICULUM_ENGINE_ENABLED` is set. A parent's own
+`current_unit` suppresses it, as it does the rest of the catalog. Fable titles only, never fable text: the family reads from
 their own copy. `tests/test_aesop_set_list.py` pins the list and its
 wiring.
 

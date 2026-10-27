@@ -56,8 +56,18 @@
   <section class="band-curriculum">
     <div class="inner" style="max-width: 44rem;">
 
+      <nav class="privacy-contents" aria-label="Privacy page sections">
+        <strong>On this page</strong>
+        <ul>
+          <li><a href="#website-and-demo">Website, demo, and home installation</a></li>
+          <li><a href="#website-information">Website information and services</a></li>
+          <li><a href="#demo-information">Demo storage and outside services</a></li>
+          <li><a href="#data-choices">What we do not do</a></li>
+          <li><a href="#privacy-contact">Your data and privacy questions</a></li>
+        </ul>
+      </nav>
       <p class="eyebrow">Two Different Things Share This Domain</p>
-      <h2>The marketing site, and the demo, are not the same product</h2>
+      <h2 id="website-and-demo">The marketing site, and the demo, are not the same product</h2>
       <p>
         The public pages introduce Bede. You can send a business inquiry
         at <a href="/inquire/">/inquire/</a>, share feedback at
@@ -78,7 +88,7 @@
         as described below.
       </p>
 
-      <h2>The marketing site (this domain, outside <code>/bede/</code>)</h2>
+      <h2 id="website-information">The marketing site (this domain, outside <code>/bede/</code>)</h2>
       <p>
         Styles, fonts, motion, and illustrations use files served by this
         website. A Cloudflare measurement script is included in the page
@@ -91,8 +101,8 @@
         Please do not include student records or sensitive information.
         No payment details are collected on these pages.
       </p>
-      <table class="tracker-table">
-        <tr><th>Item</th><th>Category</th><th>Notes</th></tr>
+      <table class="tracker-table privacy-website" role="table" aria-label="Website information and services">
+        <tr role="row"><th scope="col">Item</th><th scope="col">Category</th><th scope="col">Notes</th></tr>
         <tr id="cloudflare-analytics">
           <td>Cloudflare Web Analytics</td>
           <td>Page-view and performance measurement</td>
@@ -125,7 +135,7 @@
         </tr>
       </table>
 
-      <h2>The interactive demo (<code>/bede/</code>)</h2>
+      <h2 id="demo-information">The interactive demo (<code>/bede/</code>)</h2>
       <p>
         The demo also includes the <a href="#cloudflare-analytics">Cloudflare
         script described above</a>, whose load is currently blocked.
@@ -139,8 +149,8 @@
       <p>The demo application does not set cookies. Cloudflare describes its analytics as cookie-free; demo browser storage is listed below.</p>
 
       <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Browser storage</h3>
-      <table class="tracker-table">
-        <tr><th>Name</th><th>Type</th><th>Category</th><th>Purpose</th><th>Lifetime</th></tr>
+      <table class="tracker-table privacy-storage" role="table" aria-label="Demo browser storage">
+        <tr role="row"><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Category</th><th scope="col">Purpose</th><th scope="col">Lifetime</th></tr>
         <tr>
           <td><code>bede-demo-consent-v2</code></td>
           <td>localStorage</td>
@@ -263,8 +273,8 @@
       </table>
 
       <h3 style="font-family: Georgia, serif; font-size: 1.05rem;">Outside services contacted</h3>
-      <table class="tracker-table">
-        <tr><th>Service</th><th>What reaches it</th><th>Purpose</th></tr>
+      <table class="tracker-table privacy-services" role="table" aria-label="Demo outside services">
+        <tr role="row"><th scope="col">Service</th><th scope="col">What reaches it</th><th scope="col">Purpose</th></tr>
         <tr>
           <td>OpenAI</td>
           <td>The conversation text, to generate Bede's replies; Bede's reply text, to synthesize its spoken voice if you use audio; and your microphone audio, if you use the mic, to transcribe it into text</td>
@@ -300,14 +310,14 @@
         The demo's data-use notice is separate from the included analytics script.
       </div>
 
-      <h2>What we do not do</h2>
+      <h2 id="data-choices">What we do not do</h2>
       <p>
         We do not sell personal data or use this website for advertising.
         The included Cloudflare analytics script is described separately
         from the email and AI services above.
       </p>
 
-      <h2>Requesting your data, or asking a question</h2>
+      <h2 id="privacy-contact">Requesting your data, or asking a question</h2>
       <p>
         To ask what we hold, request deletion, or ask anything else about
         this page, write to

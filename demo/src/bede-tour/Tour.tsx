@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCcw, SkipForward } from "lucide-react";
 import { overviewSegments } from "./overview-script";
 import { LessonVideo } from "./LessonVideo";
+import { FullscreenVideoControls, useFullscreenVideo } from "./FullscreenVideo";
 import "./tour.css";
 
 type TourPath = "parent" | "educator";
@@ -48,6 +49,7 @@ function formatTime(seconds: number) {
 
 function OverviewVideo() {
   const [unavailable, setUnavailable] = useState(false);
+  const fullscreen = useFullscreenVideo();
   const transcript = useMemo(() => {
     let start = 0;
     return overviewSegments.map((segment) => {
@@ -66,9 +68,10 @@ function OverviewVideo() {
         <img src={asset("bede-portrait.webp")} alt="Illustrated portrait of Bede" />
       </div>
       <video
+        ref={fullscreen.videoRef}
+        onPlay={fullscreen.onPlay}
         controls
         preload="metadata"
-        playsInline
         onError={() => setUnavailable(true)}
         onLoadedMetadata={() => setUnavailable(false)}
         poster={asset("overview-poster.jpg")}
@@ -86,6 +89,7 @@ function OverviewVideo() {
         />
         Your browser does not support embedded video. Read the overview transcript below.
       </video>
+      <FullscreenVideoControls title="the short overview" onClick={fullscreen.playFullscreen} message={fullscreen.message} />
       {unavailable && <p className="tour-note" role="status">Video playback is unavailable. <a href={asset("generated/overview-captioned.mp4")} download>Download the captioned overview</a> or read the complete transcript below.</p>}
       <details className="tour-disclosure">
         <summary>Read the overview transcript</summary>

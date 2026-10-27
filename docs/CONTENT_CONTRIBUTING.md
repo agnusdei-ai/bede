@@ -83,6 +83,21 @@ by `get_catalog_note()`/`get_subject_plan()`, which feed
 }
 ```
 
+A book entry may also carry an ordered `"readings"` list of
+`{"title", "theme"}` objects plus a `"readings_note"` explaining where the
+list came from. `y1-aesop` is the first: a 33-fable Year 1 set list, written
+for this project (not taken from Mater Amabilis). `get_readings()` returns
+it, and `ai_service._fable_of_the_week_note()` turns it into a
+`<fable_of_the_week>` block for Year 1 Living Books: the list is split
+evenly across the year's terms (11 per trimester term, or four near-equal
+quarters), one fable per ISO calendar week, plus one "choice week" per term
+when the child picks a favourite to retell. The `theme` is for Bede's own
+guidance only; the prompt forbids stating it or the moral to the child.
+The note is off unless `CURRICULUM_ENGINE_ENABLED` is set. A parent's own
+`current_unit` suppresses it, as it does the rest of the catalog. Fable titles only, never fable text: the family reads from
+their own copy. `tests/test_aesop_set_list.py` pins the list and its
+wiring.
+
 A year file can also carry a top-level `"subject_plans"` object (year1.json
 onward) for non-book-list subjects (`mathematics`, `art_music`,
 `language_arts`, `morning_time`) — see `get_subject_plan()`.

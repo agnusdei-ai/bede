@@ -1583,6 +1583,29 @@ run a homeschool co-op, there is a separate one for that at
   mic quality affect matching more than most people expect.
 
 
+## Aesop's fables in Year 1
+
+In Living Books, a Year 1 child (kindergarten or first grade) has one
+Aesop fable a week, from a fixed list of 33: eleven a term, with one extra
+"choice week" each term when your child picks a favourite to tell again.
+If you plan in four terms instead of three, the same 33 are shared out
+across your four.
+
+Read the week's fable from your own copy. Any edition is fine; older
+public-domain translations are free online. Bede will ask whether you have
+read it today, and if not it may tell it briefly in its own words. Then
+it asks your child to tell the story back.
+
+Bede knows each fable's lesson but never says it. It asks what your child
+learned from the story and lets them find it themselves.
+
+If you type your own current unit for Living Books, Bede follows that
+instead and the fable list steps aside.
+
+The fable list is part of Bede's new curriculum features, which are off
+until whoever runs your server turns on `CURRICULUM_ENGINE_ENABLED`. Until
+then, Living Books works exactly as before.
+
 ## Reading and spelling (grades 3-8)
 
 Bede measured reading only up to 2nd grade. Phonics covers decoding for

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, RotateCcw, SkipForward } from "lucide-react";
 import { overviewSegments } from "./overview-script";
+import { LessonVideo } from "./LessonVideo";
 import "./tour.css";
 
 type TourPath = "parent" | "educator";
@@ -103,10 +104,13 @@ function OverviewVideo() {
 function Entry({ onStart }: { onStart: () => void }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    if (window.location.hash === "#overview-title") {
-      const video = document.querySelector<HTMLVideoElement>("[data-testid=video-short-overview]");
-      video?.scrollIntoView({ block: "center" });
-      video?.focus();
+    const hash = window.location.hash;
+    if (hash === "#overview-title" || hash === "#lesson-title") {
+      const target = hash === "#lesson-title"
+        ? document.querySelector<HTMLElement>("[data-testid=section-recorded-lesson] video")
+        : document.querySelector<HTMLVideoElement>("[data-testid=video-short-overview]");
+      target?.scrollIntoView({ block: "center" });
+      target?.focus();
     } else headingRef.current?.focus();
   }, []);
   return (
@@ -133,6 +137,9 @@ function Entry({ onStart }: { onStart: () => void }) {
               <a className="tour-button secondary" href="#overview-title" data-testid="link-watch-short-overview">
                 Watch the short overview
               </a>
+              <a className="tour-button secondary" href="#lesson-title" data-testid="link-watch-recorded-lesson">
+                Watch Bede in action
+              </a>
             </div>
             <div className="tour-values">
               <span><i className="tour-dot" /> You choose</span>
@@ -140,10 +147,13 @@ function Entry({ onStart }: { onStart: () => void }) {
               <span><i className="tour-dot" /> You review</span>
             </div>
             <p className="tour-note">
-              <strong>Everything here is simulated.</strong> Fictional learners and scripted responses—not live tutoring or real learner records.
+              <strong>The scripted interactive tour is simulated.</strong> Fictional learners and scripted responses—not live tutoring or real learner records. The separate recorded lesson uses generated Bede replies with a fictional role-played learner.
             </p>
           </section>
-          <div className="tour-entry-video"><OverviewVideo /></div>
+          <div className="tour-entry-video">
+            <OverviewVideo />
+            <LessonVideo publicDemoHref="/bede/" />
+          </div>
         </div>
         <TourFooter />
       </main>

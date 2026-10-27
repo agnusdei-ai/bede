@@ -56,6 +56,19 @@
 .tour-button.subtle:hover { background: var(--paper-deep); }
 .tour-button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .tour-video-card { padding: clamp(.8rem, 1.5vw, 1.1rem); border: 1px solid var(--rule); background: #fffdf8; box-shadow: 0 12px 32px #2637460c; }
+.tour-entry-video { display: grid; gap: 1.15rem; min-width: 0; }
+.lesson-video-card { scroll-margin-top: 1rem; }
+.lesson-video-card h2[tabindex="-1"]:focus { outline: none; }
+.lesson-video-card .tour-eyebrow { margin-bottom: .35rem; font-size: .65rem; }
+.lesson-description { margin: .35rem 0 .75rem; color: var(--ink-soft); font-size: .88rem; }
+.lesson-transcript p { display: grid; grid-template-columns: 2.8rem minmax(5.5rem, auto) 1fr; align-items: baseline; gap: .55rem; }
+.lesson-transcript p strong { color: var(--forest-deep); font-size: .82rem; }
+.lesson-transcript p span { min-width: 0; }
+.lesson-transcript-status { margin: .65rem 0 0; color: var(--muted); font-size: .84rem; }
+.lesson-demo-action { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .8rem; margin-top: 1rem; padding-top: .9rem; border-top: 1px solid var(--rule); }
+.lesson-demo-action p { margin: 0; color: var(--ink-soft); font-size: .88rem; }
+.lesson-demo-action .tour-button { text-decoration: none; }
+.lesson-disclosure { margin: .65rem 0 0; color: var(--muted); font-size: .75rem; }
 .tour-video-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .7rem; }
 .tour-video-heading h2 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.55rem); }
 .tour-video-heading p { margin: .2rem 0 0; color: var(--muted); font-size: .75rem; letter-spacing: .04em; }
@@ -161,6 +174,10 @@
   .tour-step-actions { align-items: stretch; }
   .tour-action-group { width: 100%; }
   .tour-action-group .tour-button { flex: 1 1 40%; }
+  .lesson-transcript p { grid-template-columns: 2.5rem 1fr; gap: .15rem .45rem; }
+  .lesson-transcript p span { grid-column: 2; }
+  .lesson-demo-action { align-items: stretch; }
+  .lesson-demo-action .tour-button { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bede-tour *, .bede-tour *::before, .bede-tour *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

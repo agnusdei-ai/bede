@@ -61,6 +61,18 @@ test("adult paths and native controls remain without the redundant opening note"
   assert.doesNotMatch(tour, /autoPlay|fetch\s*\(/);
 });
 
+test("both tour videos support fullscreen playback without forcing inline mobile playback", () => {
+  for (const file of ["Tour.tsx", "LessonVideo.tsx"]) {
+    const source = text(`demo/src/bede-tour/${file}`);
+    assert.match(source, /ref=\{fullscreen.videoRef\}/);
+    assert.match(source, /onPlay=\{fullscreen.onPlay\}/);
+    assert.match(source, /<FullscreenVideoControls/);
+    assert.doesNotMatch(source, /playsInline/);
+  }
+  const css = text("demo/src/bede-tour/tour.css");
+  assert.match(css, /video:fullscreen[^}]*object-fit: contain/);
+});
+
 test("recorded lesson is added without replacing the overview, with accessible transcript and demo CTA", () => {
   const tour = text("demo/src/bede-tour/Tour.tsx");
   const lesson = text("demo/src/bede-tour/LessonVideo.tsx");
@@ -85,7 +97,7 @@ test("recorded lesson is added without replacing the overview, with accessible t
   assert.match(lesson, /Try Bede for 20 minutes/);
   assert.match(lesson, /href=\{publicDemoHref\}/);
   assert.match(lesson, /preload="metadata"/);
-  assert.match(lesson, /playsInline/);
+  assert.doesNotMatch(lesson, /playsInline/);
   assert.match(lesson, /onLoadedMetadata/);
   assert.doesNotMatch(lesson, /autoPlay|window\.location/);
   assert.match(css, /\.lesson-transcript/);

@@ -74,6 +74,10 @@
 .tour-video-heading p { margin: .2rem 0 0; color: var(--muted); font-size: .75rem; letter-spacing: .04em; }
 .tour-video-heading img { flex: 0 0 auto; width: 56px; height: 62px; object-fit: contain; object-position: bottom; }
 .tour-video-card video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #283b35; object-fit: cover; }
+.tour-video-card video:fullscreen { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; background: #000; }
+.tour-video-card video:-webkit-full-screen { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; background: #000; }
+.tour-video-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-top: .75rem; }
+.tour-video-actions .tour-note { flex-basis: 100%; margin: 0; }
 .tour-video-card .tour-note { margin-top: .7rem; padding: .6rem .75rem; font-size: .8rem; }
 .tour-disclosure { margin-top: .7rem; color: var(--ink-soft); font-size: .88rem; }
 .tour-disclosure summary { color: var(--forest-deep); cursor: pointer; font-weight: 700; }

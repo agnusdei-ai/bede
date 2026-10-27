@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FullscreenVideoControls, useFullscreenVideo } from "./FullscreenVideo";
 
 type TranscriptSegment = {
   start: number;
@@ -41,6 +42,7 @@ function isTranscript(value: unknown): value is LessonTranscript {
 }
 
 export function LessonVideo({ publicDemoHref }: LessonVideoProps) {
+  const fullscreen = useFullscreenVideo();
   const [transcript, setTranscript] = useState<LessonTranscript | null>(null);
   const [transcriptUnavailable, setTranscriptUnavailable] = useState(false);
   const [videoUnavailable, setVideoUnavailable] = useState(false);
@@ -83,9 +85,10 @@ export function LessonVideo({ publicDemoHref }: LessonVideoProps) {
       </div>
       <p className="lesson-description">Follow three simple steps: retell a story, revise a sentence, and explain a solution.</p>
       <video
+        ref={fullscreen.videoRef}
+        onPlay={fullscreen.onPlay}
         controls
         preload="metadata"
-        playsInline
         poster={asset("lesson-poster.jpg")}
         aria-label="Recorded Bede practice with a fictional Grade 3 learner exploring reading, writing, and mathematics"
         data-testid="video-recorded-lesson"
@@ -101,6 +104,7 @@ export function LessonVideo({ publicDemoHref }: LessonVideoProps) {
         <track kind="captions" src={asset("lesson.vtt")} srcLang="en" label="English" default />
         Your browser does not support embedded video. Use the captioned download or transcript below.
       </video>
+      <FullscreenVideoControls title="Bede in action" onClick={fullscreen.playFullscreen} message={fullscreen.message} />
       {videoUnavailable && (
         <p className="tour-note" role="status" data-testid="status-lesson-video-unavailable">
           Video playback is unavailable. <a href={asset("generated/lesson-captioned.mp4")} download>Download the captioned lesson</a>.

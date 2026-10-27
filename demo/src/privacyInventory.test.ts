@@ -85,7 +85,7 @@ describe('deployed analytics and website flows disclosed on the privacy page', (
   })
 
   it('changes disclosure only, without adding a banner, tracker, or submission flow', () => {
-    privacyPage()
+    const main = privacyPage()
     expect(document.querySelectorAll('form, iframe, [role="dialog"]')).toHaveLength(0)
     expect(document.querySelectorAll('script[src^="http"], script:not([src])')).toHaveLength(0)
     expect(document.querySelectorAll('footer a[href="/privacy/"][aria-current="page"]')).toHaveLength(1)
@@ -95,7 +95,17 @@ describe('deployed analytics and website flows disclosed on the privacy page', (
     const styles = readFileSync(join(__dirname, '../../site/assets/privacy.css'), 'utf8')
     expect(styles).toContain('overflow-wrap: anywhere')
     expect(styles).toContain('white-space: normal')
-    expect(styles).toContain('padding-inline: 0.2rem')
+    expect(styles).toContain('font-size: 1.125rem')
+    expect(styles).toContain('font-size: 1.0625rem')
+    expect(styles).toContain('line-height: 1.75')
+    expect(styles).toContain('content: "Lifetime"')
+    expect(styles).toContain('content: "What reaches this service"')
+    expect(main.querySelectorAll('table[role="table"][aria-label]')).toHaveLength(3)
+    const sectionLinks = main.querySelectorAll('.privacy-contents a')
+    expect(sectionLinks).toHaveLength(5)
+    for (const link of sectionLinks) {
+      expect(main.querySelector(link.getAttribute('href')!)).not.toBeNull()
+    }
   })
 })
 

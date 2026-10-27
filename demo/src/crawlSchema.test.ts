@@ -28,7 +28,7 @@ describe('public crawler access and Bede application schema', () => {
       .replace(/#[^\n]*/g, '')
       .trim()
       .split(/\n\s*\n/)
-    for (const agent of ['Google-Extended', 'GPTBot', 'Bingbot', '*']) {
+    for (const agent of ['OAI-SearchBot', 'PerplexityBot', 'Google-Extended']) {
       const group = groups.find(group => group.split('\n').some(line =>
         line.trim().toLowerCase() === `user-agent: ${agent}`.toLowerCase(),
       ))
@@ -37,6 +37,12 @@ describe('public crawler access and Bede application schema', () => {
       expect(group).not.toMatch(/^Disallow:\s*\//m)
     }
     expect(robots).toContain('Sitemap: https://agnusdei.ai/sitemap.xml')
+    expect(robots).toBe(
+      'User-agent: OAI-SearchBot\nAllow: /\n\n' +
+      'User-agent: PerplexityBot\nAllow: /\n\n' +
+      'User-agent: Google-Extended\nAllow: /\n\n' +
+      'Sitemap: https://agnusdei.ai/sitemap.xml\n',
+    )
   })
 
   it('includes the requested schema in static HTML without duplicate application entities', () => {

@@ -539,16 +539,17 @@ export async function* streamSandboxChat(
   history: ChatMessage[],
   message: string,
   customInstructions: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  educatorPlanning = false
 ): AsyncGenerator<StreamChunk> {
-  const res = await fetch(`${BASE}/sandbox/chat`, {
+  const res = await fetch(`${BASE}/sandbox/${educatorPlanning ? 'educator-chat' : 'chat'}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      sandbox_pin: sandboxPin,
+      ...(educatorPlanning ? {} : { sandbox_pin: sandboxPin }),
       conversation_history: history,
       message,
       custom_instructions: customInstructions,
@@ -556,7 +557,7 @@ export async function* streamSandboxChat(
     signal,
   })
 
-  if (res.status === 401) throw new Error('Incorrect sandbox PIN')
+  if (res.status === 401) throw new Error(educatorPlanning ? 'Please sign in again with your educator passkey' : 'Incorrect sandbox PIN')
   if (res.status === 404) throw new Error('Sandbox mode is not enabled on this deployment')
   if (!res.ok) throw new Error('Sandbox request failed — check your connection')
 

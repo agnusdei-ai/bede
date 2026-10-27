@@ -168,6 +168,7 @@ export default function EducatorDesk() {
           <div className="educator-welcome-copy">
             <p className="text-xs uppercase tracking-widest text-sage-700 mb-2">Bede · Classical learning</p>
             <h1 className="text-2xl font-display font-bold text-gray-900">Your Classroom</h1>
+            <button type="button" onClick={() => navigate('/lesson-planner')} className="mt-2 text-sm font-semibold text-navy-800 underline">Plan with Bede</button>
             <p className="text-sm text-gray-600 mt-1">A calm place to guide your learners, see their growth, and review Bede’s suggestions.</p>
           </div>
           <button type="button" className="flex items-center gap-2 text-sm text-gray-700" onClick={() => {

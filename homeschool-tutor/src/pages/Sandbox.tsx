@@ -12,7 +12,7 @@ import type { ChatMessage } from '../types'
 // only in this component's own state and are gone the moment the tab
 // closes or reloads, matching the backend's "nothing written to the
 // database" guarantee in routers/sandbox.py.
-export default function Sandbox() {
+export default function Sandbox({ educatorPlanning = false }: { educatorPlanning?: boolean }) {
   const navigate = useNavigate()
   const { token } = useSessionStore()
 
@@ -39,7 +39,7 @@ export default function Sandbox() {
   const handleSend = async () => {
     const text = input.trim()
     if (!text || streaming || !token) return
-    if (!sandboxPin.trim()) {
+    if (!educatorPlanning && !sandboxPin.trim()) {
       setError('Enter the sandbox PIN above first.')
       setSettingsOpen(true)
       return
@@ -64,7 +64,7 @@ export default function Sandbox() {
     try {
       let assembled = ''
       for await (const chunk of streamSandboxChat(
-        token, sandboxPin, history, text, customInstructions, controller.signal
+        token, sandboxPin, history, text, customInstructions, controller.signal, educatorPlanning
       )) {
         if (chunk.type === 'text' && chunk.content) {
           assembled += chunk.content
@@ -103,9 +103,9 @@ export default function Sandbox() {
       {/* Header */}
       <header className="shrink-0 bg-white border-b border-navy-100 px-4 py-3 flex items-center gap-3">
         <button
-          onClick={() => navigate('/pod')}
+          onClick={() => navigate(educatorPlanning ? '/classroom' : '/pod')}
           className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
-          aria-label="Back to Pod Dashboard"
+          aria-label={educatorPlanning ? 'Back to classroom' : 'Back to Pod Dashboard'}
         >
           <ArrowLeft size={18} />
         </button>
@@ -113,9 +113,9 @@ export default function Sandbox() {
           <FlaskConical size={16} className="text-sage-600" />
         </div>
         <div className="min-w-0 flex-1">
-          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">Ask Bede — Sandbox</h1>
+          <h1 className="text-base font-display font-bold text-gray-800 leading-tight">{educatorPlanning ? 'Plan with Bede' : 'Ask Bede — Sandbox'}</h1>
           <p className="text-xs text-gray-500 leading-tight">
-            Direct answers, not Socratic — nothing here is saved
+            Concepts, three guiding questions, and adaptable next steps
           </p>
         </div>
         <button
@@ -146,7 +146,7 @@ export default function Sandbox() {
         </button>
         {settingsOpen && (
           <div className="px-4 pb-4 space-y-3 max-w-2xl">
-            <div>
+            {!educatorPlanning && <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Sandbox PIN</label>
               <input
                 type="password"
@@ -155,7 +155,7 @@ export default function Sandbox() {
                 placeholder="Enter the SANDBOX_PIN configured for this deployment"
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-300"
               />
-            </div>
+            </div>}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Custom instructions <span className="font-normal text-gray-400">(your own test lesson content — never saved, never affects real students)</span>
@@ -177,7 +177,7 @@ export default function Sandbox() {
         <div className="max-w-2xl mx-auto space-y-3">
           {messages.length === 0 && (
             <p className="text-sm text-gray-400 text-center mt-12">
-              Ask Bede anything. No need to guess through questions, and you can switch topics freely.
+              Include the grade, learning goal, and a short task. Bede will suggest progressive questions and support, on-level, and extension options. Leave out learner names and personal details.
             </p>
           )}
           {messages.map((m, i) => (

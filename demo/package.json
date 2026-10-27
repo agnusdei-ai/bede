@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run && node --test ../scripts/bede-production.test.mjs"
+    "test": "vitest run && node --test ../scripts/bede-production.test.mjs ../scripts/bede-tour-release.test.mjs"
   },
   "dependencies": {
     "i18next": "^26.3.6",

@@ -1,0 +1,167 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap");
+
+.bede-tour {
+  --ink: #263746;
+  --ink-soft: #45545e;
+  --paper: #fbf8f1;
+  --paper-deep: #f1ecdf;
+  --paper-edge: #e8dfcf;
+  --gold: #8d7045;
+  --gold-light: #dfc98e;
+  --forest: #536451;
+  --forest-deep: #3e4d40;
+  --muted: #657078;
+  --rule: #d9d1c2;
+  min-height: 100dvh;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.65 "DM Sans", system-ui, sans-serif;
+  letter-spacing: .005em;
+}
+.bede-tour *, .bede-tour *::before, .bede-tour *::after { box-sizing: border-box; }
+.bede-tour button, .bede-tour input, .bede-tour select, .bede-tour textarea { font: inherit; }
+.bede-tour button { cursor: pointer; }
+.bede-tour :focus-visible { outline: 3px solid #9e7b43; outline-offset: 3px; }
+.tour-topbar {
+  min-height: 74px; display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: .8rem clamp(1rem, 5vw, 4.5rem);
+  background: #263b36; color: #f8f3e8;
+}
+.tour-brand { display: inline-flex; align-items: center; gap: .75rem; color: inherit; text-decoration: none; }
+.tour-brand img { width: 38px; height: 38px; object-fit: contain; border-radius: 50%; }
+.tour-brand span { font: 700 1.05rem/1 "Libre Baskerville", Georgia, serif; letter-spacing: .12em; }
+.tour-topbar-note { color: #d9c99f; font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+.tour-shell { width: min(1120px, calc(100% - 2rem)); margin: 0 auto; padding: clamp(1.5rem, 4vw, 3.75rem) 0 4rem; }
+.tour-entry-shell { padding-top: clamp(1.1rem, 2.5vw, 2.25rem); padding-bottom: clamp(1rem, 2.5vw, 2rem); }
+.tour-eyebrow { margin: 0 0 .75rem; color: var(--forest); font-weight: 700; font-size: .73rem; letter-spacing: .14em; text-transform: uppercase; }
+.tour-shell h1, .tour-shell h2, .tour-shell h3 { font-family: "Libre Baskerville", Georgia, serif; font-weight: 400; letter-spacing: -.03em; line-height: 1.25; text-wrap: pretty; }
+.tour-shell h1 { max-width: 16ch; margin: 0 0 1rem; font-size: clamp(2.25rem, 5.2vw, 4.5rem); }
+.tour-shell h1[tabindex="-1"]:focus { outline: none; }
+.tour-shell h2 { margin: 0 0 .6rem; font-size: clamp(1.55rem, 3vw, 2.25rem); }
+.tour-shell h3 { margin: .25rem 0 .55rem; font-size: 1.15rem; }
+.tour-lead { max-width: 62ch; margin: 0; color: var(--ink-soft); font-size: clamp(1.02rem, 1.8vw, 1.18rem); }
+.tour-entry { display: grid; grid-template-columns: minmax(0, .92fr) minmax(360px, 1.08fr); align-items: center; gap: clamp(1.5rem, 4vw, 3.25rem); }
+.tour-entry-copy { padding: .25rem 0; }
+.tour-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.5rem; }
+.tour-button {
+  min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .7rem 1.1rem; border: 1px solid var(--forest-deep); border-radius: 4px;
+  background: var(--forest-deep); color: #fffdf8; font-weight: 700; text-align: center;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.tour-button:hover { background: #304139; transform: translateY(-1px); }
+.tour-button.secondary { color: var(--forest-deep); background: transparent; }
+.tour-button.secondary:hover { background: #e9e3d6; }
+.tour-button.subtle { border-color: var(--rule); background: transparent; color: var(--ink-soft); }
+.tour-button.subtle:hover { background: var(--paper-deep); }
+.tour-button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.tour-video-card { padding: clamp(.8rem, 1.5vw, 1.1rem); border: 1px solid var(--rule); background: #fffdf8; box-shadow: 0 12px 32px #2637460c; }
+.tour-video-heading { display: flex; align-items: center; justify-content: space-between; gap: .8rem; margin-bottom: .7rem; }
+.tour-video-heading h2 { margin: 0; font-size: clamp(1.2rem, 2vw, 1.55rem); }
+.tour-video-heading p { margin: .2rem 0 0; color: var(--muted); font-size: .75rem; letter-spacing: .04em; }
+.tour-video-heading img { flex: 0 0 auto; width: 56px; height: 62px; object-fit: contain; object-position: bottom; }
+.tour-video-card video { display: block; width: 100%; aspect-ratio: 16 / 9; background: #283b35; object-fit: cover; }
+.tour-video-card .tour-note { margin-top: .7rem; padding: .6rem .75rem; font-size: .8rem; }
+.tour-disclosure { margin-top: .7rem; color: var(--ink-soft); font-size: .88rem; }
+.tour-disclosure summary { color: var(--forest-deep); cursor: pointer; font-weight: 700; }
+.tour-transcript { padding-right: .4rem; }
+.tour-transcript p { margin: .7rem 0; }
+.tour-transcript time { color: var(--gold); font-variant-numeric: tabular-nums; font-weight: 700; }
+.tour-note { margin-top: 1.15rem; padding: .8rem 1rem; border-left: 3px solid var(--gold); background: #f1ecdf; color: var(--ink-soft); font-size: .88rem; }
+.tour-note strong { color: var(--ink); }
+.tour-values { display: flex; flex-wrap: wrap; gap: .55rem 1.1rem; margin-top: 1.5rem; color: var(--forest-deep); font-size: .85rem; }
+.tour-values span { display: inline-flex; align-items: center; gap: .4rem; }
+.tour-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.tour-path-select { max-width: 820px; margin: 0 auto; }
+.tour-path-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; margin-top: 1.6rem; }
+.tour-path-choice { min-height: 190px; padding: 1.35rem; border: 1px solid var(--rule); background: #fffdf8; color: var(--ink); text-align: left; transition: transform .2s ease, border-color .2s ease, background-color .2s ease; }
+.tour-path-choice:hover { transform: translateY(-2px); border-color: var(--gold); background: #f8f3e8; }
+.tour-path-choice strong { display: block; margin-bottom: .5rem; color: var(--forest-deep); font: 400 1.35rem "Libre Baskerville", Georgia, serif; }
+.tour-path-choice span { display: block; color: var(--ink-soft); font-size: .92rem; }
+.tour-path-choice small { display: inline-block; margin-top: 1.2rem; color: var(--gold); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.tour-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 1.25rem; align-items: start; }
+.tour-main-panel, .tour-side-panel { border: 1px solid var(--rule); background: #fffdf8; }
+.tour-main-panel { min-width: 0; padding: clamp(1.1rem, 3vw, 2rem); }
+.tour-side-panel { position: sticky; top: 1rem; padding: 1.2rem; background: #f3efe5; }
+.tour-step-head { display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin-bottom: 1.1rem; }
+.tour-step-head h1 { max-width: 24ch; margin: 0; font-size: clamp(1.6rem, 3.2vw, 2.3rem); }
+.tour-step-number { flex: 0 0 auto; color: var(--gold); font: 700 .8rem "DM Sans", sans-serif; letter-spacing: .1em; text-transform: uppercase; }
+.tour-progress { height: 5px; margin: .8rem 0 1.2rem; overflow: hidden; background: #e8dfcf; }
+.tour-progress span { display: block; height: 100%; background: var(--forest); transition: width .24s ease; }
+.tour-step-nav { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0 1.4rem; }
+.tour-step-nav, .tour-progress, .tour-switch-link { width: min(1120px, calc(100% - 2rem)); margin-inline: auto; }
+.tour-step-nav { padding-top: .8rem; }
+.tour-step-nav button { padding: .45rem .65rem; border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); font-size: .76rem; }
+.tour-step-nav button[aria-current="step"] { border-color: var(--forest-deep); background: var(--forest-deep); color: white; }
+.tour-step-nav button[aria-current="step"]::before { content: "Now · "; color: var(--gold-light); }
+.tour-switch-link { display: block; margin-top: .65rem; border: 0; padding: 0; background: transparent; color: var(--forest-deep); font-size: .8rem; font-weight: 700; text-align: right; text-decoration: underline; text-underline-offset: .2em; }
+.tour-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .9rem; margin-top: 1.25rem; }
+.tour-field { display: block; min-width: 0; color: var(--ink); font-size: .86rem; font-weight: 700; }
+.tour-field small { display: block; margin-top: .24rem; color: var(--muted); font-weight: 400; line-height: 1.5; }
+.tour-field input, .tour-field select, .tour-field textarea {
+  width: 100%; min-height: 45px; margin-top: .4rem; padding: .65rem .7rem;
+  border: 1px solid #cfc8ba; border-radius: 2px; background: #fff; color: var(--ink);
+}
+.tour-field textarea { min-height: 92px; resize: vertical; }
+.tour-field.full { grid-column: 1 / -1; }
+.tour-choice-list { display: grid; gap: .65rem; margin: 1.1rem 0; }
+.tour-choice {
+  display: grid; grid-template-columns: 1.25rem 1fr; align-items: start; gap: .65rem;
+  padding: .85rem; border: 1px solid var(--rule); background: #fff; cursor: pointer;
+}
+.tour-choice:has(input:checked) { border-color: var(--forest); background: #f3f5ef; }
+.tour-choice input { margin-top: .28rem; accent-color: var(--forest-deep); }
+.tour-choice strong { display: block; font-family: "Libre Baskerville", Georgia, serif; font-weight: 400; }
+.tour-choice span { color: var(--ink-soft); font-size: .88rem; }
+.tour-feedback { margin: 1rem 0 0; padding: 1rem; border-left: 3px solid var(--gold); background: #f5f0e4; }
+.tour-feedback strong { display: block; margin-bottom: .3rem; }
+.tour-scripted-label { display: inline-block; margin-bottom: .6rem; color: var(--gold); font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.tour-quote { margin: 1rem 0; padding: 1.1rem 1.2rem; border-left: 3px solid var(--gold); background: #f3efe5; font: 1.05rem/1.7 "Libre Baskerville", Georgia, serif; }
+.tour-review-card { padding: 1rem; border: 1px solid var(--rule); background: #f8f5ed; }
+.tour-review-card .tour-scripted-label { display: block; }
+.tour-review-card dl { margin: .5rem 0 0; }
+.tour-review-card dt { margin-top: .8rem; color: var(--gold); font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.tour-review-card dd { margin: .15rem 0 0; color: var(--ink-soft); }
+.tour-step-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .65rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
+.tour-action-group { display: flex; flex-wrap: wrap; gap: .6rem; }
+.tour-side-heading { margin: 0; color: var(--forest-deep); font: 400 1.1rem "Libre Baskerville", Georgia, serif; }
+.tour-side-panel p { color: var(--ink-soft); font-size: .85rem; }
+.tour-side-panel .tour-side-mark { display: block; width: 55px; height: 55px; margin-bottom: .8rem; object-fit: contain; }
+.tour-side-rule { height: 1px; margin: 1rem 0; background: var(--rule); }
+.tour-kbd { display: inline-block; min-width: 1.7rem; padding: .1rem .35rem; border: 1px solid #cfc8ba; background: #fffdf8; color: var(--muted); font-size: .75rem; text-align: center; }
+.tour-decision-row { display: flex; flex-wrap: wrap; gap: .55rem; margin-top: 1rem; }
+.tour-decision-row button[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--gold-light); }
+.tour-complete { max-width: 800px; margin: 0 auto; padding: clamp(1.5rem, 5vw, 3.2rem); border: 1px solid var(--rule); background: #fffdf8; text-align: center; }
+.tour-complete h1 { max-width: none; margin-inline: auto; }
+.tour-complete .tour-note { text-align: left; }
+.tour-complete-actions { justify-content: center; }
+.tour-links { display: flex; flex-wrap: wrap; gap: .9rem 1.3rem; margin-top: 1.3rem; justify-content: center; }
+.tour-links a { color: var(--forest-deep); font-weight: 700; text-underline-offset: .2em; }
+.tour-footer { padding: 1.2rem; color: var(--muted); font-size: .78rem; text-align: center; }
+.tour-footer a { color: var(--forest-deep); }
+.tour-transition { animation: tour-enter .24s ease both; }
+@keyframes tour-enter { from { opacity: .5; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 800px) {
+  .tour-entry { grid-template-columns: 1fr; gap: 1.5rem; }
+  .tour-workspace { grid-template-columns: 1fr; }
+  .tour-side-panel { position: static; }
+  .tour-side-panel .tour-side-mark { float: right; }
+}
+@media (max-width: 580px) {
+  .tour-topbar { min-height: 62px; }
+  .tour-topbar-note { max-width: 12rem; text-align: right; font-size: .63rem; }
+  .tour-shell { width: min(100% - 1.1rem, 1120px); padding-top: 1.4rem; }
+  .tour-path-grid, .tour-field-grid { grid-template-columns: 1fr; }
+  .tour-field.full { grid-column: auto; }
+  .tour-path-choice { min-height: 0; }
+  .tour-step-head { display: block; }
+  .tour-step-number { display: block; margin-top: .5rem; }
+  .tour-button { flex: 1 1 auto; }
+  .tour-actions { align-items: stretch; }
+  .tour-step-actions { align-items: stretch; }
+  .tour-action-group { width: 100%; }
+  .tour-action-group .tour-button { flex: 1 1 40%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bede-tour *, .bede-tour *::before, .bede-tour *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

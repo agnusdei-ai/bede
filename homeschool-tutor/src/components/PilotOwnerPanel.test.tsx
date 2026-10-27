@@ -48,7 +48,9 @@ const openPanel = async () => {
 
 const confirmAndDelete = async () => {
   fireEvent.change(screen.getByLabelText(/to confirm/), { target: { value: 'Example Learner' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Delete these records' }))
+  const button = screen.getByRole('button', { name: 'Delete these records' }) as HTMLButtonElement
+  await waitFor(() => expect(button.disabled).toBe(false))
+  fireEvent.click(button)
 }
 
 describe('PilotOwnerPanel', () => {

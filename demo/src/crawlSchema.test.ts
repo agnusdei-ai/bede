@@ -5,6 +5,23 @@ import { describe, expect, it } from 'vitest'
 const site = resolve(import.meta.dirname, '../../site')
 
 describe('public crawler access and Bede application schema', () => {
+  it('ships a concise Markdown summary with the main public resources', () => {
+    const summary = readFileSync(resolve(site, 'llms.txt'), 'utf8')
+    expect(summary).toMatch(/^# Bede by Agnus Dei\n\n> /)
+    expect(summary.trim().split(/\s+/).length).toBeLessThan(450)
+    for (const route of [
+      '/', '/homeschool/', '/educators/', '/schools/',
+      '/bede/tour/', '/bede/', '/faq/', '/privacy/', '/research/', '/inquire/',
+    ]) expect(summary).toContain(`](https://agnusdei.ai${route})`)
+    expect(summary).toContain('The public demo is cloud-hosted.')
+    expect(summary).toContain('local-only privacy applies to offline installations')
+    expect(summary).toContain('School demonstrations are teacher-directed and use synthetic data')
+    expect(summary).toContain('bede@agnusdei.ai')
+    expect(summary).toContain('info@agnusdei.ai')
+    const build = readFileSync(resolve(site, '../scripts/build_pages_site.sh'), 'utf8')
+    expect(build).toContain('cp -r site/* publish/')
+  })
+
   it('explicitly allows the requested crawlers and retains the sitemap', () => {
     const robots = readFileSync(resolve(site, 'robots.txt'), 'utf8')
     const groups = robots

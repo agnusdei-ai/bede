@@ -60,7 +60,7 @@ function OverviewVideo() {
       <div className="tour-video-heading">
         <div>
           <h2 id="overview-title">Explore the two paths</h2>
-          <p>1:35 · English captions</p>
+          <p>{formatTime(overviewSegments.reduce((total, segment) => total + segment.duration, 0))} · English captions</p>
         </div>
         <img src={asset("bede-portrait.webp")} alt="Illustrated portrait of Bede" />
       </div>
@@ -96,9 +96,6 @@ function OverviewVideo() {
           ))}
         </div>
       </details>
-      <p className="tour-note">
-        <strong>AI narration.</strong> Fictional mother-and-educator persona; not a customer testimonial or Bede’s tutor voice.
-      </p>
     </section>
   );
 }

@@ -3,10 +3,19 @@
 The homepage's secondary action opens `/bede/tour/`. The public demo remains at
 `/bede/`; the original YouTube link and inquiry links are unchanged.
 
-The introduction places the 95-second overview beside its short instructions on
+The introduction places the 103-second overview beside its short instructions on
 desktop and below them on phones. The transcript is collapsed by default.
-The narrator is an explicitly fictional AI mother-and-educator persona, not a
-testimonial or Bede's tutor voice. Both adult walkthroughs use scripted examples.
+The overview uses one full-script recording, preserving its natural pauses.
+There are no separately recorded passages, audio splices, or section-level
+volume adjustments. Gentle full-track mastering balances the audio around
+-16 LUFS with a -1.5 dBTP ceiling.
+
+The same narrator and presentation are retained. The script includes Bede's
+question about the Lion sparing the Mouse, followed by reasoning from the fable
+and everyday application. The removed synthetic-narration line is absent from
+the speech and on-page note. The narrator is a fictional delivery persona,
+not a customer testimonial or Bede's tutor voice. Both adult walkthroughs use
+scripted examples.
 
 ## Build and checks
 
@@ -15,7 +24,7 @@ the demo's existing, locked React/Vite dependencies; no new packages are require
 The tour has its own entry, static assets and stylesheet, and does not call the API.
 
 `node --test scripts/bede-tour-release.test.mjs` checks release wiring, media,
-captions and the essential audience/disclosure constraints. It also runs as part
+captions and the essential audience/fictional-example constraints. It also runs as part
 of `demo`'s test command. Native playback, seeking, captions and responsive layout
 need browser verification as well.
 
@@ -30,7 +39,7 @@ The active deployment integration is **Workers Builds: bede**, despite the
 legacy `build_pages_site.sh` filename. Do not assume Pages-specific deployment
 skip flags control this Worker.
 
-The source and delivery media can be prepared as a GitHub commit without
-updating a remote branch. The owner must initiate branch creation, review and
-the final publishing merge. Those actions can trigger Cloudflare builds.
-A prepared commit is not evidence of a successful production deployment.
+Remote branch updates and merges can trigger Cloudflare builds. Obtain the
+owner's approval before making them; do not disable checks or deployment
+controls. A merged commit is not evidence of a successful production deployment:
+verify the corresponding Worker check before reporting it live.

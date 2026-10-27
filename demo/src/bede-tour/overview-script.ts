@@ -1,31 +1,31 @@
 /** Narration shared by captions, transcript and the reproducible local render. */
 export const overviewSegments = [
   {
-    duration: 9.665306,
-    text: "A good lesson begins with a book, a worthwhile question, and an adult who knows the learner. Bede supports that work. You choose the direction, and your judgment stays central.",
+    duration: 12.500950,
+    text: "A good lesson begins with a book, a thoughtful question, and someone who knows the learner. Bede helps parents and educators build on that foundation. You guide each step.",
   },
   {
-    duration: 13.609796,
-    text: "In the homeschooling parent tour, choose a fictional learner, a book, and a goal. Here, a short Aesop fable becomes a chance to read closely and explain a character’s choices. Moms and dads are equally welcome.",
+    duration: 14.697500,
+    text: "The homeschooling parent tour begins with a sample learner, a book, and a goal. An Aesop fable offers a chance to read closely. Together, you explore the reasons behind a character’s choices.",
   },
   {
-    duration: 13.818776,
-    text: "Try a representative Socratic question. Instead of supplying the conclusion, the example invites a reason supported by the text. These responses are scripted illustrations, not a live conversation or an assessment of your child.",
+    duration: 20.871050,
+    text: "For example, Bede asks: Why might the Lion’s decision to spare the Mouse matter later in the story? Give the learner time to think, then ask which part of the fable supports their answer. You can carry the question into everyday life by discussing how a small act of kindness might help someone.",
   },
   {
-    duration: 13.688163,
-    text: "Look at a sample narration and a parent’s review. Notice what the learner understood, what needs another question, and what you would change. Then close the screen: return to the book, handwriting, or a practical conversation.",
+    duration: 17.732500,
+    text: "Listen to the learner tell the story in their own words. Consider what they understood and where another question might help. Then return to the book, a handwritten response, or a conversation about everyday life.",
   },
   {
-    duration: 14.184490,
-    text: "The classical educator path is different. The current school pilot supports teachers using synthetic evidence only. Review an illustrative record, then consider the teacher’s observations separately. This is not direct student tutoring.",
+    duration: 12.358950,
+    text: "The classical educator tour shows a teacher reviewing a sample learning record. The school pilot uses fictional records for teacher review. Consider the evidence alongside your own classroom observations.",
   },
   {
-    duration: 13.792653,
-    text: "Inspect a proposed instructional next step. Approve it, edit it, or reject it. The sample review record shows your decision. No lesson is sent to a learner. The teacher retains responsibility for what happens next.",
+    duration: 9.377950,
+    text: "Review a suggested next step. You can approve it, revise it, or set it aside. Your judgment shapes the next lesson.",
   },
   {
-    duration: 15.804082,
-    text: "Explore either guided path, restart, or switch whenever you like. The public demo and onboarding remain separate. Bede supports thoughtful work with books; parents and teachers lead. All tour examples are fictional. This overview uses synthetic narration.",
+    duration: 15.882788,
+    text: "Explore either path at your own pace. See how Bede can support close reading, clear writing, and thoughtful discussion. When you are ready, request an onboarding session to plan how Bede could fit your family or school.",
   },
 ];

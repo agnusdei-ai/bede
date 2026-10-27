@@ -28,14 +28,19 @@ test("delivery media and English captions survive a fresh checkout", () => {
   }
   const captions = text("demo/tour-public/bede-tour/overview.vtt");
   assert.ok(captions.startsWith("WEBVTT"));
-  assert.equal((captions.match(/-->/g) || []).length, 34);
+  const spoken = [...text("demo/src/bede-tour/overview-script.ts").matchAll(/text: "([^"]+)"/g)]
+    .map(match => match[1]).join(" ").replace(/\s+/g, " ").trim();
+  const captionText = captions.split("\n").filter(line =>
+    line.trim() && line !== "WEBVTT" && !/^\d+$/.test(line) && !line.includes("-->")
+  ).join(" ").replace(/\s+/g, " ").trim();
+  assert.equal(captionText, spoken, "captions must match the complete revised narration");
 });
 
-test("adult paths, synthetic presenter disclosure and native controls remain", () => {
+test("adult paths, fictional examples and native controls remain", () => {
   const tour = text("demo/src/bede-tour/Tour.tsx");
   assert.match(tour, /Homeschooling parent/);
   assert.match(tour, /Classical educator/);
-  assert.match(tour, /Fictional mother-and-educator persona/);
+  assert.match(tour, /Fictional learners and scripted responses/);
   assert.match(tour, /<details className="tour-disclosure">/);
   assert.match(tour, /kind="captions"/);
   assert.match(tour, /controls[\s\S]*preload="metadata"/);

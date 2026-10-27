@@ -73,6 +73,12 @@ test("both tour videos support fullscreen playback without forcing inline mobile
   assert.match(css, /video:fullscreen[^}]*object-fit: contain/);
 });
 
+test("the recorded lesson omits the redundant role-play disclosure", () => {
+  const lesson = text("demo/src/bede-tour/LessonVideo.tsx");
+  assert.doesNotMatch(lesson, /Recorded demonstration with a fictional role-played learner/);
+  assert.doesNotMatch(lesson, /Bede’s replies are generated for this example/);
+});
+
 test("recorded lesson is added without replacing the overview, with accessible transcript and demo CTA", () => {
   const tour = text("demo/src/bede-tour/Tour.tsx");
   const lesson = text("demo/src/bede-tour/LessonVideo.tsx");

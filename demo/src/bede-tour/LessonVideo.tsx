@@ -130,7 +130,6 @@ export function LessonVideo({ publicDemoHref }: LessonVideoProps) {
         <p>Continue with Bede at your own pace.</p>
         <a className="tour-button" href={publicDemoHref} data-testid="link-try-bede">Try Bede for 20 minutes <span aria-hidden="true">→</span></a>
       </div>
-      <p className="lesson-disclosure">Recorded demonstration with a fictional role-played learner; Bede’s replies are generated for this example.</p>
     </section>
   );
 }

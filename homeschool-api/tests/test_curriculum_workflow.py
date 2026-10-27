@@ -306,3 +306,114 @@ def test_no_curriculum_route_or_automatic_activation():
     main = (root / "main.py").read_text(encoding="utf-8")
     assert "services.curriculum.workflow" not in main
     assert "services.curriculum" not in main
+
+
+@pytest.mark.asyncio
+async def test_original_lesson_and_revision_each_require_independent_approval(monkeypatch):
+    """PR 8: original writing is staged, reviewed, and versioned on revision."""
+    engine, Session, author, reviewer, _ = await setup(monkeypatch)
+    try:
+        initial = submission(lesson="original-lesson")
+        initial = replace(
+            initial,
+            candidate=replace(
+                initial.candidate, source="original-source-1",
+                public_domain=False, verbatim_text=None,
+                body="An original, synthetic history explanation for review.",
+            ),
+            source=SourceRecord(
+                "original-source-1", "Synthetic teacher-authored draft",
+                "urn:bede:original:synthetic-lesson-1", NOW,
+                "b" * 64, RightsStatus.original,
+            ),
+            rights_verified_by="Independent synthetic rights verifier",
+            rights_evidence_ref="rights:synthetic-original-1",
+        )
+        async with Session() as db:
+            assert await stage_lesson(db, token(author), initial) == 1
+            first = (await db.execute(
+                select(lessons).where(lessons.c.version == 1)
+            )).mappings().one()
+            assert first["status"] == "staged"
+            assert first["rights_status"] == RightsStatus.original.value
+            assert first["review_id"] is None
+            assert first["body_enc"].startswith(b"SAGE")
+            assert b"synthetic history" not in first["body_enc"]
+
+            first_review, first_approved = await review_staged_lesson(
+                db, token(reviewer), "campus-a", "original-lesson",
+                decision=ReviewDecision.approve,
+            )
+            assert first_approved == 2 and first_review
+
+            revision = replace(
+                initial,
+                candidate=replace(
+                    initial.candidate, source="original-source-2",
+                    body="A revised, original history explanation for review.",
+                ),
+                source=replace(
+                    initial.source, source_id="original-source-2",
+                    source_url="urn:bede:original:synthetic-lesson-2",
+                    content_hash="c" * 64,
+                ),
+                rights_evidence_ref="rights:synthetic-original-2",
+            )
+            assert await stage_lesson(db, token(author), revision) == 3
+            before_second_review = (await db.execute(
+                select(lessons.c.version, lessons.c.status, lessons.c.review_id)
+                .order_by(lessons.c.version)
+            )).all()
+            assert [(row.version, row.status) for row in before_second_review] == [
+                (1, "retired"), (2, "approved"), (3, "staged"),
+            ]
+            assert before_second_review[-1].review_id is None
+
+            second_review, second_approved = await review_staged_lesson(
+                db, token(reviewer), "campus-a", "original-lesson",
+                decision=ReviewDecision.approve,
+            )
+            assert second_approved == 4 and second_review != first_review
+            rows = (await db.execute(
+                select(lessons.c.version, lessons.c.status, lessons.c.review_id)
+                .order_by(lessons.c.version)
+            )).all()
+            assert [(row.version, row.status) for row in rows] == [
+                (1, "retired"), (2, "approved"),
+                (3, "retired"), (4, "approved"),
+            ]
+            assert rows[1].review_id == first_review
+            assert rows[3].review_id == second_review
+            recorded_reviews = (await db.execute(
+                select(reviews.c.review_id)
+            )).scalars().all()
+            assert len(recorded_reviews) == 2
+            assert set(recorded_reviews) == {first_review, second_review}
+    finally:
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_original_rights_do_not_allow_verbatim_source_text(monkeypatch):
+    """PR 8: original rights cannot be used to bypass the verbatim rights gate."""
+    engine, Session, author, _, _ = await setup(monkeypatch)
+    try:
+        original = submission(lesson="original-with-verbatim")
+        original = replace(
+            original,
+            candidate=replace(
+                original.candidate, public_domain=False,
+                body="An original explanation.", source="original-source",
+            ),
+            source=SourceRecord(
+                "original-source", "Synthetic original work",
+                "urn:bede:original:verbatim-rejection", NOW,
+                "d" * 64, RightsStatus.original,
+            ),
+        )
+        async with Session() as db:
+            with pytest.raises(CurriculumWorkflowDenied):
+                await stage_lesson(db, token(author), original)
+            assert (await db.execute(select(lessons))).all() == []
+    finally:
+        await engine.dispose()

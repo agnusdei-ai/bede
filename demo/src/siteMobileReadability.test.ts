@@ -36,7 +36,8 @@ describe('shared mobile marketing styles', () => {
       const nav = document.querySelector('footer nav[aria-label="Footer navigation"]')
       expect(nav, page || 'home').not.toBeNull()
       expect(nav!.classList.contains('footer-links'), page || 'home').toBe(true)
-      expect(nav!.querySelectorAll('a'), page || 'home').toHaveLength(10)
+      const expectedLinks = ['/', '/schools/', '/homeschool/', '/educators/', '/faq/', '/research/', '/privacy/', '/bede/tour/', '/bede/', '/survey/', '/inquire/']
+      expect(Array.from(nav!.querySelectorAll('a'), link => link.getAttribute('href')), page || 'home').toEqual(expectedLinks)
       expect(document.querySelector('footer .footer-copyright'), page || 'home').not.toBeNull()
     }
   })

@@ -1,17 +1,216 @@
-/* Keep service domains and storage-key names readable on narrow screens. */
+/* Privacy is a reading page: full-size prose and labeled service records. */
 .bede-theme .privacy-page {
+  --privacy-ink: #20303e;
+  --privacy-muted: #465463;
+  --privacy-line: #c8c4b8;
+  color: var(--privacy-ink);
+  background: #fbfaf6;
   min-width: 0;
+  font-size: 1.125rem;
+  line-height: 1.75;
+  text-align: left;
+}
+
+.bede-theme .privacy-page .band,
+.bede-theme .privacy-page .band-curriculum {
+  background: transparent;
+  background-image: none;
+}
+
+.bede-theme .privacy-page .inner {
+  width: 100%;
+  max-width: 48rem !important;
+  margin-inline: auto;
+  padding-inline: clamp(1.25rem, 5vw, 2rem);
+  min-width: 0;
+  text-align: left;
+}
+
+.bede-theme .privacy-page .page-head {
+  padding: 2.5rem 0 1.5rem;
+  text-align: left;
+}
+
+.bede-theme .privacy-page .band-curriculum {
+  padding: 0 0 3rem;
+}
+
+.bede-theme .privacy-page h1 {
+  color: var(--privacy-ink);
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  overflow-wrap: normal;
+}
+
+.bede-theme .privacy-page h2 {
+  color: var(--privacy-ink);
+  font-size: clamp(1.5rem, 4vw, 1.875rem);
+  line-height: 1.3;
+  letter-spacing: normal;
+  margin: 2.75rem 0 1rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--privacy-line);
+  scroll-margin-top: 1.5rem;
+}
+
+.bede-theme .privacy-page h3 {
+  color: var(--privacy-ink);
+  font-size: 1.25rem !important;
+  line-height: 1.4;
+  margin: 1.75rem 0 0.75rem;
+}
+
+.bede-theme .privacy-page :is(p, li, td, .tracker-note, .lede) {
+  color: var(--privacy-ink);
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.bede-theme .privacy-page p {
+  margin: 0 0 1.25rem;
+  max-width: none;
+}
+
+.bede-theme .privacy-page :is(a, code) {
   overflow-wrap: anywhere;
 }
-.bede-theme .privacy-page .tracker-table th,
-.bede-theme .privacy-page .tracker-table td,
-.bede-theme .privacy-page .tracker-table code {
-  overflow-wrap: anywhere;
+
+.bede-theme .privacy-page a {
+  color: #214e43;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.bede-theme .privacy-page code {
+  font-size: 0.95em;
   white-space: normal;
 }
-@media (max-width: 760px) {
-  .bede-theme .privacy-page .tracker-table th,
-  .bede-theme .privacy-page .tracker-table td {
-    padding-inline: 0.2rem;
+
+.bede-theme .privacy-page .privacy-contents {
+  margin: 1.5rem 0 2rem;
+  padding: 1.25rem;
+  border: 1px solid var(--privacy-line);
+  background: #f1eee5;
+}
+
+.bede-theme .privacy-contents strong {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.bede-theme .privacy-contents ul {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.bede-theme .privacy-contents a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 0.25rem;
+}
+
+/* Keep real table headers for assistive technology while presenting each
+   service/storage entry as a readable record, including on desktop. */
+.bede-theme .privacy-page .tracker-table,
+.bede-theme .privacy-page .tracker-table tbody {
+  display: block;
+  width: 100%;
+  margin: 1.5rem 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  text-align: left;
+}
+
+.bede-theme .privacy-page .tracker-table tr {
+  display: block;
+  padding: 1.25rem;
+  margin: 0 0 1rem;
+  border: 1px solid var(--privacy-line);
+  border-radius: 0.375rem;
+  background: #fffefb;
+}
+
+.bede-theme .privacy-page .tracker-table tr:first-child {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.bede-theme .privacy-page .tracker-table td {
+  display: block;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.bede-theme .privacy-page .tracker-table td:first-child {
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.bede-theme .privacy-page .tracker-table td + td {
+  margin-top: 0.875rem;
+}
+
+.bede-theme .privacy-page .tracker-table td + td::before {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--privacy-muted);
+  font-family: var(--bede-font-interface, system-ui, sans-serif);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  font-weight: 700;
+}
+
+.privacy-website td:nth-child(2)::before { content: "Category"; }
+.privacy-website td:nth-child(3)::before { content: "Details"; }
+.privacy-storage td:nth-child(2)::before { content: "Type"; }
+.privacy-storage td:nth-child(3)::before { content: "Category"; }
+.privacy-storage td:nth-child(4)::before { content: "Purpose"; }
+.privacy-storage td:nth-child(5)::before { content: "Lifetime"; }
+.privacy-services td:nth-child(2)::before { content: "What reaches this service"; }
+.privacy-services td:nth-child(3)::before { content: "Purpose"; }
+
+.bede-theme .privacy-page .tracker-note {
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+  border: 1px solid var(--privacy-line);
+  background: #f1eee5;
+}
+
+@media (max-width: 480px) {
+  .bede-theme .privacy-page {
+    font-size: 1.0625rem;
+    line-height: 1.75;
   }
+}
+
+@media print {
+  .classical-header, footer, .privacy-contents, .skip-link { display: none !important; }
+  .bede-theme .privacy-page {
+    color: #000;
+    background: #fff;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+  .bede-theme .privacy-page .inner { max-width: none !important; padding: 0; }
+  .bede-theme .privacy-page h2 { break-after: avoid; }
+  .bede-theme .privacy-page .tracker-table tr { break-inside: avoid; background: #fff; }
+  .bede-theme .privacy-page :is(p, td, a, h1, h2, h3, .tracker-note) { color: #000; }
 }

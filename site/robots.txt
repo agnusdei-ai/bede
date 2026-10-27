@@ -1,12 +1,10 @@
-# Explicit access to public content for the requested crawlers.
-# Cloudflare AI policies must also permit them: managed robots.txt and edge
-# blocking can otherwise override the intent of this source file.
-User-agent: Google-Extended
-User-agent: GPTBot
-User-agent: Bingbot
+User-agent: OAI-SearchBot
 Allow: /
 
-User-agent: *
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
 Allow: /
 
 Sitemap: https://agnusdei.ai/sitemap.xml

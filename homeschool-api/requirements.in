@@ -64,15 +64,12 @@ pypdf>=6.21.2
 # (has an optional C extension, safe either way in the read-only/cap_drop
 # container).
 cbor2>=5.6.0
-# Not used directly — pinned explicitly because torch/ctranslate2 declare it
-# as a runtime dependency, which pip-compile's hash-checking mode (--generate-
-# hashes) requires be resolvable and hashed like any other package. Capped
-# below 81: setuptools removed the bundled `pkg_resources` module starting
-# around that release, and webrtcvad (a resemblyzer transitive dependency,
-# imported by services/voice_auth.py) still does `import pkg_resources` the
-# old way — an unconstrained pin here resolves to the newest setuptools and
-# breaks voice authentication at import time. Verified directly: 75.8.0
-# still ships pkg_resources (deprecated but present); pip's own default
-# venv bootstrap setuptools happened to mask this before hash-locking
-# existed, since nothing previously forced setuptools to a specific version.
-setuptools<84
+# Explicit dependency for torch/ctranslate2. Security advisory
+# GHSA-xmj3-9gf7-h52w requires setuptools >=84.1.0. Legacy webrtcvad
+# uses pkg_resources solely to report its version; our MIT-licensed,
+# source-reviewed in-tree webrtcvad.py preserves its public VAD API while
+# reading the installed *webrtcvad* distribution version through
+# importlib.metadata. This avoids two overlapping VAD distributions and
+# retains Resemblyzer's declared dependency without relaxing voice auth.
+# See issue #726 and tests/test_webrtcvad_compat.py.
+setuptools>=84.1.0

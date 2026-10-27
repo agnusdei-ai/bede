@@ -146,9 +146,6 @@ function Entry({ onStart }: { onStart: () => void }) {
               <span><i className="tour-dot" /> Bede supports</span>
               <span><i className="tour-dot" /> You review</span>
             </div>
-            <p className="tour-note">
-              <strong>The scripted interactive tour is simulated.</strong> Fictional learners and scripted responses—not live tutoring or real learner records. The separate recorded lesson uses generated Bede replies with a fictional role-played learner.
-            </p>
           </section>
           <div className="tour-entry-video">
             <OverviewVideo />

@@ -49,11 +49,12 @@ test("delivery media and English captions survive a fresh checkout", () => {
   assert.equal(captionText, spoken, "captions must match the complete revised narration");
 });
 
-test("adult paths, fictional examples and native controls remain", () => {
+test("adult paths and native controls remain without the redundant opening note", () => {
   const tour = text("demo/src/bede-tour/Tour.tsx");
   assert.match(tour, /Homeschooling parent/);
   assert.match(tour, /Classical educator/);
-  assert.match(tour, /Fictional learners and scripted responses/);
+  assert.doesNotMatch(tour, /Fictional learners and scripted responses/);
+  assert.doesNotMatch(tour, /The separate recorded lesson uses generated Bede replies with a fictional role-played learner/);
   assert.match(tour, /<details className="tour-disclosure">/);
   assert.match(tour, /kind="captions"/);
   assert.match(tour, /controls[\s\S]*preload="metadata"/);
@@ -71,7 +72,7 @@ test("recorded lesson is added without replacing the overview, with accessible t
   assert.match(tour, /Read the overview transcript/);
   assert.match(tour, /data-testid="text-overview-transcript"/);
   assert.match(tour, /<LessonVideo publicDemoHref="\/bede\/" \/>/);
-  assert.match(tour, /The scripted interactive tour is simulated/);
+  assert.doesNotMatch(tour, /The scripted interactive tour is simulated/);
   assert.match(tour, /#lesson-title/);
   assert.match(lesson, /data-testid="section-recorded-lesson"/);
   assert.match(lesson, /src=\{asset\("generated\/lesson\.mp4"\)\}/);

@@ -8,19 +8,23 @@ twenty minutes is an invitation, not a new enforced session limit.
 ## What was recorded
 
 - The real public Bede backend with the production demo interface.
-- A fictional Grade 3 role-play exploring Aesop's *The Lion and the Mouse*.
-- Typed requests and answers, including retelling, reasoning, evidence, and
-  an everyday application. No real child's identity or records were used.
+- Fictional Grade 3 role-play in three simple demonstrations:
+  - Reading: retell Aesop's *The Lion and the Mouse* and connect its events.
+  - Writing: revise "The mouse help the lion" and explain the past-tense change.
+  - Mathematics: share twelve counters among three children and check equal groups.
+- Typed requests and answers, with each step mapped to its intended practice
+  outcome. No real child's identity or records were used.
 - Edited highlights: network waiting time is shortened, actual frames may
   be held for readability, and the temporary demo access code is redacted.
-- A separate adult-facing guide voice, recorded as one complete take and
-  mastered as one track. It is not a replacement for Bede's tutor voice or
-  a real learner testimonial.
+- Brief first-person adult guidance, recorded as one complete performance and
+  mastered consistently. Natural chapter breaths are opened for reading time
+  after each subject; no spoken words are removed. The guide is not Bede's tutor
+  voice or a real learner testimonial.
 
 The final on-screen responses are Bede's actual generated replies, not the
 proposed dialogue from the planning script. The readable transcript includes
 guide narration and the actual on-screen exchanges. The clip demonstrates
-the example's teaching practices; it does not report measured learning gains.
+the examples' teaching practices; it does not report measured learning gains.
 
 ## Delivery
 

@@ -73,21 +73,21 @@ export function LessonVideo({ publicDemoHref }: LessonVideoProps) {
     <section className="tour-video-card lesson-video-card" aria-labelledby="lesson-title" data-testid="section-recorded-lesson">
       <div className="tour-video-heading">
         <div>
-          <p className="tour-eyebrow">A recorded lesson · fictional Grade 3 learner</p>
+          <p className="tour-eyebrow">Recorded practice · fictional Grade 3 learner</p>
           <h2 id="lesson-title" tabIndex={-1}>Watch Bede in action</h2>
           <p>
-            The Lion and the Mouse
+            Reading, writing, and mathematics
             {duration !== null && Number.isFinite(duration) ? ` · ${formatTime(duration)} · English captions` : " · English captions"}
           </p>
         </div>
       </div>
-      <p className="lesson-description">A short reading lesson: retell the story, explain a connection, and apply the idea.</p>
+      <p className="lesson-description">Follow three simple steps: retell a story, revise a sentence, and explain a solution.</p>
       <video
         controls
         preload="metadata"
         playsInline
         poster={asset("lesson-poster.jpg")}
-        aria-label="Recorded Bede lesson with a fictional Grade 3 learner exploring The Lion and the Mouse"
+        aria-label="Recorded Bede practice with a fictional Grade 3 learner exploring reading, writing, and mathematics"
         data-testid="video-recorded-lesson"
         onError={() => setVideoUnavailable(true)}
         onLoadedMetadata={(event) => {

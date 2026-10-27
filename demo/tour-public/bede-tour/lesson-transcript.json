@@ -1,120 +1,128 @@
 {
-  "duration": 110.762,
-  "description": "Edited highlights of a real Bede demo conversation with a fictional Grade 3 learner. Guide narration is a separate adult explainer voice. Demo access code redacted; network waiting time shortened. On-screen excerpts are grouped by approximate chapter time.",
+  "duration": 86.025,
+  "description": "First-person adult guide demonstrating reading, writing and mathematics with real Bede replies and fictional Grade 3 role-play. Edited highlights; temporary access codes redacted. Natural chapter breaths are opened for reading; no spoken words are removed. Outcomes describe the intended practice, not measured gains.",
+  "chapters": [
+    {
+      "id": "reading",
+      "title": "1. Read and retell",
+      "outcome": "Recall | Explain connections",
+      "start": 0,
+      "end": 25.284350000000003,
+      "readingBeat": 8
+    },
+    {
+      "id": "writing",
+      "title": "2. Improve a sentence",
+      "outcome": "Clear writing · Explain a revision",
+      "start": 25.284350000000003,
+      "end": 47.9932,
+      "readingBeat": 8
+    },
+    {
+      "id": "mathematics",
+      "title": "3. Explain a solution",
+      "outcome": "Equal groups · Reason and check",
+      "start": 47.9932,
+      "end": 73.26635,
+      "readingBeat": 8
+    }
+  ],
   "segments": [
     {
       "start": 0,
-      "end": 11.11935,
+      "end": 17.284350000000003,
       "speaker": "Guide",
-      "text": "You've read a story together. Now let's see how Bede helps a child tell it back, think about it, and connect it to everyday life."
+      "text": "I start with a book we've read together. Here, I'm using The Lion and the Mouse. I ask Bede to help my learner tell the story back in their own words. I listen for what they remember and how the events connect."
     },
     {
-      "start": 11.11935,
-      "end": 23.39125,
-      "speaker": "Guide",
-      "text": "This is a recorded demonstration, with a fictional Grade Three learner. The guide types a request about Aesop's The Lion and the Mouse, asking for one question at a time."
-    },
-    {
-      "start": 11.11935,
-      "end": 23.39125,
+      "start": 0,
+      "end": 9,
       "speaker": "Guide — typed request",
       "text": "We've read The Lion and the Mouse. Guide a short Grade 3 lesson, one question at a time. Begin by asking me to retell it."
     },
     {
-      "start": 11.11935,
-      "end": 23.39125,
+      "start": 0,
+      "end": 9,
       "speaker": "Bede — recorded on-screen response",
       "text": "Okay, let's start a bit smaller. What did the lion do first when he found the mouse?"
     },
     {
-      "start": 23.39125,
-      "end": 34.5389,
-      "speaker": "Guide",
-      "text": "The learner begins with a short retelling. The Lion lets the Mouse go. Later, the Mouse frees the Lion from a net. Bede has something to build on: the child's own words."
-    },
-    {
-      "start": 23.39125,
-      "end": 34.5389,
+      "start": 9,
+      "end": 25.284350000000003,
       "speaker": "Fictional sample learner — typed",
       "text": "The Lion caught the Mouse but let him go. Later, the Lion was trapped in a net. The Mouse chewed through the ropes and freed him."
     },
     {
-      "start": 23.39125,
-      "end": 34.5389,
+      "start": 9,
+      "end": 25.284350000000003,
       "speaker": "Bede — recorded on-screen response",
       "text": "What do you think the story is trying to teach us about kindness or helping others, even if they seem small or unimportant?"
     },
     {
-      "start": 34.5389,
-      "end": 48.33878711111111,
+      "start": 25.284350000000003,
+      "end": 39.9932,
       "speaker": "Guide",
-      "text": "The next exchange explores how the Lion's first decision made the ending possible. The learner connects the two events, then points back to the Mouse chewing through the ropes."
+      "text": "For writing, I give Bede a short sentence to work on. My learner makes the change, then explains it. Here, changing help to helped makes the action fit the past. I can see both the revision and the reason."
     },
     {
-      "start": 34.5389,
-      "end": 48.33878711111111,
-      "speaker": "Fictional sample learner — typed",
-      "text": "He let the Mouse go, so the Mouse was free to help him later."
+      "start": 25.284350000000003,
+      "end": 34.28435,
+      "speaker": "Guide — typed request",
+      "text": "Help me improve this sentence: The mouse help the lion. Ask me one short question at a time so I can make the change myself."
     },
     {
-      "start": 34.5389,
-      "end": 48.33878711111111,
+      "start": 25.284350000000003,
+      "end": 34.28435,
       "speaker": "Bede — recorded on-screen response",
-      "text": "Imagine if the lion had not let the mouse go. How do you think the story would have been different without the mouse's help? Would the lion have escaped from the net? Why or why not?"
+      "text": "Sure! Let’s look at the word \"help\" in the sentence. Does the sentence sound like it happened in the past, or is it something happening right now?"
     },
     {
-      "start": 34.5389,
-      "end": 48.33878711111111,
+      "start": 34.28435,
+      "end": 47.9932,
       "speaker": "Fictional sample learner — typed",
-      "text": "The part where the Mouse comes back and chews through the ropes supports my answer. Can you ask me how this idea could apply in everyday life?"
+      "text": "The mouse helped the lion. I changed help to helped because it happened in the past."
     },
     {
-      "start": 34.5389,
-      "end": 48.33878711111111,
+      "start": 34.28435,
+      "end": 47.9932,
       "speaker": "Bede — recorded on-screen response",
-      "text": "That's a sharp connection you made between the story and your answer! Now, how do you think the idea of being kind even to someone small or different can help us in everyday life? Can you think of a time when being kind to someone might lead to a good result, even if you didn't expect it at first?"
+      "text": "Think about how we show that a verb happened in the past. Is adding -ed the only way to do that, or are there other ways verbs can show past action?"
     },
     {
-      "start": 48.33878711111111,
-      "end": 58.52935,
+      "start": 47.9932,
+      "end": 65.26635,
       "speaker": "Guide",
-      "text": "A parent or educator can pause here, return to the book, and ask what supports the answer. That's attentive reading, narration, and reasoning within a short lesson."
+      "text": "Now I'll try mathematics. I ask Bede to guide a problem about sharing twelve counters among three children. My learner explains the equal groups. I look for how they reached the answer, and whether they can check it."
     },
     {
-      "start": 58.52935,
-      "end": 70.61359999999999,
-      "speaker": "Guide",
-      "text": "Then the conversation moves into everyday life. Could a younger child help an older one? The learner offers a simple example: knowing where to find something."
+      "start": 47.9932,
+      "end": 56.9932,
+      "speaker": "Guide — typed request",
+      "text": "I have 12 counters to share equally among 3 children. Help me work it out by asking one short question at a time."
     },
     {
-      "start": 58.52935,
-      "end": 70.61359999999999,
+      "start": 47.9932,
+      "end": 56.9932,
+      "speaker": "Bede — recorded on-screen response",
+      "text": "Great! Let's start by thinking about the groups. If you put the counters into 3 groups, how many counters would you put in the first group?"
+    },
+    {
+      "start": 56.9932,
+      "end": 73.26635,
       "speaker": "Fictional sample learner — typed",
-      "text": "A younger child might know where something is when an older child can't find it. Someone small can still help."
+      "text": "I put one counter in each group, then repeat. Each child gets 4 because 3 groups of 4 make 12."
     },
     {
-      "start": 58.52935,
-      "end": 70.61359999999999,
+      "start": 56.9932,
+      "end": 73.26635,
       "speaker": "Bede — recorded on-screen response",
-      "text": "Sometimes help comes when we least expect it—that's a wise thought. What do you think it feels like to receive help from someone you didn’t think could help you? How might that change how you think about people around you?"
+      "text": "If you lined up the counters in each group side by side, how would you check to make sure all the groups have the same number? What would you look for?"
     },
     {
-      "start": 70.61359999999999,
-      "end": 91.67701003831418,
+      "start": 73.26635,
+      "end": 83.025125,
       "speaker": "Guide",
-      "text": "Notice what becomes visible to the adult: what the child remembers, the connection the child makes, and the example the child chooses. Those are useful starting points for your next conversation. You might ask another question, offer a hint, or simply close the device and keep talking with the book open."
-    },
-    {
-      "start": 91.67701003831418,
-      "end": 99.919,
-      "speaker": "Guide",
-      "text": "The adult decides what to explore next. You can leave the screen and continue the conversation together."
-    },
-    {
-      "start": 99.919,
-      "end": 108.762271,
-      "speaker": "Guide",
-      "text": "Bring a book and a question of your own. Try Bede for twenty minutes, and explore how it can support the learning you lead."
+      "text": "I use these responses to decide what we practice next: remembering a story, writing clearly, or explaining a solution. Bring your own question and try Bede for twenty minutes."
     }
   ]
 }

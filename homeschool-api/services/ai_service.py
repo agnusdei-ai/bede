@@ -2411,6 +2411,71 @@ def _term_artist(config: SessionConfig) -> str:
     return _TERM_ARTISTS[_term_rotation_index(config, len(_TERM_ARTISTS))]
 
 
+# The Year 1 Aesop set list lives on this catalog entry's `readings`.
+_AESOP_BOOK_ID = "y1-aesop"
+_FABLE_CHOICE_WEEK = "choice"
+
+
+def _fable_term_slots(config: SessionConfig, readings: list) -> list:
+    """This term's slots: its share of the ordered fables, then one choice week.
+
+    The list is written as three terms of eleven. A trimester year takes them
+    as written; a quarterly year splits the same sequence into four nearly
+    equal runs, so neither schedule skips or repeats a fable within the year.
+    """
+    terms = 3 if config.term_schedule.value == "trimester" else 4
+    term = min(max(1, config.current_term), terms) - 1
+    size, extra = divmod(len(readings), terms)
+    start = term * size + min(term, extra)
+    end = start + size + (1 if term < extra else 0)
+    return list(readings[start:end]) + [_FABLE_CHOICE_WEEK]
+
+
+def _fable_of_the_week_note(
+    config: SessionConfig, subject: Subject, today: "date | None" = None,
+) -> str:
+    """
+    This week's fable from the Year 1 Aesop set list, for Living Books.
+
+    Year 1 only (grades K-1, per _infer_year) and skipped whenever the parent
+    has set today's current_unit, the same precedence the catalog note
+    follows: a family's own plan for the day outranks Bede's set list.
+
+    Bede does not know which week of a family's term it is, so the slot is
+    chosen by calendar week, and consecutive weeks give consecutive fables.
+    The theme is given for Bede's own guidance only. The Year 1 teaching note
+    says to let the child find the moral, so the note forbids stating it.
+    """
+    if subject != Subject.living_books or config.current_unit or _infer_year(config) != 1:
+        return ""
+    try:
+        from services.catalog_service import get_readings
+        readings = get_readings(_AESOP_BOOK_ID)
+    except Exception:
+        return ""
+    if not readings:
+        return ""
+    slots = _fable_term_slots(config, readings)
+    week = (today or date.today()).isocalendar()[1]
+    slot = slots[week % len(slots)]
+    if slot == _FABLE_CHOICE_WEEK:
+        return (
+            "\n<fable_of_the_week>This is a choice week in the Aesop's Fables reading. Invite the child to pick "
+            "a favourite fable from this term, tell it back in their own words, and, if they like, draw it "
+            "(invite_handwriting). This term's fables were: "
+            + "; ".join(r["title"] for r in slots[:-1])
+            + ".</fable_of_the_week>"
+        )
+    return (
+        f"\n<fable_of_the_week>This week's Aesop fable is \"{slot['title']}\". The family reads it from their own "
+        "copy, so ask whether they have read it today; if not, you may tell it simply and briefly in your own words, "
+        "never claiming a particular edition's exact wording, and use the fable's usual name in the language of this "
+        "session. Then ask the child to tell it back. For your own guidance only, its theme is: "
+        f"{slot['theme']}. Never state the theme or the moral to the child: ask what they learned from the story "
+        "and let them find it.</fable_of_the_week>"
+    )
+
+
 def _this_weeks_pick(entries: list, config: SessionConfig, today: "date | None" = None) -> int:
     """
     Which of a term's entries is featured this week — same ISO-week
@@ -3226,6 +3291,7 @@ async def _build_subject_prompt(
     # without touching bookmark storage/fade logic at all.
     bookmark_note = "" if resume_note else _bookmark_note(bookmark, today=local_date)
     catalog_note = _get_catalog_context(config, subject)
+    fable_note = _fable_of_the_week_note(config, subject, today=local_date)
     visual_aids_note = _get_visual_aids_context(subject, config, history, today=local_date)
     composer_note = _get_composer_context(subject, config, today=local_date)
     session_position_note = _session_position_note(config, subject, locale=locale, today=local_date)
@@ -3311,7 +3377,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:

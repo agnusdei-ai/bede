@@ -302,6 +302,17 @@ def get_composer_works(subject: str) -> list[dict]:
     return [w for w in _COMPOSER_WORKS.values() if w.get("subject") == subject]
 
 
+def get_readings(book_id: str) -> list[dict]:
+    """
+    A book's ordered reading list, when its catalog entry carries one
+    (`readings`: [{"title", "theme"}]). Empty for every book that does not.
+    Titles and parent-facing themes only, never the text itself, like every
+    other catalog field.
+    """
+    book = _BOOK_INDEX.get(book_id) or {}
+    return [dict(r) for r in book.get("readings", [])]
+
+
 def get_subject_plan(year: int | None, subject: str) -> str | None:
     """
     Return the term plan for a non-book-list subject (mathematics, art_music,

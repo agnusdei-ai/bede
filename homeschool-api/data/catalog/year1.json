@@ -23,7 +23,142 @@
         "fable"
       ],
       "anti_twaddle": true,
-      "notes": "Oral narration focus. One fable per sitting. Ask the child: 'What did you learn from that story?' Let them discover the moral themselves."
+      "notes": "Oral narration focus. One fable per sitting. Ask the child: 'What did you learn from that story?' Let them discover the moral themselves.",
+      "readings": [
+        {
+          "title": "The Lion and the Mouse",
+          "theme": "Small kindnesses come back"
+        },
+        {
+          "title": "The Tortoise and the Hare",
+          "theme": "Steady effort beats showing off"
+        },
+        {
+          "title": "The Ant and the Grasshopper",
+          "theme": "Preparing ahead"
+        },
+        {
+          "title": "The Fox and the Grapes",
+          "theme": "Pretending you didn't want it"
+        },
+        {
+          "title": "The Boy Who Cried Wolf",
+          "theme": "Why the truth matters"
+        },
+        {
+          "title": "The Crow and the Pitcher",
+          "theme": "Thinking a problem through"
+        },
+        {
+          "title": "The Dog and His Reflection",
+          "theme": "Greed loses what you have"
+        },
+        {
+          "title": "The Town Mouse and the Country Mouse",
+          "theme": "Contentment"
+        },
+        {
+          "title": "The North Wind and the Sun",
+          "theme": "Gentleness works better than force"
+        },
+        {
+          "title": "The Goose That Laid the Golden Eggs",
+          "theme": "Impatience and greed"
+        },
+        {
+          "title": "The Fox and the Crow",
+          "theme": "Flattery"
+        },
+        {
+          "title": "The Fox and the Stork",
+          "theme": "Treat others as you'd be treated"
+        },
+        {
+          "title": "The Bundle of Sticks",
+          "theme": "Strength in staying together"
+        },
+        {
+          "title": "Belling the Cat",
+          "theme": "Easy to say, hard to do"
+        },
+        {
+          "title": "The Oak and the Reed",
+          "theme": "Bending rather than breaking"
+        },
+        {
+          "title": "The Frog and the Ox",
+          "theme": "Pride and pretending to be bigger"
+        },
+        {
+          "title": "The Ass in the Lion's Skin",
+          "theme": "Pretending to be what you're not"
+        },
+        {
+          "title": "The Dove and the Ant",
+          "theme": "Helping each other"
+        },
+        {
+          "title": "The Milkmaid and Her Pail",
+          "theme": "Counting chickens before they hatch"
+        },
+        {
+          "title": "The Crab and Its Mother",
+          "theme": "Example teaches more than words"
+        },
+        {
+          "title": "The Travelers and the Bear",
+          "theme": "What a true friend does"
+        },
+        {
+          "title": "The Lark and Her Young Ones",
+          "theme": "Doing a job yourself"
+        },
+        {
+          "title": "The Wolf in Sheep's Clothing",
+          "theme": "Appearances can deceive"
+        },
+        {
+          "title": "The Farmer and His Sons",
+          "theme": "The treasure is in the work"
+        },
+        {
+          "title": "The Fisherman and the Little Fish",
+          "theme": "A small sure thing over a big maybe"
+        },
+        {
+          "title": "The Jay and the Peacock",
+          "theme": "Borrowed feathers"
+        },
+        {
+          "title": "The Gnat and the Bull",
+          "theme": "Thinking yourself important"
+        },
+        {
+          "title": "The Fox and the Goat",
+          "theme": "Look before you leap"
+        },
+        {
+          "title": "The Dog in the Manger",
+          "theme": "Keeping what you can't use"
+        },
+        {
+          "title": "The Boys and the Frogs",
+          "theme": "Fun for one can be hurt for another"
+        },
+        {
+          "title": "The Peacock and the Crane",
+          "theme": "Beauty against usefulness"
+        },
+        {
+          "title": "The Hares and the Frogs",
+          "theme": "Everyone has fears"
+        },
+        {
+          "title": "The Miller, His Son, and the Donkey",
+          "theme": "You can't please everyone"
+        }
+      ],
+      "readings_note": "One fable a week, in this order, written for this project rather than taken from Mater Amabilis. Trimester families take eleven per term; quarterly families take the same list split across four terms. Each term also has one choice week, when the child picks a favourite to retell and draw."
     },
     {
       "id": "y1-just-so-stories",

@@ -1,7 +1,9 @@
 # Bede guided introduction
 
-The homepage's secondary action opens `/bede/tour/`. The public demo remains at
-`/bede/`; the original YouTube link and inquiry links are unchanged.
+The homepage's primary “Watch Bede overview” action opens `/bede/tour/`.
+Every shared header and footer also includes a concise “Bede overview” link.
+The public demo remains at `/bede/`; the original YouTube link and inquiry links
+are unchanged.
 
 The introduction places the 103-second overview beside its short instructions on
 desktop and below them on phones. The transcript is collapsed by default.

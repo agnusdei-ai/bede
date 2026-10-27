@@ -148,3 +148,26 @@ async def test_corrupt_encrypted_profile_denied_without_leaking_error(monkeypatc
     assert result["level"] == voice.ConfidenceLevel.LOW
     assert result["score"] == 0.0
     assert "authentication tag" not in result["message"]
+
+
+def test_packaged_resemblyzer_encoder_cpu_inference_on_synthetic_waveform(monkeypatch):
+    """Exercise real packaged weights on Linux CI, without learner voice data.
+
+    This is a model-import/inference smoke test, NOT speaker-discrimination,
+    enrollment/verification accuracy, or physical Mac qualification.
+    """
+    monkeypatch.setattr(voice, "_encoder", None)
+    monkeypatch.setattr(voice, "_encoder_load_attempted", False)
+    encoder = voice._get_encoder()
+    assert encoder is not None, "Packaged speaker encoder must load or voice auth stays disabled"
+
+    sample_rate = 16000
+    t = np.arange(2 * sample_rate, dtype=np.float32) / sample_rate
+    synthetic = (
+        0.06 * np.sin(2 * np.pi * 180 * t)
+        + 0.025 * np.sin(2 * np.pi * 360 * t)
+    ).astype(np.float32)
+    embedding = np.asarray(voice._extract_embedding(synthetic))
+    assert embedding.shape == (256,)
+    assert np.all(np.isfinite(embedding))
+    assert np.linalg.norm(embedding) > 1e-6

@@ -92,6 +92,18 @@ class SelectorTests(unittest.TestCase):
         plan = selector.select(self.root, ["docs/DECISIONS.md"])
         self.assertIn("tests/test_decision_register.py", plan["scopes"]["backend"]["tests"])
 
+    def test_site_aeo_contracts_run_targeted_backend_guard(self):
+        # The legacy workflow treats these as backend-relevant; the
+        # selector must map them to the actual AEO assertions, not skip.
+        for path in ("site/sitemap.xml", "site/robots.txt",
+                     "site/schools/index.html", "site/schools/assets.css"):
+            with self.subTest(path=path):
+                plan = selector.select(self.root, [path])
+                backend = plan["scopes"]["backend"]
+                self.assertEqual(backend["tests"], ["tests/test_site_aeo.py"])
+                self.assertFalse(backend["full"])
+                self.assertFalse(plan["critical"])
+
     def test_rename_includes_old_and_new_paths(self):
         old = self.root / "homeschool-api/services/example.py"
         new = self.root / "homeschool-api/services/renamed.py"

@@ -44,6 +44,17 @@ def test_sitemap_lists_only_real_pages():
     urls = re.findall(r"<loc>https://agnusdei\.ai(/[^<]*)</loc>", sitemap)
     assert urls, "sitemap has no URLs"
     for path in urls:
+        if path == "/bede/tour/":
+            # This route is assembled from the separately built Vite tour,
+            # not copied from site/. Verify the source and publish wiring
+            # rather than exempting an unbacked sitemap entry.
+            repo = SITE.parent
+            assert (repo / "demo/tour/index.html").is_file()
+            assert (repo / "demo/vite.tour.config.ts").is_file()
+            build = (repo / "scripts/build_pages_site.sh").read_text(encoding="utf-8")
+            assert "vite build --config vite.tour.config.ts" in build
+            assert "cp -r demo/dist-tour/* publish/bede/tour/" in build
+            continue
         target = SITE / path.lstrip("/") if path != "/" else SITE / "index.html"
         if target.is_dir():
             target = target / "index.html"

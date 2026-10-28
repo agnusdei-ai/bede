@@ -50,6 +50,22 @@ def test_sitemap_lists_only_real_pages():
         assert target.exists(), f"sitemap lists {path} but no page backs it"
 
 
+def test_llms_crawl_links_and_pilot_data_boundary():
+    """A changed llms.txt must receive an actual content guard, not only a QA mapping."""
+    llms = (SITE / "llms.txt").read_text(encoding="utf-8")
+    sitemap = (SITE / "sitemap.xml").read_text(encoding="utf-8")
+    published = set(re.findall(r"<loc>(https://agnusdei\.ai/[^<]*)</loc>", sitemap))
+    links = re.findall(r"\]\((https://agnusdei\.ai/[^)]+)\)", llms)
+    assert links, "llms.txt must identify its public source pages"
+    for url in links:
+        # The hosted interactive demo is intentionally outside the static sitemap.
+        assert url in published or url == "https://agnusdei.ai/bede/", (
+            f"llms.txt links to an undeclared public page: {url}"
+        )
+    assert "synthetic data" in llms.lower()
+    assert "real learner data" in llms.lower()
+
+
 def test_robots_points_at_the_sitemap():
     robots = (SITE / "robots.txt").read_text(encoding="utf-8")
     assert "Sitemap: https://agnusdei.ai/sitemap.xml" in robots

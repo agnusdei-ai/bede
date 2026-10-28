@@ -95,7 +95,7 @@ class SelectorTests(unittest.TestCase):
     def test_site_aeo_contracts_run_targeted_backend_guard(self):
         # The legacy workflow treats these as backend-relevant; the
         # selector must map them to the actual AEO assertions, not skip.
-        for path in ("site/sitemap.xml", "site/robots.txt",
+        for path in ("site/sitemap.xml", "site/robots.txt", "site/llms.txt",
                      "site/schools/index.html", "site/schools/assets.css"):
             with self.subTest(path=path):
                 plan = selector.select(self.root, [path])

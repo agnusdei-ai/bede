@@ -53,6 +53,7 @@ DOC_TESTS = {
     # The backend AEO guard reads these public crawl contracts directly.
     "site/sitemap.xml": "test_site_aeo.py",
     "site/robots.txt": "test_site_aeo.py",
+    "site/llms.txt": "test_site_aeo.py",
 }
 IGNORED_PREFIXES = ("docs/", "site/", ".github/", "assets/")
 TEST_EXT = re.compile(r"(?:\.test\.[jt]sx?$|\.spec\.[jt]sx?$|(^|/)test_[^/]+\.py$)")

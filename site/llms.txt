@@ -1,6 +1,6 @@
 # Bede by Agnus Dei
 
-> Bede by Agnus Dei Technologies, LLC is a human-led classical learning platform for K-8 homeschooling families, co-ops, and classical educators. It combines lesson planning, Socratic AI-assisted practice, and learning records to support reading, writing, mathematics, and applying knowledge.
+> Bede by Agnus Dei Technologies, LLC is a human-led classical learning platform for K-8 homeschooling families, co-ops, and classical educators, supporting learners ages 5–15. It combines lesson planning, Socratic AI-assisted practice, and learning records to support reading, writing, mathematics, and applying knowledge.
 
 Parents and educators choose the books, curriculum, and goals, guide the learning, and review the work. Bede supports inquiry, explanation, and thoughtful application. Faith and character are never scored.
 

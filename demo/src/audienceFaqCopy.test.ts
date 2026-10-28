@@ -5,13 +5,38 @@ import { resolve } from 'node:path'
 const root = resolve(import.meta.dirname, '../..')
 const read = (path: string) => readFileSync(resolve(root, path), 'utf8')
 const pages = [
-  ['homeschool', 'family-questions', 4],
+  ['homeschool', 'family-questions', 5],
   ['educators', 'coop-questions', 4],
   ['schools', 'school-questions', 8],
 ] as const
 const words = (text: string) => text.trim().split(/\s+/).length
 
 describe('concise copy and audience-specific FAQs', () => {
+  it('answers the classical digital learning query without claiming school enrollment', () => {
+    document.documentElement.innerHTML = read('site/homeschool/index.html')
+    const intro = document.querySelector('.classical-hero-copy > p:not(.classical-kicker)')!
+    expect(intro.textContent).toContain('classical digital learning program for K–8 homeschool families')
+    for (const subject of ['reading', 'writing', 'mathematics', 'reasoning']) {
+      expect(intro.textContent).toContain(subject)
+    }
+    const texas = document.getElementById('texas-classical-learning')!
+    expect(texas.querySelector('summary')!.textContent).toBe(
+      'Is there a classical digital program for my eight-year-old in Texas?',
+    )
+    expect(texas.textContent).toContain('Families arrange school enrollment or homeschooling separately')
+    expect(texas.querySelector('a[href="/inquire/?audience=homeschool"]')).not.toBeNull()
+    expect(texas.querySelector('a[href="https://tea.texas.gov/families-and-students/finding-school-your-child/home-schooling"]')).not.toBeNull()
+    expect(document.querySelector('meta[property="og:title"]')!.getAttribute('content')).toBe(document.title)
+    expect(document.querySelector('meta[property="og:description"]')!.getAttribute('content')).toBe(
+      document.querySelector('meta[name="description"]')!.getAttribute('content'),
+    )
+    const sitemap = new DOMParser().parseFromString(read('site/sitemap.xml'), 'application/xml')
+    expect(sitemap.querySelector('parsererror')).toBeNull()
+    expect([...sitemap.querySelectorAll('loc')].filter(node =>
+      node.textContent === 'https://agnusdei.ai/homeschool/',
+    )).toHaveLength(1)
+  })
+
   it('uses the owner’s short inquiry fallback with a single clear email link', () => {
     document.documentElement.innerHTML = read('site/inquire/index.html')
     const help = document.querySelector('.inquiry-help')!

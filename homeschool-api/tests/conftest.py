@@ -150,3 +150,34 @@ async def demo_db(monkeypatch):
     yield session_factory
 
     await engine.dispose()
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "real_consent: run the real parental-consent gate (core/consent.py) instead of the test stub",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _collection_consent_is_granted_unless_a_test_asks_otherwise(request, monkeypatch):
+    """Parental consent gates every collection route (core/consent.py). Most
+    tests exercise routes for their own behaviour and do not set up a consent
+    record, so the gate is stubbed to permit collection for them.
+
+    Tests that are ABOUT the gate carry `@pytest.mark.real_consent` and get the
+    real check. tests/test_consent_gate.py is where each gated route is proven
+    to refuse without consent through the real app, so this stub cannot hide a
+    missing gate call from the suite as a whole.
+    """
+    if request.node.get_closest_marker("real_consent"):
+        yield
+        return
+
+    import core.consent as consent_module
+
+    async def _permitted(db, student_name):
+        return None
+
+    monkeypatch.setattr(consent_module, "require_collection", _permitted)
+    yield

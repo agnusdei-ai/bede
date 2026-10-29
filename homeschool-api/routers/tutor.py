@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings
+from core import consent
 from core.database import get_db
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
@@ -212,6 +213,15 @@ async def chat(
         # No write this turn makes can become durable once the grant stops
         # holding: every commit and flush re-validates first.
         db = pilot_authz.RevocationGatedSession(db, tutor_ctx, audit_from_request(request))
+
+    # COPPA: no child content is collected for a student until a parent has
+    # consented, and not while collection is paused (core/consent.py). The
+    # demo role is a pseudonymous public session with no StudentConfig and
+    # its own retention story, so it is not gated here. The educator branch
+    # above has already replaced session_config with the saved, authoritative
+    # plan, so this checks the student whose data would be written.
+    if not is_demo_code:
+        await consent.require_collection(db, req.session_config.student_name)
 
     demo_quota_exceeded = False
     if is_demo_code:

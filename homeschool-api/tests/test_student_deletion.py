@@ -20,6 +20,8 @@ from core.config import settings
 from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
+    ConsentRecord,
+    StudentCollectionState,
     EducatorAssessmentEvidence,
     PracticeAssessment,
     PracticeSetRecord,
@@ -125,6 +127,13 @@ async def _seed_all_tables(db, student_name: str):
         detail_enc=encrypt_json({"practice_set": {}}),
     ))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
+    # Parental consent ledger and per-child pause (core/consent.py, COPPA 312.5/312.6).
+    db.add(ConsentRecord(
+        student_name=student_name, parent_label_enc=encrypt_json({"label": "Mum"}),
+        method="parent_attested_checkbox", notice_hash="0" * 64, scope="tutoring_and_records",
+        granted_at=now,
+    ))
+    db.add(StudentCollectionState(student_name=student_name, paused_at=now))
     await db.commit()
 
 
@@ -147,6 +156,8 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),
         ("api_usage_events", ApiUsageEvent),
+        ("consent_records", ConsentRecord),
+        ("student_collection_state", StudentCollectionState),
         ("data_key_shredded", StudentKey),
     ):
         result = await db.execute(select(model).where(model.student_name == student_name))

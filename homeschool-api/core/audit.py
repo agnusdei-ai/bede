@@ -100,6 +100,15 @@ class AuditEvent:
     PILOT_GRANT_REVOKED        = "pilot.roster_grant_revoked"
     PILOT_MEMBERSHIP_DISABLED  = "pilot.campus_membership_disabled"
     PILOT_CAMPUS_DISABLED      = "pilot.campus_disabled"
+    # core/consent.py and routers/consent.py: parental consent ledger and
+    # per-child collection controls (COPPA 312.5, 312.6). Detail carries the
+    # notice hash prefix and method only, never the parent's alias or reason.
+    CONSENT_GRANTED            = "consent.granted"
+    CONSENT_REVOKED            = "consent.revoked"
+    COLLECTION_PAUSED          = "collection.paused"
+    COLLECTION_RESUMED         = "collection.resumed"
+    DATA_EXPORTED              = "data.exported"
+    COLLECTION_REFUSED         = "collection.refused"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

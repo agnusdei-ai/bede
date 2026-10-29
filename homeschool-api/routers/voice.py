@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 from typing import List
 
+from core import consent
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core.database import get_db
 from core.deps import require_auth, require_parent, require_real_user
@@ -64,6 +65,10 @@ async def enroll(
     _: dict = Depends(require_parent),
 ):
     """Enrol a student's voice. Embeddings stored encrypted — never returned."""
+    # A voiceprint is biometric data about a child. No enrollment without a
+    # recorded parental consent (COPPA 312.5; see core/consent.py). Checked
+    # before any audio is read, so a refused request stores nothing.
+    await consent.require_collection(db, student_name)
     if len(samples) < 2:
         raise HTTPException(status_code=400, detail="At least 2 audio samples required")
     if len(samples) > 5:

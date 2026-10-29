@@ -1362,6 +1362,59 @@ class AIProviderOverride(Base):
     )
 
 
+class ConsentRecord(Base):
+    """One parental consent to collect a student's data, per grant.
+
+    COPPA 16 CFR 312.5 requires verifiable parental consent before collection
+    and a record that it was given. This is that record: who consented (an
+    alias the parent chose, encrypted), to which notice version (a hash, so
+    the exact text the parent was shown can be recomputed), by which method
+    (see core/consent.py's METHODS), when, and whether it was later revoked.
+
+    Revocation sets revoked_at rather than deleting the row, so the ledger
+    keeps the history of a grant that stopped. Student deletion removes the
+    rows like every other per-student table (services/student_deletion.py),
+    and the encrypted fields are unreadable after the student key is shredded.
+    """
+    __tablename__ = "consent_records"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=True
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    parent_label_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    method: Mapped[str] = mapped_column(String(64), nullable=False)
+    notice_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope: Mapped[str] = mapped_column(String(64), nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revocation_reason_enc: Mapped[Optional[bytes]] = mapped_column(LargeBinary, nullable=True)
+
+
+class StudentCollectionState(Base):
+    """A parent's pause on new collection for one student (COPPA 312.6(a)(2)).
+
+    A row with paused_at set means collection endpoints refuse (HTTP 423)
+    while read and export endpoints keep working. Deleting the row (or
+    resuming, which clears paused_at) restores collection. Holds no content,
+    only the pause state, so it is plaintext like the other flags here.
+    """
+    __tablename__ = "student_collection_state"
+
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    paused_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 async def create_tables() -> None:
     """Idempotent table creation — safe to call on every startup."""
     async with engine.begin() as conn:

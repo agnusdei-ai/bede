@@ -118,6 +118,9 @@ def extract_narration_text(filename: str, content_base64: str) -> str:
                 if length >= MAX_NARRATION_CHARS:
                     break
             text = "\n".join(parts)
+        except UnsupportedNarrationFileError:
+            # Preserve explicit fail-closed validation outcomes for callers and tests.
+            raise
         except Exception as e:
             raise UnsupportedNarrationFileError("Could not read that PDF") from e
 

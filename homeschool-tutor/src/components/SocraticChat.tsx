@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, X, Sparkles } from 'lucide-react'
+import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, ImagePlus, X, Sparkles } from 'lucide-react'
 import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
@@ -72,6 +72,8 @@ export default function SocraticChat({
   // instead of going straight to Bede the instant the mic is released.
   const [pendingVoiceTranscript, setPendingVoiceTranscript] = useState<string | null>(null)
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const [photoError, setPhotoError] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
@@ -596,6 +598,25 @@ export default function SocraticChat({
   }
   const handleDrawingCancel = () => setShowCanvas(false)
 
+  const handleLessonPhoto = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setPhotoError('')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setPhotoError('Choose a JPEG, PNG, or WebP photo under 5 MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onerror = () => setPhotoError('Could not open this photo.')
+    reader.onload = () => {
+      if (typeof reader.result === 'string' && reader.result.startsWith('data:image/')) setPendingDrawing(reader.result)
+      else setPhotoError('Could not open this photo.')
+    }
+    reader.readAsDataURL(file)
+  }
+
+
   const send = useCallback(async (overrideMsg?: string) => {
     // overrideMsg lets voice mode's onFinal send a transcript directly,
     // without a setInput()-then-read round trip through React state.
@@ -859,7 +880,8 @@ export default function SocraticChat({
         <div ref={bottomRef} />
       </div>
 
-      {/* Drawing preview */}
+      {photoError && <p role="alert" className="px-4 py-2 text-sm text-red-700">{photoError}</p>}
+      {/* Drawing or lesson photo preview */}
       {pendingDrawing && (
         <div className="px-4 pb-2 flex items-center gap-2 bg-parchment-50 border-t border-sage-200 pt-2">
           <img src={pendingDrawing} alt={t('chat.drawingAlt')} className="h-16 w-auto rounded-lg border border-sage-200 shadow-sm" />
@@ -882,6 +904,10 @@ export default function SocraticChat({
           >
             <PenLine size={18} />
           </button>
+
+          {/* Session-only lesson photo, sent via existing drawing image transport. */}
+          <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleLessonPhoto} aria-label="Choose lesson photo" className="hidden" />
+          <button type="button" onClick={() => photoInputRef.current?.click()} disabled={isStreaming || breakActive} aria-label="Attach lesson photo" title="Attach lesson photo" className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 flex-shrink-0"><ImagePlus size={18} /></button>
 
           {/* Upload narration from a smart pen/notebook (e.g. inq) */}
           <input

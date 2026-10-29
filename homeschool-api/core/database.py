@@ -268,6 +268,32 @@ class VoiceProfile(Base):
     )
 
 
+class ChildDevicePairing(Base):
+    """COPPA readiness C-23 (routers/auth.py, hosted_profile only).
+
+    One row per tablet that has tried to sign a child in on a hosted
+    deployment. `state` moves pending -> approved (a parent approved it) ->
+    paired (the device has collected its token once) -> revoked (a parent
+    removed it). Only a SHA-256 digest of the per-device token is stored, so
+    a read of this table is not a working credential. Carries no student
+    name and no child text: the device's user agent is the only descriptive
+    field, and it exists so a parent can recognise the tablet in the pending
+    list.
+    """
+    __tablename__ = "child_device_pairings"
+
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    user_agent: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    token_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    requested_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class PilotCampus(Base):
     """Explicitly approved institutional pilot campus; no household migration."""
     __tablename__ = "pilot_campuses"

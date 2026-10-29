@@ -121,6 +121,8 @@ def extract_narration_text(filename: str, content_base64: str) -> str:
         except UnsupportedNarrationFileError:
             # Preserve explicit fail-closed validation outcomes for callers and tests.
             raise
+        except UnsupportedNarrationFileError:
+            raise
         except Exception as e:
             raise UnsupportedNarrationFileError("Could not read that PDF") from e
 

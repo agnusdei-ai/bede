@@ -793,6 +793,7 @@
     "noticeLabel": "Texto del Aviso"
   },
   "schoolDataAuth": {
+    "fromInstaller": "Esta autorización provino del comprobante del instalador. Aquí puede revisarla, retirarla, autorizar un plantel nuevo o volver a autorizar tras un cambio del aviso.",
     "heading": "Autorización para Almacenar Información de Estudiantes",
     "headingUpdated": "Aviso Actualizado: Se Requiere una Nueva Autorización",
     "lead": "Antes de que Bede almacene información de estudiantes de esta escuela, un funcionario autorizado debe revisar el Aviso y otorgar su autorización.",
@@ -817,5 +818,51 @@
     "actionWithdraw": "retirar la autorización",
     "loadFailedHint": "El registro de información de estudiantes permanece no disponible hasta que el estado cargue.",
     "retry": "Intentar de nuevo"
+  },
+  "installationAuth": {
+    "heading": "Autorización de la instalación",
+    "lead": "Aquí se registra quién aceptó el aviso al instalar Bede y si eso ya se verificó. Bede procesa la información de los niños solo cuando el comprobante está verificado.",
+    "state": {
+      "pending_verification": "En espera de verificación",
+      "verified": "Verificado",
+      "invalid": "No válido",
+      "withdrawn": "Retirado",
+      "superseded": "Reemplazado por un comprobante más reciente"
+    },
+    "explain": {
+      "pending_verification": "El procesamiento de datos de niños no está habilitado. Se aceptó el aviso y usted declaró ser el adulto autorizado, pero esa declaración es solo una atestación. No se ha verificado y Bede no la trata como consentimiento verificado.",
+      "verified": "La verificación está completa y el procesamiento de datos de niños está habilitado para esta instalación.",
+      "invalid": "El comprobante de instalación no pasó una comprobación, por lo que el procesamiento de datos de niños no está habilitado. Vuelva a ejecutar el instalador o contacte a soporte.",
+      "withdrawn": "Se retiró la autorización, por lo que el procesamiento de datos de niños no está habilitado. Esto no elimina los registros existentes.",
+      "superseded": "Un comprobante más reciente reemplazó a este. El procesamiento de datos de niños sigue al comprobante más reciente y este no lo habilita."
+    },
+    "processingOn": "Procesamiento de datos de niños: habilitado",
+    "processingOff": "Procesamiento de datos de niños: no habilitado",
+    "chainBroken": "El historial del comprobante no pasó su verificación de integridad. Considere esta instalación como no autorizada.",
+    "modeLabel": "Instalado para",
+    "modeFamily": "Una familia",
+    "modeSchool": "Una escuela",
+    "noticeVersion": "Versión del aviso",
+    "acceptedOn": "Aceptado el",
+    "authorizer": "Persona que autoriza",
+    "capacity": "Calidad en que actúa",
+    "capacityParent": "Padre, madre o tutor legal",
+    "capacityAdministrator": "Administrador escolar",
+    "capacityTeacher": "Docente",
+    "schoolNote": "La autorización inicial de la escuela provino de este comprobante del instalador. Use el panel de autorización escolar para revisarla, retirarla, autorizar otro plantel o volver a autorizar tras un cambio del aviso.",
+    "verifyHeading": "Verificación",
+    "verifyStart": "Iniciar verificación",
+    "verifyComplete": "Completar verificación",
+    "verifying": "Procesando…",
+    "verifyUnavailable": "La verificación parental aún no está disponible. No se ha aprobado ningún método de verificación, por lo que el procesamiento de datos de niños sigue desactivado hasta que se apruebe uno. Su instalación no tiene ningún problema.",
+    "withdraw": "Retirar autorización",
+    "withdrawConfirmPrompt": "¿Retirar la autorización de esta instalación? Bede dejará de procesar la información de los niños. Los registros existentes no se eliminan.",
+    "withdrawConfirm": "Sí, retirar",
+    "withdrawCancel": "Mantenerla",
+    "withdrawing": "Retirando…",
+    "loadFailed": "No pudimos leer el estado de la autorización de la instalación.",
+    "actionFailed": "Eso no funcionó. Inténtelo de nuevo.",
+    "bannerPendingTitle": "Instalación aún sin verificar",
+    "bannerPendingBody": "El aviso aceptado durante la instalación está en espera de verificación, por lo que no cuenta como consentimiento. El procesamiento de datos de niños no se habilita hasta que se verifique."
   }
 }

@@ -793,6 +793,7 @@
     "noticeLabel": "Text of the Notice"
   },
   "schoolDataAuth": {
+    "fromInstaller": "This authorization came from the installer receipt. You can review it, withdraw it, authorize a new campus, or reauthorize here after a notice change.",
     "heading": "Authorization to Store Student Information",
     "headingUpdated": "Updated Notice: Renewed Authorization Required",
     "lead": "Before Bede stores student information for this school, an authorized official must review the Notice and provide authorization.",
@@ -817,5 +818,51 @@
     "actionWithdraw": "withdraw the authorization",
     "loadFailedHint": "Entry of student information remains unavailable until the status loads.",
     "retry": "Try again"
+  },
+  "installationAuth": {
+    "heading": "Installation Authorization",
+    "lead": "This records who accepted the notice when Bede was installed, and whether that has been verified. Bede processes children's information only once the receipt is verified.",
+    "state": {
+      "pending_verification": "Awaiting verification",
+      "verified": "Verified",
+      "invalid": "Invalid",
+      "withdrawn": "Withdrawn",
+      "superseded": "Replaced by a newer receipt"
+    },
+    "explain": {
+      "pending_verification": "Child-data processing is not enabled. The notice was accepted and you stated you are the authorized adult, but that statement is an attestation only. It has not been verified, and Bede does not treat it as verified consent.",
+      "verified": "Verification is complete and child-data processing is enabled for this installation.",
+      "invalid": "The installation receipt failed a check, so child-data processing is not enabled. Run the installer again or contact support.",
+      "withdrawn": "Authorization was withdrawn, so child-data processing is not enabled. Existing records are not deleted by this.",
+      "superseded": "A newer receipt replaced this one. Child-data processing follows the newer receipt, and it is not enabled by this one."
+    },
+    "processingOn": "Child-data processing: enabled",
+    "processingOff": "Child-data processing: not enabled",
+    "chainBroken": "The receipt history did not pass its integrity check. Treat this installation as not authorized.",
+    "modeLabel": "Installed for",
+    "modeFamily": "A family",
+    "modeSchool": "A school",
+    "noticeVersion": "Notice version",
+    "acceptedOn": "Accepted on",
+    "authorizer": "Authorizer",
+    "capacity": "Capacity",
+    "capacityParent": "Parent or legal guardian",
+    "capacityAdministrator": "School administrator",
+    "capacityTeacher": "Teacher",
+    "schoolNote": "The initial school authorization came from this installer receipt. Use the school authorization panel to review it, withdraw it, authorize another campus, or reauthorize after a notice change.",
+    "verifyHeading": "Verification",
+    "verifyStart": "Start Verification",
+    "verifyComplete": "Complete Verification",
+    "verifying": "Working…",
+    "verifyUnavailable": "Parental verification is not yet available. No verification method has been approved, so child-data processing stays off until one is. Nothing is wrong with your installation.",
+    "withdraw": "Withdraw Authorization",
+    "withdrawConfirmPrompt": "Withdraw this installation's authorization? Bede will stop processing children's information. Existing records are not deleted.",
+    "withdrawConfirm": "Yes, Withdraw",
+    "withdrawCancel": "Keep It",
+    "withdrawing": "Withdrawing…",
+    "loadFailed": "We couldn't read the installation authorization status.",
+    "actionFailed": "That didn't work. Please try again.",
+    "bannerPendingTitle": "Installation Not Yet Verified",
+    "bannerPendingBody": "The notice accepted at installation is awaiting verification, so it does not count as consent. Child-data processing is not enabled until it is verified."
   }
 }

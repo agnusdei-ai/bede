@@ -152,7 +152,8 @@
     "micContinuousListening": "Escuchando — toca para volver a mantener presionado",
     "micContinuousWaiting": "Voz activada — Bede escuchará cuando sea tu turno",
     "voiceModeFallbackMessage": "Estoy teniendo problemas para escucharte automáticamente, así que volví a mantener presionado el micrófono. Puedes activar la voz de nuevo cuando quieras.",
-    "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez."
+    "voiceModeStoodDown": "Dejaré de escuchar por ahora — mantén presionado el micrófono cuando quieras hablar otra vez.",
+    "parentStepNeeded": "Un adulto necesita completar un paso rápido en la Configuración para padres. Pídele que la abra, por favor."
   },
   "canvas": {
     "cancel": "Cancelar",
@@ -774,5 +775,21 @@
     "worksheetTitle": "Práctica",
     "workOn": "Qué practicar",
     "forYou": "Solo para usted (no se muestra a su hijo)"
+  },
+  "consent": {
+    "titleFirst": "Se requiere el consentimiento de los padres",
+    "titleChanged": "Aviso actualizado: se requiere un nuevo consentimiento",
+    "bodyFirst": "Por favor, revise el Aviso y manifieste su consentimiento para que Bede pueda continuar recopilando y conservando la información personal de su hijo.",
+    "bodyChanged": "Por favor, revise el Aviso y manifieste su consentimiento para que Bede pueda continuar recopilando y conservando la información personal de su hijo.",
+    "readNotice": "Leer el Aviso",
+    "noticeVersion": "Versión del aviso {{version}}",
+    "checkbox": "Soy el padre, la madre o el tutor legal de cada niño que utilizará Bede. He leído este Aviso, doy mi consentimiento para la recopilación, el uso y la conservación de la información personal del niño según se describe en él, y acepto las responsabilidades de custodio establecidas en la Sección 2.",
+    "agree": "Doy mi consentimiento",
+    "saving": "Guardando…",
+    "noticeChangedRetry": "El aviso acaba de actualizarse. Por favor lee la nueva versión y acepta de nuevo.",
+    "failed": "No pudimos registrarlo. Por favor intenta de nuevo.",
+    "parentLabel": "padre o madre",
+    "tickToSave": "Marca la casilla de arriba para guardar.",
+    "noticeLabel": "Texto del Aviso"
   }
 }

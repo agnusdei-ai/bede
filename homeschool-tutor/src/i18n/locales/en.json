@@ -152,7 +152,8 @@
     "micContinuousListening": "Listening — tap to switch back to hold-to-talk",
     "micContinuousWaiting": "Voice on — Bede will listen when it's your turn",
     "voiceModeFallbackMessage": "I'm having trouble hearing you automatically, so I've switched back to press-and-hold for the mic. You can turn Voice on again anytime.",
-    "voiceModeStoodDown": "I'll stop listening for now — press and hold the microphone whenever you're ready to talk again."
+    "voiceModeStoodDown": "I'll stop listening for now — press and hold the microphone whenever you're ready to talk again.",
+    "parentStepNeeded": "A parent needs to finish one quick step in Parent Setup. Please ask them to open it."
   },
   "canvas": {
     "cancel": "Cancel",
@@ -774,5 +775,21 @@
     "worksheetTitle": "Practice",
     "workOn": "What to work on",
     "forYou": "Just for you (not shown to your child)"
+  },
+  "consent": {
+    "titleFirst": "Parental Consent Required",
+    "titleChanged": "Updated Notice: Renewed Consent Required",
+    "bodyFirst": "Please review the Notice and indicate your consent so that Bede may continue to collect and maintain your child's personal information.",
+    "bodyChanged": "Please review the Notice and indicate your consent so that Bede may continue to collect and maintain your child's personal information.",
+    "readNotice": "Read the Notice",
+    "noticeVersion": "Notice version {{version}}",
+    "checkbox": "I am the parent or legal guardian of each child who will use Bede. I have read this Notice, I consent to the collection, use and maintenance of the child's personal information as described in it, and I accept the responsibilities of custodian set out in Section 2.",
+    "agree": "I Consent",
+    "saving": "Saving…",
+    "noticeChangedRetry": "The notice was just updated. Please read the new version and agree again.",
+    "failed": "We couldn't record that. Please try again.",
+    "parentLabel": "parent",
+    "tickToSave": "Please tick the box above to save.",
+    "noticeLabel": "Text of the Notice"
   }
 }

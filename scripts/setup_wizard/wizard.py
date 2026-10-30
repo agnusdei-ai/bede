@@ -572,29 +572,40 @@ def validate_lan_fields(fields: dict) -> str:
     return ""
 
 
+CONSENT_HEADING = "Parental Notice and Consent"
+CONSENT_ASSURANCE = (
+    "A self-hosted installation does not transmit a child's personal information "
+    "to the Provider. Personal information is held on equipment under your control."
+)
+CONSENT_CHECKBOX = (
+    "I am the parent or legal guardian of each child who will use Bede. I have read "
+    "this Notice, I consent to the collection, use and maintenance of the child's "
+    "personal information as described in it, and I accept the responsibilities of "
+    "custodian set out in Section 2."
+)
+CONSENT_DECLINED = (
+    "Installation not completed. Consent was not given. No software has been "
+    "installed and no personal information has been collected."
+)
+
+
 def render_consent(error: str = "") -> str:
     notice = html.escape(consent_notice_bytes().decode("utf-8"))
     err = f'<div class="error">{html.escape(error)}</div>' if error else ""
     return (
         _PAGE_HEAD
         + '<div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div>'
-          "<h1>Welcome to Bede</h1><p>Before we set anything up.</p></div></div>"
+          f"<h1>{CONSENT_HEADING}</h1></div></div>"
         + err
-        + "<p>Bede keeps records about your child so tutoring can continue from one "
-          "session to the next. Please read this notice. Nothing is installed, saved or "
-          "started until you agree.</p>"
+        + f"<p><strong>{html.escape(CONSENT_ASSURANCE)}</strong></p>"
         + '<pre id="consent-notice" style="white-space:pre-wrap;background:#f6f4ee;'
           f'padding:14px;border-radius:8px;max-height:340px;overflow:auto">{notice}</pre>'
-        + "<p><strong>Our assurance.</strong> Your child's information stays on your own "
-          "computer and is held by you. We do not collect it, and you can pause, export "
-          "or delete it at any time.</p>"
         + '<form method="POST" action="/consent">'
           '<label><input type="checkbox" name="agree" value="yes"> '
-          "I'm this child's parent or guardian. I've read this notice and agree to be the "
-          "custodian of my child's information.</label>"
-          '<button type="submit">Continue</button></form>'
+          f"{html.escape(CONSENT_CHECKBOX)}</label>"
+          '<button type="submit">I Consent and Continue</button></form>'
         + '<form method="POST" action="/decline">'
-          '<button type="submit">I do not agree</button></form>'
+          '<button type="submit">I Do Not Consent</button></form>'
         + _PAGE_TAIL
     )
 
@@ -604,9 +615,7 @@ def render_declined() -> str:
         _PAGE_HEAD
         + '<div class="success"><div class="bede-brand"><img src="/bede-icon.png" alt="Bede">'
           "<div><h1>Installation not completed</h1></div></div>"
-        + "<p>You did not agree to the notice, so nothing was installed, saved or "
-          "started, and no information was collected. You can close this tab. Run the "
-          "installer again whenever you are ready.</p></div>"
+        + f"<p>{html.escape(CONSENT_DECLINED)}</p></div>"
         + _PAGE_TAIL
     )
 
@@ -868,8 +877,8 @@ class Handler(BaseHTTPRequestHandler):
             parsed = parse_qs(self.rfile.read(length).decode("utf-8"))
             if parsed.get("agree", [""])[0] != "yes":
                 self._send_html(
-                    render_consent("Please tick the box to continue, or choose "
-                                   "\u201cI do not agree\u201d."),
+                    render_consent("To continue, tick the consent box, or select "
+                                   "\u201cI Do Not Consent\u201d."),
                     status=400,
                 )
                 return

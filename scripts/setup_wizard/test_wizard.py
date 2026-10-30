@@ -819,7 +819,9 @@ VALID_FIELDS = {
 def test_first_page_is_the_notice_not_the_setup_form(fresh_wizard):
     body = urllib.request.urlopen(f"{fresh_wizard}/").read().decode()
     assert "Notice version:" in body
-    assert "agree to be the custodian" in body
+    assert "Parental Notice and Consent" in body
+    assert "I Consent and Continue" in body
+    assert "does not transmit a child" in body
     assert 'name="anthropic_key"' not in body
 
 
@@ -841,7 +843,7 @@ def test_submit_without_consent_is_refused_and_writes_nothing(fresh_wizard, tmp_
 
 def test_unticked_checkbox_cannot_proceed(fresh_wizard, tmp_path):
     status, body = _raw_post(fresh_wizard, "/consent", {})
-    assert status == 400 and "tick the box" in body
+    assert status == 400 and "tick the consent box" in body
     status, _ = _raw_post(fresh_wizard, "/submit", VALID_FIELDS)
     assert status == 403
     assert not (tmp_path / ".env").exists()

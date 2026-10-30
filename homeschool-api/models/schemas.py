@@ -874,6 +874,10 @@ class LoginRequest(BaseModel):
     # — without this, an oversized value would reach the DB unvalidated and
     # fail as an unhandled DataError (500) instead of a clean 422 here.
     device_id: Optional[str] = Field(default=None, max_length=64)
+    # COPPA readiness C-23 (routers/auth.py, hosted_profile only): the
+    # per-device token a parent-approved tablet presents on every child
+    # sign-in after its first. Absent on self-hosted deployments.
+    device_token: Optional[str] = Field(default=None, max_length=128)
 
 
 class DemoCodeRequest(BaseModel):
@@ -958,6 +962,9 @@ class TokenResponse(BaseModel):
     # is still required before the real "parent" token is issued.
     mfa_required: bool = False
     mfa_methods: List[Literal["webauthn", "totp"]] = []
+    # COPPA readiness C-23: returned exactly once, on the first child sign-in
+    # from a device a parent has just approved (hosted_profile only).
+    device_token: Optional[str] = None
 
 
 # ── Parent MFA: FIDO2 security key + TOTP ────────────────────────────────────

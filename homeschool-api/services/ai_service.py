@@ -52,6 +52,7 @@ from models.schemas import (
 )
 from core.audit import AuditEvent, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
+from core.log_redaction import exc_summary, exc_text, learner_ref
 from core.constitution import get_constitution
 
 log = logging.getLogger(__name__)
@@ -3635,7 +3636,7 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         row.count_enc = encrypt_json({"count": count + 1}, _aad, _key)
         await db.commit()
     except Exception as exc:
-        log.warning("Behavior-check increment failed for %s: %s", student_name, exc)
+        log.warning("Behavior-check increment failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
 
 
 async def _save_assessment(
@@ -3702,11 +3703,11 @@ async def _save_assessment(
             from services.diagnostic.composition import process_assessment as _process_composition
             await _process_composition(db, student_name, tool_input)
         except Exception as exc:
-            log.warning("Composition mastery update failed for %s: %s", student_name, exc)
+            log.warning("Composition mastery update failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
 
         return {"subject": subject.value, "total_score": total, "adaptive_signal": data["adaptive_signal"]}
     except Exception as exc:
-        log.warning("Assessment save failed for %s: %s", student_name, exc)
+        log.warning("Assessment save failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return None
 
 
@@ -4159,7 +4160,7 @@ async def _record_work_done(
             speed=getattr(ev, "speed", None),
         )
     except Exception as exc:
-        log.warning("Work-ledger write failed for %s/%s: %s", student_name, skill_id, exc)
+        log.warning("Work-ledger write failed for %s/%s: %s", learner_ref(student_name), skill_id, exc_text(exc, student_name))
 
 
 
@@ -4269,7 +4270,7 @@ async def _record_skill_evidence(
                 db, config.student_name, "mathematics", skill_id, ev.outcome, ev,
             )
     except Exception as exc:
-        log.warning("Skill-evidence record failed for %s: %s", config.student_name, exc)
+        log.warning("Skill-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
 
 
 # Reading and spelling live where a child actually reads and writes:
@@ -4458,7 +4459,7 @@ async def _record_literacy_evidence(
         else:
             await _record_work_done_demo(demo_code, "literacy", ev.domain, ev.outcome, ev)
     except Exception as exc:
-        log.warning("Literacy-evidence record failed for %s: %s", config.student_name, exc)
+        log.warning("Literacy-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
 
 
 async def _record_music_evidence(
@@ -4500,7 +4501,7 @@ async def _record_music_evidence(
         else:
             await _record_work_done_demo(demo_code, "music_knowledge", ev.domain, ev.outcome, ev)
     except Exception as exc:
-        log.warning("Music-evidence record failed for %s: %s", config.student_name, exc)
+        log.warning("Music-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
 
 
 async def _record_phonics_evidence(
@@ -4541,7 +4542,7 @@ async def _record_phonics_evidence(
         else:
             await _record_work_done_demo(demo_code, "phonics", ev.domain, ev.outcome, ev)
     except Exception as exc:
-        log.warning("Phonics-evidence record failed for %s: %s", config.student_name, exc)
+        log.warning("Phonics-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
 
 
 async def _record_language_evidence(
@@ -4600,7 +4601,7 @@ async def _record_language_evidence(
         else:
             await _record_work_done_demo(demo_code, "language_exposure", ev.language, ev.outcome, ev)
     except Exception as exc:
-        log.warning("Language-evidence record failed for %s: %s", config.student_name, exc)
+        log.warning("Language-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
 
 
 async def stream_tutor_response(
@@ -4934,7 +4935,7 @@ async def stream_tutor_response(
                                 if not decision.allowed:
                                     log.warning(
                                         "Action Validator refused a tool call for %s: %s",
-                                        config.student_name, decision.reason,
+                                        learner_ref(config.student_name), decision.reason,
                                     )
                                     log_event_nowait(
                                         AuditEvent.TOOL_CALL_SUPPRESSED,
@@ -5152,7 +5153,7 @@ async def stream_tutor_response(
             if suppressed_a_call:
                 log.info(
                     "Tool loop ending early for %s: a proposed tool call was refused",
-                    config.student_name,
+                    learner_ref(config.student_name),
                 )
             break
         if round_num == _MAX_TOOL_LOOP_ROUNDS - 1:
@@ -5514,8 +5515,13 @@ key as given here. Format exactly as:
     if db is not None and bookmarks:
         try:
             await _persist_lesson_bookmarks(db, req.session_config.student_name, bookmarks)
-        except Exception:
-            log.warning("Lesson-bookmark persistence failed for %s", req.session_config.student_name, exc_info=True)
+        except Exception as exc:
+            # No traceback: the exception message can carry the child's own
+            # words, and this is a child-facing path (COPPA readiness C-16).
+            log.warning(
+                "Lesson-bookmark persistence failed for %s: %s",
+                learner_ref(req.session_config.student_name), exc_summary(exc),
+            )
 
     return summary_text
 

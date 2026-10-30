@@ -21,7 +21,7 @@ from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from routers import admin, auth, catalog, diagnostic, educator_passkeys, educators, feedback, inquiries, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, practice, recovery, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, consent, diagnostic, educator_passkeys, educators, feedback, inquiries, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, practice, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -180,6 +180,20 @@ async def _periodic_data_purge():
                 log.info("Periodic data purge: removed %d expired demo interaction-signal row(s)", deleted)
         except Exception:
             log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
+
+        # Audit-log retention and IP minimisation (core/audit.py's
+        # purge_audit_log, COPPA readiness C-18). Its own try so a failure
+        # here cannot stop the sweeps around it.
+        try:
+            from core.audit import purge_audit_log
+            audit_result = await purge_audit_log()
+            if audit_result["deleted"] or audit_result["minimised"]:
+                log.info(
+                    "Periodic audit purge: deleted %d row(s), minimised IP on %d",
+                    audit_result["deleted"], audit_result["minimised"],
+                )
+        except Exception:
+            log.warning("Periodic audit purge failed — will retry next interval", exc_info=True)
 
         # Expired privileged-access grants (core/elevation.py). Hygiene, not
         # a security control — is_elevated() checks the timestamp, so an
@@ -585,6 +599,7 @@ app.include_router(voice.router)
 app.include_router(admin.router)
 app.include_router(pod.router)
 app.include_router(catalog.router)
+app.include_router(consent.router)
 app.include_router(sandbox.router)
 app.include_router(feedback.router)
 app.include_router(inquiries.router)

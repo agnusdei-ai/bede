@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import LearnerBehaviorCheck, LearnerProfile, NarrationAssessment, get_db
 from core.deps import require_parent, require_real_user
-from core import student_keys
+from core import consent, student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from services.ai_service import synthesize_learner_profile
 
@@ -152,6 +152,7 @@ async def build_profile(
     lower-confidence read parents can act on immediately) and again after
     each subsequent session as more narrations accumulate.
     """
+    await consent.require_collection(db, student_name)
     result = await db.execute(
         select(NarrationAssessment)
         .where(NarrationAssessment.student_name == student_name)

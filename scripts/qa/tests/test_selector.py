@@ -93,8 +93,7 @@ class SelectorTests(unittest.TestCase):
         self.assertIn("tests/test_decision_register.py", plan["scopes"]["backend"]["tests"])
 
     def test_site_aeo_contracts_run_targeted_backend_guard(self):
-        # The legacy workflow treats these as backend-relevant; the
-        # selector must map them to the actual AEO assertions, not skip.
+        # Public crawl contracts must select assertions rather than be skipped.
         for path in ("site/sitemap.xml", "site/robots.txt", "site/llms.txt",
                      "site/schools/index.html", "site/schools/assets.css"):
             with self.subTest(path=path):

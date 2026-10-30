@@ -23,7 +23,15 @@ from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import MIN_PASSWORD_LENGTH, settings
 from core.database import get_db
 from core import device_registry
-from core.deps import require_elevated_parent, require_mfa_pending, require_parent
+from fastapi.security import HTTPAuthorizationCredentials
+from core.deps import (
+    _authorize,
+    _bearer,
+    _validate_token,
+    require_elevated_parent,
+    require_mfa_pending,
+    require_parent,
+)
 from core.middleware import compute_fingerprint
 from core.parent_credential import set_parent_password_override, verify_parent_password
 from core.security import create_access_token
@@ -57,10 +65,38 @@ async def status_(db: AsyncSession = Depends(get_db), _: dict = Depends(require_
     }
 
 
-# ── Enrollment (requires a full parent session) ──────────────────────────────
+# ── Enrollment ───────────────────────────────────────────────────────────────
+
+async def require_enrollment_or_elevated_parent(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Who may enroll a second factor (COPPA readiness C-22).
+
+    Either a full elevated parent session (the ordinary case, unchanged), or
+    the enrollment-only token that routers/auth.py issues when a hosted
+    deployment refuses a password-only sign-in. That token exists for one
+    reason: so a parent with no second factor can enroll one. It is honoured
+    only while no factor is enrolled, and it grants nothing beyond these
+    enrollment routes: it is refused by require_parent and require_auth
+    (policy: parent_pending is `mfa.complete` only), and this function does
+    not accept it for any other route.
+    """
+    payload = await _validate_token(request, credentials)
+    if payload.get("role") == "parent_pending" and payload.get("enroll") is True:
+        if await mfa_service.enrolled_methods(db):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="A second factor is already set up. Sign in with it to continue.",
+            )
+        return await _authorize(request, payload, "mfa.complete")
+    return await require_elevated_parent(request, credentials, db)
+
+
 
 @router.post("/webauthn/register/options")
-async def webauthn_register_options(db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
+async def webauthn_register_options(db: AsyncSession = Depends(get_db), _: dict = Depends(require_enrollment_or_elevated_parent)):
     try:
         return json.loads(await mfa_service.build_registration_options(db))
     except ValueError as e:
@@ -72,7 +108,7 @@ async def webauthn_register_verify(
     req: WebAuthnRegisterVerifyRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_elevated_parent),
+    _: dict = Depends(require_enrollment_or_elevated_parent),
 ):
     try:
         await mfa_service.verify_and_store_registration(db, json.dumps(req.credential), req.nickname)
@@ -91,7 +127,7 @@ async def webauthn_delete(key_id: int, db: AsyncSession = Depends(get_db), _: di
 
 
 @router.post("/totp/enroll")
-async def totp_enroll(db: AsyncSession = Depends(get_db), _: dict = Depends(require_elevated_parent)):
+async def totp_enroll(db: AsyncSession = Depends(get_db), _: dict = Depends(require_enrollment_or_elevated_parent)):
     """Generates a new secret — the plaintext secret and otpauth:// URI are
     only ever returned from this one call; only the encrypted form is stored."""
     secret, uri = await mfa_service.enroll_totp(db)
@@ -103,7 +139,7 @@ async def totp_confirm(
     req: TotpConfirmRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    _: dict = Depends(require_elevated_parent),
+    _: dict = Depends(require_enrollment_or_elevated_parent),
 ):
     if not await mfa_service.confirm_totp(db, req.code):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect code — check your authenticator app and try again")

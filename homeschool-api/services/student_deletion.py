@@ -19,6 +19,7 @@ independent of any single student on purpose, per core/audit.py's own
 docstring — deleting a student doesn't rewrite the security history of
 what happened on this deployment).
 """
+from core.log_redaction import learner_ref
 import logging
 
 from sqlalchemy import delete
@@ -27,18 +28,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 log = logging.getLogger(__name__)
 
 
-async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[str, int]:
-    """
-    Deletes every row scoped to `student_name` across all per-student
-    tables and commits once. Returns a count per table (for the audit log
-    detail and the caller's own confirmation) — never student content,
-    just how many rows of each kind were removed. Safe to call for a
-    student with no data at all (every count is simply 0); the caller
-    decides whether that's worth a 404.
+def student_scoped_models() -> tuple:
+    """Every per-student table as (label, model), in deletion order.
+
+    The single list shared by deletion (below) and the parent export
+    (services/student_export.py), so the two cannot disagree about what
+    "everything we hold about this child" means.
     """
     from core.database import (
         ApiUsageEvent,
         AdaptiveInstructionTrace,
+        ConsentRecord,
         EducatorAssessmentEvidence,
         PracticeAssessment,
         PracticeSetRecord,
@@ -51,14 +51,12 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
         MasteryProfile,
         NarrationAssessment,
         SessionTranscript,
+        StudentCollectionState,
         StudentConfig,
         VoiceProfile,
     )
 
-    from core import student_keys
-
-    counts: dict[str, int] = {}
-    for label, model in (
+    return (
         ("student_config", StudentConfig),
         ("voice_profile", VoiceProfile),
         ("narration_assessments", NarrationAssessment),
@@ -75,7 +73,24 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
         ("educator_roster_assignments", EducatorRosterAssignment),
         ("session_transcripts", SessionTranscript),
         ("api_usage_events", ApiUsageEvent),
-    ):
+        ("consent_records", ConsentRecord),
+        ("student_collection_state", StudentCollectionState),
+    )
+
+
+async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[str, int]:
+    """
+    Deletes every row scoped to `student_name` across all per-student
+    tables and commits once. Returns a count per table (for the audit log
+    detail and the caller's own confirmation) — never student content,
+    just how many rows of each kind were removed. Safe to call for a
+    student with no data at all (every count is simply 0); the caller
+    decides whether that's worth a 404.
+    """
+    from core import student_keys
+
+    counts: dict[str, int] = {}
+    for label, model in student_scoped_models():
         result = await db.execute(delete(model).where(model.student_name == student_name))
         counts[label] = result.rowcount or 0
 
@@ -94,5 +109,5 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
     counts["data_key_shredded"] = 1 if shredded else 0
 
     await db.commit()
-    log.info("Deleted all data for student %r: %s", student_name, counts)
+    log.info("Deleted all data for student %r: %s", learner_ref(student_name), counts)
     return counts

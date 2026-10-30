@@ -39,6 +39,7 @@ probability (composition's approach), not a fixed walk order.
 """
 from __future__ import annotations
 
+from core.log_redaction import exc_text, learner_ref
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -237,7 +238,7 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
                 await student_keys.get_existing(db, student_name),
             )
     except Exception as exc:
-        log.warning("Language-exposure mastery load failed for %s, treating as cold-start: %s", student_name, exc)
+        log.warning("Language-exposure mastery load failed for %s, treating as cold-start: %s", learner_ref(student_name), exc_text(exc, student_name))
         vector = new_vector()
         vector_is_cold_start = True
 
@@ -270,7 +271,7 @@ async def process_evidence(db, student_name: str, language: str, outcome: str) -
         await db.commit()
     except Exception as exc:
         await db.rollback()
-        log.warning("Language-exposure mastery persist failed for %s: %s", student_name, exc)
+        log.warning("Language-exposure mastery persist failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return None
 
     return updated_vector
@@ -301,7 +302,7 @@ async def get_language_summary(db, student_name: str) -> Optional[dict]:
                 await student_keys.get_existing(db, student_name),
             )
     except Exception as exc:
-        log.warning("Language-exposure mastery summary load failed for %s: %s", student_name, exc)
+        log.warning("Language-exposure mastery summary load failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return None
 
     return build_summary_view(

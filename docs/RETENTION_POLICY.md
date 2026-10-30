@@ -127,6 +127,81 @@ still never stored, by us or by OpenAI, which processes it as our service
 provider for that one turn and does not use it to train its models. What
 changed is **who processes it**, not **how long anyone keeps it**.
 
+## Application logs and the audit log (self-hosted and hosted deployments)
+
+These two stores sit outside the categories table above because they are
+written by the operating system and the application's security trail rather
+than by a demo visitor's session. Both are operator-configured. The values
+below are the code's defaults and the recommendations this repository makes,
+not a retention commitment that any particular installation has accepted.
+
+**Application logs (operational output).** The backend writes to standard
+output at INFO level, and the container runtime (Docker, or the hosting
+platform) keeps that output under its own log driver. Retention is therefore
+set by the operator, not by this repository:
+
+- *Docker `json-file` driver, the default:* no rotation and no maximum size
+  unless the operator sets `max-size` and `max-file`. Left at default, logs
+  persist until the host's disk is cleaned. The operator should set both
+  options in the compose deployment.
+- *Hosted platforms:* retention is the platform's own, and the operator must
+  confirm it in that platform's settings. This repository does not hold that
+  value.
+- *Recommended default: 30 days* for application logs, with the rotation
+  options above. This is a recommendation for the operator to adopt or change,
+  recorded as an operator decision and not as a value enforced by the code.
+
+What the logs contain, after the log-redaction change (COPPA readiness C-15
+and C-16): a learner is identified only by a keyed reference, `learner:` followed
+by 12 hex characters of an HMAC of the name under a key derived from the
+deployment's `SECRET_KEY`. The reference is stable within one installation,
+so an operator can tell that two lines concern one learner, but it does not
+reveal the name, and it cannot be reversed without that key. Exception text
+is reduced to its type, with any learner name it carries replaced. On
+child-facing paths (the tutoring stream and the lesson-bookmark write) only
+the exception's type and the frame where it was raised are logged, never the
+message and never a traceback, because the message can contain the child's own
+words. The `learner:` reference is still a persistent identifier under COPPA's
+definition, so application logs remain in scope of this policy and of the
+operator's retention choice. The redaction removes the child's name and words,
+not the need to set a retention period.
+
+**Audit log (`audit_log`, encrypted).** Every security-relevant event is
+recorded as one encrypted row. Two settings govern it:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `AUDIT_RETENTION_DAYS` | 365 | Rows older than this are deleted |
+| `AUDIT_IP_TRUNCATE_DAYS` | 30 | Rows older than this keep the event, but their stored IP is replaced by a keyed pseudonym (`ip-pseudonym:` plus 16 hex characters) and their user-agent is cleared |
+
+The 365-day value is a **placeholder pending an owner decision**. It is the
+default in code so that an installation is never left with an unbounded log,
+and it is not a considered retention period for a children's service. The
+owner should set it, and record the decision in `docs/DECISIONS.md`, before any
+hosted or pilot deployment relies on it.
+
+The 30-day IP window is the minimisation step. It keeps the address for the
+period in which a security review is realistic, and afterwards keeps the
+event, its outcome, its role and its detail, and still lets an investigator
+see that two events came from one device. The pseudonym is keyed on
+`SECRET_KEY`, so the mapping cannot be rebuilt from the database alone. A
+user-agent string can also identify a device, so it is cleared on the same
+schedule rather than kept.
+
+Known limits, stated plainly:
+
+- Student deletion does not remove audit rows. The audit log is kept
+  deliberately so that a deletion is itself evidenced. Some audit entries
+  record a learner's name in their encrypted payload, and those names remain
+  until the audit retention window passes. Whether those names should also be
+  pseudonymised is an open owner decision.
+- Minimisation runs in the periodic purge task (every six hours, `main.py`).
+  A deployment that is shut down for longer than the window applies the
+  minimisation on the first periodic pass after it starts again.
+- The audit log has no hash chain, so a row that is changed inside the
+  database is not detectable from the log itself. The database's own access
+  controls and backups are the protection for that.
+
 ## Review schedule
 
 Reviewed by the responsible individual (`docs/INFORMATION_SECURITY_POLICY.md`

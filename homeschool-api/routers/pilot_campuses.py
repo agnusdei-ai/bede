@@ -7,9 +7,11 @@ There is no fallback to student_name, demo, parent, or public access.
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,8 @@ from core.database import (
     ClassicalEducator, PilotCampus, PilotEducatorCampus, PilotLearner,
     PilotRosterGrant, get_db,
 )
-from core.deps import require_educator, require_elevated_parent
+from core import school_authorization as school_auth
+from core.deps import _bearer, _validate_token, require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
 from core.learner_scope import LearnerScope, evict_learner
 from services.educator_access import live_educator
@@ -119,6 +122,8 @@ async def create_learner(
 ) -> dict:
     _admin(auth)
     campus = await _campus(db, campus_id)
+    # Storing a display name is storing learner data.
+    await school_auth.require_authorized(db, campus.id)
     learner_id = str(uuid.uuid4())
     row = PilotLearner(
         id=learner_id, campus_id=campus.id,
@@ -160,6 +165,9 @@ async def approve_roster_grant(
 ) -> None:
     _admin(auth)
     campus = await _campus(db, campus_id)
+    # A grant links an educator to a learner's records; it is part of the
+    # learner-data surface the school must have authorized.
+    await school_auth.require_authorized(db, campus.id)
     teacher_id, learner_id = _id(educator_id), _id(learner_id)
     membership = await db.get(PilotEducatorCampus, (teacher_id, campus.id))
     teacher = await db.get(ClassicalEducator, teacher_id)
@@ -323,3 +331,103 @@ async def get_my_learner(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     return _render(await _assigned(db, auth, learner_id))
+
+
+# ── School data authorization (see core/school_authorization.py) ────────────
+
+class DataAuthorizationInput(BaseModel):
+    notice_hash: str = Field(min_length=1, max_length=128)
+    authorizer_name: str = Field(min_length=1, max_length=100)
+    authorizer_role: Literal["administrator", "teacher"]
+
+
+class DataAuthorizationRevoke(BaseModel):
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+
+async def _admin_or_educator(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """The verified administrator OR a live educator; the guard that
+    matches the token's own role does the full validation."""
+    payload = await _validate_token(request, credentials)
+    if payload.get("role") == "educator":
+        return await require_educator(request, credentials)
+    return await require_elevated_parent(request, credentials, db)
+
+
+async def _authorization_campus(db: AsyncSession, auth: dict, campus_id: str) -> PilotCampus:
+    """The campus, if the caller is the administrator or an enabled member
+    of it. Anyone else gets the uniform 404 the pilot code uses."""
+    _enabled()
+    if auth.get("role") == "educator":
+        teacher = await live_educator(db, auth)
+        campus = await _campus(db, campus_id)
+        link = await db.get(PilotEducatorCampus, (teacher.id, campus.id))
+        if link is None or not link.enabled:
+            raise HTTPException(status_code=404, detail="Record not found")
+        return campus
+    _admin(auth)
+    return await _campus(db, campus_id)
+
+
+@router.get("/campuses/{campus_id}/data-authorization")
+async def get_data_authorization(
+    campus_id: str, auth: dict = Depends(_admin_or_educator),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    campus = await _authorization_campus(db, auth, campus_id)
+    return await school_auth.status_for(db, campus.id)
+
+
+@router.post("/campuses/{campus_id}/data-authorization")
+async def post_data_authorization(
+    campus_id: str, payload: DataAuthorizationInput, request: Request,
+    auth: dict = Depends(_admin_or_educator), db: AsyncSession = Depends(get_db),
+):
+    campus = await _authorization_campus(db, auth, campus_id)
+    is_teacher = auth.get("role") == "educator"
+    # A teacher records 'teacher', the administrator 'administrator'. A
+    # mismatch is the uniform 404, not a distinguishing error.
+    if payload.authorizer_role != ("teacher" if is_teacher else "administrator"):
+        raise HTTPException(status_code=404, detail="Record not found")
+    ref = auth["sub"] if is_teacher else school_auth.ADMIN_REF
+    try:
+        record, created = await school_auth.grant(
+            db, campus.id, authorizer_role=payload.authorizer_role, authorizer_ref=ref,
+            authorizer_name=payload.authorizer_name.strip(),
+            presented_notice_hash=payload.notice_hash,
+        )
+    except school_auth.SchoolAuthorizationError as exc:
+        return JSONResponse(status_code=exc.http_status,
+                            content={"error": exc.code, "message": exc.message})
+    if created:
+        await log_event(
+            AuditEvent.SCHOOL_DATA_AUTHORIZED, role=auth.get("role"), success=True,
+            detail=f"campus={campus.id} authorizer_role={record.authorizer_role} "
+                   f"notice={record.notice_hash[:12]}",
+            **audit_from_request(request),
+        )
+    body = await school_auth.status_for(db, campus.id)
+    return JSONResponse(status_code=201 if created else 200, content=body)
+
+
+@router.post("/campuses/{campus_id}/data-authorization/revoke")
+async def revoke_data_authorization(
+    campus_id: str, payload: DataAuthorizationRevoke, request: Request,
+    auth: dict = Depends(require_elevated_parent), db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Administrator only. Stops further storage; deletes nothing."""
+    _admin(auth)
+    campus = await _campus(db, campus_id)
+    row = await school_auth.revoke(db, campus.id, reason=(payload.reason or "").strip() or None)
+    if row is not None:
+        await log_event(
+            AuditEvent.SCHOOL_DATA_AUTH_REVOKED, role="parent", success=True,
+            detail=f"campus={campus.id} authorizer_role={row.authorizer_role} "
+                   f"notice={row.notice_hash[:12]}",
+            **audit_from_request(request),
+        )
+    return await school_auth.status_for(db, campus.id)

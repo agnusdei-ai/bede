@@ -102,6 +102,11 @@ class AuditEvent:
     PILOT_GRANT_REVOKED        = "pilot.roster_grant_revoked"
     PILOT_MEMBERSHIP_DISABLED  = "pilot.campus_membership_disabled"
     PILOT_CAMPUS_DISABLED      = "pilot.campus_disabled"
+    # core/school_authorization.py: a school official authorized, or the
+    # administrator withdrew, storage of learner data for a campus. Detail
+    # carries the campus UUID, role and notice hash prefix only, never a name.
+    SCHOOL_DATA_AUTHORIZED     = "pilot.school_data_authorized"
+    SCHOOL_DATA_AUTH_REVOKED   = "pilot.school_data_authorization_revoked"
     # core/consent.py and routers/consent.py: parental consent ledger and
     # per-child collection controls (COPPA 312.5, 312.6). Detail carries the
     # notice hash prefix and method only, never the parent's alias or reason.

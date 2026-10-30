@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 # Bede Homeschool Tutor — first-run setup wizard
 # Usage: bash setup.sh   (or: make setup)
+#        bash setup.sh --accept-consent-notice   (unattended; see below)
+#
+# Parental consent comes first. The parent reads the Notice and consents
+# BEFORE anything is collected, written or started. Declining exits non-zero
+# with no .env written. --accept-consent-notice is the explicit
+# non-interactive form of that consent, for automation run by (or on behalf
+# of) the parent; an unattended run without it stops rather than skipping.
 set -euo pipefail
+
+ACCEPT_CONSENT_FLAG=0
+for arg in "$@"; do
+  case "$arg" in
+    --accept-consent-notice) ACCEPT_CONSENT_FLAG=1 ;;
+    *) echo "Unknown option: $arg" >&2; exit 2 ;;
+  esac
+done
 
 BOLD='\033[1m'
 GREEN='\033[0;32m'
@@ -101,6 +116,52 @@ echo -e "${BOLD}╔════════════════════�
 echo -e "${BOLD}║      Bede Homeschool Tutor — Setup       ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════╝${RESET}"
 blank
+
+# ── Parental Notice and Consent (before anything is collected or written) ────
+SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONSENT_NOTICE_FILE="${SETUP_DIR}/homeschool-api/data/consent_notice.txt"
+[[ -f "$CONSENT_NOTICE_FILE" ]] || error "The consent notice (homeschool-api/data/consent_notice.txt) is missing. Nothing was installed."
+
+# The API accepts the acknowledgement only when this equals the SHA-256 of the
+# notice file's exact bytes, so it is always computed from the file itself.
+consent_notice_hash() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$CONSENT_NOTICE_FILE" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$CONSENT_NOTICE_FILE" | awk '{print $1}'
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "$CONSENT_NOTICE_FILE" | awk '{print $NF}'
+  else
+    error "No SHA-256 tool found (sha256sum, shasum or openssl). Nothing was installed."
+  fi
+}
+
+echo -e "${BOLD}Parental Notice and Consent${RESET}"
+blank
+echo "A self-hosted installation does not transmit a child's personal information to the Provider. Personal information is held on equipment under your control."
+blank
+cat "$CONSENT_NOTICE_FILE"
+blank
+if [[ "$ACCEPT_CONSENT_FLAG" -eq 1 ]]; then
+  info "Consent given via --accept-consent-notice."
+else
+  echo "I am the parent or legal guardian of each child who will use Bede. I have read this Notice, I consent to the collection, use and maintenance of the child's personal information as described in it, and I accept the responsibilities of custodian set out in Section 2." >&2
+  printf "Do you consent? [y/N] " >&2
+  if ! read -r CONSENT_ANSWER; then
+    blank
+    error "Installation not completed. No one was present to read the Notice (no input), so consent was not given. No software has been installed and no personal information has been collected. Re-run interactively, or pass --accept-consent-notice if you have read the Notice and consent."
+  fi
+  case "$CONSENT_ANSWER" in
+    y|Y|yes|YES|Yes) ;;
+    *)
+      blank
+      warn "Installation not completed. Consent was not given. No software has been installed and no personal information has been collected."
+      exit 1
+      ;;
+  esac
+fi
+CONSENT_ACK_HASH="$(consent_notice_hash)"
+CONSENT_ACK_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 # ── Prerequisites ─────────────────────────────────────────────────────────────
 info "Checking prerequisites..."
@@ -296,6 +357,8 @@ CORS_ORIGINS=${CORS_ORIGINS}
 DISABLE_API_DOCS=true
 PRODUCTION=true
 LICENSE_KEY=${LICENSE_KEY}
+CONSENT_INSTALL_ACK_HASH=${CONSENT_ACK_HASH}
+CONSENT_INSTALL_ACK_AT=${CONSENT_ACK_AT}
 EOF
 # Only the chosen provider's credential is written — see docs/PROVIDER_ADAPTERS.md
 # to add another one later for automatic failover.

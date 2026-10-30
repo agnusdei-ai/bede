@@ -14,7 +14,8 @@ is, functionally, one short-lived form.
 """
 import html
 import base64
-from datetime import date
+import hashlib
+from datetime import date, datetime, timezone
 import ipaddress
 import re
 import json
@@ -39,6 +40,37 @@ from core.pin_policy import (  # noqa: E402
     pin_is_strong,
     suggest_pin,
 )
+
+# The parental-consent notice shown before anything else. The single source of
+# truth is homeschool-api/data/consent_notice.txt: inside the image the
+# Dockerfile copies it to /app/consent_notice.txt, and for tests running
+# against this file directly it is read from the repo. The API treats the
+# acknowledgement written to .env as valid only when its hash equals the hash
+# of that file's exact bytes, so the hash is always computed from the bytes
+# actually shown, never typed in.
+_CONSENT_NOTICE_CANDIDATES = (
+    Path("/app/consent_notice.txt"),
+    Path(__file__).resolve().parent.parent.parent / "homeschool-api" / "data" / "consent_notice.txt",
+)
+
+
+def consent_notice_bytes() -> bytes:
+    for candidate in _CONSENT_NOTICE_CANDIDATES:
+        if candidate.is_file():
+            return candidate.read_bytes()
+    raise FileNotFoundError(
+        "consent_notice.txt is missing from the setup wizard image; "
+        "refusing to continue without the notice"
+    )
+
+
+def consent_notice_hash() -> str:
+    return hashlib.sha256(consent_notice_bytes()).hexdigest()
+
+
+# Recorded only by an explicit, ticked acceptance. Nothing is written to .env
+# and /submit is refused until this is set.
+_consent: dict = {}
 
 # Generated once per wizard process, so a parent sees a stable suggestion
 # across a re-render after a validation error rather than a new one each
@@ -540,6 +572,63 @@ def validate_lan_fields(fields: dict) -> str:
     return ""
 
 
+CONSENT_HEADING = "Parental Notice and Consent"
+CONSENT_ASSURANCE = (
+    "A self-hosted installation does not transmit a child's personal information "
+    "to the Provider. Personal information is held on equipment under your control."
+)
+CONSENT_CHECKBOX = (
+    "I am the parent or legal guardian of each child who will use Bede. I have read "
+    "this Notice, I consent to the collection, use and maintenance of the child's "
+    "personal information as described in it, and I accept the responsibilities of "
+    "custodian set out in Section 2."
+)
+CONSENT_DECLINED = (
+    "Installation not completed. Consent was not given. No software has been "
+    "installed and no personal information has been collected."
+)
+
+
+def render_consent(error: str = "") -> str:
+    notice = html.escape(consent_notice_bytes().decode("utf-8"))
+    err = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    return (
+        _PAGE_HEAD
+        + '<div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div>'
+          f"<h1>{CONSENT_HEADING}</h1></div></div>"
+        + err
+        + f"<p><strong>{html.escape(CONSENT_ASSURANCE)}</strong></p>"
+        + '<pre id="consent-notice" style="white-space:pre-wrap;background:#f6f4ee;'
+          f'padding:14px;border-radius:8px;max-height:340px;overflow:auto">{notice}</pre>'
+        + '<form method="POST" action="/consent">'
+          '<label><input type="checkbox" name="agree" value="yes"> '
+          f"{html.escape(CONSENT_CHECKBOX)}</label>"
+          '<button type="submit">I Consent and Continue</button></form>'
+        + '<form method="POST" action="/decline">'
+          '<button type="submit">I Do Not Consent</button></form>'
+        + _PAGE_TAIL
+    )
+
+
+def render_declined() -> str:
+    return (
+        _PAGE_HEAD
+        + '<div class="success"><div class="bede-brand"><img src="/bede-icon.png" alt="Bede">'
+          "<div><h1>Installation not completed</h1></div></div>"
+        + f"<p>{html.escape(CONSENT_DECLINED)}</p></div>"
+        + _PAGE_TAIL
+    )
+
+
+def consent_env_lines() -> str:
+    if not _consent:
+        return ""
+    return (
+        f"CONSENT_INSTALL_ACK_HASH={_consent['hash']}\n"
+        f"CONSENT_INSTALL_ACK_AT={_consent['at']}\n"
+    )
+
+
 def build_env_file(fields: dict) -> str:
     secret_key = secrets.token_hex(32)
     master_secret = secrets.token_hex(32)
@@ -593,6 +682,7 @@ def build_env_file(fields: dict) -> str:
         f"WEBAUTHN_ORIGIN=https://{webauthn_host}\n"
         f"WEBAUTHN_RP_NAME=Bede\n"
         f"{lan_lines}"
+        f"{consent_env_lines()}"
         "DISABLE_API_DOCS=true\n"
         "PRODUCTION=true\n"
         f"LICENSE_KEY={fields['license_key']}\n"
@@ -750,6 +840,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
             return
+        if not _consent:
+            self._send_html(render_consent())
+            return
         banner = (
             "A configuration already exists. Submitting this form will "
             "overwrite it (the old one is saved as .env.backup first)."
@@ -773,9 +866,38 @@ class Handler(BaseHTTPRequestHandler):
             # Let the browser receive the confirmation before signaling exit.
             threading.Timer(0.5, _shutdown_event.set).start()
             return
+        if self.path == "/decline":
+            _cancel_event.set()
+            _consent.clear()
+            self._send_html(render_declined())
+            threading.Timer(0.5, _shutdown_event.set).start()
+            return
+        if self.path == "/consent":
+            length = int(self.headers.get("Content-Length", 0))
+            parsed = parse_qs(self.rfile.read(length).decode("utf-8"))
+            if parsed.get("agree", [""])[0] != "yes":
+                self._send_html(
+                    render_consent("To continue, tick the consent box, or select "
+                                   "\u201cI Do Not Consent\u201d."),
+                    status=400,
+                )
+                return
+            _consent.update(
+                hash=consent_notice_hash(),
+                at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            )
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.end_headers()
+            return
         if self.path != "/submit":
             self.send_response(404)
             self.end_headers()
+            return
+        if not _consent:
+            # Consent is a precondition for every write. Refuse before even
+            # reading the body, so a skipped consent step can never produce .env.
+            self._send_html(render_consent("Please read and accept the notice first."), status=403)
             return
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length).decode("utf-8")
@@ -812,6 +934,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> int:
     _cancel_event.clear()
+    _consent.clear()
+    consent_notice_bytes()  # fail at start, not mid-install, if the notice is absent
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()

@@ -136,6 +136,20 @@ class World:
         )
         assert r.status_code == 204, r.text
 
+    def authorize_campus(self, campus: str, name: str = "Synthetic Administrator") -> None:
+        """Opt the campus in through the REAL data-authorization endpoint with
+        the REAL current notice hash. Never a bypass of the gate."""
+        shown = self.client.get(f"/pilot/campuses/{campus}/data-authorization",
+                                headers=self.admin())
+        assert shown.status_code == 200, shown.text
+        r = self.client.post(
+            f"/pilot/campuses/{campus}/data-authorization",
+            json={"notice_hash": shown.json()["notice_hash"], "authorizer_name": name,
+                  "authorizer_role": "administrator"},
+            headers=self.admin(),
+        )
+        assert r.status_code in (200, 201), r.text
+
     def audit_events(self) -> list[dict]:
         """Every audit row, after the fire-and-forget audit writes already
         scheduled on the server's loop have finished (log_event_nowait), so
@@ -268,6 +282,8 @@ def _seed(world: World) -> None:
         r = c.post("/pilot/campuses", json={"title": title}, headers=admin)
         assert r.status_code == 201, r.text
         setattr(world, attr, r.json()["campus_id"])
+    for campus in (world.campus_one, world.campus_two):
+        world.authorize_campus(campus)
     for attr, campus in (("learner_one", world.campus_one), ("learner_two", world.campus_two)):
         r = c.post(f"/pilot/campuses/{campus}/learners", json={"display_name": SAME_NAME}, headers=admin)
         assert r.status_code == 201, r.text

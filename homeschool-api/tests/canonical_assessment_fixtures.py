@@ -77,6 +77,8 @@ class World:
                                           headers=ADMIN), 201)["campus_id"]
         self.campus_two = self._ok(c.post("/pilot/campuses", json={"title": "Synthetic Campus Two"},
                                           headers=ADMIN), 201)["campus_id"]
+        for campus in (self.campus_one, self.campus_two):
+            self.authorize_campus(campus)
         self.learner_one = self._ok(c.post(f"/pilot/campuses/{self.campus_one}/learners",
                                            json={"display_name": SHARED_DISPLAY_NAME},
                                            headers=ADMIN), 201)["learner_id"]
@@ -101,6 +103,18 @@ class World:
                     "attestation": "licensed program, approved forms and local policy permit benchmark administration",
                 }, headers=ADMIN), 201)
         return self
+
+    def authorize_campus(self, campus: str) -> None:
+        """Through the real endpoint with the real current notice hash."""
+        shown = self._ok(self.client.get(f"/pilot/campuses/{campus}/data-authorization",
+                                         headers=ADMIN), 200)
+        self.client.post(
+            f"/pilot/campuses/{campus}/data-authorization",
+            json={"notice_hash": shown["notice_hash"], "authorizer_name": "Synthetic Administrator",
+                  "authorizer_role": "administrator"}, headers=ADMIN,
+        )
+        assert self._ok(self.client.get(f"/pilot/campuses/{campus}/data-authorization",
+                                        headers=ADMIN), 200)["authorized"]
 
     @staticmethod
     def _ok(resp, status):

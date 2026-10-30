@@ -3,6 +3,10 @@
 .env.backup
 .env.local
 
+# Installation receipt written by the installers (names the person who
+# accepted the notice) — local to one installation, never commit it
+/install/
+
 # Local Postgres backups (make db-backup) — never commit these
 /backups/
 

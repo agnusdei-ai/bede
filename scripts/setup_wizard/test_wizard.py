@@ -96,8 +96,16 @@ def _raw_post(base_url, path, fields=None):
     return resp.status, resp.read().decode()
 
 
-def _accept(base_url):
-    status, _ = _raw_post(base_url, "/consent", {"agree": "yes"})
+FAMILY_ACCEPT = {
+    "mode": "family",
+    "agree": "yes",
+    "authorizer_name": "Pat Parent",
+    "attest_parent_guardian": "yes",
+}
+
+
+def _accept(base_url, **overrides):
+    status, _ = _raw_post(base_url, "/consent", {**FAMILY_ACCEPT, **overrides})
     assert status == 303
 
 
@@ -577,6 +585,10 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
     monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
     monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
     monkeypatch.setattr(wizard, "PORT", 0)
+    # Earlier tests' successful submits each leave a 0.5s Timer that sets the
+    # module-level shutdown event; one landing after the clear() below would
+    # shut this real main() down mid-request (connection reset). Let them fire.
+    time.sleep(0.6)
     wizard._shutdown_event.clear()
 
     server_holder = {}
@@ -816,9 +828,25 @@ VALID_FIELDS = {
 }
 
 
-def test_first_page_is_the_notice_not_the_setup_form(fresh_wizard):
+def test_first_page_makes_the_adult_choose_family_or_school(fresh_wizard):
     body = urllib.request.urlopen(f"{fresh_wizard}/").read().decode()
+    assert "Who is installing Bede?" in body
+    assert "Notice version:" not in body          # no notice until a type is chosen
+    assert 'name="anthropic_key"' not in body
+
+
+def test_the_school_choice_shows_the_school_notice(fresh_wizard):
+    body = urllib.request.urlopen(f"{fresh_wizard}/?mode=school").read().decode()
+    assert "School Authorization Notice" in body
+    assert "SCHOOL AUTHORIZATION FOR STORAGE OF STUDENT INFORMATION" in body
+    assert 'name="authorizer_role"' in body and 'name="delegation_reference"' in body
+    assert "PARENTAL NOTICE AND CONSENT" not in body
+
+
+def test_first_page_is_the_notice_not_the_setup_form(fresh_wizard):
+    body = urllib.request.urlopen(f"{fresh_wizard}/?mode=family").read().decode()
     assert "Notice version:" in body
+    assert 'name="authorizer_name"' in body and 'name="attest_parent_guardian"' in body
     assert "Parental Notice and Consent" in body
     assert "I Consent and Continue" in body
     assert "does not transmit a child" in body
@@ -842,7 +870,7 @@ def test_submit_without_consent_is_refused_and_writes_nothing(fresh_wizard, tmp_
 
 
 def test_unticked_checkbox_cannot_proceed(fresh_wizard, tmp_path):
-    status, body = _raw_post(fresh_wizard, "/consent", {})
+    status, body = _raw_post(fresh_wizard, "/consent", {**FAMILY_ACCEPT, "agree": ""})
     assert status == 400 and "tick the consent box" in body
     status, _ = _raw_post(fresh_wizard, "/submit", VALID_FIELDS)
     assert status == 403
@@ -890,3 +918,145 @@ def test_wizard_image_ships_the_notice_file():
     dockerfile = (Path(__file__).parent / "Dockerfile").read_text()
     assert "COPY homeschool-api/data/consent_notice.txt /app/consent_notice.txt" in dockerfile
     assert wizard._CONSENT_NOTICE_CANDIDATES[0] == Path("/app/consent_notice.txt")
+
+
+def test_wizard_image_ships_the_receipt_tooling():
+    dockerfile = (Path(__file__).parent / "Dockerfile").read_text()
+    assert "COPY homeschool-api/data/school_data_notice.txt /app/school_data_notice.txt" in dockerfile
+    assert "install_receipt.py" in dockerfile
+    assert "homeschool-api/core/licensing.py" in dockerfile
+    assert "pycryptodome==" in dockerfile      # the signed campus-key verifier needs it
+    assert wizard._notice_candidates("school")[0] == Path("/app/school_data_notice.txt")
+
+
+# ── Installation authorization (docs/INSTALLATION_AUTHORIZATION_FLOW.md) ──
+#
+# The adult chooses family or school, accepts the applicable notice AND says
+# who they are, and the wizard writes install/installation_receipt.json before
+# .env. A family receipt is pending_verification; a school receipt is verified
+# only with a signed campus key plus a documented delegation.
+
+from datetime import date, timedelta
+
+import install_receipt
+
+YESTERDAY = (date.today() - timedelta(days=1)).isoformat()
+SCHOOL_ACCEPT = {
+    "mode": "school",
+    "agree": "yes",
+    "authorizer_name": "Sam Principal",
+    "authorizer_role": "administrator",
+    "delegation_reference": "Board minute 14",
+    "delegation_issued_by": "School board",
+    "delegation_dated": YESTERDAY,
+}
+SCHOOL_NOTICE_FILE = NOTICE_FILE.with_name("school_data_notice.txt")
+
+
+def _receipts(tmp_path):
+    return install_receipt.read_chain(tmp_path / "install" / "installation_receipt.json")
+
+
+def _school_key(monkeypatch, location="school-campus-001"):
+    pytest.importorskip("Crypto")
+    import uuid
+    from Crypto.PublicKey import ECC
+    from Crypto.Signature import eddsa
+    from core import licensing
+
+    private = ECC.generate(curve="Ed25519")
+    monkeypatch.setattr(licensing, "PUBLIC_KEY_PEM", private.public_key().export_key(format="PEM"))
+    payload = {
+        "id": str(uuid.uuid4()), "licensee": "Test Site", "tier": "campus_location",
+        "location_id": location, "learner_scope": "unlimited_at_location",
+        "issued": date.today().isoformat(),
+        "expires": (date.today() + timedelta(days=31)).isoformat(),
+    }
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    sig = eddsa.new(private, "rfc8032").sign(blob)
+    b64 = lambda v: base64.urlsafe_b64encode(v).rstrip(b"=").decode("ascii")  # noqa: E731
+    return f"{b64(blob)}.{b64(sig)}"
+
+
+def _school_fields(key, location="school-campus-001"):
+    return {**VALID_FIELDS, "license_key": key, "location_id": location}
+
+
+@pytest.mark.parametrize("missing", ["authorizer_name", "attest_parent_guardian", "agree", "mode"])
+def test_family_acceptance_needs_a_name_and_an_attestation(fresh_wizard, tmp_path, missing):
+    status, body = _raw_post(fresh_wizard, "/consent", {**FAMILY_ACCEPT, missing: ""})
+    assert status == 400
+    assert not wizard._consent
+    status, _ = _raw_post(fresh_wizard, "/submit", VALID_FIELDS)
+    assert status == 403
+    assert not (tmp_path / ".env").exists() and not (tmp_path / "install").exists()
+
+
+def test_family_install_writes_a_pending_receipt_before_the_env(fresh_wizard, tmp_path):
+    _accept(fresh_wizard)
+    resp = _post(fresh_wizard, VALID_FIELDS)
+    page = resp.read().decode()
+    (record,) = _receipts(tmp_path)
+    assert record["state"] == "pending_verification" and record["mode"] == "family"
+    assert record["authorizer"]["name"] == "Pat Parent"
+    assert record["installer"]["name"] == "wizard"
+    assert record["notice"]["sha256"] == hashlib.sha256(NOTICE_FILE.read_bytes()).hexdigest()
+    assert install_receipt.validate_record(record, NOTICE_FILE.read_bytes()) == []
+    assert "pending verification" in page
+    env = (tmp_path / ".env").read_text()
+    assert f"CONSENT_INSTALL_ACK_HASH={record['notice']['sha256']}\n" in env
+
+
+def test_a_notice_swapped_after_acceptance_is_refused(fresh_wizard, tmp_path, monkeypatch):
+    _accept(fresh_wizard)
+    real = wizard.notice_bytes
+    monkeypatch.setattr(wizard, "notice_bytes", lambda mode="family": real(mode) + b"\nEdited.\n")
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        _post(fresh_wizard, VALID_FIELDS)
+    assert exc.value.code == 400 and "changed after it was shown" in exc.value.read().decode()
+    assert not (tmp_path / ".env").exists() and not (tmp_path / "install").exists()
+
+
+def test_school_with_key_and_delegation_is_verified(fresh_wizard, tmp_path, monkeypatch):
+    key = _school_key(monkeypatch)
+    _accept(fresh_wizard, **SCHOOL_ACCEPT)
+    _post(fresh_wizard, _school_fields(key))
+    (record,) = _receipts(tmp_path)
+    assert record["state"] == "verified" and record["mode"] == "school"
+    assert record["notice"]["file"] == "school_data_notice.txt"
+    assert record["notice"]["sha256"] == hashlib.sha256(SCHOOL_NOTICE_FILE.read_bytes()).hexdigest()
+    assert record["campus"]["location_id"] == "school-campus-001"
+    env = (tmp_path / ".env").read_text()
+    assert "BEDE_LOCATION_ID=school-campus-001\n" in env
+    assert "CONSENT_INSTALL_ACK_HASH" not in env     # the family acknowledgement is not a school's
+
+
+def test_a_campus_key_alone_is_pending_in_the_wizard(fresh_wizard, tmp_path, monkeypatch):
+    key = _school_key(monkeypatch)
+    blank = {k: "" for k in ("delegation_reference", "delegation_issued_by", "delegation_dated")}
+    _accept(fresh_wizard, **{**SCHOOL_ACCEPT, **blank})
+    _post(fresh_wizard, _school_fields(key))
+    (record,) = _receipts(tmp_path)
+    assert record["state"] == "pending_verification"
+    assert record["verification"]["method"] is None
+
+
+def test_school_with_the_wrong_location_installs_nothing(fresh_wizard, tmp_path, monkeypatch):
+    key = _school_key(monkeypatch)
+    _accept(fresh_wizard, **SCHOOL_ACCEPT)
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        _post(fresh_wizard, _school_fields(key, location="another-campus-9"))
+    assert exc.value.code == 400
+    assert "different location" in exc.value.read().decode()
+    assert not (tmp_path / ".env").exists() and not (tmp_path / "install").exists()
+
+
+def test_school_acceptance_needs_a_role(fresh_wizard):
+    status, body = _raw_post(fresh_wizard, "/consent", {**SCHOOL_ACCEPT, "authorizer_role": ""})
+    assert status == 400 and "role" in body
+    assert not wizard._consent
+
+
+def test_declining_leaves_no_receipt(fresh_wizard, tmp_path):
+    _raw_post(fresh_wizard, "/decline")
+    assert not (tmp_path / "install").exists() and not (tmp_path / ".env").exists()

@@ -38,12 +38,23 @@ def run():
                 errors = []
                 page.on("pageerror", lambda err: errors.append(str(err)))
                 page.goto(base)
-                # Consent comes first: the notice, not the setup form.
+                # The adult chooses family or school first, then the applicable
+                # notice appears; never the setup form.
+                page.get_by_role("heading", name="Who is installing Bede?").wait_for()
+                assert page.locator('[name="license_key"]').count() == 0
+                page.get_by_role("button", name="A family").click()
                 page.get_by_role("heading", name="Parental Notice and Consent").wait_for()
                 assert page.locator('[name="license_key"]').count() == 0
                 page.get_by_role("button", name="I Consent and Continue").click()
-                page.locator(".error").first.wait_for()  # unticked: refused
+                page.locator(".error").first.wait_for()  # nothing entered or ticked: refused
                 assert page.locator('[name="license_key"]').count() == 0
+                # Acceptance needs the box, a name and the parent/guardian attestation.
+                page.locator('input[name="agree"]').check()
+                page.get_by_role("button", name="I Consent and Continue").click()
+                page.locator(".error").first.wait_for()
+                assert page.locator('[name="license_key"]').count() == 0
+                page.locator('input[name="authorizer_name"]').fill("Synthetic Parent")
+                page.locator('input[name="attest_parent_guardian"]').check()
                 page.locator('input[name="agree"]').check()
                 page.get_by_role("button", name="I Consent and Continue").click()
                 page.get_by_role("heading", name="Welcome to Bede").wait_for()

@@ -34,20 +34,46 @@ guardian of each child who will use Bede and accept the responsibilities of
 custodian. Nothing is collected, written or started before that.
 
 - **Browser wizard** (`setup-gui.*`, the Windows and Linux/macOS installers,
-  the operator bundle): the first page is the Notice, a consent checkbox and
-  the buttons "I Consent and Continue" and "I Do Not Consent". Declining, or
-  leaving the box unticked, does not proceed. A decline shows "Installation
-  not completed", the wizard exits non-zero and no `.env` is written; the
-  launchers stop on that exit status and do not start Bede.
-- **Terminal wizard** (`setup.sh`): prints the Notice and asks `[y/N]`
-  (default no). For automation, `bash setup.sh --accept-consent-notice` is the
-  explicit non-interactive form of that consent. A run with no input and
-  without the flag stops with a message; it never skips consent silently.
-- On consent the installer adds two lines to `.env`:
+  the operator bundle): the first page asks whether this is a **family** or a
+  **school** (skipped when the launcher already fixed it with
+  `BEDE_INSTALL_CONTEXT`), then shows that type's Notice with the fields it
+  needs: a family gives their full name and ticks a parent-or-legal-guardian
+  attestation; a school gives the authorizer's name and role (administrator or
+  teacher) and, if they have it, the documented delegation (reference, issued
+  by, date). Then the consent checkbox and the buttons "I Consent and Continue"
+  and "I Do Not Consent". Declining, or leaving anything required empty, does
+  not proceed. A decline shows "Installation not completed", the wizard exits
+  non-zero and no `.env` is written; the launchers stop on that exit status and
+  do not start Bede.
+- **Terminal wizard** (`setup.sh`): asks family or school, prints that Notice,
+  asks `[y/N]` (default no), then the name and attestation (or role and
+  delegation). For automation, `--accept-consent-notice` is the explicit
+  non-interactive form of accepting the Notice, **and it never attests for
+  you**: it must be accompanied by `--mode family|school`, `--authorizer-name`,
+  and `--attest-parent-guardian` (family) or `--authorizer-role
+  administrator|teacher` (school; optionally `--delegation-reference`,
+  `--delegation-issued-by`, `--delegation-dated YYYY-MM-DD`, and
+  `--location-id`). A run with no input, or with any of these missing, stops
+  with a message; it never skips or assumes any of them. School mode needs
+  Python 3 with pycryptodome on the host to verify the campus key (the browser
+  wizard includes the verifier).
+- Before `.env` is written the installer records the
+  **installation receipt** (`install/installation_receipt.json`, see
+  `INSTALLATION_AUTHORIZATION_FLOW.md`). A family receipt is always
+  `pending_verification`: the name and attestation are recorded as an
+  attestation, never as verified consent. A school receipt is `verified` only
+  when the signed campus key (checked with the API's own verifier, against
+  `BEDE_LOCATION_ID`), the documented delegation, the authorizer's role and
+  the Notice acceptance are all present and valid; a key alone is
+  `pending_verification`; a failed key check (bad signature, expired, wrong
+  location) stops the install with no `.env`. Bede starts either way, but
+  child-data processing stays off until a receipt is `verified`.
+- A family install also adds two lines to `.env`:
   `CONSENT_INSTALL_ACK_HASH` (hex SHA-256 of the exact bytes of the notice
   file) and `CONSENT_INSTALL_ACK_AT` (UTC, ISO-8601). The API honours the
   acknowledgement only while the hash equals the current notice's hash, so a
-  revised Notice asks again.
+  revised Notice asks again. A school install does not write them; the school
+  notice acceptance lives in the receipt.
 
 The wording is a draft prepared for review by counsel and is not legal advice.
 

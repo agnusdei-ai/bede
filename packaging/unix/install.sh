@@ -280,4 +280,6 @@ fi
 step "Handing off to the Bede setup wizard"
 cd "$APP_DIR"
 trap 'rm -f "$LOCAL_AI_MARKER"' EXIT
+# Recorded in the installation receipt as the launcher that ran the wizard.
+export BEDE_INSTALLER_NAME=unix
 bash setup-gui.sh

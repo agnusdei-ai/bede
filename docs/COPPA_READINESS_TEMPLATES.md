@@ -161,10 +161,12 @@ below, and `services/student_deletion.py` must cascade to it.
 | 15 | `audit_logs` | Event, IP, user agent | Security | `[COUNSEL]` | none | `[OPEN — C-18]` | Not deleted by student deletion | Yes |
 | 16 | Container / host logs | `[TO INVENTORY]` | Operations | `[COUNSEL]` | `[HOST]` | `[OPEN — C-17]` | `[OPEN]` | `[OPEN]` |
 | 17 | Backups | Copies of 1-15 | Recovery | `[COUNSEL]` | none | `[OPERATOR DECISION — 30 days proposed]` | Restore procedure | Yes |
-| 18 | `student_keys` | Wrapped per-student data key (the shredding switch for rows 1-13 and 19-21) | Encryption | `[COUNSEL]` | none | until student deleted | Delete all data (destroyed, not just deleted) | Wrapped under DATA_KEY |
+| 18 | `student_keys` | Wrapped per-student data key (the shredding switch for rows 1-13, 19-21 and 22) | Encryption | `[COUNSEL]` | none | until student deleted | Delete all data (destroyed, not just deleted) | Wrapped under DATA_KEY |
 | 19 | `practice_assessments` | Reading of a photographed quiz (no names, schools or dates) | Practice Coach | `[COUNSEL]` | `[CLOUD READER — only with per-upload consent, see docs/PRACTICE_COACH.md]` | until student deleted | Delete all data | Yes (student key) |
 | 20 | `practice_sets` | Parent-approved practice set | Practice Coach | `[COUNSEL]` | none | until student deleted | Delete all data | Yes (student key) |
 | 21 | `educator_roster_assignments` | Which educator may see which learner (pilot roster) | Classroom pilot | `[COUNSEL]` | none | until student deleted or grant revoked | Delete all data | Yes (student key) |
+| 22 | `consent_records` | Consent method, notice-version hash, scope, granted/revoked times; parent label and revocation reason encrypted | Parental consent ledger | `[COUNSEL]` | none | until student deleted `[COUNSEL — consent evidence retention]` | Delete all data | Partly (parent label and reason under student key; student name, method, hash, scope and times are plain columns) |
+| 23 | `student_collection_state` | Per-child collection pause timestamp | Collection pause | `[COUNSEL]` | none | until student deleted | Delete all data | No (timestamp only; student name key) |
 
 Rows marked `[OPEN]` are not complete and must not be read as controlled.
 A row is complete only when every cell is filled by the operator and each

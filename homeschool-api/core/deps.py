@@ -341,6 +341,19 @@ async def require_demo_parent_config(
     return await _require_live_session(request, payload)
 
 
+async def require_demo_practice(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """The demo's Practice Coach (/practice-demo/*). Its own policy action
+    rather than a reuse of require_demo_preview: it uploads a page to an AI
+    provider, and the real /practice routes (require_parent) must not be
+    reachable from a demo code nor these from a family session."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "demo.practice")
+    return await _require_live_session(request, payload)
+
+
 async def require_demo_preview(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),

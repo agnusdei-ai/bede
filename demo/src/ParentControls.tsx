@@ -58,12 +58,14 @@ export function saveDemoParentControls(c: DemoParentControls) {
   }
 }
 
-export default function ParentControlsMenu({ controls, onChange, onOpenSetup }: {
+export default function ParentControlsMenu({ controls, onChange, onOpenSetup, onOpenPractice }: {
   controls: DemoParentControls
   onChange: (next: DemoParentControls) => void
   /** Opens the full Parent Setup panel (DemoParentSetup.tsx). Optional so
    *  this menu still renders on screens with no session to configure. */
   onOpenSetup?: () => void
+  /** Opens the Practice Coach preview (PracticeCoach.tsx). */
+  onOpenPractice?: () => void
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -170,6 +172,21 @@ export default function ParentControlsMenu({ controls, onChange, onOpenSetup }: 
               </span>
               <span className="block text-xs text-gray-500">
                 {t('parentControls.openSetupHint', 'Subjects, your own books, what helps your child')}
+              </span>
+            </button>
+          )}
+
+          {onOpenPractice && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onOpenPractice() }}
+              className="w-full text-left px-3 py-2 min-h-[44px] rounded-lg border border-navy-200 bg-white hover:bg-navy-50 transition-colors"
+            >
+              <span className="block text-sm font-medium text-navy-700">
+                {t('parentControls.openPractice')}
+              </span>
+              <span className="block text-xs text-gray-500">
+                {t('parentControls.openPracticeHint')}
               </span>
             </button>
           )}

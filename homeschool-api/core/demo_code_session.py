@@ -109,6 +109,10 @@ async def generate_code(
         await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.created_at < _cutoff()))
         await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.created_at < _cutoff()))
         await db.execute(delete(DemoCodeParentConfig).where(DemoCodeParentConfig.created_at < _cutoff()))
+        # The demo Practice Coach's in-memory workspaces are not a table, so
+        # the SQL deletes above cannot reach them; this is the same sweep.
+        from services.practice import demo_store
+        demo_store.sweep()
 
         count = (await db.execute(select(func.count()).select_from(DemoCodeSession))).scalar_one()
         if count >= _MAX_ACTIVE_CODES:
@@ -452,8 +456,9 @@ async def end_session(code: str) -> None:
     token stops working right away instead of riding out its remaining
     expiry, and frees its _MAX_ACTIVE_CODES slot. Safe to call with an
     unknown code (no-op). Also deletes this code's DemoCodeUnitNote,
-    DemoCodeFaithNote and DemoCodeActivityLog rows, if any, so nothing set
-    or recorded during the session outlives it."""
+    DemoCodeFaithNote and DemoCodeActivityLog rows, if any, and the
+    Practice Coach's in-memory workspace for the code, so nothing set or
+    recorded during the session outlives it."""
     from core.database import (
         AsyncSessionLocal, DemoCodeActivityLog, DemoCodeFaithNote, DemoCodeParentConfig,
         DemoCodeSession, DemoCodeUnitNote,
@@ -466,6 +471,9 @@ async def end_session(code: str) -> None:
         await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.code == code))
         await db.execute(delete(DemoCodeParentConfig).where(DemoCodeParentConfig.code == code))
         await db.commit()
+    # Practice Coach's in-memory workspace for this code (no table to delete from).
+    from services.practice import demo_store
+    demo_store.discard(code)
 
 
 async def claim_email_send(code: str) -> bool:

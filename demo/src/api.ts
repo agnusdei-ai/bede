@@ -932,3 +932,138 @@ export async function* streamDiagnosticChat(
 
   yield* parseSSEStream<StreamChunk>(res)
 }
+
+// ── Practice Coach (docs/PRACTICE_COACH.md, "On the public demo") ─────────────
+// The demo's copy of the parent's Practice Coach. Same reading/diagnosis/plan
+// shapes as the app's (mirrored from homeschool-tutor/src/services/api.ts);
+// different routes: /practice-demo/*, demo-code auth only, no student name,
+// nothing stored beyond this session.
+
+export type TeacherMark = 'correct' | 'incorrect' | 'partial' | 'unmarked'
+
+export interface PracticeItemReading {
+  number: number
+  prompt: string
+  stimulus?: string | null
+  student_response?: string | null
+  teacher_mark: TeacherMark
+  teacher_correction?: string | null
+  confidence: number
+  ask_parent?: string | null
+}
+
+export interface PracticeSection {
+  label: string
+  instructions: string
+  required_format: 'complete_sentence' | 'single_word' | 'color_fill' | 'free' | 'unknown'
+  word_bank: string[]
+  items: PracticeItemReading[]
+}
+
+export interface GradedAssessment {
+  subject: string
+  sections: PracticeSection[]
+}
+
+export interface PracticeReading {
+  id: number
+  status: 'needs_review' | 'confirmed'
+  assessment: GradedAssessment
+  ask_parent: string[]
+  teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
+  uploads_remaining?: number
+}
+
+export interface PracticeSetItem {
+  kind: 'drill' | 'sentence_habit' | 'retrieval'
+  target: string
+  prompt: string
+  expected_answer: string
+  hint: string
+}
+
+export interface PracticeSetDraft {
+  targets: string[]
+  mode: 'drill' | 'retrieval'
+  est_minutes: number
+  items: PracticeSetItem[]
+  parent_script: string
+  recheck_schedule: string[]
+}
+
+export interface PracticePlan {
+  summary: string
+  diagnosis: {
+    errors: { item_ref: string; category: string; evidence: string; audience: 'parent_and_child' | 'parent_only' }[]
+    strengths: { category: string; note: string }[]
+    ask_parent: string[]
+  }
+  practice_set: PracticeSetDraft | null
+  set_id: number | null
+  status: 'draft' | null
+}
+
+/** Which provider would read an upload, and what is left of this session's
+ *  allowance. There is no local model in the demo, so no such field. */
+export interface PracticeDemoRoute {
+  cloud_provider: string | null
+  uploads_remaining: number
+  max_uploads: number
+  max_pages: number
+}
+
+/** The server wants the visitor's explicit tick before the page goes to `provider`. */
+export class PracticeConsentRequired extends Error {
+  constructor(public provider: string | null, message: string) {
+    super(message)
+  }
+}
+
+/** This demo session has used its quiz reads (or the whole demo is busy). */
+export class PracticeQuotaExceeded extends Error {}
+
+async function practiceFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${apiBase()}/practice-demo${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (res.status === 401) throw new TrialSessionEndedError('This demo session has ended')
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    const d = detail && typeof detail === 'object' ? (detail as Record<string, unknown>) : null
+    if (res.status === 409 && d?.consent_required) {
+      throw new PracticeConsentRequired((d.provider as string | null) ?? null, String(d.message ?? ''))
+    }
+    if (res.status === 429 && d?.demo_practice_quota) {
+      throw new PracticeQuotaExceeded(String(d.message ?? 'This demo has reached its quiz limit.'))
+    }
+    throw new Error(typeof detail === 'string' ? detail : 'The practice coach could not complete that step.')
+  }
+  return res.json()
+}
+
+export const fetchPracticePacks = (token: string) =>
+  practiceFetch<{ id: string; display_name: string }[]>(token, '/packs')
+
+export const fetchPracticeRoute = (token: string) =>
+  practiceFetch<PracticeDemoRoute>(token, '/reading-route')
+
+export const readPracticePhotos = (
+  token: string,
+  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean },
+) => practiceFetch<PracticeReading>(token, '/assessments/read', { method: 'POST', body: JSON.stringify(body) })
+
+export const confirmPracticeReading = (token: string, id: number, assessment: GradedAssessment) =>
+  practiceFetch<PracticeReading>(token, `/assessments/${id}`, { method: 'PUT', body: JSON.stringify({ assessment }) })
+
+export const planPractice = (token: string, id: number) =>
+  practiceFetch<PracticePlan>(token, `/assessments/${id}/plan`, { method: 'POST' })
+
+export const approvePracticeSet = (token: string, setId: number, practiceSet?: PracticeSetDraft) =>
+  practiceFetch<{ id: number; status: 'approved' }>(token, `/sets/${setId}/approve`, {
+    method: 'POST', body: JSON.stringify({ practice_set: practiceSet ?? null }),
+  })
+
+export const discardPracticeSet = (token: string, setId: number) =>
+  practiceFetch<{ id: number; status: 'discarded' }>(token, `/sets/${setId}/discard`, { method: 'POST' })

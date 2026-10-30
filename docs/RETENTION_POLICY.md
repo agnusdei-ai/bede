@@ -40,6 +40,7 @@ to that data and sets no retention policy over it.
 | Session setup — optional | Let a visitor configure their own demo session the way a parent configures a real one (subjects, what the family is already reading, what helps this child), instead of showing a fixed demo | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_parent_configs`, encrypted) |
 | Work-ledger record (which skill was worked, how much help it took, what Bede noticed about the work) | Show the visitor what their learner actually completed during the session — the demo's own copy of the work ledger a real family gets | 6 hours from creation, or immediately on logout | Same mechanism as above (`demo_code_activity_logs`, encrypted) |
 | The conversation itself | Generate that turn's response | **Never stored.** Exists only in transit and in-process memory for the duration of one turn | Nothing to delete — no row is ever created |
+| A photo or scan of a graded quiz, if a parent or guardian uses the optional Practice Coach preview (`/practice-demo/*`) | Read into a worksheet of questions, answers and the teacher's marks so Bede can suggest a few minutes of practice. Sent to OpenAI (or, only if OpenAI is briefly unavailable, the configured backup provider) after a per-upload tick that names the provider; nothing is sent without it. Capped at 3 uploads of up to 3 pages per demo session, checked before any model call | **The page is never stored** by us, in a database or a file. What is read from it and the practice set drafted from that are kept **in the server's memory only** (`services/practice/demo_store.py`), never in a table, for at most 6 hours, or until logout | Automatic: dropped on logout (`end_session()`), by the sweep run on each new code (`generate_code()`), and by a 6-hour TTL on every access. No row is ever created, so there is nothing for a table purge to schedule |
 | Voice audio, if the microphone is used | Transcribe speech to text for that turn (sent to OpenAI, see below); synthesize Bede's spoken reply | **Never stored**, by us or by OpenAI. Passes through our server for the live turn only | Nothing to delete — no row is ever created |
 | Anonymized interaction-pattern signals (which tools fired, turn counts, subjects visited) | Understand, in aggregate, which teaching patterns work well | 30 days from creation | **Automatic background purge**, run every few hours for the life of the backend process (`demo_interaction_signals`, `main.py`'s periodic purge task calling `services/interaction_signals.purge_old_signals()`). This is the one demo category that deliberately outlives the session rather than being deleted at logout — aggregating patterns across many sessions is its whole purpose. It is keyed by an unreversible HMAC of the code rather than the code itself, so it cannot be joined back to a visitor |
 | Diagnostic-preview rate-limit record (hashed visitor IP) | Prevent abuse of a public preview feature | Rolling 30-day window | Read-time filtering plus opportunistic cleanup (`diagnostic_preview_uses`, `core/diagnostic_preview_quota.py`) |
@@ -57,7 +58,10 @@ related tables (`DemoCodeSession`, `DemoCodeUnitNote`, `DemoCodeFaithNote`,
 the rate-limit table
 above — nothing else exists to hold a demo visitor's data, and in
 particular no table holds conversation transcript text or audio for any
-`demo_code` session.
+`demo_code` session. The one other place a demo visitor's data can sit is the
+Practice Coach's in-memory workspace in the Practice Coach row above. It is
+not a table, is never written to disk, and is listed here so this paragraph
+is not read as the whole inventory.
 
 **This count was wrong until 2026-08-14, and is recorded rather than
 quietly corrected**, for the same reason the vendor correction below is.

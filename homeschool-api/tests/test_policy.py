@@ -44,6 +44,7 @@ EXPECTED: dict[str, set[str]] = {
     "sandbox.demo_preview":      {"demo_code"},
     "diagnostic.demo_preview":   {"demo_code"},
     "demo.parent_config":        {"demo_code"},
+    "demo.practice":             {"demo_code"},
     "mfa.complete":              {"parent_pending"},
     "recovery.reset_password":   {"parent_recovery"},
 }

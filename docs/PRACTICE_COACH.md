@@ -72,7 +72,48 @@ name, school, teacher or date, so a reading that includes one is rejected
 rather than stored. Readings and practice sets are encrypted with the
 student's own key and are removed when the student is deleted.
 
-Not on the public demo: these routes are parent-only.
+The real routes are parent-only and a demo visitor cannot reach them; the
+public demo has its own, different copy (see "On the public demo" below).
+
+## On the public demo
+
+A visitor to the public demo can try the Practice Coach end to end from the
+parent controls (gear menu, **Practice from a graded quiz...**). It is the same
+reading, diagnosis and planning code, and the same upload hardening, with
+these differences, each a decision and each pinned by
+`tests/test_practice_demo.py`:
+
+- **Its own routes and auth.** `/practice-demo/*`, demo-code sessions only
+  (policy action `demo.practice`). A family session cannot use them and a demo
+  code cannot reach `/practice`. The prefix is not `/practice/demo` because
+  the real routes are `/practice/{student_name}/...`, and a child named
+  "Demo" would otherwise be shadowed.
+- **Nothing is stored.** No table, and no write to `practice_assessments` or
+  `practice_sets`. The reading, the visitor's corrections and the draft
+  practice set live in memory (`services/practice/demo_store.py`), keyed by the
+  demo code, and are deleted on logout, by the sweep that clears the demo
+  tables, and after 6 hours. The page itself is never held at all. Approving a
+  set keeps nothing past the session, and the screen says so.
+- **Always read by the demo's cloud provider, after a tick.** There is no
+  local-model route. The visitor ticks a box naming the provider, for every
+  upload; without it the request is refused (409) before any file is decoded
+  and without spending the visitor's allowance. A backup provider may read
+  the page if the first is unavailable, and the tick says so.
+- **A small allowance, spent before the model is called.** 3 uploads of up to
+  3 pages per demo code (a PDF counts each page), plus a process-wide ceiling of
+  60 uploads an hour. An upload we refuse (a bad file, no provider) gives its
+  slot back; one that reached the model does not. Over quota is a 429 and an
+  `AuditEvent.RATE_LIMITED` entry with `detail=demo_practice_quota`. The counts
+  are in memory, so a backend restart resets them; the hourly ceiling is the
+  backstop.
+- **Same gates as the real card.** A reading the reader was unsure of cannot be
+  planned until each flagged answer is settled with **Looks right** (or
+  corrected), items can be unticked before approving, the worksheet prints
+  prompts only, and another quiz starts from nothing. The demo card
+  (`demo/src/PracticeCoach.tsx`) is a mirror, not an import;
+  `demo/src/practiceCoachParity.test.ts` checks it against the app's.
+- **Not claimed:** the demo says nothing about delivery to a child or
+  re-checks, which are not built even in the product.
 
 ## File validation and hardening
 

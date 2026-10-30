@@ -33,6 +33,7 @@ import ThemePicker from './ThemePicker'
 import { useChatTheme } from './useChatTheme'
 import ParentControlsMenu, { readDemoParentControls, type DemoParentControls } from './ParentControls'
 import DemoParentSetup from './DemoParentSetup'
+import PracticeCoachPanel from './PracticeCoach'
 import {
   getPhase, effectiveSessionCap, fmtTime, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
   getTimerConfig, getSuggestedBreak, SUGGESTED_BREAK_INTERVAL_MINUTES,
@@ -1007,6 +1008,10 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
   // server has just been told this session does not include.
   const [activeSubjects, setActiveSubjects] = useState<readonly Subject[]>(subjects)
   const [showParentSetup, setShowParentSetup] = useState(false)
+  // The Practice Coach preview (PracticeCoach.tsx). Its state lives inside the
+  // panel, so closing it forgets the reading on this side too; the server's
+  // copy goes with the session.
+  const [showPractice, setShowPractice] = useState(false)
   const [parentSetup, setParentSetup] = useState<DemoParentConfig | undefined>(undefined)
   // Re-render every 15s so break/conclude transitions are noticed promptly
   // even when nothing else is happening (same trick as the full app).
@@ -1757,6 +1762,7 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
             controls={parentControls}
             onChange={setParentControls}
             onOpenSetup={() => setShowParentSetup(true)}
+            onOpenPractice={() => setShowPractice(true)}
           />
           {/* Ends the demo — an icon button living here, grouped with the
               other real controls, rather than a text link forced onto its
@@ -2080,6 +2086,14 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
             }
           }}
           onClose={() => setShowParentSetup(false)}
+        />
+      )}
+
+      {showPractice && (
+        <PracticeCoachPanel
+          token={token}
+          onClose={() => setShowPractice(false)}
+          onSessionEnded={() => { setShowPractice(false); onSessionInvalid?.() }}
         />
       )}
 

@@ -52,7 +52,9 @@
   the name/grade you optionally provide and anonymized structural signals about how the
   session went (which tools were used, how many turns, which subjects) — never what was
   actually said. If you use the microphone, your audio is sent to OpenAI to be transcribed
-  into text for that turn only, and is not stored by us or by them. Feedback is entirely optional, and we never ask a child
+  into text for that turn only, and is not stored by us or by them. If you try the optional
+  Practice Coach preview, the quiz page you upload is sent to OpenAI to be read, is not saved by us,
+  and what is read off it is kept in memory for the session only. Feedback is entirely optional, and we never ask a child
   for their own email address.
 </div>
 
@@ -80,6 +82,11 @@
     <td>Your voice, if you use the microphone <em>(optional)</em></td>
     <td>Sent to OpenAI's transcription service to be turned into text so Bede can respond to what you said; Bede's own spoken reply is synthesized by OpenAI's text-to-speech service</td>
     <td><strong>Never stored</strong>, by us or by OpenAI. It passes through our server to OpenAI for the live turn and is then discarded. OpenAI processes it as our service provider and does not use it to train its models.</td>
+  </tr>
+  <tr>
+    <td>A photo or scan of a graded quiz, if you use the optional Practice Coach preview <em>(optional)</em></td>
+    <td>Sent to OpenAI (or, only if OpenAI is briefly unavailable, our configured backup provider) to be read into a worksheet of questions, answers and the teacher's marks, so Bede can suggest a few minutes of practice for you to approve. You tick a box naming the provider before every upload; nothing is sent without it. A session can read up to 3 quizzes of up to 3 pages each.</td>
+    <td><strong>The page itself is never saved by us</strong> &mdash; not in a database, not in a file. It passes through our server to the provider for that one request and is discarded. The reading it produces (the questions, answers and marks as read) and the practice set Bede drafts from it are kept <strong>in our server's memory only</strong>, never in a database, for this session: up to 6 hours, or immediately if you log out. The provider processes the page as our service provider and does not use it to train its models.</td>
   </tr>
   <tr>
     <td>Anonymized interaction-pattern signals — which tutoring tools fired, turn counts, which subjects were visited/completed</td>
@@ -178,6 +185,16 @@
     passes through our server to OpenAI's transcription service to be turned into text, and is
     not stored beyond that one turn by us or by OpenAI. Bede's own spoken reply is generated as
     audio by OpenAI's text-to-speech service.</li>
+  <li><strong>A photo or scan of a graded quiz</strong> <em>(optional &mdash; only if a parent or
+    guardian uses the Practice Coach preview)</em>. It is sent to OpenAI (or, only if OpenAI is briefly
+    unavailable, our configured backup provider) to be read, after you tick a box naming the provider
+    for that upload. We do not save the page. The reader is told not to transcribe names, schools,
+    teachers or dates, and the reading has no field that could hold them, but the picture itself
+    goes to the provider, so please do not upload a page you would not want it to see. What is read
+    off the page and the practice set drafted from it are held in memory on our server for this
+    session only &mdash; never in a database &mdash; for at most 6 hours, and deleted immediately if you
+    log out. It is never built into a persistent profile and never a grade or a judgment about
+    your child.</li>
   <li><strong>Anonymized interaction-pattern signals</strong> (which teaching tools were used, how
     many turns, which subjects) — cryptographically keyed so it cannot be traced back to your
     child, and never includes anything that was actually said.</li>
@@ -205,6 +222,8 @@
     — Mistral by default, or Claude/Anthropic instead — for text responses only, if OpenAI is
     briefly unavailable).</li>
   <li>Transcribe your microphone audio into text, via OpenAI, so Bede can respond to it.</li>
+  <li>Read a quiz page you choose to upload into the Practice Coach preview, via OpenAI (or the
+    configured backup), so Bede can suggest practice.</li>
   <li>Understand, in aggregate and anonymized form, which teaching patterns work well, so we
     can improve Bede.</li>
   <li>Reply to a parent or guardian who has asked us to.</li>
@@ -214,7 +233,8 @@
 <p>
   We do not sell your child's information, and we do not use it for advertising. We share
   it only with the service providers that make the demo work — OpenAI (to generate Bede's
-  responses and synthesize its spoken voice), our configured backup text provider (Mistral by
+  responses, synthesize its spoken voice, and read a quiz page you choose to upload), our configured
+  backup provider (Mistral by
   default, or Claude/Anthropic if we've configured that instead, used only if OpenAI is briefly
   unavailable), and Resend (to deliver an optional feedback
   email) — each of whom is contractually and technically limited to using it for that

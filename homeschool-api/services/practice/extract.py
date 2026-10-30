@@ -129,11 +129,16 @@ def parse_reading(text: str, subject: str) -> GradedAssessment:
         raise ReadingFailed("The pages could not be read into a worksheet; try clearer photos.") from exc
 
 
-async def read_pages(req: ReadPhotosRequest) -> GradedAssessment:
+async def read_pages(req: ReadPhotosRequest, max_pages: int | None = None) -> GradedAssessment:
+    """`max_pages` is a CALLER's tighter cap on the pages that will actually be
+    sent (the public demo's), applied after a PDF has been expanded into its
+    pages and before any model call. None keeps the upload_safety limit."""
     if get_pack(req.subject) is None:
         raise PhotoRejected(f"No practice pack for {req.subject!r} yet.")
     client = _choose_client(req)  # consent and routing are settled before anything is parsed
     pages = await prepare_pages([p.data for p in req.pages])
+    if max_pages is not None and len(pages) > max_pages:
+        raise PhotoRejected(f"This preview reads up to {max_pages} pages at a time.")
     blocks = [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in pages]
     blocks.append({"type": "text", "text": f"These are {len(pages)} page(s) of one worksheet, in order."})
     try:

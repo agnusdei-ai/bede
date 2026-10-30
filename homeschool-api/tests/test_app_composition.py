@@ -49,6 +49,7 @@ _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
     "pilot_diagnostic", "pilot_journey", "pilot_owner", "pilot_tutor_history", "pilot_tutor",
+    "practice", "practice_demo",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -95,6 +96,24 @@ GUARDS = {
     # name says "preview". Demo domain only — a family session has
     # ParentSetup.tsx and must never reach it.
     ('POST', '/auth/demo-code/config'): 'require_demo_parent_config',
+    ('GET', '/practice/packs'): 'require_parent',
+    ('GET', '/practice/reading-route'): 'require_parent',
+    ('POST', '/practice/{student_name}/assessments/read'): 'require_parent',
+    ('POST', '/practice/{student_name}/assessments'): 'require_parent',
+    ('PUT', '/practice/{student_name}/assessments/{record_id}'): 'require_parent',
+    ('POST', '/practice/{student_name}/assessments/{record_id}/plan'): 'require_parent',
+    ('GET', '/practice/{student_name}/sets'): 'require_parent',
+    ('POST', '/practice/{student_name}/sets/{set_id}/approve'): 'require_parent',
+    ('POST', '/practice/{student_name}/sets/{set_id}/discard'): 'require_parent',
+    # The demo's Practice Coach: demo code only, its own policy action
+    # (demo.practice), under a prefix that cannot shadow a real student's name.
+    ('GET', '/practice-demo/packs'): 'require_demo_practice',
+    ('GET', '/practice-demo/reading-route'): 'require_demo_practice',
+    ('POST', '/practice-demo/assessments/read'): 'require_demo_practice',
+    ('PUT', '/practice-demo/assessments/{reading_id}'): 'require_demo_practice',
+    ('POST', '/practice-demo/assessments/{reading_id}/plan'): 'require_demo_practice',
+    ('POST', '/practice-demo/sets/{set_id}/approve'): 'require_demo_practice',
+    ('POST', '/practice-demo/sets/{set_id}/discard'): 'require_demo_practice',
     ('DELETE', '/auth/elevate'): 'require_parent',
     ('GET', '/auth/elevate'): 'require_parent',
     ('POST', '/auth/elevate'): 'require_parent',

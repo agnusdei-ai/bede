@@ -482,6 +482,9 @@ def test_the_ai_vendor_is_named_consistently_in_all_three_disclosures():
         "docs/INFORMATION_SECURITY_POLICY.md",
         "docs/DATA_RETENTION.md",
         "demo/public/privacy.html",
+        "demo/public/privacy.es.html",
+        "site/privacy/index.html",
+        "docs/VENDOR_DATA_FLOW.md",
         "scripts/build_pages_site.sh",
         "render.yaml",
     ],
@@ -526,3 +529,82 @@ def test_the_two_retention_documents_agree_on_which_is_which():
         "DATA_RETENTION.md no longer points back at RETENTION_POLICY.md, the "
         "compliance artifact it is the evidence for."
     )
+
+
+# ── The demo Practice Coach's in-memory workspace ───────────────────────
+#
+# It is not a table, so none of the model-driven guards above can see it. It
+# holds a visitor's derived data (a reading of their quiz and a draft practice
+# set), so it gets the same three promises as a table, each checked here:
+# logout deletes it, the TTL sweep reaches it, and every document that
+# enumerates what the demo holds says it exists.
+
+_DEMO_STORE_PY = _API / "services" / "practice" / "demo_store.py"
+_PRACTICE_DEMO_ROUTER = _API / "routers" / "practice_demo.py"
+_PRIVACY_ES = _ROOT / "demo" / "public" / "privacy.es.html"
+_SITE_PRIVACY = _ROOT / "site" / "privacy" / "index.html"
+_VENDOR_FLOW = _ROOT / "docs" / "VENDOR_DATA_FLOW.md"
+_DEMO_EN = _ROOT / "demo" / "src" / "i18n" / "locales" / "en.json"
+_DEMO_ES = _ROOT / "demo" / "src" / "i18n" / "locales" / "es.json"
+
+
+def test_logout_and_the_ttl_sweep_reach_the_practice_workspace():
+    src = _DEMO_SESSION_PY.read_text()
+    end_session = re.search(r"async def end_session\(.*?(?=\nasync def |\ndef )", src, re.S).group(0)
+    generate = re.search(r"async def generate_code\(.*?(?=\nasync def |\ndef )", src, re.S).group(0)
+    # Calls, not mentions: end_session()'s docstring names the workspace too.
+    assert re.search(r"^\s+demo_store\.discard\(code\)\s*$", end_session, re.M), (
+        "end_session() no longer discards the demo Practice Coach workspace, so "
+        "a visitor's reading and practice set would outlive their logout."
+    )
+    assert re.search(r"^\s+demo_store\.sweep\(\)\s*$", generate, re.M), (
+        "generate_code()'s TTL sweep no longer reaches the demo Practice Coach "
+        "workspace, so an abandoned session's reading would outlive its 6 hours."
+    )
+
+
+def test_the_practice_workspace_ttl_is_the_demo_codes_own():
+    ttl = re.search(r"^TTL_SECONDS = (.+)$", _DEMO_STORE_PY.read_text(), re.M).group(1)
+    code_ttl = re.search(r"^_CODE_TTL_SECONDS = (.+)$", _DEMO_SESSION_PY.read_text(), re.M).group(1)
+    assert ttl == code_ttl == "6 * 60 * 60"
+
+
+def test_the_practice_demo_path_has_no_database_access():
+    """No table, so no row for a retention policy to schedule. The imports are
+    what would change that, so they are what is checked (docstrings here talk
+    about 'the database' to say it is not used)."""
+    for path in (_DEMO_STORE_PY, _PRACTICE_DEMO_ROUTER):
+        imports = re.findall(r"^(?:from|import)\s+(\S+)", path.read_text(), re.M)
+        banned = [m for m in imports if m.startswith(("core.database", "services.practice.store", "core.encryption", "core.student_keys"))]
+        assert not banned, f"{path.name} imports storage: {banned}"
+
+
+@pytest.mark.parametrize(
+    "path,needles",
+    [
+        (_RETENTION_POLICY, ("Practice Coach", "memory")),
+        (_INFOSEC_POLICY, ("Practice Coach", "memory")),
+        (_DATA_RETENTION, ("Practice Coach", "in memory")),
+        (_VENDOR_FLOW, ("public demo has its own copy of the Practice Coach", "memory")),
+        (_PUBLIC_NOTICE, ("Practice Coach", "memory")),
+        (_PRIVACY_ES, ("Asistente de práctica", "memoria")),
+        (_SITE_PRIVACY, ("Practice Coach", "memory")),
+        (_DEMO_EN, ("Practice Coach", "memory")),
+        (_DEMO_ES, ("Asistente de práctica", "memoria")),
+    ],
+    ids=lambda v: v.name if hasattr(v, "name") else None,
+)
+def test_every_disclosure_says_the_practice_coach_page_goes_to_the_provider_and_is_held_in_memory(path, needles):
+    """The page goes to a third-party AI provider and the reading is held in
+    memory for the session. Every place that enumerates what the demo does with
+    a visitor's data has to say both, in the same change that adds the feature."""
+    text = path.read_text()
+    for needle in needles:
+        assert needle in text, f"{path.name} does not mention {needle!r} for the demo Practice Coach"
+
+
+def test_the_notices_say_the_practice_page_itself_is_not_saved():
+    """A guard on the wording going wrong in the dangerous direction."""
+    for path in (_PUBLIC_NOTICE, _PRIVACY_ES, _SITE_PRIVACY):
+        text = path.read_text()
+        assert "never saved by us" in text or "no la guardamos" in text or "do not save the page" in text or "Nosotros nunca guardamos" in text

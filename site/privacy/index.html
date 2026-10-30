@@ -277,12 +277,12 @@
         <tr role="row"><th scope="col">Service</th><th scope="col">What reaches it</th><th scope="col">Purpose</th></tr>
         <tr>
           <td>OpenAI</td>
-          <td>The conversation text, to generate Bede's replies; Bede's reply text, to synthesize its spoken voice if you use audio; and your microphone audio, if you use the mic, to transcribe it into text</td>
+          <td>The conversation text, to generate Bede's replies; Bede's reply text, to synthesize its spoken voice if you use audio; your microphone audio, if you use the mic, to transcribe it into text; and a photo or scan of a graded quiz, only if a parent or guardian ticks the box and uploads it to the optional Practice Coach preview, to read it into a worksheet</td>
           <td>Primary AI tutoring &amp; voice provider for this demo</td>
         </tr>
         <tr>
           <td>Mistral, or Claude (Anthropic)</td>
-          <td>The conversation text, only if OpenAI is briefly unavailable</td>
+          <td>The conversation text, or a Practice Coach quiz page after its upload tick, only if OpenAI is briefly unavailable</td>
           <td>Automatic backup AI provider. Mistral by default, though which one is configurable: Claude is used instead if it's been set as the backup (see the Privacy Notice).</td>
         </tr>
         <tr>
@@ -296,6 +296,16 @@
           <td>Shows the actual painting during Art&nbsp;&amp;&nbsp;Music picture study. We store the artwork's Wikipedia title rather than a copy of the image, so the picture is fetched when it is shown.</td>
         </tr>
       </table>
+
+      <p class="tracker-note" style="margin-top: 0.75rem;">
+        <strong>Practice Coach preview (optional).</strong> A page you upload
+        there is sent, after you tick a box naming the provider for that upload,
+        to the AI provider above to be read. We do not save the page, in a
+        database or a file, and your browser stores nothing for it. What is read
+        from it, and the practice set drafted from that, are held in our
+        server's memory only, for this session (at most 6 hours), and deleted
+        when you log out. A session can read up to 3 quizzes of up to 3 pages.
+      </p>
 
       <p class="tracker-note" style="margin-top: 0.75rem;">
         AI and email services are contacted by our server. Wikipedia and

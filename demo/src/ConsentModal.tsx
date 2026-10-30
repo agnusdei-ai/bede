@@ -55,6 +55,15 @@ export default function ConsentModal({ onAgree }: { onAgree: () => void }) {
               <Trans i18nKey="consent.bullet2Ledger" components={{ strong: <strong className="text-gray-800" /> }} />
             </span>
           </li>
+          {/* The Practice Coach preview is the one optional feature that
+              sends a visitor's own file to an AI provider, so it is named
+              here as well as being gated by its own per-upload tick. */}
+          <li className="flex gap-2.5">
+            <span className="text-navy-400 font-bold shrink-0">•</span>
+            <span>
+              <Trans i18nKey="consent.bullet2Practice" components={{ strong: <strong className="text-gray-800" /> }} />
+            </span>
+          </li>
           <li className="flex gap-2.5">
             <span className="text-navy-400 font-bold shrink-0">•</span>
             <span>

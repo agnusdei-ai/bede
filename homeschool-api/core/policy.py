@@ -167,6 +167,11 @@ _POLICY: dict[str, frozenset[str]] = {
     # session the way a parent configures a real one; a family session
     # has ParentSetup.tsx and must never reach this path.
     "demo.parent_config": frozenset({"demo_code"}),
+    # The demo's Practice Coach (routers/practice_demo.py). Its own action
+    # for the same reason as demo.parent_config: it WRITES (an upload that
+    # spends model budget), and a real family's /practice routes are
+    # parent-only and must stay unreachable from a demo code.
+    "demo.practice": frozenset({"demo_code"}),
 
     # Transient-flow completion. Listed so the table is exhaustive; the
     # transient-role check above handles these before the table is consulted.
@@ -186,6 +191,7 @@ _DENIAL: dict[str, str] = {
     "sandbox.demo_preview": "This preview is only available through the public demo login",
     "diagnostic.demo_preview": "This preview is only available through the public demo login",
     "demo.parent_config": "This setup is only available through the public demo login",
+    "demo.practice": "This preview is only available through the public demo login",
     "tutor.email_summary": "Not authorized for this action",
     "mfa.complete": "No second-factor verification is pending",
     "recovery.reset_password": "No account recovery is in progress",

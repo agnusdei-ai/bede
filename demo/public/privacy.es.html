@@ -52,7 +52,9 @@
   el nombre/grado que proporciones de manera opcional y señales estructurales anonimizadas sobre
   cómo se desarrolló la sesión (qué herramientas se usaron, cuántos turnos, qué materias) — nunca
   lo que realmente se dijo. Si usas el micrófono, tu audio se envía a OpenAI para transcribirlo
-  a texto solo para ese turno, y no lo almacenamos nosotros ni ellos. Los comentarios son completamente opcionales, y nunca le pedimos a un
+  a texto solo para ese turno, y no lo almacenamos nosotros ni ellos. Si pruebas la vista previa
+  opcional del Asistente de práctica, la página de prueba que subes se envía a OpenAI para leerla, no la
+  guardamos nosotros, y lo que se lee en ella se conserva en memoria solo durante la sesión. Los comentarios son completamente opcionales, y nunca le pedimos a un
   niño su propio correo electrónico.
 </div>
 
@@ -80,6 +82,11 @@
     <td>Tu voz, si usas el micrófono <em>(opcional)</em></td>
     <td>Se envía al servicio de transcripción de OpenAI para convertirla en texto, de modo que Bede pueda responder a lo que dijiste; la voz hablada de Bede se genera con el servicio de texto a voz de OpenAI</td>
     <td><strong>Nunca almacenada</strong>, ni por nosotros ni por OpenAI. Pasa por nuestro servidor hacia OpenAI solo para ese turno y luego se descarta. OpenAI la procesa como nuestro proveedor de servicios y no la utiliza para entrenar sus modelos.</td>
+  </tr>
+  <tr>
+    <td>Una foto o escaneo de una prueba calificada, si usas la vista previa opcional del Asistente de práctica <em>(opcional)</em></td>
+    <td>Se envía a OpenAI (o, solo si OpenAI no está disponible brevemente, a nuestro proveedor de respaldo configurado) para leerla y convertirla en una hoja de preguntas, respuestas y marcas del maestro, de modo que Bede pueda sugerir unos minutos de práctica para que usted los apruebe. Marcas una casilla que nombra al proveedor antes de cada carga; sin ella no se envía nada. Una sesión puede leer hasta 3 pruebas de hasta 3 páginas cada una.</td>
+    <td><strong>Nosotros nunca guardamos la página en sí</strong>: ni en una base de datos ni en un archivo. Pasa por nuestro servidor hacia el proveedor solo para esa solicitud y se descarta. La lectura que produce (las preguntas, respuestas y marcas tal como se leyeron) y la práctica que Bede prepara a partir de ella se conservan <strong>solo en la memoria de nuestro servidor</strong>, nunca en una base de datos, durante esta sesión: hasta 6 horas, o de inmediato si cierras la sesión. El proveedor procesa la página como nuestro proveedor de servicios y no la utiliza para entrenar sus modelos.</td>
   </tr>
   <tr>
     <td>Señales anonimizadas de patrones de interacción — qué herramientas de enseñanza se activaron, número de turnos, qué materias se visitaron/completaron</td>
@@ -163,6 +170,16 @@
     nuestro servidor hacia el servicio de transcripción de OpenAI para convertirlo en texto, y no
     se almacena más allá de ese turno ni por nosotros ni por OpenAI. La voz hablada de Bede se
     genera como audio con el servicio de texto a voz de OpenAI.</li>
+  <li><strong>Una foto o escaneo de una prueba calificada</strong> <em>(opcional: solo si un
+    padre, madre o tutor usa la vista previa del Asistente de práctica)</em>. Se envía a OpenAI (o,
+    solo si OpenAI no está disponible brevemente, a nuestro proveedor de respaldo configurado) para
+    leerla, después de que marques una casilla que nombra al proveedor en esa carga. No guardamos la
+    página. Al lector se le indica que no transcriba nombres, escuelas, maestros ni fechas, y la
+    lectura no tiene ningún campo donde guardarlos, pero la imagen en sí llega al proveedor, así que
+    no subas una página que no quisieras que viera. Lo que se lee en la página y la práctica que se
+    prepara a partir de ella se conservan en memoria en nuestro servidor solo durante esta sesión
+    (nunca en una base de datos), como máximo 6 horas, y se borran de inmediato si cierras la sesión.
+    Nunca se convierte en un perfil permanente ni en una nota o un juicio sobre su hijo.</li>
   <li><strong>Señales anonimizadas de patrones de interacción</strong> (qué herramientas de
     enseñanza se usaron, cuántos turnos, qué materias) — vinculadas de forma criptográfica para
     que no puedan rastrearse hasta tu hijo o hija, y que nunca incluyen lo que realmente se
@@ -192,6 +209,8 @@
     respuestas de texto, si OpenAI no está disponible brevemente).</li>
   <li>Transcribir el audio de tu micrófono a texto, a través de OpenAI, para que Bede
     pueda responder a él.</li>
+  <li>Leer una página de prueba que decidas subir a la vista previa del Asistente de práctica, a
+    través de OpenAI (o del respaldo configurado), para que Bede pueda sugerir práctica.</li>
   <li>Entender, de forma agregada y anonimizada, qué patrones de enseñanza funcionan bien, para
     poder mejorar a Bede.</li>
   <li>Responder a un padre, madre o tutor que nos lo haya solicitado.</li>
@@ -201,7 +220,7 @@
 <p>
   No vendemos la información de tu hijo o hija, y no la usamos para publicidad. La compartimos
   únicamente con los proveedores de servicios que hacen posible la demo — OpenAI (para generar
-  las respuestas de Bede y su voz hablada), nuestro proveedor de respaldo de texto configurado
+  las respuestas de Bede, su voz hablada y la lectura de una página de prueba que decidas subir), nuestro proveedor de respaldo configurado
   (Mistral por defecto, o Claude/Anthropic si hemos configurado ese en su lugar, usado solo si
   OpenAI no está disponible brevemente) y Resend (para enviar un correo de comentarios
   opcional) — cada uno de los cuales está limitado contractual y técnicamente a usarla solo para

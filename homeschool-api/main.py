@@ -21,7 +21,7 @@ from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from routers import admin, auth, catalog, consent, diagnostic, educator_passkeys, educators, feedback, inquiries, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, practice, recovery, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, consent, diagnostic, educator_passkeys, educators, feedback, inquiries, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, practice, practice_demo, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -605,6 +605,7 @@ app.include_router(feedback.router)
 app.include_router(inquiries.router)
 app.include_router(diagnostic.router)
 app.include_router(practice.router)
+app.include_router(practice_demo.router)
 app.include_router(educators.router)
 app.include_router(pilot_campuses.router)
 app.include_router(pilot_assessments.campus_router)

@@ -31,7 +31,15 @@ uses the Practice Coach (`docs/PRACTICE_COACH.md`), the photographed pages
 of a graded worksheet are sent the same way, as base64 images, for one
 reading call: to the local model when one is configured, and to a cloud
 provider **only after the parent confirms it for that upload**. The pages are
-never stored by Bede. End-of-session
+never stored by Bede. **The public demo has its own copy of the Practice Coach**
+(`/practice-demo/*`, demo-code sessions only) and it differs here: it has no
+local-model route at all, so a page a visitor uploads always goes to the demo's
+configured cloud provider (OpenAI, or the configured backup if OpenAI is
+unavailable), after a tick that names the provider and is asked again for
+every upload. Bede does not save the page; what is read from it and the
+practice set drafted from that are held in the demo server's memory only, for
+that session (at most 6 hours), and deleted on logout. See
+`docs/RETENTION_POLICY.md`. End-of-session
 summaries (`generate_session_summary`) send the session's message history
 to produce the parent-facing report. A separate, second call
 (`services/moderation.py`'s `classify_child_message`, AIUC-1 B005) sends

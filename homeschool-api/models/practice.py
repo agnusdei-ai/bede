@@ -144,6 +144,16 @@ class ReadPhotosRequest(_Strict):
     cloud_consent: bool = False
 
 
+class DemoReadPhotosRequest(_Strict):
+    """The public demo's upload (routers/practice_demo.py). No `route`: the
+    demo never reads on a local model, so there is nothing to choose, and
+    `cloud_consent` is not optional in practice — the route refuses without
+    it. Fewer pages than a family may send: the demo is a preview."""
+    subject: str = Field(..., min_length=1, max_length=30)
+    pages: List[PhotoPage] = Field(..., min_length=1, max_length=3)
+    cloud_consent: bool = False
+
+
 class ConfirmAssessmentRequest(_Strict):
     assessment: GradedAssessment
 

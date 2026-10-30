@@ -137,7 +137,26 @@ without anyone remembering to run a script.
 
 The demo never persists a transcript, a narration, or a learner profile at
 all (`db=None` for demo-role sessions throughout the backend) — there's
-nothing beyond the three tables above to delete.
+nothing beyond the tables above to delete, with one thing that is deliberately
+**not a table**:
+
+**The demo's Practice Coach workspace is in memory, per demo code, and never
+touches the database** (`services/practice/demo_store.py`, routes
+`/practice-demo/*`). A visitor who uploads a graded quiz page sends it to the
+demo's configured cloud AI provider after a per-upload tick; Bede never saves
+the page. The reading that comes back, the visitor's corrections, and the draft
+practice set live in a dict keyed by the demo code, together with that code's
+count of uploads used (a small allowance enforced before any model call). It is
+removed three ways: immediately on logout (`end_session()` calls
+`demo_store.discard()`), by the same sweep that clears the demo tables when a
+new code is minted (`generate_code()` calls `demo_store.sweep()`), and by a
+6-hour TTL on every access, equal to the code's own. It is single-process
+memory, so a backend restart also empties it. No `practice_assessments` or
+`practice_sets` row is ever written for a demo session; those two tables are a
+real family's, encrypted with a student's key. `tests/test_practice_demo.py`
+pins all of this, and `tests/test_coppa_compliance.py` fails if logout or the
+sweep stop reaching it. The retention policy
+(`docs/RETENTION_POLICY.md`) lists it as a category.
 
 ## The license server's data (operator-run)
 

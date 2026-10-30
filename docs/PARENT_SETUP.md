@@ -1212,6 +1212,14 @@ Bede; they are held in memory while the request runs. If you run a local clamd,
 set `PRACTICE_SCANNER_URL` to have every upload scanned too; if it is set and
 cannot be reached, uploads are refused.
 
+**Trying it in the public demo.** The demo has a small preview of this: from
+the gear menu choose **Practice from a graded quiz...**. It works the same way,
+with a few differences: you tick a box before every upload agreeing to send the
+page to the demo's AI provider (there is no model on your own computer in the
+demo), a session reads up to 3 quizzes of 3 pages, and nothing is kept: the
+reading and practice set are held in memory for that session only and deleted
+when you log out. Print the worksheet if you want a copy.
+
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use
 **Print worksheet** or sit with your child and work through the set

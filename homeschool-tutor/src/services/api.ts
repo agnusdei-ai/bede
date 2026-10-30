@@ -488,6 +488,9 @@ export async function* streamTutorChat(
       })
 
       if (!res.ok) {
+        if (res.status === 403 && (await errorCode(res)) === 'parental_consent_required') {
+          throw new ParentalConsentRequiredError()
+        }
         throw new Error('Tutor request failed — check your connection')
       }
 
@@ -671,12 +674,85 @@ export async function fetchAgenticLoopStats(token: string, days: number): Promis
 
 // ── Pod session configs ──────────────────────────────────────────────────────
 
-export async function savePodConfigs(token: string, configs: SessionConfig[]): Promise<void> {
+/** The consent notice changed between the parent reading it and agreeing. */
+export class ConsentNoticeChangedError extends Error {
+  constructor() {
+    super('notice_changed')
+    this.name = 'ConsentNoticeChangedError'
+  }
+}
+
+/** A collection request refused until a parent finishes the consent step. */
+export class ParentalConsentRequiredError extends Error {
+  constructor() {
+    super('parental_consent_required')
+    this.name = 'ParentalConsentRequiredError'
+  }
+}
+
+async function errorCode(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json()
+    const code = body?.detail?.error
+    return typeof code === 'string' ? code : null
+  } catch {
+    return null
+  }
+}
+
+export interface HouseholdConsent {
+  needs_consent: boolean
+  install_ack: boolean
+  notice_hash: string
+  notice_version: string
+  notice_text: string
+  students: { student_name: string; consented: boolean; stale: boolean }[]
+}
+
+export interface ConsentGrantResult {
+  granted: string[]
+  already: string[]
+  refreshed: string[]
+}
+
+export async function fetchHouseholdConsent(token: string): Promise<HouseholdConsent> {
+  const res = await fetch(`${BASE}/household/consent`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to load consent status')
+  return res.json()
+}
+
+export async function grantHouseholdConsent(
+  token: string,
+  noticeHash: string,
+  parentLabel: string,
+): Promise<ConsentGrantResult> {
+  const res = await fetch(`${BASE}/household/consent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ notice_hash: noticeHash, parent_label: parentLabel }),
+  })
+  if (res.status === 409 && (await errorCode(res)) === 'notice_changed') {
+    throw new ConsentNoticeChangedError()
+  }
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to record consent')
+  return res.json()
+}
+
+export async function savePodConfigs(
+  token: string,
+  configs: SessionConfig[],
+  consentNoticeHash?: string | null,
+): Promise<void> {
   const res = await fetch(`${BASE}/pod/configs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ configs }),
+    body: JSON.stringify(consentNoticeHash ? { configs, consent_notice_hash: consentNoticeHash } : { configs }),
   })
+  if (res.status === 409 && (await errorCode(res)) === 'notice_changed') {
+    throw new ConsentNoticeChangedError()
+  }
   if (!res.ok) throw new Error('Failed to save pod configuration')
 }
 

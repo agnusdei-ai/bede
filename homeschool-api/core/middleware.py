@@ -373,7 +373,7 @@ class LicenseGateMiddleware(BaseHTTPMiddleware):
     restart. Never active in dev or on the public demo (same exemptions
     the old startup check had)."""
 
-    _ALLOWED_PREFIXES = ("/auth/", "/mfa/", "/admin/license")
+    _ALLOWED_PREFIXES = ("/auth/", "/mfa/", "/admin/license", "/installation/")
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if not license_state.is_gated():

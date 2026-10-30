@@ -209,6 +209,23 @@ async def require_educator(
     return await _require_live_session(request, payload)
 
 
+async def require_installation_actor(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """A parent (family or school) or a passkey-authenticated educator (the
+    school official who may need to review or withdraw an authorization).
+    Children, the demo role and transient roles are refused by the policy."""
+    payload = await _validate_token(request, credentials)
+    if payload.get("role") == "educator":
+        if payload.get("auth_method") != "webauthn_uv":
+            raise HTTPException(status_code=401, detail="Educator session requires a verified passkey")
+        await _authorize(request, payload, "educator.roster")
+    else:
+        await _authorize(request, payload, "admin.manage")
+    return await _require_live_session(request, payload)
+
+
 async def require_mfa_pending(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),

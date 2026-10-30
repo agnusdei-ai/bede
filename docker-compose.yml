@@ -203,6 +203,10 @@ services:
       # Empty on hosted/pilot deployments, which use the parent's tick.
       - CONSENT_INSTALL_ACK_HASH=${CONSENT_INSTALL_ACK_HASH:-}
       - CONSENT_INSTALL_ACK_AT=${CONSENT_INSTALL_ACK_AT:-}
+      # The installation receipt (docs/INSTALLATION_AUTHORIZATION_FLOW.md) is
+      # mounted read-only below; only a `verified` receipt enables processing.
+      - INSTALLATION_RECEIPT_PATH=${INSTALLATION_RECEIPT_PATH:-/app/install/installation_receipt.json}
+      - INSTALLATION_RECEIPT_APPEND_PATH=${INSTALLATION_RECEIPT_APPEND_PATH:-/var/lib/bede/receipts/installation_receipt.append.jsonl}
       - DIAGNOSTIC_EVIDENCE_LOG_ENABLED=${DIAGNOSTIC_EVIDENCE_LOG_ENABLED:-true}
       # External MCP servers for the parent sandbox (docs/MCP.md). Off by
       # default and deliberately requiring BOTH variables: this is the only
@@ -252,6 +256,12 @@ services:
     read_only: true                    # stateless container — all state in Postgres
     tmpfs:
       - /tmp:size=64m,mode=1777       # audio processing temp files only
+    volumes:
+      # The installation receipt, read-only (docs/INSTALLATION_AUTHORIZATION_FLOW.md).
+      - ./install:/app/install:ro
+      # Where the API appends its own receipt records (a withdrawal), since it
+      # cannot write the mount above. Owned by `sage` in the image.
+      - installation_receipts:/var/lib/bede/receipts
     # Docker Desktop (Windows/Mac) resolves host.docker.internal to the host
     # machine automatically — needed when LOCAL_LLM_BASE_URL points at a
     # locally-installed Ollama (the packaging/windows and packaging/unix
@@ -534,6 +544,7 @@ services:
       - no-new-privileges:true
 
 volumes:
+  installation_receipts:  # API-appended installation receipt records (withdrawals)
   caddy_data:     # persists Caddy's local CA and issued certs across restarts
   pgdata:         # local Postgres data — only used when COMPOSE_PROFILES=local-db
 

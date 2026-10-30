@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 curl gcc python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN useradd --no-create-home --shell /bin/false sage
+RUN useradd --no-create-home --shell /bin/false sage \
+    && mkdir -p /var/lib/bede/receipts && chown sage /var/lib/bede/receipts
 
 WORKDIR /app
 # requirements.in is this image's human-edited, floor-pinned source of

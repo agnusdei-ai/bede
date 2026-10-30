@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from core import (
-    constitution, device_registry, elevation, identity, license_heartbeat, license_state,
+    constitution, device_registry, elevation, identity, installation_registry, license_heartbeat, license_state,
     parent_credential, provider_state,
 )
 from core.audit import AuditEvent, log_event
@@ -21,7 +21,7 @@ from core.middleware import (
     ExfiltrationGuard, InstanceIdHeaderMiddleware, LicenseGateMiddleware, RateLimitMiddleware,
     SecurityHeadersMiddleware,
 )
-from routers import admin, auth, catalog, consent, diagnostic, educator_passkeys, educators, feedback, inquiries, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, practice, recovery, sandbox, transcripts, tutor, voice
+from routers import admin, auth, catalog, consent, diagnostic, educator_passkeys, educators, feedback, inquiries, installation, mfa, narration, pilot_assessments, pilot_campuses, pilot_diagnostic, pilot_journey, pilot_owner, pilot_tutor, pilot_tutor_history, pod, practice, recovery, sandbox, transcripts, tutor, voice
 
 logging.basicConfig(
     level=logging.INFO,
@@ -494,8 +494,15 @@ async def lifespan(app: FastAPI):
         else None
     )
 
+    # Idempotent installation-authorization work (verified school receipt ->
+    # campus authorization; permitted-installation inventory row). Never
+    # blocks or fails boot; the license-server leg runs in the background.
+    registration_task = await installation_registry.run_startup(AsyncSessionLocal)
+
     yield
 
+    if registration_task is not None:
+        registration_task.cancel()
     warmup_task.cancel()
     purge_task.cancel()
     credentials_refresh_task.cancel()
@@ -600,6 +607,7 @@ app.include_router(admin.router)
 app.include_router(pod.router)
 app.include_router(catalog.router)
 app.include_router(consent.router)
+app.include_router(installation.router)
 app.include_router(sandbox.router)
 app.include_router(feedback.router)
 app.include_router(inquiries.router)

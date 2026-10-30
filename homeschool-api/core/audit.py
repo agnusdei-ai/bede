@@ -117,6 +117,9 @@ class AuditEvent:
     DATA_EXPORTED              = "data.exported"
     COLLECTION_REFUSED         = "collection.refused"
     CONSENT_INSTALL_ACK_RECORDED = "consent.install_ack_recorded"
+    INSTALLATION_WITHDRAWN       = "installation.withdrawn"
+    INSTALLATION_SCHOOL_IMPORTED = "installation.school_authorization_imported"
+    INSTALLATION_REGISTERED      = "installation.registered"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

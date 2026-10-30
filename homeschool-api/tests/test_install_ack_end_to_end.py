@@ -11,7 +11,6 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -45,25 +44,29 @@ def _install(tmp_path: Path) -> dict:
     return values
 
 
-def test_the_installers_acknowledgement_is_valid_to_the_api(tmp_path):
+def test_the_installers_hash_equals_the_apis_notice_hash(tmp_path):
+    """The legacy acknowledgement the installer writes still carries the SAME
+    hash the API computes, so a receipt built from it agrees with the API."""
     from core import consent
-    from core.config import settings
 
     env = _install(tmp_path)
     assert env["CONSENT_INSTALL_ACK_HASH"] == consent.notice_hash()
 
-    with patch.object(settings, "consent_install_ack_hash", env["CONSENT_INSTALL_ACK_HASH"]), \
-         patch.object(settings, "consent_install_ack_at", env["CONSENT_INSTALL_ACK_AT"]):
-        assert consent.install_ack_time() is not None
 
-
-def test_an_edited_notice_invalidates_the_installers_acknowledgement(tmp_path):
-    """A notice changed after install is a new notice: the old ack must not count."""
+def test_the_installers_env_acknowledgement_alone_no_longer_unlocks(tmp_path):
+    """Attestation is not verification: without a verified installation
+    receipt (docs/INSTALLATION_AUTHORIZATION_FLOW.md) the env values cover nothing."""
     from core import consent
     from core.config import settings
+    from tests import installation_helpers as h
 
     env = _install(tmp_path)
-    with patch.object(settings, "consent_install_ack_hash", env["CONSENT_INSTALL_ACK_HASH"]), \
-         patch.object(settings, "consent_install_ack_at", env["CONSENT_INSTALL_ACK_AT"]), \
-         patch.object(consent, "notice_hash", return_value="0" * 64):
+    import pytest as _p
+    mp = _p.MonkeyPatch()
+    try:
+        h.no_receipt(mp)
+        mp.setattr(settings, "consent_install_ack_hash", env["CONSENT_INSTALL_ACK_HASH"])
+        mp.setattr(settings, "consent_install_ack_at", env["CONSENT_INSTALL_ACK_AT"])
         assert consent.install_ack_time() is None
+    finally:
+        mp.undo()

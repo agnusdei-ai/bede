@@ -20,8 +20,10 @@ flow and counsel has approved that flow. Nothing here decides sufficiency.
 DEFAULT IS CLOSED. A student with no active consent record is refused (403
 parental_consent_required), with two ways to be covered: a parent records
 consent (per child, household-wide, or by the tick at pod save), or the
-person who installed Bede acknowledged the family notice at install time
-(CONSENT_INSTALL_ACK_HASH / CONSENT_INSTALL_ACK_AT). A valid install ack
+person who installed Bede acknowledged the family notice at install time AND
+the installation receipt is `verified` (core/installation_receipt.py,
+docs/INSTALLATION_AUTHORIZATION_FLOW.md; an attestation alone, or the legacy
+CONSENT_INSTALL_ACK_* values, cover nothing). A valid install ack
 covers a student only if that student has never had a consent record:
 withdrawal is never undone by the ack. The first collection for a covered
 student writes a ledger row (method install_custodian_attestation, dated at
@@ -177,15 +179,25 @@ def _now() -> datetime:
 
 
 def install_ack_time() -> Optional[datetime]:
-    """The ack time if the install-time acknowledgement is valid, else None.
+    """The ack time if the install-time acknowledgement counts, else None.
 
-    Valid only when the hash equals the CURRENT notice hash (an ack of an
-    older notice is not valid) and the time parses as a timezone-aware
-    ISO-8601 value no more than five minutes in the future.
+    Counts ONLY when the current installation receipt is `verified` in family
+    mode (core/installation_receipt.py): its chain validates, its notice hash
+    equals the CURRENT notice, and a verification method completed. An
+    attestation alone, a pending, invalid, withdrawn or superseded receipt, a
+    school receipt, or no receipt at all covers nothing. The legacy
+    CONSENT_INSTALL_ACK_* environment values are ignored here: they cannot
+    unlock without a verified receipt, and with one they add nothing.
+
+    The time is the receipt's accepted_at (timezone-aware, no more than five
+    minutes in the future).
     """
-    if settings.consent_install_ack_hash != notice_hash():
+    from core import installation_receipt
+
+    st = installation_receipt.current()
+    if not st.family_verified:
         return None
-    raw = settings.consent_install_ack_at.strip()
+    raw = (st.accepted_at or "").strip()
     if not raw:
         return None
     try:

@@ -580,8 +580,18 @@ class Settings(BaseSettings):
     # children's records. Valid only when the hash equals the current notice
     # hash and the time (ISO-8601 UTC) is not in the future. Hosted or pilot
     # deployments never set these. Wording and sufficiency are for counsel.
+    # LEGACY. These no longer unlock anything on their own: core/consent.py
+    # honours an install-time acknowledgement only when the current
+    # installation receipt is `verified` (core/installation_receipt.py,
+    # docs/INSTALLATION_AUTHORIZATION_FLOW.md). They remain so older
+    # installers' .env files still load.
     consent_install_ack_hash: str = ""
     consent_install_ack_at: str = ""
+    # The installation receipt (append-only hash chain), mounted read-only into
+    # the api container, and the writable file the API appends its own records
+    # (a withdrawal) to, since it cannot write the read-only mount.
+    installation_receipt_path: str = "/app/install/installation_receipt.json"
+    installation_receipt_append_path: str = "/var/lib/bede/receipts/installation_receipt.append.jsonl"
 
     # ── Demo interaction-pattern analysis (optional) ──────────────────────────
     # On by default for demo sessions only (never parent/child production) —

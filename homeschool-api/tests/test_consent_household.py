@@ -115,8 +115,11 @@ def _records(c, name):
 
 
 def _ack(monkeypatch, *, hash_=None, at=None):
-    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash() if hash_ is None else hash_)
-    monkeypatch.setattr(settings, "consent_install_ack_at", (T0 - timedelta(days=1)).isoformat() if at is None else at)
+    """A VERIFIED family installation receipt (the only thing that now counts
+    as an install-time acknowledgement). `hash_`/`at` let a case corrupt it."""
+    from tests import installation_helpers as h
+    accepted = (T0 - timedelta(days=1)).isoformat() if at is None else at
+    h.verified_family(monkeypatch, accepted_at=accepted, notice_sha=hash_)
 
 
 @pytest.fixture(autouse=True)
@@ -154,8 +157,6 @@ def test_valid_ack_permits_and_writes_one_ledger_row_at_the_ack_time(ctx, clock,
 ])
 def test_invalid_acks_do_not_permit(ctx, clock, monkeypatch, label, kw):
     _ack(monkeypatch, **kw)
-    if label == "empty time":
-        monkeypatch.setattr(settings, "consent_install_ack_at", "")
     assert _transcript(ctx, "Emma").status_code == 403, label
     assert _records(ctx, "Emma") == []
 

@@ -366,6 +366,28 @@ class PilotCampusDataAuthorization(Base):
     revocation_reason_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
 
 
+class InstallationInventory(Base):
+    """One row per permitted installation (docs/INSTALLATION_AUTHORIZATION_FLOW.md).
+
+    Written at startup once the installation receipt is `verified`: the install
+    id (core/encryption.py's get_or_create_install_id), the receipt id, mode,
+    location id (school only), when it was registered, and what the license
+    server said (`offline`, `registered`, `cap_reached`, `unreachable`,
+    `revoked`, `no_license_key`, `pending`). No child data and no person's name.
+    Unique per (install_id, receipt_id), so a restart never adds a row.
+    """
+    __tablename__ = "installation_inventory"
+    __table_args__ = (UniqueConstraint("install_id", "receipt_id", name="uq_installation_inventory"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    install_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    receipt_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    mode: Mapped[str] = mapped_column(String(10), nullable=False)
+    location_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    license_server_outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+
+
 class ClassicalEducator(Base):
     """Independently authenticated teacher. No parent/admin privileges.
 

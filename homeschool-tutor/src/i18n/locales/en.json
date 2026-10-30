@@ -774,5 +774,31 @@
     "worksheetTitle": "Practice",
     "workOn": "What to work on",
     "forYou": "Just for you (not shown to your child)"
+  },
+  "schoolDataAuth": {
+    "heading": "Authorization to Store Student Information",
+    "headingUpdated": "Updated Notice: Renewed Authorization Required",
+    "lead": "Before Bede stores student information for this school, an authorized official must review the Notice and provide authorization.",
+    "noticeLabel": "School Authorization Notice",
+    "noticeVersion": "Notice version {{version}}",
+    "stale": "The Notice has changed since authorization was last provided. It must be reviewed again before authorization is renewed.",
+    "nameLabel": "Name of Authorized Official",
+    "roleLabel": "Role:",
+    "roleAdministrator": "Administrator",
+    "roleTeacher": "Teacher",
+    "roleSchoolOfficial": "School official",
+    "checkbox": "I am authorized to act on behalf of this school. I have read this Notice and I authorize the storage of student information as described in it.",
+    "optIn": "Authorize",
+    "confirmation": "Authorized by {{role}} on {{date}}.",
+    "withdraw": "Withdraw Authorization",
+    "withdrawExplain": "Withdrawal ceases the storage of new student information. It does not delete existing records.",
+    "withdrawConfirm": "Withdraw Authorization",
+    "withdrawCancel": "Cancel",
+    "entryDisabled": "Student information cannot be stored until an authorized official provides authorization.",
+    "actionLoad": "load the school authorization status",
+    "actionOptIn": "record the authorization",
+    "actionWithdraw": "withdraw the authorization",
+    "loadFailedHint": "Entry of student information remains unavailable until the status loads.",
+    "retry": "Try again"
   }
 }

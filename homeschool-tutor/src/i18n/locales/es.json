@@ -774,5 +774,31 @@
     "worksheetTitle": "Práctica",
     "workOn": "Qué practicar",
     "forYou": "Solo para usted (no se muestra a su hijo)"
+  },
+  "schoolDataAuth": {
+    "heading": "Autorización para Almacenar Información de Estudiantes",
+    "headingUpdated": "Aviso Actualizado: Se Requiere una Nueva Autorización",
+    "lead": "Antes de que Bede almacene información de estudiantes de esta escuela, un funcionario autorizado debe revisar el Aviso y otorgar su autorización.",
+    "noticeLabel": "Aviso de Autorización de la Escuela",
+    "noticeVersion": "Versión del Aviso {{version}}",
+    "stale": "El Aviso ha cambiado desde que se otorgó la última autorización. Debe revisarse nuevamente antes de renovar la autorización.",
+    "nameLabel": "Nombre del Funcionario Autorizado",
+    "roleLabel": "Cargo:",
+    "roleAdministrator": "Administrador",
+    "roleTeacher": "Docente",
+    "roleSchoolOfficial": "Funcionario de la escuela",
+    "checkbox": "Estoy autorizado para actuar en nombre de esta escuela. He leído este Aviso y autorizo el almacenamiento de información de estudiantes conforme a lo descrito en él.",
+    "optIn": "Autorizar",
+    "confirmation": "Autorizado por {{role}} el {{date}}.",
+    "withdraw": "Retirar la Autorización",
+    "withdrawExplain": "El retiro de la autorización suspende el almacenamiento de nueva información de estudiantes. No elimina los registros existentes.",
+    "withdrawConfirm": "Retirar la Autorización",
+    "withdrawCancel": "Cancelar",
+    "entryDisabled": "No se puede almacenar información de estudiantes hasta que un funcionario autorizado otorgue su autorización.",
+    "actionLoad": "cargar el estado de la autorización de la escuela",
+    "actionOptIn": "registrar la autorización",
+    "actionWithdraw": "retirar la autorización",
+    "loadFailedHint": "El registro de información de estudiantes permanece no disponible hasta que el estado cargue.",
+    "retry": "Intentar de nuevo"
   }
 }

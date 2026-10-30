@@ -1153,11 +1153,56 @@ async function educatorApi<T>(path: string, token: string, method = 'GET', body?
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
+    // Structured school-authorization answers get typed errors so the UI can
+    // show the opt-in panel instead of a raw failure. They still extend
+    // ApiRequestError, so describeFailure keeps working on them.
+    const code = detail?.detail && typeof detail.detail === 'object' ? detail.detail.error : undefined
+    if (res.status === 403 && code === 'school_authorization_required') {
+      throw new SchoolAuthorizationRequiredError()
+    }
+    if (res.status === 409 && code === 'notice_changed') throw new NoticeChangedError()
     throw new ApiRequestError(
       res.status, typeof detail.detail === 'string' ? detail.detail : 'Educator request failed')
   }
   return res.status === 204 ? undefined as T : res.json()
 }
+
+// ── School data authorization (COPPA readiness) ────────────────────────────
+// A school official must read and opt in to storing learner data for a campus
+// before any learner data is stored. State comes from the server only.
+export class SchoolAuthorizationRequiredError extends ApiRequestError {
+  constructor() {
+    super(403, 'School authorization required')
+    this.name = 'SchoolAuthorizationRequiredError'
+  }
+}
+export class NoticeChangedError extends ApiRequestError {
+  constructor() {
+    super(409, 'Notice changed')
+    this.name = 'NoticeChangedError'
+  }
+}
+export type SchoolAuthorizerRole = 'administrator' | 'teacher'
+export interface SchoolDataAuthorization {
+  authorized: boolean
+  stale: boolean
+  notice_hash: string
+  notice_version: string
+  notice_text: string
+  authorized_at: string | null
+  authorized_by: SchoolAuthorizerRole | null
+}
+const schoolAuthPath = (campusId: string) =>
+  `/pilot/campuses/${encodeURIComponent(campusId)}/data-authorization`
+export const fetchSchoolDataAuthorization = (token: string, campusId: string) =>
+  educatorApi<SchoolDataAuthorization>(schoolAuthPath(campusId), token)
+export const authorizeSchoolData = (
+  token: string, campusId: string,
+  body: { notice_hash: string; authorizer_name: string; authorizer_role: SchoolAuthorizerRole },
+) => educatorApi<SchoolDataAuthorization>(schoolAuthPath(campusId), token, 'POST', body)
+export const revokeSchoolData = (token: string, campusId: string, reason?: string) =>
+  educatorApi<unknown>(`${schoolAuthPath(campusId)}/revoke`, token, 'POST',
+    reason ? { reason } : {})
 
 export async function fetchEducatorPilotMode(): Promise<{ enabled: boolean; shared_child_pin_disabled: boolean }> {
   const res = await fetch(`${BASE}/auth/educator-mode`)

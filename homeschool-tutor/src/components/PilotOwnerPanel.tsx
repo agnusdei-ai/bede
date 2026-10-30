@@ -6,6 +6,7 @@ import {
 } from '../services/api'
 import type { PilotDeletionReceipt, PilotOwnerCampus, PilotOwnerLearner } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
+import SchoolDataAuthorization from './SchoolDataAuthorization'
 
 /**
  * Owner-only classroom-pilot administration, performed on the real build:
@@ -215,6 +216,10 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
                 {campuses.map(c => <option key={c.campus_id} value={c.campus_id}>{c.title}{c.enabled ? '' : ' (disabled)'}</option>)}
               </select>
             </label>}
+        {selectedCampus?.enabled && (
+          <SchoolDataAuthorization key={selectedCampus.campus_id} token={token}
+            campusId={selectedCampus.campus_id} role="administrator"/>
+        )}
         {selectedCampus && selectedCampus.enabled && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2">
             <h3 className="text-sm font-semibold text-navy-800">Stop this pilot campus</h3>

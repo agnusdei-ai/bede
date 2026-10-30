@@ -139,7 +139,12 @@ class InstallationState:
 # ── Loading ───────────────────────────────────────────────────────────────────
 
 def _load_base(path: Path) -> list:
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8")
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError:
+        # The installer writes JSON Lines (one sealed record per line).
+        return [json.loads(line) for line in text.splitlines() if line.strip()]
     if isinstance(raw, dict) and isinstance(raw.get("records"), list):
         return raw["records"]
     if isinstance(raw, list):

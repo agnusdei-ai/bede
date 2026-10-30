@@ -222,6 +222,8 @@ if ($aiChoice -eq '1') {
 Write-Step 'Handing off to the Bede setup wizard'
 Push-Location $AppDir
 try {
+    # Recorded in the installation receipt as the launcher that ran the wizard.
+    $env:BEDE_INSTALLER_NAME = 'windows'
     & cmd.exe /c setup-gui.bat
 } finally {
     Pop-Location

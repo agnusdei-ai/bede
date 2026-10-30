@@ -7,8 +7,10 @@ stub `docker`/`curl` so no stack is started, and assert:
 * declining exits non-zero and writes no .env;
 * an unattended run without --accept-consent-notice stops (never silently
   skips consent);
-* accepting (piped "y", or the explicit flag) writes both acknowledgement
-  lines, the hash being the SHA-256 of the real notice file's bytes.
+* accepting (piped answers, or the explicit flag WITH the name and
+  attestation flags it never supplies for you) writes both acknowledgement
+  lines, the hash being the SHA-256 of the real notice file's bytes, and an
+  installation receipt in state pending_verification.
 
 The wizard's half is covered in scripts/setup_wizard/test_wizard.py.
 """
@@ -26,6 +28,10 @@ NOTICE = ROOT / "homeschool-api" / "data" / "consent_notice.txt"
 
 # provider 1, api key, local db (default), parent password, child pin, licence
 ANSWERS = "1\nsk-ant-test\n\nparentpass123\n805274199\nlicense-value\n"
+# family, consent, full name, parent/guardian attestation
+PREAMBLE = "1\ny\nPat Parent\ny\n"
+FLAGS = ["--accept-consent-notice", "--mode", "family", "--authorizer-name", "Pat Parent",
+         "--attest-parent-guardian"]
 
 
 @pytest.fixture
@@ -33,6 +39,9 @@ def sandbox(tmp_path):
     shutil.copy(ROOT / "setup.sh", tmp_path / "setup.sh")
     (tmp_path / "homeschool-api" / "data").mkdir(parents=True)
     shutil.copy(NOTICE, tmp_path / "homeschool-api" / "data" / "consent_notice.txt")
+    (tmp_path / "scripts" / "setup_wizard").mkdir(parents=True)
+    shutil.copy(ROOT / "scripts" / "setup_wizard" / "install_receipt.py",
+                tmp_path / "scripts" / "setup_wizard" / "install_receipt.py")
     stubs = tmp_path / "stubs"
     stubs.mkdir()
     for name in ("docker", "curl"):
@@ -55,14 +64,14 @@ def _expected_hash():
 
 
 def test_declining_exits_nonzero_and_writes_no_env(sandbox):
-    r = _run(sandbox, "n\n" + ANSWERS)
+    r = _run(sandbox, "1\nn\n" + ANSWERS)
     assert r.returncode != 0
     assert "Installation not completed" in r.stdout
     assert not (sandbox / ".env").exists()
 
 
 def test_default_answer_is_no(sandbox):
-    r = _run(sandbox, "\n" + ANSWERS)
+    r = _run(sandbox, "1\n\n" + ANSWERS)
     assert r.returncode != 0
     assert not (sandbox / ".env").exists()
 
@@ -76,7 +85,7 @@ def test_unattended_without_flag_stops_rather_than_skipping(sandbox):
 
 
 def test_accepting_writes_both_ack_lines_with_the_real_hash(sandbox):
-    r = _run(sandbox, "y\n" + ANSWERS)
+    r = _run(sandbox, PREAMBLE + ANSWERS)
     assert r.returncode == 0, r.stdout + r.stderr
     env = (sandbox / ".env").read_text()
     assert f"CONSENT_INSTALL_ACK_HASH={_expected_hash()}\n" in env
@@ -84,7 +93,7 @@ def test_accepting_writes_both_ack_lines_with_the_real_hash(sandbox):
 
 
 def test_flag_is_explicit_consent_and_still_writes_the_ack(sandbox):
-    r = _run(sandbox, ANSWERS, "--accept-consent-notice")
+    r = _run(sandbox, ANSWERS, *FLAGS)
     assert r.returncode == 0, r.stdout + r.stderr
     env = (sandbox / ".env").read_text()
     assert f"CONSENT_INSTALL_ACK_HASH={_expected_hash()}\n" in env
@@ -92,7 +101,7 @@ def test_flag_is_explicit_consent_and_still_writes_the_ack(sandbox):
 
 
 def test_the_notice_is_shown_before_any_prompt(sandbox):
-    r = _run(sandbox, "n\n")
+    r = _run(sandbox, "1\nn\n")
     assert "Parental Notice and Consent" in r.stdout
     assert NOTICE.read_text().splitlines()[0] in r.stdout
     assert "AI provider" not in r.stdout
@@ -102,7 +111,7 @@ def test_hash_follows_the_file_not_a_constant(sandbox):
     """Editing the notice changes the recorded hash (nothing is hardcoded)."""
     notice = sandbox / "homeschool-api" / "data" / "consent_notice.txt"
     notice.write_bytes(notice.read_bytes() + b"\nExtra line.\n")
-    r = _run(sandbox, ANSWERS, "--accept-consent-notice")
+    r = _run(sandbox, ANSWERS, *FLAGS)
     assert r.returncode == 0, r.stdout + r.stderr
     env = (sandbox / ".env").read_text()
     assert f"CONSENT_INSTALL_ACK_HASH={hashlib.sha256(notice.read_bytes()).hexdigest()}\n" in env
@@ -119,3 +128,13 @@ def test_launchers_stop_on_a_declined_wizard_even_if_an_old_env_exists():
     bat = (ROOT / "setup-gui.bat").read_text()
     run = bat.index("docker run --rm -p 127.0.0.1:8765:8765")
     assert bat.index("if errorlevel 1", run) < bat.index("if not exist .env", run)
+
+
+def test_launchers_tell_the_wizard_which_installer_ran():
+    """The receipt records the launcher (windows/unix/wizard); the wizard only
+    sees it if every docker run passes it through, and only the two native
+    launchers set it."""
+    assert "BEDE_INSTALLER_NAME" in (ROOT / "scripts" / "setup-gui-common.sh").read_text()
+    assert "BEDE_INSTALLER_NAME" in (ROOT / "setup-gui.bat").read_text()
+    assert "BEDE_INSTALLER_NAME = 'windows'" in (ROOT / "packaging" / "windows" / "Setup-Bede.ps1").read_text()
+    assert "BEDE_INSTALLER_NAME=unix" in (ROOT / "packaging" / "unix" / "install.sh").read_text()

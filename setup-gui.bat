@@ -46,7 +46,7 @@ start "" cmd /c "timeout /t 2 >nul & start http://localhost:8765"
 
 REM Foreground on purpose — returns once the wizard container exits, which
 REM it does itself right after a successful submission.
-docker run --rm -p 127.0.0.1:8765:8765 -e HOST_LAN_IP=%LAN_IP% -v "%cd%":/repo bede-setup-wizard
+docker run --rm -p 127.0.0.1:8765:8765 -e HOST_LAN_IP=%LAN_IP% -e BEDE_INSTALLER_NAME=%BEDE_INSTALLER_NAME% -v "%cd%":/repo bede-setup-wizard
 if errorlevel 1 (
   echo Installation not completed. Consent was not given or setup was cancelled. Nothing was started.
   pause

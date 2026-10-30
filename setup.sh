@@ -1,22 +1,56 @@
 #!/usr/bin/env bash
 # Bede Homeschool Tutor — first-run setup wizard
 # Usage: bash setup.sh   (or: make setup)
-#        bash setup.sh --accept-consent-notice   (unattended; see below)
+#        bash setup.sh --accept-consent-notice --mode family \
+#             --authorizer-name "Jane Doe" --attest-parent-guardian   (unattended)
+#        bash setup.sh --accept-consent-notice --mode school \
+#             --authorizer-name "Jane Doe" --authorizer-role administrator \
+#             --delegation-reference "Board minute 14" --delegation-issued-by "School board" \
+#             --delegation-dated 2026-09-01 --location-id <campus-id>      (unattended)
 #
-# Parental consent comes first. The parent reads the Notice and consents
-# BEFORE anything is collected, written or started. Declining exits non-zero
-# with no .env written. --accept-consent-notice is the explicit
-# non-interactive form of that consent, for automation run by (or on behalf
-# of) the parent; an unattended run without it stops rather than skipping.
+# An adult chooses family or school, reads the applicable notice, and states
+# who they are and in what capacity BEFORE anything is collected, written or
+# started (docs/INSTALLATION_AUTHORIZATION_FLOW.md). Declining exits non-zero
+# with no .env written. The result is a local receipt,
+# install/installation_receipt.json: for a family it is always
+# pending_verification (a name and an attestation are recorded as an
+# attestation, never as verified consent); for a school it is verified only
+# when the signed campus key AND a documented delegation AND the notice
+# acceptance are all present and valid. --accept-consent-notice is the explicit
+# non-interactive form of accepting the notice: it NEVER attests for you, so an
+# unattended run must also pass --mode and the name/attestation (or role and
+# delegation) flags, and stops rather than skipping any of them.
 set -euo pipefail
 
 ACCEPT_CONSENT_FLAG=0
-for arg in "$@"; do
-  case "$arg" in
-    --accept-consent-notice) ACCEPT_CONSENT_FLAG=1 ;;
-    *) echo "Unknown option: $arg" >&2; exit 2 ;;
+INSTALL_MODE=""
+AUTHORIZER_NAME=""
+AUTHORIZER_ROLE=""
+ATTEST_FLAG=0
+DELEGATION_REFERENCE=""
+DELEGATION_ISSUED_BY=""
+DELEGATION_DATED=""
+LOCATION_ID=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --accept-consent-notice) ACCEPT_CONSENT_FLAG=1; shift ;;
+    --attest-parent-guardian) ATTEST_FLAG=1; shift ;;
+    --mode|--authorizer-name|--authorizer-role|--delegation-reference|--delegation-issued-by|--delegation-dated|--location-id)
+      [[ $# -ge 2 ]] || { echo "Missing value for $1" >&2; exit 2; }
+      case "$1" in
+        --mode) INSTALL_MODE="$2" ;;
+        --authorizer-name) AUTHORIZER_NAME="$2" ;;
+        --authorizer-role) AUTHORIZER_ROLE="$2" ;;
+        --delegation-reference) DELEGATION_REFERENCE="$2" ;;
+        --delegation-issued-by) DELEGATION_ISSUED_BY="$2" ;;
+        --delegation-dated) DELEGATION_DATED="$2" ;;
+        --location-id) LOCATION_ID="$2" ;;
+      esac
+      shift 2 ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
   esac
 done
+case "$INSTALL_MODE" in ""|family|school) ;; *) echo "--mode must be family or school" >&2; exit 2 ;; esac
 
 BOLD='\033[1m'
 GREEN='\033[0;32m'
@@ -117,51 +151,118 @@ echo -e "${BOLD}║      Bede Homeschool Tutor — Setup       ║${RESET}"
 echo -e "${BOLD}╚══════════════════════════════════════════╝${RESET}"
 blank
 
-# ── Parental Notice and Consent (before anything is collected or written) ────
+# ── Installation authorization (before anything is collected or written) ────
 SETUP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONSENT_NOTICE_FILE="${SETUP_DIR}/homeschool-api/data/consent_notice.txt"
-[[ -f "$CONSENT_NOTICE_FILE" ]] || error "The consent notice (homeschool-api/data/consent_notice.txt) is missing. Nothing was installed."
+RECEIPT_TOOL="${SETUP_DIR}/scripts/setup_wizard/install_receipt.py"
 
-# The API accepts the acknowledgement only when this equals the SHA-256 of the
-# notice file's exact bytes, so it is always computed from the file itself.
-consent_notice_hash() {
+# The API compares notice hashes to the SHA-256 of the notice file's exact
+# bytes, so the hash is always computed from the file itself.
+file_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$CONSENT_NOTICE_FILE" | awk '{print $1}'
+    sha256sum "$1" | awk '{print $1}'
   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 "$CONSENT_NOTICE_FILE" | awk '{print $1}'
+    shasum -a 256 "$1" | awk '{print $1}'
   elif command -v openssl >/dev/null 2>&1; then
-    openssl dgst -sha256 "$CONSENT_NOTICE_FILE" | awk '{print $NF}'
+    openssl dgst -sha256 "$1" | awk '{print $NF}'
   else
     error "No SHA-256 tool found (sha256sum, shasum or openssl). Nothing was installed."
   fi
 }
 
-echo -e "${BOLD}Parental Notice and Consent${RESET}"
+not_completed() {
+  blank
+  warn "Installation not completed. $1 Bede has not been configured or started, and no personal information has been collected."
+  exit 1
+}
+
+# The adult selects family or school; it is never assumed.
+if [[ -z "$INSTALL_MODE" ]]; then
+  if [[ "$ACCEPT_CONSENT_FLAG" -eq 1 ]]; then
+    error "Installation not completed. --accept-consent-notice also needs --mode family or --mode school, so the right notice is shown and recorded. Nothing was installed."
+  fi
+  echo "Who is installing Bede?" >&2
+  echo "  1) A family — a parent or legal guardian, at home" >&2
+  echo "  2) A school — an administrator or teacher, for a campus" >&2
+  printf "Choose 1 or 2: " >&2
+  if ! read -r MODE_ANSWER; then
+    blank
+    error "Installation not completed. No one was present to choose and read the Notice (no input), so consent was not given. Bede has not been configured or started, and no personal information has been collected. Re-run interactively, or pass --accept-consent-notice with --mode and the authorizer flags if you have read the Notice."
+  fi
+  case "$MODE_ANSWER" in
+    1) INSTALL_MODE="family" ;;
+    2) INSTALL_MODE="school" ;;
+    *) not_completed "No installation type was chosen." ;;
+  esac
+fi
+
+if [[ "$INSTALL_MODE" == "school" ]]; then
+  NOTICE_NAME="school_data_notice.txt"; NOTICE_TITLE="School Authorization Notice"
+else
+  NOTICE_NAME="consent_notice.txt"; NOTICE_TITLE="Parental Notice and Consent"
+fi
+CONSENT_NOTICE_FILE="${SETUP_DIR}/homeschool-api/data/${NOTICE_NAME}"
+[[ -f "$CONSENT_NOTICE_FILE" ]] || error "The notice (homeschool-api/data/${NOTICE_NAME}) is missing. Nothing was installed."
+
+echo -e "${BOLD}${NOTICE_TITLE}${RESET}"
 blank
-echo "A self-hosted installation does not transmit a child's personal information to the Provider. Personal information is held on equipment under your control."
-blank
+if [[ "$INSTALL_MODE" == "family" ]]; then
+  echo "A self-hosted installation does not transmit a child's personal information to the Provider. Personal information is held on equipment under your control."
+  blank
+fi
 cat "$CONSENT_NOTICE_FILE"
 blank
+# Hashed when shown; the receipt tool re-checks it against the file again, so
+# a notice edited between display and write is refused.
+CONSENT_ACK_HASH="$(file_sha256 "$CONSENT_NOTICE_FILE")"
+CONSENT_ACK_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
 if [[ "$ACCEPT_CONSENT_FLAG" -eq 1 ]]; then
-  info "Consent given via --accept-consent-notice."
+  info "Notice accepted via --accept-consent-notice."
+  # The flag accepts the notice only. It never supplies who you are.
+  [[ -n "$AUTHORIZER_NAME" ]] || error "Installation not completed. --accept-consent-notice does not attest for you: pass --authorizer-name. Nothing was installed."
+  if [[ "$INSTALL_MODE" == "family" ]]; then
+    [[ "$ATTEST_FLAG" -eq 1 ]] || error "Installation not completed. Pass --attest-parent-guardian to state that you are the parent or legal guardian; it is never assumed. Nothing was installed."
+  else
+    case "$AUTHORIZER_ROLE" in administrator|teacher) ;; *) error "Installation not completed. A school installation needs --authorizer-role administrator or teacher. Nothing was installed." ;; esac
+  fi
 else
-  echo "I am the parent or legal guardian of each child who will use Bede. I have read this Notice, I consent to the collection, use and maintenance of the child's personal information as described in it, and I accept the responsibilities of custodian set out in Section 2." >&2
+  if [[ "$INSTALL_MODE" == "family" ]]; then
+    echo "I am the parent or legal guardian of each child who will use Bede. I have read this Notice, I consent to the collection, use and maintenance of the child's personal information as described in it, and I accept the responsibilities of custodian set out in Section 2." >&2
+  else
+    echo "I am an administrator or teacher of the School. I have read this Notice and I authorize the storage of student information as it describes." >&2
+  fi
   printf "Do you consent? [y/N] " >&2
   if ! read -r CONSENT_ANSWER; then
     blank
-    error "Installation not completed. No one was present to read the Notice (no input), so consent was not given. Bede has not been configured or started, and no personal information has been collected. Re-run interactively, or pass --accept-consent-notice if you have read the Notice and consent."
+    error "Installation not completed. No one was present to read the Notice (no input), so consent was not given. Bede has not been configured or started, and no personal information has been collected. Re-run interactively, or pass --accept-consent-notice with --mode and the authorizer flags if you have read the Notice and consent."
   fi
   case "$CONSENT_ANSWER" in
     y|Y|yes|YES|Yes) ;;
-    *)
-      blank
-      warn "Installation not completed. Consent was not given. Bede has not been configured or started, and no personal information has been collected."
-      exit 1
-      ;;
+    *) not_completed "Consent was not given." ;;
   esac
+  printf "Your full name: " >&2
+  read -r AUTHORIZER_NAME || AUTHORIZER_NAME=""
+  [[ -n "$AUTHORIZER_NAME" ]] || not_completed "A name is required to record who accepted the Notice."
+  if [[ "$INSTALL_MODE" == "family" ]]; then
+    printf "Do you attest that you are the parent or legal guardian of each child who will use Bede? [y/N] " >&2
+    read -r ATTEST_ANSWER || ATTEST_ANSWER=""
+    case "$ATTEST_ANSWER" in
+      y|Y|yes|YES|Yes) ATTEST_FLAG=1 ;;
+      *) not_completed "The parent or legal guardian attestation was not given." ;;
+    esac
+  else
+    printf "Your role (administrator or teacher): " >&2
+    read -r AUTHORIZER_ROLE || AUTHORIZER_ROLE=""
+    case "$AUTHORIZER_ROLE" in administrator|teacher) ;; *) not_completed "A role of administrator or teacher is required." ;; esac
+    echo "Documented delegation: the written record that authorizes you to act for the School." >&2
+    echo "Leave these blank if you do not have it yet; the installation then stays pending and no student data is processed until it is supplied." >&2
+    printf "  Delegation reference (document identifier): " >&2; read -r DELEGATION_REFERENCE || true
+    printf "  Issued by: " >&2; read -r DELEGATION_ISSUED_BY || true
+    printf "  Dated (YYYY-MM-DD): " >&2; read -r DELEGATION_DATED || true
+  fi
 fi
-CONSENT_ACK_HASH="$(consent_notice_hash)"
-CONSENT_ACK_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+command -v python3 >/dev/null 2>&1 || error "Python 3 is required to record the installation receipt. Nothing was installed."
+[[ -f "$RECEIPT_TOOL" ]] || error "scripts/setup_wizard/install_receipt.py is missing. Nothing was installed."
 
 # ── Prerequisites ─────────────────────────────────────────────────────────────
 info "Checking prerequisites..."
@@ -308,6 +409,15 @@ while true; do
   [[ -n "$LICENSE_KEY" ]] && break
   warn "This field is required — Bede will not start in production without a valid license."
 done
+if [[ "$INSTALL_MODE" == "school" && -z "$LOCATION_ID" ]]; then
+  echo "     A campus key belongs to one physical location. Enter that location's ID"
+  echo "     (the BEDE_LOCATION_ID the key was issued for)."
+  while true; do
+    read -rp "     BEDE_LOCATION_ID: " LOCATION_ID
+    [[ -n "$LOCATION_ID" ]] && break
+    warn "This field is required for a school installation."
+  done
+fi
 
 # ── Auto-generate secrets ─────────────────────────────────────────────────────
 blank
@@ -340,6 +450,38 @@ else
   warn "Could not detect LAN IP. Add it to CORS_ORIGINS in .env if needed."
 fi
 
+# ── Installation receipt (before any configuration is written) ───────────────
+# One local, append-only record of who accepted which notice and in what
+# capacity. A family receipt is pending_verification; a school receipt is
+# verified only with a valid signed campus key AND a documented delegation.
+# Either way child-data processing stays off until the API sees `verified`.
+blank
+info "Recording the installation receipt..."
+RECEIPT_ARGS=(create --repo-dir "$PWD" --mode "$INSTALL_MODE" --installer setup.sh
+  --notice-file "$CONSENT_NOTICE_FILE" --shown-notice-sha256 "$CONSENT_ACK_HASH"
+  --accepted-at "$CONSENT_ACK_AT" --accept-notice --authorizer-name "$AUTHORIZER_NAME")
+if [[ "$INSTALL_MODE" == "family" ]]; then
+  RECEIPT_ARGS+=(--attest-parent-guardian)
+else
+  RECEIPT_ARGS+=(--capacity "$AUTHORIZER_ROLE" --delegation-reference "$DELEGATION_REFERENCE"
+    --delegation-issued-by "$DELEGATION_ISSUED_BY" --delegation-dated "$DELEGATION_DATED"
+    --location-id "$LOCATION_ID" --license-key-env BEDE_RECEIPT_LICENSE_KEY)
+fi
+RECEIPT_STATUS=0
+RECEIPT_OUT="$(BEDE_RECEIPT_LICENSE_KEY="$LICENSE_KEY" python3 "$RECEIPT_TOOL" "${RECEIPT_ARGS[@]}")" || RECEIPT_STATUS=$?
+case "$RECEIPT_STATUS" in
+  0) ;;
+  3) error "Installation not completed. The school authorization failed a check ($RECEIPT_OUT). Nothing was configured or started." ;;
+  4) error "Installation not completed. The campus key could not be verified on this computer ($RECEIPT_OUT). Install Python's pycryptodome (pip install pycryptodome), or use the browser setup (setup-gui), which includes the verifier. Nothing was configured or started." ;;
+  *) error "Installation not completed. The installation receipt could not be recorded ($RECEIPT_OUT). Nothing was configured or started." ;;
+esac
+RECEIPT_STATE="$(printf '%s' "$RECEIPT_OUT" | python3 -c 'import json,sys; print(json.load(sys.stdin)["state"])')"
+if [[ "$RECEIPT_STATE" == "verified" ]]; then
+  success "Installation receipt recorded: verified."
+else
+  warn "Installation receipt recorded: $RECEIPT_STATE. Child-data processing stays off until the installation is verified."
+fi
+
 # ── Write .env ────────────────────────────────────────────────────────────────
 blank
 info "Writing .env..."
@@ -357,9 +499,15 @@ CORS_ORIGINS=${CORS_ORIGINS}
 DISABLE_API_DOCS=true
 PRODUCTION=true
 LICENSE_KEY=${LICENSE_KEY}
+EOF
+# The install-time acknowledgement belongs to the family Notice only; a school
+# accepts its own notice, recorded in the receipt and imported by the API.
+if [[ "$INSTALL_MODE" == "family" ]]; then
+  cat >> .env <<EOF
 CONSENT_INSTALL_ACK_HASH=${CONSENT_ACK_HASH}
 CONSENT_INSTALL_ACK_AT=${CONSENT_ACK_AT}
 EOF
+fi
 # Only the chosen provider's credential is written — see docs/PROVIDER_ADAPTERS.md
 # to add another one later for automatic failover.
 case "$BEDE_ADAPTER_ORDER" in

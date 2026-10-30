@@ -113,6 +113,60 @@ recorded locally. With `LICENSE_SERVER_URL` unset the install works offline and
 the local record stands alone; the activation cap is the permitted-installation
 limit.
 
+## Installer implementation (what writes the receipt)
+
+`scripts/setup_wizard/install_receipt.py` is the one implementation. `setup.sh`
+runs it as a CLI (`create`, `verify`); the browser wizard imports it. Every
+launcher (`setup-gui.*`, the Windows and Unix installers, the macOS app) goes
+through one of those two.
+
+**File format.** `install/installation_receipt.json` is JSON Lines: one record
+per line, each line exactly `canonical_bytes(record) + "\n"`, UTF-8, append-only.
+The first line is the first record; a later record carries the previous line's
+`receipt_sha256` in `prior_receipt_sha256` and supersedes it; the last line
+governs. A re-installation appends a new record rather than editing the old.
+Mode 0644, in `install/` at the repo root (git-ignored). `delegation` and
+`campus` are JSON `null` for a family receipt. The file holds the authorizer's
+name and capacity but never an identity document, a licence key (only
+`license_key_sha256`) or a credential.
+
+**Canonicalization (the API's validator must match this exactly).**
+
+```
+receipt_sha256 = sha256( canonical_bytes(record minus "receipt_sha256") ).hexdigest()
+canonical_bytes(x) = json.dumps(x, sort_keys=True, separators=(",", ":"),
+                                ensure_ascii=False).encode("utf-8")
+```
+
+Keys sorted at every level, no whitespace, non-ASCII written as itself (not
+`\uXXXX`), UTF-8; lowercase hex. `notice.sha256` is the SHA-256 of the exact
+bytes of the notice file shown (`consent_notice.txt` or `school_data_notice.txt`),
+`notice.version` its `Notice version:` line. `install_receipt.validate_record` /
+`validate_chain` are the reference checks (schema, hash, notice hash, chain, and
+"verified requires its evidence").
+
+**What the installer decides.**
+
+| Mode | Result |
+| --- | --- |
+| Declined / not accepted | No receipt, no `.env`, non-zero exit. |
+| Family | Always `pending_verification` (name + parent/guardian attestation recorded as an attestation; `verification` is null). The attestation and a name are required and never assumed, including with `--accept-consent-notice`. |
+| School, all of: signed campus key valid (Ed25519 via `core/licensing.py` `verify_license`, tier `campus_location`, unexpired, signed `location_id` equal to `BEDE_LOCATION_ID`), authorizer name, role administrator or teacher, delegation reference + issued-by + a past date, notice accepted | `verified`, `verification.method = signed_campus_key_and_documented_delegation`. |
+| School, valid key but delegation or role missing/malformed | `pending_verification`. A campus key alone never yields `verified`. |
+| School, key fails (signature, tier, expiry, location) or delegation dated in the future | `invalid`: reported, not written, install stops with no `.env`. |
+| School, verifier cannot run (no pycryptodome) | Install stops (fail closed); an unsigned decode is never trusted. |
+
+The notice is hashed from the bytes shown; the receipt tool re-hashes the file
+again at write time and refuses a notice that changed in between. `.env` gets
+`CONSENT_INSTALL_ACK_*` for family installs only. The wizard image installs
+pycryptodome and copies `core/licensing.py`, both notices and the receipt module.
+Optional `BEDE_INSTALLER_NAME` (`windows`/`unix`, set by those launchers) fills
+`installer.name`; otherwise `setup.sh` or `wizard`.
+
+Not done by the installers (API side): the read-only mount of `install/` into the
+api container, the startup import into `pilot_campus_data_authorizations`, and
+the license-server registration / inventory row.
+
 ## Out of scope
 
 A general identity platform; collecting identity documents; changing the

@@ -259,15 +259,23 @@ jobs:
             sleep 0.5
           done
           test "$ready" = 1 || { echo "Wizard not ready within 20 seconds" >&2; exit 1; }
-          # Before consent the wizard shows the notice, not the setup form.
-          grep -Fq "Parental Notice and Consent" "$RUNNER_TEMP/wizard-form.html"
+          # Before acceptance the wizard asks who is installing, then shows the
+          # applicable notice: never the setup form.
+          grep -Fq "Who is installing Bede?" "$RUNNER_TEMP/wizard-form.html"
           ! grep -Fq 'name="license_key"' "$RUNNER_TEMP/wizard-form.html"
+          curl -fsS --max-time 10 "http://127.0.0.1:8765/?mode=family" -o "$RUNNER_TEMP/wizard-notice.html"
+          grep -Fq "Parental Notice and Consent" "$RUNNER_TEMP/wizard-notice.html"
+          ! grep -Fq 'name="license_key"' "$RUNNER_TEMP/wizard-notice.html"
           # The wizard intentionally terminates after saving. A TCP reset can
           # race with the HTTP reply, so do not use curl's exit alone as success.
           # Verify the saved configuration and clean container exit instead.
-          # Install-time consent comes first; accept the notice explicitly.
+          # Acceptance comes first and is explicit: the notice, who is accepting
+          # it, and the parent/legal-guardian attestation (never implied).
           curl -fsS --max-time 10 -X POST http://127.0.0.1:8765/consent \
-            --data-urlencode "agree=yes" -o /dev/null
+            --data-urlencode "mode=family" \
+            --data-urlencode "agree=yes" \
+            --data-urlencode "authorizer_name=CI Parent" \
+            --data-urlencode "attest_parent_guardian=yes" -o /dev/null
           curl --silent --show-error --max-time 10 -X POST http://127.0.0.1:8765/submit \
             --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
             --data-urlencode "db_choice=local" \
@@ -289,6 +297,23 @@ jobs:
           # The acknowledgement hash is computed from the real notice file.
           grep -Fxq "CONSENT_INSTALL_ACK_HASH=$(sha256sum homeschool-api/data/consent_notice.txt | awk '{print $1}')" .env
           grep -Eq '^CONSENT_INSTALL_ACK_AT=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z$' .env
+          # The installation receipt is a first record in pending_verification
+          # (a family attestation is never verified consent), carries the real
+          # notice's hash, and its own hash reproduces under the documented rule.
+          python3 -c '
+          import hashlib, json
+          lines = open("install/installation_receipt.json", encoding="utf-8").read().splitlines()
+          assert len(lines) == 1, lines
+          rec = json.loads(lines[0])
+          assert rec["schema"] == "bede.installation_receipt.v1"
+          assert rec["state"] == "pending_verification" and rec["mode"] == "family"
+          assert rec["authorizer"]["name"] == "CI Parent"
+          notice = open("homeschool-api/data/consent_notice.txt", "rb").read()
+          assert rec["notice"]["sha256"] == hashlib.sha256(notice).hexdigest()
+          body = {k: v for k, v in rec.items() if k != "receipt_sha256"}
+          canon = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+          assert rec["receipt_sha256"] == hashlib.sha256(canon).hexdigest()
+          '
 
           # wizard.py signals success by exiting its own process — confirm
           # the container actually stops on its own within a few seconds,

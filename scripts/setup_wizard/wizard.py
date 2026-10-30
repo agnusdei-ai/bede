@@ -8,9 +8,15 @@ parent's browser to it, waits for it to exit, then runs the actual
 `docker compose up -d --build` on the host — this container's only job is to
 collect answers and write a correct .env file to the mounted repo directory.
 
-Deliberately pure standard library — no Flask/FastAPI — so the Docker image
-stays tiny and there's nothing to explain about extra dependencies for what
-is, functionally, one short-lived form.
+Deliberately a small standard-library web form — no Flask/FastAPI — so the
+Docker image stays tiny. The one exception is install_receipt.py's school mode,
+which verifies a campus key's Ed25519 signature with the API's own
+core/licensing.py (pycryptodome, installed in the image).
+
+Before anything else the adult chooses family or school, reads the applicable
+notice and states who they are (docs/INSTALLATION_AUTHORIZATION_FLOW.md); the
+result is install/installation_receipt.json (see install_receipt.py) written
+before .env.
 """
 import html
 import base64
@@ -25,7 +31,13 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
+
+# install_receipt.py sits beside this file (/app/ in the image). Loading this
+# module by path (importlib, as packaging/tests does) does not put that
+# directory on sys.path, so add it explicitly.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import install_receipt  # noqa: E402
 
 # Inside the real Docker image (see Dockerfile in this directory), the
 # Dockerfile COPYs core/pin_policy.py to /app/homeschool-api/core/. For
@@ -41,35 +53,48 @@ from core.pin_policy import (  # noqa: E402
     suggest_pin,
 )
 
-# The parental-consent notice shown before anything else. The single source of
-# truth is homeschool-api/data/consent_notice.txt: inside the image the
-# Dockerfile copies it to /app/consent_notice.txt, and for tests running
-# against this file directly it is read from the repo. The API treats the
-# acknowledgement written to .env as valid only when its hash equals the hash
-# of that file's exact bytes, so the hash is always computed from the bytes
-# actually shown, never typed in.
-_CONSENT_NOTICE_CANDIDATES = (
-    Path("/app/consent_notice.txt"),
-    Path(__file__).resolve().parent.parent.parent / "homeschool-api" / "data" / "consent_notice.txt",
-)
+# The notices shown before anything else. The single source of truth is
+# homeschool-api/data/{consent_notice,school_data_notice}.txt: inside the image
+# the Dockerfile copies them to /app/, and for tests running against this file
+# directly they are read from the repo. The API treats an acknowledgement as
+# valid only when its hash equals the hash of that file's exact bytes, so the
+# hash is always computed from the bytes actually shown, never typed in.
+_NOTICE_NAMES = {"family": "consent_notice.txt", "school": "school_data_notice.txt"}
 
 
-def consent_notice_bytes() -> bytes:
-    for candidate in _CONSENT_NOTICE_CANDIDATES:
+def _notice_candidates(mode: str):
+    name = _NOTICE_NAMES[mode]
+    return (
+        Path("/app") / name,
+        Path(__file__).resolve().parent.parent.parent / "homeschool-api" / "data" / name,
+    )
+
+
+_CONSENT_NOTICE_CANDIDATES = _notice_candidates("family")
+
+
+def notice_bytes(mode: str = "family") -> bytes:
+    for candidate in _notice_candidates(mode):
         if candidate.is_file():
             return candidate.read_bytes()
     raise FileNotFoundError(
-        "consent_notice.txt is missing from the setup wizard image; "
+        f"{_NOTICE_NAMES[mode]} is missing from the setup wizard image; "
         "refusing to continue without the notice"
     )
+
+
+def consent_notice_bytes() -> bytes:
+    return notice_bytes("family")
 
 
 def consent_notice_hash() -> str:
     return hashlib.sha256(consent_notice_bytes()).hexdigest()
 
 
-# Recorded only by an explicit, ticked acceptance. Nothing is written to .env
-# and /submit is refused until this is set.
+# Recorded only by an explicit, ticked acceptance plus the adult's name and
+# capacity. Nothing is written to .env and /submit is refused until this is
+# set. Keys: mode, hash and notice (the exact bytes shown), at, name,
+# attested, capacity, delegation.
 _consent: dict = {}
 
 # Generated once per wizard process, so a parent sees a stable suggestion
@@ -89,6 +114,18 @@ REPO_DIR = "/repo"
 ENV_PATH = os.path.join(REPO_DIR, ".env")
 PORT = int(os.environ.get("WIZARD_PORT", "8765"))
 LAN_IP = os.environ.get("HOST_LAN_IP", "").strip()
+# Which launcher started this wizard, for the receipt (the Windows and Unix
+# launchers set it; anything else is just "wizard").
+_requested_installer = os.environ.get("BEDE_INSTALLER_NAME", "").strip()
+INSTALLER_NAME = (
+    _requested_installer if _requested_installer in install_receipt.INSTALLER_NAMES else "wizard"
+)
+# An explicitly set BEDE_INSTALL_CONTEXT fixes the installation type (campus
+# means school); when unset the adult chooses on the first page.
+def locked_mode():
+    if "BEDE_INSTALL_CONTEXT" not in os.environ:
+        return None
+    return "school" if DEPLOYMENT_CONTEXT == "campus" else "family"
 
 # Written by packaging/windows/Setup-Bede.ps1 BEFORE this container starts,
 # when the family chose "run AI on this computer" at its own prompt and the
@@ -470,6 +507,10 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
         body.append('<label>School or campus code</label>')
         body.append('<div class="hint">This code identifies your approved school or campus and must match your Bede pilot activation.</div>')
         body.append(f'<input type="text" name="location_id" readonly value="{html.escape(v.get("location_id", ""))}">')
+    elif _consent.get("mode") == "school":
+        body.append('<label>School or campus code</label>')
+        body.append('<div class="hint">The location ID your campus key was issued for. It must match the signed key.</div>')
+        body.append(f'<input type="text" name="location_id" value="{html.escape(v.get("location_id", ""))}">')
 
     body.append('<label>Bede activation code</label>')
     body.append('<div class="hint">Enter the activation code provided for your Bede pilot. If you do not have one yet, choose Cancel setup and return when it arrives. The code can be verified without an internet connection.</div>')
@@ -517,10 +558,17 @@ def render_success(fields: dict | None = None) -> str:
             "open it on this computer at:"
         )
         detail = "<p>Access from other computers is turned off.</p>"
+    pending = (
+        "<p><strong>Your installation is recorded as pending verification.</strong> "
+        "Bede will start, but it will not process any child's or student's personal "
+        "information until the installation is verified.</p>"
+        if _consent.get("receipt_state") == "pending_verification" else ""
+    )
     body += f"""
     <div class="success">
       <div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div><h1>Starting Bede</h1></div></div>
       <p>Your settings have been saved. The installer is starting Bede and checking the secure connection.</p>
+      {pending}
       <p><strong>{access_message}</strong></p>
       <p><strong>{access_url}</strong> (opens after the native installer verifies certificate trust)</p>
       {detail}
@@ -589,25 +637,115 @@ CONSENT_DECLINED = (
 )
 
 
-def render_consent(error: str = "") -> str:
-    notice = html.escape(consent_notice_bytes().decode("utf-8"))
-    err = f'<div class="error">{html.escape(error)}</div>' if error else ""
+SCHOOL_HEADING = "School Authorization Notice"
+SCHOOL_CHECKBOX = (
+    "I am an administrator or teacher of the School. I have read this Notice and "
+    "I authorize the storage of student information as it describes."
+)
+ATTEST_CHECKBOX = (
+    "I attest that I am the parent or legal guardian of each child who will use Bede."
+)
+_MODE_CHOICE_HEADING = "Who is installing Bede?"
+
+
+def render_mode_choice() -> str:
     return (
         _PAGE_HEAD
         + '<div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div>'
-          f"<h1>{CONSENT_HEADING}</h1></div></div>"
-        + err
-        + f"<p><strong>{html.escape(CONSENT_ASSURANCE)}</strong></p>"
-        + '<pre id="consent-notice" style="white-space:pre-wrap;background:#f6f4ee;'
-          f'padding:14px;border-radius:8px;max-height:340px;overflow:auto">{notice}</pre>'
-        + '<form method="POST" action="/consent">'
-          '<label><input type="checkbox" name="agree" value="yes"> '
-          f"{html.escape(CONSENT_CHECKBOX)}</label>"
-          '<button type="submit">I Consent and Continue</button></form>'
-        + '<form method="POST" action="/decline">'
-          '<button type="submit">I Do Not Consent</button></form>'
+          f"<h1>{_MODE_CHOICE_HEADING}</h1></div></div>"
+        + "<p>Choose the one that describes you. You will read the notice that applies "
+          "and say who you are before anything is set up.</p>"
+        + '<form method="GET" action="/">'
+          '<button type="submit" name="mode" value="family">A family: I am a parent or '
+          "legal guardian, installing at home</button>"
+          '<button type="submit" name="mode" value="school">A school: I am an '
+          "administrator or teacher, installing for a campus</button></form>"
         + _PAGE_TAIL
     )
+
+
+def render_consent(error: str = "", mode: str = "family", values: dict | None = None) -> str:
+    v = values or {}
+    notice = html.escape(notice_bytes(mode).decode("utf-8"))
+    err = f'<div class="error">{html.escape(error)}</div>' if error else ""
+    heading = SCHOOL_HEADING if mode == "school" else CONSENT_HEADING
+    esc = lambda key: html.escape(v.get(key, ""))  # noqa: E731
+    parts = [
+        _PAGE_HEAD,
+        '<div class="bede-brand"><img src="/bede-icon.png" alt="Bede"><div>'
+        f"<h1>{heading}</h1></div></div>",
+        err,
+    ]
+    if mode == "family":
+        parts.append(f"<p><strong>{html.escape(CONSENT_ASSURANCE)}</strong></p>")
+    parts.append(
+        '<pre id="consent-notice" style="white-space:pre-wrap;background:#f6f4ee;'
+        f'padding:14px;border-radius:8px;max-height:340px;overflow:auto">{notice}</pre>'
+    )
+    parts.append('<form method="POST" action="/consent">')
+    parts.append(f'<input type="hidden" name="mode" value="{mode}">')
+    parts.append('<label>Your full name</label>')
+    parts.append(f'<input type="text" name="authorizer_name" value="{esc("authorizer_name")}" maxlength="200">')
+    if mode == "school":
+        role = v.get("authorizer_role", "")
+        parts.append('<label>Your role at the School</label>')
+        parts.append(
+            '<select name="authorizer_role">'
+            f'<option value="">Choose…</option>'
+            f'<option value="administrator"{" selected" if role == "administrator" else ""}>Administrator</option>'
+            f'<option value="teacher"{" selected" if role == "teacher" else ""}>Teacher</option></select>'
+        )
+        parts.append('<label>Documented delegation <span class="hint">(the written record that '
+                     "authorizes you to act for the School; leave blank if you do not have it "
+                     "yet — the installation then stays pending and no student data is processed "
+                     "until it is supplied)</span></label>")
+        parts.append(f'<input type="text" name="delegation_reference" placeholder="Document identifier" value="{esc("delegation_reference")}" maxlength="200">')
+        parts.append(f'<input type="text" name="delegation_issued_by" placeholder="Issued by" value="{esc("delegation_issued_by")}" maxlength="200">')
+        parts.append(f'<input type="text" name="delegation_dated" placeholder="Dated (YYYY-MM-DD)" value="{esc("delegation_dated")}" maxlength="10">')
+        checkbox = SCHOOL_CHECKBOX
+    else:
+        parts.append(
+            '<label><input type="checkbox" name="attest_parent_guardian" value="yes"> '
+            f"{html.escape(ATTEST_CHECKBOX)}</label>"
+        )
+        checkbox = CONSENT_CHECKBOX
+    parts.append(
+        '<label><input type="checkbox" name="agree" value="yes"> '
+        f"{html.escape(checkbox)}</label>"
+        '<button type="submit">I Consent and Continue</button></form>'
+    )
+    parts.append(
+        '<form method="POST" action="/decline">'
+        '<button type="submit">I Do Not Consent</button></form>'
+    )
+    parts.append(_PAGE_TAIL)
+    return "".join(parts)
+
+
+def render_first_page(error: str = "", values: dict | None = None) -> str:
+    """The mode choice, or straight to the notice when the installer has
+    already fixed the installation type (BEDE_INSTALL_CONTEXT)."""
+    mode = locked_mode() or (values or {}).get("mode")
+    if mode in install_receipt.MODES:
+        return render_consent(error, mode, values)
+    return render_mode_choice()
+
+
+def consent_problem(fields: dict) -> str:
+    """'' when the acceptance form is complete, else what is missing."""
+    mode = fields.get("mode", "")
+    if mode not in install_receipt.MODES or (locked_mode() and mode != locked_mode()):
+        return "Please choose whether this is a family or a school installation."
+    if fields.get("agree") != "yes":
+        return "To continue, tick the consent box, or select “I Do Not Consent”."
+    name = fields.get("authorizer_name", "").strip()
+    if not name or len(name) > 200:
+        return "Please enter your full name so the Notice is recorded as accepted by you."
+    if mode == "family" and fields.get("attest_parent_guardian") != "yes":
+        return "Please tick the box attesting that you are the parent or legal guardian."
+    if mode == "school" and fields.get("authorizer_role") not in install_receipt.SCHOOL_CAPACITIES:
+        return "Please choose your role at the School (administrator or teacher)."
+    return ""
 
 
 def render_declined() -> str:
@@ -621,7 +759,10 @@ def render_declined() -> str:
 
 
 def consent_env_lines() -> str:
-    if not _consent:
+    # The install-time acknowledgement belongs to the family Notice. A school
+    # accepts its own notice, which lives in the receipt (and is imported by
+    # the API), so it must not also look like a family's custodian consent.
+    if not _consent or _consent.get("mode") != "family":
         return ""
     return (
         f"CONSENT_INSTALL_ACK_HASH={_consent['hash']}\n"
@@ -788,6 +929,57 @@ def validate(fields: dict) -> str:
     return ""
 
 
+_FINDING_TEXT = {
+    "campus_key_expired": "The campus key has expired. Request a renewed key.",
+    "campus_key_wrong_tier": "That key is not a campus key. Enter the campus key issued for your school.",
+    "campus_key_location_mismatch": "The campus key was issued for a different location than the campus ID entered.",
+    "delegation_dated_in_the_future": "The documented delegation is dated in the future. Check its date.",
+}
+
+
+def record_installation_receipt(fields: dict):
+    """Write install/installation_receipt.json BEFORE .env. Returns
+    (error_message, http_status); ('', 200) when the install may proceed.
+
+    An ``invalid`` receipt (a failed signature, location or date check) is
+    reported and nothing is written; ``pending_verification`` proceeds, with
+    child-data processing left off until the API sees a verified receipt."""
+    mode = _consent["mode"]
+    if locked_mode() and mode != locked_mode():
+        return "This installation was started as a different type; restart setup.", 400
+    try:
+        record, findings = install_receipt.create_and_write(
+            repo_dir=REPO_DIR,
+            mode=mode,
+            # The CURRENT file, checked against the hash of the bytes the adult
+            # was shown: a notice swapped in between is refused.
+            notice_bytes=notice_bytes(mode),
+            shown_notice_sha256=_consent["hash"],
+            accepted=True,
+            accepted_at=_consent["at"],
+            authorizer_name=_consent["name"],
+            attested=_consent["attested"],
+            capacity=_consent["capacity"],
+            delegation=_consent["delegation"],
+            license_key=fields.get("license_key", ""),
+            location_id=fields.get("location_id", ""),
+            installer_name=INSTALLER_NAME,
+        )
+    except install_receipt.VerifierUnavailable as exc:
+        return str(exc), 500
+    except (install_receipt.ReceiptError, OSError) as exc:
+        return f"The installation could not be recorded: {exc}", 400
+    if record["state"] == "invalid":
+        detail = " ".join(_FINDING_TEXT.get(f, "") for f in findings).strip()
+        return (
+            "The school authorization could not be verified"
+            + (f": {detail}" if detail else " (see your campus key and delegation).")
+            + " Nothing was configured."
+        ), 400
+    _consent["receipt_state"] = record["state"]
+    return "", 200
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # keep the parent's terminal quiet — errors still show via 500s
@@ -836,12 +1028,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/audio/"):
             self._serve_audio(self.path[len("/audio/"):])
             return
-        if self.path != "/":
+        route = urlsplit(self.path)
+        if route.path != "/":
             self.send_response(404)
             self.end_headers()
             return
         if not _consent:
-            self._send_html(render_consent())
+            chosen = parse_qs(route.query).get("mode", [""])[0]
+            self._send_html(render_first_page(values={"mode": chosen}))
             return
         banner = (
             "A configuration already exists. Submitting this form will "
@@ -875,16 +1069,26 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/consent":
             length = int(self.headers.get("Content-Length", 0))
             parsed = parse_qs(self.rfile.read(length).decode("utf-8"))
-            if parsed.get("agree", [""])[0] != "yes":
-                self._send_html(
-                    render_consent("To continue, tick the consent box, or select "
-                                   "\u201cI Do Not Consent\u201d."),
-                    status=400,
-                )
+            form = {k: v[0] for k, v in parsed.items()}
+            problem = consent_problem(form)
+            if problem:
+                self._send_html(render_first_page(problem, form), status=400)
                 return
+            mode = form["mode"]
+            shown = notice_bytes(mode)
             _consent.update(
-                hash=consent_notice_hash(),
+                mode=mode,
+                notice=shown,
+                hash=hashlib.sha256(shown).hexdigest(),
                 at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                name=form["authorizer_name"].strip(),
+                attested=form.get("attest_parent_guardian") == "yes",
+                capacity=form.get("authorizer_role", ""),
+                delegation={
+                    "reference": form.get("delegation_reference", ""),
+                    "issued_by": form.get("delegation_issued_by", ""),
+                    "dated": form.get("delegation_dated", ""),
+                },
             )
             self.send_response(303)
             self.send_header("Location", "/")
@@ -897,7 +1101,7 @@ class Handler(BaseHTTPRequestHandler):
         if not _consent:
             # Consent is a precondition for every write. Refuse before even
             # reading the body, so a skipped consent step can never produce .env.
-            self._send_html(render_consent("Please read and accept the notice first."), status=403)
+            self._send_html(render_first_page("Please read and accept the notice first."), status=403)
             return
         length = int(self.headers.get("Content-Length", 0))
         raw = self.rfile.read(length).decode("utf-8")
@@ -909,6 +1113,11 @@ class Handler(BaseHTTPRequestHandler):
         error = validate(fields)
         if error:
             self._send_html(render_form(error=error, values=fields), status=400)
+            return
+
+        receipt_error, receipt_status = record_installation_receipt(fields)
+        if receipt_error:
+            self._send_html(render_form(error=receipt_error, values=fields), status=receipt_status)
             return
 
         if os.path.exists(ENV_PATH):
@@ -935,7 +1144,8 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> int:
     _cancel_event.clear()
     _consent.clear()
-    consent_notice_bytes()  # fail at start, not mid-install, if the notice is absent
+    for mode in install_receipt.MODES:  # fail at start, not mid-install, if a notice is absent
+        notice_bytes(mode)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()

@@ -442,6 +442,17 @@ class Settings(BaseSettings):
     # factor right after the password check.
     mfa_pending_token_expire_minutes: int = 5
 
+    # COPPA readiness (docs/COPPA_READINESS_CHECKLIST.md, C-22 and C-23).
+    # Hosted-deployment profile. Default off: a self-hosted household keeps
+    # today's sign-in exactly. When on:
+    #   - a parent password alone never opens a session unless a second
+    #     factor is enrolled (routers/auth.py refuses, and hands back an
+    #     enrollment-only token so the parent can enroll), and
+    #   - a child's correct PIN is accepted only from a device a parent has
+    #     approved (routers/auth.py's ChildDevicePairing gate).
+    # Enabling it is an operator decision; see docs/COPPA_OPERATOR_PROFILE.md.
+    hosted_profile: bool = False
+
     # ── Database ──────────────────────────────────────────────────────────────
     # asyncpg-compatible PostgreSQL URL.
     # Neon example: postgresql+asyncpg://user:pass@host/db?ssl=require

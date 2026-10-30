@@ -67,6 +67,13 @@ irreversible.
   enrollment, unrelated to any child; manage these from the Parent Setup
   page's security section (or `DELETE /mfa/webauthn/{id}` / `DELETE
   /mfa/totp`) instead.
+- `child_device_pairings` (hosted deployments only, `HOSTED_PROFILE=true`) —
+  one row per tablet that has tried to sign a child in: its device id, its
+  user agent, its pairing state and a SHA-256 digest of its token. It holds
+  no student name and no child text, and it is device-level rather than
+  student-level, so deleting a student does not remove it. A parent removes a
+  tablet with `POST /auth/child-devices/{device_id}/revoke`. See
+  `docs/COPPA_OPERATOR_PROFILE.md` §3.
 
 **Backups:** deleting a student destroys the encryption key that their data
 was stored under, not just the rows. Every copy of that child's data

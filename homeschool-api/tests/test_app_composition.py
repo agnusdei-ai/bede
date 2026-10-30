@@ -168,12 +168,18 @@ GUARDS = {
     ('GET', '/mfa/status'): 'require_parent',
     ('DELETE', '/mfa/totp'): 'require_elevated_parent',
     ('POST', '/mfa/totp/authenticate/verify'): 'require_mfa_pending',
-    ('POST', '/mfa/totp/confirm'): 'require_elevated_parent',
-    ('POST', '/mfa/totp/enroll'): 'require_elevated_parent',
+    ('POST', '/mfa/totp/confirm'): 'require_enrollment_or_elevated_parent',
+    ('POST', '/mfa/totp/enroll'): 'require_enrollment_or_elevated_parent',
     ('POST', '/mfa/webauthn/authenticate/options'): 'require_mfa_pending',
     ('POST', '/mfa/webauthn/authenticate/verify'): 'require_mfa_pending',
-    ('POST', '/mfa/webauthn/register/options'): 'require_elevated_parent',
-    ('POST', '/mfa/webauthn/register/verify'): 'require_elevated_parent',
+    ('POST', '/mfa/webauthn/register/options'): 'require_enrollment_or_elevated_parent',
+    ('POST', '/mfa/webauthn/register/verify'): 'require_enrollment_or_elevated_parent',
+    # C-22/C-23 (hosted profile): the enrollment routes also accept the
+    # enrollment-only token issued on a refused password sign-in, while no
+    # factor is enrolled. Every other route keeps its guard.
+    ('GET', '/auth/child-devices'): 'require_parent',
+    ('POST', '/auth/child-devices/{device_id}/approve'): 'require_parent',
+    ('POST', '/auth/child-devices/{device_id}/revoke'): 'require_parent',
     ('DELETE', '/mfa/webauthn/{key_id}'): 'require_elevated_parent',
     ('GET', '/narration/{student_name}/assessments'): 'require_parent',
     ('GET', '/narration/{student_name}/behavior-check'): 'require_parent',

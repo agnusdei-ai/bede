@@ -1,17 +1,21 @@
 import asyncio
-from datetime import timedelta
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import hmac
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError, BaseModel, Field
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
-from core.database import get_db
+from core.database import ChildDevicePairing, get_db
 from core.demo_code_session import (
     end_session as end_code_session,
     generate_code,
@@ -269,6 +273,9 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             detail="This device's access was revoked — please contact the parent",
         )
 
+    # Set only by the hosted child-device gate below; None everywhere else.
+    child_device_token: Optional[str] = None
+
     if req.role == "parent":
         locked_until = await parent_lockout.check_locked(db)
         if locked_until is not None:
@@ -299,6 +306,34 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # be used to complete that second factor (see core/deps.py,
         # routers/mfa.py), not a real parent session.
         methods = await mfa_service.enrolled_methods(db)
+        if not methods and settings.hosted_profile:
+            # COPPA readiness C-22. A hosted deployment does not open a
+            # parent session on a password alone. The refusal carries a
+            # short-lived enrollment-only token ("parent_pending" with
+            # enroll=True): core/deps.py grants it nothing but the MFA
+            # enrollment routes (routers/mfa.py's require_enrollment_or_
+            # elevated_parent), so a parent can comply with the refusal
+            # without ever holding a session that reads family data.
+            enrollment_token = create_access_token(
+                {"sub": "parent", "role": "parent_pending", "locale": locale, "cv": cv, "enroll": True},
+                fingerprint=fp,
+                expires_delta=timedelta(minutes=settings.mfa_pending_token_expire_minutes),
+            )
+            log_event_nowait(
+                AuditEvent.AUTH_FAILURE, role="parent", success=False,
+                detail="password ok, refused: no second factor enrolled (hosted profile)", **ctx,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "code": "mfa_enrollment_required",
+                    "message": (
+                        "This deployment requires a second sign-in factor. Set up a "
+                        "security key or an authenticator app, then sign in again."
+                    ),
+                    "enrollment_token": enrollment_token,
+                },
+            )
         if methods:
             # locale (and, likewise, device_id) carries through the pending
             # token so the FINAL token (issued by routers/mfa.py once the
@@ -338,6 +373,11 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
         child_throttle.record_success()
         _reject_if_device_revoked("child")
+        if settings.hosted_profile:
+            # COPPA readiness C-23. Runs only after the PIN has verified, so
+            # a caller without the PIN cannot use it to probe or to fill the
+            # pending list (see _gate_child_device).
+            child_device_token = await _gate_child_device(db, req, ctx)
         expires = timedelta(minutes=settings.child_token_expire_minutes)
     elif req.role == "demo_code":
         # No static secret to compare against — the credential is a code
@@ -394,7 +434,158 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         expires_delta=expires,
     )
     log_event_nowait(AuditEvent.AUTH_SUCCESS, role=req.role, success=True, **ctx)
-    return TokenResponse(access_token=token, role=req.role)
+    return TokenResponse(access_token=token, role=req.role, device_token=child_device_token)
+
+
+def _device_token_digest(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+async def _gate_child_device(db: AsyncSession, req: LoginRequest, ctx: dict) -> Optional[str]:
+    """COPPA readiness C-23: child sign-in on a hosted deployment is accepted
+    only from a device a parent has approved.
+
+    Called after the PIN has verified (and after the throttle has recorded
+    success), so an unauthenticated caller learns nothing and creates
+    nothing. States, stored in ChildDevicePairing:
+
+      (no row)   -> create `pending`, refuse (the tablet now appears in the
+                    parent's list for approval)
+      pending    -> refuse until a parent approves
+      approved   -> issue a fresh per-device token ONCE, store only its
+                    digest, move to `paired`, return the token for the
+                    device to keep
+      paired     -> require the token; refuse without it or with a mismatch
+      revoked    -> refuse, token or not
+
+    Returns the newly issued token on the single `approved` -> `paired`
+    transition, otherwise None.
+    """
+    refusal = "This device is waiting for parent approval. Ask a parent to approve this tablet."
+    if not req.device_id:
+        log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                         detail="device pairing: no device id", **ctx)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sign-in on this deployment requires a registered device. Ask a parent to approve this tablet.",
+        )
+
+    row = await db.get(ChildDevicePairing, req.device_id)
+    if row is None:
+        db.add(ChildDevicePairing(
+            device_id=req.device_id,
+            state="pending",
+            user_agent=(ctx.get("user_agent") or "")[:256],
+        ))
+        try:
+            await db.commit()
+        except IntegrityError:
+            # A concurrent first attempt from the same tablet created the row
+            # already; that is still "pending", which is what we report.
+            await db.rollback()
+        log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                         detail="device pairing: new device awaiting approval", **ctx)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=refusal)
+
+    if row.state == "pending":
+        log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                         detail="device pairing: still awaiting approval", **ctx)
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=refusal)
+
+    if row.state == "revoked":
+        log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                         detail="device pairing: device revoked", **ctx)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This device was removed by a parent — please contact the parent.",
+        )
+
+    if row.state == "approved":
+        token = secrets.token_urlsafe(32)
+        # Conditional on state == approved, so two concurrent first sign-ins
+        # cannot both receive a token: exactly one UPDATE matches.
+        result = await db.execute(
+            update(ChildDevicePairing)
+            .where(ChildDevicePairing.device_id == req.device_id, ChildDevicePairing.state == "approved")
+            .values(state="paired", token_hash=_device_token_digest(token),
+                    decided_at=datetime.now(timezone.utc))
+        )
+        await db.commit()
+        if result.rowcount != 1:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please try signing in again.")
+        log_event_nowait(AuditEvent.AUTH_SUCCESS, role="child", success=True,
+                         detail="device paired: token issued once", **ctx)
+        return token
+
+    # state == "paired"
+    if not req.device_token or not hmac.compare_digest(
+        _device_token_digest(req.device_token), row.token_hash or "",
+    ):
+        log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                         detail="device pairing: token missing or mismatched", **ctx)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This device is not paired. Ask a parent to approve it again.",
+        )
+    return None
+
+
+@router.get("/child-devices")
+async def list_child_devices(db: AsyncSession = Depends(get_db), _: dict = Depends(require_parent)):
+    """Parent view of tablets that have tried to sign a child in on a hosted
+    deployment. Never returns a token or a token digest."""
+    rows = (await db.execute(select(ChildDevicePairing).order_by(ChildDevicePairing.requested_at))).scalars().all()
+    return {
+        "devices": [
+            {
+                "device_id": r.device_id,
+                "state": r.state,
+                "user_agent": r.user_agent,
+                "requested_at": r.requested_at.isoformat() if r.requested_at else None,
+                "decided_at": r.decided_at.isoformat() if r.decided_at else None,
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.post("/child-devices/{device_id}/approve")
+async def approve_child_device(
+    device_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    row = await db.get(ChildDevicePairing, device_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    if row.state != "pending":
+        raise HTTPException(status_code=409, detail="This device is not waiting for approval")
+    row.state = "approved"
+    row.decided_at = datetime.now(timezone.utc)
+    await db.commit()
+    log_event_nowait(AuditEvent.AUTH_SUCCESS, role="parent", success=True,
+                     detail="child device approved", **audit_from_request(request))
+    return {"approved": device_id}
+
+
+@router.post("/child-devices/{device_id}/revoke")
+async def revoke_child_device(
+    device_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    row = await db.get(ChildDevicePairing, device_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    row.state = "revoked"
+    row.token_hash = None
+    row.decided_at = datetime.now(timezone.utc)
+    await db.commit()
+    log_event_nowait(AuditEvent.DEVICE_REVOKED, role="parent", success=True,
+                     detail="child device pairing revoked", **audit_from_request(request))
+    return {"revoked": device_id}
 
 
 @router.get("/validate")

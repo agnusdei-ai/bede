@@ -574,6 +574,15 @@ class Settings(BaseSettings):
     # often. See docs/diagnostic/EPHEMERAL_DIAGNOSTIC_SPEC.md.
     retain_mastery_profiles: bool = True
 
+    # ── Install-time custodian acknowledgement (core/consent.py) ──────────────
+    # Written by the installers when the person installing Bede reads the
+    # family notice and confirms they are the operator and custodian of the
+    # children's records. Valid only when the hash equals the current notice
+    # hash and the time (ISO-8601 UTC) is not in the future. Hosted or pilot
+    # deployments never set these. Wording and sufficiency are for counsel.
+    consent_install_ack_hash: str = ""
+    consent_install_ack_at: str = ""
+
     # ── Demo interaction-pattern analysis (optional) ──────────────────────────
     # On by default for demo sessions only (never parent/child production) —
     # structural signals only (which tools fired, turn counts, subject

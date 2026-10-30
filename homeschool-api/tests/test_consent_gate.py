@@ -70,6 +70,10 @@ def client(monkeypatch, test_client_with_database_context):
     import main
     import core.database as database_module
 
+    # This module proves the strict gate: no install-time ack is configured.
+    monkeypatch.setattr(settings, "consent_install_ack_hash", "")
+    monkeypatch.setattr(settings, "consent_install_ack_at", "")
+
     url = f"sqlite+aiosqlite:///{tempfile.mkdtemp()}/consent.sqlite"
 
     async def _create():
@@ -439,17 +443,23 @@ def test_notice_endpoint_serves_the_text_and_its_hash(client):
     r = client.get("/consent/notice", headers=_parent_headers())
     assert r.status_code == 200
     body = r.json()
+    # The hash is SHA-256 of the shared notice file's exact bytes.
     assert body["hash"] == consent.notice_hash() == hashlib.sha256(
-        f"{consent.NOTICE_VERSION}\n{consent.NOTICE_TEXT}".encode("utf-8")
+        consent.NOTICE_PATH.read_bytes()
     ).hexdigest()
+    assert consent.NOTICE_TEXT.startswith(f"Notice version: {consent.NOTICE_VERSION}")
     assert body["text"] == consent.NOTICE_TEXT
     available = {m["id"]: m["available"] for m in body["methods"]}
-    assert available == {"parent_attested_checkbox": True, "payment_transaction": False}
+    assert available == {
+        "parent_attested_checkbox": True,
+        "payment_transaction": False,
+        "install_custodian_attestation": False,
+    }
 
 
 def test_notice_hash_changes_when_the_text_changes(monkeypatch):
     before = consent.notice_hash()
-    monkeypatch.setattr(consent, "NOTICE_TEXT", consent.NOTICE_TEXT + " Changed.")
+    monkeypatch.setattr(consent, "_NOTICE_BYTES", consent._NOTICE_BYTES + b" Changed.")
     assert consent.notice_hash() != before
 
 

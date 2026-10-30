@@ -1230,15 +1230,25 @@ supported first-release workflow and its limits.
 
 ## 5a. Consent, pausing, and reviewing your child's records
 
-Bede does not record a child's lessons until a parent has given consent to the
-privacy notice. The controls for this (consent, pausing collection for one
-child, and reviewing everything Bede holds about that child) are available
-through the API now. The parent screens for them are not built yet, so until
-they are, a household using the app will see that tutoring needs consent and
-cannot give it from the screen. The full description, including what is still
-open, is in [PARENTAL_CONSENT.md](PARENTAL_CONSENT.md). Whether the consent
-method you use is sufficient for your situation is a question for a lawyer, not
-for Bede.
+Bede does not record a child's lessons until consent is on record for that
+child. For most families this is already done: when you installed Bede, the
+installer showed you the family notice and asked you to confirm that you are
+the parent or legal guardian (or are acting with their authority) and the
+operator and custodian of the children's records. That one confirmation covers
+every child you add afterwards.
+
+If you did not install through the new installer (for example, you updated an
+existing setup), Parent Setup shows a banner asking you to read the notice and
+tick one box. One tick covers all your children, and you can also tick it as
+you save the setup, so a child you add later is covered too. If Bede later
+updates its notice, the banner asks you to review it again; lessons keep going
+in the meantime.
+
+You can still pause collection for one child, withdraw consent, and review or
+export everything Bede holds about a child. Withdrawing consent is never
+undone by the install-time confirmation. The full description is in
+[PARENTAL_CONSENT.md](PARENTAL_CONSENT.md). The wording of the notice and
+whether the method suits your situation are for counsel, not for Bede.
 
 ## 6. Getting each child onto their own tablet
 

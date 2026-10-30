@@ -1,0 +1,43 @@
+Notice version: 2026-10-30.2
+
+PARENTAL NOTICE AND CONSENT
+Collection, Use, Maintenance and Custody of a Child's Personal Information
+
+This Notice is provided with reference to the Children's Online Privacy Protection Act, 15 U.S.C. sections 6501 to 6506, and its implementing rule, 16 C.F.R. Part 312 ("COPPA"). It describes the personal information that Bede collects from or about a child, the purposes for which it is used, the circumstances in which it is disclosed, and the rights of the parent or legal guardian.
+
+1. Software Provider and Contact
+Bede is software provided by Agnus Dei Technologies, LLC (the "Provider"). Questions about this Notice may be directed to info@agnusdei.ai.
+
+2. Operator and Custodian of Personal Information
+Where Bede is installed and operated by a parent or legal guardian on equipment under that person's control (a "self-hosted deployment"), that parent or legal guardian is the operator and custodian of the child's personal information. The Provider does not collect, receive, access or maintain personal information held on a self-hosted deployment.
+
+As custodian, the parent or legal guardian is responsible for: (a) determining the purposes for which, and the means by which, the information is processed; (b) the retention and deletion of the information; (c) access controls and security safeguards, including protection of credentials and of the device on which Bede operates; and (d) reviewing, before enabling them, the terms of any third-party service configured for use with Bede, as described in Section 5.
+
+3. Personal Information Collected
+In connection with a child's use of Bede, the following categories of personal information may be collected and maintained:
+(a) the child's name as entered by the parent or legal guardian, grade level, and the subjects and lesson settings selected;
+(b) the content of the child's written and spoken interactions with Bede, and Bede's responses;
+(c) records derived from those interactions, including narration assessments, learner profiles, mastery and skill-practice records, and lesson bookmarks;
+(d) audio recordings made by the child during voice interaction, and, only if the parent or legal guardian elects to enroll the child's voice, a voiceprint; and
+(e) usage counts associated with the artificial intelligence service.
+
+4. Purposes and Use
+Personal information is collected and used solely to deliver and personalize the child's tutoring, to maintain continuity between sessions, and to provide the parent or legal guardian with records of the child's work. It is not used for advertising, for behavioral marketing, or to build profiles for any other purpose.
+
+5. Disclosure to Third Parties
+Personal information is disclosed only to the artificial intelligence model and speech-service providers that the custodian elects to configure ("Service Providers"). Where a model that operates entirely on the custodian's own equipment is used, no such disclosure occurs. The Provider does not sell personal information. The custodian is responsible for reviewing each Service Provider's terms concerning data retention and the use of data for model training before enabling that provider.
+
+6. Retention and Deletion
+Personal information is retained until the custodian deletes it. Withdrawal of consent ceases further collection but does not delete existing records. Deletion removes the child's records and destroys the encryption key that protects them.
+
+7. Rights of the Parent or Legal Guardian
+At any time, the parent or legal guardian may: (a) review the personal information maintained about the child; (b) obtain a copy of it; (c) refuse further collection, by pausing collection or by withdrawing consent; and (d) direct the deletion of the child's personal information.
+
+8. Security
+Personal information maintained by Bede is protected by reasonable administrative and technical safeguards, including encryption at rest.
+
+9. Changes to this Notice
+If this Notice is materially changed, renewed consent will be requested before new personal information is collected under the revised Notice.
+
+10. Consent
+By indicating agreement below, the undersigned represents that he or she is the parent or legal guardian of each child who will use Bede, has read this Notice, consents to the collection, use and maintenance of the child's personal information as described in it, and accepts the responsibilities of custodian set out in Section 2.

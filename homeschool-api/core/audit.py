@@ -111,6 +111,7 @@ class AuditEvent:
     COLLECTION_RESUMED         = "collection.resumed"
     DATA_EXPORTED              = "data.exported"
     COLLECTION_REFUSED         = "collection.refused"
+    CONSENT_INSTALL_ACK_RECORDED = "consent.install_ack_recorded"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

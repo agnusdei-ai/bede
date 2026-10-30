@@ -202,16 +202,18 @@ GUARDS = {
     ('POST', '/tutor/extract-narration'): 'require_auth',
     ('POST', '/tutor/speak'): 'require_auth',
     ('POST', '/tutor/summary'): 'require_parent',
-    ('POST', '/voice/enroll'): 'require_parent',
-    ('POST', '/voice/override'): 'require_parent',
-    ('GET', '/voice/profiles'): 'require_parent',
-    ('DELETE', '/voice/profiles/{student_name}'): 'require_parent',
+    # Legacy name-keyed biometric profiles are unsafe on institutional hosts.
+    # Preserve BOTH the role guard and fail-closed household-only scope gate.
+    ('POST', '/voice/enroll'): '_require_household_biometric_scope+require_parent',
+    ('POST', '/voice/override'): '_require_household_biometric_scope+require_parent',
+    ('GET', '/voice/profiles'): '_require_household_biometric_scope+require_parent',
+    ('DELETE', '/voice/profiles/{student_name}'): '_require_household_biometric_scope+require_parent',
     ('POST', '/voice/stream/start'): 'require_auth',
     ('POST', '/voice/stream/{session_id}/chunk'): 'require_auth',
     ('GET', '/voice/stream/{session_id}/events'): 'require_auth',
     ('POST', '/voice/stream/{session_id}/finish'): 'require_auth',
     ('POST', '/voice/transcribe'): 'require_auth',
-    ('POST', '/voice/verify'): 'require_real_user',
+    ('POST', '/voice/verify'): '_require_household_biometric_scope+require_real_user',
 }
 
 

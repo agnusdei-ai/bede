@@ -1,8 +1,9 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSessionStore } from '../store/sessionStore'
-import { ConsentNoticeChangedError, grantHouseholdConsent, type HouseholdConsent } from '../services/api'
+import { ConsentNoticeChangedError, grantHouseholdConsent, type HouseholdConsent, type InstallationStatus } from '../services/api'
 import { useHouseholdConsent } from '../hooks/useHouseholdConsent'
+import { useInstallationStatus } from '../hooks/useInstallationStatus'
 import { noticeChanged } from '../utils/consent'
 
 /** "Read the notice" disclosure, shared by the banner and Parent Setup. */
@@ -32,20 +33,48 @@ interface Props {
   /** Supply both to share state with a parent page; omit to self-manage. */
   consent?: HouseholdConsent | null
   onChanged?: () => void | Promise<unknown>
+  /** Installation receipt; omit to self-manage. null = unknown/unreadable. */
+  installation?: InstallationStatus | null
 }
 
-export default function ConsentBanner({ consent: given, onChanged }: Props) {
+/**
+ * True when the installer's acceptance exists but is not (or no longer) a
+ * verified receipt. An attestation alone never counts as consent coverage.
+ */
+function receiptNotVerified(i: InstallationStatus | null | undefined): boolean {
+  return !!i && i.state !== 'verified' && i.state !== 'superseded'
+}
+
+export default function ConsentBanner({ consent: given, onChanged, installation: givenInstall }: Props) {
   const token = useSessionStore((s) => s.token)
   const role = useSessionStore((s) => s.role)
   const own = useHouseholdConsent(given === undefined && role === 'parent' ? token : null)
+  const ownInstall = useInstallationStatus(givenInstall === undefined && role === 'parent' ? token : null)
+  const installation = givenInstall === undefined ? ownInstall.status : givenInstall
   const consent = given === undefined ? own.consent : given
-  if (role !== 'parent' || !token || !consent || !consent.needs_consent) return null
+  if (role !== 'parent' || !token || !consent) return null
+  if (!consent.needs_consent) {
+    // The install-time acceptance is only an attestation until the receipt is
+    // verified; say so rather than staying silent as if the family were covered.
+    return consent.install_ack && receiptNotVerified(installation) ? <PendingReceiptNote /> : null
+  }
   return (
     <BannerBody
       token={token}
       consent={consent}
+      receiptPending={receiptNotVerified(installation)}
       refresh={async () => { if (onChanged) await onChanged(); else await own.refetch() }}
     />
+  )
+}
+
+function PendingReceiptNote() {
+  const { t } = useTranslation()
+  return (
+    <section role="status" className="rounded-xl border border-gold-300 bg-gold-50 px-4 py-3 mb-6">
+      <h2 className="text-sm font-semibold text-gray-800">{t('installationAuth.bannerPendingTitle')}</h2>
+      <p className="text-sm text-gray-700 mt-1">{t('installationAuth.bannerPendingBody')}</p>
+    </section>
   )
 }
 
@@ -53,9 +82,11 @@ function BannerBody({
   token,
   consent,
   refresh,
+  receiptPending,
 }: {
   token: string
   consent: HouseholdConsent
+  receiptPending: boolean
   refresh: () => Promise<void>
 }) {
   const { t } = useTranslation()
@@ -96,6 +127,11 @@ function BannerBody({
         {changed ? t('consent.titleChanged') : t('consent.titleFirst')}
       </h2>
       <p className="text-sm text-gray-700 mt-1">{changed ? t('consent.bodyChanged') : t('consent.bodyFirst')}</p>
+      {receiptPending && (
+        <p className="text-sm text-gray-800 mt-1" data-testid="consent-receipt-pending">
+          {t('installationAuth.bannerPendingBody')}
+        </p>
+      )}
       <ConsentNoticeDisclosure consent={consent} />
       <label htmlFor={`${boxId}-tick`} className="mt-2 flex items-start gap-3 min-h-[44px] cursor-pointer">
         <input

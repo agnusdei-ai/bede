@@ -19,6 +19,8 @@ import { listVoiceProfiles } from '../services/voiceApi'
 import { fetchSystemStatus, isFeedbackEnabled, listPodConfigs, savePodConfigs, ConsentNoticeChangedError, type SystemStatus } from '../services/api'
 import ConsentBanner, { ConsentNoticeDisclosure } from '../components/ConsentBanner'
 import { useHouseholdConsent } from '../hooks/useHouseholdConsent'
+import { useInstallationStatus } from '../hooks/useInstallationStatus'
+import InstallationAuthorization from '../components/InstallationAuthorization'
 import { tickRequiredToSave } from '../utils/consent'
 import BetaIntakeModal from '../components/BetaIntakeModal'
 
@@ -297,6 +299,7 @@ export default function ParentSetup() {
   // Household consent comes from the server on every load (never stored in
   // the browser). One tick covers every student on this page.
   const { consent, refetch: refetchConsent } = useHouseholdConsent(token)
+  const { status: installation, refetch: refetchInstallation } = useInstallationStatus(token)
   const [consentTick, setConsentTick] = useState(false)
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   // Set only when this save was this family's very first-ever pod (see
@@ -479,7 +482,12 @@ export default function ParentSetup() {
           </button>
         </div>
 
-        <ConsentBanner consent={consent} onChanged={async () => { setConsentTick(false); await refetchConsent() }} />
+        <ConsentBanner consent={consent} installation={installation}
+          onChanged={async () => { setConsentTick(false); await refetchConsent() }} />
+        {token && (
+          <InstallationAuthorization token={token} status={installation}
+            onChanged={async () => { await refetchInstallation(); await refetchConsent() }} />
+        )}
 
         {/* System status */}
         <div className={`rounded-xl border px-4 py-3 mb-6 flex items-center gap-4 flex-wrap text-xs ${

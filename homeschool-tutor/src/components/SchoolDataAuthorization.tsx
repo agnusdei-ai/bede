@@ -32,9 +32,11 @@ interface Props {
   refreshSignal?: number
   /** true once authorized, false when not, null while unknown. */
   onChange?: (authorized: boolean | null) => void
+  /** True when the installer's verified school receipt supplied the initial authorization. */
+  fromInstaller?: boolean
 }
 
-export default function SchoolDataAuthorization({ token, campusId, role, refreshSignal = 0, onChange }: Props) {
+export default function SchoolDataAuthorization({ token, campusId, role, refreshSignal = 0, onChange, fromInstaller = false }: Props) {
   const { t, i18n } = useTranslation()
   const [status, setStatus] = useState<Status | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -140,6 +142,11 @@ export default function SchoolDataAuthorization({ token, campusId, role, refresh
             role: roleLabel(status.authorized_by), date: dateLabel(status.authorized_at),
           })}
         </p>
+        {fromInstaller && (
+          <p className="text-xs text-gray-700" data-testid="school-auth-from-installer">
+            {t('schoolDataAuth.fromInstaller')}
+          </p>
+        )}
         {role === 'administrator' && !confirmingWithdraw && (
           <button type="button" onClick={() => setConfirmingWithdraw(true)}
             className={btn + ' border border-gray-400 text-gray-900'}>

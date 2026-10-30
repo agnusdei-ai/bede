@@ -715,6 +715,58 @@ export interface ConsentGrantResult {
   refreshed: string[]
 }
 
+// ── Installation authorization receipt (docs/INSTALLATION_AUTHORIZATION_FLOW.md) ──
+// Processing is enabled only by a receipt in state `verified`; an attestation
+// alone (`pending_verification`) never unlocks child-data processing.
+export type InstallationReceiptState =
+  'pending_verification' | 'verified' | 'invalid' | 'withdrawn' | 'superseded'
+export interface InstallationStatus {
+  state: InstallationReceiptState
+  mode: 'family' | 'school'
+  receipt_id: string
+  notice: { version: string; sha256: string }
+  accepted_at: string
+  authorizer: { name: string; capacity: string }
+  processing_enabled: boolean
+  chain_valid: boolean
+}
+/** 409 verification_method_unavailable: no approved method is wired yet. */
+export class VerificationMethodUnavailableError extends ApiRequestError {
+  constructor() {
+    super(409, 'Verification method unavailable')
+    this.name = 'VerificationMethodUnavailableError'
+  }
+}
+
+async function installationRequest<T>(
+  path: string, token: string, method: 'GET' | 'POST' = 'GET', body?: unknown,
+): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(method === 'POST' ? { body: JSON.stringify(body ?? {}) } : {}),
+  })
+  if (!res.ok) {
+    if (res.status === 409 && (await errorCode(res)) === 'verification_method_unavailable') {
+      throw new VerificationMethodUnavailableError()
+    }
+    throw new ApiRequestError(res.status, 'Installation request failed')
+  }
+  return res.json()
+}
+
+export const fetchInstallationStatus = (token: string) =>
+  installationRequest<InstallationStatus>('/installation/status', token)
+export const withdrawInstallation = (token: string) =>
+  installationRequest<InstallationStatus>('/installation/withdraw', token, 'POST')
+export const startVerification = (token: string) =>
+  installationRequest<InstallationStatus>('/installation/verification/start', token, 'POST')
+export const completeVerification = (token: string) =>
+  installationRequest<InstallationStatus>('/installation/verification/complete', token, 'POST')
+
 export async function fetchHouseholdConsent(token: string): Promise<HouseholdConsent> {
   const res = await fetch(`${BASE}/household/consent`, {
     headers: { Authorization: `Bearer ${token}` },

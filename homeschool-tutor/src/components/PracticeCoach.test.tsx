@@ -16,7 +16,7 @@ vi.mock('../services/api', async (importOriginal) => {
 })
 
 import i18n from '../i18n'
-import PracticeCoach, { flaggedCount, teacherCount, toBase64Payload } from './PracticeCoach'
+import PracticeCoach, { PRACTICE_ACCEPT, flaggedCount, teacherCount, toBase64Payload } from './PracticeCoach'
 import type { GradedAssessment } from '../services/api'
 
 const assessment: GradedAssessment = {
@@ -87,7 +87,7 @@ async function openAndPick() {
   render(<PracticeCoach token="t" studentName="Alex" />)
   fireEvent.click(screen.getByRole('button', { name: 'Start' }))
   await screen.findByRole('option', { name: 'Latin' })
-  fireEvent.change(screen.getByLabelText(/Photos of the graded pages/), { target: { files: [png()] } })
+  fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files: [png()] } })
 }
 
 async function readQuiz() {
@@ -200,7 +200,7 @@ it('starts over when the parent switches to another child', async () => {
   const { rerender } = render(<PracticeCoach token="t" studentName="Alex" />)
   fireEvent.click(screen.getByRole('button', { name: 'Start' }))
   await screen.findByRole('option', { name: 'Latin' })
-  fireEvent.change(screen.getByLabelText(/Photos of the graded pages/), { target: { files: [png()] } })
+  fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files: [png()] } })
   fireEvent.click(screen.getByRole('button', { name: 'Read the quiz' }))
   await screen.findByText('3 of 4, by the teacher\'s marks')
   rerender(<PracticeCoach token="t" studentName="Bea" />)
@@ -211,4 +211,47 @@ it('is written in Spanish for a Spanish session', async () => {
   i18n.changeLanguage('es')
   render(<PracticeCoach token="t" studentName="Alex" />)
   expect(screen.getByText('Práctica a partir de una prueba calificada')).toBeTruthy()
+})
+
+describe('PDF and iPhone uploads', () => {
+  it('offers PDF, HEIC and HEIF in the file picker alongside JPEG and PNG', async () => {
+    await openAndPick()
+    const input = screen.getByLabelText(/scanned PDF of the graded pages/) as HTMLInputElement
+    const accepted = input.accept.split(',')
+    for (const kind of ['image/jpeg', 'image/png', 'application/pdf', '.pdf', 'image/heic', 'image/heif', '.heic', '.heif']) {
+      expect(accepted).toContain(kind)
+    }
+    expect(input.accept).toBe(PRACTICE_ACCEPT)
+    expect(input.multiple).toBe(true)
+  })
+
+  it('sends a picked PDF to the reader as bare base64, like any other page', async () => {
+    render(<PracticeCoach token="t" studentName="Alex" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    await screen.findByRole('option', { name: 'Latin' })
+    const pdf = new File([new TextEncoder().encode('%PDF-1.7 scan')], 'quiz.pdf', { type: 'application/pdf' })
+    fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files: [pdf] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Read the quiz' }))
+    await waitFor(() => expect(mocks.readPracticePhotos).toHaveBeenCalled())
+    const data = mocks.readPracticePhotos.mock.calls[0][2].pages[0].data as string
+    expect(atob(data)).toBe('%PDF-1.7 scan')
+    expect(data).not.toMatch(/^data:/)
+  })
+
+  it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
+    await openAndPick()
+    expect(screen.getByText(/PDF of scanned pages, 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/scripts, attachments, forms or a password are refused/)).toBeTruthy()
+    expect(screen.getByText(/not saved to the database or a file by Bede; they are held in memory while the request runs/)).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/never the photos|virus-free|malware-free/i)
+  })
+
+  it('says the same in Spanish', async () => {
+    i18n.changeLanguage('es')
+    render(<PracticeCoach token="t" studentName="Alex" />)
+    fireEvent.click(screen.getByRole('button', { name: /Comenzar|Empezar|Iniciar/ }))
+    await screen.findByRole('option', { name: 'Latin' })
+    expect(screen.getByText(/PDF de páginas escaneadas/)).toBeTruthy()
+    expect(screen.getByText(/no guarda las fotos en la base de datos ni en un archivo/)).toBeTruthy()
+  })
 })

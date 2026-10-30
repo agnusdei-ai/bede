@@ -34,6 +34,7 @@ from models.practice import (
     teacher_mark_count,
 )
 from routers import practice as practice_router
+from services.practice import upload_safety
 from services.practice import core_checks, extract, pipeline
 from services.practice.core_checks import normalize
 from services.practice.packs import get_pack
@@ -42,8 +43,18 @@ GOLDEN = json.loads(
     (Path(__file__).resolve().parents[1] / "services/practice/packs/latin/golden/latin_quiz_1.expected.json")
     .read_text(encoding="utf-8")
 )
-PNG = b"\x89PNG\r\n\x1a\n" + b"page-one-sentinel" * 4
-JPEG = b"\xff\xd8\xff\xe0" + b"page-two-sentinel" * 4
+
+
+def _image(fmt: str, color) -> bytes:
+    import io
+    from PIL import Image
+    out = io.BytesIO()
+    Image.new("RGB", (16, 16), color).save(out, format=fmt)
+    return out.getvalue()
+
+
+PNG = _image("PNG", (200, 30, 30))
+JPEG = _image("JPEG", (30, 30, 200))
 
 
 def golden() -> GradedAssessment:
@@ -184,16 +195,17 @@ def b64(raw: bytes) -> str:
     return base64.b64encode(raw).decode()
 
 
-def test_only_jpeg_and_png_pages_are_accepted():
-    assert extract.media_type_of(b64(PNG)) == "image/png"
-    assert extract.media_type_of(b64(JPEG)) == "image/jpeg"
-    for bad in (b"GIF89a....", b"%PDF-1.7", b"not an image"):
+@pytest.mark.asyncio
+async def test_only_jpeg_png_and_pdf_pages_are_accepted():
+    pages = await upload_safety.prepare_pages([b64(PNG), b64(JPEG)])
+    assert [m for m, _ in pages] == ["image/png", "image/png"]  # always re-encoded to a fresh PNG
+    for bad in (b"GIF89a....", b"not an image", PNG[:40], b"\xff\xd8\xff" + b"junk" * 8):
         with pytest.raises(extract.PhotoRejected):
-            extract.media_type_of(b64(bad))
+            await upload_safety.prepare_pages([b64(bad)])
     with pytest.raises(extract.PhotoRejected):
-        extract.media_type_of("***not base64***")
+        await upload_safety.prepare_pages(["***not base64***"])
     with pytest.raises(extract.PhotoRejected):
-        extract.media_type_of(b64(PNG + b"0" * extract.MAX_PAGE_BYTES))
+        await upload_safety.prepare_pages([b64(PNG + b"0" * upload_safety.MAX_PAGE_BYTES)])
 
 
 class _Reply:
@@ -262,7 +274,8 @@ async def test_pages_go_out_in_the_drawing_canvas_shape_the_real_adapter_accepts
     sent = local.calls[0]
     blocks = sent["messages"][0]["content"]
     assert [b["type"] for b in blocks] == ["image", "image", "text"]
-    assert blocks[0]["source"] == {"type": "base64", "media_type": "image/png", "data": b64(PNG)}
+    assert blocks[0]["source"]["media_type"] == "image/png"
+    assert base64.b64decode(blocks[0]["source"]["data"]).startswith(b"\x89PNG")
     translated = _build_request("vision-model", sent)
     parts = translated["messages"][-1]["content"]
     assert sum(1 for p in parts if p["type"] == "image_url") == 2
@@ -340,7 +353,9 @@ async def test_the_whole_flow_and_the_photo_is_never_stored(db, monkeypatch):
             plain = json.dumps(decrypt_json(row.detail_enc, student_aad(table, "detail_enc", "Alice"), key))
             for page in (PNG, JPEG):
                 assert b64(page)[:24] not in plain
-                assert page[:12] not in row.detail_enc
+                assert page[12:40] not in row.detail_enc
+            for media, data in await upload_safety.prepare_pages([b64(PNG), b64(JPEG)]):
+                assert data[40:80] not in plain
 
 
 @pytest.mark.asyncio

@@ -13,7 +13,10 @@ is the **teacher's** count, read off the page and labelled as such.
 
 ## How it works
 
-1. **Read.** The parent uploads up to six JPEG or PNG pages. They are sent to
+1. **Read.** The parent uploads up to six pages as JPEG, PNG or iPhone HEIC
+   photos, or as a PDF of scanned pages (each PDF page counts toward the six).
+   Every file is first checked and rebuilt (see "File validation and
+   hardening" below), and the rebuilt PNG pages are sent to
    the model the same way the handwriting canvas sends a child's drawing, as
    base64 image blocks, and come back as a structured reading: sections,
    instructions, word banks, each item's prompt, the child's answer, the
@@ -59,13 +62,65 @@ The photos are read in one of two places:
 `GET /practice/reading-route` tells the parent which applies before they
 upload.
 
-The photos exist only inside the request that reads them. They are never
-written to the database, a file or a log. The reading has **no field** for a
+The photos are not saved to the database or a file by Bede; they are held in
+memory while the request runs, and no temporary file is created (a test pins
+that). Nothing from an upload is logged. The memory is released when the
+request ends; Bede cannot promise anything about a model provider's own
+retention once a parent has consented to a cloud read, which is why that
+consent is asked per upload. The reading has **no field** for a
 name, school, teacher or date, so a reading that includes one is rejected
 rather than stored. Readings and practice sets are encrypted with the
 student's own key and are removed when the student is deleted.
 
 Not on the public demo: these routes are parent-only.
+
+## File validation and hardening
+
+This is hardening, **not a guarantee that a file is free of malware**, and the
+parent-facing text never says "virus-free". It is `services/practice/upload_safety.py`,
+and it runs after the parent is authenticated and after consent and routing are
+settled, before anything reaches a model.
+
+- **Type comes from the bytes.** PNG, JPEG, HEIC/HEIF (`ftyp` brands `heic`,
+  `heix`, `hevc`, `mif1`, `msf1`, `heif`) and PDF are recognised by their magic
+  numbers only. The API receives no filename or content type for a page, and
+  none is consulted.
+- **Images are fully decoded and re-encoded** with Pillow (HEIC through
+  pillow-heif and the libheif it bundles) into a fresh PNG: the pixel count is
+  capped from the header before decoding (30 megapixels, 12,000 px a side),
+  Pillow's own decompression-bomb warning is turned into an error, `verify()` is
+  followed by a real reload, EXIF rotation is applied, and metadata plus anything
+  appended after the image (a polyglot payload) does not survive. Pages are
+  scaled down to 3,000 px a side.
+- **PDFs are never rendered.** They are parsed with pypdf and refused if
+  encrypted (even with an empty user password) or if anything in the object
+  graph, object streams and hex-escaped names included, is `/JavaScript`,
+  `/JS`, `/Launch`, `/EmbeddedFile(s)`, `/OpenAction`, `/AA`, `/AcroForm`,
+  `/XFA`, `/RichMedia`, `/SubmitForm`, `/ImportData` or `/GoToE`. Only the one
+  scanned image on each page is taken out and re-encoded like any photo. A
+  page of typed or drawn content, or an image in a format other than JPEG or
+  8-bit gray/RGB, is refused with a plain message; there is no rasteriser here.
+- **Limits:** 6 MB a file, 6 pages in total across the upload, the pixel and
+  decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
+  25-second processing time per file, and at most two decode jobs at once
+  (others wait up to 10 seconds, then are asked to try again with a 503). A
+  job that times out or whose request is cancelled keeps its slot until the
+  worker thread really finishes.
+- **Isolation, honestly:** decoding runs in a worker thread inside the API
+  process. That is **not** process isolation; it has the container's network
+  and filesystem (which is `read_only` with all capabilities dropped). A
+  malformed file that crashes a native decoder (libheif, libjpeg, zlib) is a
+  risk this design reduces but does not remove. Bundled native libraries are
+  covered by `pip-audit` only to the extent PyPI advisories name them.
+- **Optional scanner.** Set `PRACTICE_SCANNER_URL` to a clamd you run yourself
+  (`tcp://host:3310` or `unix:///path/to/clamd.ctl`). Each uploaded file is
+  streamed to it first. A "FOUND" answer, an unreachable or slow scanner, or an
+  answer it cannot understand **refuses the upload**. Unset (the default),
+  nothing is scanned and no screen or document claims it was. No external
+  scanning service is ever contacted.
+- **Temporary files:** none are created. Everything is held in memory
+  (`io.BytesIO`), so there is nothing to clean up after success, error,
+  timeout or cancellation.
 
 ## Subject packs
 

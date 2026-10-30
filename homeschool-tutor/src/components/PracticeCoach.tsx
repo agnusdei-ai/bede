@@ -18,6 +18,14 @@ export const MAX_PAGES = 6
 const MARKS: TeacherMark[] = ['correct', 'incorrect', 'partial', 'unmarked']
 const CONFIDENCE_FLOOR = 0.75
 
+/** What the file picker offers. The server decides the real type from the file's
+ *  bytes (never from this list or the filename), so this only shapes the dialog.
+ *  HEIC/HEIF is listed explicitly for iPhone photos: when a picker lists
+ *  those, iOS Safari may hand them over untouched instead of converting to JPEG,
+ *  and the server decodes them. A PDF counts for every page it holds. */
+export const PRACTICE_ACCEPT =
+  'image/jpeg,image/png,application/pdf,.pdf,image/heic,image/heif,.heic,.heif'
+
 type Stage = 'start' | 'reading' | 'review' | 'planning' | 'plan' | 'done'
 
 /** A data: URL from FileReader becomes the bare base64 the API expects —
@@ -223,10 +231,11 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
 
               <label className="block">
                 <span className="text-xs font-medium text-gray-600">{t('practiceCoach.photos', { max: MAX_PAGES })}</span>
-                <input type="file" accept="image/jpeg,image/png" multiple aria-label={t('practiceCoach.photos', { max: MAX_PAGES })}
+                <input type="file" accept={PRACTICE_ACCEPT} multiple aria-label={t('practiceCoach.photos', { max: MAX_PAGES })}
                   onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, MAX_PAGES))}
                   className="mt-1 block w-full text-xs" />
               </label>
+              <p className="text-xs text-gray-500">{t('practiceCoach.photosHint', { max: MAX_PAGES })}</p>
               <p className="text-xs text-gray-500">{t('practiceCoach.privacy')}</p>
 
               <button type="button" onClick={read}

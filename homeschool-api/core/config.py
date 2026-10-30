@@ -538,6 +538,12 @@ class Settings(BaseSettings):
 
     voice_transcription_max_concurrency: int = 1
 
+    # ── Practice Coach upload scanner (optional) ──────────────────────────────
+    # clamd endpoint, tcp://host:3310 or unix:///path/to/clamd.ctl. Empty (the
+    # default) means no external scan. When set, an unreachable scanner REFUSES
+    # the upload rather than skipping the scan. See docs/PRACTICE_COACH.md.
+    practice_scanner_url: str = ""
+
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
     # On by default — this is what powers the end-of-session "Math Skill
     # Growth" before/after report (services.diagnostic.get_session_growth,

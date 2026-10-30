@@ -31,20 +31,16 @@ from pydantic import ValidationError
 from core.config import settings
 from models.practice import GradedAssessment, ReadPhotosRequest
 from services.practice.packs import get_pack
+from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
+    PhotoRejected,
+    ScannerUnavailable,
+    UploadBusy,
+    prepare_pages,
+)
 
 log = logging.getLogger(__name__)
 
-MAX_PAGE_BYTES = 6 * 1024 * 1024
 READ_TIMEOUT_SECONDS = 120
-
-_SIGNATURES = (
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-)
-
-
-class PhotoRejected(ValueError):
-    pass
 
 
 class ConsentRequired(Exception):
@@ -59,19 +55,6 @@ class ReadingUnavailable(Exception):
 
 class ReadingFailed(Exception):
     pass
-
-
-def media_type_of(data_b64: str) -> str:
-    try:
-        raw = base64.b64decode(data_b64, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise PhotoRejected("A page is not valid base64 image data.") from exc
-    if len(raw) > MAX_PAGE_BYTES:
-        raise PhotoRejected("A page is larger than 6 MB; please retake it at a lower resolution.")
-    for magic, media_type in _SIGNATURES:
-        if raw.startswith(magic):
-            return media_type
-    raise PhotoRejected("Pages must be JPEG or PNG photos.")
 
 
 def reading_route() -> dict:
@@ -149,12 +132,10 @@ def parse_reading(text: str, subject: str) -> GradedAssessment:
 async def read_pages(req: ReadPhotosRequest) -> GradedAssessment:
     if get_pack(req.subject) is None:
         raise PhotoRejected(f"No practice pack for {req.subject!r} yet.")
-    blocks = [
-        {"type": "image", "source": {"type": "base64", "media_type": media_type_of(p.data), "data": p.data}}
-        for p in req.pages
-    ]
-    client = _choose_client(req)
-    blocks.append({"type": "text", "text": f"These are {len(req.pages)} page(s) of one worksheet, in order."})
+    client = _choose_client(req)  # consent and routing are settled before anything is parsed
+    pages = await prepare_pages([p.data for p in req.pages])
+    blocks = [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in pages]
+    blocks.append({"type": "text", "text": f"These are {len(pages)} page(s) of one worksheet, in order."})
     try:
         response = await asyncio.wait_for(
             client.messages.create(

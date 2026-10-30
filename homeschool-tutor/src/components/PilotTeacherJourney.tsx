@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, ClipboardList, FileCheck2, PencilLine, XCircle } from 'lucide-react'
 import PilotOfficialAssessmentForm from './PilotOfficialAssessmentForm'
+import SchoolDataAuthorization from './SchoolDataAuthorization'
+import { useTranslation } from 'react-i18next'
 import {
   decidePilotRecommendation, fetchInstructorFrameworks, fetchPilotEvidence,
   fetchPilotLearners, fetchPilotLedger, fetchPilotRecommendations,
-  recordPilotEvidence, requestPilotRecommendation,
+  recordPilotEvidence, requestPilotRecommendation, SchoolAuthorizationRequiredError,
 } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
 import type { FailureContext } from '../utils/requestFailure'
@@ -45,6 +47,10 @@ export const FAILURES = {
 } satisfies Record<string, FailureContext>
 
 export default function PilotTeacherJourney({ token }: { token: string }) {
+  const { t } = useTranslation()
+  // null = unknown: entry stays off until the server says the campus is authorized.
+  const [schoolAuthorized, setSchoolAuthorized] = useState<boolean | null>(null)
+  const [authRefresh, setAuthRefresh] = useState(0)
   const [learners, setLearners] = useState<PilotLearner[]>([])
   const [learnerId, setLearnerId] = useState('')
   const [evidence, setEvidence] = useState<PilotEvidence[]>([])
@@ -101,9 +107,14 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
 
   if (!learners.length) return null
 
+  const selected = learners.find(l => l.learner_id === learnerId)
+  const entryOff = schoolAuthorized !== true
+  const authRequired = () => { setSchoolAuthorized(false); setShowOfficial(false); setAuthRefresh(n => n + 1) }
+
   const run = async (work: () => Promise<void>, failure: FailureContext, onFail?: () => Promise<void>) => {
     setBusy(true); setMessage('')
     try { await work() } catch (e) {
+      if (e instanceof SchoolAuthorizationRequiredError) { authRequired(); return }
       setMessage(describeFailure(e, failure))
       if (onFail) await onFail().catch(() => {})
     } finally { setBusy(false) }
@@ -154,15 +165,24 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
         </select>
       </label>
 
+      {selected?.campus_id && (
+        <SchoolDataAuthorization key={selected.campus_id} token={token} campusId={selected.campus_id}
+          role="teacher" refreshSignal={authRefresh} onChange={setSchoolAuthorized}/>
+      )}
+      {entryOff && (
+        <p className="text-sm text-amber-950">{t('schoolDataAuth.entryDisabled')}</p>
+      )}
+
       <div>
-        <button type="button" className="rounded-lg border border-navy-700 px-3 py-2 text-sm" aria-expanded={showOfficial}
+        <button type="button" disabled={entryOff} className="rounded-lg border border-navy-700 px-3 py-2 text-sm min-h-[44px] disabled:opacity-40" aria-expanded={showOfficial}
           onClick={() => setShowOfficial(open => !open)}>
           {showOfficial ? 'Close official record' : 'Official DIBELS record + observations'}
         </button>
-        {showOfficial && <div className="mt-3">
+        {showOfficial && !entryOff && <div className="mt-3">
           <PilotOfficialAssessmentForm key={learnerId} token={token}
             campusId={learners.find(l => l.learner_id === learnerId)?.campus_id ?? ''}
             learnerId={learnerId}
+            onSchoolAuthorizationRequired={authRequired}
             learnerName={learners.find(l => l.learner_id === learnerId)?.display_name ?? ''}/>
         </div>}
       </div>
@@ -213,7 +233,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
               <input className={field + ' mt-1'} value={source} onChange={e => setSource(e.target.value)} placeholder="e.g., Fall benchmark report"/>
             </label>
           </div>
-          <button type="button" disabled={busy || !score || source.trim().length < 2} onClick={() => void saveEvidence()}
+          <button type="button" disabled={entryOff || busy || !score || source.trim().length < 2} onClick={() => void saveEvidence()}
             className="mt-3 rounded-lg bg-navy-700 px-4 py-2 text-sm text-white disabled:opacity-40">Save evidence</button>
         </details>
       </div>
@@ -221,7 +241,7 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">2. Ask Bede for a suggestion</h3>
         {!pending && (
-          <button type="button" disabled={busy} onClick={() => void draft()}
+          <button type="button" disabled={entryOff || busy} onClick={() => void draft()}
             className="rounded-lg border border-navy-700 px-4 py-2 text-sm text-navy-800 disabled:opacity-40">
             Ask Bede for a draft
           </button>
@@ -250,17 +270,17 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
             </label>
             <div className="flex flex-wrap gap-2">
               {!editing ? <>
-                <button type="button" disabled={busy} onClick={() => void decideAs('approve')}
+                <button type="button" disabled={entryOff || busy} onClick={() => void decideAs('approve')}
                   className="flex items-center gap-1 rounded-lg bg-navy-700 px-3 py-2 text-sm text-white disabled:opacity-40">
                   <CheckCircle2 size={16}/> Approve</button>
-                <button type="button" disabled={busy} onClick={() => { setEditing(true); setEditText(pending.proposal) }}
+                <button type="button" disabled={entryOff || busy} onClick={() => { setEditing(true); setEditText(pending.proposal) }}
                   className="flex items-center gap-1 rounded-lg border px-3 py-2 text-sm disabled:opacity-40">
                   <PencilLine size={16}/> Edit</button>
-                <button type="button" disabled={busy} onClick={() => void decideAs('reject')}
+                <button type="button" disabled={entryOff || busy} onClick={() => void decideAs('reject')}
                   className="flex items-center gap-1 rounded-lg border border-red-300 px-3 py-2 text-sm text-red-800 disabled:opacity-40">
                   <XCircle size={16}/> Reject</button>
               </> : <>
-                <button type="button" disabled={busy || !editText.trim()} onClick={() => void decideAs('edit')}
+                <button type="button" disabled={entryOff || busy || !editText.trim()} onClick={() => void decideAs('edit')}
                   className="rounded-lg bg-navy-700 px-3 py-2 text-sm text-white disabled:opacity-40">Save edited instruction</button>
                 <button type="button" disabled={busy} onClick={() => setEditing(false)}
                   className="rounded-lg border px-3 py-2 text-sm">Cancel edit</button>

@@ -1,0 +1,25 @@
+Notice version: 2026-10-30.1
+
+Bede keeps records about your child so that tutoring can continue from one session to the next.
+
+What is collected about your child:
+- The name you enter, their grade, and the subjects and lesson settings you choose.
+- What your child types or says to Bede during a lesson, and Bede's replies.
+- Narration assessments, a learner profile, mastery and skill-practice records, and lesson bookmarks that Bede writes from those lessons.
+- Voice recordings your child makes are sent for speech-to-text. A voiceprint is kept only if you enroll your child's voice.
+- Usage counts for the AI service.
+
+Who receives it:
+- The AI model provider and speech services your household has configured. On a self-hosted deployment, this can be a model that runs entirely on your own computer, so nothing leaves your home.
+
+Who holds it:
+- If you run Bede yourself (self-hosted), it runs on your own computer. Your child's information stays on that computer and is held by you, not by Agnus Dei Technologies, LLC. You are the custodian of that information: you decide how long it is kept, who can see it, and when it is deleted, and you are responsible for keeping the computer and your parent password safe.
+
+What you can do at any time:
+- Review everything held about your child.
+- Export a copy of it.
+- Pause collection for your child. Lessons stop recording until you resume.
+- Withdraw this consent. This stops further collection. It does not delete existing records.
+- Delete your child's records. Deletion removes them and destroys the key that protects them.
+
+By continuing, you confirm you are your child's parent or legal guardian, you agree to act as the custodian of your child's information described above, and you agree that Bede may collect and use it for your child's tutoring.

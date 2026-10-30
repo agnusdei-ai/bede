@@ -149,13 +149,13 @@ else
   printf "Do you consent? [y/N] " >&2
   if ! read -r CONSENT_ANSWER; then
     blank
-    error "Installation not completed. No one was present to read the Notice (no input), so consent was not given. No software has been installed and no personal information has been collected. Re-run interactively, or pass --accept-consent-notice if you have read the Notice and consent."
+    error "Installation not completed. No one was present to read the Notice (no input), so consent was not given. Bede has not been configured or started, and no personal information has been collected. Re-run interactively, or pass --accept-consent-notice if you have read the Notice and consent."
   fi
   case "$CONSENT_ANSWER" in
     y|Y|yes|YES|Yes) ;;
     *)
       blank
-      warn "Installation not completed. Consent was not given. No software has been installed and no personal information has been collected."
+      warn "Installation not completed. Consent was not given. Bede has not been configured or started, and no personal information has been collected."
       exit 1
       ;;
   esac

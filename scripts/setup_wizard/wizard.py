@@ -584,8 +584,8 @@ CONSENT_CHECKBOX = (
     "custodian set out in Section 2."
 )
 CONSENT_DECLINED = (
-    "Installation not completed. Consent was not given. No software has been "
-    "installed and no personal information has been collected."
+    "Installation not completed. Consent was not given. Bede has not been "
+    "configured or started, and no personal information has been collected."
 )
 
 

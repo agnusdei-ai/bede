@@ -17,11 +17,19 @@ method is a placeholder: it is listed so that its absence cannot be mistaken
 for a decision, and it is refused until someone wires it to a real payment
 flow and counsel has approved that flow. Nothing here decides sufficiency.
 
-DEFAULT IS CLOSED. With no active consent record and no pause row, a
-collection route refuses (403 parental_consent_required). There is no
-deployment-wide bypass in this change. A bypass would need its own config
-setting plumbed through docker-compose.yml, and that is a decision for the
-operator, not a shortcut for development.
+DEFAULT IS CLOSED. A student with no active consent record is refused (403
+parental_consent_required), with two ways to be covered: a parent records
+consent (per child, household-wide, or by the tick at pod save), or the
+person who installed Bede acknowledged the family notice at install time
+(CONSENT_INSTALL_ACK_HASH / CONSENT_INSTALL_ACK_AT). A valid install ack
+covers a student only if that student has never had a consent record:
+withdrawal is never undone by the ack. The first collection for a covered
+student writes a ledger row (method install_custodian_attestation, dated at
+the ack time). There is no mode and no grace period. Hosted or pilot
+deployments never set the ack. The custodian wording is a draft for counsel.
+
+A consent recorded against an older notice is STALE. Staleness only prompts
+the parent (household status); it never blocks collection.
 
 NOTICE. The text a parent is shown is NOTICE_TEXT, identified by
 NOTICE_VERSION. A grant must present the hash of the current notice; a stale
@@ -33,48 +41,39 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 
 from core import student_keys
+from core.config import settings
 from core.encryption import encrypt_json, student_aad
 
-NOTICE_VERSION = "2026-10-29.1"
+# The single source of truth, shared with the installers. Its first line is
+# "Notice version: <X>". The hash is SHA-256 of the file's exact bytes, so
+# setup.sh, the Python wizard and this module compute the same value.
+NOTICE_PATH = Path(__file__).resolve().parents[1] / "data" / "consent_notice.txt"
+_NOTICE_BYTES: bytes = NOTICE_PATH.read_bytes()
 
-NOTICE_TEXT = """Bede keeps records about your child so that tutoring can continue from one session to the next.
 
-What is collected about your child:
-- The name you enter, their grade, and the subjects and lesson settings you choose.
-- What your child types or says to Bede during a lesson, and Bede's replies.
-- Narration assessments, a learner profile, mastery and skill-practice records, and lesson bookmarks that Bede writes from those lessons.
-- Voice recordings your child makes are sent for speech-to-text. A voiceprint is kept only if you enroll your child's voice.
-- Usage counts for the AI service.
+def _parse_version(raw: bytes) -> str:
+    first = raw.decode("utf-8").splitlines()[0]
+    prefix = "Notice version:"
+    if not first.startswith(prefix):
+        raise RuntimeError("consent_notice.txt must begin with 'Notice version: <X>'")
+    return first[len(prefix):].strip()
 
-Who receives it:
-- The AI model provider and speech services your household has configured. On a self-hosted deployment, this can be a model that runs entirely on your own computer, so nothing leaves your home.
 
-What you can do at any time:
-- Review everything held about your child.
-- Export a copy of it.
-- Pause collection for your child. Lessons stop recording until you resume.
-- Withdraw this consent. This stops further collection. It does not delete existing records.
-- Delete your child's records. Deletion removes them and destroys the key that protects them.
-
-By continuing, you confirm you are your child's parent or legal guardian and agree that Bede may collect and use the information described above for your child's tutoring.
-"""
+NOTICE_VERSION = _parse_version(_NOTICE_BYTES)
+NOTICE_TEXT = _NOTICE_BYTES.decode("utf-8")
 
 
 def notice_hash() -> str:
-    """SHA-256 over the version and the full notice text.
-
-    Both are hashed so that editing the text without bumping the version
-    still changes the hash, and bumping the version alone also does.
-    """
-    material = f"{NOTICE_VERSION}\n{NOTICE_TEXT}".encode("utf-8")
-    return hashlib.sha256(material).hexdigest()
+    """Hex SHA-256 of the notice file's exact bytes."""
+    return hashlib.sha256(_NOTICE_BYTES).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -85,6 +84,8 @@ class ConsentMethod:
     # list shows the operator and counsel the option, and so the refusal is
     # a deliberate act and not a missing row.
     wired: bool
+    # False for methods the product records itself and a client may not request.
+    parent_selectable: bool = True
 
 
 METHODS: dict[str, ConsentMethod] = {
@@ -97,6 +98,12 @@ METHODS: dict[str, ConsentMethod] = {
         id="payment_transaction",
         label="Consent verified by a payment transaction (not wired)",
         wired=False,
+    ),
+    "install_custodian_attestation": ConsentMethod(
+        id="install_custodian_attestation",
+        label="Operator and custodian acknowledged the notice at install time",
+        wired=True,
+        parent_selectable=False,
     ),
 }
 
@@ -159,26 +166,100 @@ def _log_refusal(student_name: str, reason: str) -> None:
     )
 
 
+INSTALL_ACK_METHOD = "install_custodian_attestation"
+INSTALL_ACK_LABEL = "install-time custodian acknowledgement"
+_ACK_FUTURE_TOLERANCE = timedelta(minutes=5)
+
+
+def _now() -> datetime:
+    """Clock seam so tests can move time without sleeping."""
+    return datetime.now(timezone.utc)
+
+
+def install_ack_time() -> Optional[datetime]:
+    """The ack time if the install-time acknowledgement is valid, else None.
+
+    Valid only when the hash equals the CURRENT notice hash (an ack of an
+    older notice is not valid) and the time parses as a timezone-aware
+    ISO-8601 value no more than five minutes in the future.
+    """
+    if settings.consent_install_ack_hash != notice_hash():
+        return None
+    raw = settings.consent_install_ack_at.strip()
+    if not raw:
+        return None
+    try:
+        at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if at.tzinfo is None:
+        return None
+    at = at.astimezone(timezone.utc)
+    if at > _now() + _ACK_FUTURE_TOLERANCE:
+        return None
+    return at
+
+
+async def _ever_had_consent(db, student_name: str) -> bool:
+    from core.database import ConsentRecord
+
+    result = await db.execute(
+        select(ConsentRecord.id).where(ConsentRecord.student_name == student_name).limit(1)
+    )
+    return result.first() is not None
+
+
+async def _record_from_install_ack(db, student_name: str, at: datetime):
+    """Write the ledger row an install-time ack implies, once."""
+    from core.database import ConsentRecord
+
+    key = await student_keys.get_or_create(db, student_name)
+    record = ConsentRecord(
+        student_name=student_name,
+        parent_label_enc=encrypt_json({"label": INSTALL_ACK_LABEL}, _label_aad(student_name), key),
+        method=INSTALL_ACK_METHOD,
+        notice_hash=notice_hash(),
+        scope=SCOPE,
+        granted_at=at,
+    )
+    db.add(record)
+    await db.commit()
+    from core.audit import AuditEvent, log_event_nowait
+
+    log_event_nowait(
+        AuditEvent.CONSENT_INSTALL_ACK_RECORDED,
+        role=None,
+        student_name=student_name,
+        detail=f"method={INSTALL_ACK_METHOD} notice={notice_hash()[:12]}",
+    )
+    return record
+
+
 async def require_collection(db, student_name: str) -> None:
     """Raise unless collecting from this student is currently permitted.
 
     Called by every collection route before it stores anything about the
-    child. Refusal order: no consent first (403), then a pause (423). A paused
-    student without consent is refused as unconsented, since that is the more
-    basic fact.
+    child. Refusal order: no consent first (403), then a pause (423). A valid
+    install-time ack covers a student with NO consent record at all (a revoked
+    one still counts as having had one), by lazily writing a ledger row.
     """
     if await active_record(db, student_name) is None:
-        _log_refusal(student_name, "no_consent")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "parental_consent_required",
-                "message": (
-                    "A parent has not yet given consent to collect this student's "
-                    "information. Bede does not record a child's lessons until they do."
-                ),
-            },
-        )
+        at = install_ack_time()
+        if at is not None and not await _ever_had_consent(db, student_name):
+            await _record_from_install_ack(db, student_name, at)
+        else:
+            _log_refusal(student_name, "no_consent")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "parental_consent_required",
+                    "message": (
+                        "A parent has not yet given consent to collect this student's "
+                        "information. Bede does not record a child's lessons until they do."
+                    ),
+                    "parent_action": "open_parent_setup",
+                },
+            )
     if await is_paused(db, student_name):
         _log_refusal(student_name, "paused")
         raise HTTPException(
@@ -213,7 +294,7 @@ async def grant(
     spec = METHODS.get(method)
     if spec is None:
         raise ConsentError(422, "unknown_method", f"Unknown consent method {method!r}.")
-    if not spec.wired:
+    if not spec.wired or not spec.parent_selectable:
         raise ConsentError(
             422,
             "method_not_available",
@@ -287,4 +368,72 @@ async def status_for(db, student_name: str) -> dict:
         "granted_at": record.granted_at.isoformat() if record else None,
         "collection_paused": paused,
         "current_notice_hash": notice_hash(),
+    }
+
+
+async def ensure_consent(
+    db,
+    student_names: list[str],
+    *,
+    parent_label: str,
+    presented_notice_hash: str,
+    method: str = DEFAULT_METHOD,
+) -> dict:
+    """Record consent for each named student against the current notice.
+
+    Returns {granted, already, refreshed}. A student with no active consent is
+    granted; one whose active consent is against an older notice is revoked
+    (reason recorded) and granted afresh, so the ledger keeps both rows rather
+    than rewriting one; one already current is left alone. Idempotent.
+    Raises ConsentError 409 notice_changed before touching anything if the
+    presented hash is not the current one.
+    """
+    if presented_notice_hash != notice_hash():
+        raise ConsentError(
+            409,
+            "notice_changed",
+            "The privacy notice has changed since it was shown. Show the current notice and try again.",
+        )
+    out: dict = {"granted": [], "already": [], "refreshed": []}
+    for name in dict.fromkeys(student_names):
+        current = await active_record(db, name)
+        if current is None:
+            await grant(db, name, parent_label=parent_label, method=method,
+                        presented_notice_hash=presented_notice_hash)
+            out["granted"].append(name)
+        elif current.notice_hash != notice_hash():
+            await revoke(db, name, reason="superseded by a newer privacy notice")
+            await grant(db, name, parent_label=parent_label, method=method,
+                        presented_notice_hash=presented_notice_hash)
+            out["refreshed"].append(name)
+        else:
+            out["already"].append(name)
+    return out
+
+
+async def household_status(db) -> dict:
+    """Parent-visible household consent picture. Holds no child content."""
+    from core.database import StudentConfig
+
+    names = [r[0] for r in (await db.execute(
+        select(StudentConfig.student_name).order_by(StudentConfig.student_name)
+    )).all()]
+    students = []
+    current_hash = notice_hash()
+    ack_valid = install_ack_time() is not None
+    for name in names:
+        rec = await active_record(db, name)
+        covered = rec is None and ack_valid and not await _ever_had_consent(db, name)
+        students.append({
+            "student_name": name,
+            "consented": rec is not None or covered,
+            "stale": rec is not None and rec.notice_hash != current_hash,
+        })
+    return {
+        "needs_consent": any((not s["consented"]) or s["stale"] for s in students),
+        "install_ack": ack_valid,
+        "notice_hash": current_hash,
+        "notice_version": NOTICE_VERSION,
+        "notice_text": NOTICE_TEXT,
+        "students": students,
     }

@@ -3,6 +3,8 @@ Parental consent, collection pause, and parent review/export for one child.
 
 All routes here are parent-only (require_parent) and audited. Their contract:
 
+  GET  /household/consent                    household status (install ack, per-student)
+  POST /household/consent                    one acknowledgement for every configured child
   GET  /consent/notice                       the current notice text and its hash
   GET  /consent/{student}                    consent and pause status (no child content)
   POST /consent/{student}                    grant consent. Body: method, notice_hash,
@@ -31,6 +33,11 @@ from core.deps import require_parent
 router = APIRouter(tags=["consent"])
 
 
+class HouseholdConsentRequest(BaseModel):
+    notice_hash: str = Field(min_length=1, max_length=128)
+    parent_label: str = Field(default="Parent", min_length=1, max_length=50)
+
+
 class GrantConsentRequest(BaseModel):
     method: str = Field(default=consent.DEFAULT_METHOD, min_length=1, max_length=64)
     # The hash of the notice the parent was shown. Required so a grant can be
@@ -50,6 +57,52 @@ def _refuse(exc: consent.ConsentError) -> HTTPException:
     )
 
 
+async def audit_consent_result(request: Request, result: dict) -> None:
+    """Audit newly recorded consents. Method and notice prefix only."""
+    for key in ("granted", "refreshed"):
+        for name in result[key]:
+            await log_event(
+                AuditEvent.CONSENT_GRANTED,
+                role="parent",
+                student_name=name,
+                detail=f"method={consent.DEFAULT_METHOD} notice={consent.notice_hash()[:12]} {key}",
+                **audit_from_request(request),
+            )
+
+
+# Household routes live under /household/consent, declared before the
+# /consent/{student_name} routes, so a student literally named "household"
+# cannot collide with them.
+@router.get("/household/consent")
+async def get_household_consent(
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    return await consent.household_status(db)
+
+
+@router.post("/household/consent", status_code=status.HTTP_201_CREATED)
+async def grant_household_consent(
+    req: HouseholdConsentRequest,
+    request: Request,
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    from sqlalchemy import select
+
+    from core.database import StudentConfig
+
+    names = [r[0] for r in (await db.execute(select(StudentConfig.student_name))).all()]
+    try:
+        result = await consent.ensure_consent(
+            db, names, parent_label=req.parent_label, presented_notice_hash=req.notice_hash
+        )
+    except consent.ConsentError as exc:
+        raise _refuse(exc)
+    await audit_consent_result(request, result)
+    return result
+
+
 @router.get("/consent/notice")
 async def get_notice(_: dict = Depends(require_parent)) -> dict:
     return {
@@ -57,7 +110,7 @@ async def get_notice(_: dict = Depends(require_parent)) -> dict:
         "hash": consent.notice_hash(),
         "text": consent.NOTICE_TEXT,
         "methods": [
-            {"id": m.id, "label": m.label, "available": m.wired}
+            {"id": m.id, "label": m.label, "available": m.wired and m.parent_selectable}
             for m in consent.METHODS.values()
         ],
         "default_method": consent.DEFAULT_METHOD,

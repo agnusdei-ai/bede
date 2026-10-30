@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import license_state, licensing
+from core import consent, license_state, licensing
 from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
@@ -48,6 +48,7 @@ async def save_pod_configs(
     req: PodConfigsRequest,
     _: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,  # FastAPI injects it; direct callers may omit it
 ) -> None:
     """
     Parent saves all student configs for today's pod. Upserts per student
@@ -59,6 +60,16 @@ async def save_pod_configs(
     unlicensed instance never reaches this handler (LicenseGateMiddleware
     blocks it), so this is a defense-in-depth check, not the primary gate.
     """
+    # A wrong consent acknowledgement is refused before anything is saved.
+    if req.consent_notice_hash is not None and req.consent_notice_hash != consent.notice_hash():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "notice_changed",
+                "message": "The privacy notice has changed since it was shown. Show the current notice and try again.",
+            },
+        )
+
     # Required the moment this deployment OFFERS a non-English login choice
     # at all (settings.locale != "en"), not just for students a parent
     # expects to use it — the toggle lives on the login screen itself
@@ -104,6 +115,17 @@ async def save_pod_configs(
         else:
             row.config_enc = enc
     await db.commit()
+
+    if req.consent_notice_hash is not None:
+        from routers.consent import audit_consent_result
+
+        result = await consent.ensure_consent(
+            db,
+            [c.student_name for c in req.configs],
+            parent_label=req.parent_label,
+            presented_notice_hash=req.consent_notice_hash,
+        )
+        await audit_consent_result(request, result)
 
 
 @router.get("/configs", response_model=list[SessionConfig])

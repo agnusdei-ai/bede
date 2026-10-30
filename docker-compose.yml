@@ -199,6 +199,10 @@ services:
       # setup wizard asks a parent this directly. It reaching the container
       # is the whole point of the setting, and for one day it did not.
       - RETAIN_MASTERY_PROFILES=${RETAIN_MASTERY_PROFILES:-true}
+      # Install-time custodian acknowledgement (docs/PARENTAL_CONSENT.md).
+      # Empty on hosted/pilot deployments, which use the parent's tick.
+      - CONSENT_INSTALL_ACK_HASH=${CONSENT_INSTALL_ACK_HASH:-}
+      - CONSENT_INSTALL_ACK_AT=${CONSENT_INSTALL_ACK_AT:-}
       - DIAGNOSTIC_EVIDENCE_LOG_ENABLED=${DIAGNOSTIC_EVIDENCE_LOG_ENABLED:-true}
       # External MCP servers for the parent sandbox (docs/MCP.md). Off by
       # default and deliberately requiring BOTH variables: this is the only

@@ -64,13 +64,44 @@ def _image_xobject(writer, kind: str, w=16, h=16):
     return writer._add_object(stream)
 
 
-def make_pdf(kinds=("jpeg", "raw"), mutate=None) -> bytes:
+PLAIN_SCAN = b"q 100 0 0 100 0 0 cm /Im0 Do Q"
+
+
+def _content(writer, data: bytes):
+    stream = DecodedStreamObject()
+    stream.set_data(data)
+    return writer._add_object(stream)
+
+
+def make_pdf(kinds=("jpeg", "raw"), mutate=None, content: bytes = PLAIN_SCAN, second_image=False, annots=(), form=False) -> bytes:
     writer = PdfWriter()
     for kind in kinds:
         page = writer.add_blank_page(100, 100)
         if kind != "blank":
+            xobjects = {NameObject("/Im0"): _image_xobject(writer, kind)}
+            if second_image:
+                xobjects[NameObject("/Im1")] = _image_xobject(writer, "raw")
+            if form:
+                from pypdf.generic import ArrayObject
+                inner = DecodedStreamObject()
+                inner.set_data(b"BT (note) Tj ET")
+                for k, v in {"/Type": NameObject("/XObject"), "/Subtype": NameObject("/Form"),
+                             "/BBox": ArrayObject([NumberObject(0), NumberObject(0), NumberObject(50), NumberObject(50)])}.items():
+                    inner[NameObject(k)] = v
+                xobjects[NameObject("/Fm0")] = writer._add_object(inner)
             page[NameObject("/Resources")] = DictionaryObject({
-                NameObject("/XObject"): DictionaryObject({NameObject("/Im0"): _image_xobject(writer, kind)})})
+                NameObject("/XObject"): DictionaryObject(xobjects),
+                NameObject("/Font"): DictionaryObject({NameObject("/F1"): DictionaryObject({
+                    NameObject("/Type"): NameObject("/Font"), NameObject("/Subtype"): NameObject("/Type1"),
+                    NameObject("/BaseFont"): NameObject("/Helvetica")})})})
+            page[NameObject("/Contents")] = _content(writer, content)
+            if annots:
+                from pypdf.generic import ArrayObject
+                page[NameObject("/Annots")] = ArrayObject([
+                    writer._add_object(DictionaryObject({
+                        NameObject("/Type"): NameObject("/Annot"), NameObject("/Subtype"): NameObject(sub),
+                        **({NameObject("/Rect"): ArrayObject([NumberObject(0), NumberObject(0), NumberObject(9), NumberObject(9)])})}))
+                    for sub in annots])
     if mutate:
         mutate(writer)
     out = io.BytesIO()
@@ -497,3 +528,130 @@ def test_the_read_route_is_parent_authenticated_and_maps_scanner_failures_to_503
     assert sig.parameters["auth"].default.dependency is require_parent
     source = inspect.getsource(router_module.read_assessment)
     assert "ScannerUnavailable" in source and "503" in source
+
+
+# ── Marked-up PDF pages ───────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name,kwargs", [
+    ("visible text over the scan", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 10 10 Td (Good!) Tj ET"}),
+    ("visible text, TJ form", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 10 10 Td [(Go) 20 (od)] TJ ET"}),
+    ("text made visible again after an invisible one", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 3 Tr (a) Tj 0 Tr (b) Tj ET"}),
+    ("a vector rectangle", {"content": PLAIN_SCAN + b" 1 0 0 RG 5 5 20 20 re S"}),
+    ("a filled path", {"content": PLAIN_SCAN + b" 10 10 30 30 re f"}),
+    ("an inline image", {"content": PLAIN_SCAN + b" BI /W 1 /H 1 /CS /G /BPC 8 ID \x00 EI"}),
+    ("two images drawn", {"content": PLAIN_SCAN + b" q 50 0 0 50 0 0 cm /Im1 Do Q", "second_image": True}),
+    ("only a form XObject drawn", {"content": b"/Fm0 Do", "form": True}),
+    ("a form XObject drawn", {"content": PLAIN_SCAN + b" /Fm0 Do", "form": True}),
+    ("visible text after an invisible mode was restored by Q", {"content": b"q 3 Tr Q " + PLAIN_SCAN + b" BT /F1 8 Tf (x) Tj ET"}),
+    ("a FreeText annotation", {"annots": ("/FreeText",)}),
+    ("a Highlight annotation", {"annots": ("/Highlight",)}),
+    ("a link and a stamp", {"annots": ("/Link", "/Stamp")}),
+    ("no image drawn at all", {"content": b"q Q"}),
+    ("unparseable content", {"content": b"q 1 0 0 RG (unterminated Tj [[["}),
+])
+async def test_a_page_with_anything_beyond_one_scanned_picture_is_refused(name, kwargs):
+    with pytest.raises(PhotoRejected) as exc:
+        await prep(make_pdf(("jpeg",), **kwargs))
+    assert "photograph or scan" in str(exc.value).lower() or "scanned photo" in str(exc.value).lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name,kwargs", [
+    ("a plain scan", {}),
+    ("a link annotation", {"annots": ("/Link",)}),
+    ("an invisible OCR text layer", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 3 Tr 10 10 Td (hello) Tj ET"}),
+    ("an OCR layer set inside q/Q", {"content": b"q 3 Tr Q " + PLAIN_SCAN.replace(b"Q", b"") + b" BT /F1 8 Tf 3 Tr (x) Tj ET Q"}),
+    ("a clipped placement", {"content": b"q 0 0 100 100 re W n 100 0 0 100 0 0 cm /Im0 Do Q"}),
+    ("marked content around the image", {"content": b"/Artifact BMC " + PLAIN_SCAN + b" EMC"}),
+])
+async def test_scans_with_nothing_else_on_the_page_are_accepted(name, kwargs):
+    (_, data), = await prep(make_pdf(("jpeg",), **kwargs))
+    assert Image.open(io.BytesIO(base64.b64decode(data))).format == "PNG"
+
+
+@pytest.mark.asyncio
+async def test_the_marked_up_refusal_names_what_to_do():
+    with pytest.raises(PhotoRejected) as exc:
+        await prep(make_pdf(("jpeg",), content=PLAIN_SCAN + b" BT /F1 12 Tf (x) Tj ET"))
+    assert "photograph or scan the marked-up paper" in str(exc.value)
+
+
+# ── Scanner locality ──────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("url,expected", [
+    ("tcp://127.0.0.1:3310", ("tcp", "127.0.0.1", 3310)),
+    ("tcp://127.4.5.6:1", ("tcp", "127.4.5.6", 1)),
+    ("tcp://[::1]:3310", ("tcp", "::1", 3310)),
+    ("tcp://localhost:3310", ("tcp", "127.0.0.1", 3310)),
+    ("unix:///run/clamav/clamd.ctl", ("unix", "/run/clamav/clamd.ctl")),
+    ("", None),
+])
+def test_local_scanner_urls_are_accepted(url, expected):
+    from core.scanner_url import parse_scanner_url
+    assert parse_scanner_url(url) == expected
+
+
+@pytest.mark.parametrize("url", [
+    "tcp://203.0.113.9:3310",            # remote IPv4
+    "tcp://[2001:db8::1]:3310",          # remote IPv6
+    "tcp://clamd.example.com:3310",      # a DNS name
+    "tcp://clamd:3310",                  # a compose service name
+    "tcp://0.0.0.0:3310",                # unspecified, not loopback
+    "tcp://localhost.example.com:3310",  # looks local, is a name
+    "tcp://127.0.0.1",                   # no port
+    "tcp://127.0.0.1:0",
+    "tcp://127.0.0.1:99999",
+    "unix://relative/path",
+    "http://127.0.0.1:3310",
+])
+def test_non_local_scanner_urls_are_refused_at_boot_and_in_use(url, monkeypatch):
+    import core.config as config
+    from core.scanner_url import ScannerUrlRefused, parse_scanner_url
+    with pytest.raises(ScannerUrlRefused):
+        parse_scanner_url(url)
+    with pytest.raises(ValueError):
+        config.Settings(practice_scanner_url=url)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("url", [
+    "tcp://203.0.113.9:3310", "tcp://[2001:db8::1]:3310", "tcp://clamd.example.com:3310", "tcp://0.0.0.0:3310",
+])
+async def test_a_refused_scanner_url_opens_no_socket_and_sends_no_bytes(monkeypatch, url):
+    opened = []
+
+    async def spy(*a, **k):
+        opened.append(a)
+        raise AssertionError("a socket was opened")
+    monkeypatch.setattr(asyncio, "open_connection", spy)
+    monkeypatch.setattr(asyncio, "open_unix_connection", spy)
+    monkeypatch.setattr(upload_safety.settings, "practice_scanner_url", url)  # bypasses the boot check on purpose
+    with pytest.raises(upload_safety.ScannerUnavailable):
+        await prep(png_bytes())
+    assert opened == []
+
+
+@pytest.mark.asyncio
+async def test_a_hostname_that_resolves_to_loopback_is_still_refused_without_resolving(monkeypatch):
+    import socket
+    resolved = []
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: resolved.append(a) or [])
+    monkeypatch.setattr(upload_safety.settings, "practice_scanner_url", "tcp://loopback.test:3310")
+    with pytest.raises(upload_safety.ScannerUnavailable):
+        await prep(png_bytes())
+    assert resolved == []
+
+
+@pytest.mark.asyncio
+async def test_bracketed_ipv6_loopback_reaches_the_connection_call(monkeypatch):
+    seen = []
+
+    async def fake(host, port):
+        seen.append((host, port))
+        raise OSError("refused")
+    monkeypatch.setattr(asyncio, "open_connection", fake)
+    monkeypatch.setattr(upload_safety.settings, "practice_scanner_url", "tcp://[::1]:3310")
+    with pytest.raises(upload_safety.ScannerUnavailable):
+        await prep(png_bytes())
+    assert seen == [("::1", 3310)]

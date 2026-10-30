@@ -205,6 +205,8 @@ services:
       # route by which content from outside this process reaches model
       # context, and it is confined to the parent's own "Ask Bede" sandbox.
       # Practice Coach upload scanner (clamd). Empty = none; set = fail closed.
+      # Loopback tcp or a unix socket only; reach another container via a shared
+      # unix-socket volume. Anything else is refused at startup.
       - PRACTICE_SCANNER_URL=${PRACTICE_SCANNER_URL:-}
       - MCP_EXTERNAL_ENABLED=${MCP_EXTERNAL_ENABLED:-false}
       - MCP_EXTERNAL_SERVERS=${MCP_EXTERNAL_SERVERS:-}

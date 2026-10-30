@@ -97,9 +97,18 @@ settled, before anything reaches a model.
   graph, object streams and hex-escaped names included, is `/JavaScript`,
   `/JS`, `/Launch`, `/EmbeddedFile(s)`, `/OpenAction`, `/AA`, `/AcroForm`,
   `/XFA`, `/RichMedia`, `/SubmitForm`, `/ImportData` or `/GoToE`. Only the one
-  scanned image on each page is taken out and re-encoded like any photo. A
-  page of typed or drawn content, or an image in a format other than JPEG or
-  8-bit gray/RGB, is refused with a plain message; there is no rasteriser here.
+  scanned image on each page is taken out and re-encoded like any photo, but
+  **only from a page that is nothing but that one picture**: the page's content
+  stream is read with pypdf and the page is refused (with "photograph or scan
+  the marked-up paper, or print the PDF to an image") if it draws visible text,
+  paints any path or shading, uses an inline image or a form XObject, places
+  more than one image, or carries any annotation other than a plain link
+  (comments, highlights, stamps and typed-in marks would otherwise be dropped
+  silently, and the teacher's marks are part of what is read). An invisible OCR
+  text layer (text render mode 3), links, clipping and marked-content
+  operators are allowed. Any parse problem refuses. An image in a format other
+  than JPEG or 8-bit gray/RGB is also refused with a plain message; there is no
+  rasteriser here.
 - **Limits:** 6 MB a file, 6 pages in total across the upload, the pixel and
   decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
   25-second processing time per file, and at most two decode jobs at once
@@ -112,8 +121,14 @@ settled, before anything reaches a model.
   malformed file that crashes a native decoder (libheif, libjpeg, zlib) is a
   risk this design reduces but does not remove. Bundled native libraries are
   covered by `pip-audit` only to the extent PyPI advisories name them.
-- **Optional scanner.** Set `PRACTICE_SCANNER_URL` to a clamd you run yourself
-  (`tcp://host:3310` or `unix:///path/to/clamd.ctl`). Each uploaded file is
+- **Optional scanner.** Set `PRACTICE_SCANNER_URL` to a clamd on the same
+  machine: `unix:///path/to/clamd.ctl`, or TCP on the loopback interface only
+  (`tcp://127.0.0.1:3310`, `tcp://[::1]:3310`, `tcp://localhost:3310`).
+  Anything else, a hostname, a compose service name, `0.0.0.0` or any non-loopback
+  address, is refused when the API starts, and again before every scan; locality
+  is judged from the text of the URL and never by looking a name up. The scanner
+  is sent the original, unmodified file, which is why. A clamd in another
+  container is reached through a shared unix-socket volume, not over tcp. Each uploaded file is
   streamed to it first. A "FOUND" answer, an unreachable or slow scanner, or an
   answer it cannot understand **refuses the upload**. Unset (the default),
   nothing is scanned and no screen or document claims it was. No external

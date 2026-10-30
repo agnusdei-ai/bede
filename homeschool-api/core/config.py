@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 from pydantic import Field, model_validator
 from typing import List
 
+from core.scanner_url import ScannerUrlRefused, parse_scanner_url
 from core.pin_policy import (
     MIN_PIN_LENGTH,
     PUBLISHED_EXAMPLE_PINS,
@@ -539,7 +540,7 @@ class Settings(BaseSettings):
     voice_transcription_max_concurrency: int = 1
 
     # ── Practice Coach upload scanner (optional) ──────────────────────────────
-    # clamd endpoint, tcp://host:3310 or unix:///path/to/clamd.ctl. Empty (the
+    # clamd endpoint, unix:///path/to/clamd.ctl or loopback tcp://127.0.0.1:3310 (any other host is refused at boot). Empty (the
     # default) means no external scan. When set, an unreachable scanner REFUSES
     # the upload rather than skipping the scan. See docs/PRACTICE_COACH.md.
     practice_scanner_url: str = ""
@@ -826,6 +827,17 @@ class Settings(BaseSettings):
                 "ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, or LOCAL_LLM_BASE_URL "
                 "(see docs/PROVIDER_ADAPTERS.md)"
             )
+        return self
+
+    @model_validator(mode="after")
+    def reject_non_local_practice_scanner(self) -> "Settings":
+        """The Practice Coach scanner is sent the original worksheet bytes, so
+        it must be a unix socket or a loopback address. Refused at boot, like
+        the other configuration rules, rather than at the first upload."""
+        try:
+            parse_scanner_url(self.practice_scanner_url)
+        except ScannerUrlRefused as exc:
+            raise ValueError(f"PRACTICE_SCANNER_URL: {exc}") from exc
         return self
 
     @model_validator(mode="after")

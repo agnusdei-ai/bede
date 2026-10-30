@@ -52,6 +52,7 @@ from pypdf import PdfReader
 from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
 
 from core.config import settings
+from core.scanner_url import ScannerUrlRefused, parse_scanner_url
 
 MAX_PAGE_BYTES = 6 * 1024 * 1024
 MAX_PAGES = 6
@@ -182,23 +183,74 @@ def _refuse_active_content(reader: PdfReader, raw: bytes) -> None:
             stack.extend(obj)
 
 
-def _page_image(page) -> bytes:
-    nothing = PhotoRejected("A page in this PDF is not a scanned photo (text and drawn pages cannot be read here). "
-                            "Please scan or photograph the paper instead.")
+_MARKED_PAGE = PhotoRejected(
+    "A page in this PDF has more on it than one scanned picture (typed or drawn marks, comments, notes or a second "
+    "image), and anything beyond the picture would be lost. Please photograph or scan the marked-up paper itself, "
+    "or print the PDF to an image."
+)
+_NOT_A_SCAN = PhotoRejected(
+    "A page in this PDF is not a scanned photo (text and drawn pages cannot be read here). "
+    "Please scan or photograph the paper instead."
+)
+# Operators that only set state, build or clip a path without painting it, or mark content.
+_STATE_OPS = frozenset({
+    b"q", b"Q", b"cm", b"gs", b"w", b"J", b"j", b"M", b"d", b"ri", b"i",
+    b"g", b"G", b"rg", b"RG", b"k", b"K", b"cs", b"CS", b"sc", b"SC", b"scn", b"SCN",
+    b"m", b"l", b"c", b"v", b"y", b"h", b"re", b"W", b"W*", b"n",
+    b"BMC", b"BDC", b"EMC", b"MP", b"DP",
+})
+_TEXT_STATE_OPS = frozenset({b"BT", b"ET", b"Tf", b"Td", b"TD", b"Tm", b"T*", b"Tc", b"Tw", b"Tz", b"TL", b"Ts"})
+_TEXT_SHOW_OPS = frozenset({b"Tj", b"TJ", b"'", b'"'})
+
+
+def _placed_image(page):
+    """The ONE image a page draws, after proving nothing else is drawn or annotated.
+
+    Refuses visible text (an invisible OCR layer, text render mode 3, is fine),
+    path painting, shadings, inline images, form XObjects, a second image, and
+    any annotation other than a plain link. Any parse problem refuses too.
+    """
     try:
+        for annot in page.get("/Annots") or []:
+            if annot.get_object().get("/Subtype") != "/Link":
+                raise _MARKED_PAGE
         xobjects = page["/Resources"].get_object()["/XObject"].get_object()
-    except Exception as exc:
-        raise nothing from exc
-    best = None
-    for ref in xobjects.values():
-        x = ref.get_object()
-        if x.get("/Subtype") == "/Image":
-            area = int(x.get("/Width", 0)) * int(x.get("/Height", 0))
-            if best is None or area > best[0]:
-                best = (area, x)
-    if best is None:
-        raise nothing
-    x = best[1]
+        contents = page.get_contents()
+        if contents is None:
+            raise _NOT_A_SCAN
+        images, render_mode, saved = [], 0, []
+        for operands, op in contents.operations:
+            if op == b"q":
+                saved.append(render_mode)
+            elif op == b"Q":
+                render_mode = saved.pop() if saved else 0
+            if op in _STATE_OPS or op in _TEXT_STATE_OPS:
+                continue
+            if op == b"Tr":
+                render_mode = int(operands[0])
+            elif op in _TEXT_SHOW_OPS:
+                if render_mode != 3:
+                    raise _MARKED_PAGE
+            elif op == b"Do":
+                target = xobjects[operands[0]].get_object()
+                if target.get("/Subtype") != "/Image":
+                    raise _MARKED_PAGE
+                images.append(target)
+            else:  # painting, shading, inline image, type-3 glyph ops, anything unknown
+                raise _MARKED_PAGE
+        if len(images) > 1:
+            raise _MARKED_PAGE
+        if not images:
+            raise _NOT_A_SCAN
+        return images[0]
+    except PhotoRejected:
+        raise
+    except Exception as exc:  # fail closed on any parse problem
+        raise _MARKED_PAGE from exc
+
+
+def _page_image(page) -> bytes:
+    x = _placed_image(page)
     w, h = int(x.get("/Width", 0)), int(x.get("/Height", 0))
     _check_size(w, h)
     filt = x.get("/Filter")
@@ -248,18 +300,18 @@ def sanitize_upload(raw: bytes, room: int) -> list[tuple[str, bytes]]:
 
 
 async def _scan(raw: bytes) -> None:
-    url = settings.practice_scanner_url.strip()
-    if not url:
+    try:
+        target = parse_scanner_url(settings.practice_scanner_url)  # defence in depth: also checked at boot
+    except ScannerUrlRefused as exc:
+        raise ScannerUnavailable("The upload scanner address is not a local one, so no upload was sent to it.") from exc
+    if target is None:
         return
 
     async def talk() -> bytes:
-        if url.startswith("unix://"):
-            reader, writer = await asyncio.open_unix_connection(url[len("unix://"):])
-        elif url.startswith("tcp://"):
-            host, _, port = url[len("tcp://"):].rpartition(":")
-            reader, writer = await asyncio.open_connection(host, int(port))
+        if target[0] == "unix":
+            reader, writer = await asyncio.open_unix_connection(target[1])
         else:
-            raise ValueError("unsupported scanner url")
+            reader, writer = await asyncio.open_connection(target[1], target[2])
         try:
             writer.write(b"zINSTREAM\0")
             for start in range(0, len(raw), 64 * 1024):

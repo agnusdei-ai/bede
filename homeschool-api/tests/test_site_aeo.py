@@ -77,8 +77,8 @@ def test_llms_crawl_links_and_pilot_data_boundary():
     """Crawl links must refer to published pages, and the data scope stays explicit."""
     llms = (SITE / "llms.txt").read_text(encoding="utf-8")
     sitemap = (SITE / "sitemap.xml").read_text(encoding="utf-8")
-    published = set(re.findall(r"<loc>(https://agnusdei\\.ai/[^<]*)</loc>", sitemap))
-    links = re.findall(r"\\]\\((https://agnusdei\\.ai/[^)]+)\\)", llms)
+    published = set(re.findall(r"<loc>(https://agnusdei\.ai/[^<]*)</loc>", sitemap))
+    links = re.findall(r"\]\((https://agnusdei\.ai/[^)]+)\)", llms)
     assert links, "llms.txt must identify its public source pages"
     for url in links:
         # The hosted interactive demo is intentionally outside the static sitemap.

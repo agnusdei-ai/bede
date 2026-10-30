@@ -36,6 +36,7 @@ UI calls it.
 """
 from __future__ import annotations
 
+from core.log_redaction import exc_text, learner_ref
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -128,7 +129,7 @@ async def record_activity(
         return True
     except Exception as exc:
         await db.rollback()
-        log.warning("Skill-activity write failed for %s/%s: %s", student_name, skill_id, exc)
+        log.warning("Skill-activity write failed for %s/%s: %s", learner_ref(student_name), skill_id, exc_text(exc, student_name))
         return False
 
 
@@ -163,7 +164,7 @@ async def summarize(
             stmt = stmt.where(SkillActivityLog.subject_area == subject_area)
         rows = (await db.execute(stmt)).scalars().all()
     except Exception as exc:
-        log.warning("Skill-activity summary failed for %s: %s", student_name, exc)
+        log.warning("Skill-activity summary failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return {"student_name": student_name, "since_days": since_days, "total": 0, "skills": []}
 
     # Resolved once for the whole batch rather than per row — it is the same

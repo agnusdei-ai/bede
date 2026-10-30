@@ -1,6 +1,6 @@
 import hmac
 from pydantic_settings import BaseSettings
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from typing import List
 
 from core.pin_policy import (
@@ -333,6 +333,14 @@ class Settings(BaseSettings):
     # RATE_LIMIT_VOICE_PER_MINUTE) for an event where many visitors share one
     # public IP — a conference room's Wi-Fi looks like a single very chatty
     # client to a per-IP limiter. Takes effect on restart; no code edit.
+    # Audit-log retention (core/audit.py's purge_audit_log, COPPA readiness
+    # C-18). AUDIT_RETENTION_DAYS: audit rows older than this are deleted.
+    # 365 is a placeholder default pending an owner decision, recorded in
+    # docs/RETENTION_POLICY.md. AUDIT_IP_TRUNCATE_DAYS: after this many days a
+    # row's stored IP is replaced by a keyed pseudonym and its user-agent is
+    # cleared; the event itself is kept.
+    audit_retention_days: int = Field(default=365, ge=1)
+    audit_ip_truncate_days: int = Field(default=30, ge=1)
     rate_limit_auth_per_minute: int = 10
     rate_limit_api_per_minute: int = 120
     rate_limit_voice_per_minute: int = 20

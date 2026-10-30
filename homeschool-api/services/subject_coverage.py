@@ -36,6 +36,7 @@ PARENT-FACING ONLY, like every other view built on the ledger. A child shown
 """
 from __future__ import annotations
 
+from core.log_redaction import exc_text, learner_ref
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -94,7 +95,7 @@ async def coverage_for_student(
             .where(LessonBookmark.student_name == student_name)
         )).all()
     except Exception as exc:
-        log.warning("Subject-coverage read failed for %s: %s", student_name, exc)
+        log.warning("Subject-coverage read failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return []
 
     last_by_subject = {subject: updated_at for subject, updated_at in rows}

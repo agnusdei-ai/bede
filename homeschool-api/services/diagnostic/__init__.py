@@ -20,6 +20,7 @@ than duplicating the load->update->encrypt->store logic, and it stays
 useful on its own for calibration tooling/tests that don't have `db`.
 """
 
+from core.log_redaction import exc_text, learner_ref
 from datetime import datetime
 from typing import Optional
 
@@ -148,7 +149,7 @@ async def process_evidence(
     except Exception as exc:
         log.warning(
             "Mastery profile load failed for %s/%s, treating as cold-start: %s",
-            student_name, subject_area, exc,
+            learner_ref(student_name), subject_area, exc_text(exc, student_name),
         )
         vector = new_vector(grade_band)
         vector_is_cold_start = True
@@ -212,7 +213,7 @@ async def process_evidence(
         await db.commit()
     except Exception as exc:
         await db.rollback()
-        log.warning("Mastery profile persist failed for %s/%s: %s", student_name, subject_area, exc)
+        log.warning("Mastery profile persist failed for %s/%s: %s", learner_ref(student_name), subject_area, exc_text(exc, student_name))
 
     return updated_vector
 
@@ -271,7 +272,7 @@ async def get_mastery_summary(db, student_name: str, subject_area: str = "mathem
             )
         )
     except Exception as exc:
-        log.warning("Mastery summary load failed for %s/%s: %s", student_name, subject_area, exc)
+        log.warning("Mastery summary load failed for %s/%s: %s", learner_ref(student_name), subject_area, exc_text(exc, student_name))
         return None
 
     return build_summary_view(
@@ -323,7 +324,7 @@ async def get_session_growth(
         )
         rows = result.scalars().all()
     except Exception as exc:
-        log.warning("Session growth load failed for %s/%s: %s", student_name, subject_area, exc)
+        log.warning("Session growth load failed for %s/%s: %s", learner_ref(student_name), subject_area, exc_text(exc, student_name))
         return []
 
     before: dict[str, float] = {}
@@ -336,7 +337,7 @@ async def get_session_growth(
                 await student_keys.get_existing(db, student_name),
             )
         except Exception as exc:
-            log.warning("Session growth delta decrypt failed for %s/%s: %s", student_name, subject_area, exc)
+            log.warning("Session growth delta decrypt failed for %s/%s: %s", learner_ref(student_name), subject_area, exc_text(exc, student_name))
             continue
         for delta in deltas:
             skill_id = delta["skill_id"]

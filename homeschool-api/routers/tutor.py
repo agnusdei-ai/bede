@@ -9,6 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
+from core.log_redaction import exc_summary, learner_ref
 from core.config import settings
 from core.database import get_db
 from core.demo_code_session import (
@@ -387,7 +388,7 @@ async def chat(
         except asyncio.TimeoutError:
             log.warning(
                 "Tutor stream stalled past %.0fs for %s — closing with a recoverable error",
-                STREAM_STALL_TIMEOUT_SECONDS, req.session_config.student_name,
+                STREAM_STALL_TIMEOUT_SECONDS, learner_ref(req.session_config.student_name),
             )
             # See core/audit.py's AI_BACKEND_FAILURE / _GLOBAL_ANOMALY_EVENTS —
             # a repeated pattern here (pooled across every device, not just
@@ -408,7 +409,13 @@ async def chat(
             })
             yield json.dumps({'type': 'done'})
         except Exception as exc:
-            log.exception("Tutor stream failed mid-turn for %s", req.session_config.student_name)
+            # Child-facing path: log the exception's type and location only.
+            # log.exception() would write its message and traceback, and the
+            # message can carry the child's own words (COPPA readiness C-16).
+            log.error(
+                "Tutor stream failed mid-turn for %s: %s",
+                learner_ref(req.session_config.student_name), exc_summary(exc),
+            )
             log_event_nowait(
                 AuditEvent.AI_BACKEND_FAILURE,
                 role=role, student_name=req.session_config.student_name,

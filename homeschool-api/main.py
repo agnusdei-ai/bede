@@ -181,6 +181,20 @@ async def _periodic_data_purge():
         except Exception:
             log.warning("Periodic data purge failed — will retry next interval", exc_info=True)
 
+        # Audit-log retention and IP minimisation (core/audit.py's
+        # purge_audit_log, COPPA readiness C-18). Its own try so a failure
+        # here cannot stop the sweeps around it.
+        try:
+            from core.audit import purge_audit_log
+            audit_result = await purge_audit_log()
+            if audit_result["deleted"] or audit_result["minimised"]:
+                log.info(
+                    "Periodic audit purge: deleted %d row(s), minimised IP on %d",
+                    audit_result["deleted"], audit_result["minimised"],
+                )
+        except Exception:
+            log.warning("Periodic audit purge failed — will retry next interval", exc_info=True)
+
         # Expired privileged-access grants (core/elevation.py). Hygiene, not
         # a security control — is_elevated() checks the timestamp, so an
         # expired row is already inert. Without this the table grows by one

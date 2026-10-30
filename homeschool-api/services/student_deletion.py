@@ -19,6 +19,7 @@ independent of any single student on purpose, per core/audit.py's own
 docstring — deleting a student doesn't rewrite the security history of
 what happened on this deployment).
 """
+from core.log_redaction import learner_ref
 import logging
 
 from sqlalchemy import delete
@@ -94,5 +95,5 @@ async def delete_all_student_data(db: AsyncSession, student_name: str) -> dict[s
     counts["data_key_shredded"] = 1 if shredded else 0
 
     await db.commit()
-    log.info("Deleted all data for student %r: %s", student_name, counts)
+    log.info("Deleted all data for student %r: %s", learner_ref(student_name), counts)
     return counts

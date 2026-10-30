@@ -1228,6 +1228,18 @@ not generate student records, use the separate Parent Sandbox.
 See [Bede Classical Core](BEDE_CLASSICAL_CORE.md) for the narrow
 supported first-release workflow and its limits.
 
+## 5a. Consent, pausing, and reviewing your child's records
+
+Bede does not record a child's lessons until a parent has given consent to the
+privacy notice. The controls for this (consent, pausing collection for one
+child, and reviewing everything Bede holds about that child) are available
+through the API now. The parent screens for them are not built yet, so until
+they are, a household using the app will see that tutoring needs consent and
+cannot give it from the screen. The full description, including what is still
+open, is in [PARENTAL_CONSENT.md](PARENTAL_CONSENT.md). Whether the consent
+method you use is sufficient for your situation is a question for a lawyer, not
+for Bede.
+
 ## 6. Getting each child onto their own tablet
 
 **First, each new device needs to trust your server's certificate**: a

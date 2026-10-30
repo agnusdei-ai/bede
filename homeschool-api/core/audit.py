@@ -10,10 +10,12 @@ means a rollback in a route handler will not suppress the audit entry.
 """
 
 import asyncio
+import hashlib
+import hmac
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy import select
@@ -100,6 +102,15 @@ class AuditEvent:
     PILOT_GRANT_REVOKED        = "pilot.roster_grant_revoked"
     PILOT_MEMBERSHIP_DISABLED  = "pilot.campus_membership_disabled"
     PILOT_CAMPUS_DISABLED      = "pilot.campus_disabled"
+    # core/consent.py and routers/consent.py: parental consent ledger and
+    # per-child collection controls (COPPA 312.5, 312.6). Detail carries the
+    # notice hash prefix and method only, never the parent's alias or reason.
+    CONSENT_GRANTED            = "consent.granted"
+    CONSENT_REVOKED            = "consent.revoked"
+    COLLECTION_PAUSED          = "collection.paused"
+    COLLECTION_RESUMED         = "collection.resumed"
+    DATA_EXPORTED              = "data.exported"
+    COLLECTION_REFUSED         = "collection.refused"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -371,3 +382,111 @@ def audit_from_request(request) -> dict:
         "ip": (request.client.host if request.client else "unknown"),
         "user_agent": request.headers.get("user-agent", ""),
     }
+
+
+# ── Retention and IP minimisation (COPPA readiness C-18 / F5) ──────────────
+# An audit row keeps the requesting IP and user-agent, which are persistent
+# identifiers of a device in a household. Two rules bound them:
+#
+#   * a row older than settings.audit_retention_days is deleted (the row's
+#     created_at column is plaintext, so the delete needs no decryption);
+#   * a row older than settings.audit_ip_truncate_days keeps the event but has
+#     its IP replaced by a keyed pseudonym and its user-agent cleared. The IP
+#     sits inside event_enc, so this decrypts, changes two fields, and
+#     re-encrypts under the same AAD.
+#
+# Security review keeps the event, the outcome, the role and the detail, and
+# keeps the ability to tell that two events came from one address, because the
+# pseudonym is stable for one deployment's SECRET_KEY. It loses the address
+# itself. There is no hash chain over audit rows in this module to preserve.
+#
+# Cost: each run decrypts every row older than the truncate window, because a
+# row's state is only visible inside its ciphertext. That is a full pass per
+# run, in batches of _MINIMISE_BATCH with a yield between batches. It runs
+# every six hours (main.py's _periodic_data_purge). Acceptable at family-scale
+# row counts; revisit with a plaintext marker column if a deployment grows.
+
+_IP_PSEUDONYM_LABEL = "bede/audit-ip/v1/"
+_IP_PSEUDONYM_PREFIX = "ip-pseudonym:"
+_NO_IP_VALUES = ("", "unknown")
+_MINIMISE_BATCH = 500
+
+
+def ip_pseudonym(ip: str) -> str:
+    """A stable, non-reversible stand-in for an IP address, keyed on
+    SECRET_KEY through a domain-separated label (core/identity.py's pattern)."""
+    from core.config import settings
+
+    key = hmac.new(
+        settings.secret_key.encode("utf-8"), _IP_PSEUDONYM_LABEL.encode("utf-8"), hashlib.sha256
+    ).digest()
+    digest = hmac.new(key, ip.encode("utf-8"), hashlib.sha256).hexdigest()[:16]
+    return _IP_PSEUDONYM_PREFIX + digest
+
+
+def _needs_minimising(entry: dict) -> bool:
+    ip = str(entry.get("ip", ""))
+    ip_is_raw = ip not in _NO_IP_VALUES and not ip.startswith(_IP_PSEUDONYM_PREFIX)
+    return ip_is_raw or bool(entry.get("ua"))
+
+
+async def purge_audit_log(now: Optional[datetime] = None) -> dict:
+    """Apply both audit retention rules once. Returns counts:
+    {"deleted": rows removed, "minimised": rows whose IP/UA were replaced,
+     "corrupt": rows that could not be decrypted and were left untouched}.
+
+    Best-effort at the caller: main.py wraps it in its own try block so a
+    failure here cannot stop the demo sweep, and it is safe to re-run.
+    """
+    from sqlalchemy import delete, update
+
+    from core.config import settings
+    from core.database import AsyncSessionLocal, AuditLog
+    from core.encryption import decrypt, encrypt
+
+    now = now or datetime.now(timezone.utc)
+    delete_before = now - timedelta(days=settings.audit_retention_days)
+    truncate_before = now - timedelta(days=settings.audit_ip_truncate_days)
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(delete(AuditLog).where(AuditLog.created_at < delete_before))
+        deleted = result.rowcount or 0
+        await db.commit()
+
+    minimised = 0
+    corrupt = 0
+    last_id = 0
+    while True:
+        async with AsyncSessionLocal() as db:
+            rows = (
+                await db.execute(
+                    select(AuditLog.id, AuditLog.event_enc)
+                    .where(AuditLog.created_at < truncate_before, AuditLog.id > last_id)
+                    .order_by(AuditLog.id)
+                    .limit(_MINIMISE_BATCH)
+                )
+            ).all()
+            if not rows:
+                break
+            for row_id, blob in rows:
+                last_id = row_id
+                try:
+                    entry = json.loads(decrypt(blob, _AUDIT_AAD))
+                except Exception:
+                    corrupt += 1
+                    continue
+                if not _needs_minimising(entry):
+                    continue
+                ip = str(entry.get("ip", ""))
+                if ip not in _NO_IP_VALUES and not ip.startswith(_IP_PSEUDONYM_PREFIX):
+                    entry["ip"] = ip_pseudonym(ip)
+                entry["ua"] = ""
+                new_blob = encrypt(json.dumps(entry, separators=(",", ":")).encode(), _AUDIT_AAD)
+                await db.execute(
+                    update(AuditLog).where(AuditLog.id == row_id).values(event_enc=new_blob)
+                )
+                minimised += 1
+            await db.commit()
+        await asyncio.sleep(0)
+
+    return {"deleted": deleted, "minimised": minimised, "corrupt": corrupt}

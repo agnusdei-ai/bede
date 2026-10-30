@@ -48,13 +48,57 @@ def running_wizard(tmp_path, monkeypatch):
     monkeypatch.setattr(wizard, "LAN_IP", "192.168.1.50")
     wizard._shutdown_event.clear()
     wizard._cancel_event.clear()
+    wizard._consent.clear()
 
     server = wizard.ThreadingHTTPServer(("127.0.0.1", 0), wizard.Handler)
     port = server.server_address[1]
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
-    yield f"http://127.0.0.1:{port}"
+    base = f"http://127.0.0.1:{port}"
+    # Every wizard test below is about what happens AFTER the family has
+    # accepted the notice; the consent step itself is covered by the
+    # fresh_wizard fixture and the consent tests at the end of this file.
+    _accept(base)
+    yield base
     server.shutdown()
+    wizard._consent.clear()
+
+
+@pytest.fixture
+def fresh_wizard(tmp_path, monkeypatch):
+    """A wizard nobody has accepted the consent notice on yet."""
+    monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
+    monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
+    wizard._shutdown_event.clear()
+    wizard._cancel_event.clear()
+    wizard._consent.clear()
+    server = wizard.ThreadingHTTPServer(("127.0.0.1", 0), wizard.Handler)
+    t = threading.Thread(target=server.serve_forever, daemon=True)
+    t.start()
+    yield f"http://127.0.0.1:{server.server_address[1]}"
+    server.shutdown()
+    wizard._consent.clear()
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **kw):
+        return None
+
+
+def _raw_post(base_url, path, fields=None):
+    """POST without following redirects; returns (status, body)."""
+    data = urllib.parse.urlencode(fields or {}).encode()
+    opener = urllib.request.build_opener(_NoRedirect)
+    try:
+        resp = opener.open(urllib.request.Request(f"{base_url}{path}", data=data, method="POST"))
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+    return resp.status, resp.read().decode()
+
+
+def _accept(base_url):
+    status, _ = _raw_post(base_url, "/consent", {"agree": "yes"})
+    assert status == 303
 
 
 def _post(base_url, fields):
@@ -553,6 +597,7 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
         time.sleep(0.05)
     port = server_holder["server"].server_address[1]
 
+    _accept(f"http://127.0.0.1:{port}")
     _post(f"http://127.0.0.1:{port}", {
         "anthropic_key": "sk-ant-test",
         "db_choice": "local",
@@ -748,3 +793,98 @@ def test_invalid_entitlement_is_rejected():
     assert "format is invalid" in wizard.license_preflight_error(
         "not-an-entitlement", "homeschool", ""
     )
+
+
+# ── Parental-consent step (install time) ──────────────────────────────────
+#
+# A self-hosting family gives consent at install, with the notice in front of
+# them. Declining must leave NOTHING behind: no .env, no start. The hash the
+# installer records must be the hash of the real notice file's bytes, because
+# the API accepts the acknowledgement only on an exact match.
+
+import hashlib
+import re
+from pathlib import Path
+
+NOTICE_FILE = Path(__file__).resolve().parents[2] / "homeschool-api" / "data" / "consent_notice.txt"
+VALID_FIELDS = {
+    "anthropic_key": "sk-ant-test",
+    "db_choice": "local",
+    "parent_password": "parentpass123",
+    "child_pin": TEST_PIN,
+    "license_key": MOCK_ENTITLEMENT,
+}
+
+
+def test_first_page_is_the_notice_not_the_setup_form(fresh_wizard):
+    body = urllib.request.urlopen(f"{fresh_wizard}/").read().decode()
+    assert "Notice version:" in body
+    assert "agree to be the custodian" in body
+    assert 'name="anthropic_key"' not in body
+
+
+def test_accepting_writes_both_ack_lines_with_the_real_hash(fresh_wizard, tmp_path):
+    _accept(fresh_wizard)
+    _post(fresh_wizard, VALID_FIELDS)
+    env = (tmp_path / ".env").read_text()
+    expected = hashlib.sha256(NOTICE_FILE.read_bytes()).hexdigest()
+    assert f"CONSENT_INSTALL_ACK_HASH={expected}\n" in env
+    m = re.search(r"^CONSENT_INSTALL_ACK_AT=(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)$", env, re.M)
+    assert m, env
+
+
+def test_submit_without_consent_is_refused_and_writes_nothing(fresh_wizard, tmp_path):
+    status, _ = _raw_post(fresh_wizard, "/submit", VALID_FIELDS)
+    assert status == 403
+    assert not (tmp_path / ".env").exists()
+
+
+def test_unticked_checkbox_cannot_proceed(fresh_wizard, tmp_path):
+    status, body = _raw_post(fresh_wizard, "/consent", {})
+    assert status == 400 and "tick the box" in body
+    status, _ = _raw_post(fresh_wizard, "/submit", VALID_FIELDS)
+    assert status == 403
+    assert not (tmp_path / ".env").exists()
+
+
+def test_declining_shows_not_completed_and_writes_nothing(fresh_wizard, tmp_path):
+    status, body = _raw_post(fresh_wizard, "/decline")
+    assert status == 200 and "Installation not completed" in body
+    assert wizard._cancel_event.is_set()
+    status, _ = _raw_post(fresh_wizard, "/submit", VALID_FIELDS)
+    assert status == 403
+    assert not (tmp_path / ".env").exists()
+
+
+def test_main_exits_nonzero_when_the_notice_is_declined(tmp_path, monkeypatch):
+    monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
+    monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
+    monkeypatch.setattr(wizard, "PORT", 0)
+    wizard._shutdown_event.clear()
+    holder = {}
+    base_cls = wizard.ThreadingHTTPServer
+
+    class _Capture(base_cls):
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            holder["server"] = self
+
+    monkeypatch.setattr(wizard, "ThreadingHTTPServer", _Capture)
+    result = {}
+    t = threading.Thread(target=lambda: result.setdefault("rc", wizard.main()), daemon=True)
+    t.start()
+    for _ in range(50):
+        if "server" in holder:
+            break
+        time.sleep(0.05)
+    _raw_post(f"http://127.0.0.1:{holder['server'].server_address[1]}", "/decline")
+    t.join(timeout=5)
+    assert not t.is_alive()
+    assert result["rc"] != 0
+    assert not (tmp_path / ".env").exists()
+
+
+def test_wizard_image_ships_the_notice_file():
+    dockerfile = (Path(__file__).parent / "Dockerfile").read_text()
+    assert "COPY homeschool-api/data/consent_notice.txt /app/consent_notice.txt" in dockerfile
+    assert wizard._CONSENT_NOTICE_CANDIDATES[0] == Path("/app/consent_notice.txt")

@@ -68,7 +68,21 @@ MAX_CONCURRENT_JOBS = 2
 # Pillow's own bomb guard: warns above this, errors above twice it. Warnings are
 # promoted to errors where we open images, so the cap is a hard one.
 Image.MAX_IMAGE_PIXELS = MAX_PIXELS
-pillow_heif.register_heif_opener()
+
+# pillow-heif 1.8.1 bundles libheif 1.23.6. Upstream libheif 1.23.7
+# (2026-10-26) patches high-severity untrusted-image vulnerabilities.
+# Enforce the linked native library version, not merely the Python wheel pin.
+def _safe_heif_decoder() -> bool:
+    try:
+        parts = tuple(int(part) for part in pillow_heif.libheif_version().split(".")[:3])
+        return len(parts) == 3 and parts >= (1, 23, 7)
+    except (AttributeError, TypeError, ValueError):
+        return False
+
+
+HEIF_DECODER_QUALIFIED = _safe_heif_decoder()
+if HEIF_DECODER_QUALIFIED:
+    pillow_heif.register_heif_opener()
 
 _FORMATS = ("PNG", "JPEG", "HEIF")
 HEIF_BRANDS = frozenset({b"heic", b"heix", b"hevc", b"mif1", b"msf1", b"heif"})
@@ -293,6 +307,8 @@ def sanitize_upload(raw: bytes, room: int) -> list[tuple[str, bytes]]:
     if raw.startswith(b"\xff\xd8\xff"):
         return [("image/png", reencode_image(raw, "JPEG"))]
     if raw[4:8] == b"ftyp" and raw[8:12] in HEIF_BRANDS:
+        if not HEIF_DECODER_QUALIFIED:
+            raise PhotoRejected("HEIC photos are temporarily unavailable until the image decoder is patched. Please export a JPEG or PNG photo.")
         return [("image/png", reencode_image(raw, "HEIF"))]
     if raw.startswith(b"%PDF-"):
         return [("image/png", p) for p in pages_from_pdf(raw, room)]

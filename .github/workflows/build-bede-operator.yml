@@ -364,6 +364,33 @@ jobs:
         uses: Minionguyjpro/Inno-Setup-Action@b8e8eb5936437c243592fda645c96dfc6488c275 # v1.2.2
         with:
           path: packaging/windows/BedeRelease.iss
+      - name: Smoke-test native Windows EXE extraction without launching Bede
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/Output/BedeRelease.exe'
+          $installed = Join-Path $env:RUNNER_TEMP 'bede-native-installer-smoke'
+          $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOICONS',('/DIR=' + $installed))
+          $process = Start-Process -FilePath $exe -ArgumentList $args -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Windows installer failed: $($process.ExitCode)" }
+          foreach ($name in @('Install-Bede.ps1','compose.yaml','Caddyfile',
+              'RELEASE','ARCH','IMAGE_DIGESTS','WIZARD_IMAGE','RELEASE_PROVENANCE.json')) {
+            if (!(Test-Path -LiteralPath (Join-Path $installed $name))) { throw ("Windows EXE is missing: " + $name) }
+          }
+          if ((Get-Content (Join-Path $installed 'RELEASE') -Raw).Trim() -cne $env:GITHUB_SHA) {
+            throw 'Native installer source SHA differs from its build'
+          }
+          if ((Get-Content (Join-Path $installed 'ARCH') -Raw).Trim() -cne 'amd64') {
+            throw 'Windows native installer contains wrong architecture'
+          }
+          $tokens = $null
+          $parseErrors = $null
+          $code = Get-Content (Join-Path $installed 'Install-Bede.ps1') -Raw
+          [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) { throw ("Extracted Windows launcher cannot parse: " + $parseErrors[0].Message) }
+          if (Test-Path (Join-Path $installed '.env')) { throw 'Native installer must not silently initialize user data' }
+          Write-Host 'Windows EXE installed sealed source-free payload. No Docker or learner data was started.'
+
       - name: Validate candidate, record source SHA and checksum
         shell: pwsh
         run: |

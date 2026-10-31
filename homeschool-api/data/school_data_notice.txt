@@ -1,4 +1,4 @@
-Notice version: 2026-10-30.1
+Notice version: 2026-10-30.2
 
 SCHOOL AUTHORIZATION FOR STORAGE OF STUDENT INFORMATION
 Storage, Use, Maintenance and Custody of Student Information by a School
@@ -10,11 +10,11 @@ Bede is software provided by Agnus Dei Technologies, LLC (the "Provider"). Quest
 
 2. Definitions
 "School" means the school, campus or other educational institution on whose behalf Bede is deployed and for which this authorization is given.
-"Authorized Official" means the administrator or teacher of the School who indicates agreement to this Notice on the School's behalf.
+"Authorized Official" means the designated school administrator or executive acting on the School's behalf, whose authority is verified by the School outside the Bede application.
 "Student Information" means information, in any form, that Bede stores about an identifiable student of the School, as described in Section 4.
 
 3. Authority of the Authorized Official
-The Authorized Official represents that he or she is authorized to act on behalf of the School in giving the authorization set out in this Notice. The Provider does not verify that authority.
+The Authorized Official represents that he or she is authorized to act on behalf of the School in giving the authorization set out in this Notice. The Bede application requires an administrator passkey for the electronic authorization; possession of this credential does not itself establish authority from the School. Evidence of institutional authorization must be independently verified before real learner-data qualification or deployment.
 
 4. Student Information Stored
 Once authorization is given, the following categories of Student Information may be stored and maintained:

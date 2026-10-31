@@ -20,11 +20,10 @@ const CONFIDENCE_FLOOR = 0.75
 
 /** What the file picker offers. The server decides the real type from the file's
  *  bytes (never from this list or the filename), so this only shapes the dialog.
- *  HEIC/HEIF is listed explicitly for iPhone photos: when a picker lists
- *  those, iOS Safari may hand them over untouched instead of converting to JPEG,
- *  and the server decodes them. A PDF counts for every page it holds. */
+ *  HEIC is withheld while the bundled native decoder lacks security fixes.
+ *  The API also refuses HEIC before native decoding. A PDF counts for every page it holds. */
 export const PRACTICE_ACCEPT =
-  'image/jpeg,image/png,application/pdf,.pdf,image/heic,image/heif,.heic,.heif'
+  'image/jpeg,image/png,application/pdf,.pdf'
 
 type Stage = 'start' | 'reading' | 'review' | 'planning' | 'plan' | 'done'
 

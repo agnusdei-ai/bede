@@ -208,6 +208,8 @@ services:
       # Loopback tcp or a unix socket only; reach another container via a shared
       # unix-socket volume. Anything else is refused at startup.
       - PRACTICE_SCANNER_URL=${PRACTICE_SCANNER_URL:-}
+      # Practice Coach cloud reading of page images: off unless set to true.
+      - PRACTICE_CLOUD_READING_ENABLED=${PRACTICE_CLOUD_READING_ENABLED:-false}
       - MCP_EXTERNAL_ENABLED=${MCP_EXTERNAL_ENABLED:-false}
       - MCP_EXTERNAL_SERVERS=${MCP_EXTERNAL_SERVERS:-}
       - MCP_EXTERNAL_TIMEOUT_SECONDS=${MCP_EXTERNAL_TIMEOUT_SECONDS:-10.0}

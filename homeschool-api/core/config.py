@@ -545,6 +545,14 @@ class Settings(BaseSettings):
     # the upload rather than skipping the scan. See docs/PRACTICE_COACH.md.
     practice_scanner_url: str = ""
 
+    # Practice Coach may send worksheet page images to the household's CLOUD AI
+    # provider only if this is true AND the parent ticks consent for that upload.
+    # Off by default: no provider's training/retention terms for images have been
+    # verified for this product, so the default is local-model reading only.
+    # Enforced in the one routing choke point (services/practice/extract.py), so a
+    # direct API request cannot bypass it.
+    practice_cloud_reading_enabled: bool = False
+
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
     # On by default — this is what powers the end-of-session "Math Skill
     # Growth" before/after report (services.diagnostic.get_session_growth,

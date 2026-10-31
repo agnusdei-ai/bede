@@ -62,9 +62,12 @@ def reading_route() -> dict:
     from services.adapters import router
 
     configured = router.configured_adapters()
+    cloud = next((a for a in router.preference_order() if a in configured and a != "local"), None)
     return {
         "local_available": "local" in configured,
-        "cloud_provider": next((a for a in router.preference_order() if a in configured and a != "local"), None),
+        # Withheld while cloud reading is switched off, so the screen never
+        # offers a consent tick for a route the server will refuse.
+        "cloud_provider": cloud if settings.practice_cloud_reading_enabled else None,
     }
 
 
@@ -77,6 +80,8 @@ def _choose_client(req: ReadPhotosRequest):
         if not route["local_available"]:
             raise ReadingUnavailable("No local model is configured on this install.")
         return router.resolve_local_only()
+    if not settings.practice_cloud_reading_enabled:
+        raise ReadingUnavailable("Reading photos with a cloud AI provider is turned off on this install.")
     if not route["cloud_provider"]:
         raise ReadingUnavailable("No AI provider is configured to read photos.")
     if not req.cloud_consent:

@@ -241,6 +241,7 @@ def _req(**kw):
 
 @pytest.mark.asyncio
 async def test_cloud_reading_needs_consent_and_makes_no_call_without_it(monkeypatch):
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
     cloud = StubClient(json.dumps(GOLDEN["assessment"]))
     _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
     with pytest.raises(extract.ConsentRequired) as exc:
@@ -249,6 +250,28 @@ async def test_cloud_reading_needs_consent_and_makes_no_call_without_it(monkeypa
     assert cloud.calls == []
     assert (await extract.read_pages(_req(cloud_consent=True))).subject == "latin"
     assert len(cloud.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_cloud_reading_is_off_by_default_even_with_consent(monkeypatch):
+    """No provider's image terms are verified, so the server refuses the cloud
+    route outright: consent alone cannot switch it on, and no call is made."""
+    assert extract.settings.practice_cloud_reading_enabled is False  # the shipped default
+    cloud = StubClient(json.dumps(GOLDEN["assessment"]))
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
+    assert extract.reading_route()["cloud_provider"] is None  # the screen offers no consent tick
+    for req in (_req(), _req(cloud_consent=True), _req(route="cloud", cloud_consent=True)):
+        with pytest.raises(extract.ReadingUnavailable, match="turned off"):
+            await extract.read_pages(req)
+    assert cloud.calls == []
+
+
+@pytest.mark.asyncio
+async def test_switching_cloud_reading_off_leaves_the_local_route_working(monkeypatch):
+    local, cloud = StubClient(json.dumps(GOLDEN["assessment"])), StubClient("{}")
+    _routing(monkeypatch, local=True, cloud="openai", local_client=local, cloud_client=cloud)
+    await extract.read_pages(_req())
+    assert len(local.calls) == 1 and cloud.calls == []
 
 
 @pytest.mark.asyncio

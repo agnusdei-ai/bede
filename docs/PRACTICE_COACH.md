@@ -55,9 +55,19 @@ The photos are read in one of two places:
 
 - **On the household's own model**, when one is configured. This is the
   default, and it never falls back to a cloud provider.
-- **On the household's configured cloud AI provider**, only when the parent
-  confirms it for that upload. Without that confirmation the request is
-  refused before anything is sent, and the response names the provider.
+- **On the household's configured cloud AI provider**, only when the
+  deployment has switched this on (`PRACTICE_CLOUD_READING_ENABLED=true`,
+  **off by default**) AND the parent confirms it for that upload. With the
+  switch off, the server refuses the cloud route outright, so a direct API
+  request cannot bypass it, and the reading-route screen offers no consent
+  tick. Without the parent's confirmation the request is refused before
+  anything is sent, and the response names the provider. The switch is off
+  because no provider's training, retention or logging terms for images have
+  been verified for this product. Turning it on is a decision to verify those
+  terms first, not a setting to flip. One known limit to settle at the same
+  time: the cloud route uses the same failover client as tutoring, so if the
+  named provider errors the request can be retried on the next configured
+  provider, which the parent's confirmation did not name.
 
 `GET /practice/reading-route` tells the parent which applies before they
 upload.
@@ -139,6 +149,12 @@ settled, before anything reaches a model.
   answer it cannot understand **refuses the upload**. Unset (the default),
   nothing is scanned and no screen or document claims it was. No external
   scanning service is ever contacted.
+- **Timeouts do not stop a decode.** A worker thread cannot be killed. When the
+  25 s limit passes the caller is told to retry, but the thread runs until it
+  finishes, and keeps its slot until then. At most 2 decode jobs run at once
+  and a third caller waits 10 s and gets a busy answer, so a slow file cannot
+  pile up work, but it can tie up both slots for as long as the decode takes.
+  Process isolation would remove this and is not part of this change.
 - **Temporary files:** none are created. Everything is held in memory
   (`io.BytesIO`), so there is nothing to clean up after success, error,
   timeout or cancellation.

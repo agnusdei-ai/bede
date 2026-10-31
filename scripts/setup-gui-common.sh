@@ -49,8 +49,16 @@ info "Opening the setup wizard in your browser..."
 # the wizard (which otherwise runs as root inside the container) writes
 # .env owned by root, and chmod 600 on a root-owned file then locks YOU
 # out of your own .env (caught by production-regression.yml's CI run).
+WIZARD_STATUS=0
 docker run --rm -p 127.0.0.1:8765:8765 -e HOST_LAN_IP="$LAN_IP" -v "$(pwd)":/repo \
-  --user "$(id -u):$(id -g)" bede-setup-wizard
+  --user "$(id -u):$(id -g)" bede-setup-wizard || WIZARD_STATUS=$?
+
+# A non-zero exit means the Parental Notice and Consent was declined or setup
+# was cancelled. Stop here even if an older .env is lying around: declining
+# must never fall through to starting Bede on a previous configuration.
+if [[ "$WIZARD_STATUS" -ne 0 ]]; then
+  error "Installation not completed. Consent was not given or setup was cancelled. Nothing was started."
+fi
 
 if [[ ! -f .env ]]; then
   error "Setup wasn't completed (no configuration was saved). Run this again when you're ready."

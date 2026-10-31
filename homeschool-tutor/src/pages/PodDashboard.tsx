@@ -9,6 +9,7 @@ import { SUBJECTS } from '../types'
 import type { SessionConfig, Subject } from '../types'
 import { subjectLabel } from '../utils/subjectLabel'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
+import ConsentBanner from '../components/ConsentBanner'
 
 export default function PodDashboard() {
   const { t } = useTranslation()
@@ -93,6 +94,7 @@ export default function PodDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-parchment-50 via-parchment-50 to-navy-50/40 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
+        <ConsentBanner />
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">

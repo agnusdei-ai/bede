@@ -488,6 +488,9 @@ export async function* streamTutorChat(
       })
 
       if (!res.ok) {
+        if (res.status === 403 && (await errorCode(res)) === 'parental_consent_required') {
+          throw new ParentalConsentRequiredError()
+        }
         throw new Error('Tutor request failed — check your connection')
       }
 
@@ -671,12 +674,85 @@ export async function fetchAgenticLoopStats(token: string, days: number): Promis
 
 // ── Pod session configs ──────────────────────────────────────────────────────
 
-export async function savePodConfigs(token: string, configs: SessionConfig[]): Promise<void> {
+/** The consent notice changed between the parent reading it and agreeing. */
+export class ConsentNoticeChangedError extends Error {
+  constructor() {
+    super('notice_changed')
+    this.name = 'ConsentNoticeChangedError'
+  }
+}
+
+/** A collection request refused until a parent finishes the consent step. */
+export class ParentalConsentRequiredError extends Error {
+  constructor() {
+    super('parental_consent_required')
+    this.name = 'ParentalConsentRequiredError'
+  }
+}
+
+async function errorCode(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json()
+    const code = body?.detail?.error
+    return typeof code === 'string' ? code : null
+  } catch {
+    return null
+  }
+}
+
+export interface HouseholdConsent {
+  needs_consent: boolean
+  install_ack: boolean
+  notice_hash: string
+  notice_version: string
+  notice_text: string
+  students: { student_name: string; consented: boolean; stale: boolean }[]
+}
+
+export interface ConsentGrantResult {
+  granted: string[]
+  already: string[]
+  refreshed: string[]
+}
+
+export async function fetchHouseholdConsent(token: string): Promise<HouseholdConsent> {
+  const res = await fetch(`${BASE}/household/consent`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to load consent status')
+  return res.json()
+}
+
+export async function grantHouseholdConsent(
+  token: string,
+  noticeHash: string,
+  parentLabel: string,
+): Promise<ConsentGrantResult> {
+  const res = await fetch(`${BASE}/household/consent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ notice_hash: noticeHash, parent_label: parentLabel }),
+  })
+  if (res.status === 409 && (await errorCode(res)) === 'notice_changed') {
+    throw new ConsentNoticeChangedError()
+  }
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to record consent')
+  return res.json()
+}
+
+export async function savePodConfigs(
+  token: string,
+  configs: SessionConfig[],
+  consentNoticeHash?: string | null,
+): Promise<void> {
   const res = await fetch(`${BASE}/pod/configs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ configs }),
+    body: JSON.stringify(consentNoticeHash ? { configs, consent_notice_hash: consentNoticeHash } : { configs }),
   })
+  if (res.status === 409 && (await errorCode(res)) === 'notice_changed') {
+    throw new ConsentNoticeChangedError()
+  }
   if (!res.ok) throw new Error('Failed to save pod configuration')
 }
 
@@ -1153,11 +1229,56 @@ async function educatorApi<T>(path: string, token: string, method = 'GET', body?
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
+    // Structured school-authorization answers get typed errors so the UI can
+    // show the opt-in panel instead of a raw failure. They still extend
+    // ApiRequestError, so describeFailure keeps working on them.
+    const code = detail?.detail && typeof detail.detail === 'object' ? detail.detail.error : undefined
+    if (res.status === 403 && code === 'school_authorization_required') {
+      throw new SchoolAuthorizationRequiredError()
+    }
+    if (res.status === 409 && code === 'notice_changed') throw new NoticeChangedError()
     throw new ApiRequestError(
       res.status, typeof detail.detail === 'string' ? detail.detail : 'Educator request failed')
   }
   return res.status === 204 ? undefined as T : res.json()
 }
+
+// ── School data authorization (COPPA readiness) ────────────────────────────
+// A school official must read and opt in to storing learner data for a campus
+// before any learner data is stored. State comes from the server only.
+export class SchoolAuthorizationRequiredError extends ApiRequestError {
+  constructor() {
+    super(403, 'School authorization required')
+    this.name = 'SchoolAuthorizationRequiredError'
+  }
+}
+export class NoticeChangedError extends ApiRequestError {
+  constructor() {
+    super(409, 'Notice changed')
+    this.name = 'NoticeChangedError'
+  }
+}
+export type SchoolAuthorizerRole = 'administrator' | 'teacher'
+export interface SchoolDataAuthorization {
+  authorized: boolean
+  stale: boolean
+  notice_hash: string
+  notice_version: string
+  notice_text: string
+  authorized_at: string | null
+  authorized_by: SchoolAuthorizerRole | null
+}
+const schoolAuthPath = (campusId: string) =>
+  `/pilot/campuses/${encodeURIComponent(campusId)}/data-authorization`
+export const fetchSchoolDataAuthorization = (token: string, campusId: string) =>
+  educatorApi<SchoolDataAuthorization>(schoolAuthPath(campusId), token)
+export const authorizeSchoolData = (
+  token: string, campusId: string,
+  body: { notice_hash: string; authorizer_name: string; authorizer_role: SchoolAuthorizerRole },
+) => educatorApi<SchoolDataAuthorization>(schoolAuthPath(campusId), token, 'POST', body)
+export const revokeSchoolData = (token: string, campusId: string, reason?: string) =>
+  educatorApi<unknown>(`${schoolAuthPath(campusId)}/revoke`, token, 'POST',
+    reason ? { reason } : {})
 
 export async function fetchEducatorPilotMode(): Promise<{ enabled: boolean; shared_child_pin_disabled: boolean }> {
   const res = await fetch(`${BASE}/auth/educator-mode`)

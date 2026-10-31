@@ -342,6 +342,30 @@ class PilotRosterGrant(Base):
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
+class PilotCampusDataAuthorization(Base):
+    """A school official's recorded authorization to store learner data for a campus.
+
+    Campus-level on purpose: it has NO learner_id, so it is not part of the
+    learner deletion cascade and survives a learner's deletion (it is the
+    school's record of what it agreed to, not learner data). Append-only in
+    spirit: a grant against a changed notice adds a new row; revoke sets
+    revoked_at on the active row. Old rows are never edited otherwise.
+    The official's name is encrypted under a campus-scoped AAD.
+    """
+    __tablename__ = "pilot_campus_data_authorizations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    authorizer_role: Mapped[str] = mapped_column(String(20), nullable=False)
+    authorizer_ref: Mapped[str] = mapped_column(String(36), nullable=False)
+    authorizer_name_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    notice_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope: Mapped[str] = mapped_column(String(50), nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revocation_reason_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+
+
 class ClassicalEducator(Base):
     """Independently authenticated teacher. No parent/admin privileges.
 

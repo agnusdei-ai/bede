@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import PilotTeacherJourney from './PilotTeacherJourney'
 import { ApiRequestError } from '../utils/requestFailure'
+import { SchoolAuthorizationRequiredError } from '../services/api'
 
 const api = vi.hoisted(() => ({
   fetchPilotLearners: vi.fn(),
@@ -12,6 +13,8 @@ const api = vi.hoisted(() => ({
   recordPilotEvidence: vi.fn(),
   requestPilotRecommendation: vi.fn(),
   decidePilotRecommendation: vi.fn(),
+  fetchSchoolDataAuthorization: vi.fn(),
+  authorizeSchoolData: vi.fn(),
 }))
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(),
@@ -38,6 +41,10 @@ const pendingRec = {
   authorized_instruction: null, created_at: '2026-10-10T00:00:00Z', decided_at: null,
 }
 
+const AUTHORIZED = { authorized: true, stale: false, notice_hash: 'h', notice_version: 'v1',
+  notice_text: 'N', authorized_at: '2026-10-20T12:00:00Z', authorized_by: 'teacher' }
+const UNAUTHORIZED = { ...AUTHORIZED, authorized: false, authorized_at: null, authorized_by: null }
+
 beforeEach(() => {
   vi.clearAllMocks()
   api.fetchPilotLearners.mockResolvedValue([
@@ -48,6 +55,7 @@ beforeEach(() => {
   api.fetchPilotEvidence.mockResolvedValue(evidence)
   api.fetchPilotRecommendations.mockResolvedValue([pendingRec])
   api.fetchPilotLedger.mockResolvedValue({ chain_valid: true, entries: [] })
+  api.fetchSchoolDataAuthorization.mockResolvedValue(AUTHORIZED)
 })
 afterEach(cleanup)
 
@@ -149,7 +157,9 @@ describe('PilotTeacherJourney', () => {
       abstained: true, reason: 'No evidence has been recorded for this learner yet.', policy_version: 'p',
     })
     render(<PilotTeacherJourney token="t"/>)
-    fireEvent.click(await screen.findByRole('button', { name: 'Ask Bede for a draft' }))
+    const ask = await screen.findByRole('button', { name: 'Ask Bede for a draft' }) as HTMLButtonElement
+    await waitFor(() => expect(ask.disabled).toBe(false)) // enabled once the school is authorized
+    fireEvent.click(ask)
     expect(await screen.findByText(/No evidence has been recorded/)).toBeTruthy()
   })
 
@@ -186,5 +196,35 @@ describe('PilotTeacherJourney', () => {
     fireEvent.click(screen.getByRole('button', { name: /Approve/ }))
     expect(await screen.findByText(/couldn't reach the server\. Check your internet connection/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/Load failed/)
+  })
+
+  it('shows the authorization panel and keeps entry forms off until the school opts in', async () => {
+    api.fetchSchoolDataAuthorization.mockResolvedValue(UNAUTHORIZED)
+    render(<PilotTeacherJourney token="t"/>)
+    expect(await screen.findByRole('heading', { name: 'Authorization to Store Student Information' })).toBeTruthy()
+    expect(screen.getByText('Student information cannot be stored until an authorized official provides authorization.')).toBeTruthy()
+    expect((screen.getByRole('button', { name: /Official DIBELS record/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Save evidence' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(api.fetchSchoolDataAuthorization).toHaveBeenCalledWith('t', 'c-a')
+  })
+
+  it('enables entry and shows no panel for an authorized campus', async () => {
+    render(<PilotTeacherJourney token="t"/>)
+    await screen.findByText(pendingRec.proposal)
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(false))
+    expect(screen.queryByRole('heading', { name: 'Authorization to Store Student Information' })).toBeNull()
+  })
+
+  it('shows the panel, not a raw error, when a write answers 403 school_authorization_required', async () => {
+    render(<PilotTeacherJourney token="t"/>)
+    await screen.findByText(pendingRec.proposal)
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(false))
+    api.decidePilotRecommendation.mockRejectedValue(new SchoolAuthorizationRequiredError())
+    api.fetchSchoolDataAuthorization.mockResolvedValue(UNAUTHORIZED)
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(await screen.findByRole('heading', { name: 'Authorization to Store Student Information' })).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Could not record your decision/)
+    expect((screen.getByRole('button', { name: 'Approve' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })

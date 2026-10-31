@@ -16,7 +16,10 @@ import AIProviderSettings from '../components/AIProviderSettings'
 import PilotOwnerPanel from '../components/PilotOwnerPanel'
 import AgenticLoopInsights from '../components/AgenticLoopInsights'
 import { listVoiceProfiles } from '../services/voiceApi'
-import { fetchSystemStatus, isFeedbackEnabled, listPodConfigs, savePodConfigs, type SystemStatus } from '../services/api'
+import { fetchSystemStatus, isFeedbackEnabled, listPodConfigs, savePodConfigs, ConsentNoticeChangedError, type SystemStatus } from '../services/api'
+import ConsentBanner, { ConsentNoticeDisclosure } from '../components/ConsentBanner'
+import { useHouseholdConsent } from '../hooks/useHouseholdConsent'
+import { tickRequiredToSave } from '../utils/consent'
 import BetaIntakeModal from '../components/BetaIntakeModal'
 
 // label is a numeric grade range, not a translated word — same across
@@ -291,6 +294,14 @@ export default function ParentSetup() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [hitlConsent, setHitlConsent] = useState(false)
+  // Household consent comes from the server on every load (never stored in
+  // the browser). One tick covers every student on this page.
+  const { consent, refetch: refetchConsent } = useHouseholdConsent(token)
+  // Bind the acknowledgement to the exact notice and proposed student roster.
+  // Editing a name or adding a child automatically invalidates the old tick.
+  const [consentTickScope, setConsentTickScope] = useState<string | null>(null)
+  const consentScope = JSON.stringify([consent?.notice_hash ?? null, students.map((s) => s.student_name.trim())])
+  const consentTick = consentTickScope !== null && consentTickScope === consentScope
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   // Set only when this save was this family's very first-ever pod (see
   // handleSavePod) — holds the saved configs so BetaIntakeModal's onDone can
@@ -346,8 +357,13 @@ export default function ParentSetup() {
   // — see docs/LOCALIZATION.md. An English-only deployment never asks.
   const requireSex = !!systemStatus?.locale && systemStatus.locale !== 'en'
 
+  // Household status covers saved students only; a new child (or the first
+  // child) needs an explicit notice acknowledgement unless install-covered.
+  const consentOutstanding = !!consent && tickRequiredToSave(consent, students.map((s) => s.student_name))
   const canSave =
     hitlConsent &&
+    !!consent &&
+    (!consentOutstanding || consentTick) &&
     students.length > 0 &&
     students.every((s) =>
       s.student_name.trim() && s.grade.trim() && s.selected_subjects.length > 0 &&
@@ -418,7 +434,7 @@ export default function ParentSetup() {
     // created" from "adding another student to an existing pod."
     const isFirstEverPod = podStudents.length === 0
     try {
-      await savePodConfigs(token, configs)
+      await savePodConfigs(token, configs, consentOutstanding && consentTick ? consent!.notice_hash : null)
       setPodStudents(configs)
       if (isFirstEverPod && feedbackEnabled) {
         // Hold off on navigating — BetaIntakeModal's onDone finishes this
@@ -428,7 +444,15 @@ export default function ParentSetup() {
         proceedAfterSave(configs)
       }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : t('parentSetup.saveFailed'))
+      if (err instanceof ConsentNoticeChangedError) {
+        // The notice moved on while this page was open: show the current one
+        // and ask again rather than saving against text nobody read.
+        setConsentTickScope(null)
+        await refetchConsent()
+        setSaveError(t('consent.noticeChangedRetry'))
+      } else {
+        setSaveError(err instanceof Error ? err.message : t('parentSetup.saveFailed'))
+      }
     } finally {
       setSaving(false)
     }
@@ -461,6 +485,8 @@ export default function ParentSetup() {
             {t('parentSetup.logOut')}
           </button>
         </div>
+
+        <ConsentBanner consent={consent} onChanged={async () => { setConsentTickScope(null); await refetchConsent() }} />
 
         {/* System status */}
         <div className={`rounded-xl border px-4 py-3 mb-6 flex items-center gap-4 flex-wrap text-xs ${
@@ -573,6 +599,15 @@ export default function ParentSetup() {
           </span>
         </label>
 
+        {/* Household consent: one tick covers every student above */}
+        {consent && consentOutstanding && (
+          <SetupConsentTick
+            consent={consent}
+            ticked={consentTick}
+            onTick={(checked) => setConsentTickScope(checked ? consentScope : null)}
+          />
+        )}
+
         {/* Save */}
         {saveError && (
           <p className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -618,6 +653,35 @@ interface StudentCardProps {
   onToggleSubject: (id: Subject) => void
   onEnrolled: () => void
   onRemove: () => void
+}
+
+function SetupConsentTick({
+  consent,
+  ticked,
+  onTick,
+}: {
+  consent: import('../services/api').HouseholdConsent
+  ticked: boolean
+  onTick: (v: boolean) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="mt-6 rounded-xl border border-gold-300 bg-gold-50 px-4 py-3">
+      <ConsentNoticeDisclosure consent={consent} />
+      <label className="mt-1 flex items-start gap-3 min-h-[44px] cursor-pointer">
+        <input
+          type="checkbox"
+          checked={ticked}
+          onChange={(e) => onTick(e.target.checked)}
+          className="mt-1 h-5 w-5 flex-shrink-0 accent-navy-500"
+        />
+        <span className="text-sm text-gray-800">
+          {t('consent.checkbox')}
+        </span>
+      </label>
+      {!ticked && <p className="text-xs text-gray-600 mt-1">{t('consent.tickToSave')}</p>}
+    </div>
+  )
 }
 
 function StudentCard({

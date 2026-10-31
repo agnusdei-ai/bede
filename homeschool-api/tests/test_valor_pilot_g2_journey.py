@@ -13,6 +13,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from school_auth_helper import authorize_campus
 import pytest_asyncio
 from fastapi import HTTPException
 from pydantic import ValidationError
@@ -85,6 +86,8 @@ async def two_campuses(db):
     tb = await provision_educator(db, "valor.g2.teacher.b", "synthetic-passphrase-b-strong")
     a = (await create_campus(CampusInput(title=alpha.label), auth=ADMIN, db=db))["campus_id"]
     b = (await create_campus(CampusInput(title=beta.label), auth=ADMIN, db=db))["campus_id"]
+    await authorize_campus(db, a)
+    await authorize_campus(db, b)
     # Same display name on both campuses, on purpose.
     la = (await create_learner(a, LearnerInput(display_name=alpha.learners[0].display_name), auth=ADMIN, db=db))["learner_id"]
     lb = (await create_learner(b, LearnerInput(display_name=beta.learners[0].display_name), auth=ADMIN, db=db))["learner_id"]

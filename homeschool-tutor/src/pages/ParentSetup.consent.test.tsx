@@ -91,6 +91,16 @@ describe('ParentSetup consent', () => {
     expect(m.savePodConfigs.mock.calls[0][2]).toBeNull()
   })
 
+  it('does not save student configuration when the consent status request fails', async () => {
+    m.fetchHouseholdConsent.mockRejectedValue(new Error('Consent status unavailable'))
+    await fillForm()
+    await waitFor(() => expect(m.fetchHouseholdConsent).toHaveBeenCalled())
+    expect(consentBoxes()).toHaveLength(0)
+    expect(saveButton().disabled).toBe(true)
+    fireEvent.click(saveButton())
+    expect(m.savePodConfigs).not.toHaveBeenCalled()
+  })
+
   it('requires the tick before saving when consent is outstanding', async () => {
     m.fetchHouseholdConsent.mockResolvedValue(consent())
     await fillForm()

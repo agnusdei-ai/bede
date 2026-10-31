@@ -18,9 +18,11 @@ describe('tickRequiredToSave', () => {
   it('requires the tick whenever consent is outstanding, with no exception', () => {
     expect(tickRequiredToSave(consent())).toBe(true)
   })
-  it('never blocks when nothing is outstanding or state is unknown', () => {
+  it('allows a verified current or install-time acknowledgement', () => {
     expect(tickRequiredToSave(consent({ needs_consent: false, install_ack: true }))).toBe(false)
-    expect(tickRequiredToSave(null)).toBe(false)
+  })
+  it('fails closed when the consent lookup is unavailable', () => {
+    expect(tickRequiredToSave(null)).toBe(true)
   })
 })
 

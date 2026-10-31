@@ -47,11 +47,13 @@ case "$context" in
     fi
     [[ "$campus" =~ ^[a-z0-9][a-z0-9_-]{2,63}$ ]] || fail "Invalid campus ID"
     export BEDE_INSTALL_CONTEXT=campus BEDE_CAMPUS_ID="$campus"
+    export COMPOSE_PROJECT_NAME="bede_campus_${campus//-/_}"
     data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
     target="$data_home/Bede/Campus/$campus/bede-operator"
     ;;
   homeschool)
     export BEDE_INSTALL_CONTEXT=homeschool BEDE_CAMPUS_ID=""
+    export COMPOSE_PROJECT_NAME="bede_homeschool_local"
     data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
     target="$data_home/Bede/Homeschool/local/bede-operator"
     ;;

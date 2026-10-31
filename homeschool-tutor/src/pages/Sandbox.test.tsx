@@ -30,6 +30,19 @@ function renderSandbox() {
   )
 }
 
+it('lets a verified educator request scaffolding without a parent sandbox PIN', async () => {
+  streamSandboxChat.mockReturnValue(chunksOf('What do you notice about the equal parts?'))
+  render(<MemoryRouter><Sandbox educatorPlanning /></MemoryRouter>)
+  expect(screen.queryByPlaceholderText('Enter the SANDBOX_PIN configured for this deployment')).toBeNull()
+  expect(screen.getByText('Plan with Bede')).toBeTruthy()
+  const input = screen.getByPlaceholderText('Ask Bede anything…')
+  fireEvent.change(input, { target: { value: 'Grade 3: fractions with counters' } })
+  fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
+  await waitFor(() => expect(streamSandboxChat).toHaveBeenCalledTimes(1))
+  expect(streamSandboxChat.mock.calls[0][6]).toBe(true)
+  expect(screen.queryByText('Enter the sandbox PIN above first.')).toBeNull()
+})
+
 /** streamSandboxChat is an async generator; tests drive it via this helper
  *  so each one controls exactly which chunks arrive and when. */
 async function* chunksOf(...texts: string[]) {

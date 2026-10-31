@@ -109,6 +109,7 @@ export default function App() {
                 }
               />
               <Route path="/classroom" element={<RequireAuth allowedRole="educator"><EducatorDesk /></RequireAuth>} />
+              <Route path="/lesson-planner" element={<RequireAuth allowedRole="educator"><Sandbox educatorPlanning /></RequireAuth>} />
               <Route path="/classroom-setup" element={<RequireAuth allowedRole="parent"><ClassroomSetup /></RequireAuth>} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

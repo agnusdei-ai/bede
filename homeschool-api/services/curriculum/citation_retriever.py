@@ -38,8 +38,26 @@ class ReviewedAnnotation:
     classical_alignment: float
     objective_ids: tuple[str, ...]
     review_ref: str
+    source_kind: str = "unknown"
+    grade_min: int | None = None
+    grade_max: int | None = None
+    standards: tuple[str, ...] = ()
+    perspective: str = ""
+    modular: bool = False
 
     def __post_init__(self) -> None:
+        if self.source_kind not in ("unknown", "primary", "secondary"):
+            raise CitationRetrievalDenied("Invalid reviewed source kind")
+        if ((self.grade_min is None) != (self.grade_max is None)
+                or (self.grade_min is not None and (
+                    type(self.grade_min) is not int or type(self.grade_max) is not int
+                    or not 0 <= self.grade_min <= self.grade_max <= 8))):
+            raise CitationRetrievalDenied("Reviewed grade range must be K–8")
+        if (not isinstance(self.standards, tuple)
+                or any(not isinstance(s, str) or not s.strip() for s in self.standards)
+                or not isinstance(self.perspective, str)
+                or type(self.modular) is not bool):
+            raise CitationRetrievalDenied("Invalid reviewed teaching metadata")
         if (not isinstance(self.chunk_id, str) or not self.chunk_id.strip()
                 or type(self.version) is not int or self.version < 1
                 or not isinstance(self.review_ref, str)
@@ -66,6 +84,10 @@ class RankedCitation:
     objective_score: float
     effectiveness_score: float
     score: float
+    primary_source_score: float = 0.0
+    standards_score: float = 0.0
+    modular_score: float = 0.0
+    perspective: str = ""
 
     @property
     def citation_id(self) -> str:
@@ -82,6 +104,25 @@ class ExactPassage:
     review_ref: str
 
 
+@dataclass(frozen=True)
+class PedagogicalProfile:
+    """Server-selected grade and reviewed standards; never a student identity.
+
+    Standards are exact identifiers, such as TEKS/CCSS catalog IDs, not
+    model-invented mappings. Grade 0 denotes kindergarten.
+    """
+    grade: int
+    standards: tuple[str, ...] = ()
+    diverse_perspectives: bool = True
+
+    def __post_init__(self) -> None:
+        if (type(self.grade) is not int or not 0 <= self.grade <= 8
+                or not isinstance(self.standards, tuple)
+                or any(not isinstance(s, str) or not s.strip() for s in self.standards)
+                or type(self.diverse_perspectives) is not bool):
+            raise CitationRetrievalDenied("Invalid K–8 pedagogical profile")
+
+
 def _require_enabled() -> None:
     if not curriculum_engine_enabled():
         raise CitationRetrievalDenied("Curriculum engine disabled")
@@ -92,6 +133,7 @@ def rank_citations(
     annotations: tuple[ReviewedAnnotation, ...] | list[ReviewedAnnotation],
     *, authorized_objective_id: str,
     limit: int = 10,
+    profile: PedagogicalProfile | None = None,
 ) -> tuple[RankedCitation, ...]:
     """RRF(BM25, signed local vectors) then transparent R/A/O policy scoring.
 
@@ -101,6 +143,8 @@ def rank_citations(
     fabricating provenance or alignment scores.
     """
     _require_enabled()
+    if profile is not None and not isinstance(profile, PedagogicalProfile):
+        raise CitationRetrievalDenied("Invalid pedagogical profile")
     if (not isinstance(authorized_objective_id, str)
             or not authorized_objective_id.strip()
             or type(limit) is not int or not 1 <= limit <= 20
@@ -127,6 +171,12 @@ def rank_citations(
     # Objective authorization is a HARD filter, not a soft preference.
     eligible = [h for h in hits if authorized_objective_id in
                 by_key[(h.chunk_id, h.version)].objective_ids and h.bm25_score > 0]
+    if profile is not None:
+        # Missing age review is not permission to show material to a child.
+        eligible = [h for h in eligible if (
+            (a := by_key[(h.chunk_id, h.version)]).grade_min is not None
+            and a.grade_min <= profile.grade <= a.grade_max
+        )]
     if not eligible:
         return ()
     lexical = sorted(eligible, key=lambda h: (-h.bm25_score, h.chunk_id, h.version))
@@ -145,17 +195,38 @@ def rank_citations(
         # E (independent effectiveness evidence) is locked to zero.
         r, alignment, objective = a.source_reliability, a.classical_alignment, 1.0
         policy = 0.4 * r + 0.2 * alignment + 0.4 * objective
+        base_score = _RRF_WEIGHT * rrf + _POLICY_WEIGHT * policy
+        primary = float(a.source_kind == "primary") if profile else 0.0
+        standards = float(bool(set(a.standards) & set(profile.standards))) if profile else 0.0
+        modular = float(a.modular) if profile else 0.0
+        score = (0.6 * base_score + 0.2 * primary + 0.15 * standards + 0.05 * modular
+                 if profile else base_score)
         ranked.append(RankedCitation(
             hit=h, review_ref=a.review_ref,
             objective_id=authorized_objective_id,
             rrf_score=round(rrf, 8), reliability_score=r,
             alignment_score=alignment, objective_score=objective,
             effectiveness_score=0.0,
-            score=round(_RRF_WEIGHT * rrf + _POLICY_WEIGHT * policy, 8),
+            score=round(score, 8),
+            primary_source_score=primary, standards_score=standards,
+            modular_score=modular, perspective=a.perspective,
         ))
-    return tuple(sorted(
+    ordered = sorted(
         ranked, key=lambda item: (-item.score, item.hit.chunk_id, item.hit.version),
-    )[:limit])
+    )
+    if profile and profile.diverse_perspectives:
+        # Prefer distinct reviewed perspectives without selecting irrelevant,
+        # unreviewed, out-of-grade, or unauthorized material for "balance."
+        selected, remaining = ordered[:1], []
+        seen = {ordered[0].perspective} if ordered else set()
+        for item in ordered[1:]:
+            if item.perspective and item.perspective not in seen:
+                selected.append(item)
+                seen.add(item.perspective)
+            else:
+                remaining.append(item)
+        ordered = selected + remaining
+    return tuple(ordered[:limit])
 
 
 def project_exact_passages(

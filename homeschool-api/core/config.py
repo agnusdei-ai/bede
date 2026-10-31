@@ -72,6 +72,8 @@ def role_is_exempt_from_provider_requirement(role: str) -> bool:
 
 
 class Settings(BaseSettings):
+    # Opt-in only for offline school/family installations, never the hosted demo.
+    bede_offline_installation: bool = False
     # ── AI models ──────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
     tutor_model: str = "claude-sonnet-4-6"

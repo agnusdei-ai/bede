@@ -338,7 +338,7 @@ async def get_my_learner(
 class DataAuthorizationInput(BaseModel):
     notice_hash: str = Field(min_length=1, max_length=128)
     authorizer_name: str = Field(min_length=1, max_length=100)
-    authorizer_role: Literal["administrator"]
+    authorizer_role: Literal["administrator", "teacher"]
 
 
 class DataAuthorizationRevoke(BaseModel):

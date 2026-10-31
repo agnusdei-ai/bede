@@ -50,6 +50,23 @@ jobs:
           for field in APPLE_P12_B64 APPLE_P12_PASSWORD APPLE_TEAM_ID APPLE_KEY_ID APPLE_ISSUER_ID APPLE_NOTARY_KEY; do
             [[ -n "${!field}" ]] || { echo "::error::Missing required Apple Developer ID or notarization secret: $field"; exit 1; }
           done
+      - name: Require a successful main branch source workflow, not a PR build
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -H "Authorization: Bearer $GITHUB_API_TOKEN" -H 'Accept: application/vnd.github+json' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN" > "$RUNNER_TEMP/source-run.json"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          run = json.loads((Path(os.environ['RUNNER_TEMP']) / 'source-run.json').read_text())
+          assert run['head_sha'] == os.environ['SOURCE_SHA']
+          assert run['head_branch'] == 'main'
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['name'] == 'Bede Standard and Offline operator bundles'
+          print('Exact successful main branch source run verified')
+          PY
+
       - name: Download exact engineering build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
         with:
@@ -68,6 +85,21 @@ jobs:
           hdiutil attach -readonly -nobrowse -mountpoint "$RUNNER_TEMP/mounted" "Bede-Engineering-Mac-${SOURCE_ARCH}.dmg"
           ditto "$RUNNER_TEMP/mounted/Bede Installer.app" "$RUNNER_TEMP/signed/Bede Installer.app"
           hdiutil detach "$RUNNER_TEMP/mounted"
+          app="$RUNNER_TEMP/signed/Bede Installer.app"
+          test "$(cat "$app/Contents/Resources/bede-operator/RELEASE")" = "$SOURCE_SHA"
+          test "$(cat "$app/Contents/Resources/bede-operator/ARCH")" = "$SOURCE_ARCH"
+          case "$SOURCE_ARCH" in arm64) actual_arch=arm64 ;; amd64) actual_arch=x86_64 ;; esac
+          lipo -archs "$app/Contents/MacOS/BedeInstaller" | grep -qw "$actual_arch"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP']) / 'signed/Bede Installer.app/Contents/Resources/bede-operator'
+          p = json.loads((root / 'RELEASE_PROVENANCE.json').read_text())
+          assert p['source_sha'] == os.environ['SOURCE_SHA']
+          assert p['architecture'] == os.environ['SOURCE_ARCH']
+          assert p['pilot_go'] == 'HOLD'
+          PY
+
           printf '%s' "$APPLE_P12_B64" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
           security create-keychain -p "$RUNNER_TEMP" bede-release.keychain
           security unlock-keychain -p "$RUNNER_TEMP" bede-release.keychain
@@ -81,9 +113,9 @@ jobs:
           hdiutil create -volname "Bede Installer" -srcfolder "$RUNNER_TEMP/signed/Bede Installer.app" -ov -format UDZO "$RUNNER_TEMP/Bede-Trusted-Mac-${SOURCE_ARCH}.dmg"
           printf '%s' "$APPLE_NOTARY_KEY" > "$RUNNER_TEMP/AuthKey.p8"
           chmod 600 "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/developer-id.p12"
-          xcrun notarytool submit "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg" --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_KEY_ID" --issuer "$APPLE_ISSUER_ID" --wait
-          xcrun stapler staple "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg"
-          xcrun stapler validate "$RUNNER_TEMP/Bede-Trusted-Mac-arm64.dmg"
+          xcrun notarytool submit "$RUNNER_TEMP/Bede-Trusted-Mac-${SOURCE_ARCH}.dmg" --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_KEY_ID" --issuer "$APPLE_ISSUER_ID" --wait
+          xcrun stapler staple "$RUNNER_TEMP/Bede-Trusted-Mac-${SOURCE_ARCH}.dmg"
+          xcrun stapler validate "$RUNNER_TEMP/Bede-Trusted-Mac-${SOURCE_ARCH}.dmg"
           spctl --assess --type execute --verbose=2 "$RUNNER_TEMP/signed/Bede Installer.app"
           (cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Trusted-Mac-${SOURCE_ARCH}.dmg" > "Bede-Trusted-Mac-${SOURCE_ARCH}.dmg.sha256")
       - name: Upload trusted build only after Apple verification

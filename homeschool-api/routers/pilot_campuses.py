@@ -338,7 +338,7 @@ async def get_my_learner(
 class DataAuthorizationInput(BaseModel):
     notice_hash: str = Field(min_length=1, max_length=128)
     authorizer_name: str = Field(min_length=1, max_length=100)
-    authorizer_role: Literal["administrator", "teacher"]
+    authorizer_role: Literal["administrator"]
 
 
 class DataAuthorizationRevoke(BaseModel):
@@ -387,13 +387,14 @@ async def post_data_authorization(
     campus_id: str, payload: DataAuthorizationInput, request: Request,
     auth: dict = Depends(_admin_or_educator), db: AsyncSession = Depends(get_db),
 ):
-    campus = await _authorization_campus(db, auth, campus_id)
-    is_teacher = auth.get("role") == "educator"
-    # A teacher records 'teacher', the administrator 'administrator'. A
-    # mismatch is the uniform 404, not a distinguishing error.
-    if payload.authorizer_role != ("teacher" if is_teacher else "administrator"):
+    # Campus membership only permits reading status, never authorizing storage.
+    # The passkey-verified administrator is the sole in-product grant path.
+    # External evidence of school authority remains a separate pilot GO gate.
+    _admin(auth)
+    campus = await _campus(db, campus_id)
+    if payload.authorizer_role != "administrator":
         raise HTTPException(status_code=404, detail="Record not found")
-    ref = auth["sub"] if is_teacher else school_auth.ADMIN_REF
+    ref = school_auth.ADMIN_REF
     try:
         record, created = await school_auth.grant(
             db, campus.id, authorizer_role=payload.authorizer_role, authorizer_ref=ref,

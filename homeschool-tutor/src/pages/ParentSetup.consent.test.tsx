@@ -103,6 +103,17 @@ describe('ParentSetup consent', () => {
     expect(m.savePodConfigs.mock.calls[0][2]).toBe('hash-1')
   })
 
+  it('invalidates an already ticked notice when the proposed child name changes', async () => {
+    m.fetchHouseholdConsent.mockResolvedValue(consent({ needs_consent: false, students: [] }))
+    await fillForm()
+    await waitFor(() => expect(consentBoxes()).toHaveLength(2))
+    fireEvent.click(consentBoxes()[1])
+    expect((consentBoxes()[1] as HTMLInputElement).checked).toBe(true)
+    fireEvent.change(screen.getByPlaceholderText(i18n.t('parentSetup.namePlaceholder')), { target: { value: 'Noah' } })
+    expect((consentBoxes()[1] as HTMLInputElement).checked).toBe(false)
+    expect(saveButton().disabled).toBe(true)
+  })
+
   it('does not inherit an existing child\'s consent when adding another child', async () => {
     m.fetchHouseholdConsent.mockResolvedValue(consent({
       needs_consent: false,

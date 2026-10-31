@@ -297,7 +297,11 @@ export default function ParentSetup() {
   // Household consent comes from the server on every load (never stored in
   // the browser). One tick covers every student on this page.
   const { consent, refetch: refetchConsent } = useHouseholdConsent(token)
-  const [consentTick, setConsentTick] = useState(false)
+  // Bind the acknowledgement to the exact notice and proposed student roster.
+  // Editing a name or adding a child automatically invalidates the old tick.
+  const [consentTickScope, setConsentTickScope] = useState<string | null>(null)
+  const consentScope = JSON.stringify([consent?.notice_hash ?? null, students.map((s) => s.student_name.trim())])
+  const consentTick = consentTickScope !== null && consentTickScope === consentScope
   const [feedbackEnabled, setFeedbackEnabled] = useState(false)
   // Set only when this save was this family's very first-ever pod (see
   // handleSavePod) — holds the saved configs so BetaIntakeModal's onDone can
@@ -443,7 +447,7 @@ export default function ParentSetup() {
       if (err instanceof ConsentNoticeChangedError) {
         // The notice moved on while this page was open: show the current one
         // and ask again rather than saving against text nobody read.
-        setConsentTick(false)
+        setConsentTickScope(null)
         await refetchConsent()
         setSaveError(t('consent.noticeChangedRetry'))
       } else {
@@ -482,7 +486,7 @@ export default function ParentSetup() {
           </button>
         </div>
 
-        <ConsentBanner consent={consent} onChanged={async () => { setConsentTick(false); await refetchConsent() }} />
+        <ConsentBanner consent={consent} onChanged={async () => { setConsentTickScope(null); await refetchConsent() }} />
 
         {/* System status */}
         <div className={`rounded-xl border px-4 py-3 mb-6 flex items-center gap-4 flex-wrap text-xs ${
@@ -600,7 +604,7 @@ export default function ParentSetup() {
           <SetupConsentTick
             consent={consent}
             ticked={consentTick}
-            onTick={setConsentTick}
+            onTick={(checked) => setConsentTickScope(checked ? consentScope : null)}
           />
         )}
 

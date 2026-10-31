@@ -521,16 +521,16 @@ jobs:
           package="$GITHUB_WORKSPACE/dist/linux-native/Bede-Engineering-Linux-$arch.rpm"
           root="$RUNNER_TEMP/bede-rpm-isolated-root"
           mkdir -p "$root"
-          rpm --root "$root" --initdb
+          sudo rpm --root "$root" --initdb
           # Package-manager smoke only: this isolated root contains no runtime
           # dependencies, services, user data or signing trust anchors.
-          rpm --root "$root" -i --nodeps --nosignature "$package"
+          sudo rpm --root "$root" -i --nodeps --nosignature "$package"
           test -s "$root/opt/bede/standard/RELEASE"
           test "$(cat "$root/opt/bede/standard/RELEASE")" = "$GITHUB_SHA"
           test -f "$root/usr/share/applications/bede-installer.desktop"
           test -f "$root/usr/bin/bede-installer"
           test ! -e "$root/opt/bede/standard/.env"
-          rpm --root "$root" -e --nodeps bede-installer
+          sudo rpm --root "$root" -e --nodeps bede-installer
           test ! -e "$root/usr/bin/bede-installer"
           echo 'RPM isolated-root package manager install/removal passed; actual Fedora/RHEL host acceptance is still NOT RUN.'
 

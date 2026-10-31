@@ -50,6 +50,9 @@ describe('SchoolDataAuthorization', () => {
     expect(screen.getByText(/Notice version 2026-10-v1/)).toBeTruthy()
     expect(screen.getByText('Teacher')).toBeTruthy()
     expect(api.fetchSchoolDataAuthorization).toHaveBeenCalledWith('t', C)
+    expect(screen.getByText(en.schoolDataAuth.teacherWaitAdmin)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Authorize' })).toBeNull()
+    expect(api.authorizeSchoolData).not.toHaveBeenCalled()
   })
 
   it('does not show the panel for an authorized campus (teacher sees nothing)', async () => {
@@ -61,7 +64,7 @@ describe('SchoolDataAuthorization', () => {
   })
 
   it('keeps Authorize disabled until both a name and the tick are present', async () => {
-    render(<SchoolDataAuthorization token="t" campusId={C} role="teacher"/>)
+    render(<SchoolDataAuthorization token="t" campusId={C} role="administrator"/>)
     await screen.findByRole('heading', { name: HEADING })
     expect(optInButton().disabled).toBe(true)
     fireEvent.click(screen.getByRole('checkbox'))
@@ -74,24 +77,24 @@ describe('SchoolDataAuthorization', () => {
     expect(optInButton().disabled).toBe(true)
   })
 
-  it('posts the current notice hash, role and trimmed name, then confirms', async () => {
+  it('posts the current notice hash, administrator role and trimmed name, then confirms', async () => {
     api.authorizeSchoolData.mockResolvedValue(status({
-      authorized: true, authorized_at: '2026-10-20T12:00:00Z', authorized_by: 'teacher',
+      authorized: true, authorized_at: '2026-10-20T12:00:00Z', authorized_by: 'administrator',
     }))
     const onChange = vi.fn()
-    render(<SchoolDataAuthorization token="t" campusId={C} role="teacher" onChange={onChange}/>)
+    render(<SchoolDataAuthorization token="t" campusId={C} role="administrator" onChange={onChange}/>)
     await screen.findByRole('heading', { name: HEADING })
     fireEvent.change(screen.getByLabelText('Name of Authorized Official'), { target: { value: '  Pat Example ' } })
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(optInButton())
     await waitFor(() => expect(api.authorizeSchoolData).toHaveBeenCalledWith('t', C, {
-      notice_hash: 'hash-1', authorizer_name: 'Pat Example', authorizer_role: 'teacher',
+      notice_hash: 'hash-1', authorizer_name: 'Pat Example', authorizer_role: 'administrator',
     }))
-    const confirmation = await screen.findByText(/^Authorized by Teacher on /)
+    const confirmation = await screen.findByText(/^Authorized by Administrator on /)
     expect(confirmation.textContent).toMatch(/2026/)
     expect(document.activeElement).toBe(confirmation)
     expect(onChange).toHaveBeenLastCalledWith(true)
-    expect(screen.queryByRole('button', { name: 'Withdraw Authorization' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Withdraw Authorization' })).toBeTruthy()
   })
 
   it('on 409 notice_changed refetches, shows the new notice and asks for a fresh tick', async () => {
@@ -99,7 +102,7 @@ describe('SchoolDataAuthorization', () => {
       .mockResolvedValueOnce(status())
       .mockResolvedValueOnce(status({ notice_hash: 'hash-2', notice_version: 'v2', notice_text: 'NEW TEXT' }))
     api.authorizeSchoolData.mockRejectedValue(new NoticeChangedError())
-    render(<SchoolDataAuthorization token="t" campusId={C} role="teacher"/>)
+    render(<SchoolDataAuthorization token="t" campusId={C} role="administrator"/>)
     await screen.findByRole('heading', { name: HEADING })
     fill()
     fireEvent.click(optInButton())
@@ -167,5 +170,6 @@ describe('SchoolDataAuthorization', () => {
     await i18n.changeLanguage('es')
     render(<SchoolDataAuthorization token="t" campusId={C} role="teacher"/>)
     expect(await screen.findByRole('heading', { name: es.schoolDataAuth.heading })).toBeTruthy()
+    expect(screen.getByText(es.schoolDataAuth.teacherWaitAdmin)).toBeTruthy()
   })
 })

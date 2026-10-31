@@ -410,12 +410,34 @@ async def test_rejections_and_acceptances_log_nothing_that_comes_from_the_upload
 
 # ── HEIC / HEIF (iPhone) ──────────────────────────────────────────────────────
 
+@pytest.mark.asyncio
+async def test_unpatched_native_heif_decoder_is_never_called(monkeypatch):
+    monkeypatch.setattr(upload_safety, "HEIF_DECODER_QUALIFIED", False)
+    def fail(*args):
+        raise AssertionError("unsafe native decoder was invoked")
+    monkeypatch.setattr(upload_safety, "reencode_image", fail)
+    raw = b"\x00\x00\x00\x18ftypheic" + b"\x00" * 32
+    with pytest.raises(PhotoRejected, match="decoder is patched"):
+        await prep(raw)
+
+
+def test_heif_codec_version_gate_cannot_accept_1_23_6(monkeypatch):
+    monkeypatch.setattr(upload_safety.pillow_heif, "libheif_version", lambda: "1.23.6")
+    assert upload_safety._safe_heif_decoder() is False
+    monkeypatch.setattr(upload_safety.pillow_heif, "libheif_version", lambda: "1.23.7")
+    assert upload_safety._safe_heif_decoder() is True
+    monkeypatch.setattr(upload_safety.pillow_heif, "libheif_version", lambda: "invalid")
+    assert upload_safety._safe_heif_decoder() is False
+
+
+
 def heic_bytes(color=(5, 60, 90), size=(16, 16), **save) -> bytes:
     out = io.BytesIO()
     Image.new("RGB", size, color).save(out, format="HEIF", **save)
     return out.getvalue()
 
 
+@pytest.mark.skipif(not upload_safety.HEIF_DECODER_QUALIFIED, reason="requires patched libheif >=1.23.7")
 @pytest.mark.asyncio
 async def test_a_heic_photo_is_decoded_and_re_encoded_to_a_fresh_png():
     raw = heic_bytes()
@@ -426,6 +448,7 @@ async def test_a_heic_photo_is_decoded_and_re_encoded_to_a_fresh_png():
     assert Image.open(io.BytesIO(out)).size == (16, 16)
 
 
+@pytest.mark.skipif(not upload_safety.HEIF_DECODER_QUALIFIED, reason="requires patched libheif >=1.23.7")
 @pytest.mark.asyncio
 async def test_heic_metadata_and_appended_payload_do_not_survive():
     exif = Image.Exif()
@@ -449,6 +472,7 @@ async def test_a_malformed_or_unlisted_ftyp_is_refused(raw):
         await prep(raw)
 
 
+@pytest.mark.skipif(not upload_safety.HEIF_DECODER_QUALIFIED, reason="requires patched libheif >=1.23.7")
 @pytest.mark.asyncio
 async def test_a_truncated_or_corrupted_heic_is_refused():
     good = heic_bytes(size=(64, 64))
@@ -458,6 +482,7 @@ async def test_a_truncated_or_corrupted_heic_is_refused():
         await prep(good[:40] + bytes(b ^ 0xFF for b in good[40:120]) + good[120:])
 
 
+@pytest.mark.skipif(not upload_safety.HEIF_DECODER_QUALIFIED, reason="requires patched libheif >=1.23.7")
 @pytest.mark.asyncio
 async def test_heic_is_held_to_the_same_pixel_cap(monkeypatch):
     monkeypatch.setattr(upload_safety, "MAX_PIXELS", 100)
@@ -467,6 +492,7 @@ async def test_heic_is_held_to_the_same_pixel_cap(monkeypatch):
     assert len(await prep(heic_bytes(size=(16, 16)))) == 1
 
 
+@pytest.mark.skipif(not upload_safety.HEIF_DECODER_QUALIFIED, reason="requires patched libheif >=1.23.7")
 @pytest.mark.asyncio
 async def test_heic_goes_through_the_scanner_and_the_size_cap(monkeypatch):
     seen: list = []

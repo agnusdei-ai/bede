@@ -13,7 +13,7 @@ is the **teacher's** count, read off the page and labelled as such.
 
 ## How it works
 
-1. **Read.** The parent uploads up to six pages as JPEG, PNG or iPhone HEIC
+1. **Read.** The parent uploads up to six pages as JPEG or PNG
    photos, or as a PDF of scanned pages (each PDF page counts toward the six).
    Every file is first checked and rebuilt (see "File validation and
    hardening" below), and the rebuilt PNG pages are sent to
@@ -85,8 +85,14 @@ settled, before anything reaches a model.
   `heix`, `hevc`, `mif1`, `msf1`, `heif`) and PDF are recognised by their magic
   numbers only. The API receives no filename or content type for a page, and
   none is consulted.
-- **Images are fully decoded and re-encoded** with Pillow (HEIC through
-  pillow-heif and the libheif it bundles) into a fresh PNG: the pixel count is
+- **Native HEIC security hold.** The pinned `pillow-heif 1.8.1` bundles
+  `libheif 1.23.6`; upstream libheif 1.23.7 (October 26, 2026) fixes
+  multiple high-severity vulnerabilities. HEIC/HEIF is refused before any
+  native decode unless the *linked* libheif reports 1.23.7 or newer. The
+  current UI offers JPEG, PNG and PDF only; export HEIC photos as JPEG first.
+  Independent native decoder review is still required before enabling HEIC
+  in a release. Python package audit alone is not sufficient evidence.
+- **Images are fully decoded and re-encoded** with Pillow into a fresh PNG: the pixel count is
   capped from the header before decoding (30 megapixels, 12,000 px a side),
   Pillow's own decompression-bomb warning is turned into an error, `verify()` is
   followed by a real reload, EXIF rotation is applied, and metadata plus anything

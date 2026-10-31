@@ -106,7 +106,7 @@ jobs:
           security import "$RUNNER_TEMP/developer-id.p12" -k bede-release.keychain -P "$APPLE_P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$RUNNER_TEMP" bede-release.keychain
           security list-keychains -d user -s bede-release.keychain
-          identity="$(security find-identity -v -p codesigning bede-release.keychain | sed -n 's/.*"\\(Developer ID Application: [^"]*\\)".*/\\1/p' | head -1)"
+          identity="$(security find-identity -v -p codesigning bede-release.keychain | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)"
           [[ -n "$identity" ]] || { echo "::error::No Developer ID Application identity"; exit 1; }
           codesign --force --deep --options runtime --timestamp --sign "$identity" "$RUNNER_TEMP/signed/Bede Installer.app"
           codesign --verify --deep --strict --verbose=2 "$RUNNER_TEMP/signed/Bede Installer.app"

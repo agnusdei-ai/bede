@@ -5,8 +5,8 @@ document or in the notice states that any law is satisfied.
 
 ## 1. Purpose
 
-Where a school deploys Bede, a school official (the administrator or a
-teacher launching Bede) must read a notice and record an authorization before
+Where a school deploys Bede, a passkey-verified pilot administrator must
+read a notice and record an authorization before
 any student information is stored for that campus. Until the authorization is
 recorded, the campus's write routes refuse with HTTP 403.
 
@@ -19,12 +19,16 @@ decide whether that agreement is sufficient.
 | Actor | May record | Constraint |
 | --- | --- | --- |
 | Administrator (verified passkey session) | `authorizer_role: administrator` | Any enabled campus. |
-| Teacher (educator passkey session) | `authorizer_role: teacher` | Only a campus in which the teacher holds an enabled membership. |
+| Teacher (educator passkey session) | Read authorization status only | Must be an enabled campus member. Cannot grant or withdraw campus-wide data authorization. |
 
-A request naming the other role, a teacher who is not a member of the campus,
-or an unknown campus receives the same uniform `404 Record not found` that the
-rest of the pilot code uses, so the response confirms nothing about which
-campuses exist. Only the administrator may withdraw an authorization.
+The authorization POST rejects teacher sessions with 403 regardless of their
+campus membership, and rejects an administrator payload claiming the teacher
+role. A GET from a nonmember teacher or an unknown campus returns the usual
+404 without disclosing campus existence. Only the verified pilot administrator
+can grant or withdraw an authorization. This passkey role does NOT by itself
+establish institutional authority: separate evidence of authorization by the
+participating school's authorized administrator or executive must be
+verified before real learner-data qualification or Pilot GO.
 
 ## 3. The notice and its hash
 
@@ -37,8 +41,8 @@ A grant must present the current hash. A client that displayed an older notice
 receives `409 {"error": "notice_changed"}` and must display the current text.
 
 If the notice changes after a school has authorized, the record is **stale**.
-A stale record does not authorize new writes. A school official must read the
-new notice and authorize again, which adds a new row. The earlier row is kept
+A stale record does not authorize new writes. The verified pilot administrator
+must read the new notice and authorize again, which adds a new row. The earlier row is kept
 as history and is not edited.
 
 ## 4. Endpoints
@@ -106,10 +110,10 @@ Household behavior, the demo role and educator passkey login are unchanged.
 
 ## 7. Questions for counsel
 
-1. Authority. Does the person who clicks have authority to authorize storage
-   for the school? The software records a representation and does not verify
-   it. Should an administrator be required for a first authorization, with
-   teachers able only to read it?
+1. Authority. The API now requires a verified administrator passkey for
+   all campus-wide grants; a teacher cannot grant even if they are a member.
+   Does the named administrator also have independently verified authority
+   from the school to permit storing learner data? The passkey is not that proof.
 2. Parental notice. The draft places notice to parents and any parental
    consent on the school. Is that allocation correct for each deployment, and
    does the school need a template from the Provider (see

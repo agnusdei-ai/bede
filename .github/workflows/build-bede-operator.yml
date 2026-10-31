@@ -513,6 +513,27 @@ jobs:
           test "$(cat "$fixture/learner-fixture.txt")" = synthetic-data-keep
           echo 'Native DEB install/uninstall is data-preserving and does not start Bede (synthetic runner only)'
 
+      - name: Exercise RPM installation and removal in an isolated root
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          package="$GITHUB_WORKSPACE/dist/linux-native/Bede-Engineering-Linux-$arch.rpm"
+          root="$RUNNER_TEMP/bede-rpm-isolated-root"
+          mkdir -p "$root"
+          rpm --root "$root" --initdb
+          # Package-manager smoke only: this isolated root contains no runtime
+          # dependencies, services, user data or signing trust anchors.
+          rpm --root "$root" -i --nodeps --nosignature "$package"
+          test -s "$root/opt/bede/standard/RELEASE"
+          test "$(cat "$root/opt/bede/standard/RELEASE")" = "$GITHUB_SHA"
+          test -f "$root/usr/share/applications/bede-installer.desktop"
+          test -f "$root/usr/bin/bede-installer"
+          test ! -e "$root/opt/bede/standard/.env"
+          rpm --root "$root" -e --nodeps bede-installer
+          test ! -e "$root/usr/bin/bede-installer"
+          echo 'RPM isolated-root package manager install/removal passed; actual Fedora/RHEL host acceptance is still NOT RUN.'
+
       - name: Upload native Linux engineering candidates
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

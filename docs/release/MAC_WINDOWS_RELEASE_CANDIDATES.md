@@ -30,6 +30,37 @@ payload. **Mac Standard** uses the same pinned registry model. Native
 QUALIFIED** by this pipeline; the existing Linux offline image archives
 are not substitutes for verified native offline installers.
 
+## Additional native engineering candidates: Linux and Intel Mac
+
+The common workflow now packages `bede-standard-linux-<arch>-<sha>` as native
+**Standard** Linux installer packages for both `amd64` and `arm64`:
+`Bede-Engineering-Linux-<arch>.deb` and
+`Bede-Engineering-Linux-<arch>.rpm`. The OS package manager installs a
+native Bede desktop application entry; launching it starts the existing
+authenticated browser setup wizard using a user-private Campus or Homeschool
+data directory. The package installs **no root service**, triggers no Docker
+operations during package installation, and does not automatically install
+unverified third-party prerequisites. Bede's actual service runtime remains
+containerized; Linux-native inference without containers is **not qualified**.
+
+The `package-mac-intel` job likewise packages an **Intel x86_64 native
+SwiftUI DMG** from the source-SHA-pinned `amd64` operator. It is ad hoc
+signed and **not notarized**. Its presence does not establish a verified
+Intel physical-device installation or supported production release.
+
+| Platform | Same-SHA engineering artifact | Distribution status |
+| --- | --- | --- |
+| Apple Silicon Mac | `bede-mac-engineering-unnotarized-arm64-<sha>` (DMG) | Existing protected Developer ID/notary path; physical-device verification pending |
+| Intel Mac | `bede-mac-engineering-unnotarized-amd64-<sha>` (DMG) | Engineering only; trusted Intel signing path and physical verification pending |
+| Linux x86_64 | `bede-linux-native-standard-amd64-<sha>` (DEB + RPM) | Engineering only; package installation, security and recovery qualification pending |
+| Linux AArch64 | `bede-linux-native-standard-arm64-<sha>` (DEB + RPM) | Engineering only; native ARM hardware verification pending |
+| Windows x64 | `bede-windows-engineering-unsigned-amd64-<sha>` (EXE) | Protected Azure signing path; Windows hardware and passkey verification pending |
+
+The native Linux packages and Intel DMG are **not** substitutes for signed
+production deliverables. Offline Linux `.deb`/`.rpm`, offline native DMGs,
+Windows offline EXEs and container-free native Mac/Linux app runtimes still
+require distinct implementation and qualification.
+
 ## Trusted distribution is separate and manual
 
 1. Finish the scope PRs, independent security/counsel reviews, exact-head CI,

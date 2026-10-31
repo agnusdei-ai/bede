@@ -4,12 +4,14 @@ import unittest
 SWIFT = (Path(__file__).resolve().parents[1] / "macos" / "BedeInstallerApp.swift").read_text()
 
 class UnifiedArchitectureSelection(unittest.TestCase):
-    def test_both_modes_present(self):
+    def test_modes_declared_but_only_qualified_runtime_offered(self):
         self.assertIn('case native = "Native macOS"', SWIFT)
         self.assertIn('case containerized = "Containerized"', SWIFT)
-        self.assertIn('Picker("Deployment architecture"', SWIFT)
+        self.assertIn('Picker("Runtime (requires a container engine)"', SWIFT)
+        self.assertIn('DeploymentArchitecture.allCases.filter { $0 == .containerized || installer.nativeRuntimeReady }', SWIFT)
         self.assertIn('@Published var context: InstallContext = .campus', SWIFT)
-        self.assertIn('@Published var architecture: DeploymentArchitecture = .native', SWIFT)
+        self.assertIn('@Published var architecture: DeploymentArchitecture = .containerized', SWIFT)
+        self.assertNotIn('@Published var architecture: DeploymentArchitecture = .native', SWIFT)
 
     def test_native_fails_closed_without_runtime(self):
         self.assertIn('architecture == .containerized ? check.dockerReady : nativeRuntimeReady', SWIFT)

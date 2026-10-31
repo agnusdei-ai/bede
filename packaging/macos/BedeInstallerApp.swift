@@ -148,7 +148,7 @@ final class InstallerController: ObservableObject {
     // Report completed checkpoints, not estimated transfer bytes.
     var verifiedPercent: Int { finished.count * 100 / SetupStage.allCases.count }
     var pullingImages: Bool { running && current == .files && !finished.contains(.files) }
-    @Published var architecture: DeploymentArchitecture = .native
+    @Published var architecture: DeploymentArchitecture = .containerized
     @Published var context: InstallContext = .campus
     @Published var campusID = "bede-mac-pilot-2026"
     @Published var check = MacCheck(architecture: "Checking", memoryGiB: 0, diskGiB: 0, dockerReady: false)
@@ -528,8 +528,8 @@ struct InstallerView: View {
                     Text(item.rawValue).tag(item)
                 }
             }.pickerStyle(.segmented).disabled(installer.running || installer.completed)
-            Picker("Deployment architecture", selection: $installer.architecture) {
-                ForEach(DeploymentArchitecture.allCases) { item in
+            Picker("Runtime (requires a container engine)", selection: $installer.architecture) {
+                ForEach(DeploymentArchitecture.allCases.filter { $0 == .containerized || installer.nativeRuntimeReady }) { item in
                     Text(item.rawValue).tag(item)
                 }
             }.pickerStyle(.segmented).disabled(installer.running || installer.completed)

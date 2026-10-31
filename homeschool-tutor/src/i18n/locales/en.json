@@ -811,6 +811,7 @@
     "withdrawExplain": "Withdrawal ceases the storage of new student information. It does not delete existing records.",
     "withdrawConfirm": "Withdraw Authorization",
     "withdrawCancel": "Cancel",
+    "teacherWaitAdmin": "A school administrator must authorize storage before student information can be entered. Your campus status remains available to view.",
     "entryDisabled": "Student information cannot be stored until an authorized official provides authorization.",
     "actionLoad": "load the school authorization status",
     "actionOptIn": "record the authorization",

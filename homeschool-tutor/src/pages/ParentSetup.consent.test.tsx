@@ -91,6 +91,28 @@ describe('ParentSetup consent', () => {
     expect(m.savePodConfigs.mock.calls[0][2]).toBeNull()
   })
 
+  it('requires the current notice when the first student is configured without an install ack', async () => {
+    m.fetchHouseholdConsent.mockResolvedValue(consent({ needs_consent: false, students: [] }))
+    await fillForm()
+    await waitFor(() => expect(consentBoxes()).toHaveLength(2))
+    expect(saveButton().disabled).toBe(true)
+    fireEvent.click(consentBoxes()[1])
+    await waitFor(() => expect(saveButton().disabled).toBe(false))
+    fireEvent.click(saveButton())
+    await waitFor(() => expect(m.savePodConfigs).toHaveBeenCalled())
+    expect(m.savePodConfigs.mock.calls[0][2]).toBe('hash-1')
+  })
+
+  it('does not inherit an existing child\'s consent when adding another child', async () => {
+    m.fetchHouseholdConsent.mockResolvedValue(consent({
+      needs_consent: false,
+      students: [{ student_name: 'Grace', consented: true, stale: false }],
+    }))
+    await fillForm() // Ada is new to the previously consented Grace household
+    await waitFor(() => expect(consentBoxes()).toHaveLength(2))
+    expect(saveButton().disabled).toBe(true)
+  })
+
   it('does not save student configuration when the consent status request fails', async () => {
     m.fetchHouseholdConsent.mockRejectedValue(new Error('Consent status unavailable'))
     await fillForm()

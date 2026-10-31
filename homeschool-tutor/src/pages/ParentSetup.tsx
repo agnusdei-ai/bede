@@ -353,10 +353,13 @@ export default function ParentSetup() {
   // — see docs/LOCALIZATION.md. An English-only deployment never asks.
   const requireSex = !!systemStatus?.locale && systemStatus.locale !== 'en'
 
-  const consentOutstanding = !!consent && consent.needs_consent
+  // Household status covers saved students only; a new child (or the first
+  // child) needs an explicit notice acknowledgement unless install-covered.
+  const consentOutstanding = !!consent && tickRequiredToSave(consent, students.map((s) => s.student_name))
   const canSave =
     hitlConsent &&
-    (!tickRequiredToSave(consent) || consentTick) &&
+    !!consent &&
+    (!consentOutstanding || consentTick) &&
     students.length > 0 &&
     students.every((s) =>
       s.student_name.trim() && s.grade.trim() && s.selected_subjects.length > 0 &&

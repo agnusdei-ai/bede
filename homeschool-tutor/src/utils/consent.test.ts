@@ -23,6 +23,21 @@ describe('tickRequiredToSave', () => {
   })
   it('fails closed when the consent lookup is unavailable', () => {
     expect(tickRequiredToSave(null)).toBe(true)
+    expect(tickRequiredToSave(null, ['Ada'])).toBe(true)
+  })
+  it('requires acknowledgement for the first pod when no child is configured', () => {
+    expect(tickRequiredToSave(consent({ needs_consent: false, students: [] }), ['Ada'])).toBe(true)
+  })
+  it('does not carry consent from an existing child to a newly added child', () => {
+    const household = consent({
+      needs_consent: false,
+      students: [{ student_name: 'Ada', consented: true, stale: false }],
+    })
+    expect(tickRequiredToSave(household, ['Ada'])).toBe(false)
+    expect(tickRequiredToSave(household, ['Ada', 'Noah'])).toBe(true)
+  })
+  it('keeps the valid install acknowledgement for a newly configured child', () => {
+    expect(tickRequiredToSave(consent({ needs_consent: false, install_ack: true, students: [] }), ['Ada'])).toBe(false)
   })
 })
 

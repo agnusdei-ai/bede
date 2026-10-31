@@ -103,6 +103,37 @@ async def save_pod_configs(
                     f"(this pod would have {total_seats_used}) — contact us to upgrade."
                 ),
             )
+    # Consent is a server-side precondition, not merely a Parent Setup UI tick.
+    # Check every student before creating keys or writing configuration rows.
+    # Without a notice hash, only current consent or a valid installer
+    # acknowledgement can authorize the save; a new child cannot inherit
+    # a sibling's consent.
+    consent_result = None
+    if req.consent_notice_hash is not None:
+        # Refuse paused saves before refreshing any consent ledger entries.
+        for config in req.configs:
+            if await consent.is_paused(db, config.student_name):
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail={"error": "collection_paused",
+                            "message": "A parent has paused collection for this student."},
+                )
+        try:
+            consent_result = await consent.ensure_consent(
+                db,
+                [c.student_name for c in req.configs],
+                parent_label=req.parent_label,
+                presented_notice_hash=req.consent_notice_hash,
+            )
+        except consent.ConsentError as exc:
+            raise HTTPException(
+                status_code=exc.http_status,
+                detail={"error": exc.code, "message": exc.message},
+            ) from exc
+
+    for config in req.configs:
+        await consent.require_collection(db, config.student_name)
+
     for config in req.configs:
         _key = await student_keys.get_or_create(db, config.student_name)
         enc = encrypt_json(config.model_dump(), _config_aad(config.student_name), _key)
@@ -116,16 +147,10 @@ async def save_pod_configs(
             row.config_enc = enc
     await db.commit()
 
-    if req.consent_notice_hash is not None:
+    if consent_result is not None:
         from routers.consent import audit_consent_result
 
-        result = await consent.ensure_consent(
-            db,
-            [c.student_name for c in req.configs],
-            parent_label=req.parent_label,
-            presented_notice_hash=req.consent_notice_hash,
-        )
-        await audit_consent_result(request, result)
+        await audit_consent_result(request, consent_result)
 
 
 @router.get("/configs", response_model=list[SessionConfig])

@@ -9,6 +9,7 @@ import pytest
 import pytest_asyncio
 from fastapi import HTTPException
 
+from core import consent
 from models.schemas import GradeStage, PodConfigsRequest, SessionConfig
 from routers.pod import save_pod_configs
 
@@ -29,7 +30,10 @@ async def test_english_locale_never_requires_sex(db_session, monkeypatch):
     from core.config import settings
 
     monkeypatch.setattr(settings, "locale", "en")
-    req = PodConfigsRequest(configs=[_config("Emma"), _config("Liam", sex="male")])
+    req = PodConfigsRequest(
+        configs=[_config("Emma"), _config("Liam", sex="male")],
+        consent_notice_hash=consent.notice_hash(),
+    )
     await save_pod_configs(req, _={"role": "parent"}, db=db_session)
 
 
@@ -49,5 +53,8 @@ async def test_non_english_locale_accepts_every_config_with_sex_set(db_session, 
     from core.config import settings
 
     monkeypatch.setattr(settings, "locale", "es")
-    req = PodConfigsRequest(configs=[_config("Emma", sex="female"), _config("Liam", sex="male")])
+    req = PodConfigsRequest(
+        configs=[_config("Emma", sex="female"), _config("Liam", sex="male")],
+        consent_notice_hash=consent.notice_hash(),
+    )
     await save_pod_configs(req, _={"role": "parent"}, db=db_session)

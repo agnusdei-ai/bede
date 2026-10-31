@@ -5,9 +5,10 @@ a file is free of malware.
 
 * Type is decided from the bytes alone (magic numbers); a filename or declared
   content type is never consulted (the API does not even receive one).
-* HEIC/HEIF (iPhone photos) is recognised by its `ftyp` brand and decoded by
-  pillow-heif (native libheif) registered with Pillow, then goes through
-  exactly the same checks and re-encode as a JPEG or PNG.
+* HEIC/HEIF is recognized by its `ftyp` brand but rejected before native decoding
+  whenever the linked libheif is older than 1.23.7. Only a patched native
+  decoder is registered, after which the image receives the same checks and
+  re-encoding as JPEG or PNG.
 * Every image is FULLY DECODED with Pillow and RE-ENCODED to a fresh PNG: the
   header is checked for pixel count before any pixel is decoded, Pillow's own
   decompression-bomb guard is set to the same cap and promoted to an error,

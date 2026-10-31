@@ -497,3 +497,60 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+
+  # Intel Mac is a distinct engineering candidate. Real Intel hardware
+  # acceptance, Developer ID notarization, and Pilot GO are NOT asserted.
+  package-mac-intel:
+    name: Bede Intel Mac native engineering DMG
+    needs: package
+    runs-on: macos-15-intel
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download the exact amd64 source-free operator payload
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          name: bede-standard-linux-amd64-${{ github.sha }}
+          path: ${{ runner.temp }}/bede-intel-source
+      - name: Verify Intel Mac package inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          cd "$RUNNER_TEMP/bede-intel-source"
+          shasum -a 256 -c "bede-operator-standard-$GITHUB_SHA-amd64.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$GITHUB_SHA-amd64.tar.gz"
+          test "$(cat bede-operator-standard/ARCH)" = amd64
+          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test -s bede-operator-standard/IMAGE_DIGESTS
+          test ! -f bede-operator-standard/images.tar
+          test ! -f bede-operator-standard/images.tar.zst
+      - name: Compile native Intel macOS GUI app and DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/macos/build-app.sh "$RUNNER_TEMP/bede-intel-source/bede-operator-standard" "$RUNNER_TEMP/native-intel"
+          app="$RUNNER_TEMP/native-intel/Bede Installer.app"
+          test -x "$app/Contents/MacOS/BedeInstaller"
+          lipo -archs "$app/Contents/MacOS/BedeInstaller" | grep -qw x86_64
+          test -s "$app/Contents/Resources/bede-operator/RELEASE_PROVENANCE.json"
+          test -s "$app/Contents/Resources/bede-operator/IMAGE_DIGESTS"
+          test "$(cat "$app/Contents/Resources/bede-operator/RELEASE")" = "$GITHUB_SHA"
+          test "$(cat "$app/Contents/Resources/bede-operator/ARCH")" = amd64
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          mkdir -p dist/mac-intel-engineering
+          hdiutil create -volname "Bede Intel Engineering Candidate" -srcfolder "$app" -ov -format UDZO dist/mac-intel-engineering/Bede-Engineering-Mac-amd64.dmg
+          test "$(stat -f %z dist/mac-intel-engineering/Bede-Engineering-Mac-amd64.dmg)" -lt $((50 * 1024 * 1024))
+          (cd dist/mac-intel-engineering && shasum -a 256 Bede-Engineering-Mac-amd64.dmg > Bede-Engineering-Mac-amd64.dmg.sha256)
+          cp "$RUNNER_TEMP/bede-intel-source/bede-operator-standard/RELEASE_PROVENANCE.json" dist/mac-intel-engineering/RELEASE_PROVENANCE.json
+          echo "NOT FOR DISTRIBUTION: ad hoc signed, unnotarized, not qualified on physical Intel Mac, and NOT Pilot GO." > dist/mac-intel-engineering/NOT_FOR_DISTRIBUTION.txt
+      - name: Upload unnotarized Intel Mac engineering DMG
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-mac-engineering-unnotarized-amd64-${{ github.sha }}
+          path: dist/mac-intel-engineering/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

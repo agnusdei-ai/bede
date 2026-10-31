@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# Bede Standard native Linux launcher, source-free and SHA-pinned.
+# The .deb/.rpm installs trusted static files only; never writes learner data
+# or invokes Docker until the operator launches the desktop application.
+set -euo pipefail
+umask 077
+fail() { printf 'Bede installation incomplete: %s\n' "$*" >&2; exit 1; }
+source_dir="/opt/bede/standard"
+[[ -r "$source_dir/RELEASE" && -r "$source_dir/ARCH" && -r "$source_dir/start.sh" && -r "$source_dir/IMAGE_DIGESTS" ]] ||
+  fail "The native Bede package is incomplete. Reinstall from a verified package."
+sha="$(tr -d '\r\n' < "$source_dir/RELEASE")"
+[[ "$sha" =~ ^[a-f0-9]{40}$ ]] || fail "Invalid packaged source SHA"
+arch="$(tr -d '\r\n' < "$source_dir/ARCH")"
+case "$(uname -m)" in
+  x86_64) actual=amd64 ;;
+  aarch64) actual=arm64 ;;
+  *) fail "Unsupported Linux CPU architecture" ;;
+esac
+[[ "$arch" == "$actual" ]] || fail "Package architecture does not match this Linux computer"
+[[ "$(id -u)" -ne 0 ]] || fail "Run the desktop application as a regular user, not root"
+command -v docker >/dev/null 2>&1 || fail "Install an approved container engine with Compose, then relaunch Bede Installer."
+docker info >/dev/null 2>&1 || fail "Start your container engine and reopen Bede Installer."
+docker compose version >/dev/null 2>&1 || fail "Docker Compose is required."
+
+context="${BEDE_INSTALL_CONTEXT:-}"
+if [[ -z "$context" ]]; then
+  if command -v zenity >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+    context="$(zenity --list --title='Bede Installer' \
+      --text='Choose where to install Bede' --column='Mode' campus homeschool 2>/dev/null || true)"
+    [[ -n "$context" ]] || fail "Setup cancelled"
+  else
+    printf 'Choose Bede installation: [1] Homeschool (default) or [2] Campus: '
+    read -r answer
+    case "$answer" in ""|1) context=homeschool ;; 2) context=campus ;; *) fail "Invalid choice" ;; esac
+  fi
+fi
+case "$context" in
+  campus)
+    campus="${BEDE_CAMPUS_ID:-}"
+    if [[ -z "$campus" ]]; then
+      if command -v zenity >/dev/null 2>&1 && [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+        campus="$(zenity --entry --title='Bede campus' --text='Enter your approved campus ID' 2>/dev/null || true)"
+      else
+        printf 'Enter approved campus ID: '
+        read -r campus
+      fi
+    fi
+    [[ "$campus" =~ ^[a-z0-9][a-z0-9_-]{2,63}$ ]] || fail "Invalid campus ID"
+    export BEDE_INSTALL_CONTEXT=campus BEDE_CAMPUS_ID="$campus"
+    data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+    target="$data_home/Bede/Campus/$campus/bede-operator"
+    ;;
+  homeschool)
+    export BEDE_INSTALL_CONTEXT=homeschool BEDE_CAMPUS_ID=""
+    data_home="${XDG_DATA_HOME:-$HOME/.local/share}"
+    target="$data_home/Bede/Homeschool/local/bede-operator"
+    ;;
+  *) fail "Unsupported installation context" ;;
+esac
+[[ ! -L "$target" ]] || fail "Runtime path cannot be a symlink"
+if [[ -e "$target/RELEASE" ]]; then
+  [[ "$(tr -d '\r\n' < "$target/RELEASE")" == "$sha" ]] ||
+    fail "Existing Bede data belongs to another SHA. Use a separately authorized non-destructive update."
+elif [[ -e "$target/.env" ]]; then
+  fail "Existing Bede configuration has no release identity. Refusing to overwrite."
+fi
+mkdir -p "$target"
+chmod 700 "$target"
+# Copies source-free payload including hidden .env.example, not prior learner
+# data, which remains in its existing per-user and per-campus directory.
+cp -a "$source_dir/." "$target/"
+chmod 700 "$target"
+cd "$target"
+printf 'Launching Bede %s on Linux %s using %s mode.\n' "${sha:0:12}" "$arch" "$context"
+exec bash ./start.sh

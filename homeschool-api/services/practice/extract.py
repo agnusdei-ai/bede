@@ -31,20 +31,16 @@ from pydantic import ValidationError
 from core.config import settings
 from models.practice import GradedAssessment, ReadPhotosRequest
 from services.practice.packs import get_pack
+from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
+    PhotoRejected,
+    ScannerUnavailable,
+    UploadBusy,
+    prepare_pages,
+)
 
 log = logging.getLogger(__name__)
 
-MAX_PAGE_BYTES = 6 * 1024 * 1024
 READ_TIMEOUT_SECONDS = 120
-
-_SIGNATURES = (
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-)
-
-
-class PhotoRejected(ValueError):
-    pass
 
 
 class ConsentRequired(Exception):
@@ -61,27 +57,17 @@ class ReadingFailed(Exception):
     pass
 
 
-def media_type_of(data_b64: str) -> str:
-    try:
-        raw = base64.b64decode(data_b64, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise PhotoRejected("A page is not valid base64 image data.") from exc
-    if len(raw) > MAX_PAGE_BYTES:
-        raise PhotoRejected("A page is larger than 6 MB; please retake it at a lower resolution.")
-    for magic, media_type in _SIGNATURES:
-        if raw.startswith(magic):
-            return media_type
-    raise PhotoRejected("Pages must be JPEG or PNG photos.")
-
-
 def reading_route() -> dict:
     """What the parent is told before uploading: where pages would be read."""
     from services.adapters import router
 
     configured = router.configured_adapters()
+    cloud = next((a for a in router.preference_order() if a in configured and a != "local"), None)
     return {
         "local_available": "local" in configured,
-        "cloud_provider": next((a for a in router.preference_order() if a in configured and a != "local"), None),
+        # Withheld while cloud reading is switched off, so the screen never
+        # offers a consent tick for a route the server will refuse.
+        "cloud_provider": cloud if settings.practice_cloud_reading_enabled else None,
     }
 
 
@@ -94,6 +80,8 @@ def _choose_client(req: ReadPhotosRequest):
         if not route["local_available"]:
             raise ReadingUnavailable("No local model is configured on this install.")
         return router.resolve_local_only()
+    if not settings.practice_cloud_reading_enabled:
+        raise ReadingUnavailable("Reading photos with a cloud AI provider is turned off on this install.")
     if not route["cloud_provider"]:
         raise ReadingUnavailable("No AI provider is configured to read photos.")
     if not req.cloud_consent:
@@ -149,12 +137,10 @@ def parse_reading(text: str, subject: str) -> GradedAssessment:
 async def read_pages(req: ReadPhotosRequest) -> GradedAssessment:
     if get_pack(req.subject) is None:
         raise PhotoRejected(f"No practice pack for {req.subject!r} yet.")
-    blocks = [
-        {"type": "image", "source": {"type": "base64", "media_type": media_type_of(p.data), "data": p.data}}
-        for p in req.pages
-    ]
-    client = _choose_client(req)
-    blocks.append({"type": "text", "text": f"These are {len(req.pages)} page(s) of one worksheet, in order."})
+    client = _choose_client(req)  # consent and routing are settled before anything is parsed
+    pages = await prepare_pages([p.data for p in req.pages])
+    blocks = [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in pages]
+    blocks.append({"type": "text", "text": f"These are {len(pages)} page(s) of one worksheet, in order."})
     try:
         response = await asyncio.wait_for(
             client.messages.create(

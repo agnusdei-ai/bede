@@ -416,3 +416,82 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+
+  # Native distro packages are installers, not a different runtime.
+  # Every package contains a source-free, digest-pinned Standard operator
+  # manifest and can be launched from a desktop application entry.
+  package-linux-native:
+    name: Bede Linux native Standard DEB and RPM (${{ matrix.arch }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install native Linux package builders
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          command -v dpkg-deb
+          command -v rpmbuild
+      - name: Download exact source-free Standard operator
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/operator
+      - name: Verify archive SHA-256 and extract Standard payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/operator"
+          sha256sum -c "bede-operator-standard-$GITHUB_SHA-${{ matrix.arch }}.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$GITHUB_SHA-${{ matrix.arch }}.tar.gz"
+          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test "$(cat bede-operator-standard/ARCH)" = "${{ matrix.arch }}"
+          test -s bede-operator-standard/IMAGE_DIGESTS
+          test ! -e bede-operator-standard/images.tar
+          test ! -e bede-operator-standard/images.tar.zst
+          bash -n packaging/linux/bede-installer 2>/dev/null || bash -n "$GITHUB_WORKSPACE/packaging/linux/bede-installer"
+      - name: Build native DEB and RPM candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/linux/build-native-packages.sh \
+            "$RUNNER_TEMP/operator/bede-operator-standard" "$GITHUB_SHA" dist/linux-native
+      - name: Inspect installed file manifests and packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          deb="dist/linux-native/Bede-Engineering-Linux-$arch.deb"
+          rpm="dist/linux-native/Bede-Engineering-Linux-$arch.rpm"
+          test -s "$deb" && test -s "$rpm"
+          (cd dist/linux-native && sha256sum -c "Bede-Engineering-Linux-$arch.deb.sha256" && sha256sum -c "Bede-Engineering-Linux-$arch.rpm.sha256")
+          dpkg-deb --field "$deb" Architecture | grep -qx "$arch"
+          dpkg-deb --contents "$deb" > /tmp/bede-deb-contents
+          rpm -qpl "$rpm" > /tmp/bede-rpm-contents
+          for filepath in opt/bede/standard/RELEASE opt/bede/standard/IMAGE_DIGESTS usr/bin/bede-installer usr/share/applications/bede-installer.desktop; do
+            grep -Fq "$filepath" /tmp/bede-deb-contents
+            grep -Fq "/$filepath" /tmp/bede-rpm-contents
+          done
+          if grep -q 'images.tar' /tmp/bede-deb-contents; then
+            echo "Native Standard package unexpectedly contains an offline image archive" >&2
+            exit 1
+          fi
+          test "$(python3 -c 'import json; print(json.load(open("dist/linux-native/RELEASE_PROVENANCE.json"))["source_sha"])')" = "$GITHUB_SHA"
+      - name: Upload native Linux engineering candidates
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-linux-native-standard-${{ matrix.arch }}-${{ github.sha }}
+          path: dist/linux-native/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

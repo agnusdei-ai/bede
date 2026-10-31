@@ -312,3 +312,79 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+
+  # Windows and Mac native candidates use the SAME source-SHA operator workflow.
+  # This is not production deployment or signing authorization.
+  package-windows-standard:
+    name: Bede Windows x64 Standard engineering installer
+    needs: package
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download source-free pinned amd64 operator payload
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          name: bede-standard-linux-amd64-${{ github.sha }}
+          path: ${{ runner.temp }}/bede-windows-source
+      - name: Stage and verify exact-release manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:RUNNER_TEMP 'bede-windows-source'
+          $hashFile = Join-Path $source "bede-operator-standard-$env:GITHUB_SHA-amd64.tar.gz.sha256"
+          $bundle = Join-Path $source "bede-operator-standard-$env:GITHUB_SHA-amd64.tar.gz"
+          if (!(Test-Path $hashFile) -or !(Test-Path $bundle)) { throw 'Missing immutable payload or hash' }
+          $expected = ((Get-Content $hashFile -Raw).Trim() -split '\s+')[0]
+          $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -cne $expected) { throw 'Operator artifact checksum mismatch' }
+          tar -xzf $bundle -C $source
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract verified operator payload' }
+          $operator = Join-Path $source 'bede-operator-standard'
+          $dest = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/release-payload'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Get-ChildItem -LiteralPath $operator -Force | Copy-Item -Destination $dest -Recurse -Force
+          if ((Get-Content "$dest/RELEASE" -Raw).Trim() -cne $env:GITHUB_SHA) { throw 'Source SHA mismatch' }
+          if ((Get-Content "$dest/ARCH" -Raw).Trim() -cne 'amd64') { throw 'Wrong runtime architecture' }
+          $data = Get-Content "$dest/RELEASE_PROVENANCE.json" -Raw | ConvertFrom-Json
+          if ($data.source_sha -cne $env:GITHUB_SHA -or $data.architecture -cne 'amd64' -or $data.pilot_go -cne 'HOLD') { throw 'Invalid provenance' }
+          if (!(Test-Path "$dest/Install-Bede.ps1") -or !(Test-Path "$dest/IMAGE_DIGESTS")) { throw 'Missing verified Windows launcher or immutable image manifest' }
+          if (Test-Path "$dest/images.tar") { throw 'Standard installer must not embed raw Docker images' }
+          if (Test-Path "$dest/images.tar.zst") { throw 'Standard installer must not embed compressed Docker images' }
+          $script = Get-Content "$dest/Install-Bede.ps1" -Raw
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseInput($script, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) { throw ("PowerShell launcher syntax: " + $parseErrors[0].Message) }
+          if ($script -match 'git\s+(clone|pull)') { throw 'Source checkout is not permitted in release launcher' }
+          if ($script -notmatch 'IMAGE_DIGESTS' -or $script -notmatch 'docker\.exe' -or $script -notmatch '\-\-cacert') { throw 'Missing pinning or secure health contracts' }
+      - name: Build the native Windows release-candidate EXE
+        uses: Minionguyjpro/Inno-Setup-Action@b8e8eb5936437c243592fda645c96dfc6488c275 # v1.2.2
+        with:
+          path: packaging/windows/BedeRelease.iss
+      - name: Validate candidate, record source SHA and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/Output/BedeRelease.exe'
+          if (!(Test-Path $output) -or (Get-Item $output).Length -lt 100000) { throw 'No native Inno EXE was produced' }
+          if ((Get-AuthenticodeSignature $output).Status -ne 'NotSigned') { throw 'Engineering candidate must not be labeled distribution-signed' }
+          $candidate = Join-Path $env:GITHUB_WORKSPACE 'dist/windows-engineering'
+          New-Item -ItemType Directory -Force -Path $candidate | Out-Null
+          $filename = 'Bede-Engineering-Windows-amd64.exe'
+          Copy-Item $output (Join-Path $candidate $filename)
+          $hash = (Get-FileHash (Join-Path $candidate $filename) -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $filename" | Set-Content -Encoding ASCII (Join-Path $candidate "$filename.sha256")
+          "ENGINEERING CANDIDATE ONLY. Source SHA: $env:GITHUB_SHA. Unsigned; not approved for external distribution, real learner data or Pilot GO." | Set-Content -Encoding ASCII (Join-Path $candidate 'NOT_FOR_DISTRIBUTION.txt')
+          Copy-Item 'packaging/windows/release-payload/RELEASE_PROVENANCE.json' (Join-Path $candidate 'RELEASE_PROVENANCE.json')
+          Copy-Item 'packaging/windows/release-payload/IMAGE_DIGESTS' (Join-Path $candidate 'IMAGE_DIGESTS')
+          Write-Host "Built source-free Windows candidate for $env:GITHUB_SHA with SHA256 $hash"
+      - name: Upload Windows engineering candidate (not a trusted release)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-windows-engineering-unsigned-amd64-${{ github.sha }}
+          path: dist/windows-engineering/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

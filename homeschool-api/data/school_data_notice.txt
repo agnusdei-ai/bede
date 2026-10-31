@@ -1,4 +1,4 @@
-Notice version: 2026-10-30.2
+Notice version: 2026-10-30.3
 
 SCHOOL AUTHORIZATION FOR STORAGE OF STUDENT INFORMATION
 Storage, Use, Maintenance and Custody of Student Information by a School
@@ -24,7 +24,7 @@ Once authorization is given, the following categories of Student Information may
 (d) the record of the student's tutoring interactions with Bede, only where the School has enabled tutoring for that student.
 
 5. Educational Purpose and Use Limitation
-Student Information is stored and used solely for the School's educational purposes. It is not sold. It is not used for advertising or targeted marketing. It is not used to train general-purpose models.
+Student Information is stored and used by Bede for the School's educational purposes. Bede does not sell it, use it for advertising or targeted marketing, or use it to train its own general-purpose models. The School must separately verify each chosen cloud Service Provider's retention and model-training terms and settings before transmitting any Student Information to that provider; this Notice does not make a no-training promise on that provider's behalf.
 
 6. School Control and Custody
 Where Bede is installed and operated on equipment under the control of the School or its designee (a "self-hosted or school-managed deployment"), the School is the operator and custodian of the Student Information. The Provider does not collect, receive, access or maintain Student Information held on such a deployment.

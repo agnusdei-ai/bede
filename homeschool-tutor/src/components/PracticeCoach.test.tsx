@@ -214,11 +214,11 @@ it('is written in Spanish for a Spanish session', async () => {
 })
 
 describe('PDF and iPhone uploads', () => {
-  it('offers PDF, HEIC and HEIF in the file picker alongside JPEG and PNG', async () => {
+  it('offers only supported JPEG, PNG and PDF while native HEIC decoding is gated', async () => {
     await openAndPick()
     const input = screen.getByLabelText(/scanned PDF of the graded pages/) as HTMLInputElement
     const accepted = input.accept.split(',')
-    for (const kind of ['image/jpeg', 'image/png', 'application/pdf', '.pdf', 'image/heic', 'image/heif', '.heic', '.heif']) {
+    for (const kind of ['image/jpeg', 'image/png', 'application/pdf', '.pdf']) {
       expect(accepted).toContain(kind)
     }
     expect(input.accept).toBe(PRACTICE_ACCEPT)

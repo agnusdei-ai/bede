@@ -5,15 +5,25 @@ SessionConfig.sex and services/ai_service.py's _locale_directive, which
 needs it for grammatically correct address in a gendered language. Same
 demo_db/db_session pattern as tests/test_pod_seat_cap.py.
 """
+from datetime import datetime, timezone
+
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
 
 from core import consent
+from core.config import settings
 from models.schemas import GradeStage, PodConfigsRequest, SessionConfig
 from routers.pod import save_pod_configs
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
+
+
+@pytest.fixture(autouse=True)
+def authorized_install_ack(monkeypatch):
+    """Locale validation runs under an authorized synthetic installation."""
+    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
+    monkeypatch.setattr(settings, "consent_install_ack_at", datetime.now(timezone.utc).isoformat())
 
 
 @pytest_asyncio.fixture
@@ -30,10 +40,7 @@ async def test_english_locale_never_requires_sex(db_session, monkeypatch):
     from core.config import settings
 
     monkeypatch.setattr(settings, "locale", "en")
-    req = PodConfigsRequest(
-        configs=[_config("Emma"), _config("Liam", sex="male")],
-        consent_notice_hash=consent.notice_hash(),
-    )
+    req = PodConfigsRequest(configs=[_config("Emma"), _config("Liam", sex="male")])
     await save_pod_configs(req, _={"role": "parent"}, db=db_session)
 
 
@@ -53,8 +60,5 @@ async def test_non_english_locale_accepts_every_config_with_sex_set(db_session, 
     from core.config import settings
 
     monkeypatch.setattr(settings, "locale", "es")
-    req = PodConfigsRequest(
-        configs=[_config("Emma", sex="female"), _config("Liam", sex="male")],
-        consent_notice_hash=consent.notice_hash(),
-    )
+    req = PodConfigsRequest(configs=[_config("Emma", sex="female"), _config("Liam", sex="male")])
     await save_pod_configs(req, _={"role": "parent"}, db=db_session)

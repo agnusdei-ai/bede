@@ -94,9 +94,9 @@ describe('ParentSetup consent', () => {
   it('requires the current notice when the first student is configured without an install ack', async () => {
     m.fetchHouseholdConsent.mockResolvedValue(consent({ needs_consent: false, students: [] }))
     await fillForm()
-    await waitFor(() => expect(consentBoxes()).toHaveLength(2))
+    await waitFor(() => expect(consentBoxes()).toHaveLength(1))
     expect(saveButton().disabled).toBe(true)
-    fireEvent.click(consentBoxes()[1])
+    fireEvent.click(consentBoxes()[0])
     await waitFor(() => expect(saveButton().disabled).toBe(false))
     fireEvent.click(saveButton())
     await waitFor(() => expect(m.savePodConfigs).toHaveBeenCalled())
@@ -106,11 +106,11 @@ describe('ParentSetup consent', () => {
   it('invalidates an already ticked notice when the proposed child name changes', async () => {
     m.fetchHouseholdConsent.mockResolvedValue(consent({ needs_consent: false, students: [] }))
     await fillForm()
-    await waitFor(() => expect(consentBoxes()).toHaveLength(2))
-    fireEvent.click(consentBoxes()[1])
-    expect((consentBoxes()[1] as HTMLInputElement).checked).toBe(true)
+    await waitFor(() => expect(consentBoxes()).toHaveLength(1))
+    fireEvent.click(consentBoxes()[0])
+    expect((consentBoxes()[0] as HTMLInputElement).checked).toBe(true)
     fireEvent.change(screen.getByPlaceholderText(i18n.t('parentSetup.namePlaceholder')), { target: { value: 'Noah' } })
-    expect((consentBoxes()[1] as HTMLInputElement).checked).toBe(false)
+    expect((consentBoxes()[0] as HTMLInputElement).checked).toBe(false)
     expect(saveButton().disabled).toBe(true)
   })
 
@@ -120,7 +120,7 @@ describe('ParentSetup consent', () => {
       students: [{ student_name: 'Grace', consented: true, stale: false }],
     }))
     await fillForm() // Ada is new to the previously consented Grace household
-    await waitFor(() => expect(consentBoxes()).toHaveLength(2))
+    await waitFor(() => expect(consentBoxes()).toHaveLength(1))
     expect(saveButton().disabled).toBe(true)
   })
 

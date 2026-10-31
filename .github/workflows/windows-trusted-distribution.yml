@@ -1,0 +1,120 @@
+name: Bede Windows trusted distribution (manual gate)
+# Only a reviewed main-branch build, explicitly selected by source-run ID and
+# exact source SHA, may reach Azure Artifact Signing. A PR cannot sign code.
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Bede operator workflow run producing Windows engineering EXE
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-character source commit SHA from main
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+jobs:
+  sign-windows-candidate:
+    name: Azure sign and independently verify Windows candidate
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-2022
+    environment: windows-trusted-distribution
+    timeout-minutes: 40
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      SOURCE_RUN: ${{ inputs.source_run_id }}
+      GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - name: Refuse missing signing authorization and unqualified source run
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:SOURCE_SHA -cnotmatch '^[a-f0-9]{40}$') { throw 'Invalid source SHA' }
+          if ($env:SOURCE_RUN -notmatch '^[0-9]+$') { throw 'Invalid source run ID' }
+          foreach ($key in @('AZURE_CLIENT_ID','AZURE_TENANT_ID','AZURE_SUBSCRIPTION_ID')) {
+            if (-not (Get-Item "env:$key").Value) { throw ("Missing required Azure signing identity " + $key) }
+          }
+          foreach ($value in @('${{ vars.TRUSTED_SIGNING_ENDPOINT }}','${{ vars.TRUSTED_SIGNING_ACCOUNT }}','${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}')) {
+            if (-not $value) { throw 'Missing Azure Artifact Signing account configuration' }
+          }
+          $headers = @{
+            Authorization = "Bearer $env:GITHUB_API_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          $uri = "$env:GITHUB_API_URL/repos/$env:GITHUB_REPOSITORY/actions/runs/$env:SOURCE_RUN"
+          $run = Invoke-RestMethod -Uri $uri -Headers $headers -Method Get
+          if ($run.head_sha -cne $env:SOURCE_SHA -or $run.head_branch -cne 'main' -or $run.status -cne 'completed' -or $run.conclusion -cne 'success' -or $run.name -cne 'Bede Standard and Offline operator bundles') {
+            throw 'Source workflow is not a successful, exact-SHA main build'
+          }
+      - name: Download matching engineering EXE (no PR branch artifacts)
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: bede-windows-engineering-unsigned-amd64-${{ inputs.source_sha }}
+          path: ${{ runner.temp }}/candidate
+      - name: Verify provenance, checksum, and original unsigned status
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'candidate'
+          $file = Join-Path $root 'Bede-Engineering-Windows-amd64.exe'
+          $sum = Join-Path $root 'Bede-Engineering-Windows-amd64.exe.sha256'
+          $provenance = Get-Content (Join-Path $root 'RELEASE_PROVENANCE.json') -Raw | ConvertFrom-Json
+          if ($provenance.source_sha -cne $env:SOURCE_SHA -or $provenance.architecture -cne 'amd64' -or $provenance.pilot_go -cne 'HOLD') { throw 'Mismatched package provenance' }
+          if (-not (Test-Path (Join-Path $root 'NOT_FOR_DISTRIBUTION.txt'))) { throw 'Unsigned source marker missing' }
+          $expected = ((Get-Content $sum -Raw).Trim() -split '\s+')[0]
+          $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -cne $actual) { throw 'Unsigned EXE checksum mismatch' }
+          if ((Get-AuthenticodeSignature $file).Status -ne 'NotSigned') { throw 'Unexpected or pre-signed source' }
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '8.0.x'
+      - name: Azure sign in (main branch OIDC)
+        uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Sign release candidate with trusted Azure identity
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2
+        with:
+          endpoint: ${{ vars.TRUSTED_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ vars.TRUSTED_SIGNING_CERT_PROFILE }}
+          files: ${{ runner.temp }}/candidate/Bede-Engineering-Windows-amd64.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Verify signature, publisher, and final checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:RUNNER_TEMP 'candidate'
+          $file = Join-Path $root 'Bede-Engineering-Windows-amd64.exe'
+          $sig = Get-AuthenticodeSignature -FilePath $file
+          if ($sig.Status -ne 'Valid' -or -not $sig.SignerCertificate) { throw 'Windows signature does not verify' }
+          if ($sig.SignerCertificate.Subject -notmatch 'Agnus Dei Technologies') { throw 'Unexpected code signing publisher identity' }
+          $dest = Join-Path $env:GITHUB_WORKSPACE 'dist/windows-trusted'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          $name = 'Bede-Trusted-Windows-amd64.exe'
+          Copy-Item $file (Join-Path $dest $name)
+          $sha = (Get-FileHash (Join-Path $dest $name) -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$sha  $name" | Set-Content -Encoding ASCII (Join-Path $dest "$name.sha256")
+          Copy-Item (Join-Path $root 'RELEASE_PROVENANCE.json') (Join-Path $dest 'RELEASE_PROVENANCE.json')
+          "Source SHA: $env:SOURCE_SHA; Authenticode: $($sig.Status); Publisher: $($sig.SignerCertificate.Subject); Pilot GO: HOLD; external distribution remains subject to owner authorization." | Set-Content -Encoding UTF8 (Join-Path $dest 'SIGNATURE_EVIDENCE.txt')
+      - name: Upload trusted Windows candidate only after verification
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-trusted-windows-amd64-${{ inputs.source_sha }}
+          path: dist/windows-trusted/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

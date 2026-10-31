@@ -107,32 +107,36 @@ def test_administrator_can_authorize_once_and_it_is_idempotent(world):
     assert _rows(w, campus) == 1
 
 
-def test_a_member_teacher_can_authorize_as_teacher(world):
+def test_a_member_teacher_cannot_authorize_campus_learner_storage(world):
     w = world
     campus = _new_campus(w, member=w.teacher_one)
-    r = _post(w, campus, w.teacher(w.teacher_one), role="teacher")
-    assert r.status_code == 201, r.text
-    assert r.json()["authorized_by"] == "teacher"
-    # The teacher can read the status as well.
-    assert w.client.get(_url(campus), headers=w.teacher(w.teacher_one)).json()["authorized"] is True
-    assert _post(w, campus, w.teacher(w.teacher_one), role="teacher").status_code == 200
+    teacher = w.teacher(w.teacher_one)
+    # Mere membership is not evidence of authority to approve campus-wide data storage.
+    for role in ("teacher", "administrator"):
+        r = _post(w, campus, teacher, role=role)
+        assert r.status_code == 403, r.text
+        assert _rows(w, campus) == 0
+        assert w.client.get(_url(campus), headers=teacher).json()["authorized"] is False
+        _expect_gate(_create_learner(w, campus), campus)
+    # Campus status remains readable to a member educator after the passkey administrator grants it.
+    assert _post(w, campus, w.admin()).status_code == 201
+    assert w.client.get(_url(campus), headers=teacher).json()["authorized"] is True
     assert _rows(w, campus) == 1
 
 
-def test_wrong_role_foreign_teacher_and_non_member_get_the_uniform_404(world):
+def test_wrong_role_foreign_teacher_and_non_member_are_refused(world):
     w = world
     campus = _new_campus(w, member=w.teacher_one)
     uniform = {"detail": "Record not found"}
     # A teacher claiming to be the administrator, and the reverse.
     r = _post(w, campus, w.teacher(w.teacher_one), role="administrator")
-    assert (r.status_code, r.json()) == (404, uniform)
+    assert r.status_code == 403
     r = _post(w, campus, w.admin(), role="teacher")
     assert (r.status_code, r.json()) == (404, uniform)
     # A teacher of ANOTHER campus (not a member of this one).
-    for call in (lambda: w.client.get(_url(campus), headers=w.teacher(w.teacher_two)),
-                 lambda: _post(w, campus, w.teacher(w.teacher_two), role="teacher")):
-        r = call()
-        assert (r.status_code, r.json()) == (404, uniform)
+    r = w.client.get(_url(campus), headers=w.teacher(w.teacher_two))
+    assert (r.status_code, r.json()) == (404, uniform)
+    assert _post(w, campus, w.teacher(w.teacher_two), role="teacher").status_code == 403
     # A disabled membership is no longer a member.
     assert w.client.post(f"/pilot/campuses/{campus}/educators/{w.teacher_one}/disable",
                          headers=w.admin()).status_code == 204

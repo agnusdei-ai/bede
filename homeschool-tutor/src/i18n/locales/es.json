@@ -811,6 +811,7 @@
     "withdrawExplain": "El retiro de la autorización suspende el almacenamiento de nueva información de estudiantes. No elimina los registros existentes.",
     "withdrawConfirm": "Retirar la Autorización",
     "withdrawCancel": "Cancelar",
+    "teacherWaitAdmin": "Un administrador de la escuela debe autorizar el almacenamiento antes de ingresar datos de estudiantes. Puede consultar el estado de autorización del centro.",
     "entryDisabled": "No se puede almacenar información de estudiantes hasta que un funcionario autorizado otorgue su autorización.",
     "actionLoad": "cargar el estado de la autorización de la escuela",
     "actionOptIn": "registrar la autorización",

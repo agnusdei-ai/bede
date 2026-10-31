@@ -12,6 +12,7 @@ import base64
 import io
 
 from pypdf import PdfReader
+from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject, NameObject
 
 # Mirrors TutorRequest.child_message's max_length (models/schemas.py) — the
 # extracted text is sent into the normal chat turn alongside/instead of
@@ -58,6 +59,41 @@ _BLOCKED_PDF_NAMES = (
 )
 
 
+# Scan the parsed, reachable object graph as well as the raw PDF bytes.
+# Names inside compressed /ObjStm objects do not appear in the raw-byte scan;
+# pypdf resolves those references when they are reachable from the trailer.
+# Bound traversal to avoid an attacker-controlled graph exhausting resources.
+MAX_PDF_OBJECT_NODES = 4096
+MAX_PDF_OBJECT_DEPTH = 32
+
+
+def _reject_active_pdf_objects(reader: PdfReader) -> None:
+    visited_refs: set[tuple[int, int]] = set()
+    visited_containers: set[int] = set()
+    stack: list[tuple[object, int]] = [(reader.trailer, 0)]
+    examined = 0
+    while stack:
+        obj, depth = stack.pop()
+        examined += 1
+        if examined > MAX_PDF_OBJECT_NODES or depth > MAX_PDF_OBJECT_DEPTH:
+            raise UnsupportedNarrationFileError("PDF object graph exceeds safety limits")
+        if isinstance(obj, NameObject):
+            if str(obj).encode("utf-8") in _BLOCKED_PDF_NAMES:
+                raise UnsupportedNarrationFileError("PDF contains disallowed active features")
+        elif isinstance(obj, IndirectObject):
+            ref = (obj.idnum, obj.generation)
+            if ref not in visited_refs:
+                visited_refs.add(ref)
+                stack.append((obj.get_object(), depth + 1))
+        elif isinstance(obj, (DictionaryObject, ArrayObject)):
+            identity = id(obj)
+            if identity in visited_containers:
+                continue
+            visited_containers.add(identity)
+            values = (item for pair in obj.items() for item in pair) if isinstance(obj, DictionaryObject) else iter(obj)
+            stack.extend((value, depth + 1) for value in values)
+
+
 def preflight_pdf(raw: bytes) -> PdfReader:
     """Fail closed on malformed, encrypted or active-content PDFs."""
     import re
@@ -86,6 +122,7 @@ def preflight_pdf(raw: bytes) -> PdfReader:
         # Reject documents with oversized page trees before text extraction.
         if len(reader.pages) > MAX_PDF_PAGES:
             raise UnsupportedNarrationFileError("PDF has too many pages")
+        _reject_active_pdf_objects(reader)
         return reader
     except UnsupportedNarrationFileError:
         raise
@@ -120,8 +157,6 @@ def extract_narration_text(filename: str, content_base64: str) -> str:
             text = "\n".join(parts)
         except UnsupportedNarrationFileError:
             # Preserve explicit fail-closed validation outcomes for callers and tests.
-            raise
-        except UnsupportedNarrationFileError:
             raise
         except Exception as e:
             raise UnsupportedNarrationFileError("Could not read that PDF") from e

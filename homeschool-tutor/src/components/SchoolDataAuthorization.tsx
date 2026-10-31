@@ -9,8 +9,8 @@ import { describeFailure } from '../utils/requestFailure'
 
 /**
  * Before any student information is stored for a campus, a school official
- * (the administrator or a teacher of that campus) reviews the Notice and
- * provides authorization.
+ * (the passkey-verified administrator only) reviews the Notice and
+ * provides authorization. Teachers can view status but cannot grant it.
  *
  * This is a readiness step, not a legal determination: "authorized" means the
  * school official opted in, nothing more. State comes only from the server
@@ -80,7 +80,7 @@ export default function SchoolDataAuthorization({ token, campusId, role, refresh
   useEffect(() => { if (confirmingWithdraw) withdrawPromptRef.current?.focus() }, [confirmingWithdraw])
 
   const optIn = async () => {
-    if (!status) return
+    if (!status || role !== 'administrator') return
     setBusy(true); setError('')
     try {
       const next = await authorizeSchoolData(token, campusId, {
@@ -185,6 +185,7 @@ export default function SchoolDataAuthorization({ token, campusId, role, refresh
           {status.notice_text}
         </div>
       </div>
+      {role === 'administrator' ? <>
       <label className="block text-sm">{t('schoolDataAuth.nameLabel')}
         <input className={field + ' mt-1'} value={name} autoComplete="off" maxLength={120}
           onChange={e => setName(e.target.value)} />
@@ -202,6 +203,7 @@ export default function SchoolDataAuthorization({ token, campusId, role, refresh
         onClick={() => void optIn()} className={btn + ' bg-navy-700 text-white'}>
         {t('schoolDataAuth.optIn')}
       </button>
+      </> : <p role="status" className="text-sm text-amber-900">{t('schoolDataAuth.teacherWaitAdmin')}</p>}
       {error && <p role="alert" className="text-sm text-red-800">{error}</p>}
     </section>
   )

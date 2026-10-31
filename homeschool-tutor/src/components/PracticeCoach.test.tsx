@@ -240,7 +240,7 @@ describe('PDF and iPhone uploads', () => {
 
   it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
     await openAndPick()
-    expect(screen.getByText(/PDF of scanned pages, 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/PDF of scanned pages \(export iPhone HEIC photos as JPEG first\), 6 pages in all/)).toBeTruthy()
     expect(screen.getByText(/scripts, attachments, forms or a password are refused/)).toBeTruthy()
     expect(screen.getByText(/not saved to the database or a file by Bede; they are held in memory while the request runs/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/never the photos|virus-free|malware-free/i)

@@ -62,10 +62,10 @@ single source shared by the installers and the API. Its first line is
 bytes, so the shell installer, the Python wizard and the API compute the same
 value. Any edit to the file changes the hash.
 
-A consent recorded against an older notice is **stale**. A stale consent never
-blocks collection. It only makes the household status report
-`needs_consent: true`, so Parent Setup can ask the parent to review the new
-notice; accepting records a fresh consent and revokes the old row, so the
+A consent recorded against an older notice is **stale**. A stale consent blocks new collection with HTTP 403 until a parent reviews
+and accepts the current notice. Household status reports `needs_consent: true`
+and marks the student as stale and not currently consented. Parent Setup or a
+direct consent grant records a fresh consent and revokes the old row, so the
 ledger keeps both.
 
 **Counsel.** The notice wording, the custodian wording, any notice a hosted

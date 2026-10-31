@@ -28,8 +28,9 @@ student writes a ledger row (method install_custodian_attestation, dated at
 the ack time). There is no mode and no grace period. Hosted or pilot
 deployments never set the ack. The custodian wording is a draft for counsel.
 
-A consent recorded against an older notice is STALE. Staleness only prompts
-the parent (household status); it never blocks collection.
+A consent recorded against an older notice is STALE. Collection fails closed
+until a parent acknowledges the current notice. Household status reports stale
+consent and the parent may refresh it without deleting the historical ledger.
 
 NOTICE. The text a parent is shown is NOTICE_TEXT, identified by
 NOTICE_VERSION. A grant must present the hash of the current notice; a stale
@@ -243,10 +244,11 @@ async def require_collection(db, student_name: str) -> None:
     install-time ack covers a student with NO consent record at all (a revoked
     one still counts as having had one), by lazily writing a ledger row.
     """
-    if await active_record(db, student_name) is None:
+    record = await active_record(db, student_name)
+    if record is None:
         at = install_ack_time()
         if at is not None and not await _ever_had_consent(db, student_name):
-            await _record_from_install_ack(db, student_name, at)
+            record = await _record_from_install_ack(db, student_name, at)
         else:
             _log_refusal(student_name, "no_consent")
             raise HTTPException(
@@ -260,6 +262,16 @@ async def require_collection(db, student_name: str) -> None:
                     "parent_action": "open_parent_setup",
                 },
             )
+    if record.notice_hash != notice_hash():
+        _log_refusal(student_name, "stale_notice")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "error": "parental_consent_required",
+                "message": "The privacy notice changed. A parent must review and accept the current notice before collection resumes.",
+                "parent_action": "open_parent_setup",
+            },
+        )
     if await is_paused(db, student_name):
         _log_refusal(student_name, "paused")
         raise HTTPException(
@@ -309,7 +321,10 @@ async def grant(
 
     existing = await active_record(db, student_name)
     if existing is not None:
-        return existing, False
+        if existing.notice_hash == notice_hash():
+            return existing, False
+        # Preserve the old consent as history; a new notice requires a new grant.
+        await revoke(db, student_name, reason="superseded by a newer privacy notice")
 
     key = await student_keys.get_or_create(db, student_name)
     record = ConsentRecord(
@@ -424,10 +439,11 @@ async def household_status(db) -> dict:
     for name in names:
         rec = await active_record(db, name)
         covered = rec is None and ack_valid and not await _ever_had_consent(db, name)
+        stale = rec is not None and rec.notice_hash != current_hash
         students.append({
             "student_name": name,
-            "consented": rec is not None or covered,
-            "stale": rec is not None and rec.notice_hash != current_hash,
+            "consented": (rec is not None and not stale) or covered,
+            "stale": stale,
         })
     return {
         "needs_consent": any((not s["consented"]) or s["stale"] for s in students),

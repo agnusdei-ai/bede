@@ -259,21 +259,39 @@ def test_household_post_grants_all_is_idempotent_and_checks_hash(ctx, clock):
     assert _records(ctx, "Emma")[0].method == "parent_attested_checkbox"
 
 
-def test_stale_consent_prompts_but_does_not_block_and_is_refreshed(ctx, clock, monkeypatch):
+def test_stale_consent_blocks_collection_until_refreshed(ctx, clock, monkeypatch):
     _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())
     old = consent.notice_hash()
     monkeypatch.setattr(consent, "_NOTICE_BYTES", consent._NOTICE_BYTES + b"\nEdited.\n")
     assert consent.notice_hash() != old
     j = ctx.get("/household/consent", headers=_h()).json()
-    assert j["students"][0] == {"student_name": "Emma", "consented": True, "stale": True}
+    assert j["students"][0] == {"student_name": "Emma", "consented": False, "stale": True}
     assert j["needs_consent"] is True
-    assert _transcript(ctx, "Emma").status_code != 403  # stale never blocks
+    denied = _transcript(ctx, "Emma")
+    assert denied.status_code == 403
+    assert denied.json()["detail"]["error"] == "parental_consent_required"
     r = ctx.post("/household/consent", json={"notice_hash": consent.notice_hash()}, headers=_h())
     assert r.json()["refreshed"] == ["Emma"]
     recs = _records(ctx, "Emma")
     assert len(recs) == 2 and recs[0].revoked_at is not None and recs[1].revoked_at is None
     assert recs[0].notice_hash == old and recs[1].notice_hash == consent.notice_hash()
     assert ctx.get("/household/consent", headers=_h()).json()["needs_consent"] is False
+    assert _transcript(ctx, "Emma").status_code != 403
+
+
+def test_stale_direct_grant_rotates_ledger_and_restores_collection(ctx, clock, monkeypatch):
+    _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())
+    old = consent.notice_hash()
+    monkeypatch.setattr(consent, "_NOTICE_BYTES", consent._NOTICE_BYTES + b"\nRevised.\n")
+    assert consent.notice_hash() != old
+    assert _transcript(ctx, "Emma").status_code == 403
+    r = ctx.post("/consent/Emma", json={"notice_hash": consent.notice_hash()}, headers=_h())
+    assert r.status_code in (200, 201), r.text
+    records = _records(ctx, "Emma")
+    assert len(records) == 2
+    assert records[0].revoked_at is not None
+    assert records[1].notice_hash == consent.notice_hash()
+    assert _transcript(ctx, "Emma").status_code != 403
 
 
 def test_household_routes_are_parent_only(ctx):

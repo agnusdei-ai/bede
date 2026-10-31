@@ -70,7 +70,9 @@ mkdir -p "$target"
 chmod 700 "$target"
 # Copies source-free payload including hidden .env.example, not prior learner
 # data, which remains in its existing per-user and per-campus directory.
-cp -a "$source_dir/." "$target/"
+# Copy as the invoking user, never preserve the root-owned package files'
+# ownership or root ACLs in the user's private runtime directory.
+cp -R "$source_dir/." "$target/"
 chmod 700 "$target"
 cd "$target"
 printf 'Launching Bede %s on Linux %s using %s mode.\n' "${sha:0:12}" "$arch" "$context"

@@ -51,6 +51,7 @@ jobs:
           python -m py_compile scripts/setup_wizard/wizard.py
           python packaging/tests/test_lan_wizard.py
           python packaging/tests/test_mac_windows_release_parity.py
+          python packaging/tests/test_linux_native_release.py
       - name: Build versioned application and setup images
         run: |
           set -euo pipefail
@@ -459,7 +460,8 @@ jobs:
           test -s bede-operator-standard/IMAGE_DIGESTS
           test ! -e bede-operator-standard/images.tar
           test ! -e bede-operator-standard/images.tar.zst
-          bash -n packaging/linux/bede-installer 2>/dev/null || bash -n "$GITHUB_WORKSPACE/packaging/linux/bede-installer"
+          bash -n "$GITHUB_WORKSPACE/packaging/linux/bede-installer"
+          bash -n "$GITHUB_WORKSPACE/packaging/linux/build-native-packages.sh"
       - name: Build native DEB and RPM candidates
         shell: bash
         run: |

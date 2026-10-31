@@ -6,7 +6,8 @@
 #Requires -Version 5.1
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-Set-Location -LiteralPath $PSScriptRoot
+$packageRoot = $PSScriptRoot
+Set-Location -LiteralPath $packageRoot
 
 function Stop-Install([string]$message) {
     throw "Bede installation incomplete: $message"
@@ -80,6 +81,29 @@ if ($choice -eq '2') {
 } elseif ($choice -ne '' -and $choice -ne '1') {
     Stop-Install 'Unknown installation choice'
 }
+
+# Each institution and homeschool must have its own runtime configuration.
+# The installer itself is immutable; private .env, volumes and local CA live
+# under the selected context and are never shared across tenants.
+if ($env:BEDE_INSTALL_CONTEXT -eq 'campus') {
+    $runtimeDir = Join-Path (Join-Path (Join-Path $env:LOCALAPPDATA 'Bede\Campus') $env:BEDE_CAMPUS_ID) 'bede-operator'
+} else {
+    $runtimeDir = Join-Path $env:LOCALAPPDATA 'Bede\Homeschool\local\bede-operator'
+}
+New-Item -ItemType Directory -Force -Path $runtimeDir | Out-Null
+$priorShaPath = Join-Path $runtimeDir 'RELEASE'
+if (Test-Path -LiteralPath $priorShaPath -PathType Leaf) {
+    $priorSha = (Get-Content -LiteralPath $priorShaPath -Raw).Trim()
+    if ($priorSha -cne $sourceSha) {
+        Stop-Install 'An existing installation uses another release SHA. Use a separately authorized non-destructive update or recovery path.'
+    }
+}
+foreach ($file in @('RELEASE','ARCH','IMAGE_DIGESTS','WIZARD_IMAGE','RELEASE_PROVENANCE.json','compose.yaml','compose.lan.yaml','Caddyfile','.env.example')) {
+    $sourceFile = Join-Path $packageRoot $file
+    if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) { Stop-Install ('Missing sealed operator file: ' + $file) }
+    Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $runtimeDir $file) -Force
+}
+Set-Location -LiteralPath $runtimeDir
 
 # Standard package downloads only *digest-pinned* published images.
 # A failure must not fall back to an unsigned or floating image/tag.

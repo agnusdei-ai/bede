@@ -489,6 +489,30 @@ jobs:
             exit 1
           fi
           test "$(python3 -c 'import json; print(json.load(open("dist/linux-native/RELEASE_PROVENANCE.json"))["source_sha"])')" = "$GITHUB_SHA"
+      - name: Exercise native DEB install and removal without deleting user data
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          deb="dist/linux-native/Bede-Engineering-Linux-$arch.deb"
+          fixture="$RUNNER_TEMP/bede-private-data/Homeschool/local"
+          mkdir -p "$fixture"
+          printf '%s\n' 'synthetic-data-keep' > "$fixture/learner-fixture.txt"
+          sudo dpkg --install "$deb"
+          dpkg-query -W -f='${Status}\n' bede-installer | grep -qx 'install ok installed'
+          test -x /usr/bin/bede-installer
+          test -s /opt/bede/standard/RELEASE
+          test "$(cat /opt/bede/standard/RELEASE)" = "$GITHUB_SHA"
+          test -s /usr/share/applications/bede-installer.desktop
+          test ! -e /opt/bede/standard/.env
+          test ! -e /etc/systemd/system/bede.service
+          test ! -e /etc/systemd/system/bede-installer.service
+          sudo dpkg --remove bede-installer
+          test ! -e /usr/bin/bede-installer
+          test -f "$fixture/learner-fixture.txt"
+          test "$(cat "$fixture/learner-fixture.txt")" = synthetic-data-keep
+          echo 'Native DEB install/uninstall is data-preserving and does not start Bede (synthetic runner only)'
+
       - name: Upload native Linux engineering candidates
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

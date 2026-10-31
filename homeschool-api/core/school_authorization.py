@@ -9,7 +9,7 @@ encrypted name), against which notice (its hash), and when. Old rows are
 never rewritten: a grant against a changed notice adds a row; a revoke only
 stamps revoked_at.
 
-WHAT THIS IS NOT. Whether a school official has authority to authorize, and
+WHAT THIS IS NOT. Whether the verified administrator has institutional authority to authorize, and
 whether this wording or mechanism suffices for the school's obligations, are
 questions for counsel. Nothing here decides them. The wording is a draft.
 
@@ -34,7 +34,7 @@ from core.encryption import aad_for, decrypt_json, encrypt_json
 
 NOTICE_PATH = Path(__file__).resolve().parent.parent / "data" / "school_data_notice.txt"
 SCOPE = "school_learner_records"
-ROLES = ("administrator", "teacher")
+ROLES = ("administrator",)
 ADMIN_REF = "administrator"
 
 

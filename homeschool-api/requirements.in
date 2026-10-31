@@ -63,8 +63,9 @@ pypdf>=6.21.4
 # uploaded page image is fully decoded and re-encoded to a fresh PNG, which is
 # what strips metadata and polyglot payloads. Prebuilt wheels only.
 pillow>=13.0.0
-# HEIC/HEIF (iPhone photos) for the same upload path. Bundles native libheif in
-# its manylinux wheels; decoded only behind upload_safety.py's limits.
+# HEIC/HEIF integration is present but fail-closed: the 1.8.1 wheels bundle
+# unqualified libheif 1.23.6, and upload_safety.py refuses HEIF before decode
+# until a patched >=1.23.7 native library is actually linked.
 pillow-heif>=1.8.1
 # CBOR (RFC 8949) — services/locuto_ipc/framing.py's wire body encoding, per
 # agnusdei-ai/locuto's docs/bede-ipc-spec.md §3. Pure-Python-compatible

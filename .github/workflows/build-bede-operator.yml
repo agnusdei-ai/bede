@@ -50,6 +50,8 @@ jobs:
         run: |
           python -m py_compile scripts/setup_wizard/wizard.py
           python packaging/tests/test_lan_wizard.py
+          python packaging/tests/test_mac_windows_release_parity.py
+          python packaging/tests/test_linux_native_release.py
       - name: Build versioned application and setup images
         run: |
           set -euo pipefail
@@ -309,6 +311,291 @@ jobs:
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg.sha256
             ${{ runner.temp }}/NOT_FOR_DISTRIBUTION.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+
+  # Windows and Mac native candidates use the SAME source-SHA operator workflow.
+  # This is not production deployment or signing authorization.
+  package-windows-standard:
+    name: Bede Windows x64 Standard engineering installer
+    needs: package
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download source-free pinned amd64 operator payload
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          name: bede-standard-linux-amd64-${{ github.sha }}
+          path: ${{ runner.temp }}/bede-windows-source
+      - name: Stage and verify exact-release manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $source = Join-Path $env:RUNNER_TEMP 'bede-windows-source'
+          $hashFile = Join-Path $source "bede-operator-standard-$env:GITHUB_SHA-amd64.tar.gz.sha256"
+          $bundle = Join-Path $source "bede-operator-standard-$env:GITHUB_SHA-amd64.tar.gz"
+          if (!(Test-Path $hashFile) -or !(Test-Path $bundle)) { throw 'Missing immutable payload or hash' }
+          $expected = ((Get-Content $hashFile -Raw).Trim() -split '\s+')[0]
+          $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -cne $expected) { throw 'Operator artifact checksum mismatch' }
+          tar -xzf $bundle -C $source
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract verified operator payload' }
+          $operator = Join-Path $source 'bede-operator-standard'
+          $dest = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/release-payload'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Get-ChildItem -LiteralPath $operator -Force | Copy-Item -Destination $dest -Recurse -Force
+          if ((Get-Content "$dest/RELEASE" -Raw).Trim() -cne $env:GITHUB_SHA) { throw 'Source SHA mismatch' }
+          if ((Get-Content "$dest/ARCH" -Raw).Trim() -cne 'amd64') { throw 'Wrong runtime architecture' }
+          $data = Get-Content "$dest/RELEASE_PROVENANCE.json" -Raw | ConvertFrom-Json
+          if ($data.source_sha -cne $env:GITHUB_SHA -or $data.architecture -cne 'amd64' -or $data.pilot_go -cne 'HOLD') { throw 'Invalid provenance' }
+          if (!(Test-Path "$dest/Install-Bede.ps1") -or !(Test-Path "$dest/IMAGE_DIGESTS")) { throw 'Missing verified Windows launcher or immutable image manifest' }
+          if (Test-Path "$dest/images.tar") { throw 'Standard installer must not embed raw Docker images' }
+          if (Test-Path "$dest/images.tar.zst") { throw 'Standard installer must not embed compressed Docker images' }
+          $script = Get-Content "$dest/Install-Bede.ps1" -Raw
+          $tokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseInput($script, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) { throw ("PowerShell launcher syntax: " + $parseErrors[0].Message) }
+          if ($script -match 'git\s+(clone|pull)') { throw 'Source checkout is not permitted in release launcher' }
+          if ($script -notmatch 'IMAGE_DIGESTS' -or $script -notmatch 'docker\.exe' -or $script -notmatch '\-\-cacert') { throw 'Missing pinning or secure health contracts' }
+      - name: Build the native Windows release-candidate EXE
+        uses: Minionguyjpro/Inno-Setup-Action@b8e8eb5936437c243592fda645c96dfc6488c275 # v1.2.2
+        with:
+          path: packaging/windows/BedeRelease.iss
+      - name: Smoke-test native Windows EXE extraction without launching Bede
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/Output/BedeRelease.exe'
+          $installed = Join-Path $env:RUNNER_TEMP 'bede-native-installer-smoke'
+          $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/NOICONS',('/DIR=' + $installed))
+          $process = Start-Process -FilePath $exe -ArgumentList $args -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "Windows installer failed: $($process.ExitCode)" }
+          foreach ($name in @('Install-Bede.ps1','compose.yaml','Caddyfile',
+              'RELEASE','ARCH','IMAGE_DIGESTS','WIZARD_IMAGE','RELEASE_PROVENANCE.json')) {
+            if (!(Test-Path -LiteralPath (Join-Path $installed $name))) { throw ("Windows EXE is missing: " + $name) }
+          }
+          if ((Get-Content (Join-Path $installed 'RELEASE') -Raw).Trim() -cne $env:GITHUB_SHA) {
+            throw 'Native installer source SHA differs from its build'
+          }
+          if ((Get-Content (Join-Path $installed 'ARCH') -Raw).Trim() -cne 'amd64') {
+            throw 'Windows native installer contains wrong architecture'
+          }
+          $tokens = $null
+          $parseErrors = $null
+          $code = Get-Content (Join-Path $installed 'Install-Bede.ps1') -Raw
+          [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -gt 0) { throw ("Extracted Windows launcher cannot parse: " + $parseErrors[0].Message) }
+          if (Test-Path (Join-Path $installed '.env')) { throw 'Native installer must not silently initialize user data' }
+          Write-Host 'Windows EXE installed sealed source-free payload. No Docker or learner data was started.'
+
+      - name: Validate candidate, record source SHA and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/Output/BedeRelease.exe'
+          if (!(Test-Path $output) -or (Get-Item $output).Length -lt 100000) { throw 'No native Inno EXE was produced' }
+          if ((Get-AuthenticodeSignature $output).Status -ne 'NotSigned') { throw 'Engineering candidate must not be labeled distribution-signed' }
+          $candidate = Join-Path $env:GITHUB_WORKSPACE 'dist/windows-engineering'
+          New-Item -ItemType Directory -Force -Path $candidate | Out-Null
+          $filename = 'Bede-Engineering-Windows-amd64.exe'
+          Copy-Item $output (Join-Path $candidate $filename)
+          $hash = (Get-FileHash (Join-Path $candidate $filename) -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $filename" | Set-Content -Encoding ASCII (Join-Path $candidate "$filename.sha256")
+          "ENGINEERING CANDIDATE ONLY. Source SHA: $env:GITHUB_SHA. Unsigned; not approved for external distribution, real learner data or Pilot GO." | Set-Content -Encoding ASCII (Join-Path $candidate 'NOT_FOR_DISTRIBUTION.txt')
+          Copy-Item 'packaging/windows/release-payload/RELEASE_PROVENANCE.json' (Join-Path $candidate 'RELEASE_PROVENANCE.json')
+          Copy-Item 'packaging/windows/release-payload/IMAGE_DIGESTS' (Join-Path $candidate 'IMAGE_DIGESTS')
+          Write-Host "Built source-free Windows candidate for $env:GITHUB_SHA with SHA256 $hash"
+      - name: Upload Windows engineering candidate (not a trusted release)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-windows-engineering-unsigned-amd64-${{ github.sha }}
+          path: dist/windows-engineering/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+
+  # Native distro packages are installers, not a different runtime.
+  # Every package contains a source-free, digest-pinned Standard operator
+  # manifest and can be launched from a desktop application entry.
+  package-linux-native:
+    name: Bede Linux native Standard DEB and RPM (${{ matrix.arch }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install native Linux package builders
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm
+          command -v dpkg-deb
+          command -v rpmbuild
+      - name: Download exact source-free Standard operator
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
+          path: ${{ runner.temp }}/operator
+      - name: Verify archive SHA-256 and extract Standard payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/operator"
+          sha256sum -c "bede-operator-standard-$GITHUB_SHA-${{ matrix.arch }}.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$GITHUB_SHA-${{ matrix.arch }}.tar.gz"
+          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test "$(cat bede-operator-standard/ARCH)" = "${{ matrix.arch }}"
+          test -s bede-operator-standard/IMAGE_DIGESTS
+          test ! -e bede-operator-standard/images.tar
+          test ! -e bede-operator-standard/images.tar.zst
+          bash -n "$GITHUB_WORKSPACE/packaging/linux/bede-installer"
+          bash -n "$GITHUB_WORKSPACE/packaging/linux/build-native-packages.sh"
+      - name: Build native DEB and RPM candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/linux/build-native-packages.sh \
+            "$RUNNER_TEMP/operator/bede-operator-standard" "$GITHUB_SHA" dist/linux-native
+      - name: Inspect installed file manifests and packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          deb="dist/linux-native/Bede-Engineering-Linux-$arch.deb"
+          rpm="dist/linux-native/Bede-Engineering-Linux-$arch.rpm"
+          test -s "$deb" && test -s "$rpm"
+          (cd dist/linux-native && sha256sum -c "Bede-Engineering-Linux-$arch.deb.sha256" && sha256sum -c "Bede-Engineering-Linux-$arch.rpm.sha256")
+          dpkg-deb --field "$deb" Architecture | grep -qx "$arch"
+          dpkg-deb --contents "$deb" > /tmp/bede-deb-contents
+          rpm -qpl "$rpm" > /tmp/bede-rpm-contents
+          for filepath in opt/bede/standard/RELEASE opt/bede/standard/IMAGE_DIGESTS usr/bin/bede-installer usr/share/applications/bede-installer.desktop; do
+            grep -Fq "$filepath" /tmp/bede-deb-contents
+            grep -Fq "/$filepath" /tmp/bede-rpm-contents
+          done
+          if grep -q 'images.tar' /tmp/bede-deb-contents; then
+            echo "Native Standard package unexpectedly contains an offline image archive" >&2
+            exit 1
+          fi
+          test "$(python3 -c 'import json; print(json.load(open("dist/linux-native/RELEASE_PROVENANCE.json"))["source_sha"])')" = "$GITHUB_SHA"
+      - name: Exercise native DEB install and removal without deleting user data
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          deb="dist/linux-native/Bede-Engineering-Linux-$arch.deb"
+          fixture="$RUNNER_TEMP/bede-private-data/Homeschool/local"
+          mkdir -p "$fixture"
+          printf '%s\n' 'synthetic-data-keep' > "$fixture/learner-fixture.txt"
+          sudo dpkg --install "$deb"
+          dpkg-query -W -f='${Status}\n' bede-installer | grep -qx 'install ok installed'
+          test -x /usr/bin/bede-installer
+          test -s /opt/bede/standard/RELEASE
+          test "$(cat /opt/bede/standard/RELEASE)" = "$GITHUB_SHA"
+          test -s /usr/share/applications/bede-installer.desktop
+          test ! -e /opt/bede/standard/.env
+          test ! -e /etc/systemd/system/bede.service
+          test ! -e /etc/systemd/system/bede-installer.service
+          sudo dpkg --remove bede-installer
+          test ! -e /usr/bin/bede-installer
+          test -f "$fixture/learner-fixture.txt"
+          test "$(cat "$fixture/learner-fixture.txt")" = synthetic-data-keep
+          echo 'Native DEB install/uninstall is data-preserving and does not start Bede (synthetic runner only)'
+
+      - name: Exercise RPM installation and removal in an isolated root
+        shell: bash
+        run: |
+          set -euo pipefail
+          arch="${{ matrix.arch }}"
+          package="$GITHUB_WORKSPACE/dist/linux-native/Bede-Engineering-Linux-$arch.rpm"
+          root="$RUNNER_TEMP/bede-rpm-isolated-root"
+          mkdir -p "$root"
+          sudo rpm --root "$root" --initdb
+          # Package-manager smoke only: this isolated root contains no runtime
+          # dependencies, services, user data or signing trust anchors.
+          sudo rpm --root "$root" -i --nodeps --nosignature "$package"
+          test -s "$root/opt/bede/standard/RELEASE"
+          test "$(cat "$root/opt/bede/standard/RELEASE")" = "$GITHUB_SHA"
+          test -f "$root/usr/share/applications/bede-installer.desktop"
+          test -f "$root/usr/bin/bede-installer"
+          test ! -e "$root/opt/bede/standard/.env"
+          sudo rpm --root "$root" -e --nodeps bede-installer
+          test ! -e "$root/usr/bin/bede-installer"
+          echo 'RPM isolated-root package manager install/removal passed; actual Fedora/RHEL host acceptance is still NOT RUN.'
+
+      - name: Upload native Linux engineering candidates
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-linux-native-standard-${{ matrix.arch }}-${{ github.sha }}
+          path: dist/linux-native/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+
+  # Intel Mac is a distinct engineering candidate. Real Intel hardware
+  # acceptance, Developer ID notarization, and Pilot GO are NOT asserted.
+  package-mac-intel:
+    name: Bede Intel Mac native engineering DMG
+    needs: package
+    runs-on: macos-15-intel
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Download the exact amd64 source-free operator payload
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        with:
+          name: bede-standard-linux-amd64-${{ github.sha }}
+          path: ${{ runner.temp }}/bede-intel-source
+      - name: Verify Intel Mac package inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          cd "$RUNNER_TEMP/bede-intel-source"
+          shasum -a 256 -c "bede-operator-standard-$GITHUB_SHA-amd64.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$GITHUB_SHA-amd64.tar.gz"
+          test "$(cat bede-operator-standard/ARCH)" = amd64
+          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test -s bede-operator-standard/IMAGE_DIGESTS
+          test ! -f bede-operator-standard/images.tar
+          test ! -f bede-operator-standard/images.tar.zst
+      - name: Compile native Intel macOS GUI app and DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash packaging/macos/build-app.sh "$RUNNER_TEMP/bede-intel-source/bede-operator-standard" "$RUNNER_TEMP/native-intel"
+          app="$RUNNER_TEMP/native-intel/Bede Installer.app"
+          test -x "$app/Contents/MacOS/BedeInstaller"
+          lipo -archs "$app/Contents/MacOS/BedeInstaller" | grep -qw x86_64
+          test -s "$app/Contents/Resources/bede-operator/RELEASE_PROVENANCE.json"
+          test -s "$app/Contents/Resources/bede-operator/IMAGE_DIGESTS"
+          test "$(cat "$app/Contents/Resources/bede-operator/RELEASE")" = "$GITHUB_SHA"
+          test "$(cat "$app/Contents/Resources/bede-operator/ARCH")" = amd64
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict "$app"
+          mkdir -p dist/mac-intel-engineering
+          hdiutil create -volname "Bede Intel Engineering Candidate" -srcfolder "$app" -ov -format UDZO dist/mac-intel-engineering/Bede-Engineering-Mac-amd64.dmg
+          test "$(stat -f %z dist/mac-intel-engineering/Bede-Engineering-Mac-amd64.dmg)" -lt $((50 * 1024 * 1024))
+          (cd dist/mac-intel-engineering && shasum -a 256 Bede-Engineering-Mac-amd64.dmg > Bede-Engineering-Mac-amd64.dmg.sha256)
+          cp "$RUNNER_TEMP/bede-intel-source/bede-operator-standard/RELEASE_PROVENANCE.json" dist/mac-intel-engineering/RELEASE_PROVENANCE.json
+          echo "NOT FOR DISTRIBUTION: ad hoc signed, unnotarized, not qualified on physical Intel Mac, and NOT Pilot GO." > dist/mac-intel-engineering/NOT_FOR_DISTRIBUTION.txt
+      - name: Upload unnotarized Intel Mac engineering DMG
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-mac-engineering-unnotarized-amd64-${{ github.sha }}
+          path: dist/mac-intel-engineering/
           if-no-files-found: error
           compression-level: 0
           retention-days: 30

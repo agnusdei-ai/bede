@@ -151,6 +151,192 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+describe('voice turn cancellation and ordered deltas', () => {
+  it('retires completed work before onFinal can synchronously open another turn', async () => {
+    const oldEvents = makeEventStream()
+    const newEvents = makeEventStream()
+    let retiredBeforeDelivery = false
+    streamVoiceEvents.mockImplementationOnce(() => oldEvents.stream()).mockImplementationOnce(() => newEvents.stream())
+    const onFinal = vi.fn(() => {
+      retiredBeforeDelivery = (streamVoiceEvents.mock.calls[0][2] as AbortSignal).aborted
+      result.current.startHold()
+    })
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.release(); await flush() })
+    await act(async () => { oldEvents.push({ type: 'final', text: 'Synthetic first answer' }); oldEvents.push({ type: 'done' }); await flush() })
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(retiredBeforeDelivery).toBe(true)
+    expect(result.current.isListening).toBe(true)
+    const nextSignal = streamVoiceEvents.mock.calls[1][2] as AbortSignal
+    expect(nextSignal.aborted).toBe(false)
+    await act(async () => { result.current.release(); await flush(); newEvents.push({ type: 'error', message: 'Synthetic loss' }); await flush() })
+    expect(nextSignal.aborted).toBe(true)
+    expect(result.current.micError).toBe('network')
+    expect(onFinal).toHaveBeenCalledTimes(1)
+  })
+  it('allows a near-120-second hold and starts the processing deadline only at release', async () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(119_000) })
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBeNull()
+    await act(async () => { result.current.release(); await vi.advanceTimersByTimeAsync(59_999) })
+    expect(result.current.isTranscribing).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe('network')
+  })
+  it('does not mistake a stream ending without a final result for silence', async () => {
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.release(); await flush() })
+    await act(async () => { eq.push({ type: 'done' }); await flush() })
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe('network')
+  })
+  it('delivers once and ignores a late finish failure after final completion', async () => {
+    let failed!: (reason: Error) => void
+    finishVoiceStream.mockImplementationOnce(() => new Promise<void>((_, reject) => { failed = reject }))
+    const eq = makeEventStream()
+    const onFinal = vi.fn()
+    streamVoiceEvents.mockImplementationOnce(() => eq.stream())
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.release(); await flush() })
+    await act(async () => { eq.push({ type: 'final', text: 'Synthetic answer' }); eq.push({ type: 'done' }); await flush() })
+    expect(onFinal).toHaveBeenCalledTimes(1)
+    expect((streamVoiceEvents.mock.calls[0][2] as AbortSignal).aborted).toBe(true)
+    await act(async () => { result.current.startHold(); await flush(); failed(new Error('404')); await flush() })
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBeNull()
+    expect(onFinal).toHaveBeenCalledTimes(1)
+  })
+  it.each(['chunk', 'finish', 'events'])('reports %s session loss immediately after release', async (stage) => {
+    const onFinal = vi.fn()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush() })
+    if (stage === 'chunk') pushVoiceStreamChunk.mockRejectedValueOnce(new Error('404'))
+    if (stage === 'finish') finishVoiceStream.mockRejectedValueOnce(new Error('404'))
+    await act(async () => {
+      result.current.release()
+      if (stage === 'events') eq.push({ type: 'error', message: 'Unknown session' })
+      await flush()
+    })
+    expect(result.current.isListening).toBe(false)
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe('network')
+    expect(onFinal).not.toHaveBeenCalled()
+    expect((streamVoiceEvents.mock.calls[0][2] as AbortSignal).aborted).toBe(true)
+    if (stage === 'chunk') expect(finishVoiceStream).not.toHaveBeenCalled()
+  })
+
+  it('serializes captured deltas and finishes only after the final upload', async () => {
+    vi.useFakeTimers()
+    let complete!: () => void
+    pushVoiceStreamChunk.mockImplementationOnce(() => new Promise<void>((resolve) => { complete = resolve }))
+    const first = new Blob(['first'])
+    const last = new Blob(['last'])
+    snapshotPcmDelta.mockReturnValueOnce(first).mockReturnValueOnce(last)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(4000) })
+    await act(async () => { result.current.release(); await vi.advanceTimersByTimeAsync(0) })
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
+    expect(finishVoiceStream).not.toHaveBeenCalled()
+    await act(async () => { complete(); await vi.advanceTimersByTimeAsync(0) })
+    expect(pushVoiceStreamChunk.mock.calls.map((call) => call[2])).toEqual([first, last])
+    expect(finishVoiceStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('aborts old uploads and ignores late failures during the next turn', async () => {
+    vi.useFakeTimers()
+    let rejectOld!: (reason: Error) => void
+    pushVoiceStreamChunk.mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectOld = reject }))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(4000) })
+    const oldSignal = pushVoiceStreamChunk.mock.calls[0][3] as AbortSignal
+    await act(async () => { result.current.stop(); result.current.startHold(); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { rejectOld(new Error('404')); await vi.advanceTimersByTimeAsync(4000) })
+    expect(oldSignal.aborted).toBe(true)
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBeNull()
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancels a release during microphone initialization without sending empty audio', async () => {
+    startRecording.mockImplementationOnce(() => new Promise<void>(() => {}))
+    snapshotPcmDelta.mockReturnValue(null)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.release(); await flush() })
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe('unavailable')
+    expect(stopRecording).toHaveBeenCalled()
+    expect(finishVoiceStream).not.toHaveBeenCalled()
+    await act(async () => { result.current.startHold(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(2)
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBeNull()
+  })
+
+  it('waits for old recorder teardown before opening the next audio graph', async () => {
+    let closed!: () => void
+    stopRecording.mockImplementationOnce(() => new Promise<void>((resolve) => { closed = resolve }))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.stop(); result.current.startHold(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    await act(async () => { closed(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the original teardown barrier when a waiting turn is canceled', async () => {
+    let closeFirst!: () => void
+    stopRecording.mockImplementationOnce(() => new Promise<void>((resolve) => { closeFirst = resolve }))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.stop(); result.current.startHold(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    await act(async () => { result.current.stop(); result.current.startHold(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    await act(async () => { closeFirst(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(2)
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBeNull()
+  })
+
+  it('ignores a canceled microphone initialization error from an older turn', async () => {
+    let failed!: (reason: Error) => void
+    startRecording.mockImplementationOnce(() => new Promise<void>((_, reject) => { failed = reject }))
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { result.current.stop(); result.current.startHold(); await flush() })
+    await act(async () => { failed(new Error('Synthetic old initialization failure')); await flush() })
+    expect(result.current.isListening).toBe(true)
+    expect(result.current.micError).toBeNull()
+    expect(startRecording).toHaveBeenCalledTimes(2)
+  })
+
+  it('bounds post-release processing even while an events stream keeps sending partials', async () => {
+    vi.useFakeTimers()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(0); result.current.release() })
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(result.current.isTranscribing).toBe(false)
+    expect(result.current.micError).toBe('network')
+  })
+
+  it('aborts on unmount and does not retry an HTTP refusal to open a session', async () => {
+    startVoiceStream.mockRejectedValueOnce(new Error('403'))
+    const { result, unmount } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    expect(startVoiceStream).toHaveBeenCalledTimes(1)
+    expect(result.current.isListening).toBe(false)
+    unmount()
+    expect((startVoiceStream.mock.calls[0][3] as AbortSignal).aborted).toBe(true)
+  })
+})
+
 describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
   afterEach(() => {
     useSessionStore.setState({ role: null, sessionConfig: null })
@@ -167,7 +353,7 @@ describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
       result.current.startHold()
       await flush()
     })
-    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', { student_name: 'Synthetic Learner One' })
+    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', { student_name: 'Synthetic Learner One' }, expect.any(AbortSignal))
   })
 
   it('a parent session sends no learner scope', async () => {
@@ -181,7 +367,7 @@ describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
       result.current.startHold()
       await flush()
     })
-    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en')
+    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', undefined, expect.any(AbortSignal))
   })
 })
 
@@ -200,7 +386,7 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
 
     expect(result.current.isListening).toBe(true)
     expect(startRecording).toHaveBeenCalledTimes(1)
-    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en')
+    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', undefined, expect.any(AbortSignal))
 
     await act(async () => {
       result.current.release()
@@ -383,12 +569,9 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
     }
   })
 
-  it('still reports an unavailable mic when the SERVER refused the session', async () => {
-    // The complement of the case above: api.ts rejects with a plain Error
-    // carrying our own text when a response really did come back and was not
-    // ok. That is not a connection problem, so it must not claim to be one.
+  it.each(['Could not start voice streaming', 'Request timed out'])('reports a service failure rather than a microphone failure: %s', async (message) => {
     vi.useFakeTimers()
-    startVoiceStream.mockRejectedValue(new Error('Could not start voice streaming'))
+    startVoiceStream.mockRejectedValue(new Error(message))
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
 
     try {
@@ -398,7 +581,9 @@ describe('useHybridVoiceInput core hold-to-talk flow', () => {
         await vi.advanceTimersByTimeAsync(500)
       })
 
-      expect(result.current.micError).toBe('unavailable')
+      expect(result.current.micError).toBe('network')
+      expect(result.current.isListening).toBe(false)
+      expect(startVoiceStream).toHaveBeenCalledTimes(1)
     } finally {
       vi.useRealTimers()
     }
@@ -503,7 +688,7 @@ describe('useHybridVoiceInput stop() cancellation', () => {
     })
 
     expect(result.current.isListening).toBe(false)
-    expect(finishVoiceStream).toHaveBeenCalledWith('tok', 'sess-default')
+    expect(finishVoiceStream).not.toHaveBeenCalled()
 
     // A stale event arriving after stop() must not resurrect this attempt —
     // attemptRef has already moved on, so consumeEvents' own loop (still
@@ -539,7 +724,7 @@ describe('useHybridVoiceInput hold safety timeout', () => {
     // The safety timeout fired release() on our behalf — the turn is now
     // being finalized server-side, no longer sitting in 'recording' forever.
     expect(stopRecording).toHaveBeenCalledTimes(1)
-    expect(finishVoiceStream).toHaveBeenCalledWith('tok', 'sess-default')
+    expect(finishVoiceStream).toHaveBeenCalledWith('tok', 'sess-default', expect.any(AbortSignal))
   })
 
   it('does not auto-release if the child already released well before the safety timeout', async () => {
@@ -619,10 +804,7 @@ describe('useHybridVoiceInput chunk upload cadence', () => {
     expect(snapshotWav).not.toHaveBeenCalled()
   })
 
-  it('re-sends a delta that failed to upload, so a dropped chunk costs no words', async () => {
-    // The whole-buffer protocol got this for free: any dropped chunk was
-    // covered by the next one. Deltas do not, so a failed chunk is held and
-    // prepended to the following upload.
+  it('ends a failed delta upload instead of resending possibly accepted audio', async () => {
     vi.useFakeTimers()
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
 
@@ -636,13 +818,10 @@ describe('useHybridVoiceInput chunk upload cadence', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
     expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
 
-    // Second tick carries the failed delta plus the fresh one, so the bytes
-    // sent are larger than a single delta on its own.
+    expect(result.current.micError).toBe('network')
+    expect(result.current.isListening).toBe(false)
     await act(async () => { await vi.advanceTimersByTimeAsync(4000) })
-    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(2)
-    const retried = pushVoiceStreamChunk.mock.calls[1][2] as Blob
-    const single = pushVoiceStreamChunk.mock.calls[0][2] as Blob
-    expect(retried.size).toBeGreaterThan(single.size)
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
   })
 
   it('does not carry a previous turn\'s failed chunk into the next turn', async () => {
@@ -899,7 +1078,7 @@ describe('release() arriving before the streaming session opens', () => {
 
     // The turn completes against the session that just opened.
     expect(pushVoiceStreamChunk).toHaveBeenCalled()
-    expect(finishVoiceStream).toHaveBeenCalledWith('t', 'sess-late')
+    expect(finishVoiceStream).toHaveBeenCalledWith('t', 'sess-late', expect.any(AbortSignal))
   })
 
   it('delivers the transcript for a turn released before the session opened', async () => {
@@ -1114,9 +1293,7 @@ describe('useHybridVoiceInput finishes a session exactly once', () => {
     expect(finishVoiceStream.mock.calls.length).toBe(afterRelease)
   })
 
-  it('still finishes when the caller cancels a turn outright', async () => {
-    // stop() without a release is a real cancel and MUST tell the server, or
-    // the session leaks until its TTL sweep.
+  it('aborts rather than transcribing a canceled turn', async () => {
     streamVoiceEvents.mockImplementation(() => pendingForever())
     startVoiceStream.mockResolvedValue('sess-cancel')
 
@@ -1125,6 +1302,7 @@ describe('useHybridVoiceInput finishes a session exactly once', () => {
     const before = finishVoiceStream.mock.calls.length
     await act(async () => { result.current.stop(); await flush() })
 
-    expect(finishVoiceStream.mock.calls.length).toBe(before + 1)
+    expect(finishVoiceStream.mock.calls.length).toBe(before)
+    expect((streamVoiceEvents.mock.calls[0][2] as AbortSignal).aborted).toBe(true)
   })
 })

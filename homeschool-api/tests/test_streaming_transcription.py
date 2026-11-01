@@ -85,6 +85,83 @@ async def test_finish_without_any_prior_chunk_emits_an_empty_final_then_done():
 
 
 @pytest.mark.asyncio
+async def test_transcription_failure_is_terminal_not_an_empty_speech_result(monkeypatch):
+    async def unavailable(*args, **kwargs):
+        raise RuntimeError("synthetic transcription outage")
+
+    monkeypatch.setattr(st, "transcribe_audio", unavailable)
+    session_id = st.start_session(owner="synthetic-owner")
+    assert st.push_chunk(session_id, b"\0\0", owner="synthetic-owner")
+    assert st.finish_session(session_id, owner="synthetic-owner")
+
+    seen = [item async for item in st.events(session_id, owner="synthetic-owner")]
+    assert seen == [
+        {"type": "error", "message": "transcription failed"},
+        {"type": "done"},
+    ]
+    assert session_id not in st._sessions
+
+
+@pytest.mark.asyncio
+async def test_closing_on_terminal_error_reclaims_failed_audio(monkeypatch):
+    async def unavailable(*args, **kwargs):
+        raise RuntimeError("synthetic transcription outage")
+
+    monkeypatch.setattr(st, "transcribe_audio", unavailable)
+    session_id = st.start_session(owner="synthetic-owner")
+    session = st._sessions[session_id]
+    assert st.push_chunk(session_id, b"\0\0", owner="synthetic-owner")
+    assert st.finish_session(session_id, owner="synthetic-owner")
+    gen = st.events(session_id, owner="synthetic-owner")
+    assert await asyncio.wait_for(gen.__anext__(), timeout=1) == {
+        "type": "error", "message": "transcription failed",
+    }
+    await gen.aclose()
+    assert session_id not in st._sessions
+    assert not session.audio and not session.pcm
+
+
+@pytest.mark.asyncio
+async def test_discard_wakes_a_waiting_reader_and_clears_audio():
+    session_id = st.start_session(owner="synthetic-owner")
+    session = st._sessions[session_id]
+    gen = st.events(session_id, owner="synthetic-owner")
+    waiting = asyncio.create_task(gen.__anext__())
+    await asyncio.sleep(0)
+    session.pcm.extend(b"\0\0")
+    session.audio = b"synthetic audio"
+    session.queue.put_nowait({"type": "partial", "text": "must not escape after revocation"})
+
+    st.discard_session(session_id)
+    assert await asyncio.wait_for(waiting, timeout=0.5) == {
+        "type": "error", "message": "unknown or expired session",
+    }
+    assert await gen.__anext__() == {"type": "done"}
+    await gen.aclose()
+    await asyncio.sleep(0)
+    assert session.worker.done()
+    assert not session.audio and not session.pcm
+    assert not st.push_chunk(session_id, b"\0\0", owner="synthetic-owner")
+    assert not st.finish_session(session_id, owner="synthetic-owner")
+
+
+@pytest.mark.asyncio
+async def test_disconnect_does_not_extend_audio_retention():
+    session_id = st.start_session(owner="synthetic-owner")
+    session = st._sessions[session_id]
+    touched = session.last_touched
+    gen = st.events(session_id, owner="synthetic-owner")
+    waiting = asyncio.create_task(gen.__anext__())
+    await asyncio.sleep(0)
+    waiting.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await waiting
+    assert not session.active_reader
+    assert session.last_touched == touched
+    st.discard_session(session_id)
+
+
+@pytest.mark.asyncio
 async def test_finish_after_a_chunk_transcribes_the_final_buffer_and_cleans_up(monkeypatch):
     calls = []
 

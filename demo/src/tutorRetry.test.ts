@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { streamTutorChat } from './api'
+import { streamTutorChat, startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents } from './api'
 import type { SessionConfig, StreamChunk, Subject } from './api'
 
 const CONFIG = { student_name: 'Guest', grade: '4', subjects: [] } as unknown as SessionConfig
@@ -58,7 +58,102 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
+})
+
+describe('real HTTP path deadlines and voice cancellation', () => {
+  it('allows 120 seconds of recording with SSE keepalives but no transcript data', async () => {
+    vi.useFakeTimers()
+    let stream!: ReadableStreamDefaultController<Uint8Array>
+    fetchMock.mockResolvedValue(new Response(new ReadableStream({ start: (controller) => { stream = controller } })))
+    const events = streamVoiceEvents('tok', 'synthetic')
+    const first = events.next()
+    const encoder = new TextEncoder()
+    for (let seconds = 0; seconds < 120; seconds += 30) {
+      await vi.advanceTimersByTimeAsync(30_000)
+      stream.enqueue(encoder.encode(': ping\n\n'))
+      await vi.advanceTimersByTimeAsync(0)
+    }
+    stream.enqueue(encoder.encode('data: {"type":"final","text":"Synthetic narration"}\n'))
+    await expect(first).resolves.toEqual({ done: false, value: { type: 'final', text: 'Synthetic narration' } })
+    await events.return(undefined)
+  })
+  it('bounds chat before headers without replaying a potentially accepted turn', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockImplementation((_url: string, init: RequestInit) => new Promise<Response>((_, reject) => {
+      init.signal?.addEventListener('abort', () => reject(loadFailed()), { once: true })
+    }))
+    const pending = collect(run())
+    const rejected = expect(pending).rejects.toThrow('Request timed out')
+    await vi.advanceTimersByTimeAsync(60_000)
+    await rejected
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((fetchMock.mock.calls[0][1].signal as AbortSignal).aborted).toBe(true)
+  })
+
+  it.each(['start', 'chunk', 'finish', 'events'])('bounds a hanging voice %s request', async (stage) => {
+    vi.useFakeTimers()
+    fetchMock.mockImplementation(() => new Promise<Response>(() => {}))
+    const pending = stage === 'start' ? startVoiceStream('tok')
+      : stage === 'chunk' ? pushVoiceStreamChunk('tok', 'synthetic', new Blob(['pcm']))
+      : stage === 'finish' ? finishVoiceStream('tok', 'synthetic')
+      : streamVoiceEvents('tok', 'synthetic').next()
+    const rejected = expect(pending).rejects.toThrow('Request timed out')
+    await vi.advanceTimersByTimeAsync(30_000)
+    await rejected
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((fetchMock.mock.calls[0][1].signal as AbortSignal).aborted).toBe(true)
+    expect(fetchMock.mock.calls[0][1].headers.Authorization.split(' ')).toEqual(['Bearer', 'tok'])
+  })
+
+  it('also bounds the start response JSON body', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockResolvedValue({ ok: true, json: () => new Promise(() => {}) })
+    const pending = startVoiceStream('tok')
+    const rejected = expect(pending).rejects.toThrow('Request timed out')
+    await vi.advanceTimersByTimeAsync(30_000)
+    await rejected
+  })
+
+  it.each([401, 403, 404, 423])('does not replay a voice chunk refused with %s', async (status) => {
+    fetchMock.mockResolvedValue(new Response('', { status }))
+    await expect(pushVoiceStreamChunk('tok', 'synthetic', new Blob(['pcm']))).rejects.toThrow()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels the real SSE body reader when the voice turn is canceled', async () => {
+    const canceled = vi.fn()
+    fetchMock.mockResolvedValue(new Response(new ReadableStream({ cancel: canceled })))
+    const controller = new AbortController()
+    const events = streamVoiceEvents('tok', 'synthetic', controller.signal)
+    const next = events.next()
+    const rejected = expect(next).rejects.toThrow('Aborted')
+    await Promise.resolve()
+    await Promise.resolve()
+    controller.abort()
+    await rejected
+    expect(canceled).toHaveBeenCalledTimes(1)
+  })
+
+  it('runs synthetic start, chunk, finish, and events through the authenticated real helpers', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/start')) return new Response('{"session_id":"synthetic"}')
+      if (url.endsWith('/events')) return sseResponse([
+        'data: {"type":"final","text":"Synthetic words"}\n',
+        'data: {"type":"done"}\n',
+      ])
+      return new Response('{}')
+    })
+    const session = await startVoiceStream('tok', 'en')
+    await pushVoiceStreamChunk('tok', session, new Blob(['pcm']))
+    await finishVoiceStream('tok', session)
+    const out = []
+    for await (const event of streamVoiceEvents('tok', session)) out.push(event)
+    expect(out).toEqual([{ type: 'final', text: 'Synthetic words' }, { type: 'done' }])
+    expect(fetchMock.mock.calls.map((call) => (call[0] as string).split('/').pop())).toEqual(['start', 'chunk', 'finish', 'events'])
+    for (const call of fetchMock.mock.calls) expect(call[1].headers.Authorization.split(' ')).toEqual(['Bearer', 'tok'])
+  })
 })
 
 describe('a connection that drops before Bede answers', () => {
@@ -127,7 +222,7 @@ describe('what it deliberately will not retry', () => {
       controller.abort()
       throw loadFailed()
     })
-    await expect(collect(run(controller.signal))).rejects.toThrow('Load failed')
+    await expect(collect(run(controller.signal))).rejects.toThrow('Aborted')
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

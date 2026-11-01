@@ -347,18 +347,47 @@ function stripDataUrlPrefix(dataUrl: string): string {
 const TUTOR_MAX_ATTEMPTS = 3
 const TUTOR_RETRY_BASE_DELAY_MS = 600
 
+// Bounds response headers (and short JSON bodies), not a whole SSE session.
+// A deadline is ambiguous: the server may already be working, so never retry it.
+export async function withRequestDeadline<T>(
+  operation: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal, ms = 30_000,
+): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let abort: () => void = () => {}
+  const canceled = new Promise<never>((_, reject) => {
+    abort = () => {
+      reject(new DOMException('Aborted', 'AbortError'))
+      controller.abort()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    timer = setTimeout(() => {
+      reject(new Error('Request timed out'))
+      controller.abort()
+    }, ms)
+  })
+  try {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return await Promise.race([canceled, operation(controller.signal)])
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', abort)
+  }
+}
+
 /** A cancellable pause, so a retry delay can't outlive the turn it belongs to. */
 function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms)
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
   })
 }
 
@@ -382,37 +411,33 @@ class StreamStallError extends Error {}
  *  voice stream (VoiceStreamEvent, see services/voiceApi.ts) and tutor
  *  chat stream (StreamChunk) differ, but both are a sequence of plain-JSON
  *  "data: " lines ending in a {type: 'done'} sentinel. */
-export async function* parseSSEStream<T extends { type: string }>(res: Response): AsyncGenerator<T> {
+export async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
   const reader = res.body!.getReader()
+  const cancel = () => { reader.cancel().catch(() => {}) }
+  signal?.addEventListener('abort', cancel, { once: true })
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    let timeoutId: ReturnType<typeof setTimeout>
-    const stallTimeout = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
-    })
-    let done: boolean, value: Uint8Array | undefined
-    try {
-      ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
-    } catch (err) {
-      // Release the underlying connection rather than leaving it dangling
-      // in the background — reader.read() itself is still pending at this
-      // point (that's exactly what stalled), so this is what actually
-      // frees it up instead of just abandoning the promise.
-      reader.cancel().catch(() => {})
-      throw err
-    } finally {
-      clearTimeout(timeoutId!)
-    }
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
+  try {
+    while (true) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      let timeoutId: ReturnType<typeof setTimeout>
+      const stallTimeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
+      })
+      let done: boolean, value: Uint8Array | undefined
+      try {
+        ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
+      } finally {
+        clearTimeout(timeoutId!)
+      }
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
         const jsonStr = line.slice(6).trim()
         if (!jsonStr) continue
         try {
@@ -424,6 +449,9 @@ export async function* parseSSEStream<T extends { type: string }>(res: Response)
         }
       }
     }
+  } finally {
+    signal?.removeEventListener('abort', cancel)
+    cancel()
   }
 }
 
@@ -454,7 +482,7 @@ export async function* streamTutorChat(
     // the sentence they are mid-way through reading.
     let delivered = false
     try {
-      const res = await fetch(`${BASE}/tutor/chat`, {
+      const res = await withRequestDeadline((requestSignal) => fetch(`${BASE}/tutor/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -484,14 +512,14 @@ export async function* streamTutorChat(
           // assuming the worst.
           time_remaining_seconds: timeRemainingSeconds ?? null,
         }),
-        signal,
-      })
+        signal: requestSignal,
+      }), signal, SSE_STALL_TIMEOUT_MS)
 
       if (!res.ok) {
         throw new Error('Tutor request failed — check your connection')
       }
 
-      for await (const chunk of parseSSEStream<StreamChunk>(res)) {
+      for await (const chunk of parseSSEStream<StreamChunk>(res, signal)) {
         delivered = true
         yield chunk
       }

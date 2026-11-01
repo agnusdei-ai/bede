@@ -127,6 +127,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     constraints: MediaStreamConstraints['audio'], { report = true }: { report?: boolean } = {},
   ) => {
     const requestedAt = Date.now()
+    const generation = runGenRef.current
     return navigator.mediaDevices
       .getUserMedia({ audio: constraints })
       .then((stream) => {
@@ -153,7 +154,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
         // shows up in a debug trace even though the child never sees it.
         logDebug(`getStream() rejected name=${name || 'unknown'} message=${err instanceof Error ? err.message : String(err)} report=${report}`)
         const reason: MicErrorReason = name === 'NotAllowedError' || name === 'PermissionDeniedError' ? 'permission-denied' : 'unavailable'
-        if (report) onError?.(reason)
+        if (report && runGenRef.current === generation) onError?.(reason)
         return null
       })
   }, [onError])
@@ -197,7 +198,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
   const prewarm = useCallback(() => {
     if (prewarmPromiseRef.current) return prewarmPromiseRef.current
     const p = getStream(MIC_CONSTRAINTS, { report: false }).then((stream) => {
-      prewarmStreamRef.current = stream
+      if (prewarmPromiseRef.current === p) prewarmStreamRef.current = stream
       return stream
     })
     prewarmPromiseRef.current = p
@@ -313,9 +314,14 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     // either — same reasoning as prewarm()'s own silent call, just one step
     // later in the same fallback chain.
     const pending = prewarmPromiseRef.current ?? getStream(MIC_CONSTRAINTS, { report: false })
+    const ready = prewarmStreamRef.current
     prewarmPromiseRef.current = null
-    let stream = prewarmStreamRef.current ?? (await pending)
     prewarmStreamRef.current = null
+    let stream = ready ?? (await pending)
+    if (runGenRef.current !== gen) {
+      stream?.getTracks().forEach((track) => track.stop())
+      return
+    }
     if (!stream) {
       // The prewarmed stream can fail from mic contention with whatever
       // else grabbed the microphone right at the start of the press (most

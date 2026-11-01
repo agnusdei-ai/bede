@@ -533,6 +533,10 @@ def test_main_entrypoint_exits_after_successful_submission(tmp_path, monkeypatch
     monkeypatch.setattr(wizard, "REPO_DIR", str(tmp_path))
     monkeypatch.setattr(wizard, "ENV_PATH", str(tmp_path / ".env"))
     monkeypatch.setattr(wizard, "PORT", 0)
+    # The preceding success-page test schedules a 0.5s shutdown signal.
+    # Allow that timer to finish before resetting the shared event; otherwise
+    # it can stop this new server while the POST is still in flight.
+    time.sleep(0.6)
     wizard._shutdown_event.clear()
 
     server_holder = {}

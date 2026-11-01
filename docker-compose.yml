@@ -99,6 +99,7 @@ services:
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-}
       - LOCAL_LLM_API_KEY=${LOCAL_LLM_API_KEY:-not-needed}
       - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      - BEDE_OFFLINE_INSTALLATION=${BEDE_OFFLINE_INSTALLATION:-false}
       - BEDE_ADAPTER_ORDER=${BEDE_ADAPTER_ORDER:-local,anthropic}
       - BEDE_FORCE_ADAPTER=${BEDE_FORCE_ADAPTER:-}
       # OpenAI TTS (Bede's spoken voice) — a separate, unrelated use of

@@ -179,6 +179,7 @@ GUARDS = {
     # factor is enrolled. Every other route keeps its guard.
     ('GET', '/auth/child-devices'): 'require_parent',
     ('POST', '/auth/child-devices/{device_id}/approve'): 'require_parent',
+    ('POST', '/auth/child-devices/{device_id}/learner'): 'require_parent',
     ('POST', '/auth/child-devices/{device_id}/revoke'): 'require_parent',
     ('DELETE', '/mfa/webauthn/{key_id}'): 'require_elevated_parent',
     ('GET', '/narration/{student_name}/assessments'): 'require_parent',

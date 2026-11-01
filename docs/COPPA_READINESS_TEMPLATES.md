@@ -151,7 +151,6 @@ below, and `services/student_deletion.py` must cascade to it.
 | 5 | `learner_behavior_checks` | Adaptation counter | Adaptation check | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 6 | `lesson_bookmarks` | Resume note per subject | Continuity | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 7 | `mastery_profiles` | Skill probabilities | Diagnostic | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
-| 7a | `child_learner_bindings` | Child-session learner binding | Child authentication | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 8 | `diagnostic_evidence_log` | Probe deltas | Diagnostic | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 9 | `skill_activity_log` | Completed-work events | Work ledger | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 10 | `adaptive_instruction_traces` | Recommendations | Parent review | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
@@ -168,6 +167,7 @@ below, and `services/student_deletion.py` must cascade to it.
 | 21 | `educator_roster_assignments` | Which educator may see which learner (pilot roster) | Classroom pilot | `[COUNSEL]` | none | until student deleted or grant revoked | Delete all data | Yes (student key) |
 | 22 | `consent_records` | Consent method, notice-version hash, scope, granted/revoked times; parent label and revocation reason encrypted | Parental consent ledger | `[COUNSEL]` | none | until student deleted `[COUNSEL — consent evidence retention]` | Delete all data | Partly (parent label and reason under student key; student name, method, hash, scope and times are plain columns) |
 | 23 | `student_collection_state` | Per-child collection pause timestamp | Collection pause | `[COUNSEL]` | none | until student deleted | Delete all data | No (timestamp only; student name key) |
+| 24 | `child_learner_bindings` | Device-to-student authorization binding and revocation nonce | Child sign-in authorization and revocation | `[COUNSEL]` | none | until student deleted or device unbound | Delete all student data / binding revocation | No (student name and opaque identifiers are plain columns) |
 
 Rows marked `[OPEN]` are not complete and must not be read as controlled.
 A row is complete only when every cell is filled by the operator and each

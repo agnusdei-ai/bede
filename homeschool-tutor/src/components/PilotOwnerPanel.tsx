@@ -145,10 +145,10 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
       const ls = await fetchPilotOwnerLearners(token, campusId)
       if (cancelled) return
       setLearners(ls); setLearnerId(ls[0]?.learner_id ?? '')
-    }, e => { if (!cancelled) describeFailure(e, {
+    }, e => cancelled ? '' : describeFailure(e, {
       action: 'load the learners for this campus', forbidden: PASSKEY_NEEDED,
       notFound: 'This campus may have been disabled or removed. Refresh the page to see the current list.',
-    }) })
+    }))
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campusId, token])

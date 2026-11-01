@@ -139,13 +139,18 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
 
   useEffect(() => {
     if (!open || !campusId || campuses.find(c => c.campus_id === campusId)?.enabled === false) return
+    let active = true
     void run(async () => {
       const ls = await fetchPilotOwnerLearners(token, campusId)
+      // A campus switch can finish before an earlier request; never render
+      // the previous campus's learner roster in the new campus context.
+      if (!active) return
       setLearners(ls); setConfirmName(''); setLearnerId(ls[0]?.learner_id ?? '')
     }, e => describeFailure(e, {
       action: 'load the learners for this campus', forbidden: PASSKEY_NEEDED,
       notFound: 'This campus may have been disabled or removed. Refresh the page to see the current list.',
     }))
+    return () => { active = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campusId, token])
 

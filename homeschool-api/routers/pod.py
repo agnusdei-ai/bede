@@ -16,7 +16,7 @@ from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
-from core.deps import require_elevated_parent, require_parent, require_real_user
+from core.deps import require_elevated_parent, require_parent, require_real_user, require_learner_access
 from core import student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from models.schemas import PodConfigsRequest, SessionConfig, VoiceNarrationPreferenceRequest
@@ -127,10 +127,11 @@ async def list_pod_configs(
 @router.get("/configs/{student_name}", response_model=SessionConfig)
 async def get_student_config(
     student_name: str,
-    _: dict = Depends(require_real_user),
+    auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> SessionConfig:
-    """Any authenticated user can fetch a student config — child loads their own session."""
+    """Fetch only the server-authorized learner configuration."""
+    await require_learner_access(auth, student_name, db)
     result = await db.execute(
         select(StudentConfig).where(StudentConfig.student_name == student_name)
     )
@@ -149,7 +150,7 @@ async def get_student_config(
 async def update_voice_narration_preference(
     student_name: str,
     req: VoiceNarrationPreferenceRequest,
-    _: dict = Depends(require_real_user),
+    auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
@@ -161,6 +162,7 @@ async def update_voice_narration_preference(
     can never use this to rewrite subjects, lesson focus, or any other setting
     that should stay parent-controlled.
     """
+    await require_learner_access(auth, student_name, db)
     result = await db.execute(
         select(StudentConfig).where(StudentConfig.student_name == student_name)
     )

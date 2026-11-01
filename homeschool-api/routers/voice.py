@@ -54,9 +54,26 @@ def _validate_audio(data: bytes, filename: str) -> None:
     raise HTTPException(status_code=415, detail="Unsupported file type — only audio files are accepted")
 
 
+# Biometric profiles in voice_profiles are keyed only by student_name, not
+# immutable campus/learner IDs. No name-keyed biometric operation is safe
+# after ANY institutional campus exists (including disabled campuses).
+# This applies to parent override and profile management, not just inference.
+async def _require_household_biometric_scope(
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    try:
+        if await pilot_authz.campus_mode_active(db):
+            raise pilot_authz.not_found()
+    except HTTPException:
+        raise
+    except Exception:
+        # An unavailable campus lookup must never reopen name-keyed access.
+        raise pilot_authz.not_found()
+
+
 # ── Enrollment (parent only) ─────────────────────────────────────────────────
 
-@router.post("/enroll")
+@router.post("/enroll", dependencies=[Depends(_require_household_biometric_scope)])
 async def enroll(
     request: Request,
     student_name: str = Form(..., min_length=1, max_length=50),
@@ -97,7 +114,7 @@ async def enroll(
 
 # ── Verification (both roles) ────────────────────────────────────────────────
 
-@router.post("/verify")
+@router.post("/verify", dependencies=[Depends(_require_household_biometric_scope)])
 async def verify(
     request: Request,
     student_name: str = Form(..., min_length=1, max_length=50),
@@ -131,7 +148,7 @@ async def verify(
 
 # ── Parent override ───────────────────────────────────────────────────────────
 
-@router.post("/override")
+@router.post("/override", dependencies=[Depends(_require_household_biometric_scope)])
 async def override_verification(
     request: Request,
     student_name: str = Form(..., min_length=1, max_length=50),
@@ -145,7 +162,7 @@ async def override_verification(
 
 # ── Profile management (parent only) ─────────────────────────────────────────
 
-@router.get("/profiles")
+@router.get("/profiles", dependencies=[Depends(_require_household_biometric_scope)])
 async def get_profiles(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_parent),
@@ -154,7 +171,7 @@ async def get_profiles(
     return {"enrolled_students": await list_profiles(db)}
 
 
-@router.delete("/profiles/{student_name}")
+@router.delete("/profiles/{student_name}", dependencies=[Depends(_require_household_biometric_scope)])
 async def remove_profile(
     student_name: str,
     request: Request,

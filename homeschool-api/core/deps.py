@@ -43,6 +43,44 @@ from core.security import decode_token, validate_fingerprint
 _bearer = HTTPBearer()
 
 
+async def require_live_hosted_child_pairing(
+    request: Request, payload: dict, db: AsyncSession | None = None,
+) -> None:
+    """Enforce hosted child-device approval on *every* token use, not only login.
+
+    A parent revoking a ChildDevicePairing must invalidate already-issued
+    child JWTs immediately. This is a device authorization check, not a
+    learner/roster grant; the separate learner-scope issue #761 remains open.
+    Self-hosted family sessions and all non-child roles are unchanged.
+    """
+    if not settings.hosted_profile or payload.get("role") != "child":
+        return
+
+    from core.database import AsyncSessionLocal, ChildDevicePairing
+
+    device_id = payload.get("device_id")
+    pairing = None
+    if device_id:
+        if db is None:
+            async with AsyncSessionLocal() as session:
+                pairing = await session.get(ChildDevicePairing, device_id)
+        else:
+            pairing = await db.get(ChildDevicePairing, device_id)
+
+    if pairing is None or pairing.state != "paired":
+        await log_event(
+            AuditEvent.DEVICE_LOGIN_BLOCKED,
+            role="child",
+            success=False,
+            detail="hosted child pairing missing, pending, or revoked",
+            **audit_from_request(request),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This child's device access is not approved — please ask a parent",
+        )
+
+
 async def _validate_token(request: Request, credentials: HTTPAuthorizationCredentials) -> dict:
     """Shared JWT signature/expiry + device fingerprint validation.
 
@@ -114,6 +152,7 @@ async def _validate_token(request: Request, credentials: HTTPAuthorizationCreden
             detail="This device's access was revoked — please contact the parent",
         )
 
+    await require_live_hosted_child_pairing(request, payload)
     return payload
 
 

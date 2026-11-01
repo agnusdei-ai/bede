@@ -23,7 +23,7 @@ from core.demo_code_session import (
     redeem_code,
     set_parent_config,
 )
-from core.deps import require_auth, require_demo_parent_config, require_parent
+from core.deps import require_auth, require_demo_parent_config, require_parent, require_live_hosted_child_pairing
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
@@ -621,6 +621,7 @@ async def validate_token(
             raise HTTPException(status_code=403, detail="Educator pilot not enabled")
         from services.educator_access import live_educator
         await live_educator(db, payload)
+    await require_live_hosted_child_pairing(request, payload, db)
     return {"role": payload.get("role"), "valid": True}
 
 

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import consent
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import SessionTranscript, get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_parent, require_real_user, require_learner_access
 from core import student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from services.ai_service import _redact_credentials
@@ -48,6 +48,7 @@ async def save_transcript(
     Save encrypted session transcript. Callable by parent or child at session end.
     Stored as AES-256-GCM BYTEA — the database provider never sees plaintext content.
     """
+    await require_learner_access(auth, student_name, db)
     await consent.require_collection(db, student_name)
     now = datetime.now(timezone.utc)
     data = {

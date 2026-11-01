@@ -89,12 +89,12 @@ describe('PilotOwnerPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Classroom pilot/ }))
     await waitFor(() => expect(api.fetchPilotOwnerLearners).toHaveBeenCalledWith('t', C))
     fireEvent.change(screen.getByLabelText('Campus'), { target: { value: otherCampus } })
-    await screen.findByText('New Campus Learner')
+    await screen.findByRole('option', { name: 'New Campus Learner' })
     await act(async () => {
       resolveOld([{ learner_id: L, campus_id: C, display_name: 'Old Campus Learner', enabled: true }])
     })
     expect(screen.queryByText('Old Campus Learner')).toBeNull()
-    expect(screen.getByText('New Campus Learner')).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'New Campus Learner' })).toBeTruthy()
   })
 
   it('offers no session plan, session receipts, or teaching action', async () => {

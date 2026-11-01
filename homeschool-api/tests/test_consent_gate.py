@@ -147,7 +147,7 @@ def test_tutor_chat_refused_without_consent(client):
 
 
 def test_transcript_save_refused_without_consent(client):
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 403
     assert r.json()["detail"]["error"] == "parental_consent_required"
 
@@ -169,7 +169,7 @@ def test_voice_enrollment_refused_without_consent_before_any_audio_is_read(clien
 
 def test_refused_turn_writes_nothing_about_the_child(client):
     client.post("/tutor/chat", json=_tutor_body(), headers=_parent_headers())
-    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     import asyncio as _a
     from core.database import AsyncSessionLocal, SessionTranscript
 
@@ -208,7 +208,7 @@ def test_grant_with_current_notice_permits_collection_and_is_recorded(client):
     assert r.status_code == 201
     assert r.json()["created"] is True
     # Collection now passes the gate. The save reaches the database and succeeds.
-    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert ok.status_code == 200, ok.text
 
 
@@ -256,7 +256,7 @@ def test_revocation_stops_collection_but_keeps_the_ledger_row(client):
     r = client.post(f"/consent/{STUDENT}/revoke", json={"reason": "changed my mind"}, headers=_parent_headers())
     assert r.status_code == 200
 
-    refused = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    refused = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert refused.status_code == 403
 
     import asyncio as _a
@@ -279,7 +279,7 @@ def test_revoking_with_nothing_active_is_a_clear_404(client):
 def test_pause_refuses_collection_with_423(client):
     _grant(client)
     assert client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers()).status_code == 200
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 423
     assert r.json()["detail"]["error"] == "collection_paused"
     assert client.post("/voice/enroll", data={"student_name": STUDENT},
@@ -289,7 +289,7 @@ def test_pause_refuses_collection_with_423(client):
 
 def test_pause_leaves_reads_and_export_working(client):
     _grant(client)
-    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers())
 
     assert client.get(f"/consent/{STUDENT}", headers=_parent_headers()).json()["collection_paused"] is True
@@ -300,7 +300,7 @@ def test_resume_restores_collection(client):
     _grant(client)
     client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers())
     assert client.post(f"/consent/{STUDENT}/resume", headers=_parent_headers()).status_code == 200
-    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert ok.status_code == 200
 
 
@@ -308,7 +308,7 @@ def test_missing_consent_is_reported_before_a_pause(client):
     """Order of refusal: a paused student who never consented is refused as
     unconsented, the more basic fact."""
     client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers())
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 403
 
 
@@ -357,7 +357,7 @@ def test_export_enumerates_exactly_the_deletion_cascade(client):
 
 def test_export_decrypts_what_was_written(client):
     _grant(client)
-    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     r = client.get(f"/pod/students/{STUDENT}/review", headers=_parent_headers()).json()
 
     saved = r["tables"]["session_transcripts"]

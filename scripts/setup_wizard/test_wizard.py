@@ -796,3 +796,26 @@ def test_audio_symlink_outside_asset_directory_is_rejected(running_wizard, tmp_p
     with pytest.raises(urllib.error.HTTPError) as exc:
         urllib.request.urlopen(f"{running_wizard}/audio/welcome.wav")
     assert exc.value.code == 404
+
+
+@pytest.mark.parametrize("model,base_url", [
+    ("qwen3:8b\nSECRET_KEY=synthetic-injection", "http://host.docker.internal:11434/v1"),
+    ("../qwen3:8b", "http://host.docker.internal:11434/v1"),
+    ("qwen3:8b", "https://untrusted.example/v1"),
+])
+def test_local_auto_marker_rejects_env_injection_and_remote_endpoint(
+    running_wizard, tmp_path, model, base_url
+):
+    _write_local_ai_marker(tmp_path, model=model, base_url=base_url)
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'value="local_auto"' not in body
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        _post(running_wizard, {
+            "provider": "local_auto",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": TEST_PIN,
+            "license_key": MOCK_ENTITLEMENT,
+        })
+    assert exc.value.code == 400
+    assert not os.path.exists(wizard.ENV_PATH)

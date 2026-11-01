@@ -192,6 +192,7 @@ GUARDS = {
     ('GET', '/pod/configs/{student_name}'): 'require_real_user',
     ('PATCH', '/pod/configs/{student_name}/voice-narration'): 'require_real_user',
     ('POST', '/sandbox/chat'): 'require_parent',
+    ('POST', '/sandbox/educator-chat'): 'require_educator',
     ('POST', '/sandbox/demo-chat'): 'require_demo_preview',
     ('GET', '/transcripts/{student_name}'): 'require_parent',
     ('POST', '/transcripts/{student_name}'): 'require_real_user',

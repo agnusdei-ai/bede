@@ -190,7 +190,7 @@ def _count_pages_read(page_texts: list[str], monkeypatch) -> int:
     counter = [0]
     pages = [_CountingPage(t, counter) for t in page_texts]
     monkeypatch.setattr(
-        document_extraction, "PdfReader", lambda _stream: _CountingReader(pages)
+        document_extraction, "preflight_pdf", lambda _raw: _CountingReader(pages)
     )
     try:
         extract_narration_text("narration.pdf", _b64(b"ignored-by-the-fake"))
@@ -255,3 +255,86 @@ def test_a_real_multipage_narration_still_reads_across_its_pages():
     text = extract_narration_text("narration.pdf", _b64(pdf_bytes))
     for fragment in ("First part", "Second part", "Third part"):
         assert fragment in text
+
+
+def test_pdf_rejects_non_pdf_content_before_extraction():
+    with pytest.raises(UnsupportedNarrationFileError, match="signature"):
+        extract_narration_text("worksheet.pdf", _b64(b"not a PDF"))
+
+
+def test_pdf_rejects_active_javascript_before_extraction():
+    raw = _build_minimal_pdf("Safe text").replace(
+        b"/Type /Catalog", b"/Type /Catalog /OpenAction 1 0 R"
+    )
+    with pytest.raises(UnsupportedNarrationFileError, match="active"):
+        extract_narration_text("worksheet.pdf", _b64(raw))
+
+
+def test_pdf_rejects_encoded_active_names():
+    raw = _build_minimal_pdf("Safe text").replace(
+        b"/Type /Catalog", b"/Type /Catalog /Java#53cript 1 0 R"
+    )
+    with pytest.raises(UnsupportedNarrationFileError, match="active"):
+        extract_narration_text("worksheet.pdf", _b64(raw))
+
+
+def test_pdf_rejects_over_size_limit():
+    raw = b"%PDF-1.4\n" + b" " * (document_extraction.MAX_PDF_BYTES + 1)
+    with pytest.raises(UnsupportedNarrationFileError, match="5 MB"):
+        extract_narration_text("worksheet.pdf", _b64(raw))
+
+
+def test_pdf_rejects_embedded_files():
+    raw = _build_minimal_pdf("Safe text").replace(
+        b"/Type /Catalog", b"/Type /Catalog /EmbeddedFiles 1 0 R"
+    )
+    with pytest.raises(UnsupportedNarrationFileError, match="active"):
+        extract_narration_text("worksheet.pdf", _b64(raw))
+
+
+
+def test_pdf_preflight_inspects_resolved_indirect_objects(monkeypatch):
+    """A raw-byte scan cannot see names hidden inside a compressed object stream.
+
+    Model the already-decoded indirect reference at the pypdf boundary. This
+    exercises the structural traversal, not a full compressed-stream fixture.
+    """
+    from pypdf.generic import DictionaryObject, IndirectObject, NameObject
+
+    class ReferencedPdf:
+        def get_object(self, _ref):
+            return DictionaryObject({
+                NameObject("/OpenAction"): NameObject("/JavaScript"),
+            })
+
+    class ParsedReader:
+        def __init__(self, _stream, strict):
+            self.is_encrypted = False
+            self.pages = [object()]
+            self.trailer = DictionaryObject({
+                NameObject("/Root"): IndirectObject(1, 0, ReferencedPdf()),
+            })
+
+    monkeypatch.setattr(document_extraction, "PdfReader", ParsedReader)
+    raw = b"%PDF-1.7\\n% no active names in the raw bytes"
+    with pytest.raises(UnsupportedNarrationFileError, match="active"):
+        document_extraction.preflight_pdf(raw)
+
+
+def test_pdf_preflight_rejects_unbounded_object_graph(monkeypatch):
+    """Deeply nested parsed objects must fail closed, not recurse indefinitely."""
+    from pypdf.generic import ArrayObject, DictionaryObject, NameObject
+
+    nested = NameObject("/Safe")
+    for _ in range(document_extraction.MAX_PDF_OBJECT_DEPTH + 2):
+        nested = ArrayObject([nested])
+
+    class ParsedReader:
+        def __init__(self, _stream, strict):
+            self.is_encrypted = False
+            self.pages = [object()]
+            self.trailer = DictionaryObject({NameObject("/Root"): nested})
+
+    monkeypatch.setattr(document_extraction, "PdfReader", ParsedReader)
+    with pytest.raises(UnsupportedNarrationFileError, match="safety limits"):
+        document_extraction.preflight_pdf(b"%PDF-1.7\\n")

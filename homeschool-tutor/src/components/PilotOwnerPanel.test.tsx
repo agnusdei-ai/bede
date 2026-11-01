@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -68,6 +68,33 @@ describe('PilotOwnerPanel', () => {
     await openPanel()
     expect(api.fetchPilotOwnerCampuses).toHaveBeenCalledWith('t')
     expect(api.fetchPilotOwnerLearners).toHaveBeenCalledWith('t', C)
+  })
+
+  it('never renders a stale learner roster after switching campuses', async () => {
+    const otherCampus = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    const otherLearner = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+    api.fetchPilotOwnerCampuses.mockResolvedValue([
+      { campus_id: C, title: 'Synthetic Campus One', enabled: true },
+      { campus_id: otherCampus, title: 'Synthetic Campus Two', enabled: true },
+    ])
+    type LearnerRow = { learner_id: string; campus_id: string; display_name: string; enabled: boolean }
+    let resolveOld: (rows: LearnerRow[]) => void = () => {}
+    api.fetchPilotOwnerLearners.mockImplementation((_token: string, campus: string) => {
+      if (campus === C) return new Promise<LearnerRow[]>(resolve => { resolveOld = resolve })
+      return Promise.resolve([
+        { learner_id: otherLearner, campus_id: otherCampus, display_name: 'New Campus Learner', enabled: true },
+      ])
+    })
+    render(<PilotOwnerPanel token="t"/>)
+    fireEvent.click(await screen.findByRole('button', { name: /Classroom pilot/ }))
+    await waitFor(() => expect(api.fetchPilotOwnerLearners).toHaveBeenCalledWith('t', C))
+    fireEvent.change(screen.getByLabelText('Campus'), { target: { value: otherCampus } })
+    await screen.findByText('New Campus Learner')
+    await act(async () => {
+      resolveOld([{ learner_id: L, campus_id: C, display_name: 'Old Campus Learner', enabled: true }])
+    })
+    expect(screen.queryByText('Old Campus Learner')).toBeNull()
+    expect(screen.getByText('New Campus Learner')).toBeTruthy()
   })
 
   it('offers no session plan, session receipts, or teaching action', async () => {

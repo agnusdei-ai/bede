@@ -21,6 +21,7 @@ from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
     ConsentRecord,
+    ChildLearnerBinding,
     StudentCollectionState,
     EducatorAssessmentEvidence,
     PracticeAssessment,
@@ -80,6 +81,7 @@ async def _seed_all_tables(db, student_name: str):
 
     now = datetime.now(timezone.utc)
     db.add(StudentConfig(student_name=student_name, config_enc=encrypt_json({"a": 1})))
+    # No fabricated child credential: an absent binding must still appear in deletion counts.
     db.add(VoiceProfile(student_name=student_name, profile_enc=encrypt_json({"a": 1})))
     # NarrationAssessment/SessionTranscript use a plain (non-SQLite-variant)
     # BigInteger PK, so SQLite won't autoincrement it for us the way the
@@ -152,6 +154,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("practice_assessments", PracticeAssessment),
         ("practice_sets", PracticeSetRecord),
         ("educator_roster_assignments", EducatorRosterAssignment),
+        ("child_learner_bindings", ChildLearnerBinding),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),

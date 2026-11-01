@@ -34,6 +34,7 @@ def _enc_aads() -> dict[str, dict[str, Callable[[Any], bytes | None]]]:
     if a table in the deletion cascade has no entry at all.
     """
     return {
+        "child_learner_bindings": {},  # Learner binding metadata is not encrypted.
         "student_config": {
             "config_enc": lambda r: student_aad("student_configs", "config_enc", r.student_name),
         },

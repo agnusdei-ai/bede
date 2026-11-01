@@ -752,3 +752,47 @@ def test_invalid_entitlement_is_rejected():
     assert "format is invalid" in wizard.license_preflight_error(
         "not-an-entitlement", "homeschool", ""
     )
+
+
+def test_config_backup_keeps_secrets_private_and_no_temporary_file(running_wizard, tmp_path):
+    fields = {
+        "anthropic_key": "sk-ant-synthetic-private",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": TEST_PIN,
+        "license_key": MOCK_ENTITLEMENT,
+    }
+    _post(running_wizard, fields).close()
+    _post(running_wizard, {**fields, "anthropic_key": "sk-ant-synthetic-new"}).close()
+    for path in (tmp_path / ".env", tmp_path / ".env.backup"):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert list(tmp_path.glob(".env-tmp-*")) == []
+
+
+def test_symlinked_env_does_not_overwrite_another_file(running_wizard, tmp_path):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("untouched", encoding="utf-8")
+    (tmp_path / ".env").symlink_to(outside)
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        _post(running_wizard, {
+            "anthropic_key": "sk-ant-synthetic",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": TEST_PIN,
+            "license_key": MOCK_ENTITLEMENT,
+        })
+    assert exc.value.code == 500
+    assert outside.read_text(encoding="utf-8") == "untouched"
+    assert list(tmp_path.glob(".env-tmp-*")) == []
+
+
+def test_audio_symlink_outside_asset_directory_is_rejected(running_wizard, tmp_path, monkeypatch):
+    audio_dir = tmp_path / "audio"
+    audio_dir.mkdir()
+    outside = tmp_path / "outside.wav"
+    outside.write_bytes(b"synthetic-private-data")
+    (audio_dir / "welcome.wav").symlink_to(outside)
+    monkeypatch.setattr(wizard, "AUDIO_DIR", audio_dir)
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(f"{running_wizard}/audio/welcome.wav")
+    assert exc.value.code == 404

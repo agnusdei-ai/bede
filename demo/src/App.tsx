@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
+import { BookOpenCheck, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -984,6 +984,9 @@ const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
 function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
+  const [showPracticeCoach, setShowPracticeCoach] = useState(false)
+  const [practiceFile, setPracticeFile] = useState<File | null>(null)
+  const [practiceConsent, setPracticeConsent] = useState(false)
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
@@ -1749,6 +1752,9 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
           {!parentControls.appearanceLocked && (
             <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
           )}
+          <button type="button" onClick={() => setShowPracticeCoach(true)}
+            className="flex items-center gap-1 rounded-lg border border-sage-300 bg-sage-50 px-2 py-1.5 text-xs font-semibold text-sage-800"
+            title="Practice Coach"><BookOpenCheck size={16}/><span className="hidden sm:inline">Practice Coach</span></button>
           {/* Parent controls — the header's upper right, next to where the
               appearance picker lives, under the fixed text-size control:
               the familiar corner for settings. Stays visible when the
@@ -1830,6 +1836,31 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
         />
         <DemoWorkLedgerCard ledger={workLedger} />
       </header>
+      {showPracticeCoach && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="demo-practice-title">
+          <section className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h2 id="demo-practice-title" className="text-xl font-display font-semibold">Practice Coach</h2>
+              <button type="button" aria-label="Close Practice Coach" onClick={() => setShowPracticeCoach(false)}><X size={20}/></button>
+            </div>
+            <p className="mt-3 text-sm text-gray-700">Use a previous graded quiz or worksheet to plan targeted practice with Bede. In this combined-role demo you can act as both learner and parent.</p>
+            <label className="mt-4 block text-sm font-semibold" htmlFor="demo-practice-file">Choose a quiz (JPEG, PNG or scanned PDF)</label>
+            <input id="demo-practice-file" type="file" accept="image/jpeg,image/png,application/pdf,.pdf"
+              className="mt-2 block w-full text-sm" onChange={(event) => { setPracticeFile(event.target.files?.[0] ?? null); setPracticeConsent(false) }}/>
+            {practiceFile && <p className="mt-2 text-sm text-gray-600">Selected: {practiceFile.name}</p>}
+            <label className="mt-4 flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={practiceConsent} onChange={(event) => setPracticeConsent(event.target.checked)}/>
+              <span>I understand that this demo does not yet process this file. Do not upload real learner information.</span>
+            </label>
+            <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+              File processing, review and generated practice are not connected in this demo build yet. No file has been uploaded or analysed.
+            </p>
+            <button type="button" className="mt-4 rounded-xl bg-sage-600 px-4 py-2 text-sm font-semibold text-white"
+              onClick={() => setShowPracticeCoach(false)}>Return to lesson</button>
+          </section>
+        </div>
+      )}
+
 
       {/* Chat body + input share one relative wrapper so the mandatory
           break / session-over overlay can cover both while leaving the

@@ -26,7 +26,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import LearnerBehaviorCheck, LearnerProfile, NarrationAssessment, get_db
-from core.deps import require_parent, require_real_user
+from core.deps import require_parent, require_real_user, require_learner_access
 from core import consent, student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from services.ai_service import synthesize_learner_profile
@@ -121,10 +121,11 @@ async def get_assessments(
 @router.get("/{student_name}/profile")
 async def get_profile(
     student_name: str,
-    _: dict = Depends(require_real_user),
+    auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """Return the current learner profile for a student (parent or child token)."""
+    """Return only the authorized learner profile."""
+    await require_learner_access(auth, student_name, db)
     result = await db.execute(
         select(LearnerProfile).where(LearnerProfile.student_name == student_name)
     )
@@ -143,7 +144,7 @@ async def get_profile(
 async def build_profile(
     student_name: str,
     session_count: int = Query(..., ge=1, description="Total sessions completed so far"),
-    _: dict = Depends(require_real_user),
+    auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
@@ -152,6 +153,7 @@ async def build_profile(
     lower-confidence read parents can act on immediately) and again after
     each subsequent session as more narrations accumulate.
     """
+    await require_learner_access(auth, student_name, db)
     await consent.require_collection(db, student_name)
     result = await db.execute(
         select(NarrationAssessment)

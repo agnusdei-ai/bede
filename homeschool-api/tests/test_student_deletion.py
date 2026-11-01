@@ -42,6 +42,7 @@ from core.database import (
 )
 from routers.pod import delete_student_config
 from services.student_deletion import delete_all_student_data
+from services.student_export import export_student
 
 
 @pytest_asyncio.fixture
@@ -198,6 +199,23 @@ async def test_does_not_touch_a_different_students_data(db_session):
 
     after_liam = await _row_counts_for(db_session, "Liam")
     assert all(n > 0 for n in after_liam.values())
+
+
+
+@pytest.mark.asyncio
+async def test_student_export_includes_only_the_requested_child_binding(db_session):
+    await _seed_all_tables(db_session, "Emma")
+    await _seed_all_tables(db_session, "Liam")
+    emma = await export_student(db_session, "Emma")
+    liam = await export_student(db_session, "Liam")
+    assert emma["counts"]["child_learner_bindings"] == 1
+    assert liam["counts"]["child_learner_bindings"] == 1
+    assert emma["tables"]["child_learner_bindings"] == [{
+        "device_id": "test-device-Emma",
+        "student_name": "Emma",
+        "nonce": "test-nonce-Emma",
+    }]
+    assert liam["tables"]["child_learner_bindings"][0]["student_name"] == "Liam"
 
 
 @pytest.mark.asyncio

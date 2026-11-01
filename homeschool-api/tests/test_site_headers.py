@@ -127,7 +127,7 @@ def test_the_demo_backend_is_reachable_under_the_policy_that_actually_applies():
             if d.strip()
         )
         connect = directives.get("connect-src", "")
-        assert "onrender.com" in connect, (
+        assert any(origin.startswith("https://") and origin.endswith(".onrender.com") for origin in connect.split()), (
             "A CSP applying to /bede/ omits the demo's Render backend from "
             f"connect-src ({connect!r}). Every delivered policy must allow "
             "it — one that does not will block the request no matter what "

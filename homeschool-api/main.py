@@ -3,6 +3,12 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
+from core.config import settings
+from core.offline_boundary import install_offline_boundary
+
+# Apply before database, model, email, or other service clients are imported.
+install_offline_boundary(settings)
+
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -14,7 +20,6 @@ from core import (
     parent_credential, provider_state,
 )
 from core.audit import AuditEvent, log_event
-from core.config import settings
 from core.database import AsyncSessionLocal, LicenseConfig, create_tables, engine
 from core.encryption import get_or_create_install_id, initialize_encryption
 from core.middleware import (

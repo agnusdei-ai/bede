@@ -95,6 +95,8 @@ def preference_order(settings: Any = _global_settings) -> List[str]:
 def _order(settings: Any) -> List[str]:
     """Effective adapter order. A non-empty BEDE_FORCE_ADAPTER overrides the
     order/failover entirely (a manual pin to one provider)."""
+    if getattr(settings, "bede_offline_installation", False):
+        return ["local"]
     forced = (settings.bede_force_adapter or "").strip()
     if forced:
         return [forced]
@@ -102,6 +104,8 @@ def _order(settings: Any) -> List[str]:
 
 
 def _is_configured(name: str, settings: Any) -> bool:
+    if getattr(settings, "bede_offline_installation", False) and name != "local":
+        return False
     if name == "anthropic":
         return bool(settings.anthropic_api_key)
     if name == "local":
@@ -114,6 +118,11 @@ def _is_configured(name: str, settings: Any) -> bool:
 
 
 def _build(name: str, settings: Any) -> Any:
+    if getattr(settings, "bede_offline_installation", False):
+        if name != "local":
+            raise PermissionError("Offline installations cannot use a cloud model adapter")
+        from core.offline_boundary import validate_local_model_url
+        validate_local_model_url(settings.local_llm_base_url)
     if not approved_provider(name):
         raise PermissionError("COPPA provider qualification required")
     if name == "anthropic":
@@ -124,7 +133,7 @@ def _build(name: str, settings: Any) -> Any:
             base_url=settings.local_llm_base_url,
             api_key=settings.local_llm_api_key,
             model=settings.local_llm_model,
-            strict_local_transport=enforcement_enabled(),
+            strict_local_transport=enforcement_enabled() or getattr(settings, "bede_offline_installation", False),
         )
     if name == "openai":
         return OpenAICompatibleClient(
@@ -233,6 +242,8 @@ def get_default_client(settings: Any = _global_settings) -> Any:
     configured we still return a constructed adapter (the last one listed, or
     anthropic) so the app boots — construction is lazy and only an actual
     request would surface the misconfiguration, exactly as before."""
+    if getattr(settings, "bede_offline_installation", False):
+        return resolve_local_only(settings)
     order = provider_state.effective_order(_configured_order(settings)) or _order(settings)
     for name in order:
         if _is_configured(name, settings):

@@ -64,6 +64,8 @@ async def read_assessment(
         raise HTTPException(status_code=422, detail=str(exc))
     except extract.ReadingUnavailable as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
     except extract.ReadingFailed as exc:
         raise HTTPException(status_code=502, detail=str(exc))
     try:

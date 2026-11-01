@@ -1202,6 +1202,19 @@ graded quiz**. Today it works for **Latin**; more subjects will follow.
 A circle left white for *alba* (white) on a colour question is a correct
 answer, and Bede treats it as one.
 
+**What you can upload.** Photos (JPEG, PNG, or iPhone HEIC) or a PDF of
+scanned pages, six pages in all and 6 MB a file. Bede checks each file and
+rebuilds every page as a plain image before anything reads it, and refuses PDFs
+that carry scripts, attachments, forms or a password, and any PDF page that is
+more than one scanned picture: typed or drawn marks, comments or highlights, or
+a second image would be lost, so photograph or scan the marked-up paper itself
+(or print the PDF to an image) instead. This is file validation and hardening, not a promise that a
+file is free of malware. The photos are not saved to the database or a file by
+Bede; they are held in memory while the request runs. If you run a clamd on
+the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
+`tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
+refused at startup, and if it is set and cannot be reached, uploads are refused.
+
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use
 **Print worksheet** or sit with your child and work through the set

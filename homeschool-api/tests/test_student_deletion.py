@@ -81,7 +81,13 @@ async def _seed_all_tables(db, student_name: str):
 
     now = datetime.now(timezone.utc)
     db.add(StudentConfig(student_name=student_name, config_enc=encrypt_json({"a": 1})))
-    # Synthetic binding is intentionally populated so the deletion and isolation\n    # assertions exercise the new table, not an empty-row false positive.\n    db.add(ChildLearnerBinding(\n        device_id=f"test-device-{student_name}",\n        student_name=student_name,\n        nonce=f"test-nonce-{student_name}",\n    ))
+    # Synthetic binding is intentionally populated so the deletion and isolation
+    # assertions exercise the new table, not an empty-row false positive.
+    db.add(ChildLearnerBinding(
+        device_id=f"test-device-{student_name}",
+        student_name=student_name,
+        nonce=f"test-nonce-{student_name}",
+    ))
     db.add(VoiceProfile(student_name=student_name, profile_enc=encrypt_json({"a": 1})))
     # NarrationAssessment/SessionTranscript use a plain (non-SQLite-variant)
     # BigInteger PK, so SQLite won't autoincrement it for us the way the

@@ -89,12 +89,12 @@ def _save(c, names, **extra):
     return c.post("/pod/configs", json={"configs": [_cfg(n) for n in names], **extra}, headers=_h())
 
 
-def _transcript(c, name):
+def _transcript(c, name, headers=None):
     body = {
         "student_name": name, "subjects": ["history"], "duration_minutes": 10,
         "messages": [{"role": "user", "content": "x", "timestamp": "2026-10-29T10:00:00Z"}],
     }
-    return c.post(f"/transcripts/{name}", json=body, headers=_h("parent"))
+    return c.post(f"/transcripts/{name}", json=body, headers=headers or _h("parent"))
 
 
 def _db(c, coro_fn):
@@ -131,6 +131,52 @@ def _records(c, name):
         r = await s.execute(select(ConsentRecord).where(ConsentRecord.student_name == name).order_by(ConsentRecord.id))
         return list(r.scalars())
     return _db(c, q)
+
+
+def test_real_child_login_is_scoped_and_switch_rotates_context(ctx, monkeypatch):
+    """HTTP journey: parent assigns configured learners, child logs in, and old scope dies on switch."""
+    monkeypatch.setattr(settings, "hosted_profile", False)
+    monkeypatch.setattr(settings, "educator_pilot_enabled", False)
+    saved = _save(ctx, ["Emma", "Noah"], consent_notice_hash=consent.notice_hash())
+    assert saved.status_code == 204, saved.text
+    device = "synthetic-household-tablet-1"
+    assignment_url = f"/auth/child-devices/{device}/learner"
+
+    first_assignment = ctx.post(assignment_url, json={"student_name": "Emma"}, headers=_h())
+    assert first_assignment.status_code == 200, first_assignment.text
+    assert first_assignment.json() == {"assigned": True}
+
+    def child_login():
+        response = ctx.post("/auth/login", json={
+            "role": "child", "credential": settings.child_pin, "device_id": device,
+        })
+        assert response.status_code == 200, response.text
+        token = response.json()["access_token"]
+        from core.security import decode_token
+        claims = decode_token(token)
+        assert claims is not None and claims["device_id"] == device and claims["learner_nonce"]
+        return {"Authorization": f"Bearer {token}"}, claims["learner_nonce"]
+
+    emma_headers, first_nonce = child_login()
+    own_config = ctx.get("/pod/configs/Emma", headers=emma_headers)
+    assert own_config.status_code == 200, own_config.text
+    assert ctx.get("/pod/configs/Noah", headers=emma_headers).status_code == 404
+    assert _transcript(ctx, "Emma", emma_headers).json() == {"saved": True}
+    assert _transcript(ctx, "Noah", emma_headers).status_code == 404
+    assert ctx.get("/transcripts/Noah", headers=_h()).json()["transcripts"] == []
+    assert len(ctx.get("/transcripts/Emma", headers=_h()).json()["transcripts"]) == 1
+
+    switched = ctx.post(assignment_url, json={"student_name": "Noah"}, headers=_h())
+    assert switched.status_code == 200 and switched.json() == {"assigned": True}
+    assert ctx.get("/pod/configs/Emma", headers=emma_headers).status_code == 404
+    assert ctx.get("/pod/configs/Noah", headers=emma_headers).status_code == 404
+    noah_headers, next_nonce = child_login()
+    assert next_nonce != first_nonce
+    assert ctx.get("/pod/configs/Noah", headers=noah_headers).status_code == 200
+    assert ctx.get("/pod/configs/Emma", headers=noah_headers).status_code == 404
+    assert _transcript(ctx, "Noah", noah_headers).json() == {"saved": True}
+    assert ctx.get("/transcripts/Emma", headers=_h()).json()["transcripts"][0]["message_count"] == 1
+    assert len(ctx.get("/transcripts/Noah", headers=_h()).json()["transcripts"]) == 1
 
 
 # ── Install-time acknowledgement ────────────────────────────────────────────

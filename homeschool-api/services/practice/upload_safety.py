@@ -185,8 +185,13 @@ def _refuse_active_content(reader: PdfReader, raw: bytes) -> None:
             seen.add(obj.idnum)
             try:
                 obj = obj.get_object()
-            except Exception:
-                continue
+            except Exception as exc:
+                # An unreadable object may hide an action or attachment. Never
+                # skip it and then claim the whole PDF was checked safely.
+                raise PhotoRejected(
+                    "This PDF contains an unreadable object and cannot be checked safely. "
+                    "Please scan the pages to a plain PDF or use photos."
+                ) from exc
         if isinstance(obj, str) and obj in FORBIDDEN_PDF_NAMES:
             raise refuse
         if isinstance(obj, DictionaryObject):  # a stream is a dictionary; its data is never read here

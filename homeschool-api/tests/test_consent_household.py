@@ -104,6 +104,28 @@ def _db(c, coro_fn):
     return asyncio.run(run())
 
 
+def _seed_legacy_configs(c, names):
+    """Seed pre-existing unconsented rows for migration/status tests only.
+
+    New HTTP saves must not create configurations without consent.
+    """
+    from core import student_keys
+    from core.database import StudentConfig
+    from core.encryption import encrypt_json
+    from routers.pod import _config_aad
+
+    async def write(session):
+        for name in names:
+            key = await student_keys.get_or_create(session, name)
+            session.add(StudentConfig(
+                student_name=name,
+                config_enc=encrypt_json(_cfg(name), _config_aad(name), key),
+            ))
+        await session.commit()
+
+    _db(c, write)
+
+
 def _records(c, name):
     async def q(s):
         r = await s.execute(select(ConsentRecord).where(ConsentRecord.student_name == name).order_by(ConsentRecord.id))
@@ -218,7 +240,7 @@ def test_demo_role_is_not_gated(ctx, monkeypatch):
 
 
 def test_household_get_shape_without_ack(ctx, clock):
-    _save(ctx, ["Emma", "Noah"])
+    _seed_legacy_configs(ctx, ["Emma", "Noah"])
     ctx.post("/consent/Noah", json={"notice_hash": consent.notice_hash()}, headers=_h())
     j = ctx.get("/household/consent", headers=_h()).json()
     assert set(j) == {"needs_consent", "install_ack", "notice_hash", "notice_version", "notice_text", "students"}
@@ -232,7 +254,7 @@ def test_household_get_shape_without_ack(ctx, clock):
 
 
 def test_household_get_counts_ack_covered_students_but_not_revoked_ones(ctx, clock, monkeypatch):
-    _save(ctx, ["Emma", "Noah"])
+    _seed_legacy_configs(ctx, ["Emma", "Noah"])
     _ack(monkeypatch)
     j = ctx.get("/household/consent", headers=_h()).json()
     assert j["install_ack"] is True and j["needs_consent"] is False
@@ -246,7 +268,7 @@ def test_household_get_counts_ack_covered_students_but_not_revoked_ones(ctx, clo
 
 
 def test_household_post_grants_all_is_idempotent_and_checks_hash(ctx, clock):
-    _save(ctx, ["Emma", "Noah"])
+    _seed_legacy_configs(ctx, ["Emma", "Noah"])
     bad = ctx.post("/household/consent", json={"notice_hash": "0" * 64, "parent_label": "Mum"}, headers=_h())
     assert bad.status_code == 409 and bad.json()["detail"]["error"] == "notice_changed"
     assert _records(ctx, "Emma") == []
@@ -323,9 +345,53 @@ def test_pod_save_with_wrong_hash_is_409_and_saves_nothing(ctx):
     assert ctx.get("/pod/configs", headers=_h()).json() == []
 
 
-def test_pod_save_without_hash_is_unchanged(ctx):
-    assert _save(ctx, ["Emma"]).status_code == 204
+def test_pod_save_without_hash_refuses_unconsented_student(ctx):
+    r = _save(ctx, ["Emma"])
+    assert r.status_code == 403
+    assert r.json()["detail"]["error"] == "parental_consent_required"
     assert _records(ctx, "Emma") == []
+    assert ctx.get("/pod/configs", headers=_h()).json() == []
+
+
+def test_pod_save_without_hash_allows_current_existing_consent(ctx):
+    assert ctx.post("/consent/Emma", json={"notice_hash": consent.notice_hash()},
+                    headers=_h()).status_code in (200, 201)
+    assert _save(ctx, ["Emma"]).status_code == 204
+
+
+def test_pod_save_without_hash_allows_valid_install_ack(ctx, clock, monkeypatch):
+    _ack(monkeypatch)
+    assert _save(ctx, ["Emma"]).status_code == 204
+    assert len(_records(ctx, "Emma")) == 1
+    assert _records(ctx, "Emma")[0].method == "install_custodian_attestation"
+
+
+def test_mixed_roster_without_new_child_consent_writes_no_configs(ctx):
+    assert ctx.post("/consent/Emma", json={"notice_hash": consent.notice_hash()},
+                    headers=_h()).status_code in (200, 201)
+    r = _save(ctx, ["Emma", "Noah"])
+    assert r.status_code == 403
+    assert _records(ctx, "Noah") == []
+    assert ctx.get("/pod/configs", headers=_h()).json() == []
+
+
+def test_consent_failure_happens_before_config_write(ctx, monkeypatch):
+    async def refuse(*args, **kwargs):
+        raise consent.ConsentError(422, "method_not_available", "Synthetic refusal")
+
+    monkeypatch.setattr(consent, "ensure_consent", refuse)
+    r = _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())
+    assert r.status_code == 422
+    assert ctx.get("/pod/configs", headers=_h()).json() == []
+
+
+def test_paused_student_cannot_resave_even_with_notice_hash(ctx):
+    assert ctx.post("/consent/Emma", json={"notice_hash": consent.notice_hash()},
+                    headers=_h()).status_code in (200, 201)
+    assert ctx.post("/consent/Emma/pause", headers=_h()).status_code == 200
+    r = _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())
+    assert r.status_code == 423
+    assert ctx.get("/pod/configs", headers=_h()).json() == []
 
 
 # ── Settings ────────────────────────────────────────────────────────────────

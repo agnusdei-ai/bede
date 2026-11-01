@@ -20,7 +20,7 @@ and a voice enrollment. Until consent is recorded, those routes refuse with
 HTTP 403 and the error `parental_consent_required`. The gate runs before the
 collection route stores anything, so a refused request writes no transcript,
 narration, profile, or voiceprint. Saving a student's name and grade is a
-separate route and is not gated yet (see "What is still open").
+separate route and requires a current consent basis before writing any configuration.
 
 The public demo is a separate, pseudonymous role with its own retention
 (see `RETENTION_POLICY.md`). It is not parent-consented and is not gated here.
@@ -162,9 +162,13 @@ for done.
 - **The parent screens live in `homeschool-tutor/`** and are built
   separately from this API. Until they are in the build you run, consent is
   recorded by the installer's acknowledgement or through the API.
-- **Pod configuration save is not gated.** Saving a student's name and grade
-  (`POST /pod/configs`) is allowed before consent; it is also where the parent
-  can tick consent.
+- **Pod configuration save is gated server-side.** `POST /pod/configs` checks
+  each student before writing any configuration: a current consent record, a
+  valid installer acknowledgement for a never-consented student, or a current
+  notice hash that grants consent first. Missing consent returns 403, paused
+  collection returns 423, and a stale submitted notice returns 409. A sibling's
+  consent does not authorize a newly added child. Legacy unconsented records
+  remain readable for parent review and can be consented to explicitly.
 - **Voice streaming is not gated.** `POST /voice/stream/start` and its chunks
   send the child's speech to transcription before any tutoring turn. The
   stream route does not know which student a child's token is for, so it needs

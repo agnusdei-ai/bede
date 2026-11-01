@@ -74,13 +74,21 @@ def _read_local_ai_marker() -> dict | None:
     local Ollama model on the host, else None. Re-read from disk on every
     call (GET render + POST submit) rather than cached at import time, since
     REPO_DIR itself is only known once the container actually starts."""
-    path = os.path.join(REPO_DIR, LOCAL_AI_MARKER_NAME)
+    marker = Path(REPO_DIR) / LOCAL_AI_MARKER_NAME
+    if marker.is_symlink():
+        return None
     try:
-        with open(path) as f:
+        with marker.open(encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return None
-    if isinstance(data, dict) and data.get("base_url") and data.get("model"):
+    # Only Setup-Bede.ps1 writes this Windows-local Ollama endpoint. Do not
+    # permit arbitrary URLs or newline-bearing model names to become .env
+    # assignments, even if the transient marker was modified on disk.
+    if (isinstance(data, dict)
+            and data.get("base_url") == "http://host.docker.internal:11434/v1"
+            and isinstance(data.get("model"), str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}", data["model"])):
         return data
     return None
 

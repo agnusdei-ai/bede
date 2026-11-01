@@ -294,6 +294,14 @@ class ChildDevicePairing(Base):
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class ChildLearnerBinding(Base):
+    """Adult-authorized device-to-learner assignment. Rotating nonce invalidates old JWTs."""
+    __tablename__ = "child_learner_bindings"
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    student_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class PilotCampus(Base):
     """Explicitly approved institutional pilot campus; no household migration."""
     __tablename__ = "pilot_campuses"

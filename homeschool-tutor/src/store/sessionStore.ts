@@ -141,7 +141,7 @@ const nextId = () => `msg-${++msgIdCounter}`
 const newSessionId = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
-    : `sess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    : `sess-${Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("")}`
 
 /**
  * Derive API-format ChatMessage[] from a displayMessages slice. Excludes

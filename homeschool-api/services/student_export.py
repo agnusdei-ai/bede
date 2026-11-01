@@ -30,7 +30,7 @@ def _enc_aads() -> dict[str, dict[str, Callable[[Any], bytes | None]]]:
     """table label -> encrypted column -> function(row) returning its AAD.
 
     Each AAD mirrors the write site. A new encrypted column on a per-student
-    table needs an entry here; the test in tests/test_student_export.py fails
+    table needs an entry here; the export regression in tests/test_student_deletion.py fails
     if a table in the deletion cascade has no entry at all.
     """
     return {

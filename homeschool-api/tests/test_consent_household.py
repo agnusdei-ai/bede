@@ -158,8 +158,11 @@ def test_valid_ack_permits_and_writes_one_ledger_row_at_the_ack_time(ctx, clock,
     _ack(monkeypatch)
     first = _transcript(ctx, "Emma")
     second = _transcript(ctx, "Emma")
-    assert first.status_code == 201, first.text
-    assert second.status_code == 201, second.text
+    assert first.status_code == 200 and first.json() == {"saved": True}, first.text
+    assert second.status_code == 200 and second.json() == {"saved": True}, second.text
+    saved = ctx.get("/transcripts/Emma", headers=_h())
+    assert saved.status_code == 200, saved.text
+    assert len(saved.json()["transcripts"]) == 2
     recs = _records(ctx, "Emma")
     assert len(recs) == 1
     assert recs[0].method == "install_custodian_attestation"
@@ -186,7 +189,7 @@ def test_invalid_acks_do_not_permit(ctx, clock, monkeypatch, label, kw):
 
 def test_ack_within_five_minutes_of_future_is_tolerated(ctx, clock, monkeypatch):
     _ack(monkeypatch, at="2026-11-01T12:04:00Z")
-    assert _transcript(ctx, "Emma").status_code == 201
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_ack_of_an_older_notice_is_not_valid(ctx, clock, monkeypatch):
@@ -197,7 +200,7 @@ def test_ack_of_an_older_notice_is_not_valid(ctx, clock, monkeypatch):
 
 def test_a_revoked_student_is_not_resurrected_by_the_ack(ctx, clock, monkeypatch):
     _ack(monkeypatch)
-    assert _transcript(ctx, "Emma").status_code == 201
+    assert _transcript(ctx, "Emma").status_code == 200
     assert ctx.post("/consent/Emma/revoke", json={}, headers=_h()).status_code == 200
     assert _transcript(ctx, "Emma").status_code == 403
     assert len(_records(ctx, "Emma")) == 1
@@ -300,7 +303,7 @@ def test_stale_consent_blocks_collection_until_refreshed(ctx, clock, monkeypatch
     assert len(recs) == 2 and recs[0].revoked_at is not None and recs[1].revoked_at is None
     assert recs[0].notice_hash == old and recs[1].notice_hash == consent.notice_hash()
     assert ctx.get("/household/consent", headers=_h()).json()["needs_consent"] is False
-    assert _transcript(ctx, "Emma").status_code == 201
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_stale_direct_grant_rotates_ledger_and_restores_collection(ctx, clock, monkeypatch):
@@ -315,7 +318,7 @@ def test_stale_direct_grant_rotates_ledger_and_restores_collection(ctx, clock, m
     assert len(records) == 2
     assert records[0].revoked_at is not None
     assert records[1].notice_hash == consent.notice_hash()
-    assert _transcript(ctx, "Emma").status_code == 201
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_household_routes_are_parent_only(ctx):
@@ -337,7 +340,7 @@ def test_pod_save_with_correct_hash_records_consent(ctx, clock, monkeypatch):
     assert len(_records(ctx, "Emma")) == 1 and len(_records(ctx, "Noah")) == 1
     _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())  # idempotent
     assert len(_records(ctx, "Emma")) == 1
-    assert _transcript(ctx, "Emma").status_code == 201
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_pod_save_with_wrong_hash_is_409_and_saves_nothing(ctx):

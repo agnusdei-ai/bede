@@ -209,7 +209,7 @@ class LessonVariant:
             _require(getattr(self, label), label)
         if self.parent_version < 1:
             raise CurriculumModelError("parent_version must be 1 or greater.")
-        if not _OPAQUE_REF.match(self.learner_ref or ""):
+        if not isinstance(self.learner_ref, str) or not _OPAQUE_REF.fullmatch(self.learner_ref):
             raise CurriculumModelError(
                 "learner_ref must be an opaque identifier of at least 8 letters, digits, '_' or '-'."
             )

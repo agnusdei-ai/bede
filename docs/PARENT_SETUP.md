@@ -1254,8 +1254,9 @@ If you did not install through the new installer (for example, you updated an
 existing setup), Parent Setup shows a banner asking you to read the notice and
 tick one box. One tick covers all your children, and you can also tick it as
 you save the setup, so a child you add later is covered too. If Bede later
-updates its notice, the banner asks you to review it again; lessons keep going
-in the meantime.
+updates its notice, the banner asks you to review it again. New collection,
+including saved transcripts and tutoring interactions, is blocked until you
+review and accept the current notice.
 
 You can still pause collection for one child, withdraw consent, and review or
 export everything Bede holds about a child. Withdrawing consent is never

@@ -132,6 +132,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     void run(async () => {
       const [cs, rs] = await Promise.all([fetchPilotOwnerCampuses(token), fetchPilotDeletionReceipts(token)])
       setCampuses(cs); setReceipts(rs)
+      setLearners([]); setLearnerId(''); setConfirmName(''); setConfirmCampusName('')
       setCampusId(cs[0]?.campus_id ?? '')
     }, e => describeFailure(e, { action: 'load the pilot campuses', forbidden: PASSKEY_NEEDED }))
   }
@@ -148,7 +149,6 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campusId, token])
 
-  useEffect(() => { setConfirmCampusName('') }, [campusId])
 
   if (!enabled) return null
   const learner = learners.find(l => l.learner_id === learnerId)
@@ -211,7 +211,10 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
         {campuses.length === 0
           ? (!busy && !error && <p className="text-sm text-gray-500">There are no pilot campuses yet.</p>)
           : <label className="block text-sm">Campus
-              <select className={field + ' mt-1'} value={campusId} onChange={e => setCampusId(e.target.value)}>
+              <select className={field + ' mt-1'} value={campusId} onChange={e => {
+                setLearners([]); setLearnerId(''); setConfirmName(''); setConfirmCampusName('')
+                setCampusId(e.target.value)
+              }}>
                 {campuses.map(c => <option key={c.campus_id} value={c.campus_id}>{c.title}{c.enabled ? '' : ' (disabled)'}</option>)}
               </select>
             </label>}

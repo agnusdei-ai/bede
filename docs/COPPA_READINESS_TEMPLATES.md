@@ -151,6 +151,7 @@ below, and `services/student_deletion.py` must cascade to it.
 | 5 | `learner_behavior_checks` | Adaptation counter | Adaptation check | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 6 | `lesson_bookmarks` | Resume note per subject | Continuity | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 7 | `mastery_profiles` | Skill probabilities | Diagnostic | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
+| 7a | `child_learner_bindings` | Child-session learner binding | Child authentication | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 8 | `diagnostic_evidence_log` | Probe deltas | Diagnostic | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 9 | `skill_activity_log` | Completed-work events | Work ledger | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |
 | 10 | `adaptive_instruction_traces` | Recommendations | Parent review | `[COUNSEL]` | none | until student deleted | Delete all data | Yes |

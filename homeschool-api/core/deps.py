@@ -352,3 +352,25 @@ async def require_demo_preview(
     payload = await _validate_token(request, credentials)
     await _authorize(request, payload, "sandbox.demo_preview")
     return await _require_live_session(request, payload)
+
+
+async def require_learner_access(auth: dict, student_name: str, db: AsyncSession) -> None:
+    """Fail closed before any learner-specific read or write; parent remains separate."""
+    if auth.get("role") == "parent":
+        return
+    if auth.get("role") != "child":
+        raise HTTPException(status_code=404, detail="Resource unavailable")
+    from core.database import ChildLearnerBinding, ChildDevicePairing
+    device_id = auth.get("device_id")
+    nonce = auth.get("learner_nonce")
+    if not device_id or not nonce:
+        raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
+    binding = await db.get(ChildLearnerBinding, device_id)
+    if (binding is None or binding.nonce != nonce or binding.student_name != student_name):
+        raise HTTPException(status_code=404, detail="Resource unavailable")
+    if settings.hosted_profile:
+        pairing = await db.get(ChildDevicePairing, device_id)
+        if pairing is None or pairing.state != "paired":
+            raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
+    if device_registry.is_revoked(device_id):
+        raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")

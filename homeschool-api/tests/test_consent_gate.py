@@ -151,7 +151,7 @@ def test_tutor_chat_refused_without_consent(client):
 
 
 def test_transcript_save_refused_without_consent(client):
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 403
     assert r.json()["detail"]["error"] == "parental_consent_required"
 

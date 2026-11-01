@@ -134,14 +134,18 @@ interface SessionState {
 let msgIdCounter = 0
 const nextId = () => `msg-${++msgIdCounter}`
 
-/** Opaque, per-sitting. randomUUID needs a secure context, which every
- *  real deployment has (Caddy terminates TLS) — the fallback keeps a
- *  plain-HTTP LAN test from crashing rather than being a security
- *  property, since this value identifies a session and nothing else. */
-const newSessionId = (): string =>
-  typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `sess-${Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join("")}`
+/** Opaque per-sitting identifier. getRandomValues works on secure and plain-HTTP
+ *  LAN origins; unlike Math.random it is cryptographically strong. Never
+ *  silently downgrade to an insecure source if Web Crypto is unavailable. */
+const newSessionId = (): string => {
+  const secureCrypto: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto
+  if (!secureCrypto || typeof secureCrypto.getRandomValues !== 'function') {
+    throw new Error('Secure randomness is required for a tutoring session')
+  }
+  if (typeof secureCrypto.randomUUID === 'function') return secureCrypto.randomUUID()
+  const bytes = secureCrypto.getRandomValues(new Uint8Array(16))
+  return `sess-${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`
+}
 
 /**
  * Derive API-format ChatMessage[] from a displayMessages slice. Excludes

@@ -133,6 +133,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     void run(async () => {
       const [cs, rs] = await Promise.all([fetchPilotOwnerCampuses(token), fetchPilotDeletionReceipts(token)])
       setCampuses(cs); setReceipts(rs)
+      setLearners([]); setLearnerId(''); setConfirmName(''); setConfirmCampusName('')
       setCampusId(cs[0]?.campus_id ?? '')
     }, e => describeFailure(e, { action: 'load the pilot campuses', forbidden: PASSKEY_NEEDED }))
   }

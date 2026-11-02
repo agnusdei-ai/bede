@@ -383,9 +383,10 @@ async def status_for(db, student_name: str) -> dict:
     record = await active_record(db, student_name)
     paused = await is_paused(db, student_name)
     return {
-        "student_consented": record is not None,
+        "student_consented": record is not None and record.notice_hash == notice_hash(),
         "method": record.method if record else None,
         "notice_version": NOTICE_VERSION,
+        "stored_notice_hash": record.notice_hash if record else None,
         "granted_at": record.granted_at.isoformat() if record else None,
         "collection_paused": paused,
         "current_notice_hash": notice_hash(),

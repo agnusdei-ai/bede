@@ -640,10 +640,12 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     from types import SimpleNamespace
 
     from core.database import SessionTranscript
+    from core.encryption import decrypt_json, student_aad
     from core.learner_scope import LearnerScope
+    from core import student_keys
     import routers.pilot_tutor as tutor
 
-    ta, tb, campus, _, learner, _ = await two_campuses(db)
+    ta, tb, campus, other_campus, learner, other_learner = await two_campuses(db)
     educator = await token(db, ta)
     other_educator = await token(db, tb)
     request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
@@ -724,3 +726,28 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     assert len(transcripts) == 1
     assert transcripts[0].subjects == "mathematics"
     assert transcripts[0].transcript_enc
+    key = await student_keys.get_existing(db, scope)
+    assert key is not None
+    # Verify the actual stored student-key ciphertext, not just a nonempty blob.
+    stored = decrypt_json(
+        transcripts[0].transcript_enc,
+        student_aad("session_transcripts", "transcript_enc", scope.storage_subject),
+        key,
+    )
+    assert [message["role"] for message in stored["messages"]] == ["learner", "bede"]
+    assert stored["messages"][0]["content"] == "Begin the approved practice with one Socratic question."
+    assert stored["messages"][1]["content"] == events[1]["content"]
+    # A valid ciphertext must not be portable to a second learner's AAD.
+    other_scope = LearnerScope.institutional(other_campus, other_learner)
+    with pytest.raises(ValueError):
+        decrypt_json(
+            transcripts[0].transcript_enc,
+            student_aad("session_transcripts", "transcript_enc", other_scope.storage_subject),
+            key,
+        )
+    other_transcripts = (await db.execute(
+        select(SessionTranscript).where(
+            SessionTranscript.student_name == other_scope.storage_subject,
+        )
+    )).scalars().all()
+    assert other_transcripts == []

@@ -290,13 +290,18 @@ def _bounded_flate_image(x, expected: int, height: int) -> bytes:
     if params:
         if not isinstance(params, DictionaryObject):
             raise PhotoRejected("This PDF image uses unsupported decoding.")
-        try:
-            predictor = int(params.get("/Predictor", 1))
-            columns = int(params.get("/Columns", 1))
-            colors = int(params.get("/Colors", 1))
-            bits = int(params.get("/BitsPerComponent", 8))
-        except (TypeError, ValueError, OverflowError) as exc:
-            raise PhotoRejected("This PDF image uses unsupported decoding.") from exc
+        # PDF FloatObject values (e.g. /Predictor 1.5) must not be
+        # truncated by int(): malformed decoding metadata fails closed.
+        # pypdf NumberObject is an int subclass; bool is not a PDF integer.
+        values = (
+            params.get("/Predictor", 1),
+            params.get("/Columns", 1),
+            params.get("/Colors", 1),
+            params.get("/BitsPerComponent", 8),
+        )
+        if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
+            raise PhotoRejected("This PDF image uses unsupported decoding.")
+        predictor, columns, colors, bits = values
         if (
             predictor not in (1, 2, 10, 11, 12, 13, 14, 15)
             or columns < 1 or colors < 1 or bits != 8

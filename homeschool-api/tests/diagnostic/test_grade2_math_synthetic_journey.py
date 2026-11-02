@@ -178,3 +178,43 @@ async def test_grade2_unknown_probe_preserves_unrelated_pending_transaction(db_f
         ))).scalar_one()
         assert persisted.evidence_count == 2
         assert await get_mastery_summary(db, LEARNER) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("outcome", "confidence"),
+    [
+        ("invented_model_success", 1.0),
+        ("correct", float("nan")),
+        ("correct", float("inf")),
+        ("correct", -float("inf")),
+        ("correct", "high"),
+    ],
+)
+async def test_grade2_untrusted_evidence_cannot_change_mastery(
+    db_factory, outcome, confidence,
+):
+    """Invalid model-supplied evidence must neither invent nor revise mastery.
+
+    Exercise the actual encrypted SQLite persistence path, not a mocked
+    Bayesian function. A valid baseline is retained across the invalid
+    observation; no derived evidence-log row may be added.
+    """
+    async with db_factory() as db:
+        await process_evidence(
+            db, LEARNER, f"probe.{PLACE_VALUE}", "incorrect", 1.0, GRADE_BAND,
+        )
+        before = await get_mastery_summary(db, LEARNER)
+        assert before is not None
+        await process_evidence(
+            db, LEARNER, f"probe.{ADDITION}", outcome, confidence, GRADE_BAND,
+        )
+        after = await get_mastery_summary(db, LEARNER)
+        assert after == before
+        assert after["evidence_count"] == 1
+        logs = (await db.execute(select(DiagnosticEvidenceLog).where(
+            DiagnosticEvidenceLog.student_name == LEARNER,
+        ))).scalars().all()
+        # Logging may be disabled in the shared environment; either way
+        # the invalid observation cannot create a second delta.
+        assert len(logs) <= 1

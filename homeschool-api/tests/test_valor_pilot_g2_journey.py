@@ -751,3 +751,51 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
         )
     )).scalars().all()
     assert other_transcripts == []
+
+
+    # Real diagnostic persistence and pilot deletion use the same
+    # institutional learner scope as the approved tutor transcript.
+    # Synthetic deletion integration only: no real elapsed retention.
+    from services.diagnostic import get_mastery_summary, process_evidence
+    from services.pilot_learner_deletion import delete_pilot_learner
+
+    await process_evidence(
+        db, scope.storage_subject, "probe.nbt.place_value_tens",
+        "incorrect", 1.0, "K-2",
+    )
+    await process_evidence(
+        db, scope.storage_subject, "probe.nbt.add_within_100",
+        "hint_dependent", 1.0, "K-2",
+    )
+    summary = await get_mastery_summary(db, scope.storage_subject)
+    assert summary is not None and summary["evidence_count"] == 2
+    assert "nbt.place_value_tens" in {item["skill_id"] for item in summary["gaps"]}
+    assert await get_mastery_summary(db, other_scope.storage_subject) is None
+
+    # Preserve an independently authorized learner on the other campus.
+    other_evidence = await record_evidence(
+        other_learner,
+        EducatorAssessmentSubmission(
+            framework="classical", measure="applied_work",
+            assessed_on=ASSESSED,
+            source_name="Synthetic other-campus applied-work observation",
+            assistance="unaided",
+        ),
+        auth=other_educator, db=db,
+    )
+    deleted = await delete_pilot_learner(db, campus, learner)
+    assert deleted.deleted["session_transcripts"] == 1
+    assert deleted.deleted["mastery_profiles"] == 1
+    assert deleted.deleted["pilot_evidence"] == 1
+    assert deleted.deleted["pilot_decisions"] == 1
+    assert await get_mastery_summary(db, scope.storage_subject) is None
+    assert (await db.execute(select(SessionTranscript).where(
+        SessionTranscript.student_name == scope.storage_subject,
+    ))).scalars().all() == []
+    remaining_other = await list_evidence(other_learner, auth=other_educator, db=db)
+    assert [item["evidence_id"] for item in remaining_other] == [
+        other_evidence["evidence_id"]
+    ]
+    with pytest.raises(HTTPException) as deleted_learner:
+        await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
+    assert deleted_learner.value.status_code == 404

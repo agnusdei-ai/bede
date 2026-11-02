@@ -22,6 +22,9 @@ on:
 permissions:
   contents: read
   packages: write
+env:
+  # PRs must package their actual head, not GitHub's temporary test-merge SHA.
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 jobs:
   package:
     strategy:
@@ -38,6 +41,11 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Assert exact checked-out source commit
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
@@ -56,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           prefix="ghcr.io/agnusdei-ai/bede"
-          sha="${GITHUB_SHA}"
+          sha="${SOURCE_SHA}"
           arch="${{ matrix.arch }}"
           detected="$(docker info --format '{{.Architecture}}')"
           case "$detected" in x86_64|amd64) detected=amd64 ;; aarch64|arm64) detected=arm64 ;; esac
@@ -73,7 +81,7 @@ jobs:
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           : > image-digests.txt
           for component in api ui trust wizard; do
-            image="ghcr.io/agnusdei-ai/bede-${component}:sha-${GITHUB_SHA}-${{ matrix.arch }}"
+            image="ghcr.io/agnusdei-ai/bede-${component}:sha-${SOURCE_SHA}-${{ matrix.arch }}"
             docker push "$image"
             digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
             [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
@@ -87,7 +95,7 @@ jobs:
           done
       - name: Generate source-free installer and seal embedded images
         env:
-          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           RELEASE_ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
@@ -98,7 +106,7 @@ jobs:
           import json, os
           from pathlib import Path
           evidence = {
-              "source_sha": os.environ["GITHUB_SHA"],
+              "source_sha": os.environ["SOURCE_SHA"],
               "architecture": "${{ matrix.arch }}",
               "build_run_url": f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}',
               "contents": "source-free operator images and launchers",
@@ -114,16 +122,16 @@ jobs:
               json.dumps(evidence, indent=2, sort_keys=True) + "\n")
           PY
           docker save -o dist/bede-operator/images.tar \
-            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-api:sha-${SOURCE_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${SOURCE_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${SOURCE_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${SOURCE_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine
           docker image inspect \
-            ghcr.io/agnusdei-ai/bede-api:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-ui:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-trust:sha-${GITHUB_SHA}-${{ matrix.arch }} \
-            ghcr.io/agnusdei-ai/bede-wizard:sha-${GITHUB_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-api:sha-${SOURCE_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-ui:sha-${SOURCE_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-trust:sha-${SOURCE_SHA}-${{ matrix.arch }} \
+            ghcr.io/agnusdei-ai/bede-wizard:sha-${SOURCE_SHA}-${{ matrix.arch }} \
             postgres:16-alpine caddy:2-alpine \
             --format '{{.RepoTags}} {{.Size}}' > dist/bede-operator/IMAGE_SIZES.txt
           chmod +x dist/bede-operator/start.sh dist/bede-operator/Install-Bede.command dist/bede-operator/Verify-Bede.command dist/bede-operator/simulation/Run-Bede-Installer-Test.command
@@ -150,7 +158,7 @@ jobs:
           assert (d/'ARCH').read_text().strip() == '${{ matrix.arch }}'
           import json, os
           provenance = json.loads((d/'RELEASE_PROVENANCE.json').read_text())
-          assert provenance['source_sha'] == os.environ['GITHUB_SHA']
+          assert provenance['source_sha'] == os.environ['SOURCE_SHA']
           assert provenance['architecture'] == '${{ matrix.arch }}'
           assert provenance['learner_delivery'] == 'NOT_REQUESTED'
           assert provenance['physical_mac'] == 'NOT_RUN'
@@ -168,27 +176,27 @@ jobs:
           cp -a dist/bede-operator dist/bede-operator-standard
           rm -f dist/bede-operator-standard/images.tar dist/bede-operator-standard/images.tar.zst
           cd dist
-          tar -czf bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator-standard
-          sha256sum bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-standard-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
-          tar -czf bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz bede-operator
-          sha256sum bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${GITHUB_SHA}-${{ matrix.arch }}.tar.gz.sha256
+          tar -czf bede-operator-standard-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz bede-operator-standard
+          sha256sum bede-operator-standard-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-standard-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz.sha256
+          tar -czf bede-operator-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz bede-operator
+          sha256sum bede-operator-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz.sha256
       - name: Publish standard network installer separately
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
+          name: bede-standard-linux-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz
-            dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
+            dist/bede-operator-standard-${{ github.event.pull_request.head.sha || github.sha }}-${{ matrix.arch }}.tar.gz
+            dist/bede-operator-standard-${{ github.event.pull_request.head.sha || github.sha }}-${{ matrix.arch }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
       - name: Publish complete Offline installer separately
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-offline-linux-${{ matrix.arch }}-${{ github.sha }}
+          name: bede-offline-linux-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
-            dist/bede-operator-${{ github.sha }}-${{ matrix.arch }}.tar.gz
-            dist/bede-operator-${{ github.sha }}-${{ matrix.arch }}.tar.gz.sha256
+            dist/bede-operator-${{ github.event.pull_request.head.sha || github.sha }}-${{ matrix.arch }}.tar.gz
+            dist/bede-operator-${{ github.event.pull_request.head.sha || github.sha }}-${{ matrix.arch }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30
           compression-level: 0
@@ -199,6 +207,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.12'
@@ -211,7 +222,7 @@ jobs:
       - name: Publish standalone walkthrough for nontechnical reviewers
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-valor-prepilot-walkthrough-${{ github.sha }}
+          name: bede-valor-prepilot-walkthrough-${{ github.event.pull_request.head.sha || github.sha }}
           path: packaging/bundle/Valor-Prepilot-Walkthrough.html
           if-no-files-found: error
           retention-days: 30
@@ -226,6 +237,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: macOS and Linux launcher syntax
         if: runner.os != 'Windows'
         run: |
@@ -249,20 +263,23 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Download compact ARM64 operator runtime
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
         with:
-          name: bede-standard-linux-arm64-${{ github.sha }}
+          name: bede-standard-linux-arm64-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/bede-artifact
       - name: Verify compact runtime and immutable image references
         shell: bash
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/bede-artifact"
-          shasum -a 256 -c "bede-operator-standard-$GITHUB_SHA-arm64.tar.gz.sha256"
-          tar -xzf "bede-operator-standard-$GITHUB_SHA-arm64.tar.gz"
+          shasum -a 256 -c "bede-operator-standard-$SOURCE_SHA-arm64.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$SOURCE_SHA-arm64.tar.gz"
           test "$(cat bede-operator-standard/ARCH)" = arm64
-          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test "$(cat bede-operator-standard/RELEASE)" = "$SOURCE_SHA"
           test -s bede-operator-standard/IMAGE_DIGESTS
           test ! -e bede-operator-standard/images.tar
           test ! -e bede-operator-standard/images.tar.zst
@@ -306,7 +323,7 @@ jobs:
       - name: Upload ad hoc signed engineering candidate only (not for distribution)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-mac-engineering-unnotarized-arm64-${{ github.sha }}
+          name: bede-mac-engineering-unnotarized-arm64-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg.sha256
@@ -325,18 +342,21 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Download source-free pinned amd64 operator payload
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
         with:
-          name: bede-standard-linux-amd64-${{ github.sha }}
+          name: bede-standard-linux-amd64-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/bede-windows-source
       - name: Stage and verify exact-release manifest
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $source = Join-Path $env:RUNNER_TEMP 'bede-windows-source'
-          $hashFile = Join-Path $source "bede-operator-standard-$env:GITHUB_SHA-amd64.tar.gz.sha256"
-          $bundle = Join-Path $source "bede-operator-standard-$env:GITHUB_SHA-amd64.tar.gz"
+          $hashFile = Join-Path $source "bede-operator-standard-$env:SOURCE_SHA-amd64.tar.gz.sha256"
+          $bundle = Join-Path $source "bede-operator-standard-$env:SOURCE_SHA-amd64.tar.gz"
           if (!(Test-Path $hashFile) -or !(Test-Path $bundle)) { throw 'Missing immutable payload or hash' }
           $expected = ((Get-Content $hashFile -Raw).Trim() -split '\s+')[0]
           $actual = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -347,10 +367,10 @@ jobs:
           $dest = Join-Path $env:GITHUB_WORKSPACE 'packaging/windows/release-payload'
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
           Get-ChildItem -LiteralPath $operator -Force | Copy-Item -Destination $dest -Recurse -Force
-          if ((Get-Content "$dest/RELEASE" -Raw).Trim() -cne $env:GITHUB_SHA) { throw 'Source SHA mismatch' }
+          if ((Get-Content "$dest/RELEASE" -Raw).Trim() -cne $env:SOURCE_SHA) { throw 'Source SHA mismatch' }
           if ((Get-Content "$dest/ARCH" -Raw).Trim() -cne 'amd64') { throw 'Wrong runtime architecture' }
           $data = Get-Content "$dest/RELEASE_PROVENANCE.json" -Raw | ConvertFrom-Json
-          if ($data.source_sha -cne $env:GITHUB_SHA -or $data.architecture -cne 'amd64' -or $data.pilot_go -cne 'HOLD') { throw 'Invalid provenance' }
+          if ($data.source_sha -cne $env:SOURCE_SHA -or $data.architecture -cne 'amd64' -or $data.pilot_go -cne 'HOLD') { throw 'Invalid provenance' }
           if (!(Test-Path "$dest/Install-Bede.ps1") -or !(Test-Path "$dest/IMAGE_DIGESTS")) { throw 'Missing verified Windows launcher or immutable image manifest' }
           if (Test-Path "$dest/images.tar") { throw 'Standard installer must not embed raw Docker images' }
           if (Test-Path "$dest/images.tar.zst") { throw 'Standard installer must not embed compressed Docker images' }
@@ -378,7 +398,7 @@ jobs:
               'RELEASE','ARCH','IMAGE_DIGESTS','WIZARD_IMAGE','RELEASE_PROVENANCE.json')) {
             if (!(Test-Path -LiteralPath (Join-Path $installed $name))) { throw ("Windows EXE is missing: " + $name) }
           }
-          if ((Get-Content (Join-Path $installed 'RELEASE') -Raw).Trim() -cne $env:GITHUB_SHA) {
+          if ((Get-Content (Join-Path $installed 'RELEASE') -Raw).Trim() -cne $env:SOURCE_SHA) {
             throw 'Native installer source SHA differs from its build'
           }
           if ((Get-Content (Join-Path $installed 'ARCH') -Raw).Trim() -cne 'amd64') {
@@ -405,14 +425,14 @@ jobs:
           Copy-Item $output (Join-Path $candidate $filename)
           $hash = (Get-FileHash (Join-Path $candidate $filename) -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $filename" | Set-Content -Encoding ASCII (Join-Path $candidate "$filename.sha256")
-          "ENGINEERING CANDIDATE ONLY. Source SHA: $env:GITHUB_SHA. Unsigned; not approved for external distribution, real learner data or Pilot GO." | Set-Content -Encoding ASCII (Join-Path $candidate 'NOT_FOR_DISTRIBUTION.txt')
+          "ENGINEERING CANDIDATE ONLY. Source SHA: $env:SOURCE_SHA. Unsigned; not approved for external distribution, real learner data or Pilot GO." | Set-Content -Encoding ASCII (Join-Path $candidate 'NOT_FOR_DISTRIBUTION.txt')
           Copy-Item 'packaging/windows/release-payload/RELEASE_PROVENANCE.json' (Join-Path $candidate 'RELEASE_PROVENANCE.json')
           Copy-Item 'packaging/windows/release-payload/IMAGE_DIGESTS' (Join-Path $candidate 'IMAGE_DIGESTS')
-          Write-Host "Built source-free Windows candidate for $env:GITHUB_SHA with SHA256 $hash"
+          Write-Host "Built source-free Windows candidate for $env:SOURCE_SHA with SHA256 $hash"
       - name: Upload Windows engineering candidate (not a trusted release)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-windows-engineering-unsigned-amd64-${{ github.sha }}
+          name: bede-windows-engineering-unsigned-amd64-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/windows-engineering/
           if-no-files-found: error
           compression-level: 0
@@ -437,6 +457,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Install native Linux package builders
         run: |
           sudo apt-get update
@@ -446,16 +469,16 @@ jobs:
       - name: Download exact source-free Standard operator
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
         with:
-          name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}
+          name: bede-standard-linux-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/operator
       - name: Verify archive SHA-256 and extract Standard payload
         shell: bash
         run: |
           set -euo pipefail
           cd "$RUNNER_TEMP/operator"
-          sha256sum -c "bede-operator-standard-$GITHUB_SHA-${{ matrix.arch }}.tar.gz.sha256"
-          tar -xzf "bede-operator-standard-$GITHUB_SHA-${{ matrix.arch }}.tar.gz"
-          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          sha256sum -c "bede-operator-standard-$SOURCE_SHA-${{ matrix.arch }}.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$SOURCE_SHA-${{ matrix.arch }}.tar.gz"
+          test "$(cat bede-operator-standard/RELEASE)" = "$SOURCE_SHA"
           test "$(cat bede-operator-standard/ARCH)" = "${{ matrix.arch }}"
           test -s bede-operator-standard/IMAGE_DIGESTS
           test ! -e bede-operator-standard/images.tar
@@ -467,7 +490,7 @@ jobs:
         run: |
           set -euo pipefail
           bash packaging/linux/build-native-packages.sh \
-            "$RUNNER_TEMP/operator/bede-operator-standard" "$GITHUB_SHA" dist/linux-native
+            "$RUNNER_TEMP/operator/bede-operator-standard" "$SOURCE_SHA" dist/linux-native
       - name: Inspect installed file manifests and packages
         shell: bash
         run: |
@@ -488,7 +511,7 @@ jobs:
             echo "Native Standard package unexpectedly contains an offline image archive" >&2
             exit 1
           fi
-          test "$(python3 -c 'import json; print(json.load(open("dist/linux-native/RELEASE_PROVENANCE.json"))["source_sha"])')" = "$GITHUB_SHA"
+          test "$(python3 -c 'import json; print(json.load(open("dist/linux-native/RELEASE_PROVENANCE.json"))["source_sha"])')" = "$SOURCE_SHA"
       - name: Exercise native DEB install and removal without deleting user data
         shell: bash
         run: |
@@ -502,7 +525,7 @@ jobs:
           dpkg-query -W -f='${Status}\n' bede-installer | grep -qx 'install ok installed'
           test -x /usr/bin/bede-installer
           test -s /opt/bede/standard/RELEASE
-          test "$(cat /opt/bede/standard/RELEASE)" = "$GITHUB_SHA"
+          test "$(cat /opt/bede/standard/RELEASE)" = "$SOURCE_SHA"
           test -s /usr/share/applications/bede-installer.desktop
           test ! -e /opt/bede/standard/.env
           test ! -e /etc/systemd/system/bede.service
@@ -526,7 +549,7 @@ jobs:
           # dependencies, services, user data or signing trust anchors.
           sudo rpm --root "$root" -i --nodeps --nosignature "$package"
           test -s "$root/opt/bede/standard/RELEASE"
-          test "$(cat "$root/opt/bede/standard/RELEASE")" = "$GITHUB_SHA"
+          test "$(cat "$root/opt/bede/standard/RELEASE")" = "$SOURCE_SHA"
           test -f "$root/usr/share/applications/bede-installer.desktop"
           test -f "$root/usr/bin/bede-installer"
           test ! -e "$root/opt/bede/standard/.env"
@@ -537,7 +560,7 @@ jobs:
       - name: Upload native Linux engineering candidates
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-linux-native-standard-${{ matrix.arch }}-${{ github.sha }}
+          name: bede-linux-native-standard-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/linux-native/
           if-no-files-found: error
           compression-level: 0
@@ -553,10 +576,13 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
       - name: Download the exact amd64 source-free operator payload
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
         with:
-          name: bede-standard-linux-amd64-${{ github.sha }}
+          name: bede-standard-linux-amd64-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/bede-intel-source
       - name: Verify Intel Mac package inputs
         shell: bash
@@ -564,10 +590,10 @@ jobs:
           set -euo pipefail
           test "$(uname -m)" = x86_64
           cd "$RUNNER_TEMP/bede-intel-source"
-          shasum -a 256 -c "bede-operator-standard-$GITHUB_SHA-amd64.tar.gz.sha256"
-          tar -xzf "bede-operator-standard-$GITHUB_SHA-amd64.tar.gz"
+          shasum -a 256 -c "bede-operator-standard-$SOURCE_SHA-amd64.tar.gz.sha256"
+          tar -xzf "bede-operator-standard-$SOURCE_SHA-amd64.tar.gz"
           test "$(cat bede-operator-standard/ARCH)" = amd64
-          test "$(cat bede-operator-standard/RELEASE)" = "$GITHUB_SHA"
+          test "$(cat bede-operator-standard/RELEASE)" = "$SOURCE_SHA"
           test -s bede-operator-standard/IMAGE_DIGESTS
           test ! -f bede-operator-standard/images.tar
           test ! -f bede-operator-standard/images.tar.zst
@@ -581,7 +607,7 @@ jobs:
           lipo -archs "$app/Contents/MacOS/BedeInstaller" | grep -qw x86_64
           test -s "$app/Contents/Resources/bede-operator/RELEASE_PROVENANCE.json"
           test -s "$app/Contents/Resources/bede-operator/IMAGE_DIGESTS"
-          test "$(cat "$app/Contents/Resources/bede-operator/RELEASE")" = "$GITHUB_SHA"
+          test "$(cat "$app/Contents/Resources/bede-operator/RELEASE")" = "$SOURCE_SHA"
           test "$(cat "$app/Contents/Resources/bede-operator/ARCH")" = amd64
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict "$app"
@@ -594,7 +620,7 @@ jobs:
       - name: Upload unnotarized Intel Mac engineering DMG
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-mac-engineering-unnotarized-amd64-${{ github.sha }}
+          name: bede-mac-engineering-unnotarized-amd64-${{ github.event.pull_request.head.sha || github.sha }}
           path: dist/mac-intel-engineering/
           if-no-files-found: error
           compression-level: 0

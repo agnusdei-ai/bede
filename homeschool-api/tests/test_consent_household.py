@@ -189,6 +189,7 @@ def _ack(monkeypatch, *, hash_=None, at=None):
 
 @pytest.fixture(autouse=True)
 def _no_ack_by_default(monkeypatch):
+    monkeypatch.setattr(settings, "demo_pin", "")
     monkeypatch.setattr(settings, "consent_install_ack_hash", "")
     monkeypatch.setattr(settings, "consent_install_ack_at", "")
 

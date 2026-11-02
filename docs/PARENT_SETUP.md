@@ -1337,6 +1337,12 @@ after a few failed attempts and says so in the chat: nothing gets stuck.
 Tapping the microphone itself at any time also switches straight back to
 press-and-hold.
 
+If a voice session loses its connection or cannot finish transcription,
+Bede ends that attempt instead of treating it as speech that was too quiet.
+Your child can try a new recording or type the answer; failed audio is not
+automatically replayed into a new session. See [Voice setup](VOICE_SETUP.md)
+for the bounded waits and diagnostic limits.
+
 The writing pad (the pencil icon in a session) has a print button if your child
 prefers a real pencil to a stylus. It prints at true page size on any printer
 connected to their tablet, with every paper style scaled to their `GradeStage`

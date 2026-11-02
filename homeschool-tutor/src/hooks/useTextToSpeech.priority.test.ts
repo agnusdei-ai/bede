@@ -52,6 +52,63 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     vi.restoreAllMocks()
   })
 
+  it('mic barge-in stops backend playback immediately and the next utterance completes', async () => {
+    let audio!: HTMLAudioElement
+    window.HTMLMediaElement.prototype.play = vi.fn(function (this: HTMLAudioElement) {
+      audio = this
+      return Promise.resolve()
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      status: 200,
+      headers: new Headers({ 'X-TTS-Configured': 'True' }),
+      blob: async () => new Blob(['synthetic-audio'], { type: 'audio/wav' }),
+    }))
+    const { result } = renderHook(() => useTextToSpeech('fake-token'))
+    act(() => { void result.current.speak('Synthetic first utterance.') })
+    await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1))
+    expect(result.current.isSpeaking).toBe(true)
+    act(() => result.current.stop())
+    expect(window.HTMLMediaElement.prototype.pause).toHaveBeenCalledTimes(1)
+    expect(window.speechSynthesis.cancel).toHaveBeenCalled()
+    expect(result.current.isSpeaking).toBe(false)
+    act(() => { void result.current.speak('Synthetic next utterance.') })
+    await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2))
+    expect(result.current.isSpeaking).toBe(true)
+    await act(async () => { audio.onended?.(new Event('ended')) })
+    expect(result.current.isSpeaking).toBe(false)
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2)
+  })
+
+  it('late pre-interruption audio cannot restart playback over the next utterance', async () => {
+    let finishOldFetch!: (response: unknown) => void
+    let audio!: HTMLAudioElement
+    const response = {
+      status: 200,
+      headers: new Headers({ 'X-TTS-Configured': 'True' }),
+      blob: async () => new Blob(['synthetic-audio'], { type: 'audio/wav' }),
+    }
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise((resolve) => { finishOldFetch = resolve }))
+      .mockResolvedValue(response)
+    vi.stubGlobal('fetch', fetchMock)
+    window.HTMLMediaElement.prototype.play = vi.fn(function (this: HTMLAudioElement) {
+      audio = this
+      return Promise.resolve()
+    })
+    const { result } = renderHook(() => useTextToSpeech('fake-token'))
+    act(() => { void result.current.speak('Synthetic slow utterance.') })
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    act(() => { result.current.stop(); void result.current.speak('Synthetic current utterance.') })
+    await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1))
+    await act(async () => { finishOldFetch(response); await new Promise((resolve) => setTimeout(resolve, 0)) })
+    expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1)
+    expect(result.current.isSpeaking).toBe(true)
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
+    await act(async () => { audio.onended?.(new Event('ended')) })
+    expect(result.current.isSpeaking).toBe(false)
+  })
+
   it('plays the backend voice and never touches the browser fallback when TTS is configured and the call succeeds', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       status: 200,

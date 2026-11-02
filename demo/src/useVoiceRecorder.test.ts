@@ -19,6 +19,7 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useVoiceRecorder } from './useVoiceRecorder'
+import { useHybridVoiceInput } from './useHybridVoiceInput'
 
 class FakeGainNode {
   gain = { value: 1 }
@@ -487,6 +488,85 @@ describe('a provisional getUserMedia() failure never reaches the child', () => {
 })
 
 describe('useVoiceRecorder never leaves the microphone running without an owner', () => {
+  it('the real hybrid hook retries after a canceled pending microphone request without stale errors', async () => {
+    let rejectOld!: (reason: DOMException) => void
+    const nextTrack = { stop: vi.fn() }
+    const nextStream = { getTracks: () => [nextTrack] } as unknown as MediaStream
+    navigator.mediaDevices.getUserMedia = vi.fn()
+      .mockImplementationOnce(() => new Promise<MediaStream>((_, reject) => { rejectOld = reject }))
+      .mockResolvedValue(nextStream)
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.endsWith('/start')
+      ? new Response(JSON.stringify({ session_id: 'synthetic-session' }), { status: 200 })
+      : new Response(new ReadableStream(), { status: 200 })))
+    const source = vi.spyOn(FakeAudioContext.prototype, 'createMediaStreamSource')
+    const { result, unmount } = renderHook(() => useHybridVoiceInput({ token: 'synthetic-token' }))
+    try {
+      await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(0) })
+      await act(async () => { result.current.release(); await vi.advanceTimersByTimeAsync(0) })
+      expect(result.current.micError).toBe('unavailable')
+      await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(0) })
+      expect(source).toHaveBeenCalledExactlyOnceWith(nextStream)
+      await act(async () => { rejectOld(new DOMException('Synthetic old denial', 'NotAllowedError')); await vi.advanceTimersByTimeAsync(0) })
+      expect(result.current.isListening).toBe(true)
+      expect(result.current.micError).toBeNull()
+      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(2)
+      expect(nextTrack.stop).not.toHaveBeenCalled()
+    } finally {
+      unmount()
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      source.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it.each(['initial', 'retry'])('ignores a canceled %s microphone failure after the next press succeeds', async (stage) => {
+    let rejectOld!: (reason: DOMException) => void
+    const pending = new Promise<MediaStream>((_, reject) => { rejectOld = reject })
+    const nextTrack = { stop: vi.fn() }
+    const nextStream = { getTracks: () => [nextTrack] } as unknown as MediaStream
+    const failure = new DOMException('Synthetic denial', 'NotAllowedError')
+    const getUserMedia = vi.fn()
+    if (stage === 'retry') getUserMedia.mockRejectedValueOnce(failure)
+    getUserMedia.mockImplementationOnce(() => pending).mockResolvedValue(nextStream)
+    navigator.mediaDevices.getUserMedia = getUserMedia
+    const onError = vi.fn()
+    const { result } = renderHook(() => useVoiceRecorder({ onError }))
+    let starting!: Promise<void>
+    await act(async () => { starting = result.current.startRecording(); await Promise.resolve() })
+    await act(async () => { await result.current.stopRecording(); await result.current.startRecording() })
+    expect(result.current.isRecording).toBe(true)
+    await act(async () => { rejectOld(failure); await starting })
+    expect(getUserMedia).toHaveBeenCalledTimes(stage === 'retry' ? 3 : 2)
+    expect(onError).not.toHaveBeenCalled()
+    expect(result.current.isRecording).toBe(true)
+    expect(nextTrack.stop).not.toHaveBeenCalled()
+    await act(async () => { await result.current.stopRecording() })
+  })
+
+  it('preserves the next prewarmed stream when a canceled opening resolves late', async () => {
+    let grantOld!: (stream: MediaStream) => void
+    const oldTrack = { stop: vi.fn() }
+    const oldStream = { getTracks: () => [oldTrack] } as unknown as MediaStream
+    const nextTrack = { stop: vi.fn() }
+    const nextStream = { getTracks: () => [nextTrack] } as unknown as MediaStream
+    navigator.mediaDevices.getUserMedia = vi.fn()
+      .mockImplementationOnce(() => new Promise<MediaStream>((resolve) => { grantOld = resolve }))
+      .mockResolvedValue(nextStream)
+    const source = vi.spyOn(FakeAudioContext.prototype, 'createMediaStreamSource')
+    const { result } = renderHook(() => useVoiceRecorder({}))
+    let warming: Promise<MediaStream | null> | undefined
+    act(() => { warming = result.current.prewarm() })
+    await act(async () => { result.current.cancelPrewarm(); await result.current.prewarm() })
+    await act(async () => { grantOld(oldStream); await warming })
+    await act(async () => { await result.current.startRecording() })
+    expect(source).toHaveBeenCalledExactlyOnceWith(nextStream)
+    expect(oldTrack.stop).toHaveBeenCalledTimes(1)
+    expect(nextTrack.stop).not.toHaveBeenCalled()
+    expect(result.current.isRecording).toBe(true)
+    await act(async () => { await result.current.stopRecording() })
+    source.mockRestore()
+  })
+
   it('releases a stream granted after the turn already ended, instead of building a graph nobody is tracking', async () => {
     // The real failure this reproduces: startRecording() is async (it awaits
     // getUserMedia), so a short hold can reach stopRecording() while the mic

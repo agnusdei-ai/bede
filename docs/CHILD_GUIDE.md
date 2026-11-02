@@ -73,13 +73,16 @@ You can answer me in whichever way feels easiest:
   say I can't hear you, I'll tell you which of two things happened: this
   tablet's microphone needs a parent's okay, or we lost our connection for a
   moment. If it's the connection, wait a breath and hold the microphone
-  again. Either way, you can always keep going by typing instead.
+  again. A connection problem doesn't mean you spoke too quietly. If the
+  recording couldn't get through, you may need to say your answer again.
+  Either way, you can always keep going by typing instead.
 - Sometimes a message doesn't reach me — the tablet's connection drops for a
   moment, and it happens to everyone. I'll try again on my own a couple of
   times before I say anything, so most of the time you'll never know it
   happened. If it still doesn't get through, I'll tell you plainly that your
   message didn't reach me, and you can send it again. It wasn't anything you
-  did, and nothing you already told me is lost.
+  did. If I'm taking too long to answer, I'll stop waiting rather than leave
+  you stuck. You can try again when you're ready.
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and

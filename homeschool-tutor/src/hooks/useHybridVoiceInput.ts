@@ -69,9 +69,10 @@ const MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK = 1200
 // applies to EVERY turn, not just an explicit hold (see the KNOWN GAP note
 // above: without native's own endpointing, start()'s continuous-mode
 // callers have no other way to end a turn at all). Matches
-// useVoiceRecorder's own MAX_RECORDING_MS, the real ceiling for how long a
+// end before useVoiceRecorder's own MAX_RECORDING_MS so its auto-stop cannot
+// clear the last PCM delta before release() snapshots it. This still bounds a
 // single turn's audio graph stays open.
-const HOLD_SAFETY_TIMEOUT_MS = 120000
+const HOLD_SAFETY_TIMEOUT_MS = 119500
 const MAX_RECORDING_MS = 120000
 // A "Load failed"/"Failed to fetch" error from startVoiceStream is a raw
 // network-layer failure (the request never got a response at all — a
@@ -162,6 +163,9 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   const stopRef = useRef<() => void>(() => {})
   const controllerRef = useRef<AbortController | null>(null)
   const uploadTailRef = useRef<Promise<void>>(Promise.resolve())
+  // A recorder auto-stop can clear its PCM buffer after earlier deltas reached
+  // the server. Preserve that evidence so release still sends /finish.
+  const uploadedAudioRef = useRef(false)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const finishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const recorderStopRef = useRef<Promise<unknown> | null>(null)
@@ -259,6 +263,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     const upload = uploadTailRef.current.then(async () => {
       if (attemptRef.current !== attempt || signal?.aborted) return
       await pushVoiceStreamChunk(token, sessionId, fresh, signal)
+      if (attemptRef.current === attempt) uploadedAudioRef.current = true
     })
     uploadTailRef.current = upload.catch((err) => {
       logDebug(`pushVoiceStreamChunk failed: ${err instanceof Error ? err.message : String(err)}`)
@@ -377,6 +382,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     const controller = new AbortController()
     controllerRef.current = controller
     uploadTailRef.current = Promise.resolve()
+    uploadedAudioRef.current = false
     pendingReleaseRef.current = null
     releasedAtRef.current = 0
     logDebug(`_start() attempt=${attempt}`)
@@ -590,7 +596,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     // CHUNK_UPLOAD_INTERVAL_MS (so the periodic tick never fired even once)
     // produced a transcript of literally nothing, every single time.
     const finalWavBlob = recorder.snapshotPcmDelta()
-    if (!finalWavBlob && !recorder.isRecording) {
+    if (!finalWavBlob && !recorder.isRecording && !uploadedAudioRef.current) {
       stopRef.current()
       setMicError('unavailable')
       return

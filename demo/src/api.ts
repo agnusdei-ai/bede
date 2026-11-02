@@ -169,7 +169,7 @@ export interface DemoPracticeDeliveryItem {
 async function demoPracticeFetch<T>(token: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${apiBase()}/practice/demo${path}`, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `****** },
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   })
   if (!res.ok) {

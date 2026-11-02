@@ -53,6 +53,12 @@ export default function DemoPracticeCoach({
   const [stage, setStage] = useState<'start' | 'reading' | 'review' | 'planning' | 'plan'>('start')
   const [assessment, setAssessment] = useState<DemoPracticeAssessment | null>(null)
   const [practice, setPractice] = useState<DemoPracticeSetDraft | null>(null)
+  const [planSummary, setPlanSummary] = useState('')
+  const [diagnosis, setDiagnosis] = useState<{
+    errors: Array<{ item_ref: string; category: string; evidence: string; audience: 'parent_and_child' | 'parent_only' }>
+    strengths: Array<{ category: string; note: string }>
+    ask_parent: string[]
+  } | null>(null)
   const [keep, setKeep] = useState<boolean[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -104,9 +110,15 @@ export default function DemoPracticeCoach({
   ) => {
     setAssessment((previous) => {
       if (!previous) return previous
-      const next = structuredClone(previous)
-      Object.assign(next.sections[sectionIndex].items[itemIndex], patch)
-      return next
+      return {
+        ...previous,
+        sections: previous.sections.map((section, currentSection) => currentSection === sectionIndex
+        ? {
+          ...section,
+          items: section.items.map((item, currentItem) => currentItem === itemIndex ? { ...item, ...patch } : item),
+        }
+        : section),
+      }
     })
   }
 
@@ -117,6 +129,8 @@ export default function DemoPracticeCoach({
     try {
       const result = await planDemoPractice(token, assessment)
       setPractice(result.practice_set)
+      setPlanSummary(result.summary)
+      setDiagnosis(result.diagnosis)
       setKeep((result.practice_set?.items ?? []).map(() => true))
       setStage('plan')
     } catch (reason) {
@@ -189,7 +203,10 @@ export default function DemoPracticeCoach({
                   accept={ACCEPT}
                   multiple
                   aria-label={t('demoPractice.photos', { max: MAX_PAGES })}
-                  onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, MAX_PAGES))}
+                  onChange={(event) => {
+                    setFiles(Array.from(event.target.files ?? []).slice(0, MAX_PAGES))
+                    event.target.value = ''
+                  }}
                   className="mt-1 block w-full text-xs"
                 />
               </label>
@@ -210,6 +227,8 @@ export default function DemoPracticeCoach({
               {assessment.sections.map((section, sectionIndex) => (
                 <fieldset key={`${section.label}-${sectionIndex}`} className="rounded-xl border border-gray-200 p-3">
                   <legend className="px-1 text-xs font-semibold">{section.label}</legend>
+                {section.instructions && <p className="text-xs text-gray-500">{section.instructions}</p>}
+                {section.word_bank.length > 0 && <p className="text-xs text-gray-500">{t('demoPractice.wordBank')}: {section.word_bank.join(', ')}</p>}
                   {section.items.map((item, itemIndex) => {
                     const flagged = Boolean(item.ask_parent) || item.confidence < 0.75
                     const itemName = `${section.label} #${item.number}`
@@ -246,9 +265,51 @@ export default function DemoPracticeCoach({
 
           {stage === 'plan' && (
             <div className="space-y-3">
+              {planSummary && <p className="rounded-lg bg-white p-3 text-xs">{planSummary}</p>}
+              {diagnosis && (
+                <section aria-label={t('demoPractice.diagnosis')} className="space-y-2 rounded-lg border border-sage-200 p-3 text-xs">
+                  <h3 className="font-semibold">{t('demoPractice.diagnosis')}</h3>
+                  {diagnosis.errors.some((entry) => entry.audience === 'parent_and_child') && (
+                    <div>
+                      <h4 className="font-semibold">{t('demoPractice.workOn')}</h4>
+                      <ul className="list-disc space-y-1 pl-5">
+                      {diagnosis.errors.filter((entry) => entry.audience !== 'parent_only').map((entry, index) => (
+                        <li key={`${entry.item_ref}-${index}`}>{entry.item_ref}: {entry.evidence}</li>
+                      ))}
+                      </ul>
+                    </div>
+                  )}
+                  {diagnosis.errors.some((entry) => entry.audience === 'parent_only') && (
+                    <div>
+                      <h4 className="font-semibold">{t('demoPractice.forParentOnly')}</h4>
+                      <ul className="list-disc space-y-1 pl-5">
+                        {diagnosis.errors.filter((entry) => entry.audience === 'parent_only').map((entry, index) => (
+                          <li key={`parent-${entry.item_ref}-${index}`}>{entry.item_ref}: {entry.evidence}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {diagnosis.errors.length === 0 && <p>{t('demoPractice.noErrors')}</p>}
+                  {diagnosis.strengths.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold">{t('demoPractice.strengths')}</h4>
+                      <ul className="list-disc space-y-1 pl-5">
+                        {diagnosis.strengths.map((entry, index) => <li key={`${entry.category}-${index}`}>{entry.note}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {diagnosis.ask_parent.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold">{t('demoPractice.parentQuestions')}</h4>
+                      {diagnosis.ask_parent.map((question, index) => <p key={`question-${index}`}>{question}</p>)}
+                    </div>
+                  )}
+                </section>
+              )}
               {practice ? (
                 <>
                   <h3 className="font-semibold">{t('demoPractice.planHeading', { minutes: practice.est_minutes })}</h3>
+                  <p className="text-xs text-gray-600">{t('demoPractice.recheck', { dates: practice.recheck_schedule.join(', ') })}</p>
                   <ol className="space-y-2">
                     {practice.items.map((item, index) => (
                       <li key={`${item.target}-${index}`} className="flex gap-2 rounded-lg bg-white p-2 text-xs">
@@ -265,6 +326,9 @@ export default function DemoPracticeCoach({
                   <button type="button" onClick={() => void approve()} disabled={saving || !keep.some(Boolean)} className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
                     {saving ? <Loader2 size={15} className="mr-1 inline animate-spin" /> : <Check size={15} className="mr-1 inline" />}
                     {t('demoPractice.approve')}
+                  </button>
+                  <button type="button" onClick={onClose} disabled={saving} className={`${button} border border-gray-200 text-gray-700`}>
+                    {t('demoPractice.discard')}
                   </button>
                 </>
               ) : <p>{t('demoPractice.nothingToPractice')}</p>}

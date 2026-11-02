@@ -650,6 +650,34 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     other_educator = await token(db, tb)
     request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
 
+    # Probe the real Grade 2 prerequisite graph and persist the baseline
+    # BEFORE proposing a teacher-governed lesson. These are synthetic
+    # observations, not a model-inferred learning diagnosis.
+    from services.diagnostic import get_mastery_summary, process_evidence
+    from services.diagnostic.skill_map import prerequisites_of
+    from services.pilot_learner_deletion import delete_pilot_learner
+
+    scope = LearnerScope.institutional(campus, learner)
+    other_scope = LearnerScope.institutional(other_campus, other_learner)
+    assert {"nbt.place_value_tens", "oa.add_within_20"} <= set(
+        prerequisites_of("nbt.add_within_100")
+    )
+    assert await get_mastery_summary(db, scope.storage_subject) is None
+    await process_evidence(
+        db, scope.storage_subject, "probe.nbt.place_value_tens",
+        "incorrect", 1.0, "K-2",
+    )
+    await process_evidence(
+        db, scope.storage_subject, "probe.nbt.add_within_100",
+        "hint_dependent", 1.0, "K-2",
+    )
+    baseline = await get_mastery_summary(db, scope.storage_subject)
+    assert baseline is not None and baseline["evidence_count"] == 2
+    assert "nbt.place_value_tens" in {
+        item["skill_id"] for item in baseline["gaps"]
+    }
+    assert await get_mastery_summary(db, other_scope.storage_subject) is None
+
     # A teacher's draft cannot authorize even a local-model tutoring call.
     with pytest.raises(HTTPException) as missing_approval:
         await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
@@ -717,7 +745,6 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     assert len(captured_prompts) == 1
     assert instruction in captured_prompts[0]
 
-    scope = LearnerScope.institutional(campus, learner)
     transcripts = (await db.execute(
         select(SessionTranscript).where(
             SessionTranscript.student_name == scope.storage_subject,
@@ -738,7 +765,6 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     assert stored["messages"][0]["content"] == "Begin the approved practice with one Socratic question."
     assert stored["messages"][1]["content"] == events[1]["content"]
     # A valid ciphertext must not be portable to a second learner's AAD.
-    other_scope = LearnerScope.institutional(other_campus, other_learner)
     with pytest.raises(ValueError):
         decrypt_json(
             transcripts[0].transcript_enc,
@@ -753,23 +779,51 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     assert other_transcripts == []
 
 
-    # Real diagnostic persistence and pilot deletion use the same
-    # institutional learner scope as the approved tutor transcript.
-    # Synthetic deletion integration only: no real elapsed retention.
-    from services.diagnostic import get_mastery_summary, process_evidence
-    from services.pilot_learner_deletion import delete_pilot_learner
+    # A later-dated, independent synthetic attempt enters the REAL educator
+    # evidence and decision path. This simulates a recheck; it does NOT
+    # establish elapsed-time retention or model-graded learner responses.
+    recheck = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical", measure="applied_work",
+            assessed_on=ASSESSED + timedelta(days=1),
+            source_name="Synthetic Grade 2 independent regrouping recheck",
+            assistance="unaided",
+        ),
+        auth=educator, db=db,
+    )
+    followup = await request_recommendation(learner, auth=educator, db=db)
+    assert followup["source_evidence_ids"] == [recheck["evidence_id"]]
+    assert followup["status"] == "pending"
+    assert (await authorized_instruction(learner, auth=educator, db=db))[
+        "recommendation_id"
+    ] == proposal["recommendation_id"]
+    await decide(
+        learner, followup["recommendation_id"],
+        DecisionInput(action="reject", expected_version=1),
+        auth=educator, db=db,
+    )
+    ledger = await decision_ledger(learner, auth=educator, db=db)
+    assert ledger["chain_valid"] is True
+    assert [entry["action"] for entry in ledger["entries"]] == [
+        "approve", "reject"
+    ]
+    assert (await authorized_instruction(learner, auth=educator, db=db))[
+        "recommendation_id"
+    ] == proposal["recommendation_id"]
 
+    # Independently reported diagnostic observations update the same
+    # encrypted institutional mastery profile, never a cross-campus one.
     await process_evidence(
         db, scope.storage_subject, "probe.nbt.place_value_tens",
-        "incorrect", 1.0, "K-2",
+        "correct", 1.0, "K-2",
     )
     await process_evidence(
         db, scope.storage_subject, "probe.nbt.add_within_100",
-        "hint_dependent", 1.0, "K-2",
+        "correct", 1.0, "K-2",
     )
-    summary = await get_mastery_summary(db, scope.storage_subject)
-    assert summary is not None and summary["evidence_count"] == 2
-    assert "nbt.place_value_tens" in {item["skill_id"] for item in summary["gaps"]}
+    rechecked = await get_mastery_summary(db, scope.storage_subject)
+    assert rechecked is not None and rechecked["evidence_count"] == 4
     assert await get_mastery_summary(db, other_scope.storage_subject) is None
 
     # Preserve an independently authorized learner on the other campus.
@@ -786,8 +840,9 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     deleted = await delete_pilot_learner(db, campus, learner)
     assert deleted.deleted["session_transcripts"] == 1
     assert deleted.deleted["mastery_profiles"] == 1
-    assert deleted.deleted["pilot_evidence"] == 1
-    assert deleted.deleted["pilot_decisions"] == 1
+    assert deleted.deleted["pilot_evidence"] == 2
+    assert deleted.deleted["pilot_decisions"] == 2
+    assert deleted.deleted["pilot_recommendations"] == 2
     assert await get_mastery_summary(db, scope.storage_subject) is None
     assert (await db.execute(select(SessionTranscript).where(
         SessionTranscript.student_name == scope.storage_subject,

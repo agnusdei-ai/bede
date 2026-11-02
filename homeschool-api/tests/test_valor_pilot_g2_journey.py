@@ -626,3 +626,104 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
     ledger = await decision_ledger(learner, auth=educator, db=db)
     assert ledger["chain_valid"] is True
     assert [entry["action"] for entry in ledger["entries"]] == ["approve", "reject"]
+
+
+@pytest.mark.asyncio
+async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypatch):
+    """Real G1/G2 approval -> pilot tutor SSE -> encrypted institutional record.
+
+    Only the local model's text stream is deterministic synthetic test data.
+    This does not prove a physical model, diagnostic integration, or elapsed
+    delayed retention. No external model or real learner data is used.
+    """
+    import json
+    from types import SimpleNamespace
+
+    from core.database import SessionTranscript
+    from core.learner_scope import LearnerScope
+    import routers.pilot_tutor as tutor
+
+    ta, tb, _, _, learner, _ = await two_campuses(db)
+    educator = await token(db, ta)
+    other_educator = await token(db, tb)
+    request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
+
+    # A teacher's draft cannot authorize even a local-model tutoring call.
+    with pytest.raises(HTTPException) as missing_approval:
+        await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
+    assert missing_approval.value.status_code == 409
+
+    observation = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical", measure="applied_work",
+            assessed_on=ASSESSED,
+            source_name="Synthetic Grade 2 regrouping 27 + 15",
+            assistance="with_a_hint",
+        ),
+        auth=educator, db=db,
+    )
+    proposal = await request_recommendation(learner, auth=educator, db=db)
+    assert proposal["source_evidence_ids"] == [observation["evidence_id"]]
+    approved = await decide(
+        learner, proposal["recommendation_id"],
+        DecisionInput(action="approve", expected_version=1),
+        auth=educator, db=db,
+    )
+    assert approved["status"] == "approved"
+    instruction = approved["authorized_instruction"]
+    assert instruction
+
+    with pytest.raises(HTTPException) as cross_campus:
+        await tutor.pilot_tutor_turn(learner, request, auth=other_educator, db=db)
+    assert cross_campus.value.status_code == 404
+
+    captured_prompts = []
+
+    class SyntheticLocalStream:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        def __aiter__(self):
+            async def one_chunk():
+                yield SimpleNamespace(
+                    type="content_block_delta",
+                    delta=SimpleNamespace(
+                        type="text_delta",
+                        text="When you add 7 ones and 5 ones, what do you notice?",
+                    ),
+                )
+            return one_chunk()
+
+    class SyntheticMessages:
+        def stream(self, **kwargs):
+            captured_prompts.append(kwargs["system"])
+            assert kwargs["model"] == settings.local_llm_model
+            return SyntheticLocalStream()
+
+    monkeypatch.setattr(
+        tutor, "_local_model",
+        lambda: SimpleNamespace(messages=SyntheticMessages()),
+    )
+    response = await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
+    events = [json.loads(item) async for item in response.body_iterator]
+    assert [event["type"] for event in events] == ["start", "text", "done"]
+    assert "7 ones and 5 ones" in events[1]["content"]
+    assert len(captured_prompts) == 1
+    assert instruction in captured_prompts[0]
+
+    scope = LearnerScope.institutional(
+        (await authorized_instruction(learner, auth=educator, db=db))["campus_id"],
+        learner,
+    )
+    transcripts = (await db.execute(
+        select(SessionTranscript).where(
+            SessionTranscript.student_name == scope.storage_subject,
+        )
+    )).scalars().all()
+    assert len(transcripts) == 1
+    assert transcripts[0].subjects == "mathematics"
+    assert transcripts[0].transcript_enc

@@ -184,6 +184,11 @@ def install_ack_time() -> Optional[datetime]:
     older notice is not valid) and the time parses as a timezone-aware
     ISO-8601 value no more than five minutes in the future.
     """
+    # Install acknowledgements are a self-hosted family convenience only.
+    # Never turn deployment configuration into a substitute for a parent's
+    # recorded consent in a hosted, public-demo, or educator-pilot tenancy.
+    if settings.hosted_profile or settings.educator_pilot_enabled or settings.is_demo_deployment:
+        return None
     if settings.consent_install_ack_hash != notice_hash():
         return None
     raw = settings.consent_install_ack_at.strip()

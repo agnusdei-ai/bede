@@ -15,6 +15,7 @@ behind (see tests/diagnostic/test_mastery.py).
 """
 
 from dataclasses import dataclass
+import math
 from datetime import datetime, timezone
 
 from services.diagnostic.cdm import CdmParams, update_attribute_posteriors
@@ -291,6 +292,17 @@ def bayesian_update(
     """
     required_skills = q_row(observation["probe_id"])
     if not required_skills:
+        return dict(vector), []
+
+    # Untrusted model/tool output must not turn an invented outcome into
+    # an "incorrect" observation or allow NaN/Infinity to poison mastery.
+    # Reject the entire observation before computing or persisting deltas.
+    if observation.get("outcome") not in {
+        "correct", "partial", "incorrect", "hint_dependent",
+    }:
+        return dict(vector), []
+    confidence = observation.get("confidence", 1.0)
+    if not isinstance(confidence, (int, float)) or not math.isfinite(confidence):
         return dict(vector), []
 
     cdm_posteriors = update_attribute_posteriors(

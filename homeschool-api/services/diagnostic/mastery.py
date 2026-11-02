@@ -265,6 +265,19 @@ def classify_level(probability: float) -> str:
     return _classify(probability)
 
 
+#: No estimate may become certain. A probability of exactly 0.0 or 1.0 is an
+#: absorbing state under Bayes' rule: every later observation multiplies it by
+#: a likelihood and normalises back to the same value. Calibration mode scales
+#: a cold-start step by up to 2.0, which overshot and clamped to exactly 1.0 on
+#: a learner's FIRST correct answer, after which four wrong answers in a row
+#: left the skill reported as mastered (and a first wrong answer pinned a
+#: prerequisite at 0.0 that no correct answer could lift). Clamping to an open
+#: interval keeps every estimate revisable while staying well clear of the
+#: 0.80 "secure" cutoff and the gap threshold.
+POSTERIOR_FLOOR = 0.02
+POSTERIOR_CEILING = 0.98
+
+
 def bayesian_update(
     vector: MasteryVector,
     observation: EvidenceObservation,
@@ -325,7 +338,7 @@ def bayesian_update(
         prior = vector.get(skill_id, 0.5)
         cdm_posterior = cdm_posteriors.get(skill_id, prior)
         blended = prior + calibration_weight * (cdm_posterior - prior)
-        blended = max(0.0, min(1.0, blended))
+        blended = max(POSTERIOR_FLOOR, min(POSTERIOR_CEILING, blended))
         updated[skill_id] = blended
         updates.append(MasteryUpdate(
             skill_id=skill_id,

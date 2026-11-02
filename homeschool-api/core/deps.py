@@ -293,6 +293,16 @@ async def require_real_user(
     return await _require_live_session(request, payload)
 
 
+async def require_family_data_write(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Require a family parent or child for a learner-data write."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "family.data.write")
+    return await _require_live_session(request, payload)
+
+
 async def require_parent(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
@@ -390,6 +400,16 @@ async def require_demo_preview(
     routers/sandbox.py and routers/diagnostic.py."""
     payload = await _validate_token(request, credentials)
     await _authorize(request, payload, "sandbox.demo_preview")
+    return await _require_live_session(request, payload)
+
+
+async def require_demo_practice_preview(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Keep transient Practice Coach previews in the demo identity domain."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "practice.demo_preview")
     return await _require_live_session(request, payload)
 
 async def require_learner_access(auth: dict, student_name: str, db: AsyncSession) -> None:

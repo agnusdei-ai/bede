@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 TeacherMark = Literal["correct", "incorrect", "partial", "unmarked"]
 RequiredFormat = Literal["complete_sentence", "single_word", "color_fill", "free", "unknown"]
@@ -151,3 +151,16 @@ class ConfirmAssessmentRequest(_Strict):
 class ApproveSetRequest(_Strict):
     # Optional parent edits; None approves the draft as written.
     practice_set: Optional[PracticeSet] = None
+
+
+class PracticeOutcomeRequest(_Strict):
+    item_index: int = Field(..., ge=0, le=19)
+    response: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("response")
+    @classmethod
+    def response_must_contain_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A response is required.")
+        return value

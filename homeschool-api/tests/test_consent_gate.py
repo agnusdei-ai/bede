@@ -563,3 +563,37 @@ def test_install_ack_still_valid_for_self_hosted_family(monkeypatch):
     monkeypatch.setattr(settings, "consent_install_ack_at", consent._now().isoformat())
 
     assert consent.install_ack_time() is not None
+
+
+def test_stale_notice_is_not_reported_as_current_parental_consent(client):
+    granted = _grant(client)
+    assert granted.status_code == 201
+    current = client.get(f"/consent/{STUDENT}", headers=_parent_headers())
+    assert current.status_code == 200
+    assert current.json()["student_consented"] is True
+    assert current.json()["stored_notice_hash"] == consent.notice_hash()
+
+    import core.database as database_module
+
+    old_hash = hashlib.sha256(b"old parental notice").hexdigest()
+
+    async def _age_notice():
+        async with database_module.AsyncSessionLocal() as db:
+            record = await consent.active_record(db, STUDENT)
+            assert record is not None
+            record.notice_hash = old_hash
+            await db.commit()
+
+    asyncio.run(_age_notice())
+
+    stale = client.get(f"/consent/{STUDENT}", headers=_parent_headers())
+    assert stale.status_code == 200
+    assert stale.json()["student_consented"] is False
+    assert stale.json()["stored_notice_hash"] == old_hash
+    assert stale.json()["current_notice_hash"] == consent.notice_hash()
+
+    refused = client.post(
+        f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers()
+    )
+    assert refused.status_code == 403
+    assert refused.json()["detail"]["error"] == "parental_consent_required"

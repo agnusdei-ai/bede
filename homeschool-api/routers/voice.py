@@ -10,7 +10,7 @@ from typing import List
 from core import consent
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core.database import get_db
-from core.deps import require_auth, require_parent, require_real_user
+from core.deps import require_auth, require_parent, require_real_user, require_learner_access
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from services.voice_auth import (
     delete_profile,
@@ -122,7 +122,10 @@ async def verify(
     db: AsyncSession = Depends(get_db),
     auth: dict = Depends(require_real_user),
 ):
-    """Verify student voice. Returns score + level — never the stored embedding."""
+    """Verify only the token-bound learner voice; never return another child's score."""
+    # A child token is scoped to one current device/learner binding. Check
+    # before reading uploaded audio or looking up a biometric profile.
+    await require_learner_access(auth, student_name, db)
     ctx = audit_from_request(request)
     data = await audio.read()
     _validate_audio(data, audio.filename or "audio")

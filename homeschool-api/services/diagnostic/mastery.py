@@ -302,7 +302,15 @@ def bayesian_update(
     }:
         return dict(vector), []
     confidence = observation.get("confidence", 1.0)
-    if not isinstance(confidence, (int, float)) or not math.isfinite(confidence):
+    # Zero confidence contains no evidence and must not advance calibration.
+    # Reject out-of-range/boolean model output instead of silently turning
+    # malformed confidence into a full-strength mastery observation.
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not math.isfinite(confidence)
+        or not 0.0 < confidence <= 1.0
+    ):
         return dict(vector), []
 
     cdm_posteriors = update_attribute_posteriors(

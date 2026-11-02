@@ -798,4 +798,11 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     ]
     with pytest.raises(HTTPException) as deleted_learner:
         await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
-    assert deleted_learner.value.status_code == 404
+    assert deleted_learner.value.status_code == 401
+
+    # Deletion revokes the old educator token; a freshly issued token still
+    # cannot access the learner that no longer exists.
+    current_educator = await token(db, ta)
+    with pytest.raises(HTTPException) as missing_learner:
+        await tutor.pilot_tutor_turn(learner, request, auth=current_educator, db=db)
+    assert missing_learner.value.status_code == 404

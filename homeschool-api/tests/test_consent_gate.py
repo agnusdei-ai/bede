@@ -525,3 +525,41 @@ def test_demo_chat_is_not_gated_by_parental_consent(client, monkeypatch):
     r = client.post("/tutor/chat", json=_tutor_body(student="Demo"), headers=_demo_headers(code))
     assert calls == [], "the demo role reached the parental-consent gate"
     assert r.status_code == 200, r.text
+
+
+# Hosted and school pilots must not infer parental consent from installer
+# environment variables, even when those values look otherwise valid.
+@pytest.mark.parametrize(
+    "deployment_flag,enabled_value",
+    [
+        ("hosted_profile", True),
+        ("educator_pilot_enabled", True),
+        ("demo_pin", "TEST_DEMO_PIN"),
+    ],
+)
+def test_install_ack_cannot_authorize_hosted_or_pilot_collection(
+    client, monkeypatch, deployment_flag, enabled_value
+):
+    monkeypatch.setattr(settings, "hosted_profile", False)
+    monkeypatch.setattr(settings, "educator_pilot_enabled", False)
+    monkeypatch.setattr(settings, "demo_pin", "")
+    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
+    monkeypatch.setattr(settings, "consent_install_ack_at", consent._now().isoformat())
+    monkeypatch.setattr(settings, deployment_flag, enabled_value)
+
+    assert consent.install_ack_time() is None
+    response = client.post(
+        f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers()
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "parental_consent_required"
+
+
+def test_install_ack_still_valid_for_self_hosted_family(monkeypatch):
+    monkeypatch.setattr(settings, "hosted_profile", False)
+    monkeypatch.setattr(settings, "educator_pilot_enabled", False)
+    monkeypatch.setattr(settings, "demo_pin", "")
+    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
+    monkeypatch.setattr(settings, "consent_install_ack_at", consent._now().isoformat())
+
+    assert consent.install_ack_time() is not None

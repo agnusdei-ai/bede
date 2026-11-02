@@ -74,10 +74,10 @@ E / integration owner: sole owner of App.tsx, core/deps.py, main.py, shared sche
 - Quality: full backend/frontend tests and typecheck/build, CodeQL offline SARIF gate, dependency audits, real hardware qualification and rollback. A successful unit test or storyboard does not certify throughput, hardware or institution deployment.
 - Gate verdict is binary: all relevant checks on current integrated commit green AND owner usability approval AND no unresolved critical security issue, otherwise blocked.
 
-## Mathematics lifecycle, one representative skill per grade (1-8)
+## Mathematics lifecycle: every skill, and one representative skill per grade (K-8)
 
 `homeschool-api/tests/test_valor_pilot_g2_journey.py::test_math_lifecycle_per_grade`
-is one implementation run over eight rows of scenario data. Each row goes
+is one implementation run over nine rows of scenario data. Each row goes
 through the whole lifecycle on the real pilot routes:
 
 campus-scoped educator access, then a prerequisite gap and a hinted attempt,
@@ -87,6 +87,7 @@ authorized educator view, then learner deletion and a refused resumption.
 
 | Grade | Band | Skill | Prerequisite gap |
 | --- | --- | --- | --- |
+| K | K-2 | `cc.count_objects_20` | `cc.rote_count_20` |
 | 1 | K-2 | `cc.number_bonds` | `cc.count_objects_20` |
 | 2 | K-2 | `nbt.add_within_100` | `nbt.place_value_tens` |
 | 3 | 3-5 | `oa.order_of_operations` | `oa.multiplication_facts` |
@@ -108,6 +109,19 @@ the only stored state a grade can move.
 `homeschool-api/tests/diagnostic/test_grade_band_boundaries.py` pins the
 2-to-3 and 5-to-6 boundaries.
 
+`test_math_lifecycle_every_skill` runs the same lifecycle for every skill in
+`services/diagnostic/skill_map.py`: 95 skills, 24 in K-2, 28 in 3-5 and 43
+in 6-8. Its rows are generated from the skill map, so a skill added to the
+map is covered when it lands. Each skill runs at a grade inside its own
+band, rotating through that band's grades, so every grade K-8 is exercised.
+The gap is the skill's first direct prerequisite. The two root skills,
+`cc.rote_count_20` and `geo.identify_shapes`, have no prerequisite, so each
+is its own gap. `test_every_math_skill_row_covers_the_whole_map_and_every_grade`
+fails if a skill is missing from the rows, if a grade K-8 is not reached, or
+if a skill is run at a grade outside its band. When the skill under test is
+one of the two seed sentinels, the row reads an alternate untouched skill
+instead.
+
 Limits, stated with the result:
 
 - The tutor's reply comes from a deterministic stub of the local model.
@@ -116,9 +130,15 @@ Limits, stated with the result:
   evidence of retention over time.
 - Hinted and independent attempts are synthetic observations; no model
   grades a learner's answer.
+- Each skill is checked through its first prerequisite only. Skills with
+  several prerequisites are not checked against each one.
+- This verifies the software path for each skill. It says nothing about
+  whether a learner reaches mastery, which needs real learners over time.
 
-The supported claim is: one representative mathematics lifecycle verified
-per grade, Grades 1-8.
+The supported claim is: every mathematics skill lifecycle verified in
+software, K-8, with one representative lifecycle per grade. It is not a claim
+of complete curriculum coverage, a full diagnosis of prerequisite gaps, or
+demonstrated learning gains.
 
 ## Immediately actionable implementation sequence
 1. Merge safe isolated docs/policy and visual prototypes only after current checks pass; keep new auth inaccessible.

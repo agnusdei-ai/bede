@@ -1771,6 +1771,18 @@ export interface PracticePlan {
   status: 'draft' | null
 }
 
+export interface PracticeDeliveryItem {
+  index: number
+  prompt: string
+  hint: string
+}
+
+export interface PracticeDeliverySet {
+  id: number
+  items: PracticeDeliveryItem[]
+  completed_indices: number[]
+}
+
 export interface ReadingRoute {
   local_available: boolean
   cloud_provider: string | null
@@ -1831,3 +1843,15 @@ export const discardPracticeSet = (token: string, studentName: string, setId: nu
   practiceFetch<{ id: number; status: 'discarded' }>(token, `/${encodeURIComponent(studentName)}/sets/${setId}/discard`, {
     method: 'POST',
   })
+
+export const fetchPracticeDelivery = (token: string, studentName: string) =>
+  practiceFetch<PracticeDeliverySet[]>(token, `/${encodeURIComponent(studentName)}/delivery`)
+
+export const recordPracticeOutcome = (
+  token: string, studentName: string, setId: number, itemIndex: number, response: string,
+) => practiceFetch<{ recorded: true; already_recorded: boolean }>(
+  token, `/${encodeURIComponent(studentName)}/sets/${setId}/outcomes`, {
+    method: 'POST',
+    body: JSON.stringify({ item_index: itemIndex, response }),
+  },
+)

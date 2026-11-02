@@ -529,6 +529,31 @@ async def test_consent_withdrawal_blocks_practice_delivery_and_outcomes(db):
 
 
 @pytest.mark.asyncio
+@pytest.mark.real_consent
+async def test_photo_read_requires_consent_before_model_processing_or_storage(db, monkeypatch):
+    monkeypatch.setattr(settings, "consent_install_ack_hash", "")
+    monkeypatch.setattr(settings, "consent_install_ack_at", "")
+    called = False
+
+    async def read_pages(_request):
+        nonlocal called
+        called = True
+        return settled()
+
+    monkeypatch.setattr(extract, "read_pages", read_pages)
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.read_assessment(
+            "Synthetic Learner",
+            ReadPhotosRequest(subject="latin", pages=[PhotoPage(data="syntheticbase64")]),
+            auth=PARENT,
+            db=db,
+        )
+    assert exc.value.status_code == 403
+    assert called is False
+    assert not (await db.execute(select(PracticeAssessment))).scalars().all()
+
+
+@pytest.mark.asyncio
 async def test_demo_practice_flow_is_transient_and_approval_is_explicit(db, monkeypatch):
     from core.database import PracticeAssessment, PracticeSetRecord
 

@@ -125,6 +125,94 @@ export interface DemoParentConfig {
   learning_support?: string[]
 }
 
+export interface DemoPracticeAssessment {
+  subject: string
+  sections: Array<{
+    label: string
+    instructions: string
+    required_format: 'complete_sentence' | 'single_word' | 'color_fill' | 'free' | 'unknown'
+    word_bank: string[]
+    items: Array<{
+      number: number
+      prompt: string
+      stimulus?: string | null
+      student_response?: string | null
+      teacher_mark: 'correct' | 'incorrect' | 'partial' | 'unmarked'
+      teacher_correction?: string | null
+      confidence: number
+      ask_parent?: string | null
+    }>
+  }>
+}
+
+export interface DemoPracticeSetDraft {
+  targets: string[]
+  mode: 'drill' | 'retrieval'
+  est_minutes: number
+  items: Array<{
+    kind: 'drill' | 'sentence_habit' | 'retrieval'
+    target: string
+    prompt: string
+    expected_answer: string
+    hint: string
+  }>
+  parent_script: string
+  recheck_schedule: string[]
+}
+
+export interface DemoPracticeDeliveryItem {
+  index: number
+  prompt: string
+  hint: string
+}
+
+async function demoPracticeFetch<T>(token: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}/practice/demo${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `****** },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    throw new Error(typeof detail === 'string' ? detail : 'The demo practice could not complete that step.')
+  }
+  return res.json()
+}
+
+export const fetchDemoPracticePacks = (token: string) =>
+  demoPracticeFetch<{ id: string; display_name: string }[]>(token, '/packs')
+
+export const fetchDemoPracticeReadingRoute = (token: string) =>
+  demoPracticeFetch<{ local_available: boolean; cloud_provider: string | null }>(token, '/reading-route')
+
+export const readDemoPracticePhotos = (
+  token: string,
+  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean },
+) => demoPracticeFetch<{
+  id: 0
+  status: 'needs_review' | 'confirmed'
+  assessment: DemoPracticeAssessment
+  ask_parent: string[]
+  teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
+}>(token, '/read', body)
+
+export const planDemoPractice = (token: string, assessment: DemoPracticeAssessment) =>
+  demoPracticeFetch<{
+    summary: string
+    diagnosis: {
+      errors: Array<{ item_ref: string; category: string; evidence: string; audience: 'parent_and_child' | 'parent_only' }>
+      strengths: Array<{ category: string; note: string }>
+      ask_parent: string[]
+    }
+    practice_set: DemoPracticeSetDraft | null
+  }>(token, '/plan', { assessment })
+
+export const approveDemoPractice = (token: string, practiceSet: DemoPracticeSetDraft) =>
+  demoPracticeFetch<{ approved: true; items: DemoPracticeDeliveryItem[] }>(
+    token, '/approve', { practice_set: practiceSet },
+  )
+
 export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
 
 /** Mirrors models/schemas.py's COMPANION_MODES presets. */

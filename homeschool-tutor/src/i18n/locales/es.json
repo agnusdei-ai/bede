@@ -777,6 +777,17 @@
     "workOn": "Qué practicar",
     "forYou": "Solo para usted (no se muestra a su hijo)"
   },
+  "practiceDelivery": {
+    "title": "Una pregunta de práctica aprobada por tu familia",
+    "hint": "Pista: {{hint}}",
+    "responseLabel": "Tu respuesta",
+    "submit": "Enviar mi respuesta a Bede",
+    "check": "Buscar práctica aprobada",
+    "loadError": "No se pudo cargar la práctica. Inténtalo de nuevo.",
+    "saveError": "No se guardó tu respuesta. Inténtalo de nuevo.",
+    "questionContext": "La pregunta de práctica aprobada por mi familia es: {{prompt}}",
+    "answerContext": "Mi respuesta es: {{response}}"
+  },
   "consent": {
     "titleFirst": "Se requiere el consentimiento de los padres",
     "titleChanged": "Aviso actualizado: se requiere un nuevo consentimiento",

@@ -1,0 +1,277 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Check, Loader2, X } from 'lucide-react'
+import {
+  approveDemoPractice,
+  fetchDemoPracticePacks,
+  fetchDemoPracticeReadingRoute,
+  readDemoPracticePhotos,
+  planDemoPractice,
+  type DemoPracticeAssessment,
+  type DemoPracticeSetDraft,
+} from './api'
+
+const ACCEPT = 'image/jpeg,image/png,application/pdf,.pdf'
+const MAX_PAGES = 6
+
+function base64Payload(dataUrl: string) {
+  const comma = dataUrl.indexOf(',')
+  return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl
+}
+
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(base64Payload(String(reader.result)))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+function flaggedCount(assessment: DemoPracticeAssessment) {
+  return assessment.sections.reduce(
+    (count, section) => count + section.items.filter((item) => item.ask_parent || item.confidence < 0.75).length,
+    0,
+  )
+}
+
+export default function DemoPracticeCoach({
+  token,
+  onClose,
+  onApproved,
+}: {
+  token: string
+  onClose: () => void
+  onApproved: (items: { index: number; prompt: string; hint: string }[]) => void
+}) {
+  const { t } = useTranslation()
+  const [packs, setPacks] = useState<{ id: string; display_name: string }[]>([])
+  const [route, setRoute] = useState<{ local_available: boolean; cloud_provider: string | null } | null>(null)
+  const [subject, setSubject] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [cloudConsent, setCloudConsent] = useState(false)
+  const [stage, setStage] = useState<'start' | 'reading' | 'review' | 'planning' | 'plan'>('start')
+  const [assessment, setAssessment] = useState<DemoPracticeAssessment | null>(null)
+  const [practice, setPractice] = useState<DemoPracticeSetDraft | null>(null)
+  const [keep, setKeep] = useState<boolean[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    Promise.all([fetchDemoPracticePacks(token), fetchDemoPracticeReadingRoute(token)])
+      .then(([available, readingRoute]) => {
+        if (!active) return
+        setPacks(available)
+        setSubject(available[0]?.id ?? '')
+        setRoute(readingRoute)
+      })
+      .catch(() => { if (active) setError(t('demoPractice.loadError')) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [token, t])
+
+  const usesCloud = !!route && !route.local_available && !!route.cloud_provider
+  const noReader = !!route && !route.local_available && !route.cloud_provider
+  const remaining = useMemo(() => assessment ? flaggedCount(assessment) : 0, [assessment])
+
+  const read = async () => {
+    if (!files.length || !subject || noReader || (usesCloud && !cloudConsent)) return
+    setStage('reading')
+    setError('')
+    try {
+      const pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
+      const result = await readDemoPracticePhotos(token, {
+        subject,
+        pages,
+        cloud_consent: usesCloud && cloudConsent,
+      })
+      setAssessment(result.assessment)
+      setStage('review')
+    } catch (reason) {
+      setStage('start')
+      setError(reason instanceof Error ? reason.message : t('demoPractice.readError'))
+    } finally {
+      setFiles([])
+    }
+  }
+
+  const editItem = (
+    sectionIndex: number,
+    itemIndex: number,
+    patch: Partial<DemoPracticeAssessment['sections'][0]['items'][0]>,
+  ) => {
+    setAssessment((previous) => {
+      if (!previous) return previous
+      const next = structuredClone(previous)
+      Object.assign(next.sections[sectionIndex].items[itemIndex], patch)
+      return next
+    })
+  }
+
+  const makePlan = async () => {
+    if (!assessment || remaining) return
+    setStage('planning')
+    setError('')
+    try {
+      const result = await planDemoPractice(token, assessment)
+      setPractice(result.practice_set)
+      setKeep((result.practice_set?.items ?? []).map(() => true))
+      setStage('plan')
+    } catch (reason) {
+      setStage('review')
+      setError(reason instanceof Error ? reason.message : t('demoPractice.planError'))
+    }
+  }
+
+  const approve = async () => {
+    if (!practice) return
+    const selected = {
+      ...practice,
+      items: practice.items.filter((_, index) => keep[index]),
+    }
+    if (!selected.items.length) return
+    setSaving(true)
+    setError('')
+    try {
+      const result = await approveDemoPractice(token, selected)
+      onApproved(result.items)
+      onClose()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t('demoPractice.planError'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const label = 'block text-xs font-medium text-gray-600'
+  const button = 'min-h-[44px] rounded-lg px-4 py-2 text-sm font-medium'
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-navy-900/50 p-3" role="dialog" aria-modal="true" aria-label={t('demoPractice.title')}>
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-2xl border border-sage-200 bg-parchment-50 shadow-xl">
+        <div className="flex shrink-0 items-center justify-between border-b border-sage-200 px-4 py-3">
+          <div>
+            <h2 className="font-display text-base font-bold text-navy-800">{t('demoPractice.title')}</h2>
+            <p className="mt-1 text-xs text-gray-600">{t('demoPractice.syntheticOnly')}</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label={t('demoPractice.close')} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-600 hover:bg-sage-100">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm text-gray-700">
+          {error && <p role="alert" className="rounded-lg bg-madder-50 px-3 py-2 text-madder-800">{error}</p>}
+          {loading && <p role="status">{t('demoPractice.loading')}</p>}
+
+          {!loading && (stage === 'start' || stage === 'reading') && (
+            <div className="space-y-3">
+              <p className="rounded-lg bg-gold-50 px-3 py-2 text-xs">{t('demoPractice.privacy')}</p>
+              <label className={label}>
+                {t('demoPractice.subject')}
+                <select value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2">
+                  {packs.map((pack) => <option key={pack.id} value={pack.id}>{pack.display_name}</option>)}
+                </select>
+              </label>
+              {route?.local_available && <p className="text-xs text-sage-800">{t('demoPractice.local')}</p>}
+              {usesCloud && (
+                <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">
+                  <input type="checkbox" checked={cloudConsent} onChange={(event) => setCloudConsent(event.target.checked)} className="mt-0.5" />
+                  <span>{t('demoPractice.cloud', { provider: route?.cloud_provider ?? '' })}</span>
+                </label>
+              )}
+              {noReader && <p className="text-xs text-madder-800">{t('demoPractice.noReader')}</p>}
+              <label className={label}>
+                {t('demoPractice.photos', { max: MAX_PAGES })}
+                <input
+                  type="file"
+                  accept={ACCEPT}
+                  multiple
+                  aria-label={t('demoPractice.photos', { max: MAX_PAGES })}
+                  onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, MAX_PAGES))}
+                  className="mt-1 block w-full text-xs"
+                />
+              </label>
+              <p className="text-xs text-gray-500">{t('demoPractice.photosHint', { max: MAX_PAGES })}</p>
+              <button type="button" onClick={() => void read()} disabled={stage === 'reading' || !files.length || !subject || noReader || (usesCloud && !cloudConsent)} className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
+                {stage === 'reading' ? t('demoPractice.reading') : t('demoPractice.read')}
+              </button>
+            </div>
+          )}
+
+          {(stage === 'review' || stage === 'planning') && assessment && (
+            <div className="space-y-3">
+              <p className="font-medium">{t('demoPractice.teacherCount', {
+                correct: assessment.sections.flatMap((section) => section.items).filter((item) => item.teacher_mark === 'correct').length,
+                total: assessment.sections.flatMap((section) => section.items).filter((item) => item.teacher_mark !== 'unmarked').length,
+              })}</p>
+              {remaining > 0 && <p role="status" className="rounded-lg bg-gold-50 px-3 py-2 text-xs">{t('demoPractice.checkCount', { count: remaining })}</p>}
+              {assessment.sections.map((section, sectionIndex) => (
+                <fieldset key={`${section.label}-${sectionIndex}`} className="rounded-xl border border-gray-200 p-3">
+                  <legend className="px-1 text-xs font-semibold">{section.label}</legend>
+                  {section.items.map((item, itemIndex) => {
+                    const flagged = Boolean(item.ask_parent) || item.confidence < 0.75
+                    const itemName = `${section.label} #${item.number}`
+                    return (
+                      <div key={`${item.number}-${itemIndex}`} className={`mt-2 rounded-lg p-2 ${flagged ? 'bg-gold-50' : 'bg-white'}`}>
+                        <p className="text-xs">{item.number}. {item.prompt}{item.stimulus ? ` (${item.stimulus})` : ''}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <input aria-label={t('demoPractice.answerFor', { item: itemName })} value={item.student_response ?? ''} onChange={(event) => editItem(sectionIndex, itemIndex, { student_response: event.target.value })} className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1" />
+                          <select aria-label={t('demoPractice.markFor', { item: itemName })} value={item.teacher_mark} onChange={(event) => editItem(sectionIndex, itemIndex, { teacher_mark: event.target.value as typeof item.teacher_mark })} className="rounded border border-gray-200 px-2 py-1">
+                            {(['correct', 'incorrect', 'partial', 'unmarked'] as const).map((mark) => <option key={mark} value={mark}>{t(`demoPractice.mark.${mark}`)}</option>)}
+                          </select>
+                          {item.teacher_mark !== 'correct' && (
+                            <input aria-label={t('demoPractice.correctionFor', { item: itemName })} placeholder={t('demoPractice.correction')} value={item.teacher_correction ?? ''} onChange={(event) => editItem(sectionIndex, itemIndex, { teacher_correction: event.target.value || null })} className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1" />
+                          )}
+                        </div>
+                        {flagged && (
+                          <div className="mt-2 flex items-center gap-2 text-xs">
+                            <span>{item.ask_parent || t('demoPractice.unsure')}</span>
+                            <button type="button" onClick={() => editItem(sectionIndex, itemIndex, { ask_parent: null, confidence: 1 })} className="rounded bg-white px-2 py-1 font-medium text-navy-800 ring-1 ring-navy-100">
+                              <Check size={13} className="inline" /> {t('demoPractice.looksRight')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </fieldset>
+              ))}
+              <button type="button" onClick={() => void makePlan()} disabled={remaining > 0 || stage === 'planning'} className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
+                {stage === 'planning' ? t('demoPractice.planning') : t('demoPractice.confirm')}
+              </button>
+            </div>
+          )}
+
+          {stage === 'plan' && (
+            <div className="space-y-3">
+              {practice ? (
+                <>
+                  <h3 className="font-semibold">{t('demoPractice.planHeading', { minutes: practice.est_minutes })}</h3>
+                  <ol className="space-y-2">
+                    {practice.items.map((item, index) => (
+                      <li key={`${item.target}-${index}`} className="flex gap-2 rounded-lg bg-white p-2 text-xs">
+                        <input type="checkbox" checked={keep[index] ?? true} aria-label={t('demoPractice.include', { number: index + 1 })} onChange={(event) => setKeep((items) => items.map((value, itemIndex) => itemIndex === index ? event.target.checked : value))} />
+                        <div>
+                          <p className="font-medium">{item.prompt}</p>
+                          <p>{t('demoPractice.answer')}: {item.expected_answer}</p>
+                          {item.hint && <p>{t('demoPractice.hint')}: {item.hint}</p>}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="text-xs"><strong>{t('demoPractice.script')}:</strong> {practice.parent_script}</p>
+                  <button type="button" onClick={() => void approve()} disabled={saving || !keep.some(Boolean)} className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
+                    {saving ? <Loader2 size={15} className="mr-1 inline animate-spin" /> : <Check size={15} className="mr-1 inline" />}
+                    {t('demoPractice.approve')}
+                  </button>
+                </>
+              ) : <p>{t('demoPractice.nothingToPractice')}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

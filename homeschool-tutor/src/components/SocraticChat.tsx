@@ -13,6 +13,7 @@ import { readerFacingError } from '../utils/networkFailure'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
+import PracticeDelivery from './PracticeDelivery'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
@@ -846,6 +847,13 @@ export default function SocraticChat({
 
   return (
     <div className="flex flex-col h-full">
+      {role === 'child' && token && sessionConfig && (
+        <PracticeDelivery
+          token={token}
+          studentName={sessionConfig.student_name}
+          onAnswer={(prompt, response) => send(`${t('practiceDelivery.questionContext', { prompt })}\n${t('practiceDelivery.answerContext', { response })}`)}
+        />
+      )}
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (

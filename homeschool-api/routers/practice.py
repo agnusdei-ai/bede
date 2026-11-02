@@ -61,6 +61,7 @@ async def read_assessment(
     auth: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await consent.require_collection(db, student_name)
     try:
         assessment = await extract.read_pages(req)
     except extract.ConsentRequired as exc:
@@ -92,6 +93,7 @@ async def enter_assessment(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Type a quiz in by hand instead of photographing it."""
+    await consent.require_collection(db, student_name)
     if pipeline.get_pack(req.assessment.subject) is None:
         raise HTTPException(status_code=422, detail=f"No practice pack for {req.assessment.subject!r} yet.")
     status = "needs_review" if req.assessment.needs_parent() else "confirmed"
@@ -112,6 +114,7 @@ async def confirm_assessment(
 ) -> dict:
     """The parent's corrected reading. Confirming means every flagged field
     has been settled: an item still flagged keeps the record in review."""
+    await consent.require_collection(db, student_name)
     found = await store.load_assessment(db, student_name, record_id)
     if found is None:
         raise HTTPException(status_code=404, detail=_NOT_FOUND)
@@ -128,6 +131,7 @@ async def plan_practice(
     auth: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await consent.require_collection(db, student_name)
     found = await store.load_assessment(db, student_name, record_id)
     if found is None:
         raise HTTPException(status_code=404, detail=_NOT_FOUND)
@@ -298,6 +302,7 @@ async def approve_set(
     auth: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    await consent.require_collection(db, student_name)
     row, detail = await _draft(db, student_name, set_id)
     await store.decide_set(db, row, "approved", req.practice_set, detail.get("summary", ""))
     return {"id": set_id, "status": "approved"}

@@ -777,6 +777,17 @@
     "workOn": "What to work on",
     "forYou": "Just for you (not shown to your child)"
   },
+  "practiceDelivery": {
+    "title": "A practice question your parent approved",
+    "hint": "Hint: {{hint}}",
+    "responseLabel": "Your answer",
+    "submit": "Send my answer to Bede",
+    "check": "Check for approved practice",
+    "loadError": "Practice could not be loaded. Please try again.",
+    "saveError": "Your answer was not saved. Please try again.",
+    "questionContext": "My parent-approved practice question is: {{prompt}}",
+    "answerContext": "My answer is: {{response}}"
+  },
   "consent": {
     "titleFirst": "Parental Consent Required",
     "titleChanged": "Updated Notice: Renewed Consent Required",

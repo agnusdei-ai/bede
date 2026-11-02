@@ -174,6 +174,36 @@ def test_unreadable_pdf_indirect_object_fails_closed(monkeypatch):
         upload_safety._refuse_active_content(reader, raw)
 
 
+def _flate_scan(writer, data: bytes) -> None:
+    """Encode the existing synthetic 16x16 RGB scan as Flate in a real PDF."""
+    image = writer.pages[0]["/Resources"]["/XObject"]["/Im0"].get_object()
+    image[NameObject("/Filter")] = NameObject("/FlateDecode")
+    image._data = zlib.compress(data)
+
+
+@pytest.mark.asyncio
+async def test_flate_scan_bounded_before_pypdf_decoding(monkeypatch):
+    """A tiny compressed over-expansion must fail before unbounded get_data()."""
+    from pypdf.generic import EncodedStreamObject
+
+    expected = bytes([90, 140, 200]) * (16 * 16)
+    valid = make_pdf(("raw",), lambda writer: _flate_scan(writer, expected))
+    too_large = make_pdf(("raw",), lambda writer: _flate_scan(writer, expected + b"X"))
+
+    original = EncodedStreamObject.get_data
+
+    def guarded_get_data(stream):
+        if stream.get("/Subtype") == "/Image":
+            raise AssertionError("pypdf must not inflate a Flate image unchecked")
+        return original(stream)
+
+    monkeypatch.setattr(EncodedStreamObject, "get_data", guarded_get_data)
+    pages = await prep(valid)
+    assert len(pages) == 1 and decoded(pages)[0].format == "PNG"
+    with pytest.raises(PhotoRejected, match="expands beyond"):
+        await prep(too_large)
+
+
 @pytest.mark.asyncio
 async def test_pdf_page_and_content_limits():
     with pytest.raises(PhotoRejected):

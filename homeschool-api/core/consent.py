@@ -25,8 +25,9 @@ person who installed Bede acknowledged the family notice at install time
 covers a student only if that student has never had a consent record:
 withdrawal is never undone by the ack. The first collection for a covered
 student writes a ledger row (method install_custodian_attestation, dated at
-the ack time). There is no mode and no grace period. Hosted or pilot
-deployments never set the ack. The custodian wording is a draft for counsel.
+the ack time). There is no grace period. Hosted, public-demo, and educator-pilot
+deployments refuse the install ack even if its environment values are set.
+The custodian wording is a draft for counsel.
 
 A consent recorded against an older notice is STALE. Collection fails closed
 until a parent acknowledges the current notice. Household status reports stale

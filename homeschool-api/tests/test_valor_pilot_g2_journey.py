@@ -547,3 +547,82 @@ async def test_revoked_before_decision_commit_rolls_back_ledger(db, monkeypatch)
     remaining = await db.get(PilotRecommendation, proposal["recommendation_id"])
     assert remaining is not None and remaining.status == "pending" and remaining.version == 1
     assert (await db.execute(select(PilotDecision))).scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
+    """Grade 2 regrouping: real G1/G2 authorization and a later educator recheck.
+
+    The teacher records a synthetic 27 + 15 applied-work observation without
+    storing a child's raw answer. A hint-dependent attempt may only produce
+    a DRAFT recommendation until explicitly approved. A later independent
+    observation supersedes the earlier evidence for the next proposal, but
+    cannot silently replace the previously approved instruction.
+
+    This exercises the actual pilot routes and durable decision ledger; it
+    does NOT claim that the diagnostic mastery vector, tutoring delivery, or
+    elapsed-time retention are connected to these classical observations.
+    """
+    ta, tb, _, _, learner, _ = await two_campuses(db)
+    educator = await token(db, ta)
+    other_campus_educator = await token(db, tb)
+
+    first_evidence = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical",
+            measure="applied_work",
+            assessed_on=ASSESSED,
+            source_name="Synthetic Grade 2 regrouping observation (27 + 15)",
+            assistance="with_a_hint",
+        ),
+        auth=educator, db=db,
+    )
+    first = await request_recommendation(learner, auth=educator, db=db)
+    assert first["abstained"] is False
+    assert first["status"] == "pending"
+    assert first["source_evidence_ids"] == [first_evidence["evidence_id"]]
+    assert "guided practice in applied work" in first["proposal"]
+    assert (await authorized_instruction(learner, auth=educator, db=db))["authorized_instruction"] is None
+
+    # A teacher from another campus cannot view or approve this learner's work.
+    with pytest.raises(HTTPException) as denied:
+        await authorized_instruction(learner, auth=other_campus_educator, db=db)
+    assert denied.value.status_code == 404
+
+    approved = await decide(
+        learner, first["recommendation_id"],
+        DecisionInput(action="approve", expected_version=1),
+        auth=educator, db=db,
+    )
+    assert approved["status"] == "approved"
+    assert (await authorized_instruction(learner, auth=educator, db=db))["recommendation_id"] == first["recommendation_id"]
+
+    # A later, independently observed attempt is new evidence, not an
+    # automatic promotion of the learner's diagnostic mastery probability.
+    later_evidence = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical",
+            measure="applied_work",
+            assessed_on=ASSESSED + timedelta(days=1),
+            source_name="Synthetic Grade 2 independent regrouping recheck",
+            assistance="unaided",
+        ),
+        auth=educator, db=db,
+    )
+    later = await request_recommendation(learner, auth=educator, db=db)
+    assert later["source_evidence_ids"] == [later_evidence["evidence_id"]]
+    assert "more demanding applied work task" in later["proposal"]
+    assert later["status"] == "pending"
+    # Pending or rejected follow-ups never become learner-facing instruction.
+    assert (await authorized_instruction(learner, auth=educator, db=db))["recommendation_id"] == first["recommendation_id"]
+    await decide(
+        learner, later["recommendation_id"],
+        DecisionInput(action="reject", expected_version=1),
+        auth=educator, db=db,
+    )
+    assert (await authorized_instruction(learner, auth=educator, db=db))["recommendation_id"] == first["recommendation_id"]
+    ledger = await decision_ledger(learner, auth=educator, db=db)
+    assert ledger["chain_valid"] is True
+    assert [entry["action"] for entry in ledger["entries"]] == ["approve", "reject"]

@@ -8,9 +8,9 @@ class NativeLinuxReleaseTests(unittest.TestCase):
         ci = (ROOT / ".github/workflows/build-bede-operator.yml").read_text()
         part = ci.split("  package-linux-native:", 1)[1]
         for item in ("needs: package", "arch: amd64", "arch: arm64",
-                     "name: bede-standard-linux-${{ matrix.arch }}-${{ github.sha }}",
+                     "name: bede-standard-linux-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}",
                      "sha256sum -c", "dpkg-deb --field", "rpm -qpl",
-                     "bede-linux-native-standard-${{ matrix.arch }}-${{ github.sha }}"):
+                     "bede-linux-native-standard-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}"):
             self.assertIn(item, part)
 
     def test_native_desktop_and_provenance_built_without_sources(self):

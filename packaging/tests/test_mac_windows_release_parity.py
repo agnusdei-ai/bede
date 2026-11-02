@@ -15,18 +15,34 @@ class MacWindowsCandidateContract(unittest.TestCase):
         self.assertIn("package-windows-standard:", workflow)
         windows = workflow.split("  package-windows-standard:", 1)[1]
         self.assertIn("needs: package", windows)
-        self.assertIn("name: bede-standard-linux-amd64-${{ github.sha }}", windows)
+        self.assertIn("name: bede-standard-linux-amd64-${{ github.event.pull_request.head.sha || github.sha }}", windows)
         self.assertIn("RELEASE_PROVENANCE.json", windows)
         self.assertIn("BedeRelease.iss", windows)
         self.assertIn("Get-FileHash", windows)
         self.assertIn("Bede-Engineering-Windows-amd64.exe", windows)
         self.assertIn("NOT_FOR_DISTRIBUTION.txt", windows)
         self.assertIn("Get-AuthenticodeSignature", windows)
-        self.assertIn("name: bede-windows-engineering-unsigned-amd64-${{ github.sha }}", windows)
+        self.assertIn("name: bede-windows-engineering-unsigned-amd64-${{ github.event.pull_request.head.sha || github.sha }}", windows)
         mac = workflow.split("  package-mac-pilot:", 1)[1].split("  package-windows-standard:", 1)[0]
-        self.assertIn("bede-standard-linux-arm64-${{ github.sha }}", mac)
+        self.assertIn("bede-standard-linux-arm64-${{ github.event.pull_request.head.sha || github.sha }}", mac)
         self.assertIn("Bede-Engineering-Mac-arm64.dmg", mac)
         self.assertIn("NOT_FOR_DISTRIBUTION.txt", mac)
+
+    def test_pr_artifacts_pin_the_real_head_not_the_temporary_merge_sha(self):
+        workflow = (ROOT / ".github/workflows/build-bede-operator.yml").read_text()
+        expression = "${{ github.event.pull_request.head.sha || github.sha }}"
+        self.assertIn(f"SOURCE_SHA: {expression}", workflow)
+        self.assertIn(f"RELEASE_SHA: {expression}", workflow)
+        self.assertNotIn("GITHUB_SHA", workflow)
+        checkout = "uses: actions/checkout@"
+        for section in workflow.split(checkout)[1:]:
+            before_next_step = section.split("\n      - ", 1)[0]
+            self.assertIn(f"ref: {expression}", before_next_step)
+            self.assertIn("persist-credentials: false", before_next_step)
+        self.assertEqual(workflow.count(checkout), 7)
+        self.assertIn('run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"', workflow)
+        self.assertIn('os.environ["SOURCE_SHA"]', workflow)
+        self.assertIn("$env:SOURCE_SHA", workflow)
 
     def test_windows_native_exe_uses_sealed_payload_not_git_checkout(self):
         iss = (ROOT / "packaging/windows/BedeRelease.iss").read_text()

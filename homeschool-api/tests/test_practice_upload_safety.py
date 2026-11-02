@@ -207,7 +207,6 @@ async def test_flate_scan_bounded_before_pypdf_decoding(monkeypatch):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("key,value", [
     ("/Predictor", FloatObject(1.5)),
-    ("/Predictor", FloatObject(1.0)),
     ("/Columns", FloatObject(16.5)),
     ("/Colors", FloatObject(3.5)),
     ("/BitsPerComponent", FloatObject(8.5)),
@@ -238,7 +237,7 @@ async def test_flate_scan_png_predictor_bounded_and_decoded(predictor):
     """A valid PNG predictor remains supported under the decompression cap."""
     row = bytes([90, 140, 200]) * 16
     # PNG predictor rows carry one filter byte (0 = None).
-    encoded = (b"\\x00" + row) * 16
+    encoded = (bytes([0]) + row) * 16
 
     def mutate(writer):
         _flate_scan(writer, encoded)

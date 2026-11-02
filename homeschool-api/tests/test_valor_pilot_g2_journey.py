@@ -643,7 +643,7 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     from core.learner_scope import LearnerScope
     import routers.pilot_tutor as tutor
 
-    ta, tb, _, _, learner, _ = await two_campuses(db)
+    ta, tb, campus, _, learner, _ = await two_campuses(db)
     educator = await token(db, ta)
     other_educator = await token(db, tb)
     request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
@@ -715,10 +715,7 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     assert len(captured_prompts) == 1
     assert instruction in captured_prompts[0]
 
-    scope = LearnerScope.institutional(
-        (await authorized_instruction(learner, auth=educator, db=db))["campus_id"],
-        learner,
-    )
+    scope = LearnerScope.institutional(campus, learner)
     transcripts = (await db.execute(
         select(SessionTranscript).where(
             SessionTranscript.student_name == scope.storage_subject,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp, Laptop, Loader2, ShieldOff } from 'lucide-react'
-import { fetchDevices, revokeDevice, type DeviceInfo } from '../services/api'
+import { assignChildLearner, fetchDevices, listPodConfigs, revokeDevice, type DeviceInfo } from '../services/api'
 import { getOrCreateDeviceId } from '../utils/deviceId'
 
 /**
@@ -31,6 +31,10 @@ export default function DeviceSettings({ token }: { token: string }) {
   const [devices, setDevices] = useState<DeviceInfo[] | undefined>(undefined)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [learners, setLearners] = useState<string[]>([])
+  const [selectedLearner, setSelectedLearner] = useState<Record<string, string>>({})
+  const [assigningId, setAssigningId] = useState<string | null>(null)
+  const [assignmentNotice, setAssignmentNotice] = useState('')
 
   const thisDeviceId = getOrCreateDeviceId()
 
@@ -41,6 +45,31 @@ export default function DeviceSettings({ token }: { token: string }) {
   useEffect(() => {
     fetchDevices(token).then(setDevices).catch(() => setError('Could not load devices'))
   }, [token])
+
+  useEffect(() => {
+    if (!expanded) return
+    let cancelled = false
+    listPodConfigs(token)
+      .then((configs) => { if (!cancelled) setLearners(configs.map((c) => c.student_name)) })
+      .catch(() => { if (!cancelled) setError('Could not load configured learners') })
+    return () => { cancelled = true }
+  }, [expanded, token])
+
+  const handleAssign = async (deviceId: string) => {
+    const studentName = selectedLearner[deviceId]
+    if (!studentName) return
+    setAssigningId(deviceId)
+    setAssignmentNotice('')
+    setError('')
+    try {
+      await assignChildLearner(token, deviceId, studentName)
+      setAssignmentNotice('Assignment saved. The child must sign in again on that device to use the new learner session.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not assign learner to this device')
+    } finally {
+      setAssigningId(null)
+    }
+  }
 
   // Nothing to show for a brand-new deployment where nobody has logged in
   // with a device_id yet (or localStorage was unavailable for every login
@@ -125,6 +154,27 @@ export default function DeviceSettings({ token }: { token: string }) {
                     {d.revoked ? `Revoked ${d.revoked_at ? formatSeen(d.revoked_at) : ''}` : `Last seen ${formatSeen(d.last_seen_at)}`}
                   </div>
                 </div>
+                {!d.revoked && learners.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2 ml-3">
+                    <select
+                      aria-label={`Learner for ${d.device_id}`}
+                      value={selectedLearner[d.device_id] ?? ''}
+                      onChange={(event) => setSelectedLearner((prev) => ({ ...prev, [d.device_id]: event.target.value }))}
+                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                    >
+                      <option value="">Choose learner</option>
+                      {learners.map((name) => <option key={name} value={name}>{name}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => void handleAssign(d.device_id)}
+                      disabled={!selectedLearner[d.device_id] || assigningId === d.device_id}
+                      className="text-xs text-navy-600 disabled:opacity-40"
+                    >
+                      {assigningId === d.device_id ? 'Assigning…' : 'Assign / switch'}
+                    </button>
+                  </div>
+                )}
                 {!d.revoked && (
                   <button
                     onClick={() => handleRevoke(d)}
@@ -139,6 +189,7 @@ export default function DeviceSettings({ token }: { token: string }) {
             ))}
           </div>
 
+          {assignmentNotice && <p role="status" className="text-sm text-navy-600">{assignmentNotice}</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       )}

@@ -213,6 +213,20 @@ export async function revokeDevice(token: string, deviceId: string): Promise<Dev
   return res.json()
 }
 
+// A parent explicitly binds a registered device to one configured learner.
+// Switching rotates the server-side nonce, invalidating prior child tokens.
+export async function assignChildLearner(token: string, deviceId: string, studentName: string): Promise<void> {
+  const res = await fetch(`${BASE}/auth/child-devices/${encodeURIComponent(deviceId)}/learner`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_name: studentName }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not assign learner to this device')
+  }
+}
+
 // Recovery PIN/code enrollment (the "something you know" leg of account
 // recovery below) — mutually exclusive; enrolling one clears the other.
 

@@ -180,6 +180,30 @@ describe('voice turn cancellation and ordered deltas', () => {
     expect(result.current.isTranscribing).toBe(false)
     expect(result.current.micError).toBe('network')
   })
+  it('finishes a capped turn when the recorder cleared PCM after an earlier upload', async () => {
+    vi.useFakeTimers()
+    const first = new Blob(['already-uploaded-audio'])
+    snapshotPcmDelta.mockReturnValueOnce(first).mockReturnValue(null)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(4000) })
+    expect(pushVoiceStreamChunk).toHaveBeenCalledTimes(1)
+    expect(pushVoiceStreamChunk.mock.calls[0][2]).toBe(first)
+    await act(async () => { result.current.release(); await vi.advanceTimersByTimeAsync(0) })
+    expect(finishVoiceStream).toHaveBeenCalledTimes(1)
+    expect(result.current.isTranscribing).toBe(true)
+    expect(result.current.micError).toBeNull()
+  })
+
+  it('releases before the recorder 120-second auto-stop can clear the last delta', async () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(119_500) })
+    expect(result.current.isListening).toBe(false)
+    expect(result.current.isTranscribing).toBe(true)
+    expect(finishVoiceStream).toHaveBeenCalledTimes(1)
+    expect(result.current.micError).toBeNull()
+  })
+
   it('does not mistake a stream ending without a final result for silence', async () => {
     const eq = makeEventStream()
     streamVoiceEvents.mockImplementation(() => eq.stream())

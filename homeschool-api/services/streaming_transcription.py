@@ -25,8 +25,8 @@ database — same "never stored anywhere" privacy property as the one-shot
 /transcribe endpoint this augments. Same single-process caveat already
 accepted elsewhere in this codebase (see services/voice_synthesis.py's shared
 client) — fine for a self-hosted single-family deployment or a modest public
-demo; would need a shared store (Redis, etc.) behind a multi-worker/multi-
-replica deployment, which this app doesn't run today.
+demo running one worker; separate workers or replicas do not share these
+sessions, even when the platform assigns them the same instance identifier.
 """
 import asyncio
 import logging
@@ -36,6 +36,7 @@ from dataclasses import dataclass, field
 from typing import AsyncIterator, Optional
 
 from core.config import settings
+from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS
 from services.transcription import partial_passes_are_affordable, transcribe_audio
 
 log = logging.getLogger(__name__)
@@ -107,11 +108,9 @@ class _Session:
     # a successful /finish still sees its own, still-open events() stream
     # come back with "unknown or expired session" moments later, even though
     # the session plainly still existed (finish_session() just found it).
-    # Deployment was confirmed pinned to a single instance, which rules out
-    # cross-instance session loss (the previously-diagnosed cause this
-    # module's docstring and CLAUDE.md describe). The only other way
-    # _discard() can run out from under a session that's still mid-turn is a
-    # SECOND events() attach for the same id racing the first on the same
+    # One platform instance can still contain multiple workers; the shared
+    # instance header alone cannot exclude that cause. Historically, a
+    # SECOND events() attach for the same id could race the first on the same
     # asyncio.Queue — whichever of the two consumers happens to receive the
     # queue's "done" item tears the session down in its own finally block,
     # discarding it out from under the other. A retried HTTP request for the
@@ -190,6 +189,9 @@ def finish_session(session_id: str, owner: str = "") -> bool:
         return False
     session.finished = True
     session.last_touched = time.monotonic()
+    # Internal wake-up only: switch an idle reader from the recording TTL
+    # to the existing final-processing timeout as soon as the child releases.
+    session.queue.put_nowait({"type": "_finished"})
     session.new_audio.set()
     return True
 
@@ -279,6 +281,10 @@ async def _worker_loop(session_id: str, session: _Session) -> None:
                 text = result.get("text", "")
             except Exception:
                 log.exception("streaming_transcription worker failed for session %s", session_id)
+                session.finished = True
+                await session.queue.put({"type": "error", "message": "transcription failed"})
+                await session.queue.put({"type": "done"})
+                return
             finally:
                 log.info(
                     "streaming_transcription: session=%s pass=%s audio_bytes=%d elapsed=%.2fs",
@@ -317,12 +323,24 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
     completed_normally = False
     try:
         while True:
-            item = await session.queue.get()
+            try:
+                item = await asyncio.wait_for(
+                    session.queue.get(),
+                    timeout=STREAM_STALL_TIMEOUT_SECONDS if session.finished else _SESSION_TTL_SECONDS,
+                )
+            except asyncio.TimeoutError:
+                completed_normally = True
+                yield {"type": "error", "message": "transcription timed out"}
+                yield {"type": "done"}
+                break
+            if item.get("type") == "_finished":
+                continue
             items_yielded += 1
             # Set completion before yielding. An SSE consumer is permitted to
-            # close immediately after receiving "done" rather than requesting
-            # another generator item; its finally block must still discard
-            # the completed session, not retain it as a reconnectable hold.
+            # close immediately after receiving a terminal error or "done"
+            # rather than requesting another item; still discard the session.
+            if item.get("type") == "error":
+                completed_normally = True
             if item.get("type") == "done":
                 completed_normally = True
                 yield item
@@ -334,9 +352,7 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
             # either the consumer genuinely disconnected (navigation, a
             # dropped connection) or something cancelled this coroutine out
             # from under it (server shutdown, or — the pattern actually
-            # reported live from the demo, same X-Bede-Instance value on
-            # every call in the trace, which already rules out cross-instance
-            # routing — an intermediary proxy deciding a fully idle
+            # reported live from the demo — an intermediary proxy deciding a fully idle
             # connection is dead during the silent gap before any chunk has
             # ever uploaded). Logged unconditionally, not just past some
             # threshold: a session this young tearing itself down is exactly
@@ -357,7 +373,6 @@ async def events(session_id: str, owner: str = "") -> AsyncIterator[dict]:
             # continue uploading audio; the bounded TTL sweeper reclaims
             # abandoned sessions and cancels their workers.
             session.active_reader = False
-            session.last_touched = time.monotonic()
 
 
 def _discard(session_id: str) -> None:
@@ -380,6 +395,15 @@ def _discard(session_id: str) -> None:
     session = _sessions.pop(session_id, None)
     if session is None:
         return
+    session.finished = True
+    session.audio = b""
+    session.pcm.clear()
+    # Wake an attached reader without releasing any queued transcript after
+    # revocation or expiry. Removing the registry entry alone leaves it waiting.
+    while not session.queue.empty():
+        session.queue.get_nowait()
+    session.queue.put_nowait({"type": "error", "message": "unknown or expired session"})
+    session.queue.put_nowait({"type": "done"})
     worker = session.worker
     if worker is not None and not worker.done():
         worker.cancel()

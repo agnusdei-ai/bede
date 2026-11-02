@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   fetchPilotOwnerLearners: vi.fn(),
   deletePilotLearner: vi.fn(),
   disablePilotOwnerCampus: vi.fn(),
+  fetchSchoolDataAuthorization: vi.fn(),
 }))
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(),
@@ -35,6 +36,9 @@ beforeEach(() => {
   api.fetchEducatorPilotMode.mockResolvedValue({ enabled: true, shared_child_pin_disabled: true })
   api.fetchPilotOwnerCampuses.mockResolvedValue([{ campus_id: C, title: 'Synthetic Campus One', enabled: true }])
   api.fetchPilotDeletionReceipts.mockResolvedValue([])
+  api.fetchSchoolDataAuthorization.mockResolvedValue({
+    authorized: true, stale: false, notice_hash: 'h', notice_version: 'v1', notice_text: 'N',
+    authorized_at: '2026-10-20T12:00:00Z', authorized_by: 'administrator' })
   api.fetchPilotOwnerLearners.mockResolvedValue([
     { learner_id: L, campus_id: C, display_name: 'Example Learner', enabled: true },
   ])
@@ -54,6 +58,33 @@ const confirmAndDelete = async () => {
 }
 
 describe('PilotOwnerPanel', () => {
+  it('never renders a stale learner roster after switching campuses', async () => {
+    const otherCampus = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    const otherLearner = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+    api.fetchPilotOwnerCampuses.mockResolvedValue([
+      { campus_id: C, title: 'Synthetic Campus One', enabled: true },
+      { campus_id: otherCampus, title: 'Synthetic Campus Two', enabled: true },
+    ])
+    type LearnerRow = { learner_id: string; campus_id: string; display_name: string; enabled: boolean }
+    let resolveOld: (rows: LearnerRow[]) => void = () => {}
+    api.fetchPilotOwnerLearners.mockImplementation((_token: string, campus: string) => {
+      if (campus === C) return new Promise<LearnerRow[]>(resolve => { resolveOld = resolve })
+      return Promise.resolve([
+        { learner_id: otherLearner, campus_id: otherCampus, display_name: 'New Campus Learner', enabled: true },
+      ])
+    })
+    render(<PilotOwnerPanel token="t"/>)
+    fireEvent.click(await screen.findByRole('button', { name: /Classroom pilot/ }))
+    await waitFor(() => expect(api.fetchPilotOwnerLearners).toHaveBeenCalledWith('t', C))
+    fireEvent.change(screen.getByLabelText('Campus'), { target: { value: otherCampus } })
+    await screen.findByRole('option', { name: 'New Campus Learner' })
+    await act(async () => {
+      resolveOld([{ learner_id: L, campus_id: C, display_name: 'Old Campus Learner', enabled: true }])
+    })
+    expect(screen.queryByText('Old Campus Learner')).toBeNull()
+    expect(screen.getByRole('option', { name: 'New Campus Learner' })).toBeTruthy()
+  })
+
   it('renders nothing when the institutional pilot is not enabled', async () => {
     api.fetchEducatorPilotMode.mockResolvedValue({ enabled: false, shared_child_pin_disabled: false })
     const { container } = render(<PilotOwnerPanel token="t"/>)
@@ -153,7 +184,7 @@ describe('PilotOwnerPanel', () => {
     await confirmAndDelete()
     await waitFor(() => expect(api.deletePilotLearner).toHaveBeenCalledWith('t', C, L, 'Example Learner'))
     expect(await screen.findByText(/Example Learner's active pilot records were removed on/)).toBeTruthy()
-    const status = screen.getAllByRole('status')[0]
+    const status = screen.getAllByRole('status').find(el => /removed on/.test(el.textContent ?? ''))!
     for (const sentence of Object.values(RECEIPT_COPY)) expect(status.textContent).toContain(sentence)
     // The technical detail is present but collapsed behind a disclosure.
     const details = status.querySelector('details') as HTMLDetailsElement
@@ -216,5 +247,23 @@ describe('PilotOwnerPanel', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Classroom pilot/ }))
     expect((await screen.findByRole('alert')).textContent).toBe(
       "Could not load the pilot campuses. We couldn't reach the server. Check your internet connection and try again.")
+  })
+
+  it('shows the authorization panel per campus until the school has opted in', async () => {
+    api.fetchSchoolDataAuthorization.mockResolvedValue({
+      authorized: false, stale: false, notice_hash: 'h', notice_version: 'v1', notice_text: 'N',
+      authorized_at: null, authorized_by: null })
+    render(<PilotOwnerPanel token="t"/>)
+    await openPanel()
+    expect(await screen.findByRole('heading', { name: 'Authorization to Store Student Information' })).toBeTruthy()
+    expect(api.fetchSchoolDataAuthorization).toHaveBeenCalledWith('t', C)
+  })
+
+  it('shows only the authorized status, with withdrawal, once the school has opted in', async () => {
+    render(<PilotOwnerPanel token="t"/>)
+    await openPanel()
+    expect(await screen.findByText(/^Authorized by Administrator on /)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Withdraw Authorization' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Authorization to Store Student Information' })).toBeNull()
   })
 })

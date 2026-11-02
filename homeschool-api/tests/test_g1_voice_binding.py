@@ -12,7 +12,6 @@ import weakref
 
 import pytest
 
-import routers.voice as voice_router
 import services.pilot_authz as pilot_authz
 import services.streaming_transcription as st
 from core.audit import AuditEvent
@@ -31,7 +30,7 @@ def _synthetic_transcription(monkeypatch):
     monkeypatch.setattr(st, "partial_passes_are_affordable", lambda: True)
     monkeypatch.setattr(pilot_authz, "REVALIDATE_INTERVAL_SECONDS", 0.2)
     # A broken guard must fail the test, not hang it.
-    monkeypatch.setattr(voice_router, "STREAM_STALL_TIMEOUT_SECONDS", 4.0)
+    monkeypatch.setattr(st, "STREAM_STALL_TIMEOUT_SECONDS", 4.0)
 
 
 def _audio(tag: str) -> dict:

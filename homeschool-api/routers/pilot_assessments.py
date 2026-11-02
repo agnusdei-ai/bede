@@ -32,6 +32,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import school_authorization as school_auth
 from core.database import PilotLearner, PilotRosterGrant, get_db
 from core.deps import require_educator, require_elevated_parent
 from core.encryption import aad_for, decrypt_json, encrypt_json
@@ -95,7 +96,8 @@ def _iso(value) -> Optional[str]:
 _CTX_KEY = "pilot_assessment_authz_ctx"
 
 
-async def _scope(db: AsyncSession, auth: dict, campus_id: str, learner_id: str):
+async def _scope(db: AsyncSession, auth: dict, campus_id: str, learner_id: str,
+                 write: bool = False):
     """(teacher, learner) or the uniform 404. Never trusts the path's campus.
 
     Also resolves and pins the request's ``PilotAuthzContext``: the grant id
@@ -107,6 +109,10 @@ async def _scope(db: AsyncSession, auth: dict, campus_id: str, learner_id: str):
     learner = await g1._assigned(db, auth, learner_id)
     if learner.campus_id != cid:
         raise _not_found()
+    if write:
+        # Early, explicit refusal for a route that stores learner data.
+        # _recheck below is the backstop for any write that forgot this.
+        await school_auth.require_authorized(db, learner.campus_id)
     db.info[_CTX_KEY] = await pilot_authz.resolve_campus_learner(
         db, auth, learner.id, pilot_authz.ACTION_ASSESSMENT, claimed_campus_id=cid,
     )
@@ -124,6 +130,12 @@ async def _recheck(db: AsyncSession, auth: dict, learner: PilotLearner) -> None:
     if again.id != learner.id or again.campus_id != learner.campus_id:
         await db.rollback()
         raise _not_found()
+    try:
+        # Default-gated: every write commits through here.
+        await school_auth.require_authorized(db, learner.campus_id)
+    except HTTPException:
+        await db.rollback()
+        raise
     ctx = db.info.get(_CTX_KEY)
     if ctx is None or ctx.learner_id != learner.id or ctx.campus_id != learner.campus_id:
         # No pinned context means _scope did not run for this learner on this
@@ -466,7 +478,7 @@ async def create_administration(
     campus_id: str, learner_id: str, payload: ca.AdministrationInput,
     auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
 ) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     cycles, _ = await _calendar(db, learner.campus_id)
     if payload.instructional_cycle not in {c.cycle_key for c in cycles}:
         raise HTTPException(status_code=422, detail="Unknown instructional cycle for this campus")
@@ -527,7 +539,7 @@ async def enter_scores(campus_id: str, learner_id: str, assessment_id: str,
                        payload: ca.ScoresSubmission,
                        auth: dict = Depends(require_educator),
                        db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     state, _ = await _state(db, adm.id)
     if state not in SCORE_ENTRY or adm.finalized_at is not None:
@@ -572,7 +584,7 @@ async def transition(campus_id: str, learner_id: str, assessment_id: str,
                      payload: ca.TransitionInput,
                      auth: dict = Depends(require_educator),
                      db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     try:
         expected = State(payload.expected_state)
@@ -621,7 +633,7 @@ async def supersede(campus_id: str, learner_id: str, assessment_id: str,
     The finalized row is never modified; only its ledger gains a
     SUPERSEDED_WITH_AUDIT_LINK entry pointing at the replacement.
     """
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     old = await _administration(db, learner, assessment_id)
     new_id = str(uuid.uuid4())
     await _advance(db, learner, old, teacher.id, Action.SUPERSEDE,
@@ -677,7 +689,7 @@ async def record_evidence(campus_id: str, learner_id: str, assessment_id: str,
                           payload: ca.EvidenceInput,
                           auth: dict = Depends(require_educator),
                           db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     if adm.snapshot_sha256 is None or await _snapshot_hash(db, adm, learner) != adm.snapshot_sha256:
         raise _conflict("Evidence can only reference an intact finalized snapshot")
@@ -721,7 +733,7 @@ async def _last_decision(db, adm_id) -> Optional[PilotAssessmentDecision]:
 async def request_proposal(campus_id: str, learner_id: str, assessment_id: str,
                            auth: dict = Depends(require_educator),
                            db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     state, _ = await _state(db, adm.id)
     if state is State.TEACHER_DECISION_RECORDED:
@@ -774,7 +786,7 @@ async def decide(campus_id: str, learner_id: str, assessment_id: str, proposal_i
                  payload: ca.DecisionInput,
                  auth: dict = Depends(require_educator),
                  db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     prop = await db.get(PilotAssessmentProposal, g1._id(proposal_id))
     if prop is None or prop.administration_id != adm.id or prop.learner_id != learner.id \
@@ -836,7 +848,7 @@ async def record_plan(campus_id: str, learner_id: str, assessment_id: str,
                       payload: ca.PlanInput,
                       auth: dict = Depends(require_educator),
                       db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     last = await _last_decision(db, adm.id)
     if last is None or last.action not in ("approve", "edit"):
@@ -862,7 +874,7 @@ async def schedule_progress_monitoring(campus_id: str, learner_id: str, assessme
                                        auth: dict = Depends(require_educator),
                                        db: AsyncSession = Depends(get_db)) -> dict:
     """Records teacher-confirmed dates. Creates no administration and starts nothing."""
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     plan = (await db.execute(select(PilotAssessmentPlan).where(
         PilotAssessmentPlan.administration_id == adm.id)
@@ -950,7 +962,7 @@ async def record_follow_up(campus_id: str, learner_id: str, assessment_id: str,
                            plan_id: str, payload: ca.TeacherFollowUpInput,
                            auth: dict = Depends(require_educator),
                            db: AsyncSession = Depends(get_db)) -> dict:
-    teacher, learner = await _scope(db, auth, campus_id, learner_id)
+    teacher, learner = await _scope(db, auth, campus_id, learner_id, write=True)
     adm = await _administration(db, learner, assessment_id)
     plan, decision = await _teacher_plan(db, learner, adm.id, plan_id)
     row_id = str(uuid.uuid4())

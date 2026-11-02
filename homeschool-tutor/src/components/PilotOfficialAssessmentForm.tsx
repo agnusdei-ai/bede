@@ -12,6 +12,7 @@ import type {
   OfficialTeacherArtifact, OfficialTeacherFollowUp,
 } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
+import { SchoolAuthorizationRequiredError } from '../services/api'
 
 /** Separate official record and teacher interpretation; never renders DIBELS test items. */
 const input = 'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm'
@@ -42,8 +43,9 @@ const hasObservation = (note: TeacherObservation) =>
   Object.values(note).some(v => Boolean(v?.trim()))
 
 export default function PilotOfficialAssessmentForm({
-  token, campusId, learnerId, learnerName,
-}: { token: string; campusId: string; learnerId: string; learnerName: string }) {
+  token, campusId, learnerId, learnerName, onSchoolAuthorizationRequired,
+}: { token: string; campusId: string; learnerId: string; learnerName: string;
+  onSchoolAuthorizationRequired?: () => void }) {
   const [records, setRecords] = useState<OfficialAssessment[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [current, setCurrent] = useState<OfficialAssessment | null>(null)
@@ -147,6 +149,9 @@ export default function PilotOfficialAssessmentForm({
   async function perform(work: () => Promise<void>) {
     setBusy(true); setMessage('')
     try { await work() } catch (error) {
+      if (error instanceof SchoolAuthorizationRequiredError && onSchoolAuthorizationRequired) {
+        onSchoolAuthorizationRequired(); return
+      }
       setMessage(describeFailure(error, { action: 'save the official assessment',
         forbidden: 'Your campus assignment is no longer authorized.',
         conflict: 'The record changed. Reload it before continuing.',

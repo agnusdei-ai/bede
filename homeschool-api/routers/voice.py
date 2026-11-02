@@ -10,8 +10,7 @@ from typing import List
 from core import consent
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core.database import get_db
-from core.deps import require_auth, require_parent, require_real_user
-from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
+from core.deps import require_auth, require_parent, require_real_user, require_learner_access
 from services.voice_auth import (
     delete_profile,
     enroll_student,
@@ -54,9 +53,26 @@ def _validate_audio(data: bytes, filename: str) -> None:
     raise HTTPException(status_code=415, detail="Unsupported file type — only audio files are accepted")
 
 
+# Biometric profiles in voice_profiles are keyed only by student_name, not
+# immutable campus/learner IDs. No name-keyed biometric operation is safe
+# after ANY institutional campus exists (including disabled campuses).
+# This applies to parent override and profile management, not just inference.
+async def _require_household_biometric_scope(
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    try:
+        if await pilot_authz.campus_mode_active(db):
+            raise pilot_authz.not_found()
+    except HTTPException:
+        raise
+    except Exception:
+        # An unavailable campus lookup must never reopen name-keyed access.
+        raise pilot_authz.not_found()
+
+
 # ── Enrollment (parent only) ─────────────────────────────────────────────────
 
-@router.post("/enroll")
+@router.post("/enroll", dependencies=[Depends(_require_household_biometric_scope)])
 async def enroll(
     request: Request,
     student_name: str = Form(..., min_length=1, max_length=50),
@@ -97,7 +113,7 @@ async def enroll(
 
 # ── Verification (both roles) ────────────────────────────────────────────────
 
-@router.post("/verify")
+@router.post("/verify", dependencies=[Depends(_require_household_biometric_scope)])
 async def verify(
     request: Request,
     student_name: str = Form(..., min_length=1, max_length=50),
@@ -105,7 +121,10 @@ async def verify(
     db: AsyncSession = Depends(get_db),
     auth: dict = Depends(require_real_user),
 ):
-    """Verify student voice. Returns score + level — never the stored embedding."""
+    """Verify only the token-bound learner voice; never return another child's score."""
+    # A child token is scoped to one current device/learner binding. Check
+    # before reading uploaded audio or looking up a biometric profile.
+    await require_learner_access(auth, student_name, db)
     ctx = audit_from_request(request)
     data = await audio.read()
     _validate_audio(data, audio.filename or "audio")
@@ -131,7 +150,7 @@ async def verify(
 
 # ── Parent override ───────────────────────────────────────────────────────────
 
-@router.post("/override")
+@router.post("/override", dependencies=[Depends(_require_household_biometric_scope)])
 async def override_verification(
     request: Request,
     student_name: str = Form(..., min_length=1, max_length=50),
@@ -145,7 +164,7 @@ async def override_verification(
 
 # ── Profile management (parent only) ─────────────────────────────────────────
 
-@router.get("/profiles")
+@router.get("/profiles", dependencies=[Depends(_require_household_biometric_scope)])
 async def get_profiles(
     db: AsyncSession = Depends(get_db),
     _: dict = Depends(require_parent),
@@ -154,7 +173,7 @@ async def get_profiles(
     return {"enrolled_students": await list_profiles(db)}
 
 
-@router.delete("/profiles/{student_name}")
+@router.delete("/profiles/{student_name}", dependencies=[Depends(_require_household_biometric_scope)])
 async def remove_profile(
     student_name: str,
     request: Request,
@@ -355,7 +374,10 @@ async def stream_events_endpoint(
         owner, ctx = _educator_owner(session_id, auth)
 
     async def event_generator():
-        items = with_stall_timeout(stream_events(session_id, owner=owner), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS)
+        # The session reader distinguishes intentional recording silence from
+        # stalled final processing. A generic 45s item timeout cuts off a valid
+        # 120s hold when a metered backend deliberately produces no partials.
+        items = stream_events(session_id, owner=owner)
         if ctx is None:
             async for item in items:
                 yield json.dumps(item)
@@ -383,10 +405,9 @@ async def stream_events_endpoint(
     # not even a real partial — and a short hold can end before that first
     # tick ever fires at all. Reported live from the demo: a session opened,
     # then 404'd on its own first chunk/finish call ~4 seconds later, on the
-    # SAME X-Bede-Instance the whole time (ruling out cross-instance
-    # routing). The only server-side path that can discard a session that
-    # young is this stream's own generator being torn down before a 'done'
-    # — see streaming_transcription.py's events(), now logging exactly that.
+    # SAME X-Bede-Instance the whole time. That identifier does not distinguish
+    # multiple workers on one Render instance. Early events disconnects now
+    # preserve the owner-bound session until completion or the idle TTL.
     # A likely cause: an intermediary between the browser and this instance
     # (Render's own edge, or something in between) treating a connection
     # with zero bytes flowing as idle-and-dead well before 15s. Pinging

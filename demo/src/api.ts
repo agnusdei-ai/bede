@@ -125,6 +125,94 @@ export interface DemoParentConfig {
   learning_support?: string[]
 }
 
+export interface DemoPracticeAssessment {
+  subject: string
+  sections: Array<{
+    label: string
+    instructions: string
+    required_format: 'complete_sentence' | 'single_word' | 'color_fill' | 'free' | 'unknown'
+    word_bank: string[]
+    items: Array<{
+      number: number
+      prompt: string
+      stimulus?: string | null
+      student_response?: string | null
+      teacher_mark: 'correct' | 'incorrect' | 'partial' | 'unmarked'
+      teacher_correction?: string | null
+      confidence: number
+      ask_parent?: string | null
+    }>
+  }>
+}
+
+export interface DemoPracticeSetDraft {
+  targets: string[]
+  mode: 'drill' | 'retrieval'
+  est_minutes: number
+  items: Array<{
+    kind: 'drill' | 'sentence_habit' | 'retrieval'
+    target: string
+    prompt: string
+    expected_answer: string
+    hint: string
+  }>
+  parent_script: string
+  recheck_schedule: string[]
+}
+
+export interface DemoPracticeDeliveryItem {
+  index: number
+  prompt: string
+  hint: string
+}
+
+async function demoPracticeFetch<T>(token: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}/practice/demo${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    throw new Error(typeof detail === 'string' ? detail : 'The demo practice could not complete that step.')
+  }
+  return res.json()
+}
+
+export const fetchDemoPracticePacks = (token: string) =>
+  demoPracticeFetch<{ id: string; display_name: string }[]>(token, '/packs')
+
+export const fetchDemoPracticeReadingRoute = (token: string) =>
+  demoPracticeFetch<{ local_available: boolean; cloud_provider: string | null }>(token, '/reading-route')
+
+export const readDemoPracticePhotos = (
+  token: string,
+  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean },
+) => demoPracticeFetch<{
+  id: 0
+  status: 'needs_review' | 'confirmed'
+  assessment: DemoPracticeAssessment
+  ask_parent: string[]
+  teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
+}>(token, '/read', body)
+
+export const planDemoPractice = (token: string, assessment: DemoPracticeAssessment) =>
+  demoPracticeFetch<{
+    summary: string
+    diagnosis: {
+      errors: Array<{ item_ref: string; category: string; evidence: string; audience: 'parent_and_child' | 'parent_only' }>
+      strengths: Array<{ category: string; note: string }>
+      ask_parent: string[]
+    }
+    practice_set: DemoPracticeSetDraft | null
+  }>(token, '/plan', { assessment })
+
+export const approveDemoPractice = (token: string, practiceSet: DemoPracticeSetDraft) =>
+  demoPracticeFetch<{ approved: true; items: DemoPracticeDeliveryItem[] }>(
+    token, '/approve', { practice_set: practiceSet },
+  )
+
 export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
 
 /** Mirrors models/schemas.py's COMPANION_MODES presets. */
@@ -378,8 +466,10 @@ export function warmDemoBackend(): void {
 
 /** Starts a new server-side streaming-transcription session. Returns its id
  *  — pass it to pushVoiceStreamChunk/finishVoiceStream/streamVoiceEvents. */
-export async function startVoiceStream(token: string, language = 'en'): Promise<string> {
+export async function startVoiceStream(token: string, language = 'en', signal?: AbortSignal): Promise<string> {
+  return withRequestDeadline(async (requestSignal) => {
   const res = await fetch(`${apiBase()}/voice/stream/start`, {
+    signal: requestSignal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ language }),
@@ -387,6 +477,7 @@ export async function startVoiceStream(token: string, language = 'en'): Promise<
   if (!res.ok) throw new Error('Could not start voice streaming')
   const data = await res.json()
   return data.session_id as string
+  }, signal)
 }
 
 /** Uploads a DELTA — only what was captured since the caller's last upload,
@@ -403,40 +494,41 @@ export async function startVoiceStream(token: string, language = 'en'): Promise<
  *  decide which path to take, only routers/voice.py's own upload-size and
  *  container/extension allowlist check reads it.
  *
- *  Throws on failure. Unlike the old whole-buffer protocol, a dropped delta
- *  is genuinely lost unless the caller holds and resends it — see
- *  useHybridVoiceInput.ts's pendingPartsRef, which prepends a failed upload
- *  to the next one rather than assuming a later chunk will cover it. */
-export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob): Promise<void> {
+ *  Throws on failure. The caller ends the turn: a failed response cannot
+ *  prove whether the server appended the delta, so resending is unsafe. */
+export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob, signal?: AbortSignal): Promise<void> {
   const form = new FormData()
   form.append('audio', wavBlob, 'chunk.wav')
-  const res = await fetch(`${apiBase()}/voice/stream/${sessionId}/chunk`, {
+  const res = await withRequestDeadline((requestSignal) => fetch(`${apiBase()}/voice/stream/${sessionId}/chunk`, {
+    signal: requestSignal,
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
-  })
+  }), signal)
   if (!res.ok) throw new Error('Voice chunk upload failed')
 }
 
 /** Signals no more chunks are coming — the server transcribes the final
  *  buffer once more, emits a 'final' event, then 'done' closes the stream. */
-export async function finishVoiceStream(token: string, sessionId: string): Promise<void> {
-  const res = await fetch(`${apiBase()}/voice/stream/${sessionId}/finish`, {
+export async function finishVoiceStream(token: string, sessionId: string, signal?: AbortSignal): Promise<void> {
+  const res = await withRequestDeadline((requestSignal) => fetch(`${apiBase()}/voice/stream/${sessionId}/finish`, {
+    signal: requestSignal,
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
-  })
+  }), signal)
   if (!res.ok) throw new Error('Voice stream finish failed')
 }
 
 /** Consumed via fetch() + parseSSEStream, NOT the browser's native
  *  EventSource API — EventSource can't attach an Authorization header (see
  *  homeschool-api's routers/voice.py's stream_events_endpoint docstring). */
-export async function* streamVoiceEvents(token: string, sessionId: string): AsyncGenerator<VoiceStreamEvent> {
-  const res = await fetch(`${apiBase()}/voice/stream/${sessionId}/events`, {
+export async function* streamVoiceEvents(token: string, sessionId: string, signal?: AbortSignal): AsyncGenerator<VoiceStreamEvent> {
+  const res = await withRequestDeadline((requestSignal) => fetch(`${apiBase()}/voice/stream/${sessionId}/events`, {
+    signal: requestSignal,
     headers: { Authorization: `Bearer ${token}` },
-  })
+  }), signal)
   if (!res.ok) throw new Error('Could not open the voice event stream')
-  yield* parseSSEStream<VoiceStreamEvent>(res)
+  yield* parseSSEStream<VoiceStreamEvent>(res, signal)
 }
 
 /** Whether FEEDBACK_EMAIL is configured on this deployment — checked before
@@ -590,18 +682,47 @@ export async function extractNarrationText(token: string, filename: string, cont
 const TUTOR_MAX_ATTEMPTS = 3
 const TUTOR_RETRY_BASE_DELAY_MS = 600
 
+// Bounds response headers (and short JSON bodies), not a whole SSE session.
+// A deadline is ambiguous: the server may already be working, so never retry it.
+export async function withRequestDeadline<T>(
+  operation: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal, ms = 30_000,
+): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let abort: () => void = () => {}
+  const canceled = new Promise<never>((_, reject) => {
+    abort = () => {
+      reject(new DOMException('Aborted', 'AbortError'))
+      controller.abort()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    timer = setTimeout(() => {
+      reject(new Error('Request timed out'))
+      controller.abort()
+    }, ms)
+  })
+  try {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return await Promise.race([canceled, operation(controller.signal)])
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', abort)
+  }
+}
+
 /** A cancellable pause, so a retry delay can't outlive the turn it belongs to. */
 function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms)
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
   })
 }
 
@@ -625,45 +746,47 @@ class StreamStallError extends Error {}
  *  the voice stream (VoiceStreamEvent) and tutor chat stream (StreamChunk)
  *  differ, but both are a sequence of plain-JSON "data: " lines ending in
  *  a {type: 'done'} sentinel. */
-async function* parseSSEStream<T extends { type: string }>(res: Response): AsyncGenerator<T> {
+async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
   const reader = res.body!.getReader()
+  const cancel = () => { reader.cancel().catch(() => {}) }
+  signal?.addEventListener('abort', cancel, { once: true })
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    let timeoutId: ReturnType<typeof setTimeout>
-    const stallTimeout = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
-    })
-    let done: boolean, value: Uint8Array | undefined
-    try {
-      ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
-    } catch (err) {
-      // Release the underlying connection rather than leaving it dangling
-      // in the background — reader.read() itself is still pending at this
-      // point (that's exactly what stalled), so this is what actually
-      // frees it up instead of just abandoning the promise.
-      reader.cancel().catch(() => {})
-      throw err
-    } finally {
-      clearTimeout(timeoutId!)
-    }
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
-      const jsonStr = line.slice(6).trim()
-      if (!jsonStr) continue
+  try {
+    while (true) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      let timeoutId: ReturnType<typeof setTimeout>
+      const stallTimeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
+      })
+      let done: boolean, value: Uint8Array | undefined
       try {
-        const chunk: T = JSON.parse(jsonStr)
-        yield chunk
-        if (chunk.type === 'done') return
-      } catch {
-        // skip malformed chunk
+        ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
+      } finally {
+        clearTimeout(timeoutId!)
+      }
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const jsonStr = line.slice(6).trim()
+        if (!jsonStr) continue
+        try {
+          const chunk: T = JSON.parse(jsonStr)
+          yield chunk
+          if (chunk.type === 'done') return
+        } catch {
+          // skip malformed chunk
+        }
       }
     }
+  } finally {
+    signal?.removeEventListener('abort', cancel)
+    cancel()
   }
 }
 
@@ -726,7 +849,7 @@ export async function* streamTutorChat(
     // the sentence they are mid-way through reading.
     let delivered = false
     try {
-      const res = await fetch(`${apiBase()}/tutor/chat`, {
+      const res = await withRequestDeadline((requestSignal) => fetch(`${apiBase()}/tutor/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -744,13 +867,13 @@ export async function* streamTutorChat(
           // instead of greeting them again (TutorRequest.previous_subject).
           previous_subject: previousSubject ?? null,
         }),
-        signal,
-      })
+        signal: requestSignal,
+      }), signal, SSE_STALL_TIMEOUT_MS)
 
       if (res.status === 401) throw new TrialSessionEndedError('Your session has ended. Generate a new code to keep going.')
       if (!res.ok) throw new Error('Tutor request failed. Check your connection.')
 
-      for await (const chunk of parseSSEStream<StreamChunk>(res)) {
+      for await (const chunk of parseSSEStream<StreamChunk>(res, signal)) {
         delivered = true
         yield chunk
       }

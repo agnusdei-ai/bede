@@ -66,3 +66,8 @@ mac-check-out/
 # Licence issuance ledger (scripts/issue_license.py): names customers, never commit
 bede-license-ledger.csv
 /demo/dist-tour/
+
+# Local dependency trees and generated Vitest/Vite caches (never source)
+node_modules/
+.vite/
+.vitest-cache/

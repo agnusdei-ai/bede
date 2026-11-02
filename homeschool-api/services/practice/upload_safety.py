@@ -46,6 +46,7 @@ import io
 import re
 import struct
 import warnings
+import zlib
 
 import pillow_heif
 from PIL import Image, ImageOps
@@ -185,8 +186,13 @@ def _refuse_active_content(reader: PdfReader, raw: bytes) -> None:
             seen.add(obj.idnum)
             try:
                 obj = obj.get_object()
-            except Exception:
-                continue
+            except Exception as exc:
+                # An unreadable object may hide an action or attachment. Never
+                # skip it and then claim the whole PDF was checked safely.
+                raise PhotoRejected(
+                    "This PDF contains an unreadable object and cannot be checked safely. "
+                    "Please scan the pages to a plain PDF or use photos."
+                ) from exc
         if isinstance(obj, str) and obj in FORBIDDEN_PDF_NAMES:
             raise refuse
         if isinstance(obj, DictionaryObject):  # a stream is a dictionary; its data is never read here
@@ -264,6 +270,64 @@ def _placed_image(page):
         raise _MARKED_PAGE from exc
 
 
+def _bounded_flate_image(x, expected: int, height: int) -> bytes:
+    """Reject oversized Flate image streams before pypdf can inflate them.
+
+    A 6 MB PDF can contain a much larger compressed image stream. pypdf's
+    get_data() inflates it in full, so checking the result afterward is too
+    late. Bound zlib output to the declared 8-bit image size, plus at most
+    one predictor byte per row for PNG predictors.
+    """
+    compressed = getattr(x, "_data", None)
+    if not isinstance(compressed, bytes):
+        raise PhotoRejected("This PDF image cannot be checked safely.")
+    params = x.get("/DecodeParms")
+    if isinstance(params, ArrayObject):
+        if len(params) != 1:
+            raise PhotoRejected("This PDF image uses unsupported decoding.")
+        params = params[0]
+    if isinstance(params, IndirectObject):
+        params = params.get_object()
+    predictor = 1
+    if params:
+        if not isinstance(params, DictionaryObject):
+            raise PhotoRejected("This PDF image uses unsupported decoding.")
+        # PDF FloatObject values (e.g. /Predictor 1.5) must not be
+        # truncated by int(): malformed decoding metadata fails closed.
+        # pypdf NumberObject is an int subclass; bool is not a PDF integer.
+        values = (
+            params.get("/Predictor", 1),
+            params.get("/Columns", 1),
+            params.get("/Colors", 1),
+            params.get("/BitsPerComponent", 8),
+        )
+        if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
+            raise PhotoRejected("This PDF image uses unsupported decoding.")
+        predictor, columns, colors, bits = values
+        if (
+            predictor not in (1, 2, 10, 11, 12, 13, 14, 15)
+            or columns < 1 or colors < 1 or bits != 8
+            or columns * colors > expected
+        ):
+            raise PhotoRejected("This PDF image uses unsupported decoding.")
+    limit = expected + (height if 10 <= predictor <= 15 else 0)
+    try:
+        inflater = zlib.decompressobj()
+        decoded = inflater.decompress(compressed, limit + 1)
+        if (
+            len(decoded) > limit or inflater.unconsumed_tail
+            or not inflater.eof or inflater.unused_data
+        ):
+            raise PhotoRejected("This PDF image expands beyond its allowed size.")
+        decoded += inflater.flush(limit + 1 - len(decoded))
+    except zlib.error as exc:
+        raise PhotoRejected("This PDF image could not be decompressed safely.") from exc
+    if len(decoded) > limit:
+        raise PhotoRejected("This PDF image expands beyond its allowed size.")
+    # Only supported, size-bounded predictors reach pypdf's row decoding.
+    return decoded if predictor == 1 else x.get_data()
+
+
 def _page_image(page) -> bytes:
     x = _placed_image(page)
     w, h = int(x.get("/Width", 0)), int(x.get("/Height", 0))
@@ -276,7 +340,9 @@ def _page_image(page) -> bytes:
     space = x.get("/ColorSpace")
     if (filt in (None, "/FlateDecode") and space in ("/DeviceGray", "/DeviceRGB")
             and int(x.get("/BitsPerComponent", 0)) == 8 and "/Decode" not in x and not x.get("/ImageMask")):
-        return image_from_raw(w, h, 1 if space == "/DeviceGray" else 3, x.get_data())
+        channels = 1 if space == "/DeviceGray" else 3
+        data = _bounded_flate_image(x, w * h * channels, h) if filt == "/FlateDecode" else x.get_data()
+        return image_from_raw(w, h, channels, data)
     raise PhotoRejected("A scanned page in this PDF uses an image format that cannot be read; "
                         "please export the pages as JPEG or PNG photos.")
 

@@ -3,6 +3,7 @@
 Only fake instructors/campuses/learner names. Not a school deployment test.
 """
 import pytest
+from school_auth_helper import authorize_campus
 import pytest_asyncio
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -55,6 +56,8 @@ async def fixture_two_campuses(db):
     teacher_b = await provision_educator(db, "valor.teacher.b", "synthetic-passphrase-b-strong")
     a = (await create_campus(CampusInput(title=alpha.label), auth=ADMIN, db=db))["campus_id"]
     b = (await create_campus(CampusInput(title=beta.label), auth=ADMIN, db=db))["campus_id"]
+    await authorize_campus(db, a)
+    await authorize_campus(db, b)
     same_a = (await create_learner(a, LearnerInput(display_name=alpha.learners[0].display_name), auth=ADMIN, db=db))["learner_id"]
     same_b = (await create_learner(b, LearnerInput(display_name=beta.learners[0].display_name), auth=ADMIN, db=db))["learner_id"]
     await approve_educator_membership(a, teacher_a["id"], auth=ADMIN, db=db)

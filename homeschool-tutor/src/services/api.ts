@@ -213,6 +213,20 @@ export async function revokeDevice(token: string, deviceId: string): Promise<Dev
   return res.json()
 }
 
+// A parent explicitly binds a registered device to one configured learner.
+// Switching rotates the server-side nonce, invalidating prior child tokens.
+export async function assignChildLearner(token: string, deviceId: string, studentName: string): Promise<void> {
+  const res = await fetch(`${BASE}/auth/child-devices/${encodeURIComponent(deviceId)}/learner`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_name: studentName }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not assign learner to this device')
+  }
+}
+
 // Recovery PIN/code enrollment (the "something you know" leg of account
 // recovery below) — mutually exclusive; enrolling one clears the other.
 
@@ -347,18 +361,47 @@ function stripDataUrlPrefix(dataUrl: string): string {
 const TUTOR_MAX_ATTEMPTS = 3
 const TUTOR_RETRY_BASE_DELAY_MS = 600
 
+// Bounds response headers (and short JSON bodies), not a whole SSE session.
+// A deadline is ambiguous: the server may already be working, so never retry it.
+export async function withRequestDeadline<T>(
+  operation: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal, ms = 30_000,
+): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let abort: () => void = () => {}
+  const canceled = new Promise<never>((_, reject) => {
+    abort = () => {
+      reject(new DOMException('Aborted', 'AbortError'))
+      controller.abort()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    timer = setTimeout(() => {
+      reject(new Error('Request timed out'))
+      controller.abort()
+    }, ms)
+  })
+  try {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return await Promise.race([canceled, operation(controller.signal)])
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', abort)
+  }
+}
+
 /** A cancellable pause, so a retry delay can't outlive the turn it belongs to. */
 function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms)
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
   })
 }
 
@@ -382,37 +425,33 @@ class StreamStallError extends Error {}
  *  voice stream (VoiceStreamEvent, see services/voiceApi.ts) and tutor
  *  chat stream (StreamChunk) differ, but both are a sequence of plain-JSON
  *  "data: " lines ending in a {type: 'done'} sentinel. */
-export async function* parseSSEStream<T extends { type: string }>(res: Response): AsyncGenerator<T> {
+export async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
   const reader = res.body!.getReader()
+  const cancel = () => { reader.cancel().catch(() => {}) }
+  signal?.addEventListener('abort', cancel, { once: true })
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    let timeoutId: ReturnType<typeof setTimeout>
-    const stallTimeout = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
-    })
-    let done: boolean, value: Uint8Array | undefined
-    try {
-      ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
-    } catch (err) {
-      // Release the underlying connection rather than leaving it dangling
-      // in the background — reader.read() itself is still pending at this
-      // point (that's exactly what stalled), so this is what actually
-      // frees it up instead of just abandoning the promise.
-      reader.cancel().catch(() => {})
-      throw err
-    } finally {
-      clearTimeout(timeoutId!)
-    }
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
+  try {
+    while (true) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      let timeoutId: ReturnType<typeof setTimeout>
+      const stallTimeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
+      })
+      let done: boolean, value: Uint8Array | undefined
+      try {
+        ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
+      } finally {
+        clearTimeout(timeoutId!)
+      }
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
         const jsonStr = line.slice(6).trim()
         if (!jsonStr) continue
         try {
@@ -424,6 +463,9 @@ export async function* parseSSEStream<T extends { type: string }>(res: Response)
         }
       }
     }
+  } finally {
+    signal?.removeEventListener('abort', cancel)
+    cancel()
   }
 }
 
@@ -454,7 +496,7 @@ export async function* streamTutorChat(
     // the sentence they are mid-way through reading.
     let delivered = false
     try {
-      const res = await fetch(`${BASE}/tutor/chat`, {
+      const res = await withRequestDeadline((requestSignal) => fetch(`${BASE}/tutor/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -484,14 +526,17 @@ export async function* streamTutorChat(
           // assuming the worst.
           time_remaining_seconds: timeRemainingSeconds ?? null,
         }),
-        signal,
-      })
+        signal: requestSignal,
+      }), signal, SSE_STALL_TIMEOUT_MS)
 
       if (!res.ok) {
+        if (res.status === 403 && (await errorCode(res)) === 'parental_consent_required') {
+          throw new ParentalConsentRequiredError()
+        }
         throw new Error('Tutor request failed — check your connection')
       }
 
-      for await (const chunk of parseSSEStream<StreamChunk>(res)) {
+      for await (const chunk of parseSSEStream<StreamChunk>(res, signal)) {
         delivered = true
         yield chunk
       }
@@ -672,12 +717,85 @@ export async function fetchAgenticLoopStats(token: string, days: number): Promis
 
 // ── Pod session configs ──────────────────────────────────────────────────────
 
-export async function savePodConfigs(token: string, configs: SessionConfig[]): Promise<void> {
+/** The consent notice changed between the parent reading it and agreeing. */
+export class ConsentNoticeChangedError extends Error {
+  constructor() {
+    super('notice_changed')
+    this.name = 'ConsentNoticeChangedError'
+  }
+}
+
+/** A collection request refused until a parent finishes the consent step. */
+export class ParentalConsentRequiredError extends Error {
+  constructor() {
+    super('parental_consent_required')
+    this.name = 'ParentalConsentRequiredError'
+  }
+}
+
+async function errorCode(res: Response): Promise<string | null> {
+  try {
+    const body = await res.json()
+    const code = body?.detail?.error
+    return typeof code === 'string' ? code : null
+  } catch {
+    return null
+  }
+}
+
+export interface HouseholdConsent {
+  needs_consent: boolean
+  install_ack: boolean
+  notice_hash: string
+  notice_version: string
+  notice_text: string
+  students: { student_name: string; consented: boolean; stale: boolean }[]
+}
+
+export interface ConsentGrantResult {
+  granted: string[]
+  already: string[]
+  refreshed: string[]
+}
+
+export async function fetchHouseholdConsent(token: string): Promise<HouseholdConsent> {
+  const res = await fetch(`${BASE}/household/consent`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to load consent status')
+  return res.json()
+}
+
+export async function grantHouseholdConsent(
+  token: string,
+  noticeHash: string,
+  parentLabel: string,
+): Promise<ConsentGrantResult> {
+  const res = await fetch(`${BASE}/household/consent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ notice_hash: noticeHash, parent_label: parentLabel }),
+  })
+  if (res.status === 409 && (await errorCode(res)) === 'notice_changed') {
+    throw new ConsentNoticeChangedError()
+  }
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to record consent')
+  return res.json()
+}
+
+export async function savePodConfigs(
+  token: string,
+  configs: SessionConfig[],
+  consentNoticeHash?: string | null,
+): Promise<void> {
   const res = await fetch(`${BASE}/pod/configs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ configs }),
+    body: JSON.stringify(consentNoticeHash ? { configs, consent_notice_hash: consentNoticeHash } : { configs }),
   })
+  if (res.status === 409 && (await errorCode(res)) === 'notice_changed') {
+    throw new ConsentNoticeChangedError()
+  }
   if (!res.ok) throw new Error('Failed to save pod configuration')
 }
 
@@ -1154,11 +1272,56 @@ async function educatorApi<T>(path: string, token: string, method = 'GET', body?
   })
   if (!res.ok) {
     const detail = await res.json().catch(() => ({}))
+    // Structured school-authorization answers get typed errors so the UI can
+    // show the opt-in panel instead of a raw failure. They still extend
+    // ApiRequestError, so describeFailure keeps working on them.
+    const code = detail?.detail && typeof detail.detail === 'object' ? detail.detail.error : undefined
+    if (res.status === 403 && code === 'school_authorization_required') {
+      throw new SchoolAuthorizationRequiredError()
+    }
+    if (res.status === 409 && code === 'notice_changed') throw new NoticeChangedError()
     throw new ApiRequestError(
       res.status, typeof detail.detail === 'string' ? detail.detail : 'Educator request failed')
   }
   return res.status === 204 ? undefined as T : res.json()
 }
+
+// ── School data authorization (COPPA readiness) ────────────────────────────
+// A school official must read and opt in to storing learner data for a campus
+// before any learner data is stored. State comes from the server only.
+export class SchoolAuthorizationRequiredError extends ApiRequestError {
+  constructor() {
+    super(403, 'School authorization required')
+    this.name = 'SchoolAuthorizationRequiredError'
+  }
+}
+export class NoticeChangedError extends ApiRequestError {
+  constructor() {
+    super(409, 'Notice changed')
+    this.name = 'NoticeChangedError'
+  }
+}
+export type SchoolAuthorizerRole = 'administrator' | 'teacher'
+export interface SchoolDataAuthorization {
+  authorized: boolean
+  stale: boolean
+  notice_hash: string
+  notice_version: string
+  notice_text: string
+  authorized_at: string | null
+  authorized_by: SchoolAuthorizerRole | null
+}
+const schoolAuthPath = (campusId: string) =>
+  `/pilot/campuses/${encodeURIComponent(campusId)}/data-authorization`
+export const fetchSchoolDataAuthorization = (token: string, campusId: string) =>
+  educatorApi<SchoolDataAuthorization>(schoolAuthPath(campusId), token)
+export const authorizeSchoolData = (
+  token: string, campusId: string,
+  body: { notice_hash: string; authorizer_name: string; authorizer_role: SchoolAuthorizerRole },
+) => educatorApi<SchoolDataAuthorization>(schoolAuthPath(campusId), token, 'POST', body)
+export const revokeSchoolData = (token: string, campusId: string, reason?: string) =>
+  educatorApi<unknown>(`${schoolAuthPath(campusId)}/revoke`, token, 'POST',
+    reason ? { reason } : {})
 
 export async function fetchEducatorPilotMode(): Promise<{ enabled: boolean; shared_child_pin_disabled: boolean }> {
   const res = await fetch(`${BASE}/auth/educator-mode`)
@@ -1636,6 +1799,18 @@ export interface PracticePlan {
   status: 'draft' | null
 }
 
+export interface PracticeDeliveryItem {
+  index: number
+  prompt: string
+  hint: string
+}
+
+export interface PracticeDeliverySet {
+  id: number
+  items: PracticeDeliveryItem[]
+  completed_indices: number[]
+}
+
 export interface ReadingRoute {
   local_available: boolean
   cloud_provider: string | null
@@ -1696,3 +1871,15 @@ export const discardPracticeSet = (token: string, studentName: string, setId: nu
   practiceFetch<{ id: number; status: 'discarded' }>(token, `/${encodeURIComponent(studentName)}/sets/${setId}/discard`, {
     method: 'POST',
   })
+
+export const fetchPracticeDelivery = (token: string, studentName: string) =>
+  practiceFetch<PracticeDeliverySet[]>(token, `/${encodeURIComponent(studentName)}/delivery`)
+
+export const recordPracticeOutcome = (
+  token: string, studentName: string, setId: number, itemIndex: number, response: string,
+) => practiceFetch<{ recorded: true; already_recorded: boolean }>(
+  token, `/${encodeURIComponent(studentName)}/sets/${setId}/outcomes`, {
+    method: 'POST',
+    body: JSON.stringify({ item_index: itemIndex, response }),
+  },
+)

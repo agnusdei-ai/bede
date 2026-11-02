@@ -21,6 +21,7 @@ from core.database import (
     ApiUsageEvent,
     AdaptiveInstructionTrace,
     ConsentRecord,
+    ChildLearnerBinding,
     StudentCollectionState,
     EducatorAssessmentEvidence,
     PracticeAssessment,
@@ -41,6 +42,7 @@ from core.database import (
 )
 from routers.pod import delete_student_config
 from services.student_deletion import delete_all_student_data
+from services.student_export import export_student
 
 
 @pytest_asyncio.fixture
@@ -80,6 +82,13 @@ async def _seed_all_tables(db, student_name: str):
 
     now = datetime.now(timezone.utc)
     db.add(StudentConfig(student_name=student_name, config_enc=encrypt_json({"a": 1})))
+    # Synthetic binding is intentionally populated so the deletion and isolation
+    # assertions exercise the new table, not an empty-row false positive.
+    db.add(ChildLearnerBinding(
+        device_id=f"test-device-{student_name}",
+        student_name=student_name,
+        nonce=f"test-nonce-{student_name}",
+    ))
     db.add(VoiceProfile(student_name=student_name, profile_enc=encrypt_json({"a": 1})))
     # NarrationAssessment/SessionTranscript use a plain (non-SQLite-variant)
     # BigInteger PK, so SQLite won't autoincrement it for us the way the
@@ -152,6 +161,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("practice_assessments", PracticeAssessment),
         ("practice_sets", PracticeSetRecord),
         ("educator_roster_assignments", EducatorRosterAssignment),
+        ("child_learner_bindings", ChildLearnerBinding),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),
@@ -189,6 +199,23 @@ async def test_does_not_touch_a_different_students_data(db_session):
 
     after_liam = await _row_counts_for(db_session, "Liam")
     assert all(n > 0 for n in after_liam.values())
+
+
+
+@pytest.mark.asyncio
+async def test_student_export_includes_only_the_requested_child_binding(db_session):
+    await _seed_all_tables(db_session, "Emma")
+    await _seed_all_tables(db_session, "Liam")
+    emma = await export_student(db_session, "Emma")
+    liam = await export_student(db_session, "Liam")
+    assert emma["counts"]["child_learner_bindings"] == 1
+    assert liam["counts"]["child_learner_bindings"] == 1
+    assert emma["tables"]["child_learner_bindings"] == [{
+        "device_id": "test-device-Emma",
+        "student_name": "Emma",
+        "nonce": "test-nonce-Emma",
+    }]
+    assert liam["tables"]["child_learner_bindings"][0]["student_name"] == "Liam"
 
 
 @pytest.mark.asyncio

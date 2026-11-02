@@ -6,6 +6,7 @@ import {
 } from '../services/api'
 import type { PilotDeletionReceipt, PilotOwnerCampus, PilotOwnerLearner } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
+import SchoolDataAuthorization from './SchoolDataAuthorization'
 
 /**
  * Owner-only classroom-pilot administration, performed on the real build:
@@ -132,19 +133,23 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     void run(async () => {
       const [cs, rs] = await Promise.all([fetchPilotOwnerCampuses(token), fetchPilotDeletionReceipts(token)])
       setCampuses(cs); setReceipts(rs)
+      setLearners([]); setLearnerId(''); setConfirmName(''); setConfirmCampusName('')
       setCampusId(cs[0]?.campus_id ?? '')
     }, e => describeFailure(e, { action: 'load the pilot campuses', forbidden: PASSKEY_NEEDED }))
   }
 
   useEffect(() => {
     if (!open || !campusId || campuses.find(c => c.campus_id === campusId)?.enabled === false) return
+    let cancelled = false
     void run(async () => {
       const ls = await fetchPilotOwnerLearners(token, campusId)
+      if (cancelled) return
       setLearners(ls); setLearnerId(ls[0]?.learner_id ?? '')
-    }, e => describeFailure(e, {
+    }, e => cancelled ? '' : describeFailure(e, {
       action: 'load the learners for this campus', forbidden: PASSKEY_NEEDED,
       notFound: 'This campus may have been disabled or removed. Refresh the page to see the current list.',
     }))
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campusId, token])
 
@@ -215,6 +220,10 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
                 {campuses.map(c => <option key={c.campus_id} value={c.campus_id}>{c.title}{c.enabled ? '' : ' (disabled)'}</option>)}
               </select>
             </label>}
+        {selectedCampus?.enabled && (
+          <SchoolDataAuthorization key={selectedCampus.campus_id} token={token}
+            campusId={selectedCampus.campus_id} role="administrator"/>
+        )}
         {selectedCampus && selectedCampus.enabled && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 space-y-2">
             <h3 className="text-sm font-semibold text-navy-800">Stop this pilot campus</h3>

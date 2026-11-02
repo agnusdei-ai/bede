@@ -145,3 +145,36 @@ async def test_grade2_unknown_probe_cannot_forge_a_mastery_profile(db_factory):
         assert (await db.execute(select(MasteryProfile).where(
             MasteryProfile.student_name == LEARNER,
         ))).scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_grade2_unknown_probe_preserves_unrelated_pending_transaction(db_factory):
+    """An invented probe must not undo a different learner's pending write.
+
+    The synthetic evidence_count increment is a transaction sentinel, not a
+    mastery claim. The real process_evidence path previously called
+    db.rollback() on an unknown probe, silently discarding this write.
+    """
+    async with db_factory() as db:
+        await process_evidence(
+            db, OTHER_LEARNER, f"probe.{PLACE_VALUE}", "correct", 1.0, GRADE_BAND,
+        )
+        row = (await db.execute(select(MasteryProfile).where(
+            MasteryProfile.student_name == OTHER_LEARNER,
+            MasteryProfile.subject_area == "mathematics",
+        ))).scalar_one()
+        row.evidence_count += 1
+        await db.flush()
+        await process_evidence(
+            db, LEARNER, "probe.synthetic_invented_grade2_skill",
+            "correct", 1.0, GRADE_BAND,
+        )
+        await db.commit()
+
+    async with db_factory() as db:
+        persisted = (await db.execute(select(MasteryProfile).where(
+            MasteryProfile.student_name == OTHER_LEARNER,
+            MasteryProfile.subject_area == "mathematics",
+        ))).scalar_one()
+        assert persisted.evidence_count == 2
+        assert await get_mastery_summary(db, LEARNER) is None

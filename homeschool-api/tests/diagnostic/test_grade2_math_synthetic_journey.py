@@ -189,6 +189,10 @@ async def test_grade2_unknown_probe_preserves_unrelated_pending_transaction(db_f
         ("correct", float("inf")),
         ("correct", -float("inf")),
         ("correct", "high"),
+        ("correct", -0.1),
+        ("correct", 1.01),
+        ("correct", True),
+        ("correct", 0.0),
     ],
 )
 async def test_grade2_untrusted_evidence_cannot_change_mastery(
@@ -218,3 +222,16 @@ async def test_grade2_untrusted_evidence_cannot_change_mastery(
         # Logging may be disabled in the shared environment; either way
         # the invalid observation cannot create a second delta.
         assert len(logs) <= 1
+
+
+@pytest.mark.asyncio
+async def test_grade2_zero_confidence_cannot_cold_start_mastery(db_factory):
+    """Uninformative evidence must not create a false learner calibration."""
+    async with db_factory() as db:
+        await process_evidence(
+            db, LEARNER, f"probe.{PLACE_VALUE}", "correct", 0.0, GRADE_BAND,
+        )
+        assert await get_mastery_summary(db, LEARNER) is None
+        assert (await db.execute(select(MasteryProfile).where(
+            MasteryProfile.student_name == LEARNER,
+        ))).scalar_one_or_none() is None

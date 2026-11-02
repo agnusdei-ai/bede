@@ -634,9 +634,9 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
     assert [entry["action"] for entry in ledger["entries"]] == ["approve", "reject"]
 
 
-# ── Grade 1-8 mathematics lifecycle: one representative skill per grade ────
+# ── Grade K-8 mathematics lifecycle: one representative skill per grade ────
 #
-# ONE implementation, eight rows of scenario data. Every row runs the same
+# ONE implementation, nine rows of scenario data. Every row runs the same
 # lifecycle on the same real routes, so the Grade 2 security and
 # adverse-evidence assertions (missing approval, cross-campus denial, AAD
 # non-portability, scoped deletion, denied resumption) hold for every grade
@@ -660,6 +660,8 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
 # never elapsed wall-clock retention.
 MATH_LIFECYCLE_GRADES = [
     # grade, prerequisite gap, target skill, observation, stub tutor line
+    ("K", "cc.rote_count_20", "cc.count_objects_20",
+     "Synthetic Kindergarten counting 9 blocks", "Can you touch each block once as you count?"),
     ("1", "cc.count_objects_20", "cc.number_bonds",
      "Synthetic Grade 1 number bonds for 7", "Seven can be five and what?"),
     ("2", "nbt.place_value_tens", "nbt.add_within_100",
@@ -686,6 +688,9 @@ MATH_LIFECYCLE_GRADES = [
 ]
 K2_SENTINEL = "geo.compose_shapes"
 SIX8_SENTINEL = "sp.two_way_tables"
+# A sentinel only reads a band seed while nothing probes it. When the skill
+# under test IS a sentinel, the row reads this alternate leaf instead.
+SENTINEL_ALTERNATES = {K2_SENTINEL: "md.tell_time", SIX8_SENTINEL: "geo.volume"}
 EXPECTED_SEEDS = {  # band -> (K-2 sentinel, 6-8 sentinel), from new_vector
     "K-2": (0.5, 0.1), "3-5": (0.70, 0.3), "6-8": (0.70, 0.5),
 }
@@ -698,6 +703,83 @@ EXPECTED_SEEDS = {  # band -> (K-2 sentinel, 6-8 sentinel), from new_vector
     ids=[f"grade-{row[0]}" for row in MATH_LIFECYCLE_GRADES],
 )
 async def test_math_lifecycle_per_grade(
+    db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+):
+    """One representative skill per grade, K-8, pinned to that grade's year plan."""
+    await _run_math_lifecycle(
+        db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+    )
+
+
+# ── Every mathematics skill, K-8 ───────────────────────────────────────────
+#
+# The rows above are hand-chosen, one per grade. These are GENERATED from
+# services/diagnostic/skill_map.py, so a skill added to the map is covered
+# the moment it lands rather than when someone remembers to add a row. Each
+# skill runs the SAME lifecycle at a grade inside its own band (rotating
+# through the band's grades, so every grade K-8 is exercised), with its
+# first direct prerequisite as the gap. The two root skills, which have no
+# prerequisite, use themselves as the gap: an incorrect first attempt, then
+# a hinted one. Tutor text is still a deterministic local-model stub.
+_GRADES_IN_BAND = {"K-2": ("K", "1", "2"), "3-5": ("3", "4", "5"), "6-8": ("6", "7", "8")}
+
+
+def _every_math_skill_row():
+    from services.diagnostic.skill_map import all_skill_ids, get_skill, prerequisites_of
+
+    seen = {band: 0 for band in _GRADES_IN_BAND}
+    rows = []
+    for skill_id in all_skill_ids():
+        skill = get_skill(skill_id)
+        band = skill.band.value
+        grades = _GRADES_IN_BAND[band]
+        grade = grades[seen[band] % len(grades)]
+        seen[band] += 1
+        prerequisites = prerequisites_of(skill_id)
+        rows.append((
+            grade,
+            prerequisites[0] if prerequisites else None,
+            skill_id,
+            f"Synthetic Grade {grade} applied work: {skill.label}",
+            f"What do you notice first about {skill.label.lower()}?",
+        ))
+    return rows
+
+
+EVERY_MATH_SKILL = _every_math_skill_row()
+
+
+def test_every_math_skill_row_covers_the_whole_map_and_every_grade():
+    """The generated rows are the whole skill map, and reach every grade K-8."""
+    from models.schemas import grade_to_stage
+    from services.diagnostic.skill_map import all_skill_ids, get_skill
+
+    assert [row[2] for row in EVERY_MATH_SKILL] == all_skill_ids()
+    assert {row[0] for row in EVERY_MATH_SKILL} == {
+        "K", "1", "2", "3", "4", "5", "6", "7", "8",
+    }
+    for grade, _prerequisite, skill_id, _label, _line in EVERY_MATH_SKILL:
+        assert grade_to_stage(grade).value == get_skill(skill_id).band.value
+    # Kindergarten has its own representative row too, not only generated ones.
+    assert "K" in {row[0] for row in MATH_LIFECYCLE_GRADES}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "grade,prerequisite,target,observation_label,tutor_line",
+    EVERY_MATH_SKILL,
+    ids=[f"{row[2]}@grade-{row[0]}" for row in EVERY_MATH_SKILL],
+)
+async def test_math_lifecycle_every_skill(
+    db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+):
+    """Every skill in the mathematics skill map, through the same lifecycle."""
+    await _run_math_lifecycle(
+        db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+    )
+
+
+async def _run_math_lifecycle(
     db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
 ):
     """Real G1/G2 approval -> pilot tutor SSE -> encrypted institutional record.
@@ -732,25 +814,36 @@ async def test_math_lifecycle_per_grade(
 
     # The scenario row must name an implemented skill, a real edge, and a
     # 1:1 probe; a typo here would otherwise test nothing.
-    assert get_skill(target) is not None and get_skill(prerequisite) is not None
-    assert prerequisite in prerequisites_of(target)
+    assert get_skill(target) is not None
     assert Q_MATRIX[f"probe.{target}"].skills == (target,)
-    assert Q_MATRIX[f"probe.{prerequisite}"].skills == (prerequisite,)
+    if prerequisite is None:
+        # A root skill: nothing comes before it, so it is its own gap.
+        assert prerequisites_of(target) == []
+        gap = target
+    else:
+        assert get_skill(prerequisite) is not None
+        assert prerequisite in prerequisites_of(target)
+        assert Q_MATRIX[f"probe.{prerequisite}"].skills == (prerequisite,)
+        gap = prerequisite
 
     scope = LearnerScope.institutional(campus, learner)
     other_scope = LearnerScope.institutional(other_campus, other_learner)
     assert await get_mastery_summary(db, scope.storage_subject) is None
-    await process_evidence(
-        db, scope.storage_subject, f"probe.{prerequisite}",
+    missed = await process_evidence(
+        db, scope.storage_subject, f"probe.{gap}",
         "incorrect", 1.0, band,
     )
+    if prerequisite is None:
+        # The root skill's own wrong answer must lower its own estimate below
+        # the own-band cold start; a gap on any other skill would not.
+        assert missed[target] < 0.5
     hinted = await process_evidence(
         db, scope.storage_subject, f"probe.{target}",
         "hint_dependent", 1.0, band,
     )
     baseline = await get_mastery_summary(db, scope.storage_subject)
     assert baseline is not None and baseline["evidence_count"] == 2
-    assert prerequisite in {item["skill_id"] for item in baseline["gaps"]}
+    assert gap in {item["skill_id"] for item in baseline["gaps"]}
     # A hinted attempt is not mastery.
     assert hinted[target] < 0.8
     assert await get_mastery_summary(db, other_scope.storage_subject) is None
@@ -892,7 +985,7 @@ async def test_math_lifecycle_per_grade(
     # Independently reported diagnostic observations update the same
     # encrypted institutional mastery profile, never a cross-campus one.
     await process_evidence(
-        db, scope.storage_subject, f"probe.{prerequisite}",
+        db, scope.storage_subject, f"probe.{gap}",
         "correct", 1.0, band,
     )
     independent = await process_evidence(
@@ -919,7 +1012,13 @@ async def test_math_lifecycle_per_grade(
         await student_keys.get_existing(db, scope),
     )
     assert stored_vector[target] == pytest.approx(independent[target])
-    assert (stored_vector[K2_SENTINEL], stored_vector[SIX8_SENTINEL]) == pytest.approx(
+    probed = {target, gap}
+    k2, six8 = (
+        SENTINEL_ALTERNATES[name] if name in probed else name
+        for name in (K2_SENTINEL, SIX8_SENTINEL)
+    )
+    assert not probed & {k2, six8}
+    assert (stored_vector[k2], stored_vector[six8]) == pytest.approx(
         EXPECTED_SEEDS[band]
     )
 

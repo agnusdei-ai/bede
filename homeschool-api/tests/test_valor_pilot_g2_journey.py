@@ -25,6 +25,12 @@ from core.config import settings
 from core.database import Base, ClassicalEducator
 from core.encryption import initialize_encryption
 from core.pilot_journey_models import PilotDecision, PilotEvidence, PilotRecommendation
+# Registers the canonical-assessment tables on Base.metadata. Pilot learner
+# deletion cascades through them, so without this import a test that runs
+# FIRST in its process creates a schema missing those tables and fails with
+# 'no such table: pilot_assessment_administrations'. It used to pass only
+# because an earlier test happened to import the module.
+import core.pilot_assessment_models  # noqa: F401,E402
 import routers.pilot_journey as journey
 from routers.pilot_campuses import (
     CampusInput, LearnerInput, approve_educator_membership,
@@ -628,8 +634,72 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
     assert [entry["action"] for entry in ledger["entries"]] == ["approve", "reject"]
 
 
+# ── Grade 1-8 mathematics lifecycle: one representative skill per grade ────
+#
+# ONE implementation, eight rows of scenario data. Every row runs the same
+# lifecycle on the same real routes, so the Grade 2 security and
+# adverse-evidence assertions (missing approval, cross-campus denial, AAD
+# non-portability, scoped deletion, denied resumption) hold for every grade
+# because they ARE the same code, not a copy of it.
+#
+# What a grade actually changes is narrow, and is checked rather than
+# assumed: models/schemas.py's grade_to_stage() maps it to one of three
+# bands, and services/diagnostic/mastery.py's new_vector() seeds a new
+# learner's unprobed skills by band distance (0.5 own band, 0.70 any band
+# below, 0.5 - 0.2 per band above). The pilot tutor, recommender and
+# deletion paths carry no learner grade at all. So each row also asserts the
+# persisted seeds of two unprobed sentinel skills, one K-2 and one 6-8,
+# which is the only persisted state a grade can move.
+#
+# Each skill is the one this grade's own year plan teaches
+# (tests/diagnostic/test_prep_school_scope.py pins the plan phrase), each has
+# a 1:1 probe in qmatrix, and the prerequisite is a real edge in skill_map.
+# The tutor's text is a deterministic local-model STUB: these are
+# model-stub integration results, not real-provider results. Dates are
+# controlled (assessed_on values), so "later" means a later-dated record,
+# never elapsed wall-clock retention.
+MATH_LIFECYCLE_GRADES = [
+    # grade, prerequisite gap, target skill, observation, stub tutor line
+    ("1", "cc.count_objects_20", "cc.number_bonds",
+     "Synthetic Grade 1 number bonds for 7", "Seven can be five and what?"),
+    ("2", "nbt.place_value_tens", "nbt.add_within_100",
+     "Synthetic Grade 2 regrouping 27 + 15",
+     "When you add 7 ones and 5 ones, what do you notice?"),
+    ("3", "oa.multiplication_facts", "oa.order_of_operations",
+     "Synthetic Grade 3 order of operations 2 + 3 x 4",
+     "Which part of 2 + 3 x 4 would you work first, and why?"),
+    ("4", "fr.add_subtract_fractions", "fr.mixed_numbers",
+     "Synthetic Grade 4 mixed number 2 1/3 as thirds",
+     "How many thirds are hiding in the whole number 2?"),
+    ("5", "fr.multiply_fractions", "fr.divide_fractions",
+     "Synthetic Grade 5 dividing 3 by 1/4",
+     "How many quarters fit inside one whole?"),
+    ("6", "ns.integers", "ns.absolute_value",
+     "Synthetic Grade 6 absolute value of -7",
+     "How far is -7 from zero on the number line?"),
+    ("7", "ee.multi_step_equations", "ee.variables_both_sides",
+     "Synthetic Grade 7 solving 3x + 4 = x + 10",
+     "What could you do to both sides so x appears only once?"),
+    ("8", "fn.linear_functions", "ee.systems_of_equations",
+     "Synthetic Grade 8 system x + y = 5 and x - y = 1",
+     "What happens if you add the two equations together?"),
+]
+K2_SENTINEL = "geo.compose_shapes"
+SIX8_SENTINEL = "sp.two_way_tables"
+EXPECTED_SEEDS = {  # band -> (K-2 sentinel, 6-8 sentinel), from new_vector
+    "K-2": (0.5, 0.1), "3-5": (0.70, 0.3), "6-8": (0.70, 0.5),
+}
+
+
 @pytest.mark.asyncio
-async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypatch):
+@pytest.mark.parametrize(
+    "grade,prerequisite,target,observation_label,tutor_line",
+    MATH_LIFECYCLE_GRADES,
+    ids=[f"grade-{row[0]}" for row in MATH_LIFECYCLE_GRADES],
+)
+async def test_math_lifecycle_per_grade(
+    db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+):
     """Real G1/G2 approval -> pilot tutor SSE -> encrypted institutional record.
 
     Only the local model's text stream is deterministic synthetic test data.
@@ -639,43 +709,50 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     import json
     from types import SimpleNamespace
 
-    from core.database import SessionTranscript
+    from core.database import MasteryProfile, SessionTranscript
     from core.encryption import decrypt_json, student_aad
     from core.learner_scope import LearnerScope
     from core import student_keys
+    from models.schemas import grade_to_stage
     import routers.pilot_tutor as tutor
 
+    band = grade_to_stage(grade).value
     ta, tb, campus, other_campus, learner, other_learner = await two_campuses(db)
     educator = await token(db, ta)
     other_educator = await token(db, tb)
     request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
 
-    # Probe the real Grade 2 prerequisite graph and persist the baseline
-    # BEFORE proposing a teacher-governed lesson. These are synthetic
+    # Probe the real prerequisite graph and persist the baseline BEFORE
+    # proposing a teacher-governed lesson. These are synthetic
     # observations, not a model-inferred learning diagnosis.
     from services.diagnostic import get_mastery_summary, process_evidence
-    from services.diagnostic.skill_map import prerequisites_of
+    from services.diagnostic.qmatrix import Q_MATRIX
+    from services.diagnostic.skill_map import get_skill, prerequisites_of
     from services.pilot_learner_deletion import delete_pilot_learner
+
+    # The scenario row must name an implemented skill, a real edge, and a
+    # 1:1 probe; a typo here would otherwise test nothing.
+    assert get_skill(target) is not None and get_skill(prerequisite) is not None
+    assert prerequisite in prerequisites_of(target)
+    assert Q_MATRIX[f"probe.{target}"].skills == (target,)
+    assert Q_MATRIX[f"probe.{prerequisite}"].skills == (prerequisite,)
 
     scope = LearnerScope.institutional(campus, learner)
     other_scope = LearnerScope.institutional(other_campus, other_learner)
-    assert {"nbt.place_value_tens", "oa.add_within_20"} <= set(
-        prerequisites_of("nbt.add_within_100")
-    )
     assert await get_mastery_summary(db, scope.storage_subject) is None
     await process_evidence(
-        db, scope.storage_subject, "probe.nbt.place_value_tens",
-        "incorrect", 1.0, "K-2",
+        db, scope.storage_subject, f"probe.{prerequisite}",
+        "incorrect", 1.0, band,
     )
-    await process_evidence(
-        db, scope.storage_subject, "probe.nbt.add_within_100",
-        "hint_dependent", 1.0, "K-2",
+    hinted = await process_evidence(
+        db, scope.storage_subject, f"probe.{target}",
+        "hint_dependent", 1.0, band,
     )
     baseline = await get_mastery_summary(db, scope.storage_subject)
     assert baseline is not None and baseline["evidence_count"] == 2
-    assert "nbt.place_value_tens" in {
-        item["skill_id"] for item in baseline["gaps"]
-    }
+    assert prerequisite in {item["skill_id"] for item in baseline["gaps"]}
+    # A hinted attempt is not mastery.
+    assert hinted[target] < 0.8
     assert await get_mastery_summary(db, other_scope.storage_subject) is None
 
     # A teacher's draft cannot authorize even a local-model tutoring call.
@@ -688,7 +765,7 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
         EducatorAssessmentSubmission(
             framework="classical", measure="applied_work",
             assessed_on=ASSESSED,
-            source_name="Synthetic Grade 2 regrouping 27 + 15",
+            source_name=observation_label,
             assistance="with_a_hint",
         ),
         auth=educator, db=db,
@@ -723,7 +800,7 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
                     type="content_block_delta",
                     delta=SimpleNamespace(
                         type="text_delta",
-                        text="When you add 7 ones and 5 ones, what do you notice?",
+                        text=tutor_line,
                     ),
                 )
             return one_chunk()
@@ -741,7 +818,7 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     response = await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
     events = [json.loads(item) async for item in response.body_iterator]
     assert [event["type"] for event in events] == ["start", "text", "done"]
-    assert "7 ones and 5 ones" in events[1]["content"]
+    assert events[1]["content"] == tutor_line
     assert len(captured_prompts) == 1
     assert instruction in captured_prompts[0]
 
@@ -787,7 +864,7 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
         EducatorAssessmentSubmission(
             framework="classical", measure="applied_work",
             assessed_on=ASSESSED + timedelta(days=1),
-            source_name="Synthetic Grade 2 independent regrouping recheck",
+            source_name=f"{observation_label}: independent recheck",
             assistance="unaided",
         ),
         auth=educator, db=db,
@@ -815,16 +892,36 @@ async def test_grade2_approved_math_tutoring_scoped_stream_persists(db, monkeypa
     # Independently reported diagnostic observations update the same
     # encrypted institutional mastery profile, never a cross-campus one.
     await process_evidence(
-        db, scope.storage_subject, "probe.nbt.place_value_tens",
-        "correct", 1.0, "K-2",
+        db, scope.storage_subject, f"probe.{prerequisite}",
+        "correct", 1.0, band,
     )
-    await process_evidence(
-        db, scope.storage_subject, "probe.nbt.add_within_100",
-        "correct", 1.0, "K-2",
+    independent = await process_evidence(
+        db, scope.storage_subject, f"probe.{target}",
+        "correct", 1.0, band,
     )
     rechecked = await get_mastery_summary(db, scope.storage_subject)
     assert rechecked is not None and rechecked["evidence_count"] == 4
+    # The independent response moves the estimate up from the hinted one.
+    assert independent[target] > hinted[target]
     assert await get_mastery_summary(db, other_scope.storage_subject) is None
+
+    # The persisted outcome, read back from the encrypted row itself: the
+    # target matches what the engine returned, and the two unprobed
+    # sentinels carry this grade's band seeds, which is the only persisted
+    # state a grade can change.
+    profile = (await db.execute(select(MasteryProfile).where(
+        MasteryProfile.student_name == scope.storage_subject,
+        MasteryProfile.subject_area == "mathematics",
+    ))).scalar_one()
+    stored_vector = decrypt_json(
+        profile.profile_enc,
+        student_aad("mastery_profiles", "profile_enc", scope.storage_subject, "mathematics"),
+        await student_keys.get_existing(db, scope),
+    )
+    assert stored_vector[target] == pytest.approx(independent[target])
+    assert (stored_vector[K2_SENTINEL], stored_vector[SIX8_SENTINEL]) == pytest.approx(
+        EXPECTED_SEEDS[band]
+    )
 
     # Preserve an independently authorized learner on the other campus.
     other_evidence = await record_evidence(

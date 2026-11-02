@@ -235,3 +235,44 @@ async def test_grade2_zero_confidence_cannot_cold_start_mastery(db_factory):
         assert (await db.execute(select(MasteryProfile).where(
             MasteryProfile.student_name == LEARNER,
         ))).scalar_one_or_none() is None
+
+
+@pytest.mark.asyncio
+async def test_grade2_contradictory_evidence_stays_revisable_and_never_secure(db_factory):
+    """Alternating right and wrong answers must not certify mastery.
+
+    Before POSTERIOR_FLOOR/POSTERIOR_CEILING, calibration mode's 2x step
+    clamped a new learner's first correct answer to exactly 1.0, and four
+    wrong answers after it left the skill reported secure: a probability of
+    1.0 cannot move under Bayes' rule. The same happened at 0.0 for a first
+    wrong answer.
+    """
+    from services.diagnostic.mastery import POSTERIOR_CEILING, POSTERIOR_FLOOR
+
+    async with db_factory() as db:
+        previous = None
+        for outcome in ["correct", "incorrect"] * 4:
+            vector = await process_evidence(
+                db, LEARNER, f"probe.{ADDITION}", outcome, 1.0, GRADE_BAND,
+            )
+            value = vector[ADDITION]
+            assert POSTERIOR_FLOOR <= value <= POSTERIOR_CEILING
+            if previous is not None:
+                # Every answer moves the estimate in its own direction.
+                assert (value > previous) if outcome == "correct" else (value < previous)
+            previous = value
+        summary = await get_mastery_summary(db, LEARNER)
+        views = {
+            item["skill_id"]: item
+            for domain in summary["domains"] for item in domain["skills"]
+        }
+        assert views[ADDITION]["probability"] < 0.8
+
+        # A first wrong answer on a fresh skill must stay liftable too.
+        low = await process_evidence(
+            db, OTHER_LEARNER, f"probe.{PLACE_VALUE}", "incorrect", 1.0, GRADE_BAND,
+        )
+        lifted = await process_evidence(
+            db, OTHER_LEARNER, f"probe.{PLACE_VALUE}", "correct", 1.0, GRADE_BAND,
+        )
+        assert lifted[PLACE_VALUE] > low[PLACE_VALUE] >= POSTERIOR_FLOOR

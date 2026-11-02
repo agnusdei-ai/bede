@@ -160,6 +160,7 @@ async def test_active_content_inside_an_object_stream_is_found_by_the_graph_walk
 
 
 def test_unreadable_pdf_indirect_object_fails_closed(monkeypatch):
+    """A damaged indirect object cannot be silently skipped during PDF safety review."""
     from pypdf import PdfReader
     from pypdf.generic import IndirectObject
 

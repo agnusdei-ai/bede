@@ -74,6 +74,52 @@ E / integration owner: sole owner of App.tsx, core/deps.py, main.py, shared sche
 - Quality: full backend/frontend tests and typecheck/build, CodeQL offline SARIF gate, dependency audits, real hardware qualification and rollback. A successful unit test or storyboard does not certify throughput, hardware or institution deployment.
 - Gate verdict is binary: all relevant checks on current integrated commit green AND owner usability approval AND no unresolved critical security issue, otherwise blocked.
 
+## Mathematics lifecycle, one representative skill per grade (1-8)
+
+`homeschool-api/tests/test_valor_pilot_g2_journey.py::test_math_lifecycle_per_grade`
+is one implementation run over eight rows of scenario data. Each row goes
+through the whole lifecycle on the real pilot routes:
+
+campus-scoped educator access, then a prerequisite gap and a hinted attempt,
+then a teacher approval, then an approved local-model tutoring turn, then an
+independent attempt, then the encrypted outcome read back, then an
+authorized educator view, then learner deletion and a refused resumption.
+
+| Grade | Band | Skill | Prerequisite gap |
+| --- | --- | --- | --- |
+| 1 | K-2 | `cc.number_bonds` | `cc.count_objects_20` |
+| 2 | K-2 | `nbt.add_within_100` | `nbt.place_value_tens` |
+| 3 | 3-5 | `oa.order_of_operations` | `oa.multiplication_facts` |
+| 4 | 3-5 | `fr.mixed_numbers` | `fr.add_subtract_fractions` |
+| 5 | 3-5 | `fr.divide_fractions` | `fr.multiply_fractions` |
+| 6 | 6-8 | `ns.absolute_value` | `ns.integers` |
+| 7 | 6-8 | `ee.variables_both_sides` | `ee.multi_step_equations` |
+| 8 | 6-8 | `ee.systems_of_equations` | `fn.linear_functions` |
+
+Each skill is one that grade's own year plan teaches, has a one-to-one
+probe, and its prerequisite is a real edge in the skill map. The test checks
+all three for every row.
+
+A grade changes behaviour in only one place. `grade_to_stage()` maps it to
+a band, and the band sets the cold-start seeds and the on-band probe filter.
+The pilot tutor, recommender and deletion paths read no learner grade. Each
+row therefore also checks the stored seeds of two unprobed skills, which is
+the only stored state a grade can move.
+`homeschool-api/tests/diagnostic/test_grade_band_boundaries.py` pins the
+2-to-3 and 5-to-6 boundaries.
+
+Limits, stated with the result:
+
+- The tutor's reply comes from a deterministic stub of the local model.
+  These are model-stub integration results; no real provider was called.
+- "Later" means a later-dated record. No real time passes, so this is not
+  evidence of retention over time.
+- Hinted and independent attempts are synthetic observations; no model
+  grades a learner's answer.
+
+The supported claim is: one representative mathematics lifecycle verified
+per grade, Grades 1-8.
+
 ## Immediately actionable implementation sequence
 1. Merge safe isolated docs/policy and visual prototypes only after current checks pass; keep new auth inaccessible.
 2. Implement persistent invitation/challenge/credential tables and atomic consumption. Include encrypted contact where appropriate, unique binding, migration/backward compatibility and audit.

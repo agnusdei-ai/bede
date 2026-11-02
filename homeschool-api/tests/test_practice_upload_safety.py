@@ -159,6 +159,21 @@ async def test_active_content_inside_an_object_stream_is_found_by_the_graph_walk
         upload_safety._refuse_active_content(reader, b"%PDF- nothing readable in the bytes")
 
 
+def test_unreadable_pdf_indirect_object_fails_closed(monkeypatch):
+    from pypdf import PdfReader
+    from pypdf.generic import IndirectObject
+
+    raw = make_pdf(("jpeg",))
+    reader = PdfReader(io.BytesIO(raw))
+
+    def unreadable(_self):
+        raise ValueError("synthetic unreadable indirect object")
+
+    monkeypatch.setattr(IndirectObject, "get_object", unreadable)
+    with pytest.raises(PhotoRejected, match="unreadable object"):
+        upload_safety._refuse_active_content(reader, raw)
+
+
 @pytest.mark.asyncio
 async def test_pdf_page_and_content_limits():
     with pytest.raises(PhotoRejected):

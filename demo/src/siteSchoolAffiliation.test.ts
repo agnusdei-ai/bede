@@ -22,12 +22,12 @@ describe('school marketing affiliation boundaries', () => {
     const school = readFileSync(join(root, 'site/schools/index.html'), 'utf8')
     const launch = readFileSync(join(root, 'demo/public/launch.html'), 'utf8')
     for (const text of [school, launch]) {
-      expect(text).toContain('No customer agreement, school endorsement, or approved deployment is implied.')
-      expect(text).toContain('sample data only')
+      expect(text).toContain('Taking part does not mean a school has signed on with us or endorses Bede.')
+      expect(text).toContain('example records')
       // The owner's rule: "synthetic" is implied and never shown.
       expect(text).not.toMatch(/synthetic/i)
       expect(text).not.toMatch(/current.*?(?:customer|campus) pilot/i)
     }
-    expect(school).toContain('school evaluation requires its own signed scope')
+    expect(school).toContain('school evaluation needs its own signed agreement')
   })
 })

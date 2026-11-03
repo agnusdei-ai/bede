@@ -23,8 +23,8 @@ describe('launch page email pricing requests', () => {
   })
 
   it('retains the restricted school pilot scope', () => {
-    expect(launch).toContain('teacher-directed and use sample data only')
-    expect(launch).toContain('no direct student tutoring')
-    expect(launch).toContain('institutional, security, and deployment qualification')
+    expect(launch).toContain('led by teachers and use example records')
+    expect(launch).toContain('does not tutor students directly')
+    expect(launch).toContain('institutional, security and deployment approval')
   })
 })

@@ -47,7 +47,7 @@ test("all curriculum subjects, descriptions, and facts survive graduation", () =
   assert.match(faq, /separately configured, approved access/);
   assert.doesNotMatch(faq, /independent outcome study/);
   assert.match(faq, /cancel their learning plan at the end of a full month/);
-  assert.match(html, /teachers only, sample data only\. No direct student tutoring/);
+  assert.match(html, /teachers work with example records\. Bede does not tutor students directly/);
   assert.match(html, /data-reading-stage/);
   assert.match(html, /A little device time\. A great deal of reading\./);
 });

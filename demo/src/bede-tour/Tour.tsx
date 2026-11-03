@@ -196,7 +196,7 @@ function PathPicker({ onChoose, onBack }: { onChoose: (path: TourPath) => void; 
           </button>
           <button className="tour-path-choice" onClick={() => onChoose("educator")} data-testid="button-choose-classical-educator">
             <strong>Classical educator</strong>
-            <span>Teacher-only planning with sample data: keep the evidence apart from your observation, then decide.</span>
+            <span>For teachers: look at an example record, note what you see, then decide.</span>
             <small>3 steps · school pilot simulation</small>
           </button>
         </div>
@@ -348,7 +348,7 @@ function EducatorStep({
     <>
       <p className="tour-eyebrow">Step 1 · teacher-only review</p>
       <h1 tabIndex={-1} data-tour-heading>Keep evidence and observation distinct.</h1>
-      <p className="tour-lead">A fictional campus, learner, and record. No real student data.</p>
+      <p className="tour-lead">A made-up school, student and record.</p>
       <div className="tour-review-card" data-testid="card-sample-evidence">
         <span className="tour-scripted-label">Sample evidence</span>
         <strong>Fictional learner · Grade 5</strong>
@@ -361,7 +361,7 @@ function EducatorStep({
           <textarea value={observation} onChange={(e) => { setObservation(e.target.value); setReviewConfirmed(false); }} maxLength={320} placeholder="What did you notice in this example?" data-testid="textarea-teacher-observation" />
         </label>
       </div>
-      <p className="tour-note"><strong>School pilot:</strong> teachers only, sample data only. Nothing reaches a student.</p>
+      <p className="tour-note"><strong>In the school pilot,</strong> teachers work with example records, and nothing goes to students.</p>
     </>
   );
   if (step === 1) return (
@@ -383,7 +383,7 @@ function EducatorStep({
         {decision === "rejected" && "Proposal rejected. No instructional step is assigned."}
         {!decision && "No decision yet. Choose approve, edit, or reject before reviewing the record."}
       </p>
-      <p className="tour-note"><strong>Teacher review only.</strong> Nothing reaches a student.</p>
+      <p className="tour-note"><strong>This is for you to review.</strong> Nothing goes to a student.</p>
     </>
   );
   if (step === 2) return (
@@ -439,7 +439,7 @@ function Completion({
       {skipped
         ? <p className="tour-lead">You chose to finish before all steps were reviewed. No missing response, review, or teacher decision has been filled in for you.</p>
         : <p className="tour-lead">{path === "parent" ? "You chose the book, question, and practical next move. Bede’s role is support; your judgment remains central." : "You reviewed sample evidence, kept your observation separate, and made the decision. Nothing was sent to a learner."}</p>}
-      <p className="tour-note"><strong>{path === "educator" ? "Teachers only, sample data only." : "Fictional family example."}</strong> {decisionLabel} No live inference, account, or persistence.</p>
+      <p className="tour-note"><strong>{path === "educator" ? "A made-up classroom example." : "Fictional family example."}</strong> {decisionLabel} Nothing here is live or saved.</p>
       <div className="tour-actions tour-complete-actions">
         <button className="tour-button" onClick={onRestart} data-testid="button-restart-tour"><RotateCcw size={16} /> Restart this path</button>
         <button className="tour-button secondary" onClick={onSwitch} data-testid="button-switch-path-complete">Switch path</button>
@@ -577,7 +577,7 @@ export function Tour() {
           <img className="tour-side-mark" src={asset("bede-icon.webp")} alt="" />
           <p className="tour-eyebrow">{path === "parent" ? "Family learning" : "School pilot scope"}</p>
           <h2 className="tour-side-heading">{path === "parent" ? "You choose. Bede supports. You review." : "The teacher decides."}</h2>
-          <p>{path === "parent" ? "Read closely, discuss thoughtfully, and return to the book or written work." : "Teachers only, sample data only. No direct student tutoring."}</p>
+          <p>{path === "parent" ? "Read closely, discuss thoughtfully, and return to the book or written work." : "Teachers work with example records. Bede does not tutor students in the pilot."}</p>
           {path === "educator" && <p><strong>Decision:</strong> {decision ? decision[0].toUpperCase() + decision.slice(1) : "Not recorded"}</p>}
           <div className="tour-side-rule" />
           <p><span className="tour-kbd">←</span> Back <span className="tour-kbd">→</span> Continue</p>

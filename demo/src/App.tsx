@@ -364,7 +364,7 @@ export function CodeScreen({ onLoggedIn }: {
         className="w-full max-w-sm block rounded-xl border border-gold-300 bg-white/80 px-4 py-3 text-center shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-navy-400"
       >
         <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
-          Public beta through October 31, 2026
+          Demo beta extended through November 21, 2026
         </span>
         <span className="mt-0.5 block text-xs text-navy-700">
           Founding Family access opening soon.{' '}

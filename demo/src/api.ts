@@ -223,7 +223,8 @@ export interface QuizQuestion {
   prompt: string
   options: string[]
   answer: string
-  answer_check: 'computed' | 'verify'
+  answer_check: 'computed' | 'checked' | 'verify'
+  second_answer?: string | null
 }
 
 export interface GeneratedQuiz {

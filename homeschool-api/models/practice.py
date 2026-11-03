@@ -171,7 +171,8 @@ class PracticeOutcomeRequest(_Strict):
 # A quiz Bede drafts from an existing quiz, a prior or prep exam, or a lesson
 # description. Bede writes the questions AND the answers, so every answer
 # carries `answer_check`: "computed" when this backend worked a maths answer
-# out itself, "verify" otherwise, for the adult to check before approving.
+# out itself, "checked" when an independent second answer agreed, "verify"
+# otherwise, for the adult to check before approving.
 # Nothing here is stored; the draft lives in the request and on the screen.
 
 QuizKind = Literal["ad_hoc", "quiz", "unit_test", "midterm", "final", "prep_exam"]
@@ -189,7 +190,11 @@ class QuizQuestion(_Strict):
     prompt: str = Field(..., min_length=1, max_length=600)
     options: List[str] = Field(default_factory=list, max_length=6)
     answer: str = Field(..., min_length=1, max_length=400)
-    answer_check: Literal["computed", "verify"] = "verify"
+    # computed: worked out by this backend. checked: a second, independent
+    # answer agreed. verify: the adult should check it.
+    answer_check: Literal["computed", "checked", "verify"] = "verify"
+    # What the independent second answer said, when it disagreed.
+    second_answer: Optional[str] = Field(default=None, max_length=400)
 
 
 class GeneratedQuiz(_Strict):

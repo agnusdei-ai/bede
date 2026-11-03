@@ -194,3 +194,125 @@ def test_no_identity_field_can_ride_along_in_a_quiz():
     GeneratedQuiz.model_validate(data)
     with pytest.raises(ValidationError):
         GeneratedQuiz.model_validate({**data, "student_name": "x"})
+
+
+# ── Independent answer check ─────────────────────────────────────────────────
+
+class SeqClient:
+    """Returns each reply in turn: the draft first, then the check."""
+
+    def __init__(self, *texts):
+        self.texts, self.calls = list(texts), []
+        self.messages = self
+
+    async def create(self, **kwargs):
+        from tests.test_practice_coach import _Reply
+
+        self.calls.append(kwargs)
+        text = self.texts[min(len(self.calls), len(self.texts)) - 1]
+        if isinstance(text, Exception):
+            raise text
+        return _Reply(text)
+
+
+def check(*answers):
+    return json.dumps({"answers": [{"number": n, "answer": a, "sure": s} for n, a, s in answers]})
+
+
+HISTORY = draft(
+    q("Which river flooded every year in Egypt?", "Nile"),
+    q("Who built the pyramids?", "Egyptians", "multiple_choice", ["Romans", "Egyptians", "Vikings"]),
+    q("What was the ruler of Egypt called?", "pharaoh"),
+    q("Explain why the flood mattered.", "rich soil", "written_response"),
+)
+
+
+@pytest.mark.asyncio
+async def test_agreeing_answers_are_checked_and_disagreeing_ones_show_both(monkeypatch, quota):
+    client = SeqClient(HISTORY, check((1, "The Nile", True), (2, "Egyptians", True), (3, "king", True)))
+    _routing(monkeypatch, local=True, cloud=None, local_client=client)
+    out = await practice_router.demo_generate_quiz(req(subject="history", focus="Egypt"), auth=DEMO)
+    qs = {x["number"]: x for x in out["quiz"]["questions"]}
+    assert qs[1]["answer_check"] == "checked" and qs[2]["answer_check"] == "checked"
+    assert qs[3]["answer_check"] == "verify" and qs[3]["second_answer"] == "king"
+    assert qs[4]["answer_check"] == "verify"  # an essay has no single key to check
+    assert out["report"]["checked"] == 2 and out["report"]["disagreed"] == 1
+
+
+@pytest.mark.asyncio
+async def test_an_unsure_second_answer_never_counts_as_a_check(monkeypatch, quota):
+    client = SeqClient(HISTORY, check((1, "Nile", False), (2, "Egyptians", False)))
+    _routing(monkeypatch, local=True, cloud=None, local_client=client)
+    out = await practice_router.demo_generate_quiz(req(subject="history", focus="Egypt"), auth=DEMO)
+    assert {x["answer_check"] for x in out["quiz"]["questions"]} == {"verify"}
+
+
+@pytest.mark.asyncio
+async def test_the_checker_never_sees_the_first_answers(monkeypatch, quota):
+    client = SeqClient(HISTORY, check())
+    _routing(monkeypatch, local=True, cloud=None, local_client=client)
+    await practice_router.demo_generate_quiz(req(subject="history", source_text="Egypt notes"), auth=DEMO)
+    sent = client.calls[1]["messages"][0]["content"][0]["text"]
+    assert "Which river flooded" in sent and "Egypt notes" in sent
+    assert "pharaoh" not in sent and "Nile" not in sent
+
+
+@pytest.mark.asyncio
+async def test_a_failed_check_leaves_answers_to_be_checked_by_the_adult(monkeypatch, quota):
+    client = SeqClient(HISTORY, RuntimeError("provider down"))
+    _routing(monkeypatch, local=True, cloud=None, local_client=client)
+    out = await practice_router.demo_generate_quiz(req(subject="history", focus="Egypt"), auth=DEMO)
+    assert {x["answer_check"] for x in out["quiz"]["questions"]} == {"verify"}
+    assert out["report"]["check_failed"] is True
+
+
+@pytest.mark.asyncio
+async def test_computed_maths_answers_are_not_sent_to_the_checker(monkeypatch, quota):
+    client = SeqClient(draft(q("27 + 15 =", "42", "computation")), check())
+    _routing(monkeypatch, local=True, cloud=None, local_client=client)
+    await practice_router.demo_generate_quiz(req(), auth=DEMO)
+    assert len(client.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_a_demo_draft_counts_both_model_calls(monkeypatch, quota):
+    client = SeqClient(HISTORY, check())
+    _routing(monkeypatch, local=True, cloud=None, local_client=client)
+    await practice_router.demo_generate_quiz(req(subject="history", focus="Egypt"), auth=DEMO)
+    assert quota["recorded"] == 2
+
+
+# ── Teachers ──────────────────────────────────────────────────────────────────
+
+TEACHER = {"role": "educator", "sub": "teacher-1"}
+
+
+@pytest.mark.asyncio
+async def test_a_teacher_drafts_on_the_local_model_only(monkeypatch):
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
+    local = SeqClient(HISTORY, check())
+    cloud = StubClient(HISTORY)
+    _routing(monkeypatch, local=True, cloud="openai", local_client=local, cloud_client=cloud)
+    out = await practice_router.educator_generate_quiz(req(subject="history", focus="Egypt", cloud_consent=True), auth=TEACHER)
+    assert out["quiz"]["questions"] and local.calls and not cloud.calls
+
+
+@pytest.mark.asyncio
+async def test_a_teacher_without_a_local_model_is_refused_and_nothing_goes_to_the_cloud(monkeypatch):
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
+    cloud = StubClient(HISTORY)
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.educator_generate_quiz(req(subject="history", focus="Egypt", cloud_consent=True), auth=TEACHER)
+    assert exc.value.status_code == 409 and not cloud.calls
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.educator_generate_quiz(req(subject="history", focus="Egypt", route="cloud"), auth=TEACHER)
+    assert exc.value.status_code == 422 and not cloud.calls
+
+
+@pytest.mark.asyncio
+async def test_teacher_options_never_offer_a_cloud_provider(monkeypatch):
+    _routing(monkeypatch, local=False, cloud="openai")
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
+    options = await practice_router.educator_quiz_options(auth=TEACHER)
+    assert options["route"] == {"local_available": False, "cloud_provider": None}

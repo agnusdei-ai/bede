@@ -1896,7 +1896,8 @@ export interface QuizQuestion {
   prompt: string
   options: string[]
   answer: string
-  answer_check: 'computed' | 'verify'
+  answer_check: 'computed' | 'checked' | 'verify'
+  second_answer?: string | null
 }
 
 export interface GeneratedQuiz {
@@ -1930,4 +1931,15 @@ export const generateQuiz = (
   },
 ) => practiceFetch<{ quiz: GeneratedQuiz; report: { answers_recomputed: number; dropped: number; short_by: number } }>(
   token, `/${encodeURIComponent(studentName)}/quizzes/generate`, { method: 'POST', body: JSON.stringify(body) },
+)
+
+// Teachers draft on the school's own model only; no learner is named.
+export const fetchEducatorQuizOptions = (token: string) =>
+  practiceFetch<QuizOptions>(token, '/educator/quiz-options')
+
+export const generateEducatorQuiz = (
+  token: string,
+  body: Parameters<typeof generateQuiz>[2],
+) => practiceFetch<Awaited<ReturnType<typeof generateQuiz>>>(
+  token, '/educator/quiz/generate', { method: 'POST', body: JSON.stringify(body) },
 )

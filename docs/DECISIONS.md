@@ -2262,6 +2262,11 @@ provider choice, not this feature's).
   adult approves. The owner left the answer-key choice to the recommended
   default.
 - **Faith subjects are never quizzed or scored.**
+- **Teachers have the same capability** (owner direction, 2026-11-03), on
+  the school's own local model only, since a teacher's upload can hold
+  students' work.
+- **Non-maths answers are cross-checked** by an independent second answer
+  before the adult sees them.
 - **Ruling 6 is superseded.** Practice Coach is on the public demo, with
   nothing stored. Its demo routes had shipped in #773 before this was
   written down.

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import (
     require_demo_practice_preview,
+    require_educator,
     require_family_data_write,
     require_learner_access,
     require_parent,
@@ -61,9 +62,9 @@ def _quiz_options() -> dict:
     }
 
 
-async def _draft_quiz(req: GenerateQuizRequest) -> dict:
+async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False) -> dict:
     try:
-        quiz, report = await generate.generate(req)
+        quiz, report = await generate.generate(req, local_only=local_only)
     except generate.QuizRefused as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except extract.ConsentRequired as exc:
@@ -98,6 +99,27 @@ async def generate_quiz(
     """Draft a quiz or exam for this student. Nothing is stored."""
     await consent.require_collection(db, student_name)
     return await _draft_quiz(req)
+
+
+@router.get("/educator/quiz-options")
+async def educator_quiz_options(auth: dict = Depends(require_educator)) -> dict:
+    options = _quiz_options()
+    # Teachers draft on the school's own model only, so no cloud consent is offered.
+    options["route"] = {"local_available": options["route"]["local_available"], "cloud_provider": None}
+    return options
+
+
+@router.post("/educator/quiz/generate")
+async def educator_generate_quiz(
+    req: GenerateQuizRequest,
+    auth: dict = Depends(require_educator),
+) -> dict:
+    """A teacher drafts a quiz or exam for a class. Local model only, because
+    a teacher's upload can hold students' work; nothing is stored, and no
+    learner record is read or written."""
+    if req.route == "cloud":
+        raise HTTPException(status_code=422, detail="Teacher quizzes are drafted on the school's own AI model.")
+    return await _draft_quiz(req, local_only=True)
 
 
 @router.get("/reading-route")
@@ -293,6 +315,8 @@ async def demo_generate_quiz(
     code = auth.get("code") or ""
     if not await has_message_quota(code):
         raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
+    # A draft is two model calls: writing the quiz, then checking its answers.
+    await record_message(code)
     await record_message(code)
     return await _draft_quiz(req)
 

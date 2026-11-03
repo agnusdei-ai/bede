@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   fetchQuizOptions: vi.fn(),
   generateQuiz: vi.fn(),
+  fetchEducatorQuizOptions: vi.fn(),
+  generateEducatorQuiz: vi.fn(),
 }))
 vi.mock('../services/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('../services/api')>()
@@ -29,7 +31,8 @@ const quiz: GeneratedQuiz = {
   title: 'Plants quiz', subject: 'science', grade: '4', kind: 'midterm', level: 'on_level',
   coverage: ['photosynthesis'], est_minutes: 3,
   questions: [
-    { number: 1, type: 'short_answer', topic: 'plants', prompt: 'What do leaves need to make food?', options: [], answer: 'sunlight', answer_check: 'verify' },
+    { number: 1, type: 'short_answer', topic: 'plants', prompt: 'What do leaves need to make food?', options: [], answer: 'sunlight', answer_check: 'verify', second_answer: 'light' },
+    { number: 3, type: 'short_answer', topic: 'plants', prompt: 'What gas do plants take in?', options: [], answer: 'carbon dioxide', answer_check: 'checked' },
     { number: 2, type: 'computation', topic: 'measurement', prompt: '12 × 3 =', options: [], answer: '36', answer_check: 'computed' },
   ],
 }
@@ -59,6 +62,8 @@ describe('QuizBuilder', () => {
     })))
     expect(await screen.findByText('Worked out')).toBeTruthy()
     expect(screen.getByText('Check')).toBeTruthy()
+    expect(screen.getByText('Double-checked')).toBeTruthy()
+    expect(screen.getByText('A second check said: light')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Print quiz' }))
     expect(written[0]).toContain('What do leaves need to make food?')
@@ -77,6 +82,26 @@ describe('QuizBuilder', () => {
     fireEvent.click(screen.getByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
     await waitFor(() => expect(mocks.generateQuiz).toHaveBeenCalledWith('t', 'Ava', expect.objectContaining({ cloud_consent: true })))
+  })
+
+  it('a teacher drafts for a class through the teacher route, with no student and no cloud', async () => {
+    mocks.fetchEducatorQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
+    mocks.generateEducatorQuiz.mockResolvedValue({ quiz, report: { answers_recomputed: 0, dropped: 0, short_by: 0 } })
+    render(<QuizBuilder token="t" audience="educator" />)
+    expect(screen.getByText(/on the school’s own AI model/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'plants' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    await waitFor(() => expect(mocks.generateEducatorQuiz).toHaveBeenCalledWith('t', expect.objectContaining({ focus: 'plants', cloud_consent: false })))
+    expect(mocks.generateQuiz).not.toHaveBeenCalled()
+    expect(mocks.fetchQuizOptions).not.toHaveBeenCalled()
+  })
+
+  it('tells a teacher plainly when the school has no local model', async () => {
+    mocks.fetchEducatorQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: null }))
+    render(<QuizBuilder token="t" audience="educator" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    expect(await screen.findByText(/none is set up here/)).toBeTruthy()
   })
 
   it('every quiz string exists in Spanish too', () => {

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileQuestion, Loader2, Printer } from 'lucide-react'
 import {
+  fetchEducatorQuizOptions,
   fetchQuizOptions,
+  generateEducatorQuiz,
   generateQuiz,
   type GeneratedQuiz,
   type QuizKind,
@@ -41,7 +43,13 @@ export function optionLines(options: string[]): string[] {
  * is marked to check. Nothing is saved: the parent prints the quiz and the
  * answer key.
  */
-export default function QuizBuilder({ token, studentName }: { token: string; studentName: string }) {
+export default function QuizBuilder({ token, studentName = '', audience = 'parent' }: {
+  token: string
+  studentName?: string
+  /** A teacher drafts for a class, on the school's own model only. */
+  audience?: 'parent' | 'educator'
+}) {
+  const teacher = audience === 'educator'
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [options, setOptions] = useState<QuizOptions | null>(null)
@@ -62,7 +70,8 @@ export default function QuizBuilder({ token, studentName }: { token: string; stu
   useEffect(() => {
     if (!open || options) return
     let active = true
-    fetchQuizOptions(token)
+    const load = teacher ? fetchEducatorQuizOptions(token) : fetchQuizOptions(token)
+    load
       .then((loaded) => {
         if (!active) return
         setOptions(loaded)
@@ -70,7 +79,7 @@ export default function QuizBuilder({ token, studentName }: { token: string; stu
       })
       .catch(() => { if (active) setMessage(t('quizBuilder.loadError')) })
     return () => { active = false }
-  }, [open, options, token, t])
+  }, [open, options, token, t, teacher])
 
   // A different child starts over, so one child's quiz never shows on another's page.
   useEffect(() => {
@@ -89,11 +98,12 @@ export default function QuizBuilder({ token, studentName }: { token: string; stu
     setMessage('')
     try {
       const pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
-      const result = await generateQuiz(token, studentName, {
+      const body = {
         subject, grade, kind, level, question_count: count,
         focus: focus.trim() || undefined, source_text: sourceText.trim() || undefined,
         pages, cloud_consent: usesCloud && consent,
-      })
+      }
+      const result = teacher ? await generateEducatorQuiz(token, body) : await generateQuiz(token, studentName, body)
       setQuiz(result.quiz)
       setKeep(result.quiz.questions.map(() => true))
     } catch (err) {
@@ -134,7 +144,7 @@ export default function QuizBuilder({ token, studentName }: { token: string; stu
           <FileQuestion size={18} className="mt-0.5 text-sage-700" aria-hidden />
           <div>
             <h2 className="font-display text-base font-semibold text-gray-800">{t('quizBuilder.title')}</h2>
-            <p className="text-xs text-gray-500">{t('quizBuilder.description')}</p>
+            <p className="text-xs text-gray-500">{t(teacher ? 'quizBuilder.teacherDescription' : 'quizBuilder.description')}</p>
           </div>
         </div>
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
@@ -195,7 +205,7 @@ export default function QuizBuilder({ token, studentName }: { token: string; stu
                   <span>{t('quizBuilder.cloud', { provider: route?.cloud_provider ?? '' })}</span>
                 </label>
               )}
-              {noReader && <p className="text-xs text-madder-800">{t('quizBuilder.noReader')}</p>}
+              {noReader && <p className="text-xs text-madder-800">{t(teacher ? 'quizBuilder.noLocalModel' : 'quizBuilder.noReader')}</p>}
               <button type="button" onClick={() => void draft()} disabled={!canDraft}
                 className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
                 {busy ? <><Loader2 size={15} className="animate-spin" />{t('quizBuilder.drafting')}</> : t('quizBuilder.draft')}
@@ -225,10 +235,11 @@ export default function QuizBuilder({ token, studentName }: { token: string; stu
                         <input value={q.answer} aria-label={t('quizBuilder.answerFor', { number: q.number })}
                           onChange={(e) => setQuiz((prev) => prev && { ...prev, questions: prev.questions.map((x, i) => i === index ? { ...x, answer: e.target.value } : x) })}
                           className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1" />
-                        <span className={q.answer_check === 'computed' ? 'text-sage-700' : 'text-gold-800'}>
-                          {q.answer_check === 'computed' ? t('quizBuilder.computed') : t('quizBuilder.verify')}
+                        <span className={q.answer_check === 'verify' ? 'text-gold-800' : 'text-sage-700'}>
+                          {t(`quizBuilder.status.${q.answer_check}`)}
                         </span>
                       </label>
+                      {q.second_answer && <p className="text-gold-800">{t('quizBuilder.secondAnswer', { answer: q.second_answer })}</p>}
                     </div>
                   </li>
                 ))}

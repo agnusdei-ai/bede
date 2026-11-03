@@ -149,10 +149,11 @@ export default function DemoQuizBuilder({
                     onChange={(event) => editAnswer(index, event.target.value)}
                     className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1"
                   />
-                  <span className={q.answer_check === 'computed' ? 'text-sage-700' : 'text-gold-800'}>
-                    {q.answer_check === 'computed' ? t('demoQuiz.computed') : t('demoQuiz.verify')}
+                  <span className={q.answer_check === 'verify' ? 'text-gold-800' : 'text-sage-700'}>
+                    {t(`demoQuiz.status.${q.answer_check}`)}
                   </span>
                 </label>
+                {q.second_answer && <p className="text-gold-800">{t('demoQuiz.secondAnswer', { answer: q.second_answer })}</p>}
               </div>
             </li>
           ))}

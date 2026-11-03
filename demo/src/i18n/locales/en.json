@@ -60,7 +60,7 @@
   "demoPractice": {
     "title": "Practice Coach",
     "close": "Close Practice Coach",
-    "privacy": "Bede keeps nothing from this after the session.",
+    "privacy": "Data is used for the session, and not stored.",
     "subject": "Subject",
     "local": "Read by this demo's own model.",
     "cloud": "I agree to send these pages to {{provider}} to be read.",
@@ -147,14 +147,18 @@
     "drafting": "Drafting…",
     "draftError": "Could not draft a quiz. Try again.",
     "summary": "{{count}} questions, about {{minutes}} minutes",
-    "checkNote": "Check answers marked Check before you use the quiz.",
+    "checkNote": "Answers marked Check need your review before you use the quiz.",
     "include": "Include question {{number}}",
     "answer": "Answer",
     "answerFor": "Answer for question {{number}}",
-    "computed": "Worked out",
-    "verify": "Check",
     "approve": "Use this quiz",
-    "again": "Start over"
+    "again": "Start over",
+    "status": {
+      "computed": "Worked out",
+      "checked": "Double-checked",
+      "verify": "Check"
+    },
+    "secondAnswer": "A second check said: {{answer}}"
   },
   "canvas": {
     "cancel": "Cancel",

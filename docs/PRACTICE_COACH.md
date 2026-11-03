@@ -262,7 +262,16 @@ before anyone sees it:
 - **Maths answers are recomputed.** A question written as an arithmetic
   expression is worked out with the maths pack's exact evaluator, and a
   wrong model answer is replaced. These answers show **Worked out**.
-- **Every other answer shows Check**, for the adult to verify.
+- **Every other answer is answered a second time, independently.** The
+  second answer is written without seeing the first, from the questions
+  alone and any source material the adult gave. When the two agree, the
+  answer shows **Double-checked**. When they disagree, it shows **Check**
+  with the second answer beside it. If the second pass is unsure, or fails,
+  the answer shows **Check**.
+
+  This is a cross-check by the same kind of model against the material
+  provided, not a search of outside sources. It makes a wrong answer key
+  less likely; it does not rule one out.
 - **Multiple-choice and true/false answers must be one of the options**, or
   the question is dropped.
 - **A question copied word for word from the source is dropped.**
@@ -282,8 +291,14 @@ request. Nothing is stored.
 
 - **In the app**, the parent prints the quiz and its answer key from the
   student's Progress page.
+- **Teachers** have the same builder on the classroom page
+  (`/practice/educator/quiz/generate`, passkey-verified teacher session).
+  Teacher drafts run on the school's own local model only, never a cloud
+  provider, because a teacher's upload can hold students' work; with no
+  local model the teacher is told so. No learner is named, read or written.
 - **In the demo**, an approved quiz is delivered into the chat, questions
-  only. Each draft counts against the demo's message quota.
+  only. Each draft counts twice against the demo's message quota, since it
+  is two model calls.
 
 Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
 verified by breaking it.

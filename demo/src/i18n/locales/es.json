@@ -60,7 +60,7 @@
   "demoPractice": {
     "title": "Guía de práctica",
     "close": "Cerrar la guía de práctica",
-    "privacy": "Bede no guarda nada de esto al terminar la sesión.",
+    "privacy": "Los datos se usan durante la sesión y no se guardan.",
     "subject": "Materia",
     "local": "Lo lee el modelo propio de esta demo.",
     "cloud": "Acepto enviar estas páginas a {{provider}} para que las lea.",
@@ -147,14 +147,18 @@
     "drafting": "Preparando…",
     "draftError": "No se pudo preparar el examen. Inténtalo de nuevo.",
     "summary": "{{count}} preguntas, unos {{minutes}} minutos",
-    "checkNote": "Revisa las respuestas marcadas Revisar antes de usar el examen.",
+    "checkNote": "Revise las respuestas marcadas Revisar antes de usar el examen.",
     "include": "Incluir la pregunta {{number}}",
     "answer": "Respuesta",
     "answerFor": "Respuesta de la pregunta {{number}}",
-    "computed": "Calculada",
-    "verify": "Revisar",
     "approve": "Usar este examen",
-    "again": "Empezar de nuevo"
+    "again": "Empezar de nuevo",
+    "status": {
+      "computed": "Calculada",
+      "checked": "Verificada dos veces",
+      "verify": "Revisar"
+    },
+    "secondAnswer": "Una segunda revisión dijo: {{answer}}"
   },
   "canvas": {
     "cancel": "Cancelar",

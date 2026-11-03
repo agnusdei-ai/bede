@@ -819,12 +819,18 @@
     "include": "Incluir la pregunta {{number}}",
     "answer": "Respuesta",
     "answerFor": "Respuesta de la pregunta {{number}}",
-    "computed": "Calculada",
-    "verify": "Revisar",
     "printQuiz": "Imprimir examen",
     "printKey": "Imprimir respuestas",
     "answerKey": "respuestas",
-    "again": "Empezar de nuevo"
+    "again": "Empezar de nuevo",
+    "status": {
+      "computed": "Calculada",
+      "checked": "Verificada dos veces",
+      "verify": "Revisar"
+    },
+    "secondAnswer": "Una segunda revisión dijo: {{answer}}",
+    "teacherDescription": "Parta de un examen, una prueba anterior o un tema. Bede lo prepara para su clase con el modelo de IA propio de la escuela.",
+    "noLocalModel": "Los exámenes de docentes se preparan con el modelo de IA propio de la escuela, y aquí no hay ninguno configurado."
   },
   "practiceDelivery": {
     "title": "Una pregunta de práctica aprobada por tu familia",

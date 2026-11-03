@@ -1246,7 +1246,11 @@ covers and writes new questions.
 Before you print:
 
 - Maths answers say **Worked out**: Bede computed them.
-- Every other answer says **Check**, so read it over.
+- **Double-checked** means Bede answered the question a second time, without
+  looking at its first answer, and both agreed. That makes a mistake less
+  likely, not impossible.
+- **Check** means the two answers disagreed (the second one is shown), or
+  Bede wasn't sure. Read these over.
 - Untick any question you don't want.
 
 Then print the quiz and the answer key. Nothing is saved.

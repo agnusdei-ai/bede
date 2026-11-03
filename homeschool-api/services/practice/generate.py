@@ -12,8 +12,14 @@ in code before anyone sees it:
 * **Maths answers are recomputed.** Any question written as an arithmetic
   expression is worked out with the maths pack's exact evaluator; a wrong
   model answer is replaced and the question marked ``computed``.
-* **Everything else is marked ``verify``** for the adult to check. Nothing is
-  shown to a student until the adult approves the quiz.
+* **Every other answer is answered again, independently.** A second call
+  sees the questions and the source material but not the first answers.
+  Where the two agree the answer is ``checked``; where they disagree it stays
+  ``verify`` and the second answer is shown beside it. This is a cross-check
+  by the same kind of model against the material provided, not research
+  against outside sources, so ``checked`` lowers the chance of a wrong key
+  and does not remove it. Nothing is shown to a student until the adult
+  approves the quiz.
 * **Multiple-choice and true/false answers must be one of the options**, or
   the question is dropped rather than shipped with a broken key.
 * **Faith subjects are not quizzed.** Scripture, Saints & Catechism and
@@ -229,9 +235,94 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
     return quiz, report
 
 
-async def generate(req: GenerateQuizRequest) -> tuple[GeneratedQuiz, dict]:
+_CHECK_RULES = """You are checking a school quiz before a teacher or parent uses it.
+Answer every question yourself. Use the source material when it is given.
+Return ONLY one JSON object: {"answers": [{"number": int, "answer": str, "sure": true|false}]}
+- For multiple choice, answer with the exact text of one option.
+- For true/false, answer "True" or "False".
+- Set "sure" to false if the question is ambiguous, has more than one right answer, or you are not certain of the fact."""
+
+
+def _same(a: str, b: str, options: list[str]) -> bool:
+    na, nb = _key(a), _key(b)
+    if not na or not nb:
+        return False
+    if options:
+        return na == nb
+    return na == nb or (len(nb) >= 3 and nb in na) or (len(na) >= 3 and na in nb)
+
+
+def apply_check(quiz: GeneratedQuiz, answers: list) -> dict:
+    """Mark each `verify` answer `checked` when the independent answer agrees."""
+    by_number = {}
+    for item in answers or []:
+        if isinstance(item, dict) and isinstance(item.get("number"), int):
+            by_number[item["number"]] = item
+    report = {"checked": 0, "disagreed": 0, "unsure": 0}
+    for q in quiz.questions:
+        if q.answer_check != "verify" or q.type == "written_response":
+            continue
+        second = by_number.get(q.number)
+        if not second:
+            continue
+        other = str(second.get("answer") or "").strip()[:400]
+        if second.get("sure") is not True:
+            report["unsure"] += 1
+            continue
+        if _same(q.answer, other, q.options):
+            q.answer_check = "checked"
+            report["checked"] += 1
+        elif other:
+            q.second_answer = other
+            report["disagreed"] += 1
+    return report
+
+
+async def _check(client, quiz: GeneratedQuiz, req: GenerateQuizRequest) -> dict:
+    """The independent second answer. Failure leaves every answer `verify`."""
+    pending = [q for q in quiz.questions if q.answer_check == "verify" and q.type != "written_response"]
+    if not pending:
+        return {"checked": 0, "disagreed": 0, "unsure": 0}
+    lines = []
+    for q in pending:
+        options = "".join(f"\n   {chr(65 + i)}) {o}" for i, o in enumerate(q.options))
+        lines.append(f"{q.number}. {q.prompt}{options}")
+    text = "Questions:\n" + "\n".join(lines)
+    if req.source_text:
+        text += f"\n\nSource material:\n{req.source_text}"
+    try:
+        response = await asyncio.wait_for(
+            client.messages.create(
+                model=settings.tutor_model,
+                max_tokens=min(8000, 300 + 120 * len(pending)),
+                temperature=0,
+                system=_CHECK_RULES,
+                messages=[{"role": "user", "content": [{"type": "text", "text": text}]}],
+            ),
+            timeout=GENERATE_TIMEOUT_SECONDS,
+        )
+        data = _json_object(extract._text_of(response))
+    except Exception as exc:  # never log the request
+        log.warning("Quiz answer check failed: %s", type(exc).__name__)
+        return {"checked": 0, "disagreed": 0, "unsure": 0, "check_failed": True}
+    return apply_check(quiz, data.get("answers") or [])
+
+
+def _local_client():
+    from services.adapters import router
+
+    if "local" not in router.configured_adapters():
+        raise extract.ReadingUnavailable(
+            "Teacher quizzes are drafted on the school's own AI model, and none is set up on this install.")
+    return router.resolve_local_only()
+
+
+async def generate(req: GenerateQuizRequest, local_only: bool = False) -> tuple[GeneratedQuiz, dict]:
+    """Draft, check in code, then cross-check. `local_only` (teachers) never
+    reaches a cloud provider: their uploads can hold students' work."""
     subject = check_request(req)
-    client = extract._choose_client(req)  # consent and routing before anything is parsed
+    # consent and routing are settled before anything is parsed
+    client = _local_client() if local_only else extract._choose_client(req)
     content: list[dict] = []
     if req.pages:
         pages = await extract.prepare_pages([p.data for p in req.pages])
@@ -253,7 +344,9 @@ async def generate(req: GenerateQuizRequest) -> tuple[GeneratedQuiz, dict]:
     except Exception as exc:  # never log the request: it can hold the photos
         log.warning("Quiz drafting failed: %s", type(exc).__name__)
         raise QuizFailed("Bede could not draft a quiz right now; please try again.") from exc
-    return finish(_json_object(extract._text_of(response)), req, subject)
+    quiz, report = finish(_json_object(extract._text_of(response)), req, subject)
+    report.update(await _check(client, quiz, req))
+    return quiz, report
 
 
-__all__ = ["MAX_QUIZ_QUESTIONS", "QuizFailed", "QuizRefused", "generate", "quiz_subjects", "finish", "check_request"]
+__all__ = ["MAX_QUIZ_QUESTIONS", "QuizFailed", "QuizRefused", "apply_check", "check_request", "finish", "generate", "quiz_subjects"]

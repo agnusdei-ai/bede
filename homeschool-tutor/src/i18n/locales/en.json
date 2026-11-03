@@ -815,16 +815,22 @@
     "drafting": "Drafting…",
     "draftError": "The quiz could not be drafted. Please try again.",
     "summary": "{{count}} questions, about {{minutes}} minutes",
-    "checkNote": "Check answers marked Check before you print.",
+    "checkNote": "Answers marked Check need your review before you print.",
     "include": "Include question {{number}}",
     "answer": "Answer",
     "answerFor": "Answer for question {{number}}",
-    "computed": "Worked out",
-    "verify": "Check",
     "printQuiz": "Print quiz",
     "printKey": "Print answer key",
     "answerKey": "answer key",
-    "again": "Start over"
+    "again": "Start over",
+    "status": {
+      "computed": "Worked out",
+      "checked": "Double-checked",
+      "verify": "Check"
+    },
+    "secondAnswer": "A second check said: {{answer}}",
+    "teacherDescription": "Start from a quiz, a past exam or a topic. Bede drafts it for your class on the school’s own AI model.",
+    "noLocalModel": "Teacher quizzes are drafted on the school’s own AI model, and none is set up here."
   },
   "practiceDelivery": {
     "title": "A practice question your parent approved",

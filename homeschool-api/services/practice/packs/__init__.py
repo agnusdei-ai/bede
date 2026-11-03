@@ -25,7 +25,7 @@ from typing import Any, Callable, Optional
 _HERE = Path(__file__).resolve().parent
 
 # Pack id -> package name. Adding a pack is a folder plus one line here.
-_PACKS = {"latin": "latin"}
+_PACKS = {"latin": "latin", "math": "math", "spelling": "spelling", "recall": "recall"}
 
 
 @dataclass(frozen=True)

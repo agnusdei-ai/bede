@@ -1162,7 +1162,20 @@ limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
 
 When your child brings home a graded quiz or worksheet, open **Pod
 Dashboard → Progress**, choose the student, and find **Practice from a
-graded quiz**. Today it works for **Latin**; more subjects will follow.
+graded quiz**. Choose the subject that matches the quiz:
+
+- **Mathematics**: sums written out as problems (`27 + 15 =`, fractions,
+  decimals, negative numbers, order of operations). Bede works each problem
+  out itself and names the slip behind a wrong answer, such as not carrying
+  a ten. Word problems are shown to you rather than guessed at.
+- **Spelling**: spelling tests. Bede compares each word with the correct
+  spelling the teacher wrote and names the pattern, such as a doubled letter
+  or *their* for *there*.
+- **History, science and other short answers**: any quiz of things to
+  remember, including geography, reading questions, grammar terms and
+  multiple choice. Practice uses only answers written on the page; Bede never
+  supplies a fact of its own.
+- **Latin**.
 
 1. **Choose the subject and photograph the pages.** You can add up to six
    pages, as JPEG or PNG. The card tells you where the photos will be read:
@@ -1190,8 +1203,11 @@ graded quiz**. Today it works for **Latin**; more subjects will follow.
      sentences. These are never shown to your child;
    - **What was solid.**
 4. **Approve, change or discard the practice.** Bede drafts about 5–10
-   minutes of practice on the pattern, using only words from your child's
-   own word banks and never the exact question they missed. Untick any item
+   minutes of practice on the pattern. In mathematics and Latin it is new
+   problems of the same kind, never the exact one they missed. In spelling
+   it is the missed word itself, then a few words with the same pattern. For
+   short answers it is the missed questions asked again, mixed with a few
+   they already knew, because remembering again later is the practice. Untick any item
    you don't want, read the **What to say** hints, and then:
    - **Approve** it;
    - **Print worksheet** to do it on paper; or

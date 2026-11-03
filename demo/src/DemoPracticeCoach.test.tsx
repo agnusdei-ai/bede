@@ -90,7 +90,7 @@ describe('demo Practice Coach', () => {
     const input = screen.getByLabelText(/Choose up to/i)
     const file = new File([content], `synthetic.${mime === 'application/pdf' ? 'pdf' : mime === 'image/png' ? 'png' : 'jpg'}`, { type: mime })
     fireEvent.change(input, { target: { files: [file] } })
-    fireEvent.click(screen.getByRole('button', { name: 'Read synthetic quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
 
     await waitFor(() => expect(api.readDemoPracticePhotos).toHaveBeenCalledOnce())
     expect(api.readDemoPracticePhotos).toHaveBeenCalledWith('synthetic-token', {
@@ -126,13 +126,13 @@ describe('demo Practice Coach', () => {
   it('requires per-upload consent before sending pages to the cloud reader', async () => {
     api.fetchDemoPracticeReadingRoute.mockResolvedValue({ local_available: false, cloud_provider: 'OpenAI' })
     render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
-    await screen.findByText(/This upload will be sent to OpenAI/i)
+    await screen.findByText(/Send these pages to OpenAI/i)
     fireEvent.change(screen.getByLabelText(/Choose up to/i), {
       target: { files: [new File(['synthetic'], 'synthetic.png', { type: 'image/png' })] },
     })
-    expect(screen.getByRole('button', { name: 'Read synthetic quiz' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Read quiz' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('checkbox'))
-    fireEvent.click(screen.getByRole('button', { name: 'Read synthetic quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
     await waitFor(() => expect(api.readDemoPracticePhotos).toHaveBeenCalledWith('synthetic-token', expect.objectContaining({ cloud_consent: true })))
   })
 })

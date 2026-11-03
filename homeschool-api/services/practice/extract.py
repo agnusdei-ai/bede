@@ -109,7 +109,8 @@ Rules:
 def _prompt(subject: str) -> str:
     pack = get_pack(subject)
     hints = pack.extract_hints if pack else ""
-    return f"{_RULES}\n\nSubject: {subject}\n\n{hints}".strip()
+    name = pack.manifest.get("display_name", subject) if pack else subject
+    return f"{_RULES}\n\nSubject: {name}\n\n{hints}".strip()
 
 
 def _text_of(response) -> str:

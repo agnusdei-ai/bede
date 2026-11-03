@@ -1,0 +1,30 @@
+{
+  "_fixture": "history_quiz_1",
+  "_note": "A synthetic quiz, written for this repository. Not a real child's work.",
+  "assessment": {
+    "subject": "recall",
+    "sections": [
+      {
+        "label": "Ancient Egypt",
+        "instructions": "Answer each question.",
+        "required_format": "free",
+        "items": [
+          {"number": 1, "prompt": "Which river flooded every year in Egypt?", "student_response": "Nile", "teacher_mark": "correct"},
+          {"number": 2, "prompt": "What was the Egyptian writing system called?", "student_response": "heiroglyphics", "teacher_mark": "incorrect", "teacher_correction": "hieroglyphics"},
+          {"number": 3, "prompt": "Who was buried in the Great Pyramid? A) Tutankhamun B) Khufu C) Ramses", "student_response": "A", "teacher_mark": "incorrect", "teacher_correction": "B"},
+          {"number": 4, "prompt": "Why did the Nile flood matter to farmers?", "student_response": "water", "teacher_mark": "partial", "teacher_correction": "it left rich soil for growing crops"},
+          {"number": 5, "prompt": "What was the ruler of Egypt called?", "student_response": "king", "teacher_mark": "incorrect", "teacher_correction": "pharaoh"},
+          {"number": 6, "prompt": "What did Egyptians make paper from?", "student_response": "reeds", "teacher_mark": "incorrect"},
+          {"number": 7, "prompt": "On which continent is Egypt?", "student_response": "Africa", "teacher_mark": "correct"}
+        ]
+      }
+    ]
+  },
+  "expected_categories": {
+    "Ancient Egypt #2": "recall.spelling",
+    "Ancient Egypt #3": "recall.choice",
+    "Ancient Egypt #4": "recall.partial",
+    "Ancient Egypt #5": "recall.fact",
+    "Ancient Egypt #6": "recall.needs_answer"
+  }
+}

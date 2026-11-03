@@ -187,6 +187,55 @@ Other categories (verb endings, noun cases, word order, translation
 direction) are in the taxonomy so a parent can name them, but are not
 detected yet.
 
+**Mathematics** (`packs/math/`) works each problem out exactly
+(`fractions.Fraction`, never floating point), then asks which known slip
+produces the child's answer:
+
+- adding without carrying, or taking the smaller digit from the larger;
+- a two-digit multiplication whose second row was not shifted;
+- a basic fact to 12;
+- the wrong operation for the sign;
+- adding across a fraction, dividing a fraction without inverting, a right
+  amount not in lowest terms;
+- a misplaced decimal point;
+- a lost or mishandled negative sign;
+- working left to right instead of multiplying first.
+
+Practice is new problems of the same shape with computed answers, never a
+problem already on the page. Two cases go to the parent instead of being
+diagnosed: a problem that is not written as an expression (a word problem,
+a variable), and a teacher's correction that disagrees with the pack's own
+answer, which usually means the problem was misread.
+
+**Spelling** (`packs/spelling/`) compares each word with the correct
+spelling on the page. It names:
+
+- a homophone;
+- two letters swapped, or ie/ei;
+- a doubled consonant;
+- a silent e kept before -ing or left off the end;
+- a y not changed to i;
+- a vowel or consonant sound spelled another way;
+- a letter left out or added.
+
+Practice is look-say-cover-write-check on the missed word itself, which is
+the remedy for spelling, then words with the same pattern from
+`item_bank/patterns.json`. The bank supplies examples only for a pattern the
+child already missed. A word with no correction on the page goes to the
+parent.
+
+**Short answers** (`packs/recall/`) covers history, science, geography,
+reading questions, grammar terms, vocabulary and multiple choice. It never
+supplies a fact. Every practice answer is the teacher's correction or the
+child's own right answer, so a miss with no correction goes to the parent.
+It names a different answer, a partial answer, another option chosen, or the
+right answer spelled differently. Practice asks the missed questions again,
+mixed with a few the child knew, because retrieval is the practice for
+remembered material.
+
+Each of these three has a synthetic golden quiz in its `golden/` folder,
+written for this repository, and `tests/test_practice_packs.py`.
+
 ## Golden tests
 
 Golden test #1 is a parent's real graded Latin quiz, hand-typed into
@@ -221,9 +270,10 @@ repository: they show a child's handwriting and a school's own worksheet.
 3. **Delivery to the child, inside an ordinary Bede session:** re-checks at
    +3/+7 days, mixed review of mastered items, pattern history recorded as
    events about the work, never labels about the child.
-4. **Spelling pack**, built on the existing phonics (K-2) and
-   reading-and-spelling (3-8) engines, and the optional game wrapper.
-   Rewards count **days practised**, never streaks, and never speed.
+4. **Done:** Mathematics, Spelling and Short-answer packs. **Not yet:** feeding
+   their results into the phonics (K-2) and reading-and-spelling (3-8)
+   mastery engines, and the optional game wrapper. Rewards count **days
+   practised**, never streaks, and never speed.
 
 **Not yet:** pages are not straightened or cropped before reading. That
 needs an image library this backend doesn't carry, and the reader copes with

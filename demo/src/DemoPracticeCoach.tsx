@@ -10,6 +10,7 @@ import {
   type DemoPracticeAssessment,
   type DemoPracticeSetDraft,
 } from './api'
+import DemoQuizBuilder from './DemoQuizBuilder'
 
 const ACCEPT = 'image/jpeg,image/png,application/pdf,.pdf'
 const MAX_PAGES = 6
@@ -63,6 +64,7 @@ export default function DemoPracticeCoach({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [tab, setTab] = useState<'practice' | 'quiz'>('practice')
 
   useEffect(() => {
     let active = true
@@ -166,22 +168,38 @@ export default function DemoPracticeCoach({
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-navy-900/50 p-3" role="dialog" aria-modal="true" aria-label={t('demoPractice.title')}>
       <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-2xl border border-sage-200 bg-parchment-50 shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b border-sage-200 px-4 py-3">
-          <div>
-            <h2 className="font-display text-base font-bold text-navy-800">{t('demoPractice.title')}</h2>
-            <p className="mt-1 text-xs text-gray-600">{t('demoPractice.syntheticOnly')}</p>
-          </div>
+          <h2 className="font-display text-base font-bold text-navy-800">{t('demoPractice.title')}</h2>
           <button type="button" onClick={onClose} aria-label={t('demoPractice.close')} className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-gray-600 hover:bg-sage-100">
             <X size={18} />
           </button>
         </div>
 
+        <div role="tablist" aria-label={t('demoPractice.title')} className="flex shrink-0 gap-1 border-b border-sage-200 px-4 pt-2">
+          {(['practice', 'quiz'] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={tab === name}
+              onClick={() => setTab(name)}
+              className={`min-h-[44px] rounded-t-lg px-3 text-sm font-medium ${tab === name ? 'bg-white text-navy-800' : 'text-gray-600 hover:bg-sage-100'}`}
+            >
+              {t(name === 'practice' ? 'demoPractice.tabPractice' : 'demoPractice.tabQuiz')}
+            </button>
+          ))}
+        </div>
+
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm text-gray-700">
+          {tab === 'quiz' && (
+            <DemoQuizBuilder token={token} onApproved={(items) => { onApproved(items); onClose() }} />
+          )}
+          {tab === 'practice' && <>
           {error && <p role="alert" className="rounded-lg bg-madder-50 px-3 py-2 text-madder-800">{error}</p>}
           {loading && <p role="status">{t('demoPractice.loading')}</p>}
 
           {!loading && (stage === 'start' || stage === 'reading') && (
             <div className="space-y-3">
-              <p className="rounded-lg bg-gold-50 px-3 py-2 text-xs">{t('demoPractice.privacy')}</p>
+              <p className="text-xs text-gray-500">{t('demoPractice.privacy')}</p>
               <label className={label}>
                 {t('demoPractice.subject')}
                 <select value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2">
@@ -334,6 +352,7 @@ export default function DemoPracticeCoach({
               ) : <p>{t('demoPractice.nothingToPractice')}</p>}
             </div>
           )}
+          </>}
         </div>
       </div>
     </div>

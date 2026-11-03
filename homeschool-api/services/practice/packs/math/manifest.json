@@ -1,0 +1,21 @@
+{
+  "id": "math",
+  "display_name": "Mathematics",
+  "grade_bands": ["K-2", "3-5", "6-8"],
+  "item_types": ["written_expression", "fact", "fraction", "decimal", "integer", "order_of_operations"],
+  "detects": [
+    "math.add.no_regroup",
+    "math.sub.smaller_from_larger",
+    "math.mult.place_value_shift",
+    "math.fact_recall",
+    "math.operation_swap",
+    "math.fraction.add_across",
+    "math.fraction.divide_no_invert",
+    "math.fraction.not_simplified",
+    "math.decimal.place_value",
+    "math.integer.sign",
+    "math.order_of_operations",
+    "math.unclassified"
+  ],
+  "_note": "Only problems written as an expression are diagnosed. Word problems, equations with a variable, geometry and measurement items are read and counted, then handed to the parent as math.unclassified; this pack does not guess at them."
+}

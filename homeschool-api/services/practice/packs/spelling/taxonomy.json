@@ -1,0 +1,97 @@
+{
+  "categories": {
+    "spelling.homophone": {
+      "description": "A word that sounds the same but is spelled and means something different.",
+      "example": "there for their",
+      "remediation_strategy": "Each spelling in a sentence that shows its meaning, then choose-the-right-word practice.",
+      "hint": "Which meaning does the sentence need?",
+      "parent_script": "For homophones, ask what the word means in this sentence before they choose a spelling."
+    },
+    "spelling.transposition": {
+      "description": "Two neighbouring letters swapped.",
+      "example": "firend for friend",
+      "remediation_strategy": "Say the word slowly letter by letter, then look-say-cover-write-check.",
+      "hint": "Say each letter as you write it.",
+      "parent_script": "Have them spell swapped words aloud letter by letter before writing."
+    },
+    "spelling.ie_ei": {
+      "description": "i and e the wrong way round.",
+      "example": "freind for friend",
+      "remediation_strategy": "Group ie and ei words, then look-say-cover-write-check.",
+      "hint": "Is it ie or ei in this word? Picture it before you write.",
+      "parent_script": "Sort a few ie and ei words together; the pattern sticks better in a group."
+    },
+    "spelling.double_consonant": {
+      "description": "A doubled consonant missing, or one doubled that should not be.",
+      "example": "runing for running",
+      "remediation_strategy": "Short-vowel words with the doubling rule, then look-say-cover-write-check.",
+      "hint": "Is the vowel before it short? Then the consonant often doubles.",
+      "parent_script": "Ask them to listen for the short vowel sound before the ending."
+    },
+    "spelling.suffix.drop_e": {
+      "description": "Kept the silent e before -ing or -ed.",
+      "example": "makeing for making",
+      "remediation_strategy": "Base word plus ending, dropping the e, then look-say-cover-write-check.",
+      "hint": "Drop the silent e before adding -ing.",
+      "parent_script": "Write the base word first, then have them cross out the e before adding the ending."
+    },
+    "spelling.suffix.y_to_i": {
+      "description": "Kept the y where it changes to i before an ending.",
+      "example": "happyness for happiness",
+      "remediation_strategy": "Base word plus ending, changing y to i, then look-say-cover-write-check.",
+      "hint": "When a consonant comes before the y, change the y to i before the ending.",
+      "parent_script": "Show the base word and ending separately, then join them together."
+    },
+    "spelling.silent_e": {
+      "description": "Left off the silent e that makes the vowel say its name.",
+      "example": "mak for make",
+      "remediation_strategy": "Pairs like hop/hope, then look-say-cover-write-check.",
+      "hint": "Does the vowel say its name? Then it may need an e at the end.",
+      "parent_script": "Read pairs like hop and hope aloud so they hear what the e does."
+    },
+    "spelling.vowel_pattern": {
+      "description": "Consonants right, the vowel sound spelled another way.",
+      "example": "rane for rain",
+      "remediation_strategy": "Words that share the vowel pattern, then look-say-cover-write-check.",
+      "hint": "Which letters make this vowel sound in this word?",
+      "parent_script": "Group words that share the vowel spelling and read them together."
+    },
+    "spelling.sound_spelling": {
+      "description": "A consonant sound spelled another way (f/ph, k/ck/c, s/c).",
+      "example": "fone for phone",
+      "remediation_strategy": "Words that share the spelling of the sound, then look-say-cover-write-check.",
+      "hint": "This sound has more than one spelling. Which one does this word use?",
+      "parent_script": "Point out the letters that make the sound, then cover and write."
+    },
+    "spelling.omitted_letter": {
+      "description": "One letter left out.",
+      "example": "libary for library",
+      "remediation_strategy": "Say every syllable clearly, then look-say-cover-write-check.",
+      "hint": "Clap the syllables. Is every one written down?",
+      "parent_script": "Clap the syllables together, then check each one is on the page."
+    },
+    "spelling.extra_letter": {
+      "description": "One letter too many.",
+      "example": "untill for until",
+      "remediation_strategy": "Look-say-cover-write-check, noticing the letter that is not there.",
+      "hint": "Look closely. Which letter is not needed?",
+      "parent_script": "Let them compare their word with the correct one and find the extra letter themselves."
+    },
+    "spelling.word_specific": {
+      "description": "A misspelling no common pattern explains; the word is practised as itself.",
+      "example": "",
+      "remediation_strategy": "Look-say-cover-write-check on the word, spaced over a few days.",
+      "hint": "Look at the tricky part, then cover it and write the whole word.",
+      "parent_script": "For a tricky word, ask which part is hard and underline it together."
+    },
+    "spelling.unclassified": {
+      "description": "No correct spelling on the page to compare with; the parent is asked.",
+      "example": "",
+      "remediation_strategy": "Parent adds the correct spelling; nothing is said to the child."
+    }
+  },
+  "strengths": {
+    "spelling.long_words": "Long words spelled correctly",
+    "spelling.all_correct": "Every word was spelled correctly"
+  }
+}

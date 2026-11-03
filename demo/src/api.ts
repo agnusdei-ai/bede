@@ -213,6 +213,66 @@ export const approveDemoPractice = (token: string, practiceSet: DemoPracticeSetD
     token, '/approve', { practice_set: practiceSet },
   )
 
+export type QuizKind = 'ad_hoc' | 'quiz' | 'unit_test' | 'midterm' | 'final' | 'prep_exam'
+export type QuizLevel = 'review' | 'on_level' | 'challenge'
+
+export interface QuizQuestion {
+  number: number
+  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_in_blank' | 'computation' | 'written_response'
+  topic: string
+  prompt: string
+  options: string[]
+  answer: string
+  answer_check: 'computed' | 'checked' | 'verify'
+  second_answer?: string | null
+}
+
+export interface GeneratedQuiz {
+  title: string
+  subject: string
+  grade: string
+  kind: QuizKind
+  level: QuizLevel
+  coverage: string[]
+  est_minutes: number
+  questions: QuizQuestion[]
+}
+
+export interface QuizOptions {
+  subjects: { id: string; display_name: string }[]
+  grades: string[]
+  kinds: QuizKind[]
+  levels: QuizLevel[]
+  max_questions: number
+  route: { local_available: boolean; cloud_provider: string | null }
+}
+
+export interface GenerateQuizBody {
+  subject: string
+  grade: string
+  kind: QuizKind
+  level: QuizLevel
+  question_count: number
+  focus?: string
+  source_text?: string
+  pages: { data: string }[]
+  cloud_consent: boolean
+}
+
+export const fetchDemoQuizOptions = (token: string) =>
+  demoPracticeFetch<QuizOptions>(token, '/quiz-options')
+
+export const generateDemoQuiz = (token: string, body: GenerateQuizBody) =>
+  demoPracticeFetch<{ quiz: GeneratedQuiz; report: { answers_recomputed: number; dropped: number; short_by: number } }>(
+    token, '/quiz/generate', body,
+  )
+
+/** A question as the student sees it: the prompt, with any options under it. */
+export function quizPrompt(question: Pick<QuizQuestion, 'prompt' | 'options'>): string {
+  if (!question.options.length) return question.prompt
+  return `${question.prompt}\n${question.options.map((o, i) => `${String.fromCharCode(65 + i)}) ${o}`).join('\n')}`
+}
+
 export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
 
 /** Mirrors models/schemas.py's COMPANION_MODES presets. */

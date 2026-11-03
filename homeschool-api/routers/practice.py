@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.deps import (
     require_demo_practice_preview,
+    require_educator,
     require_family_data_write,
     require_learner_access,
     require_parent,
@@ -18,6 +19,8 @@ from core.deps import (
 )
 from core import consent
 from models.practice import (
+    MAX_QUIZ_QUESTIONS,
+    GenerateQuizRequest,
     ApproveSetRequest,
     ConfirmAssessmentRequest,
     PracticeOutcomeRequest,
@@ -25,7 +28,7 @@ from models.practice import (
     ReadPhotosRequest,
     teacher_mark_count,
 )
-from services.practice import extract, pipeline, store
+from services.practice import extract, generate, pipeline, store
 from services.practice.packs import available_packs
 
 router = APIRouter(prefix="/practice", tags=["practice"])
@@ -46,6 +49,77 @@ def _view(record_id: int, status: str, assessment) -> dict:
 @router.get("/packs")
 async def list_packs(auth: dict = Depends(require_parent)) -> list[dict]:
     return available_packs()
+
+
+def _quiz_options() -> dict:
+    return {
+        "subjects": generate.quiz_subjects(),
+        "grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8"],
+        "kinds": list(generate.KIND_GUIDANCE),
+        "levels": list(generate.LEVEL_GUIDANCE),
+        "max_questions": MAX_QUIZ_QUESTIONS,
+        "route": extract.reading_route(),
+    }
+
+
+async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False) -> dict:
+    try:
+        quiz, report = await generate.generate(req, local_only=local_only)
+    except generate.QuizRefused as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except extract.ConsentRequired as exc:
+        raise HTTPException(status_code=409, detail={
+            "consent_required": True,
+            "provider": exc.provider,
+            "message": f"This would be sent to {exc.provider}. Tick the box to agree.",
+        })
+    except extract.PhotoRejected as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except extract.ReadingUnavailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except generate.QuizFailed as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"quiz": quiz.model_dump(mode="json"), "report": report}
+
+
+@router.get("/quiz-options")
+async def get_quiz_options(auth: dict = Depends(require_parent)) -> dict:
+    return _quiz_options()
+
+
+@router.post("/{student_name}/quizzes/generate")
+async def generate_quiz(
+    student_name: str,
+    req: GenerateQuizRequest,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Draft a quiz or exam for this student. Nothing is stored."""
+    await consent.require_collection(db, student_name)
+    return await _draft_quiz(req)
+
+
+@router.get("/educator/quiz-options")
+async def educator_quiz_options(auth: dict = Depends(require_educator)) -> dict:
+    options = _quiz_options()
+    # Teachers draft on the school's own model only, so no cloud consent is offered.
+    options["route"] = {"local_available": options["route"]["local_available"], "cloud_provider": None}
+    return options
+
+
+@router.post("/educator/quiz/generate")
+async def educator_generate_quiz(
+    req: GenerateQuizRequest,
+    auth: dict = Depends(require_educator),
+) -> dict:
+    """A teacher drafts a quiz or exam for a class. Local model only, because
+    a teacher's upload can hold students' work; nothing is stored, and no
+    learner record is read or written."""
+    if req.route == "cloud":
+        raise HTTPException(status_code=422, detail="Teacher quizzes are drafted on the school's own AI model.")
+    return await _draft_quiz(req, local_only=True)
 
 
 @router.get("/reading-route")
@@ -222,6 +296,29 @@ async def demo_list_packs(auth: dict = Depends(require_demo_practice_preview)) -
 @router.get("/demo/reading-route")
 async def demo_reading_route(auth: dict = Depends(require_demo_practice_preview)) -> dict:
     return extract.reading_route()
+
+
+@router.get("/demo/quiz-options")
+async def demo_quiz_options(auth: dict = Depends(require_demo_practice_preview)) -> dict:
+    return _quiz_options()
+
+
+@router.post("/demo/quiz/generate")
+async def demo_generate_quiz(
+    req: GenerateQuizRequest,
+    auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """Draft a quiz in the demo. Counts against the demo's message quota,
+    since each draft is a model call; nothing is stored."""
+    from core.demo_code_session import has_message_quota, record_message
+
+    code = auth.get("code") or ""
+    if not await has_message_quota(code):
+        raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
+    # A draft is two model calls: writing the quiz, then checking its answers.
+    await record_message(code)
+    await record_message(code)
+    return await _draft_quiz(req)
 
 
 @router.post("/demo/read")

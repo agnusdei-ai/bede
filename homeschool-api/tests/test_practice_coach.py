@@ -24,6 +24,7 @@ from core.config import settings
 from core.database import Base, PracticeAssessment, PracticeSetRecord, StudentConfig
 from core.deps import (
     require_demo_practice_preview,
+    require_educator,
     require_family_data_write,
     require_parent,
     require_real_user,
@@ -350,6 +351,8 @@ def test_every_practice_route_uses_its_scoped_authorization_guard():
                 if isinstance(p.default, DependsType)]
         if route.path.startswith("/practice/demo/"):
             expected = require_demo_practice_preview
+        elif route.path.startswith("/practice/educator/"):
+            expected = require_educator
         elif route.path.endswith("/delivery"):
             expected = require_real_user
         elif route.path.endswith("/outcomes"):

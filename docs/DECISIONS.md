@@ -2250,3 +2250,23 @@ into code in `docs/PRACTICE_COACH.md`'s first build:
 
 **Related:** entry 20 (which model reads the photos is the household's own
 provider choice, not this feature's).
+
+**Amended (2026-11-03, owner direction).**
+
+- **Bede may now draft quizzes and exams**, not only diagnose a graded quiz.
+  This covers any taught subject, K-8 (grades 9-12 later), from a quick
+  check to a final exam, up to 50 questions, learning from an uploaded quiz,
+  a previous or prep exam, or a topic.
+- **Answer keys:** maths answers are recomputed in code, every other answer
+  is marked for the adult to check, and nothing reaches a student until the
+  adult approves. The owner left the answer-key choice to the recommended
+  default.
+- **Faith subjects are never quizzed or scored.**
+- **Teachers have the same capability** (owner direction, 2026-11-03), on
+  the school's own local model only, since a teacher's upload can hold
+  students' work.
+- **Non-maths answers are cross-checked** by an independent second answer
+  before the adult sees them.
+- **Ruling 6 is superseded.** Practice Coach is on the public demo, with
+  nothing stored. Its demo routes had shipped in #773 before this was
+  written down.

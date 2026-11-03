@@ -187,6 +187,122 @@ Other categories (verb endings, noun cases, word order, translation
 direction) are in the taxonomy so a parent can name them, but are not
 detected yet.
 
+**Mathematics** (`packs/math/`) works each problem out exactly
+(`fractions.Fraction`, never floating point), then asks which known slip
+produces the child's answer:
+
+- adding without carrying, or taking the smaller digit from the larger;
+- a two-digit multiplication whose second row was not shifted;
+- a basic fact to 12;
+- the wrong operation for the sign;
+- adding across a fraction, dividing a fraction without inverting, a right
+  amount not in lowest terms;
+- a misplaced decimal point;
+- a lost or mishandled negative sign;
+- working left to right instead of multiplying first.
+
+Practice is new problems of the same shape with computed answers, never a
+problem already on the page. Two cases go to the parent instead of being
+diagnosed: a problem that is not written as an expression (a word problem,
+a variable), and a teacher's correction that disagrees with the pack's own
+answer, which usually means the problem was misread.
+
+**Spelling** (`packs/spelling/`) compares each word with the correct
+spelling on the page. It names:
+
+- a homophone;
+- two letters swapped, or ie/ei;
+- a doubled consonant;
+- a silent e kept before -ing or left off the end;
+- a y not changed to i;
+- a vowel or consonant sound spelled another way;
+- a letter left out or added.
+
+Practice is look-say-cover-write-check on the missed word itself, which is
+the remedy for spelling, then words with the same pattern from
+`item_bank/patterns.json`. The bank supplies examples only for a pattern the
+child already missed. A word with no correction on the page goes to the
+parent.
+
+**Short answers** (`packs/recall/`) covers history, science, geography,
+reading questions, grammar terms, vocabulary and multiple choice. It never
+supplies a fact. Every practice answer is the teacher's correction or the
+child's own right answer, so a miss with no correction goes to the parent.
+It names a different answer, a partial answer, another option chosen, or the
+right answer spelled differently. Practice asks the missed questions again,
+mixed with a few the child knew, because retrieval is the practice for
+remembered material.
+
+Each of these three has a synthetic golden quiz in its `golden/` folder,
+written for this repository, and `tests/test_practice_packs.py`.
+
+## Quizzes and exams
+
+Separate from diagnosing a graded quiz, Bede can **draft a new quiz or exam**
+for any Bede subject that is taught and assessed, K-8. The source can be:
+
+- photos or a scanned PDF of an existing quiz, a previous exam or a prep exam;
+- the text of one, pasted in;
+- or a description of what to cover.
+
+The adult chooses:
+
+- the grade;
+- the level (review, on grade level, challenge);
+- the type (quick check, quiz, unit test, midterm, final exam, exam prep);
+- the number of questions, up to 50.
+
+Bede works out what the source covers, then writes new questions at that
+grade and level (`services/practice/generate.py`). Grades 9-12 come later;
+the request model accepts K-8 only.
+
+Bede writes both questions and answers, so the draft is checked in code
+before anyone sees it:
+
+- **Maths answers are recomputed.** A question written as an arithmetic
+  expression is worked out with the maths pack's exact evaluator, and a
+  wrong model answer is replaced. These answers show **Worked out**.
+- **Every other answer is answered a second time, independently.** The
+  second answer is written without seeing the first, from the questions
+  alone and any source material the adult gave. When the two agree, the
+  answer shows **Double-checked**. When they disagree, it shows **Check**
+  with the second answer beside it. If the second pass is unsure, or fails,
+  the answer shows **Check**.
+
+  This is a cross-check by the same kind of model against the material
+  provided, not a search of outside sources. It makes a wrong answer key
+  less likely; it does not rule one out.
+- **Multiple-choice and true/false answers must be one of the options**, or
+  the question is dropped.
+- **A question copied word for word from the source is dropped.**
+
+Nothing reaches a student until the adult approves the quiz.
+
+Some subjects are not offered:
+
+- **Scripture, Saints & Catechism and Morning Time** are never quizzed or
+  scored. A child's spiritual life is not measured.
+- **Free Study** has no content of its own to quiz.
+- **Logic** starts in grade 3.
+
+Reading and drafting use the same route as photo reading: the household's
+local model, or the configured cloud provider only with consent for this
+request. Nothing is stored.
+
+- **In the app**, the parent prints the quiz and its answer key from the
+  student's Progress page.
+- **Teachers** have the same builder on the classroom page
+  (`/practice/educator/quiz/generate`, passkey-verified teacher session).
+  Teacher drafts run on the school's own local model only, never a cloud
+  provider, because a teacher's upload can hold students' work; with no
+  local model the teacher is told so. No learner is named, read or written.
+- **In the demo**, an approved quiz is delivered into the chat, questions
+  only. Each draft counts twice against the demo's message quota, since it
+  is two model calls.
+
+Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
+verified by breaking it.
+
 ## Golden tests
 
 Golden test #1 is a parent's real graded Latin quiz, hand-typed into
@@ -221,9 +337,10 @@ repository: they show a child's handwriting and a school's own worksheet.
 3. **Delivery to the child, inside an ordinary Bede session:** re-checks at
    +3/+7 days, mixed review of mastered items, pattern history recorded as
    events about the work, never labels about the child.
-4. **Spelling pack**, built on the existing phonics (K-2) and
-   reading-and-spelling (3-8) engines, and the optional game wrapper.
-   Rewards count **days practised**, never streaks, and never speed.
+4. **Done:** Mathematics, Spelling and Short-answer packs. **Not yet:** feeding
+   their results into the phonics (K-2) and reading-and-spelling (3-8)
+   mastery engines, and the optional game wrapper. Rewards count **days
+   practised**, never streaks, and never speed.
 
 **Not yet:** pages are not straightened or cropped before reading. That
 needs an image library this backend doesn't carry, and the reader copes with

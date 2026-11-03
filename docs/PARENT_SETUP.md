@@ -1162,7 +1162,20 @@ limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
 
 When your child brings home a graded quiz or worksheet, open **Pod
 Dashboard → Progress**, choose the student, and find **Practice from a
-graded quiz**. Today it works for **Latin**; more subjects will follow.
+graded quiz**. Choose the subject that matches the quiz:
+
+- **Mathematics**: sums written out as problems (`27 + 15 =`, fractions,
+  decimals, negative numbers, order of operations). Bede works each problem
+  out itself and names the slip behind a wrong answer, such as not carrying
+  a ten. Word problems are shown to you rather than guessed at.
+- **Spelling**: spelling tests. Bede compares each word with the correct
+  spelling the teacher wrote and names the pattern, such as a doubled letter
+  or *their* for *there*.
+- **History, science and other short answers**: any quiz of things to
+  remember, including geography, reading questions, grammar terms and
+  multiple choice. Practice uses only answers written on the page; Bede never
+  supplies a fact of its own.
+- **Latin**.
 
 1. **Choose the subject and photograph the pages.** You can add up to six
    pages, as JPEG or PNG. The card tells you where the photos will be read:
@@ -1190,8 +1203,11 @@ graded quiz**. Today it works for **Latin**; more subjects will follow.
      sentences. These are never shown to your child;
    - **What was solid.**
 4. **Approve, change or discard the practice.** Bede drafts about 5–10
-   minutes of practice on the pattern, using only words from your child's
-   own word banks and never the exact question they missed. Untick any item
+   minutes of practice on the pattern. In mathematics and Latin it is new
+   problems of the same kind, never the exact one they missed. In spelling
+   it is the missed word itself, then a few words with the same pattern. For
+   short answers it is the missed questions asked again, mixed with a few
+   they already knew, because remembering again later is the practice. Untick any item
    you don't want, read the **What to say** hints, and then:
    - **Approve** it;
    - **Print worksheet** to do it on paper; or
@@ -1214,6 +1230,33 @@ Bede; they are held in memory while the request runs. If you run a clamd on
 the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
 `tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
 refused at startup, and if it is set and cannot be reached, uploads are refused.
+
+### Make a quiz or exam
+
+On the same Progress page, **Make a quiz or exam** drafts a new quiz from:
+
+- an old quiz, a past exam or a prep exam: add photos or a scanned PDF, or
+  paste its text in;
+- or just a description of what to cover.
+
+Choose the subject, grade, level and type, from a quick check to a final
+exam, and how many questions (up to 50). Bede works out what the source
+covers and writes new questions.
+
+Before you print:
+
+- Maths answers say **Worked out**: Bede computed them.
+- **Double-checked** means Bede answered the question a second time, without
+  looking at its first answer, and both agreed. That makes a mistake less
+  likely, not impossible.
+- **Check** means the two answers disagreed (the second one is shown), or
+  Bede wasn't sure. Read these over.
+- Untick any question you don't want.
+
+Then print the quiz and the answer key. Nothing is saved.
+
+Scripture, Saints & Catechism and Morning Time are not offered, because Bede
+never scores a child's faith.
 
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use

@@ -1,0 +1,14 @@
+{
+  "id": "recall",
+  "display_name": "History, science and other short answers",
+  "grade_bands": ["K-2", "3-5", "6-8"],
+  "item_types": ["short_answer", "multiple_choice", "fill_in_the_blank", "matching"],
+  "detects": [
+    "recall.fact",
+    "recall.partial",
+    "recall.choice",
+    "recall.spelling",
+    "recall.needs_answer"
+  ],
+  "_note": "For any quiz of remembered material: history, science, geography, reading comprehension, grammar terms, vocabulary. Every practice answer comes from the page itself, so a question with no correct answer written on it goes to the parent."
+}

@@ -87,7 +87,8 @@ def test_school_plans_require_email_pricing_and_preserve_scope():
         assert not re.search(r"\$\s*\d|&#(?:36|x24);|&dollar;|USD\s*\d|\d+\s*%\s*off", source, re.I)
         assert "provided in response to an email request" in source
         assert "/inquire/?audience=charter_school" in source
-        assert "synthetic data only" in source or "synthetic-data-only" in source
+        assert "example records" in source
+        assert "synthetic" not in source.lower()
         assert "mutually agreed written" in source
     assert "each additional campus" in page.lower()
     assert "site/assets/schools-pricing.css" not in page  # Website URLs are root-relative.
@@ -103,10 +104,10 @@ def test_school_inquiry_replaces_public_tables_and_uses_us_english():
     assert 'class="school-budget-table' not in page
     assert 'id="school-budget"' in page  # Preserve inbound anchor links.
     assert 'id="print-school-budget"' not in page
-    assert 'school evaluation requires its own signed scope' in page
+    assert 'school evaluation needs its own signed agreement' in page
     assert 'onsite implementation and customization' in page.lower()
     assert 'certified hardware' in page
-    assert 'No direct student tutoring' in page
+    assert 'does not tutor students directly' in page
     for british_spelling in ("licence", "enrolment", "organisation", "organisational",
                              "centre", "programme", "behaviour", "colour"):
         assert not re.search(rf"\b{british_spelling}\b", page, re.I), (

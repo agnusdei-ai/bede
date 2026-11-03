@@ -236,6 +236,58 @@ remembered material.
 Each of these three has a synthetic golden quiz in its `golden/` folder,
 written for this repository, and `tests/test_practice_packs.py`.
 
+## Quizzes and exams
+
+Separate from diagnosing a graded quiz, Bede can **draft a new quiz or exam**
+for any Bede subject that is taught and assessed, K-8. The source can be:
+
+- photos or a scanned PDF of an existing quiz, a previous exam or a prep exam;
+- the text of one, pasted in;
+- or a description of what to cover.
+
+The adult chooses:
+
+- the grade;
+- the level (review, on grade level, challenge);
+- the type (quick check, quiz, unit test, midterm, final exam, exam prep);
+- the number of questions, up to 50.
+
+Bede works out what the source covers, then writes new questions at that
+grade and level (`services/practice/generate.py`). Grades 9-12 come later;
+the request model accepts K-8 only.
+
+Bede writes both questions and answers, so the draft is checked in code
+before anyone sees it:
+
+- **Maths answers are recomputed.** A question written as an arithmetic
+  expression is worked out with the maths pack's exact evaluator, and a
+  wrong model answer is replaced. These answers show **Worked out**.
+- **Every other answer shows Check**, for the adult to verify.
+- **Multiple-choice and true/false answers must be one of the options**, or
+  the question is dropped.
+- **A question copied word for word from the source is dropped.**
+
+Nothing reaches a student until the adult approves the quiz.
+
+Some subjects are not offered:
+
+- **Scripture, Saints & Catechism and Morning Time** are never quizzed or
+  scored. A child's spiritual life is not measured.
+- **Free Study** has no content of its own to quiz.
+- **Logic** starts in grade 3.
+
+Reading and drafting use the same route as photo reading: the household's
+local model, or the configured cloud provider only with consent for this
+request. Nothing is stored.
+
+- **In the app**, the parent prints the quiz and its answer key from the
+  student's Progress page.
+- **In the demo**, an approved quiz is delivered into the chat, questions
+  only. Each draft counts against the demo's message quota.
+
+Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
+verified by breaking it.
+
 ## Golden tests
 
 Golden test #1 is a parent's real graded Latin quiz, hand-typed into

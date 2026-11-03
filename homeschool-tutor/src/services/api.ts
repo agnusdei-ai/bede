@@ -1883,3 +1883,51 @@ export const recordPracticeOutcome = (
     body: JSON.stringify({ item_index: itemIndex, response }),
   },
 )
+
+// ── Quizzes and exams drafted from an existing one (docs/PRACTICE_COACH.md) ──
+
+export type QuizKind = 'ad_hoc' | 'quiz' | 'unit_test' | 'midterm' | 'final' | 'prep_exam'
+export type QuizLevel = 'review' | 'on_level' | 'challenge'
+
+export interface QuizQuestion {
+  number: number
+  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_in_blank' | 'computation' | 'written_response'
+  topic: string
+  prompt: string
+  options: string[]
+  answer: string
+  answer_check: 'computed' | 'verify'
+}
+
+export interface GeneratedQuiz {
+  title: string
+  subject: string
+  grade: string
+  kind: QuizKind
+  level: QuizLevel
+  coverage: string[]
+  est_minutes: number
+  questions: QuizQuestion[]
+}
+
+export interface QuizOptions {
+  subjects: { id: string; display_name: string }[]
+  grades: string[]
+  kinds: QuizKind[]
+  levels: QuizLevel[]
+  max_questions: number
+  route: ReadingRoute
+}
+
+export const fetchQuizOptions = (token: string) =>
+  practiceFetch<QuizOptions>(token, '/quiz-options')
+
+export const generateQuiz = (
+  token: string, studentName: string,
+  body: {
+    subject: string; grade: string; kind: QuizKind; level: QuizLevel; question_count: number
+    focus?: string; source_text?: string; pages: { data: string }[]; cloud_consent: boolean
+  },
+) => practiceFetch<{ quiz: GeneratedQuiz; report: { answers_recomputed: number; dropped: number; short_by: number } }>(
+  token, `/${encodeURIComponent(studentName)}/quizzes/generate`, { method: 'POST', body: JSON.stringify(body) },
+)

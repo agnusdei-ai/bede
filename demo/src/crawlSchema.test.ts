@@ -15,7 +15,7 @@ describe('public crawler access and Bede application schema', () => {
     ]) expect(summary).toContain(`](https://agnusdei.ai${route})`)
     expect(summary).toContain('The public demo is cloud-hosted.')
     expect(summary).toContain('local-only privacy applies to offline installations')
-    expect(summary).toContain('School demonstrations are teacher-directed and use synthetic data')
+    expect(summary).toContain('School demonstrations are teacher-directed and use sample data')
     expect(summary).toContain('bede@agnusdei.ai')
     expect(summary).toContain('info@agnusdei.ai')
     const build = readFileSync(resolve(site, '../scripts/build_pages_site.sh'), 'utf8')

@@ -10,6 +10,7 @@ import {
   type DemoPracticeAssessment,
   type DemoPracticeSetDraft,
 } from './api'
+import DemoQuizBuilder from './DemoQuizBuilder'
 
 const ACCEPT = 'image/jpeg,image/png,application/pdf,.pdf'
 const MAX_PAGES = 6
@@ -63,6 +64,7 @@ export default function DemoPracticeCoach({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [tab, setTab] = useState<'practice' | 'quiz'>('practice')
 
   useEffect(() => {
     let active = true
@@ -172,7 +174,26 @@ export default function DemoPracticeCoach({
           </button>
         </div>
 
+        <div role="tablist" aria-label={t('demoPractice.title')} className="flex shrink-0 gap-1 border-b border-sage-200 px-4 pt-2">
+          {(['practice', 'quiz'] as const).map((name) => (
+            <button
+              key={name}
+              type="button"
+              role="tab"
+              aria-selected={tab === name}
+              onClick={() => setTab(name)}
+              className={`min-h-[44px] rounded-t-lg px-3 text-sm font-medium ${tab === name ? 'bg-white text-navy-800' : 'text-gray-600 hover:bg-sage-100'}`}
+            >
+              {t(name === 'practice' ? 'demoPractice.tabPractice' : 'demoPractice.tabQuiz')}
+            </button>
+          ))}
+        </div>
+
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm text-gray-700">
+          {tab === 'quiz' && (
+            <DemoQuizBuilder token={token} onApproved={(items) => { onApproved(items); onClose() }} />
+          )}
+          {tab === 'practice' && <>
           {error && <p role="alert" className="rounded-lg bg-madder-50 px-3 py-2 text-madder-800">{error}</p>}
           {loading && <p role="status">{t('demoPractice.loading')}</p>}
 
@@ -331,6 +352,7 @@ export default function DemoPracticeCoach({
               ) : <p>{t('demoPractice.nothingToPractice')}</p>}
             </div>
           )}
+          </>}
         </div>
       </div>
     </div>

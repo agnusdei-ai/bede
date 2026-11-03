@@ -16,7 +16,7 @@
     "faithTraditionPlaceholder": "p. ej. bautista, católica, no denominacional",
     "privacyNotice": "Tu conversación nunca se guarda. <privacyLink>Aviso de Privacidad</privacyLink>",
     "generateCode": "Iniciar demo de Bede",
-    "wakingUp": "Despertando a Bede… la primera visita después de un tiempo puede tardar hasta un minuto. Gracias por tu paciencia.",
+    "wakingUp": "Despertando a Bede… puede tardar hasta un minuto.",
     "couldNotStartSession": "No se pudo iniciar una sesión",
     "whyBedeHeading": "Por qué las familias eligen a Bede",
     "whyBedeCopilotTitle": "Copiloto, no piloto automático",
@@ -109,7 +109,52 @@
     "responseLabel": "Tu respuesta",
     "submitResponse": "Enviar respuesta a Bede",
     "turnContext": "Intenté esta pregunta de práctica aprobada: {{prompt}} Mi respuesta es: {{response}}",
-    "completed": "Terminaste {{count}} pregunta(s) de práctica."
+    "completed": "Terminaste {{count}} pregunta(s) de práctica.",
+    "tabPractice": "Practicar con un examen",
+    "tabQuiz": "Crear un examen"
+  },
+  "demoQuiz": {
+    "loading": "Cargando…",
+    "loadError": "No se pudieron cargar las herramientas.",
+    "subject": "Materia",
+    "grade": "Grado",
+    "kindergarten": "Kínder",
+    "gradeN": "{{grade}}.º grado",
+    "kind": "Tipo",
+    "level": "Nivel",
+    "count": "Preguntas",
+    "kinds": {
+      "ad_hoc": "Repaso rápido",
+      "quiz": "Prueba",
+      "unit_test": "Examen de unidad",
+      "midterm": "Examen parcial",
+      "final": "Examen final",
+      "prep_exam": "Preparación de examen"
+    },
+    "levels": {
+      "review": "Repaso",
+      "on_level": "Nivel del grado",
+      "challenge": "Reto"
+    },
+    "focus": "Qué cubrir",
+    "focusPlaceholder": "p. ej. fracciones, capítulo 4, el ciclo del agua",
+    "source": "Pega un examen para tomarlo como base (opcional)",
+    "pages": "O agrega fotos o un PDF escaneado (hasta {{max}} páginas)",
+    "pagesChosen": "{{count}} archivo(s) agregado(s)",
+    "cloud": "Acepto enviar esto a {{provider}} para preparar el examen.",
+    "noReader": "Ahora mismo no hay un modelo de IA disponible para preparar exámenes.",
+    "draft": "Preparar examen",
+    "drafting": "Preparando…",
+    "draftError": "No se pudo preparar el examen. Inténtalo de nuevo.",
+    "summary": "{{count}} preguntas, unos {{minutes}} minutos",
+    "checkNote": "Revisa las respuestas marcadas Revisar antes de usar el examen.",
+    "include": "Incluir la pregunta {{number}}",
+    "answer": "Respuesta",
+    "answerFor": "Respuesta de la pregunta {{number}}",
+    "computed": "Calculada",
+    "verify": "Revisar",
+    "approve": "Usar este examen",
+    "again": "Empezar de nuevo"
   },
   "canvas": {
     "cancel": "Cancelar",
@@ -166,7 +211,7 @@
     },
     "moreColors": "Más colores",
     "nearlyFull": "Esta hoja ya casi se llena. Puedes guardarla en tu dispositivo cuando quieras.",
-    "pageFull": "Esta hoja creció demasiado y ya no puedo conservarla. Se perderá cuando regreses conmigo, así que guárdala en tu dispositivo si quieres conservarla, y luego empieza una hoja nueva.",
+    "pageFull": "Esta hoja es demasiado grande para conservarla y se perderá cuando regreses conmigo. Guárdala en tu dispositivo y empieza una nueva.",
     "storageUnavailable": "No puedo conservar esta hoja en este dispositivo. Se perderá cuando regreses conmigo, así que guárdala en tu dispositivo si quieres conservarla.",
     "confirmNewPage": "¿Empezamos una hoja nueva? Esta se perderá.",
     "saveToDevice": "Guardar en mi dispositivo",
@@ -240,7 +285,7 @@
     "neverAskChild": "— nunca le pedimos a un niño su propio correo electrónico",
     "sendFeedback": "Enviar comentarios",
     "couldNotSendFeedback": "No se pudo enviar esto en este momento — inténtalo de nuevo más tarde.",
-    "thanksHelps": "Gracias — esto realmente ayuda a definir lo que sigue.",
+    "thanksHelps": "Gracias. Esto nos ayuda.",
     "done": "Listo"
   },
   "parentControls": {
@@ -254,7 +299,7 @@
     "unlockedDesc": "El estudiante puede cambiar el tema y el color de las burbujas.",
     "passwordNote": "En la aplicación completa, la contraseña de los padres protege esta configuración.",
     "frequentBreaks": "Ofrecer descansos con más frecuencia",
-    "frequentBreaksDesc": "Ofrece un descanso corto opcional cada 20 minutos en cualquier grado, no solo en los más pequeños. El descanso al cumplir la hora no cambia."
+    "frequentBreaksDesc": "Ofrece un descanso corto y opcional cada 20 minutos en cualquier grado. El descanso de cada hora no cambia."
   },
   "themePicker": {
     "backgroundTheme": "Tema de fondo",
@@ -325,7 +370,7 @@
     "cameEasily": "{{count}} le salió con soltura",
     "tookItFurther": "{{count}} lo llevaron más lejos",
     "initiative": "Dónde se nota la iniciativa: {{notes}}.",
-    "caveat": "Esto cuenta trabajos, no a su estudiante, y solo lo que Bede realmente observó. Se guarda únicamente para esta sesión y se borra al cerrarla."
+    "caveat": "Esto cuenta trabajos, no a su estudiante, y solo lo que Bede vio. Se guarda solo en esta sesión y se borra al cerrarla."
   },
   "reading": {
     "textSize": "Tamaño del texto",
@@ -335,7 +380,7 @@
     "settings": "Ajustes de lectura",
     "settingsTap": "Ajustes de lectura. Tamaño del texto {{pct}}%. Toca para ajustar.",
     "close": "Cerrar los ajustes de lectura",
-    "letterSpacingTooltip": "El mejor respaldado de estos. En un estudio con niños disléxicos de 8 a 14 años, un mayor espaciado entre letras duplicó la precisión de lectura y la hizo más de un 20 % más rápida. El espacio entre palabras se amplía junto con él, para que los límites entre palabras sigan claros.",
+    "letterSpacingTooltip": "El mejor respaldado: en un estudio con niños disléxicos de 8 a 14 años, más espacio entre letras duplicó la precisión y aceleró la lectura más de un 20 %. También se amplía el espacio entre palabras.",
     "lineSpacingTooltip": "Ayuda a algunos lectores a no perder el renglón al pasar de una línea a la siguiente. Es orientación general de legibilidad, no un resultado medido."
   },
   "themes": {

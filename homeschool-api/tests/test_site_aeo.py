@@ -87,7 +87,8 @@ def test_school_plans_require_email_pricing_and_preserve_scope():
         assert not re.search(r"\$\s*\d|&#(?:36|x24);|&dollar;|USD\s*\d|\d+\s*%\s*off", source, re.I)
         assert "provided in response to an email request" in source
         assert "/inquire/?audience=charter_school" in source
-        assert "synthetic data only" in source or "synthetic-data-only" in source
+        assert "sample data only" in source
+        assert "synthetic" not in source.lower()
         assert "mutually agreed written" in source
     assert "each additional campus" in page.lower()
     assert "site/assets/schools-pricing.css" not in page  # Website URLs are root-relative.

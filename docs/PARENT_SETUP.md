@@ -1231,6 +1231,29 @@ the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
 `tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
 refused at startup, and if it is set and cannot be reached, uploads are refused.
 
+### Make a quiz or exam
+
+On the same Progress page, **Make a quiz or exam** drafts a new quiz from:
+
+- an old quiz, a past exam or a prep exam: add photos or a scanned PDF, or
+  paste its text in;
+- or just a description of what to cover.
+
+Choose the subject, grade, level and type, from a quick check to a final
+exam, and how many questions (up to 50). Bede works out what the source
+covers and writes new questions.
+
+Before you print:
+
+- Maths answers say **Worked out**: Bede computed them.
+- Every other answer says **Check**, so read it over.
+- Untick any question you don't want.
+
+Then print the quiz and the answer key. Nothing is saved.
+
+Scripture, Saints & Catechism and Morning Time are not offered, because Bede
+never scores a child's faith.
+
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use
 **Print worksheet** or sit with your child and work through the set

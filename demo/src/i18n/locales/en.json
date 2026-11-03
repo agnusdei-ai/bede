@@ -16,7 +16,7 @@
     "faithTraditionPlaceholder": "e.g. Baptist, Catholic, non-denominational",
     "privacyNotice": "Your conversation is never stored. <privacyLink>Privacy Notice</privacyLink>",
     "generateCode": "Start Bede demo",
-    "wakingUp": "Waking Bede up… the first visit in a while can take up to a minute. Thanks for your patience.",
+    "wakingUp": "Waking Bede up… this can take up to a minute.",
     "couldNotStartSession": "Could not start a session",
     "whyBedeHeading": "Why families choose Bede",
     "whyBedeCopilotTitle": "Co-pilot, not autopilot",
@@ -109,7 +109,52 @@
     "responseLabel": "Your response",
     "submitResponse": "Send answer to Bede",
     "turnContext": "I tried this approved practice question: {{prompt}} My answer is: {{response}}",
-    "completed": "You finished {{count}} practice question(s)."
+    "completed": "You finished {{count}} practice question(s).",
+    "tabPractice": "Practice from a quiz",
+    "tabQuiz": "Make a quiz or exam"
+  },
+  "demoQuiz": {
+    "loading": "Loading…",
+    "loadError": "Could not load the quiz tools.",
+    "subject": "Subject",
+    "grade": "Grade",
+    "kindergarten": "Kindergarten",
+    "gradeN": "Grade {{grade}}",
+    "kind": "Type",
+    "level": "Level",
+    "count": "Questions",
+    "kinds": {
+      "ad_hoc": "Quick check",
+      "quiz": "Quiz",
+      "unit_test": "Unit test",
+      "midterm": "Midterm",
+      "final": "Final exam",
+      "prep_exam": "Exam prep"
+    },
+    "levels": {
+      "review": "Review",
+      "on_level": "On grade level",
+      "challenge": "Challenge"
+    },
+    "focus": "What to cover",
+    "focusPlaceholder": "e.g. fractions, chapter 4, the water cycle",
+    "source": "Paste a quiz or exam to learn from (optional)",
+    "pages": "Or add photos or a scanned PDF (up to {{max}} pages)",
+    "pagesChosen": "{{count}} file(s) added",
+    "cloud": "I agree to send this to {{provider}} to draft the quiz.",
+    "noReader": "No AI model is available to draft quizzes right now.",
+    "draft": "Draft quiz",
+    "drafting": "Drafting…",
+    "draftError": "Could not draft a quiz. Try again.",
+    "summary": "{{count}} questions, about {{minutes}} minutes",
+    "checkNote": "Check answers marked Check before you use the quiz.",
+    "include": "Include question {{number}}",
+    "answer": "Answer",
+    "answerFor": "Answer for question {{number}}",
+    "computed": "Worked out",
+    "verify": "Check",
+    "approve": "Use this quiz",
+    "again": "Start over"
   },
   "canvas": {
     "cancel": "Cancel",
@@ -166,7 +211,7 @@
     },
     "moreColors": "More colors",
     "nearlyFull": "This page is nearly full. You can save it to your device any time.",
-    "pageFull": "This page has grown too big for me to keep. It will be gone when you go back to me, so save it to your device first if you want to keep it, then start a fresh page.",
+    "pageFull": "This page is too big for me to keep, and it will be gone when you come back to me. Save it to your device, then start a new page.",
     "storageUnavailable": "I can't keep this page on this device. It will be gone when you go back to me, so save it to your device first if you want to keep it.",
     "confirmNewPage": "Start a fresh page? This one will be gone.",
     "saveToDevice": "Save to my device",
@@ -240,7 +285,7 @@
     "neverAskChild": "— we never ask a child for their own email",
     "sendFeedback": "Send feedback",
     "couldNotSendFeedback": "Could not send this right now — please try again later.",
-    "thanksHelps": "Thanks — this genuinely helps shape what's next.",
+    "thanksHelps": "Thank you. This helps.",
     "done": "Done"
   },
   "parentControls": {
@@ -254,7 +299,7 @@
     "unlockedDesc": "The learner may change the theme and bubble color.",
     "passwordNote": "In the full app, the parent password protects these settings.",
     "frequentBreaks": "Offer breaks more often",
-    "frequentBreaksDesc": "Offers an optional short break every 20 minutes at any grade, not just the youngest. The break at the hour is unchanged."
+    "frequentBreaksDesc": "Offers a short, optional break every 20 minutes at any grade. The hourly break doesn't change."
   },
   "themePicker": {
     "backgroundTheme": "Background theme",
@@ -325,7 +370,7 @@
     "cameEasily": "{{count}} came easily",
     "tookItFurther": "{{count}} took it further",
     "initiative": "Where you can see initiative: {{notes}}.",
-    "caveat": "This counts pieces of work, not your learner — and only what Bede genuinely saw. It's kept just for this session and deleted when you log out."
+    "caveat": "This counts work, not your learner, and only what Bede saw. Kept for this session; deleted when you log out."
   },
   "reading": {
     "textSize": "Text size",
@@ -335,7 +380,7 @@
     "settings": "Reading settings",
     "settingsTap": "Reading settings. Text size {{pct}}%. Tap to adjust.",
     "close": "Close reading settings",
-    "letterSpacingTooltip": "The best-supported of these. In a study of dyslexic 8-14 year olds, extra letter spacing doubled reading accuracy and made reading over 20% faster. Word spacing widens with it, so word boundaries stay clear.",
+    "letterSpacingTooltip": "Best supported: in a study of dyslexic 8–14-year-olds, extra letter spacing doubled accuracy and sped reading by over 20%. Word spacing widens too.",
     "lineSpacingTooltip": "Helps some readers keep their place when moving from one line to the next. General readability guidance rather than a measured result."
   },
   "themes": {

@@ -60,10 +60,10 @@
   "demoPractice": {
     "title": "Guía de práctica",
     "close": "Cerrar la guía de práctica",
-    "privacy": "Nada de esto se guarda al terminar la sesión.",
+    "privacy": "Bede no guarda nada de esto al terminar la sesión.",
     "subject": "Materia",
     "local": "Lo lee el modelo propio de esta demo.",
-    "cloud": "Enviar estas páginas a {{provider}} para leerlas.",
+    "cloud": "Acepto enviar estas páginas a {{provider}} para que las lea.",
     "noReader": "En este momento no hay un proveedor de lectura disponible en esta demo.",
     "photos": "Elige hasta {{max}} imágenes o archivos PDF escaneados",
     "photosHint": "JPEG, PNG o PDF escaneado. Las páginas escaneadas del PDF cuentan para el límite de seis.",

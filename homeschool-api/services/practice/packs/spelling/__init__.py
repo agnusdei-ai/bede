@@ -38,10 +38,44 @@ _FRAMES = [(sentence, word) for sentence, word in _BANK["homophone_frames"]]
 _VOWELS = set("aeiouy")
 
 
+def words(text: str | None) -> list[str]:
+    return [w.lower().strip("'") for w in re.findall(r"[a-zA-Z']+", text or "") if w.strip("'")]
+
+
 def word(text: str | None) -> str:
-    """The word as written, lower-cased, without surrounding punctuation."""
-    found = re.findall(r"[a-zA-Z']+", text or "")
-    return found[-1].lower().strip("'") if found else ""
+    """The first word written, lower-cased, without punctuation. A teacher's
+    correction leads with the right spelling ("their (not there)")."""
+    found = words(text)
+    return found[0] if found else ""
+
+
+def as_written(text: str | None) -> str:
+    """The first word of a correction with its own capitals, for display."""
+    found = [w.strip("'") for w in re.findall(r"[a-zA-Z']+", text or "") if w.strip("'")]
+    return found[0] if found else ""
+
+
+def answer_word(response: str | None, wanted: str) -> str:
+    """The child's attempt at `wanted`: their only word, or, when they wrote a
+    whole sentence, the word in it closest to the target."""
+    found = words(response)
+    if len(found) <= 1:
+        return found[0] if found else ""
+    return min(found, key=lambda w: (_distance(w, wanted), abs(len(w) - len(wanted))))
+
+
+def _distance(a: str, b: str) -> int:
+    previous = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        current = [i]
+        for j, cb in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (ca != cb)))
+        previous = current
+    return previous[-1]
+
+
+def _clip(text: str, limit: int = 300) -> str:
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
 def _ref(section, item) -> str:
@@ -119,25 +153,25 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
         for item in section.items:
             if item.needs_parent() or item.teacher_mark not in ("incorrect", "partial"):
                 continue
-            given = word(item.student_response)
-            if not given:
+            if not words(item.student_response):
                 continue  # core.unanswered owns blanks
             wanted = word(item.teacher_correction)
+            given = answer_word(item.student_response, wanted) if wanted else word(item.student_response)
             ref = _ref(section, item)
             if not wanted:
                 out.append(ErrorInstance(
                     item_ref=ref, category="spelling.unclassified", audience="parent_only",
-                    evidence=f"wrote {item.student_response}; there is no correct spelling on the page to compare with, so please add it",
+                    evidence=_clip(f"wrote {item.student_response}; there is no correct spelling on the page to compare with, so please add it"),
                 ))
                 continue
             if given == wanted:
                 out.append(ErrorInstance(
                     item_ref=ref, category="spelling.unclassified", audience="parent_only",
-                    evidence=f"{item.student_response} matches the correction; the mark may be about a capital letter or handwriting",
+                    evidence=_clip(f"{item.student_response} matches the correction; the mark may be about a capital letter or handwriting"),
                 ))
                 continue
-            category, evidence = explain(item.student_response.strip(), item.teacher_correction.strip())
-            out.append(ErrorInstance(item_ref=ref, category=category, evidence=evidence))
+            category, evidence = explain(given, wanted)
+            out.append(ErrorInstance(item_ref=ref, category=category, evidence=_clip(evidence)))
     return out
 
 
@@ -182,7 +216,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
 
     for error in misses:
         item = _find(assessment, error.item_ref)
-        wanted = item.teacher_correction.strip()
+        wanted = as_written(item.teacher_correction)
         hint = _TAXONOMY["categories"][error.category].get("hint", "")
         if error.category not in targets:
             targets.append(error.category)
@@ -192,7 +226,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
         if error.category == "spelling.homophone":
             items.append(PracticeItem(
                 kind="drill", target=error.category,
-                prompt=f"Which spelling fits? {item.prompt}" if "_" in (item.prompt or "") else f"Use {wanted} in a sentence of your own, then write it.",
+                prompt=_clip(f"Which spelling fits? {item.prompt}") if "_" in (item.prompt or "") else f"Use {wanted} in a sentence of your own, then write it.",
                 expected_answer=wanted, hint=hint,
             ))
             group = next(g for g in _HOMOPHONES if word(wanted) in g)
@@ -221,7 +255,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
     for error in misses:
         if len(items) >= max_items:
             break
-        wanted = _find(assessment, error.item_ref).teacher_correction.strip()
+        wanted = as_written(_find(assessment, error.item_ref).teacher_correction)
         items.append(PracticeItem(kind="retrieval", target=error.category,
                                   prompt="Ask the adult to say the word, then write it without looking.",
                                   expected_answer=wanted))

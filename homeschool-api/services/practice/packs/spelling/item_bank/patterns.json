@@ -9,7 +9,7 @@
   "spelling.sound_spelling": ["phone", "back", "city", "duck", "photo", "kitten", "circle", "quick", "graph", "trick", "center", "queen", "elephant", "jacket", "pencil", "knock", "laugh", "sock", "dolphin", "fence"],
   "spelling.transposition": ["friend", "said", "their", "girl", "first", "bird", "from", "form", "aunt", "which", "board", "field", "quiet", "angel", "united", "brain", "trail", "third", "heard", "weird"],
   "spelling.omitted_letter": ["library", "February", "Wednesday", "government", "probably", "different", "favorite", "interesting", "chocolate", "family", "every", "remember", "surprise", "temperature", "environment", "separate", "restaurant", "vegetable", "camera", "beautiful"],
-  "spelling.extra_letter": ["until", "always", "already", "careful", "useful", "almost", "also", "spoonful", "welcome", "thankful", "fulfil", "although", "altogether", "beautiful", "grateful", "hopeful", "playful", "skilful", "truthful", "wonderful"],
+  "spelling.extra_letter": ["until", "always", "already", "careful", "useful", "almost", "also", "spoonful", "welcome", "thankful", "joyful", "although", "altogether", "beautiful", "grateful", "hopeful", "playful", "peaceful", "truthful", "wonderful"],
   "homophone_frames": [
     ["They left ___ coats in the car.", "their"],
     ["Put the books over ___.", "there"],

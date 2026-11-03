@@ -251,3 +251,55 @@ def test_recall_without_a_correction_is_not_practised():
     a = assessment("recall", "history_quiz_1")
     practice = pipeline.plan(pipeline.diagnose(a), a)
     assert "What did Egyptians make paper from?" not in {i.prompt for i in practice.items}
+
+
+# ── Review findings (each reproduced before the fix) ─────────────────────────
+
+def _one(subject: str, **item) -> GradedAssessment:
+    return GradedAssessment.model_validate({"subject": subject, "sections": [{"label": "A", "items": [
+        {"number": 1, "prompt": "Q", **item}]}]})
+
+
+def test_a_long_answer_never_breaks_diagnosis_or_planning():
+    long_answer, long_fix = "x" * 190, "y" * 190
+    for subject in ("recall", "spelling"):
+        a = _one(subject, student_response=long_answer, teacher_mark="incorrect", teacher_correction=long_fix)
+        diagnosis = pipeline.diagnose(a)
+        assert all(len(e.evidence) <= 300 for e in diagnosis.errors)
+        pipeline.plan(diagnosis, a)
+    a = _one("spelling", prompt="We went " + "very " * 55 + "___ yesterday.",
+             student_response="there", teacher_mark="incorrect", teacher_correction="their")
+    pipeline.plan(pipeline.diagnose(a), a)
+
+
+def test_an_answer_starting_with_a_is_not_a_multiple_choice_letter():
+    a = _one("recall", prompt="What is a whale?", student_response="a fish",
+             teacher_mark="incorrect", teacher_correction="a mammal")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["recall.fact"]
+    practice = pipeline.plan(pipeline.diagnose(a), a)
+    assert "option" not in practice.items[0].hint
+
+
+def test_spelling_ignores_punctuation_and_finds_the_word_in_a_sentence():
+    a = _one("spelling", student_response="there.", teacher_mark="incorrect", teacher_correction="their")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["spelling.homophone"]
+    a = _one("spelling", student_response="We went to the libary today.", teacher_mark="incorrect", teacher_correction="library")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["spelling.omitted_letter"]
+
+
+def test_a_correction_with_context_targets_its_first_word_and_keeps_capitals():
+    a = _one("spelling", student_response="there", teacher_mark="incorrect", teacher_correction="their (not there)")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["spelling.homophone"]
+    a = _one("spelling", student_response="Febuary", teacher_mark="incorrect", teacher_correction="February")
+    practice = pipeline.plan(pipeline.diagnose(a), a)
+    assert practice.items[0].expected_answer == "February"
+
+
+def test_a_division_remainder_is_not_called_a_forgotten_fact():
+    a = _one("math", prompt="12 ÷ 5 =", student_response="2", teacher_mark="incorrect", teacher_correction="2 2/5")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["math.unclassified"]
+
+
+def test_a_sign_slip_with_a_bracketed_negative_is_diagnosed():
+    a = _one("math", prompt="−5 × (−3) =", student_response="-15", teacher_mark="incorrect", teacher_correction="15")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["math.integer.sign"]

@@ -126,7 +126,7 @@ describe('demo Practice Coach', () => {
   it('requires per-upload consent before sending pages to the cloud reader', async () => {
     api.fetchDemoPracticeReadingRoute.mockResolvedValue({ local_available: false, cloud_provider: 'OpenAI' })
     render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
-    await screen.findByText(/Send these pages to OpenAI/i)
+    await screen.findByText(/send these pages to OpenAI/i)
     fireEvent.change(screen.getByLabelText(/Choose up to/i), {
       target: { files: [new File(['synthetic'], 'synthetic.png', { type: 'image/png' })] },
     })

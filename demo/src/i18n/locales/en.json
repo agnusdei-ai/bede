@@ -60,10 +60,10 @@
   "demoPractice": {
     "title": "Practice Coach",
     "close": "Close Practice Coach",
-    "privacy": "Nothing here is kept after this session.",
+    "privacy": "Bede keeps nothing from this after the session.",
     "subject": "Subject",
     "local": "Read by this demo's own model.",
-    "cloud": "Send these pages to {{provider}} to be read.",
+    "cloud": "I agree to send these pages to {{provider}} to be read.",
     "noReader": "No reading provider is available in this demo right now.",
     "photos": "Choose up to {{max}} image files or scanned PDFs",
     "photosHint": "JPEG, PNG, or scanned PDF. PDFs count their scanned pages toward the six-page limit.",

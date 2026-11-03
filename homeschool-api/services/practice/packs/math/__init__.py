@@ -236,7 +236,7 @@ def binary(prompt: str) -> Optional[Problem]:
         negative, tokens = True, tokens[1:]
     if len(tokens) == 3 and isinstance(tokens[0], _Num) and isinstance(tokens[2], _Num) and tokens[1] in "+-*/":
         return Problem(tokens[0], tokens[1], tokens[2], negative)
-    if (len(tokens) == 6 and isinstance(tokens[0], _Num) and tokens[1] in "+-" and tokens[2] == "("
+    if (len(tokens) == 6 and isinstance(tokens[0], _Num) and tokens[1] in "+-*/" and tokens[2] == "("
             and tokens[3] == "-" and isinstance(tokens[4], _Num) and tokens[5] == ")"):
         # 4 - (-2): the second number is negative.
         problem = Problem(tokens[0], tokens[1], tokens[4], negative)
@@ -291,6 +291,10 @@ def _is_whole(value: Fraction) -> bool:
 
 
 # ── Diagnosis ─────────────────────────────────────────────────────────────────
+
+def _clip(text: str, limit: int = 300) -> str:
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
 
 def _ref(section, item) -> str:
     return f"{section.label} #{item.number}"
@@ -360,7 +364,7 @@ def _explain(prompt: str, given: Fraction, right: Fraction) -> tuple[str, str]:
                 return "math.sub.smaller_from_larger", f"{shown}: took the smaller digit from the larger in each column instead of regrouping"
             if op == "*" and ib >= 10 and unshifted_product(ia, ib) == ig:
                 return "math.mult.place_value_shift", f"{shown}: the second row was not moved one place left"
-            if ia <= 12 and ib <= 12 and op in "+-*/":
+            if ia <= 12 and ib <= 12 and op in "+-*/" and right.denominator == 1:
                 return "math.fact_recall", f"{shown}: wrote {ig}; the fact is {_fmt(right)}"
     return "", ""
 
@@ -405,7 +409,7 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
                 continue
             category, evidence = _explain(item.prompt, given, right)
             if category:
-                out.append(ErrorInstance(item_ref=ref, category=category, evidence=evidence))
+                out.append(ErrorInstance(item_ref=ref, category=category, evidence=_clip(evidence)))
             else:
                 out.append(ErrorInstance(
                     item_ref=ref, category="math.unclassified", audience="parent_only",
@@ -620,7 +624,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
               "multiplication": "math.fact_recall", "fractions": "math.fraction.add_across",
               "decimals": "math.decimal.place_value", "integers": "math.integer.sign",
               "order_of_operations": "math.order_of_operations"}
-    for strength in find_strengths(assessment)[:2]:
+    for strength in diagnosis.strengths[:2]:
         family = strength.category.removeprefix("math.")
         if family in review and len(items) < max_items:
             add(review[family], None, "retrieval", 1, "review" + family)

@@ -34,7 +34,14 @@ from services.practice.core_checks import normalize
 
 _ROOT = Path(__file__).resolve().parent
 _TAXONOMY = json.loads((_ROOT / "taxonomy.json").read_text(encoding="utf-8"))
-_CHOICE = re.compile(r"^\(?([a-eA-E])[).:]?(\s.*)?$")
+# An option letter on its own ("B", "b)", "(c)"), never an answer that merely
+# starts with the article "a".
+_CHOICE = re.compile(r"^\(?([a-eA-E])[).:]?$")
+_OPTIONS = re.compile(r"(?:^|\s)\(?[A-Ea-e][).:]\s")
+
+
+def _clip(text: str, limit: int = 300) -> str:
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
 def _ref(section, item) -> str:
@@ -70,7 +77,7 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
                 ))
                 continue
             g, w = normalize(given), normalize(wanted)
-            if _CHOICE.match(given) and _CHOICE.match(wanted):
+            if _OPTIONS.search(item.prompt) and _CHOICE.match(given) and _CHOICE.match(wanted):
                 category, evidence = "recall.choice", f"chose {given}; the answer is {wanted}"
             elif w and g and len(w) >= 5 and _distance(g, w) <= 2:
                 category, evidence = "recall.spelling", f"wrote {given} for {wanted}: the right answer, spelled differently"
@@ -78,7 +85,7 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
                 category, evidence = "recall.partial", f"wrote {given}; the full answer is {wanted}"
             else:
                 category, evidence = "recall.fact", f"wrote {given}; the answer is {wanted}"
-            out.append(ErrorInstance(item_ref=ref, category=category, evidence=evidence))
+            out.append(ErrorInstance(item_ref=ref, category=category, evidence=_clip(evidence)))
     return out
 
 

@@ -126,10 +126,15 @@ def test_streamlined_inquiry_navigation_and_demo_beta_dates_remain_current():
         assert "Free to use through August 31" not in text
         assert "Fall Launch: September" not in text
     launch = (SITE.parent / "demo" / "public" / "launch.html").read_text(encoding="utf-8")
-    assert "October&nbsp;31, 2026" in launch
+    assert "November&nbsp;21, 2026" in launch
+    assert "October&nbsp;31" not in launch
+    assert "not a confirmed public launch date" in launch
     assert "September 30" not in launch
     demo = (SITE.parent / "demo" / "src" / "App.tsx").read_text(encoding="utf-8")
-    assert "Public beta through October 31, 2026" in demo
+    assert "Demo beta extended through November 21, 2026" in demo
+    faq = (SITE / "faq" / "index.html").read_text(encoding="utf-8")
+    assert "The demo beta runs through November 21, 2026. This date marks the end of the demo period, not a confirmed public launch date." in faq
+    assert "October 31" not in faq
 
 
 def test_home_has_no_expired_beta_date_or_percentile_claim():

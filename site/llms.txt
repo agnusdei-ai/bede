@@ -4,7 +4,7 @@
 
 Parents and educators choose the books, curriculum, and goals, guide the learning, and review the work. Bede supports inquiry, explanation, and thoughtful application. Faith and character are never scored.
 
-The public demo is cloud-hosted. Self-hosted and offline installations are separately configured; local-only privacy applies to offline installations. School demonstrations are led by teachers and use example records, not real student data; real learner data and direct tutoring require separate qualification and a signed scope.
+The public demo is cloud-hosted. Self-hosted and offline installations are separately configured; local-only privacy applies to offline installations. School demonstrations are led by teachers and use synthetic data (example records), not real student data; real learner data and direct tutoring require separate qualification and a signed scope.
 
 ## Product and audiences
 

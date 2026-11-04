@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Palette, Check } from 'lucide-react'
 import { BUBBLE_COLORS, CHAT_THEMES, type BubbleColor, type ChatTheme } from '../hooks/useChatTheme'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +11,25 @@ import { useTranslation } from 'react-i18next'
  * persisted by the parent via useChatTheme. Mirrored in
  * demo/src/ThemePicker.tsx.
  */
+// The menu is 13rem wide (w-52). It opens under the palette button and is
+// kept inside the screen: the header's buttons moved the palette left when
+// Practice Coach was added, and a menu aligned to the button's right edge
+// then opened about 50px past the left edge of a phone.
+export const MENU_WIDTH = 208
+export const MENU_GUTTER = 8
+
+export function placeThemeMenu(
+  button: { left: number; right: number; bottom: number },
+  viewportWidth: number,
+  viewportHeight: number,
+): { top: number; left: number; maxHeight: number } {
+  const width = Math.min(MENU_WIDTH, viewportWidth - 2 * MENU_GUTTER)
+  const preferred = button.right - width
+  const left = Math.max(MENU_GUTTER, Math.min(preferred, viewportWidth - width - MENU_GUTTER))
+  const top = button.bottom + 4
+  return { top, left, maxHeight: Math.max(120, viewportHeight - top - MENU_GUTTER) }
+}
+
 export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }: {
   theme: ChatTheme
   onSelect: (id: string) => void
@@ -20,6 +39,29 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const [place, setPlace] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
+
+  // Position against the viewport, not the header, so the menu can never
+  // open off the screen whatever sits beside the button.
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) { setPlace(null); return }
+    const r = buttonRef.current.getBoundingClientRect()
+    setPlace(placeThemeMenu(r, window.innerWidth, window.innerHeight))
+  }, [open])
+
+  // A fixed menu would drift from its button on scroll or rotation, so it
+  // closes instead.
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
+    return () => {
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', close, true)
+    }
+  }, [open])
 
   // Close on any tap/click outside — standard dropdown behavior, and on a
   // tablet there's no Esc key to reach for.
@@ -35,6 +77,7 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
+        ref={buttonRef}
         onClick={() => setOpen((v) => !v)}
         title={t('themePicker.backgroundTheme')}
         aria-label={`Background theme: ${theme.name}. Tap to change.`}
@@ -44,8 +87,12 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
         <Palette size={15} />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 w-52">
+      {open && place && (
+        <div
+          data-testid="theme-menu"
+          className="fixed z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 overflow-y-auto"
+          style={{ top: place.top, left: place.left, width: Math.min(MENU_WIDTH, window.innerWidth - 2 * MENU_GUTTER), maxHeight: place.maxHeight }}
+        >
           <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pb-1">Background</div>
           {CHAT_THEMES.map((t) => (
             <button

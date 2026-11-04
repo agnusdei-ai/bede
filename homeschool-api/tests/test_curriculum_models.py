@@ -149,7 +149,8 @@ def test_variant_valid_and_expires():
 
 
 def test_variant_requires_opaque_learner_ref():
-    for bad in ("jane@example.org", "short", "Jane Doe 12345"):
+    for bad in ("jane@example.org", "short", "Jane Doe 12345",
+                "learner_abc123\n", "learner_abc123\n../other", None):
         with pytest.raises(CurriculumModelError):
             variant(learner_ref=bad)
 

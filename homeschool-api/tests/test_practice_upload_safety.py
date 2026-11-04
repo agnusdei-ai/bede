@@ -513,7 +513,7 @@ async def test_unpatched_native_heif_decoder_is_never_called(monkeypatch):
         raise AssertionError("unsafe native decoder was invoked")
     monkeypatch.setattr(upload_safety, "reencode_image", fail)
     raw = b"\x00\x00\x00\x18ftypheic" + b"\x00" * 32
-    with pytest.raises(PhotoRejected, match="decoder is patched"):
+    with pytest.raises(PhotoRejected, match="waiting for a security fix"):
         await prep(raw)
 
 
@@ -662,7 +662,6 @@ def test_the_read_route_is_parent_authenticated_and_maps_scanner_failures_to_503
     ("a vector rectangle", {"content": PLAIN_SCAN + b" 1 0 0 RG 5 5 20 20 re S"}),
     ("a filled path", {"content": PLAIN_SCAN + b" 10 10 30 30 re f"}),
     ("an inline image", {"content": PLAIN_SCAN + b" BI /W 1 /H 1 /CS /G /BPC 8 ID \x00 EI"}),
-    ("two images drawn", {"content": PLAIN_SCAN + b" q 50 0 0 50 0 0 cm /Im1 Do Q", "second_image": True}),
     ("only a form XObject drawn", {"content": b"/Fm0 Do", "form": True}),
     ("a form XObject drawn", {"content": PLAIN_SCAN + b" /Fm0 Do", "form": True}),
     ("visible text after an invisible mode was restored by Q", {"content": b"q 3 Tr Q " + PLAIN_SCAN + b" BT /F1 8 Tf (x) Tj ET"}),
@@ -777,3 +776,115 @@ async def test_bracketed_ipv6_loopback_reaches_the_connection_call(monkeypatch):
     with pytest.raises(upload_safety.ScannerUnavailable):
         await prep(png_bytes())
     assert seen == [("::1", 3310)]
+
+
+# ── Android and other phone photo formats ─────────────────────────────────────
+
+def _photo(fmt: str, **save) -> bytes:
+    out = io.BytesIO()
+    Image.new("RGB", (24, 16), (200, 30, 30)).save(out, format=fmt, **save)
+    return out.getvalue()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fmt", ["WEBP", "AVIF"])
+async def test_webp_and_avif_photos_are_decoded_and_re_encoded_to_png(fmt):
+    (page,) = decoded(await prep(_photo(fmt)))
+    assert page.format == "PNG" and page.size == (24, 16)
+
+
+@pytest.mark.asyncio
+async def test_a_multi_picture_jpeg_from_an_android_camera_is_accepted():
+    """Samsung and other cameras save MPO: a JPEG carrying a second picture."""
+    out = io.BytesIO()
+    first = Image.new("RGB", (24, 16), (200, 30, 30))
+    first.save(out, format="MPO", save_all=True, append_images=[Image.new("RGB", (24, 16), (0, 0, 0))])
+    raw = out.getvalue()
+    assert Image.open(io.BytesIO(raw)).format == "MPO"
+    (page,) = decoded(await prep(raw))
+    assert page.format == "PNG"
+    assert page.convert("RGB").getpixel((5, 5))[0] > 150  # the first picture, not the second
+
+
+def test_an_avif_inside_a_generic_heif_brand_is_routed_to_the_avif_decoder():
+    raw = _photo("AVIF")
+    size = struct.unpack(">I", raw[:4])[0]
+    relabelled = raw[:8] + b"mif1" + raw[12:16] + b"avif" + raw[20:]
+    assert upload_safety._ftyp_brands(relabelled)[0] == b"mif1"
+    assert b"avif" in upload_safety._ftyp_brands(relabelled)[1]
+    assert size >= 20
+    (kind, data), = upload_safety.sanitize_upload(relabelled, 6)
+    assert kind == "image/png"
+
+
+@pytest.mark.asyncio
+async def test_a_webp_header_on_other_bytes_is_refused():
+    with pytest.raises(PhotoRejected):
+        await prep(b"RIFF\x10\x00\x00\x00WEBPVP8 junkjunkjunk")
+
+
+# ── Scanner PDFs saved as stacked layers ──────────────────────────────────────
+
+def _layered_pdf(content: bytes, *, extra_masks: int = 0, fill_op: bytes = b"0 g") -> bytes:
+    """A 20x20 page: a light-gray background and a 1-bit ink mask painting the left half."""
+    writer = PdfWriter()
+    page = writer.add_blank_page(20, 20)
+    bg = DecodedStreamObject()
+    bg.set_data(bytes([220]) * 400)
+    for k, v in {"/Type": NameObject("/XObject"), "/Subtype": NameObject("/Image"),
+                 "/Width": NumberObject(20), "/Height": NumberObject(20),
+                 "/ColorSpace": NameObject("/DeviceGray"), "/BitsPerComponent": NumberObject(8)}.items():
+        bg[NameObject(k)] = v
+    mask = DecodedStreamObject()
+    # Each row: 3 bytes for 20 pixels. Bit 0 = paint; the left 10 pixels painted.
+    mask.set_data(bytes([0x00, 0x3F, 0xFF]) * 20)
+    for k, v in {"/Type": NameObject("/XObject"), "/Subtype": NameObject("/Image"),
+                 "/Width": NumberObject(20), "/Height": NumberObject(20),
+                 "/ImageMask": BooleanObject(True), "/BitsPerComponent": NumberObject(1)}.items():
+        mask[NameObject(k)] = v
+    xobjects = {NameObject("/Bg"): writer._add_object(bg), NameObject("/Ink"): writer._add_object(mask)}
+    page[NameObject("/Resources")] = DictionaryObject({NameObject("/XObject"): DictionaryObject(xobjects)})
+    page[NameObject("/Contents")] = _content(writer, content.replace(b"FILL", fill_op))
+    out = io.BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+LAYERED = b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL 20 0 0 20 0 0 cm /Ink Do Q"
+
+
+@pytest.mark.asyncio
+async def test_a_scanner_pdf_saved_as_background_plus_ink_layers_is_combined():
+    (page,) = decoded(await prep(_layered_pdf(LAYERED)))
+    rgb = page.convert("RGB")
+    w, h = rgb.size
+    ink = rgb.getpixel((w // 5, h // 2))
+    paper = rgb.getpixel((4 * w // 5, h // 2))
+    assert max(ink) < 60, "the ink layer was dropped"
+    assert min(paper) > 190, "the background layer was dropped or painted over"
+
+
+@pytest.mark.asyncio
+async def test_two_full_images_on_one_page_are_combined_not_refused():
+    (page,) = decoded(await prep(make_pdf(("jpeg",), content=PLAIN_SCAN + b" q 50 0 0 50 0 0 cm /Im1 Do Q",
+                                          second_image=True)))
+    assert page.format == "PNG"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name,content,fill", [
+    ("a rotated layer", b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL 0 20 -20 0 20 0 cm /Ink Do Q", b"0 g"),
+    ("a mirrored layer", b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL -20 0 0 20 20 0 cm /Ink Do Q", b"0 g"),
+    ("an ink colour this cannot interpret", LAYERED, b"/CS0 cs 1 sc"),
+    ("too many layers", LAYERED + b" /Ink Do /Ink Do /Ink Do", b"0 g"),
+    ("a layer scaled far past the page", b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL 900000 0 0 900000 0 0 cm /Ink Do Q", b"0 g"),
+])
+async def test_layered_pages_that_cannot_be_combined_faithfully_are_refused(name, content, fill):
+    with pytest.raises(PhotoRejected):
+        await prep(_layered_pdf(content, fill_op=fill))
+
+
+@pytest.mark.asyncio
+async def test_text_drawn_over_a_layered_scan_is_still_refused():
+    with pytest.raises(PhotoRejected, match="photograph or scan"):
+        await prep(_layered_pdf(LAYERED + b" BT /F1 9 Tf (ok) Tj ET"))

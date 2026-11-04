@@ -263,10 +263,28 @@ async def test_cloud_reading_needs_consent_and_makes_no_call_without_it(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_cloud_reading_is_off_by_default_even_with_consent(monkeypatch):
-    """No provider's image terms are verified, so the server refuses the cloud
-    route outright: consent alone cannot switch it on, and no call is made."""
-    assert extract.settings.practice_cloud_reading_enabled is False  # the shipped default
+async def test_cloud_reading_is_on_by_default_but_still_needs_consent(monkeypatch):
+    """Owner ruling 2026-11-04: a cloud read is available by default, and still
+    only after the parent's tick naming the provider. The request carries the
+    page images and one fixed line of text: no learner id, name or file metadata."""
+    assert extract.settings.practice_cloud_reading_enabled is True  # the shipped default
+    cloud = StubClient(json.dumps(GOLDEN["assessment"]))
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
+    assert extract.reading_route()["cloud_provider"] == "openai"  # the screen offers the tick
+    with pytest.raises(extract.ConsentRequired):
+        await extract.read_pages(_req())
+    assert cloud.calls == []
+    await extract.read_pages(_req(cloud_consent=True))
+    (call,) = cloud.calls
+    (message,) = call["messages"]
+    kinds = [b["type"] for b in message["content"]]
+    assert kinds == ["image", "image", "text"]
+    assert message["content"][-1]["text"] == "These are 2 page(s) of one worksheet, in order."
+
+
+@pytest.mark.asyncio
+async def test_a_deployment_can_still_switch_cloud_reading_off(monkeypatch):
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", False)
     cloud = StubClient(json.dumps(GOLDEN["assessment"]))
     _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
     assert extract.reading_route()["cloud_provider"] is None  # the screen offers no consent tick

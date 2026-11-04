@@ -2282,6 +2282,24 @@ provider choice, not this feature's).
 - **The parent picks a school subject**, not a pack. A reading and language
   arts pack was added; it never marks a question that asks for judgement.
 
+**Amended (2026-11-04, later the same day, owner ruling).**
+
+- **Photo reading on the cloud provider is on by default**, in the demo and
+  the product, superseding the line above that kept photos off on the demo.
+  Each upload still needs the parent's tick naming the provider, pinned to
+  that one provider. The screen and the Privacy Notice say which provider
+  receives the images and its retention terms (OpenAI: up to 30 days for
+  abuse monitoring, not used for training), and never promise that nothing
+  is kept anywhere. A deployment can still switch it off.
+- **No zero-retention prerequisite, and a first name is not a blocker.** An
+  incidental first name on a worksheet does not trigger a block, mandatory
+  redaction or a release gate. Cropping is suggested for a full name or a
+  student number, never required. Only the re-encoded images go: no learner
+  id, roster detail or file metadata.
+- **More phone formats.** WebP, AVIF and multi-picture JPEG are read; scanner
+  PDFs saved as stacked image layers are combined. HEIC stays refused until a
+  patched decoder ships, and iPhones send a JPEG copy meanwhile.
+
 ---
 
 ## v1.0 owner ruling reconciliation — 2026-11-01 (amendments, not new decision IDs)

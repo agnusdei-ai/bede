@@ -12,7 +12,9 @@ import {
 } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
 
-const ACCEPT = 'image/jpeg,image/png,application/pdf,.pdf'
+// HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
+// HEIC decoder is held back until its security fix ships.
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
 const MAX_PAGES = 6
 
 function base64Payload(dataUrl: string) {
@@ -212,6 +214,12 @@ export default function DemoPracticeCoach({
                   <input type="checkbox" checked={cloudConsent} onChange={(event) => setCloudConsent(event.target.checked)} className="mt-0.5" />
                   <span>{t('demoPractice.cloud', { provider: route?.cloud_provider ?? '' })}</span>
                 </label>
+              )}
+              {usesCloud && (
+                <>
+                  <p className="text-xs text-gray-600">{t('demoPractice.cloudRetention', { provider: route?.cloud_provider ?? '' })}</p>
+                  <p className="text-xs text-gray-600">{t('demoPractice.cropTip')}</p>
+                </>
               )}
               {noReader && <p className="text-xs text-madder-800">{t('demoPractice.noReader')}</p>}
               <label className={label}>

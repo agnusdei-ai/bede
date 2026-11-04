@@ -548,12 +548,14 @@ class Settings(BaseSettings):
     practice_scanner_url: str = ""
 
     # Practice Coach may send worksheet page images to the household's CLOUD AI
-    # provider only if this is true AND the parent ticks consent for that upload.
-    # Off by default: no provider's training/retention terms for images have been
-    # verified for this product, so the default is local-model reading only.
-    # Enforced in the one routing choke point (services/practice/extract.py), so a
-    # direct API request cannot bypass it.
-    practice_cloud_reading_enabled: bool = False
+    # provider when no local model is configured. On by default (owner ruling
+    # 2026-11-04): each upload still needs the parent's tick naming that
+    # provider, the request is pinned to that one provider, and only the
+    # re-encoded page images go (no learner id, roster or file metadata). Set
+    # false to keep photo reading local-model only. Enforced in the one routing
+    # choke point (services/practice/extract.py), so a direct API request cannot
+    # bypass it.
+    practice_cloud_reading_enabled: bool = True
 
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
     # On by default — this is what powers the end-of-session "Math Skill

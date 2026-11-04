@@ -125,6 +125,8 @@ describe('where the photos go', () => {
     await openAndPick()
     const read = screen.getByRole('button', { name: 'Read the quiz' }) as HTMLButtonElement
     expect(screen.getByText(/sent to openai/)).toBeTruthy()
+    expect(screen.getByText(/openai may keep the page images for up to 30 days/)).toBeTruthy()
+    expect(screen.getByText(/crop out anything you would rather not send/)).toBeTruthy()
     expect(read.disabled).toBe(true)
     fireEvent.click(read)
     expect(mocks.readPracticePhotos).not.toHaveBeenCalled()
@@ -214,13 +216,14 @@ it('is written in Spanish for a Spanish session', async () => {
 })
 
 describe('PDF and iPhone uploads', () => {
-  it('offers only supported JPEG, PNG and PDF while native HEIC decoding is gated', async () => {
+  it('offers JPEG, PNG, WebP, AVIF and PDF, and leaves HEIC out so iPhones send a JPEG', async () => {
     await openAndPick()
     const input = screen.getByLabelText(/scanned PDF of the graded pages/) as HTMLInputElement
     const accepted = input.accept.split(',')
-    for (const kind of ['image/jpeg', 'image/png', 'application/pdf', '.pdf']) {
+    for (const kind of ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf', '.pdf']) {
       expect(accepted).toContain(kind)
     }
+    expect(input.accept).not.toMatch(/heic/i)
     expect(input.accept).toBe(PRACTICE_ACCEPT)
     expect(input.multiple).toBe(true)
   })
@@ -240,7 +243,8 @@ describe('PDF and iPhone uploads', () => {
 
   it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
     await openAndPick()
-    expect(screen.getByText(/PDF of scanned pages \(export iPhone HEIC photos as JPEG first\), 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/a PDF of scanned pages, 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/iPhone photos are sent as JPEG/)).toBeTruthy()
     expect(screen.getByText(/scripts, attachments, forms or a password are refused/)).toBeTruthy()
     expect(screen.getByText(/not saved to the database or a file by Bede; they are held in memory while the request runs/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/never the photos|virus-free|malware-free/i)

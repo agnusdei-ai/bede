@@ -89,7 +89,7 @@ exists in the codebase but isn't configured for this deployment.
 
 | Vendor | What it receives | Purpose |
 |---|---|---|
-| OpenAI | Conversation text (primary AI provider); Bede's reply text (text-to-speech); **microphone audio, when a visitor uses voice input** (speech-to-text); **a topic or quiz typed into Practice Coach, only after the visitor ticks the box agreeing to it** (quiz drafting; never sent to a backup provider) | Generate and voice Bede's tutoring responses, and turn a visitor's speech into text |
+| OpenAI | Conversation text (primary AI provider); Bede's reply text (text-to-speech); **microphone audio, when a visitor uses voice input** (speech-to-text); **a topic or quiz typed into Practice Coach, only after the visitor ticks the box agreeing to it** (quiz drafting; never sent to a backup provider); **photos or a scanned PDF of a quiz, rebuilt as plain images with metadata removed, only after the visitor ticks the box agreeing to it** (reading the page; never sent to a backup provider; OpenAI may keep API data up to 30 days for abuse monitoring) | Generate and voice Bede's tutoring responses, and turn a visitor's speech into text |
 | Mistral | Conversation text, only on automatic failover if OpenAI errors — **default backup** | Backup AI provider, live circuit-breaker failover |
 | Anthropic (Claude) | Conversation text, only on automatic failover if OpenAI errors — **only if configured as the backup instead of Mistral** (`ANTHROPIC_API_KEY` set AND selected via `core/provider_state.py`'s secondary override) | Alternate backup AI provider, same mechanism as Mistral |
 | Resend | Feedback message + optional reply email | Deliver the feedback form to the operator's own inbox |

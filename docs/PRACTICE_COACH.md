@@ -55,16 +55,21 @@ The photos are read in one of two places:
 
 - **On the household's own model**, when one is configured. This is the
   default, and it never falls back to a cloud provider.
-- **On the household's configured cloud AI provider**, only when the
-  deployment has switched this on (`PRACTICE_CLOUD_READING_ENABLED=true`,
-  **off by default**) AND the parent confirms it for that upload. With the
-  switch off, the server refuses the cloud route outright, so a direct API
-  request cannot bypass it, and the reading-route screen offers no consent
-  tick. Without the parent's confirmation the request is refused before
-  anything is sent, and the response names the provider. The switch is off
-  because no provider's training, retention or logging terms for images have
-  been verified for this product. Turning it on is a decision to verify those
-  terms first, not a setting to flip. The cloud route is pinned to the provider the
+- **On the household's configured cloud AI provider**, when no local model is
+  configured, only after the parent confirms it for that upload. This is
+  **on by default** (owner ruling 2026-11-04, register entry 39);
+  `PRACTICE_CLOUD_READING_ENABLED=false` keeps photo reading local-model
+  only, and with it off the server refuses the cloud route outright, so a
+  direct API request cannot bypass it, and the reading-route screen offers no
+  consent tick. Without the parent's confirmation the request is refused
+  before anything is sent, and the response names the provider. Next to the
+  tick the screen says that the provider may keep the page images for up to
+  30 days to check for misuse, under its own API terms, and that Bede does
+  not save them; it also suggests cropping out a full name or student number,
+  without requiring it (a first name alone is not a reason to block). Only the
+  re-encoded page images go, with one fixed line of text: no learner id,
+  roster detail, typed name or file metadata (a test pins the request shape).
+  The cloud route is pinned to the provider the
   parent's confirmation names (`services/adapters/router.py`'s
   `resolve_named`): if it errors, the request fails rather than being retried
   on another provider. The named provider follows any primary or backup
@@ -83,8 +88,8 @@ provider (`services/adapters/router.py`'s `resolve_named`): if it errors, the
 request fails rather than being retried on a backup the parent did not agree
 to. Teachers stay on the school's own model for typed drafts too. The route
 reports this as `draft_provider`, separate from the photo route's
-`cloud_provider`. On the public demo, which has no local model and keeps the
-photo switch off, typed drafts work and photos do not; the screen says so.
+`cloud_provider`. On the public demo, which has no local model, both typed
+drafts and photos go to OpenAI after the tick, and never to a backup provider.
 The demo's Privacy Notice describes it.
 
 The photos are not saved to the database or a file by Bede; they are held in
@@ -107,15 +112,22 @@ parent-facing text never says "virus-free". It is `services/practice/upload_safe
 and it runs after the parent is authenticated and after consent and routing are
 settled, before anything reaches a model.
 
-- **Type comes from the bytes.** PNG, JPEG, HEIC/HEIF (`ftyp` brands `heic`,
-  `heix`, `hevc`, `mif1`, `msf1`, `heif`) and PDF are recognised by their magic
-  numbers only. The API receives no filename or content type for a page, and
+- **Type comes from the bytes.** PNG, JPEG (including the multi-picture MPO
+  files Samsung and other Android cameras save; only the first picture is
+  used), WebP, AVIF (`ftyp` brand `avif`/`avis`, or a generic HEIF brand that
+  lists `avif` as compatible), HEIC/HEIF (`ftyp` brands `heic`, `heix`, `hevc`,
+  `mif1`, `msf1`, `heif`) and PDF are recognised by their magic numbers only.
+  WebP and AVIF are decoded by Pillow itself, so the HEIC hold below does not
+  apply to them. The API receives no filename or content type for a page, and
   none is consulted.
 - **Native HEIC security hold.** The pinned `pillow-heif 1.8.1` bundles
   `libheif 1.23.6`; upstream libheif 1.23.7 (October 26, 2026) fixes
   multiple high-severity vulnerabilities. HEIC/HEIF is refused before any
-  native decode unless the *linked* libheif reports 1.23.7 or newer. The
-  current UI offers JPEG, PNG and PDF only; export HEIC photos as JPEG first.
+  native decode unless the *linked* libheif reports 1.23.7 or newer, and no
+  pillow-heif release bundling it existed on 2026-11-04. The file picker
+  leaves HEIC out on purpose, so an iPhone hands over a JPEG copy; on Android,
+  a camera set to save HEIF can be switched to JPEG, and the refusal message
+  says so. The gate lifts on its own once a patched pillow-heif is pinned.
   Independent native decoder review is still required before enabling HEIC
   in a release. Python package audit alone is not sufficient evidence.
 - **Images are fully decoded and re-encoded** with Pillow into a fresh PNG: the pixel count is
@@ -128,15 +140,23 @@ settled, before anything reaches a model.
   encrypted (even with an empty user password) or if anything in the object
   graph, object streams and hex-escaped names included, is `/JavaScript`,
   `/JS`, `/Launch`, `/EmbeddedFile(s)`, `/OpenAction`, `/AA`, `/AcroForm`,
-  `/XFA`, `/RichMedia`, `/SubmitForm`, `/ImportData` or `/GoToE`. Only the one
-  scanned image on each page is taken out and re-encoded like any photo, but
-  **only from a page that is nothing but that one picture**: the page's content
+  `/XFA`, `/RichMedia`, `/SubmitForm`, `/ImportData` or `/GoToE`. Only the
+  scanned images on each page are taken out and re-encoded like any photo, and
+  **only from a page that is nothing but scanned pictures**: the page's content
   stream is read with pypdf and the page is refused (with "photograph or scan
   the marked-up paper, or print the PDF to an image") if it draws visible text,
-  paints any path or shading, uses an inline image or a form XObject, places
-  more than one image, or carries any annotation other than a plain link
-  (comments, highlights, stamps and typed-in marks would otherwise be dropped
-  silently, and the teacher's marks are part of what is read). An invisible OCR
+  paints any path or shading, uses an inline image or a form XObject, or
+  carries any annotation other than a plain link (comments, highlights, stamps
+  and typed-in marks would otherwise be dropped silently, and the teacher's
+  marks are part of what is read). **A page saved as stacked layers is
+  combined, not refused** (since 2026-11-04): many office scanners (Canon,
+  Xerox and others, "compact" or "high compression" PDF) store one page as a
+  background picture plus black-and-white ink layers, and those are drawn
+  onto one canvas the way a viewer would, honouring each layer's position and
+  ink colour. At most four layers; a rotated, skewed or mirrored layer, or an
+  ink colour in a colour space this does not interpret, refuses the page
+  rather than guessing. Each layer is size-capped before decoding and a
+  Flate-wrapped layer is inflated against a fixed bound. An invisible OCR
   text layer (text render mode 3), links, clipping and marked-content
   operators are allowed. Any parse problem refuses. An image in a format other
   than JPEG or 8-bit gray/RGB is also refused with a plain message; there is no

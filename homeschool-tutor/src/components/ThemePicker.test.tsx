@@ -27,4 +27,11 @@ describe('ThemePicker', () => {
     fireEvent.scroll(window)
     expect(screen.queryByTestId('theme-menu')).toBeNull()
   })
+
+  it('stays open while its own list is scrolled on a short screen', () => {
+    render(<ThemePicker theme={CHAT_THEMES[0]} onSelect={() => {}} bubble={BUBBLE_COLORS[0]} onSelectBubble={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    fireEvent.scroll(screen.getByTestId('theme-menu'))
+    expect(screen.getByTestId('theme-menu')).toBeTruthy()
+  })
 })

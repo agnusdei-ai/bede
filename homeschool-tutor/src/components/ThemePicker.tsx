@@ -40,6 +40,7 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
 
   // Position against the viewport, not the header, so the menu can never
@@ -55,11 +56,16 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   useEffect(() => {
     if (!open) return
     const close = () => setOpen(false)
+    // Scrolling the menu's own list (a short screen) must not close it.
+    const onScroll = (e: Event) => {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return
+      setOpen(false)
+    }
     window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
+    window.addEventListener('scroll', onScroll, true)
     return () => {
       window.removeEventListener('resize', close)
-      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open])
 
@@ -89,6 +95,7 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
 
       {open && place && (
         <div
+          ref={menuRef}
           data-testid="theme-menu"
           className="fixed z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 overflow-y-auto"
           style={{ top: place.top, left: place.left, width: Math.min(MENU_WIDTH, window.innerWidth - 2 * MENU_GUTTER), maxHeight: place.maxHeight }}

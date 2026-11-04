@@ -350,7 +350,6 @@ class ChildLearnerBinding(Base):
     nonce: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
-
 class PilotCampusDataAuthorization(Base):
     """A school official's recorded authorization to store learner data for a campus.
 

@@ -493,5 +493,37 @@ class FailoverClient:
         return live or configured
 
 
+class NamedAdapterUnavailableError(RuntimeError):
+    """The one named adapter a caller asked for is not configured."""
+
+
+class _NamedMessages:
+    def __init__(self, name: str, adapter: Any) -> None:
+        self._name = name
+        self._adapter = adapter
+
+    async def create(self, **kwargs: Any) -> Any:
+        return await self._adapter.messages.create(**_kwargs_for(self._name, kwargs))
+
+
+class _NamedClient:
+    def __init__(self, name: str, adapter: Any) -> None:
+        self.name = name
+        self.messages = _NamedMessages(name, adapter)
+
+
+def resolve_named(name: str, settings: Any = _global_settings) -> Any:
+    """Exactly one adapter, with no failover to any other.
+
+    For a call the user agreed to by provider name (Practice Coach asks
+    "send this to OpenAI?"): failing over would send it somewhere they did
+    not agree to. An error from that provider is returned, never retried
+    elsewhere.
+    """
+    if name not in _configured_order(settings):
+        raise NamedAdapterUnavailableError(f"{name!r} is not configured")
+    return _NamedClient(name, _build(name, settings))
+
+
 def resolve_with_failover(settings: Any = _global_settings) -> FailoverClient:
     return FailoverClient(settings)

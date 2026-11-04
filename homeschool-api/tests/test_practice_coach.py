@@ -241,6 +241,8 @@ def _routing(monkeypatch, *, local: bool, cloud: str | None, local_client=None, 
     monkeypatch.setattr(router, "resolve_local_only", lambda *a, **k: local_client)
     if cloud_client is not None:
         monkeypatch.setattr(ai_service, "_client", cloud_client)
+        # A typed quiz draft is pinned to the one provider the parent agreed to.
+        monkeypatch.setattr(router, "resolve_named", lambda *a, **k: cloud_client)
 
 
 def _req(**kw):

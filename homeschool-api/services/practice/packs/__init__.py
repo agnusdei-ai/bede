@@ -25,7 +25,29 @@ from typing import Any, Callable, Optional
 _HERE = Path(__file__).resolve().parent
 
 # Pack id -> package name. Adding a pack is a folder plus one line here.
-_PACKS = {"latin": "latin", "math": "math", "spelling": "spelling", "recall": "recall"}
+_PACKS = {
+    "latin": "latin", "math": "math", "spelling": "spelling",
+    "reading": "reading", "recall": "recall",
+}
+
+# What a parent picks: school subjects, in the order a school lists them.
+# A pack groups subjects by how a mistake is checked (worked out exactly,
+# named by spelling pattern, compared with the teacher's correction), which
+# is not how anyone looks for them, so each subject names the pack that
+# checks it. A subject id is also accepted wherever a pack id is.
+_SUBJECTS = [
+    ("mathematics", "Mathematics", "math"),
+    ("reading", "Reading and language arts", "reading"),
+    ("spelling", "Spelling", "spelling"),
+    ("grammar", "Grammar", "recall"),
+    ("science", "Science", "recall"),
+    ("history", "History and social studies", "recall"),
+    ("geography", "Geography", "recall"),
+    ("latin", "Latin", "latin"),
+    ("other", "Other short-answer quiz", "recall"),
+]
+_SUBJECT_PACK = {sid: pack for sid, _name, pack in _SUBJECTS}
+_SUBJECT_NAME = {sid: name for sid, name, _pack in _SUBJECTS}
 
 
 @dataclass(frozen=True)
@@ -65,6 +87,8 @@ def _load(pack_id: str) -> SubjectPack:
 
 
 def get_pack(pack_id: str) -> Optional[SubjectPack]:
+    """A pack by its own id, or by a subject id from `_SUBJECTS`."""
+    pack_id = _SUBJECT_PACK.get(pack_id, pack_id)
     if pack_id not in _PACKS:
         return None
     if pack_id not in _cache:
@@ -72,9 +96,14 @@ def get_pack(pack_id: str) -> Optional[SubjectPack]:
     return _cache[pack_id]
 
 
+def subject_name(subject: str) -> str:
+    """What to call this subject when reading its pages."""
+    if subject in _SUBJECT_NAME:
+        return _SUBJECT_NAME[subject]
+    pack = get_pack(subject)
+    return pack.manifest.get("display_name", subject) if pack else subject
+
+
 def available_packs() -> list[dict]:
-    out = []
-    for pack_id in _PACKS:
-        pack = get_pack(pack_id)
-        out.append({"id": pack.id, "display_name": pack.manifest.get("display_name", pack.id)})
-    return out
+    """The subject picker: school subjects, each checked by one pack."""
+    return [{"id": sid, "display_name": name, "pack": pack} for sid, name, pack in _SUBJECTS]

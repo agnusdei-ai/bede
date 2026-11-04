@@ -244,7 +244,8 @@ export interface QuizOptions {
   kinds: QuizKind[]
   levels: QuizLevel[]
   max_questions: number
-  route: { local_available: boolean; cloud_provider: string | null }
+  // cloud_provider reads photos; draft_provider drafts from typed text only.
+  route: { local_available: boolean; cloud_provider: string | null; draft_provider?: string | null }
 }
 
 export interface GenerateQuizBody {

@@ -1,0 +1,16 @@
+{
+  "id": "reading",
+  "display_name": "Reading and language arts",
+  "grade_bands": ["K-2", "3-5", "6-8"],
+  "item_types": ["short_answer", "multiple_choice", "fill_in_the_blank", "written_response"],
+  "detects": [
+    "reading.detail",
+    "reading.choice",
+    "reading.vocabulary",
+    "reading.partial",
+    "reading.spelling",
+    "reading.needs_judgement",
+    "reading.needs_answer"
+  ],
+  "_note": "Reading comprehension on a passage, including the multiple-choice and short-answer questions state reading tests use. A question whose answer is on the page is checked against the teacher's correction. A question that asks for judgement (why, the main idea, the author's purpose, an inference, a written response) is never marked by Bede: it goes to the parent."
+}

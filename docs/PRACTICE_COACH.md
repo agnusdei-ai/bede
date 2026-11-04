@@ -72,6 +72,19 @@ The photos are read in one of two places:
 `GET /practice/reading-route` tells the parent which applies before they
 upload.
 
+**A quiz drafted from typed text only** (a topic, or a quiz pasted as text,
+with no photos) follows a narrower rule, because no photo leaves the browser:
+it is the same kind of text a tutoring turn already sends. It may use the
+configured cloud provider without the photo switch, but still only after the
+parent ticks the box naming that provider, and it is pinned to that one
+provider (`services/adapters/router.py`'s `resolve_named`): if it errors, the
+request fails rather than being retried on a backup the parent did not agree
+to. Teachers stay on the school's own model for typed drafts too. The route
+reports this as `draft_provider`, separate from the photo route's
+`cloud_provider`. On the public demo, which has no local model and keeps the
+photo switch off, typed drafts work and photos do not; the screen says so.
+The demo's Privacy Notice describes it.
+
 The photos are not saved to the database or a file by Bede; they are held in
 memory while the request runs, and no temporary file is created (a test pins
 that). Nothing from an upload is logged. The memory is released when the
@@ -82,7 +95,8 @@ name, school, teacher or date, so a reading that includes one is rejected
 rather than stored. Readings and practice sets are encrypted with the
 student's own key and are removed when the student is deleted.
 
-Not on the public demo: these routes are parent-only.
+On the public demo the same routes exist as previews under `/practice/demo/`,
+with nothing stored.
 
 ## File validation and hardening
 
@@ -175,6 +189,17 @@ The core never changes when a subject is added. A pack is a folder under
 
 Register a new pack with one line in `packs/__init__.py`.
 
+**The parent picks a school subject, not a pack.** Packs group subjects by how
+a mistake is checked (worked out exactly, named by spelling pattern, compared
+with the teacher's correction), which is not how a parent or a school looks
+for them. `_SUBJECTS` in `packs/__init__.py` lists Mathematics, Reading and
+language arts, Spelling, Grammar, Science, History and social studies,
+Geography, Latin and Other short-answer quiz, each naming the pack that checks
+it. That covers the subjects STAAR tests in grades 3-8 (mathematics, reading
+language arts, science and social studies), the state test the Valor pilot
+notes name, as well as the subjects a homeschool lists. A subject id is accepted
+wherever a pack id is, and pages are read under the subject's own name.
+
 **Latin** detects five patterns:
 
 - the general word for the specific one (*avis* for *anas*);
@@ -233,8 +258,20 @@ right answer spelled differently. Practice asks the missed questions again,
 mixed with a few the child knew, because retrieval is the practice for
 remembered material.
 
-Each of these three has a synthetic golden quiz in its `golden/` folder,
-written for this repository, and `tests/test_practice_packs.py`.
+**Reading and language arts** (`packs/reading/`) is for comprehension
+questions on a passage, the kind state reading tests use. A question whose
+answer is in the passage is checked against the teacher's correction and
+named: a different detail, a different meaning for a word, another option
+chosen, a partial answer, or the right answer spelled differently. Practice
+sends the child back to the passage to find the answer. A question that asks
+for judgement (why, the main idea, the theme, the author's purpose, an
+inference) or any answer longer than twelve words is **never marked by Bede**:
+it goes to the parent with the child's answer and the teacher's comment. A
+multiple-choice item is always checked against the teacher's marked answer,
+whatever it asks, because the answer is then on the page.
+
+Each of these four has a golden quiz in its `golden/` folder, written for
+this repository, and `tests/test_practice_packs.py`.
 
 ## Quizzes and exams
 

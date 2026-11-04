@@ -30,7 +30,7 @@ from pydantic import ValidationError
 
 from core.config import settings
 from models.practice import GradedAssessment, ReadPhotosRequest
-from services.practice.packs import get_pack
+from services.practice.packs import get_pack, subject_name
 from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
     PhotoRejected,
     ScannerUnavailable,
@@ -57,18 +57,59 @@ class ReadingFailed(Exception):
     pass
 
 
-def reading_route() -> dict:
-    """What the parent is told before uploading: where pages would be read."""
+def _cloud_name() -> str | None:
     from services.adapters import router
 
     configured = router.configured_adapters()
-    cloud = next((a for a in router.preference_order() if a in configured and a != "local"), None)
+    return next((a for a in router.preference_order() if a in configured and a != "local"), None)
+
+
+def reading_route() -> dict:
+    """What the parent is told before uploading: where pages would be read.
+
+    `cloud_provider` is for photos and stays withheld while cloud reading is
+    switched off, so the screen never offers a consent tick for a route the
+    server will refuse. `draft_provider` is for a quiz drafted from typed
+    text only (a topic or a pasted quiz, no photos): the same kind of text a
+    tutoring turn already sends, so the photo switch does not govern it. It
+    still needs the parent's tick for that provider by name.
+    """
+    from services.adapters import router
+
+    cloud = _cloud_name()
     return {
-        "local_available": "local" in configured,
-        # Withheld while cloud reading is switched off, so the screen never
-        # offers a consent tick for a route the server will refuse.
+        "local_available": "local" in router.configured_adapters(),
         "cloud_provider": cloud if settings.practice_cloud_reading_enabled else None,
+        "draft_provider": cloud,
     }
+
+
+def text_draft_client(req):
+    """The client for a quiz drafted from typed text only, never photos.
+
+    Local first. Otherwise the configured cloud provider, with the parent's
+    consent for that provider by name, and pinned to it: no failover, since
+    the consent named one provider. Photos never come through here.
+    """
+    from services.adapters import router
+
+    if getattr(req, "pages", None):
+        raise ValueError("text_draft_client is for drafts without photos")
+    local = "local" in router.configured_adapters()
+    chosen = req.route or ("local" if local else "cloud")
+    if chosen == "local":
+        if not local:
+            raise ReadingUnavailable("No local model is configured on this install.")
+        return router.resolve_local_only()
+    cloud = _cloud_name()
+    if not cloud:
+        raise ReadingUnavailable("No AI provider is configured to draft quizzes.")
+    if not req.cloud_consent:
+        raise ConsentRequired(cloud)
+    try:
+        return router.resolve_named(cloud)
+    except router.NamedAdapterUnavailableError as exc:
+        raise ReadingUnavailable("No AI provider is configured to draft quizzes.") from exc
 
 
 def _choose_client(req: ReadPhotosRequest):
@@ -109,7 +150,7 @@ Rules:
 def _prompt(subject: str) -> str:
     pack = get_pack(subject)
     hints = pack.extract_hints if pack else ""
-    name = pack.manifest.get("display_name", subject) if pack else subject
+    name = subject_name(subject)
     return f"{_RULES}\n\nSubject: {name}\n\n{hints}".strip()
 
 

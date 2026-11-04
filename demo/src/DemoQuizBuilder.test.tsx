@@ -40,6 +40,25 @@ describe('demo quiz builder', () => {
     api.generateDemoQuiz.mockResolvedValue({ quiz, report: { answers_recomputed: 0, dropped: 0, short_by: 0 } })
   })
 
+  it('drafts from a typed topic on the demo provider with the tick, while photos stay off', async () => {
+    // The live demo: no local model and photo reading switched off, but a
+    // typed topic can be drafted on the provider the chat already uses.
+    api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: null, draft_provider: 'openai' }))
+    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'Multiplication' } })
+    expect(screen.queryByText('No AI model is available to draft quizzes right now.')).toBeNull()
+    expect(screen.getByText(/A typed topic or pasted quiz works here/)).toBeTruthy()
+    expect(screen.getByLabelText(/Or add photos/)).toHaveProperty('disabled', true)
+
+    const draft = screen.getByRole('button', { name: 'Draft quiz' })
+    expect(draft).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByLabelText('I agree to send this to openai to draft the quiz.'))
+    fireEvent.click(draft)
+    await waitFor(() => expect(api.generateDemoQuiz).toHaveBeenCalledWith('t', expect.objectContaining({
+      focus: 'Multiplication', cloud_consent: true, pages: [],
+    })))
+  })
+
   it('needs something to learn from, then drafts with every choice the adult made', async () => {
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
     render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
@@ -60,7 +79,7 @@ describe('demo quiz builder', () => {
   })
 
   it('needs the consent tick before anything goes to a cloud provider', async () => {
-    api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: 'OpenAI' }))
+    api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: 'OpenAI', draft_provider: 'OpenAI' }))
     render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'fractions' } })
     expect(screen.getByRole('button', { name: 'Draft quiz' })).toHaveProperty('disabled', true)

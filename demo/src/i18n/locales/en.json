@@ -64,7 +64,7 @@
     "subject": "Subject",
     "local": "Read by this demo's own model.",
     "cloud": "I agree to send these pages to {{provider}} to be read.",
-    "noReader": "No reading provider is available in this demo right now.",
+    "noReader": "Reading quiz photos needs Bede's own AI model, on a family or school install.",
     "photos": "Choose up to {{max}} image files or scanned PDFs",
     "photosHint": "JPEG, PNG, or scanned PDF. PDFs count their scanned pages toward the six-page limit.",
     "wordBank": "Word bank",
@@ -158,7 +158,8 @@
       "checked": "Double-checked",
       "verify": "Check"
     },
-    "secondAnswer": "A second check said: {{answer}}"
+    "secondAnswer": "A second check said: {{answer}}",
+    "noPhotos": "Photos need Bede's own AI model, on a family or school install. A typed topic or pasted quiz works here."
   },
   "canvas": {
     "cancel": "Cancel",

@@ -2270,3 +2270,14 @@ provider choice, not this feature's).
 - **Ruling 6 is superseded.** Practice Coach is on the public demo, with
   nothing stored. Its demo routes had shipped in #773 before this was
   written down.
+
+**Amended (2026-11-04, owner direction).**
+
+- **A quiz drafted from typed text only may use the cloud provider without
+  the photo switch.** The photo switch exists because image terms have not
+  been checked; a typed topic is the same kind of text tutoring already
+  sends. It still needs the parent's tick naming the provider, and it is
+  pinned to that provider with no failover. Photos are unchanged: off on the
+  demo until the image terms are checked. Teachers stay local-only.
+- **The parent picks a school subject**, not a pack. A reading and language
+  arts pack was added; it never marks a question that asks for judgement.

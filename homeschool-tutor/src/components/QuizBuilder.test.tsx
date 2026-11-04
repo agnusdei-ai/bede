@@ -73,8 +73,20 @@ describe('QuizBuilder', () => {
     expect(written[1]).toContain('sunlight')
   })
 
+  it('drafts from typed text on the cloud provider when photo reading is off', async () => {
+    mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: null, draft_provider: 'OpenAI' }))
+    render(<QuizBuilder token="t" studentName="Ava" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'plants' } })
+    expect(screen.getByText(/Photos can't be read on this install yet/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Draft quiz' })).toHaveProperty('disabled', true)
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    await waitFor(() => expect(mocks.generateQuiz).toHaveBeenCalledWith('t', 'Ava', expect.objectContaining({ cloud_consent: true })))
+  })
+
   it('needs the consent tick before a cloud provider drafts anything', async () => {
-    mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: 'OpenAI' }))
+    mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: 'OpenAI', draft_provider: 'OpenAI' }))
     render(<QuizBuilder token="t" studentName="Ava" />)
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'plants' } })

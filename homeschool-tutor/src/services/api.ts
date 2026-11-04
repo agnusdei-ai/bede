@@ -1813,7 +1813,10 @@ export interface PracticeDeliverySet {
 
 export interface ReadingRoute {
   local_available: boolean
+  // Reads photos. Withheld while photo reading with a cloud provider is off.
   cloud_provider: string | null
+  // Drafts a quiz from typed text only (no photos), with the parent's tick.
+  draft_provider?: string | null
 }
 
 /** A refusal the parent can act on: the backend wants consent to send the

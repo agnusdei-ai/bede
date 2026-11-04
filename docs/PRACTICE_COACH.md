@@ -64,10 +64,12 @@ The photos are read in one of two places:
   anything is sent, and the response names the provider. The switch is off
   because no provider's training, retention or logging terms for images have
   been verified for this product. Turning it on is a decision to verify those
-  terms first, not a setting to flip. One known limit to settle at the same
-  time: the cloud route uses the same failover client as tutoring, so if the
-  named provider errors the request can be retried on the next configured
-  provider, which the parent's confirmation did not name.
+  terms first, not a setting to flip. The cloud route is pinned to the provider the
+  parent's confirmation names (`services/adapters/router.py`'s
+  `resolve_named`): if it errors, the request fails rather than being retried
+  on another provider. The named provider follows any primary or backup
+  switch the parent made in AI provider settings, so the tick always names
+  where the photos actually go.
 
 `GET /practice/reading-route` tells the parent which applies before they
 upload.

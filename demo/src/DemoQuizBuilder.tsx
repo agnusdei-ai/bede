@@ -238,7 +238,7 @@ export default function DemoQuizBuilder({
           className="mt-1 block w-full text-xs"
         />
       </label>
-      {!photosReadable && <p className="text-xs text-gray-600">{t('demoQuiz.noPhotos')}</p>}
+      {!photosReadable && !noReader && <p className="text-xs text-gray-600">{t('demoQuiz.noPhotos')}</p>}
       {files.length > 0 && <p className="text-xs text-gray-500">{t('demoQuiz.pagesChosen', { count: files.length })}</p>}
       {usesCloud && (
         <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">

@@ -493,6 +493,9 @@ class FailoverClient:
         return live or configured
 
 
+_named_clients: Dict[Any, "_NamedClient"] = {}
+
+
 class NamedAdapterUnavailableError(RuntimeError):
     """The one named adapter a caller asked for is not configured."""
 
@@ -522,7 +525,12 @@ def resolve_named(name: str, settings: Any = _global_settings) -> Any:
     """
     if name not in _configured_order(settings):
         raise NamedAdapterUnavailableError(f"{name!r} is not configured")
-    return _NamedClient(name, _build(name, settings))
+    # Built once per (settings, provider) and reused, as FailoverClient does,
+    # so each request does not open a new HTTP connection pool.
+    key = (id(settings), name)
+    if key not in _named_clients:
+        _named_clients[key] = _NamedClient(name, _build(name, settings))
+    return _named_clients[key]
 
 
 def resolve_with_failover(settings: Any = _global_settings) -> FailoverClient:

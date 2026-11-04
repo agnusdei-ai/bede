@@ -44,7 +44,7 @@ _JUDGEMENT = re.compile(
     r"\b(why|explain|how do you know|infer|inference|main idea|central idea|theme|"
     r"author'?s purpose|purpose of|most likely|suggests?|conclude|conclusion|evidence|"
     r"in your own words|summari[sz]e|summary|describe|compare|contrast|opinion|"
-    r"do you think|predict|lesson|moral|point of view)\b",
+    r"do you think|predict|lesson|moral|point of view|meant|mean by|mean when)\b",
     re.IGNORECASE,
 )
 _VOCABULARY = re.compile(r"\b(mean|means|meaning|definition|synonym|antonym|closest in meaning)\b", re.IGNORECASE)
@@ -88,9 +88,14 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
             g, w = normalize(given), normalize(wanted)
             if choice and _CHOICE.match(wanted):
                 category, evidence = "reading.choice", f"chose {given}; the answer is {wanted}"
-            elif w and g and len(w) >= 5 and _distance(g, w) <= 2:
+            # A spelling slip is at most one edit per five letters, so a
+            # different real word ("angry" for "hungry") is never called the
+            # right answer spelled differently.
+            elif w and g and len(w) >= 5 and _distance(g, w) <= max(1, len(w) // 5):
                 category, evidence = "reading.spelling", f"wrote {given} for {wanted}: the right answer, spelled differently"
-            elif item.teacher_mark == "partial" or (g and w and (g in w or w in g)):
+            # Partial only when the child gave part of the answer, never when
+            # their answer merely contains it ("not the barn" for "the barn").
+            elif item.teacher_mark == "partial" or (g and w and g in w):
                 category, evidence = "reading.partial", f"wrote {given}; the full answer is {wanted}"
             elif _VOCABULARY.search(item.prompt):
                 category, evidence = "reading.vocabulary", f"gave {given} as the meaning; the answer is {wanted}"

@@ -374,3 +374,22 @@ def test_reading_practice_never_supplies_an_answer_the_page_did_not():
     on_page |= {i.student_response for s in a.sections for i in s.items
                 if i.teacher_mark == "correct" and i.student_response}
     assert planned.items and all(i.expected_answer in on_page for i in planned.items)
+
+
+def test_a_different_real_word_is_not_called_a_spelling_slip():
+    a = _one("reading", prompt="What does the word ravenous mean?",
+             student_response="angry", teacher_mark="incorrect", teacher_correction="hungry")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["reading.vocabulary"]
+
+
+def test_an_answer_that_contains_the_right_one_is_not_called_partial():
+    for pack in ("reading", "recall"):
+        a = _one(pack, prompt="Where did they sleep?", student_response="not the barn",
+                 teacher_mark="incorrect", teacher_correction="the barn")
+        assert [e.category for e in pipeline.diagnose(a).errors] == [f"{pack}.{'detail' if pack == 'reading' else 'fact'}"]
+
+
+def test_what_the_author_meant_is_a_judgement_not_a_word_meaning():
+    a = _one("reading", prompt="What did the author mean when she wrote that the house held its breath?",
+             student_response="it was windy", teacher_mark="incorrect", teacher_correction="everyone was waiting")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["reading.needs_judgement"]

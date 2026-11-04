@@ -57,11 +57,26 @@ class ReadingFailed(Exception):
     pass
 
 
-def _cloud_name() -> str | None:
+def _cloud_name(configured: list[str] | None = None) -> str | None:
+    """The cloud provider a consent tick names: the first cloud adapter in
+    the live order, honouring a parent's primary/secondary override
+    (core/provider_state.py), so the tick names where the request really goes."""
+    from core import provider_state
     from services.adapters import router
 
-    configured = router.configured_adapters()
-    return next((a for a in router.preference_order() if a in configured and a != "local"), None)
+    configured = router.configured_adapters() if configured is None else configured
+    order = provider_state.effective_order([a for a in router.preference_order() if a in configured])
+    return next((a for a in order if a != "local"), None)
+
+
+def _named_client(provider: str):
+    """Pinned to the provider the parent agreed to: no failover to another."""
+    from services.adapters import router
+
+    try:
+        return router.resolve_named(provider)
+    except router.NamedAdapterUnavailableError as exc:
+        raise ReadingUnavailable("No AI provider is configured for this.") from exc
 
 
 def reading_route() -> dict:
@@ -76,9 +91,10 @@ def reading_route() -> dict:
     """
     from services.adapters import router
 
-    cloud = _cloud_name()
+    configured = router.configured_adapters()
+    cloud = _cloud_name(configured)
     return {
-        "local_available": "local" in router.configured_adapters(),
+        "local_available": "local" in configured,
         "cloud_provider": cloud if settings.practice_cloud_reading_enabled else None,
         "draft_provider": cloud,
     }
@@ -106,10 +122,7 @@ def text_draft_client(req):
         raise ReadingUnavailable("No AI provider is configured to draft quizzes.")
     if not req.cloud_consent:
         raise ConsentRequired(cloud)
-    try:
-        return router.resolve_named(cloud)
-    except router.NamedAdapterUnavailableError as exc:
-        raise ReadingUnavailable("No AI provider is configured to draft quizzes.") from exc
+    return _named_client(cloud)
 
 
 def _choose_client(req: ReadPhotosRequest):
@@ -127,8 +140,8 @@ def _choose_client(req: ReadPhotosRequest):
         raise ReadingUnavailable("No AI provider is configured to read photos.")
     if not req.cloud_consent:
         raise ConsentRequired(route["cloud_provider"])
-    from services.ai_service import _client  # the same client tutoring turns use
-    return _client
+    # Photos of a child's work go only to the provider the parent named.
+    return _named_client(route["cloud_provider"])
 
 
 _RULES = """You are reading a photographed, already-graded school worksheet so a parent can review it.

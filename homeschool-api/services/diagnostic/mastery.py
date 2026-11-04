@@ -15,6 +15,7 @@ behind (see tests/diagnostic/test_mastery.py).
 """
 
 from dataclasses import dataclass
+import math
 from datetime import datetime, timezone
 
 from services.diagnostic.cdm import CdmParams, update_attribute_posteriors
@@ -264,6 +265,19 @@ def classify_level(probability: float) -> str:
     return _classify(probability)
 
 
+#: No estimate may become certain. A probability of exactly 0.0 or 1.0 is an
+#: absorbing state under Bayes' rule: every later observation multiplies it by
+#: a likelihood and normalises back to the same value. Calibration mode scales
+#: a cold-start step by up to 2.0, which overshot and clamped to exactly 1.0 on
+#: a learner's FIRST correct answer, after which four wrong answers in a row
+#: left the skill reported as mastered (and a first wrong answer pinned a
+#: prerequisite at 0.0 that no correct answer could lift). Clamping to an open
+#: interval keeps every estimate revisable while staying well clear of the
+#: 0.80 "secure" cutoff and the gap threshold.
+POSTERIOR_FLOOR = 0.02
+POSTERIOR_CEILING = 0.98
+
+
 def bayesian_update(
     vector: MasteryVector,
     observation: EvidenceObservation,
@@ -293,6 +307,25 @@ def bayesian_update(
     if not required_skills:
         return dict(vector), []
 
+    # Untrusted model/tool output must not turn an invented outcome into
+    # an "incorrect" observation or allow NaN/Infinity to poison mastery.
+    # Reject the entire observation before computing or persisting deltas.
+    if observation.get("outcome") not in {
+        "correct", "partial", "incorrect", "hint_dependent",
+    }:
+        return dict(vector), []
+    confidence = observation.get("confidence", 1.0)
+    # Zero confidence contains no evidence and must not advance calibration.
+    # Reject out-of-range/boolean model output instead of silently turning
+    # malformed confidence into a full-strength mastery observation.
+    if (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or not math.isfinite(confidence)
+        or not 0.0 < confidence <= 1.0
+    ):
+        return dict(vector), []
+
     cdm_posteriors = update_attribute_posteriors(
         vector, observation, model=model, params=params or TUNED_PARAMS,
     )
@@ -305,7 +338,7 @@ def bayesian_update(
         prior = vector.get(skill_id, 0.5)
         cdm_posterior = cdm_posteriors.get(skill_id, prior)
         blended = prior + calibration_weight * (cdm_posterior - prior)
-        blended = max(0.0, min(1.0, blended))
+        blended = max(POSTERIOR_FLOOR, min(POSTERIOR_CEILING, blended))
         updated[skill_id] = blended
         updates.append(MasteryUpdate(
             skill_id=skill_id,

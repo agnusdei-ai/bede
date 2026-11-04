@@ -1,0 +1,45 @@
+{
+  "_fixture": "spelling_test_1",
+  "_note": "A synthetic spelling test, written for this repository to cover each detected pattern. Not a real child's work.",
+  "assessment": {
+    "subject": "spelling",
+    "sections": [
+      {
+        "label": "Spelling test",
+        "instructions": "Write each word.",
+        "required_format": "single_word",
+        "items": [
+          {"number": 1, "prompt": "They left ___ coats here.", "student_response": "there", "teacher_mark": "incorrect", "teacher_correction": "their"},
+          {"number": 2, "prompt": "Word 2", "student_response": "firend", "teacher_mark": "incorrect", "teacher_correction": "friend"},
+          {"number": 3, "prompt": "Word 3", "student_response": "recieve", "teacher_mark": "incorrect", "teacher_correction": "receive"},
+          {"number": 4, "prompt": "Word 4", "student_response": "runing", "teacher_mark": "incorrect", "teacher_correction": "running"},
+          {"number": 5, "prompt": "Word 5", "student_response": "makeing", "teacher_mark": "incorrect", "teacher_correction": "making"},
+          {"number": 6, "prompt": "Word 6", "student_response": "happyness", "teacher_mark": "incorrect", "teacher_correction": "happiness"},
+          {"number": 7, "prompt": "Word 7", "student_response": "mak", "teacher_mark": "incorrect", "teacher_correction": "make"},
+          {"number": 8, "prompt": "Word 8", "student_response": "rane", "teacher_mark": "incorrect", "teacher_correction": "rain"},
+          {"number": 9, "prompt": "Word 9", "student_response": "fone", "teacher_mark": "incorrect", "teacher_correction": "phone"},
+          {"number": 10, "prompt": "Word 10", "student_response": "libary", "teacher_mark": "incorrect", "teacher_correction": "library"},
+          {"number": 11, "prompt": "Word 11", "student_response": "whent", "teacher_mark": "incorrect", "teacher_correction": "went"},
+          {"number": 12, "prompt": "Word 12", "student_response": "yot", "teacher_mark": "incorrect", "teacher_correction": "yacht"},
+          {"number": 13, "prompt": "Word 13", "student_response": "beautiful", "teacher_mark": "correct"},
+          {"number": 14, "prompt": "Word 14", "student_response": "becuz", "teacher_mark": "incorrect"}
+        ]
+      }
+    ]
+  },
+  "expected_categories": {
+    "Spelling test #1": "spelling.homophone",
+    "Spelling test #2": "spelling.transposition",
+    "Spelling test #3": "spelling.ie_ei",
+    "Spelling test #4": "spelling.double_consonant",
+    "Spelling test #5": "spelling.suffix.drop_e",
+    "Spelling test #6": "spelling.suffix.y_to_i",
+    "Spelling test #7": "spelling.silent_e",
+    "Spelling test #8": "spelling.vowel_pattern",
+    "Spelling test #9": "spelling.sound_spelling",
+    "Spelling test #10": "spelling.omitted_letter",
+    "Spelling test #11": "spelling.extra_letter",
+    "Spelling test #12": "spelling.word_specific",
+    "Spelling test #14": "spelling.unclassified"
+  }
+}

@@ -53,11 +53,13 @@ def student_scoped_models() -> tuple:
         SessionTranscript,
         StudentCollectionState,
         StudentConfig,
+        ChildLearnerBinding,
         VoiceProfile,
     )
 
     return (
         ("student_config", StudentConfig),
+        ("child_learner_bindings", ChildLearnerBinding),
         ("voice_profile", VoiceProfile),
         ("narration_assessments", NarrationAssessment),
         ("learner_profile", LearnerProfile),

@@ -625,6 +625,7 @@ This is `cat.select_next_probe()` + `kst.fringe()` output rendered as prose — 
 `MasteryProfile.evidence_count` tracks how much evidence exists. While `evidence_count < CALIBRATION_THRESHOLD` (e.g. per-skill first N=3 observations, **[to verify final N]**):
 
 - `mastery.bayesian_update` applies a **higher `calibration_weight`** (early evidence moves the posterior more — faster cold-start convergence).
+- That larger step is clamped to `[POSTERIOR_FLOOR, POSTERIOR_CEILING]` (0.02 to 0.98), never to `[0, 1]`. Clamping to exactly 0 or 1 made an estimate permanent: one lucky first answer was reported as mastered through four wrong answers that followed, because a probability of 1.0 cannot move under Bayes' rule. `tests/diagnostic/test_grade2_math_synthetic_journey.py`'s contradictory-evidence test pins this.
 - `cat.select_next_probe(..., calibration=True)` **widens** the probe spread: instead of drilling the single highest-information skill, it returns a broader slate across the grade band, so Bede surfaces a wider variety of skills in early sessions.
 - The subject-prompt note appends: *"You are still getting to know how {student_name} thinks about math — let your questions roam a little more widely across topics than usual, still as natural conversation, never a test."*
 

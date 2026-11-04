@@ -89,6 +89,90 @@ async def test_stream_finish_succeeds_for_a_known_session():
 
 
 @pytest.mark.asyncio
+async def test_repeated_start_events_chunk_finish_lifecycle(monkeypatch):
+    async def fake_transcribe(audio_bytes, language="en"):
+        return {"text": "synthetic answer", "language": language}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+    owner = {"role": "demo_code", "code": "synthetic-owner"}
+    for _ in range(3):
+        start = await stream_start(StreamStartRequest(language="en"), auth=owner)
+        sid = start["session_id"]
+        response = await stream_events_endpoint(sid, auth=owner)
+        reader = response.body_iterator
+        first = asyncio.create_task(reader.__anext__())
+        await asyncio.sleep(0)
+        # Events attaches before the first upload, as it does in the browser.
+        assert await stream_chunk(sid, audio=_wav_upload(), auth=owner) == {"accepted": True}
+        assert await stream_finish(sid, auth=owner) == {"accepted": True}
+        seen = [json.loads(await asyncio.wait_for(first, timeout=1))]
+        seen.extend([json.loads(item) async for item in reader])
+        assert seen[-2:] == [
+            {"type": "final", "text": "synthetic answer"},
+            {"type": "done"},
+        ]
+        assert sid not in st._sessions
+
+
+@pytest.mark.asyncio
+async def test_metered_recording_silence_outlives_final_timeout(monkeypatch):
+    monkeypatch.setattr(st, "partial_passes_are_affordable", lambda: False)
+    monkeypatch.setattr(st, "STREAM_STALL_TIMEOUT_SECONDS", 0.02)
+
+    async def fake_transcribe(*args, **kwargs):
+        return {"text": "synthetic answer"}
+
+    monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
+    owner = {"role": "demo_code", "code": "synthetic-owner"}
+    start = await stream_start(StreamStartRequest(language="en"), auth=owner)
+    sid = start["session_id"]
+    response = await stream_events_endpoint(sid, auth=owner)
+    reader = response.body_iterator
+    first = asyncio.create_task(reader.__anext__())
+    await stream_chunk(sid, audio=_wav_upload(), auth=owner)
+    await asyncio.sleep(0.06)
+    assert not first.done(), "Intentional recording silence is not a final-processing stall"
+    assert await stream_finish(sid, auth=owner) == {"accepted": True}
+    assert json.loads(await asyncio.wait_for(first, timeout=1)) == {
+        "type": "final", "text": "synthetic answer",
+    }
+    assert [json.loads(item) async for item in reader] == [{"type": "done"}]
+    assert sid not in st._sessions
+
+
+@pytest.mark.asyncio
+async def test_final_processing_timeout_wakes_reader_and_cancels_worker(monkeypatch):
+    entered = asyncio.Event()
+
+    async def hung_transcribe(*args, **kwargs):
+        entered.set()
+        await asyncio.Event().wait()
+
+    monkeypatch.setattr(st, "transcribe_audio", hung_transcribe)
+    monkeypatch.setattr(st, "partial_passes_are_affordable", lambda: False)
+    monkeypatch.setattr(st, "STREAM_STALL_TIMEOUT_SECONDS", 0.02)
+    owner = {"role": "demo_code", "code": "synthetic-owner"}
+    start = await stream_start(StreamStartRequest(language="en"), auth=owner)
+    sid = start["session_id"]
+    session = st._sessions[sid]
+    response = await stream_events_endpoint(sid, auth=owner)
+    reader = response.body_iterator
+    first = asyncio.create_task(reader.__anext__())
+    await asyncio.sleep(0)
+    await stream_chunk(sid, audio=_wav_upload(), auth=owner)
+    await stream_finish(sid, auth=owner)
+    await asyncio.wait_for(entered.wait(), timeout=1)
+    assert json.loads(await asyncio.wait_for(first, timeout=1)) == {
+        "type": "error", "message": "transcription timed out",
+    }
+    assert [json.loads(item) async for item in reader] == [{"type": "done"}]
+    await asyncio.sleep(0)
+    assert sid not in st._sessions
+    assert session.worker.done()
+    assert not session.audio and not session.pcm
+
+
+@pytest.mark.asyncio
 async def test_stream_events_endpoint_yields_plain_json_sse_chunks(monkeypatch):
     """Same 'no pre-formatted data: framing' contract as /tutor/chat's own
     event_generator — EventSourceResponse owns that, a chunk that already

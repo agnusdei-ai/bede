@@ -200,11 +200,21 @@ services:
       # setup wizard asks a parent this directly. It reaching the container
       # is the whole point of the setting, and for one day it did not.
       - RETAIN_MASTERY_PROFILES=${RETAIN_MASTERY_PROFILES:-true}
+      # Install-time custodian acknowledgement (docs/PARENTAL_CONSENT.md).
+      # Empty on hosted/pilot deployments, which use the parent's tick.
+      - CONSENT_INSTALL_ACK_HASH=${CONSENT_INSTALL_ACK_HASH:-}
+      - CONSENT_INSTALL_ACK_AT=${CONSENT_INSTALL_ACK_AT:-}
       - DIAGNOSTIC_EVIDENCE_LOG_ENABLED=${DIAGNOSTIC_EVIDENCE_LOG_ENABLED:-true}
       # External MCP servers for the parent sandbox (docs/MCP.md). Off by
       # default and deliberately requiring BOTH variables: this is the only
       # route by which content from outside this process reaches model
       # context, and it is confined to the parent's own "Ask Bede" sandbox.
+      # Practice Coach upload scanner (clamd). Empty = none; set = fail closed.
+      # Loopback tcp or a unix socket only; reach another container via a shared
+      # unix-socket volume. Anything else is refused at startup.
+      - PRACTICE_SCANNER_URL=${PRACTICE_SCANNER_URL:-}
+      # Practice Coach cloud reading of page images: off unless set to true.
+      - PRACTICE_CLOUD_READING_ENABLED=${PRACTICE_CLOUD_READING_ENABLED:-false}
       - MCP_EXTERNAL_ENABLED=${MCP_EXTERNAL_ENABLED:-false}
       - MCP_EXTERNAL_SERVERS=${MCP_EXTERNAL_SERVERS:-}
       - MCP_EXTERNAL_TIMEOUT_SECONDS=${MCP_EXTERNAL_TIMEOUT_SECONDS:-10.0}

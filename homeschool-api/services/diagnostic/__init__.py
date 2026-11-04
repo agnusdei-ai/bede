@@ -165,7 +165,9 @@ async def process_evidence(
     )
 
     if not updates:
-        await db.rollback()
+        # An unknown/unmapped probe is a no-op. Do not roll back the
+        # caller's transaction: other authorized writes may already be
+        # pending in this shared tutoring-session DB unit of work.
         return updated_vector
 
     try:

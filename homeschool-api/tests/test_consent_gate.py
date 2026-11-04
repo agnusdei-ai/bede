@@ -70,6 +70,10 @@ def client(monkeypatch, test_client_with_database_context):
     import main
     import core.database as database_module
 
+    # This module proves the strict gate: no install-time ack is configured.
+    monkeypatch.setattr(settings, "consent_install_ack_hash", "")
+    monkeypatch.setattr(settings, "consent_install_ack_at", "")
+
     url = f"sqlite+aiosqlite:///{tempfile.mkdtemp()}/consent.sqlite"
 
     async def _create():
@@ -147,7 +151,7 @@ def test_tutor_chat_refused_without_consent(client):
 
 
 def test_transcript_save_refused_without_consent(client):
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 403
     assert r.json()["detail"]["error"] == "parental_consent_required"
 
@@ -169,7 +173,7 @@ def test_voice_enrollment_refused_without_consent_before_any_audio_is_read(clien
 
 def test_refused_turn_writes_nothing_about_the_child(client):
     client.post("/tutor/chat", json=_tutor_body(), headers=_parent_headers())
-    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     import asyncio as _a
     from core.database import AsyncSessionLocal, SessionTranscript
 
@@ -208,7 +212,7 @@ def test_grant_with_current_notice_permits_collection_and_is_recorded(client):
     assert r.status_code == 201
     assert r.json()["created"] is True
     # Collection now passes the gate. The save reaches the database and succeeds.
-    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert ok.status_code == 200, ok.text
 
 
@@ -256,7 +260,7 @@ def test_revocation_stops_collection_but_keeps_the_ledger_row(client):
     r = client.post(f"/consent/{STUDENT}/revoke", json={"reason": "changed my mind"}, headers=_parent_headers())
     assert r.status_code == 200
 
-    refused = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    refused = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert refused.status_code == 403
 
     import asyncio as _a
@@ -279,7 +283,7 @@ def test_revoking_with_nothing_active_is_a_clear_404(client):
 def test_pause_refuses_collection_with_423(client):
     _grant(client)
     assert client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers()).status_code == 200
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 423
     assert r.json()["detail"]["error"] == "collection_paused"
     assert client.post("/voice/enroll", data={"student_name": STUDENT},
@@ -289,7 +293,7 @@ def test_pause_refuses_collection_with_423(client):
 
 def test_pause_leaves_reads_and_export_working(client):
     _grant(client)
-    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers())
 
     assert client.get(f"/consent/{STUDENT}", headers=_parent_headers()).json()["collection_paused"] is True
@@ -300,7 +304,7 @@ def test_resume_restores_collection(client):
     _grant(client)
     client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers())
     assert client.post(f"/consent/{STUDENT}/resume", headers=_parent_headers()).status_code == 200
-    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    ok = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert ok.status_code == 200
 
 
@@ -308,7 +312,7 @@ def test_missing_consent_is_reported_before_a_pause(client):
     """Order of refusal: a paused student who never consented is refused as
     unconsented, the more basic fact."""
     client.post(f"/consent/{STUDENT}/pause", headers=_parent_headers())
-    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    r = client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     assert r.status_code == 403
 
 
@@ -357,7 +361,7 @@ def test_export_enumerates_exactly_the_deletion_cascade(client):
 
 def test_export_decrypts_what_was_written(client):
     _grant(client)
-    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_child_headers())
+    client.post(f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers())
     r = client.get(f"/pod/students/{STUDENT}/review", headers=_parent_headers()).json()
 
     saved = r["tables"]["session_transcripts"]
@@ -439,17 +443,23 @@ def test_notice_endpoint_serves_the_text_and_its_hash(client):
     r = client.get("/consent/notice", headers=_parent_headers())
     assert r.status_code == 200
     body = r.json()
+    # The hash is SHA-256 of the shared notice file's exact bytes.
     assert body["hash"] == consent.notice_hash() == hashlib.sha256(
-        f"{consent.NOTICE_VERSION}\n{consent.NOTICE_TEXT}".encode("utf-8")
+        consent.NOTICE_PATH.read_bytes()
     ).hexdigest()
+    assert consent.NOTICE_TEXT.startswith(f"Notice version: {consent.NOTICE_VERSION}")
     assert body["text"] == consent.NOTICE_TEXT
     available = {m["id"]: m["available"] for m in body["methods"]}
-    assert available == {"parent_attested_checkbox": True, "payment_transaction": False}
+    assert available == {
+        "parent_attested_checkbox": True,
+        "payment_transaction": False,
+        "install_custodian_attestation": False,
+    }
 
 
 def test_notice_hash_changes_when_the_text_changes(monkeypatch):
     before = consent.notice_hash()
-    monkeypatch.setattr(consent, "NOTICE_TEXT", consent.NOTICE_TEXT + " Changed.")
+    monkeypatch.setattr(consent, "_NOTICE_BYTES", consent._NOTICE_BYTES + b" Changed.")
     assert consent.notice_hash() != before
 
 
@@ -515,3 +525,75 @@ def test_demo_chat_is_not_gated_by_parental_consent(client, monkeypatch):
     r = client.post("/tutor/chat", json=_tutor_body(student="Demo"), headers=_demo_headers(code))
     assert calls == [], "the demo role reached the parental-consent gate"
     assert r.status_code == 200, r.text
+
+
+# Hosted and school pilots must not infer parental consent from installer
+# environment variables, even when those values look otherwise valid.
+@pytest.mark.parametrize(
+    "deployment_flag,enabled_value",
+    [
+        ("hosted_profile", True),
+        ("educator_pilot_enabled", True),
+        ("demo_pin", "TEST_DEMO_PIN"),
+    ],
+)
+def test_install_ack_cannot_authorize_hosted_or_pilot_collection(
+    client, monkeypatch, deployment_flag, enabled_value
+):
+    monkeypatch.setattr(settings, "hosted_profile", False)
+    monkeypatch.setattr(settings, "educator_pilot_enabled", False)
+    monkeypatch.setattr(settings, "demo_pin", "")
+    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
+    monkeypatch.setattr(settings, "consent_install_ack_at", consent._now().isoformat())
+    monkeypatch.setattr(settings, deployment_flag, enabled_value)
+
+    assert consent.install_ack_time() is None
+    response = client.post(
+        f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers()
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "parental_consent_required"
+
+
+def test_install_ack_still_valid_for_self_hosted_family(monkeypatch):
+    monkeypatch.setattr(settings, "hosted_profile", False)
+    monkeypatch.setattr(settings, "educator_pilot_enabled", False)
+    monkeypatch.setattr(settings, "demo_pin", "")
+    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
+    monkeypatch.setattr(settings, "consent_install_ack_at", consent._now().isoformat())
+
+    assert consent.install_ack_time() is not None
+
+
+def test_stale_notice_is_not_reported_as_current_parental_consent(client):
+    granted = _grant(client)
+    assert granted.status_code == 201
+    current = client.get(f"/consent/{STUDENT}", headers=_parent_headers())
+    assert current.status_code == 200
+    assert current.json()["student_consented"] is True
+    assert current.json()["stored_notice_hash"] == consent.notice_hash()
+
+    import core.database as database_module
+
+    old_hash = hashlib.sha256(b"old parental notice").hexdigest()
+
+    async def _age_notice():
+        async with database_module.AsyncSessionLocal() as db:
+            record = await consent.active_record(db, STUDENT)
+            assert record is not None
+            record.notice_hash = old_hash
+            await db.commit()
+
+    asyncio.run(_age_notice())
+
+    stale = client.get(f"/consent/{STUDENT}", headers=_parent_headers())
+    assert stale.status_code == 200
+    assert stale.json()["student_consented"] is False
+    assert stale.json()["stored_notice_hash"] == old_hash
+    assert stale.json()["current_notice_hash"] == consent.notice_hash()
+
+    refused = client.post(
+        f"/transcripts/{STUDENT}", json=_transcript_body(), headers=_parent_headers()
+    )
+    assert refused.status_code == 403
+    assert refused.json()["detail"]["error"] == "parental_consent_required"

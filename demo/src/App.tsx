@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
+import { BookOpenCheck, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -12,6 +12,7 @@ import {
   type DemoParentConfig,
   type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
   type DemoWorkLedger,
+  type DemoPracticeDeliveryItem,
 } from './api'
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
@@ -45,6 +46,8 @@ import { AgnusDeiLogo, AgnusDeiMark, BedeWordmark, TrademarkNotice } from './Bed
 import { useConsent } from './useConsent'
 import ConsentModal from './ConsentModal'
 import { dismissKeyboard } from './dismissKeyboard'
+import DemoPracticeCoach from './DemoPracticeCoach'
+import DemoPracticeDelivery from './DemoPracticeDelivery'
 
 interface DisplayMessage {
   id: string
@@ -361,7 +364,7 @@ export function CodeScreen({ onLoggedIn }: {
         className="w-full max-w-sm block rounded-xl border border-gold-300 bg-white/80 px-4 py-3 text-center shadow-sm transition-colors hover:bg-white focus:outline-none focus:ring-2 focus:ring-navy-400"
       >
         <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
-          Public beta through October 31, 2026
+          Demo beta extended through November 21, 2026
         </span>
         <span className="mt-0.5 block text-xs text-navy-700">
           Founding Family access opening soon.{' '}
@@ -984,6 +987,9 @@ const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
 function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
+  const [showPracticeCoach, setShowPracticeCoach] = useState(false)
+  const [approvedPractice, setApprovedPractice] = useState<DemoPracticeDeliveryItem[]>([])
+  const [practiceRun, setPracticeRun] = useState(0)
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
@@ -1656,6 +1662,7 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
     setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: fullMsg }])
     runStream(fullMsg, drawing ? drawing.slice(drawing.indexOf(',') + 1) : null)
   }
+
   // Keep continuous mode's onFinal pointing at the CURRENT send().
   sendRef.current = send
 
@@ -1749,6 +1756,15 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
           {!parentControls.appearanceLocked && (
             <ThemePicker theme={theme} onSelect={setThemeId} bubble={bubble} onSelectBubble={setBubbleId} />
           )}
+          <button
+            type="button"
+            onClick={() => setShowPracticeCoach(true)}
+            title={t('demoPractice.title')}
+            aria-label={t('demoPractice.title')}
+            className="flex min-h-[44px] items-center gap-1 rounded-lg border border-sage-300 bg-sage-50 px-2 py-1.5 text-xs font-semibold text-sage-800"
+          >
+            <BookOpenCheck size={16} /><span className="hidden sm:inline">{t('demoPractice.title')}</span>
+          </button>
           {/* Parent controls — the header's upper right, next to where the
               appearance picker lives, under the fixed text-size control:
               the familiar corner for settings. Stays visible when the
@@ -1830,6 +1846,16 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
         />
         <DemoWorkLedgerCard ledger={workLedger} />
       </header>
+      {showPracticeCoach && (
+        <DemoPracticeCoach
+          token={token}
+          onClose={() => setShowPracticeCoach(false)}
+          onApproved={(items) => {
+            setApprovedPractice(items)
+            setPracticeRun((run) => run + 1)
+          }}
+        />
+      )}
 
       {/* Chat body + input share one relative wrapper so the mandatory
           break / session-over overlay can cover both while leaving the
@@ -1935,6 +1961,14 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {approvedPractice.length > 0 && (
+          <DemoPracticeDelivery
+            key={practiceRun}
+            items={approvedPractice}
+            busy={isStreaming || sessionPaused}
+            onAnswer={(prompt, response) => send(t('demoPractice.turnContext', { prompt, response }))}
+          />
+        )}
         {messages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} studentName={displayName} bubbleClass={bubble.className} />
         ))}

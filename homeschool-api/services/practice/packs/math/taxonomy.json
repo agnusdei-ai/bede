@@ -1,0 +1,96 @@
+{
+  "categories": {
+    "math.add.no_regroup": {
+      "description": "Added each column but did not carry when a column made ten or more.",
+      "example": "27 + 15 = 32",
+      "remediation_strategy": "New additions that each need a carry, done ones column first, saying the carried ten aloud.",
+      "hint": "Add the ones first. If they make ten or more, carry the ten to the next column.",
+      "parent_script": "Ask them to say the ones total out loud before writing anything: \"7 and 5 make 12, that's one ten and two ones.\""
+    },
+    "math.sub.smaller_from_larger": {
+      "description": "Took the smaller digit from the larger in each column instead of regrouping.",
+      "example": "52 − 27 = 35",
+      "remediation_strategy": "New subtractions that each need regrouping, checking the top digit of each column first.",
+      "hint": "Look at the top digit. If it is smaller than the one below, borrow a ten from the next column.",
+      "parent_script": "Before each column, ask: \"Is the top number big enough to take the bottom one away?\""
+    },
+    "math.mult.place_value_shift": {
+      "description": "In a two-digit multiplication, the second row was not moved one place to the left.",
+      "example": "23 × 14 = 115",
+      "remediation_strategy": "New two-digit multiplications, writing the placeholder zero before the second row.",
+      "hint": "The second row is multiplying by tens, so start it with a zero in the ones place.",
+      "parent_script": "Point at the tens digit and ask what it is worth: \"Is that a 1 or a 10?\""
+    },
+    "math.fact_recall": {
+      "description": "A basic fact (to 12) was wrong.",
+      "example": "7 × 8 = 54",
+      "remediation_strategy": "Short retrieval of nearby facts from the same table, then mixed facts.",
+      "hint": "If you are not sure, build it from a fact you know, like a double or a ten.",
+      "parent_script": "If they hesitate, ask for a fact they do know nearby and build from it; do not time them."
+    },
+    "math.operation_swap": {
+      "description": "Did a different operation from the one the sign asked for.",
+      "example": "9 − 4 = 13",
+      "remediation_strategy": "Problems of the asked-for operation, saying the sign aloud before starting.",
+      "hint": "Say the sign out loud before you start.",
+      "parent_script": "Ask them to read each problem aloud, sign included, before they work it."
+    },
+    "math.fraction.add_across": {
+      "description": "Added (or subtracted) the numerators and the denominators separately.",
+      "example": "1/2 + 1/3 = 2/5",
+      "remediation_strategy": "Unlike-denominator problems, finding the common denominator first.",
+      "hint": "Make the bottoms the same first. Only the tops are added.",
+      "parent_script": "Ask: \"Are these the same size pieces?\" before any adding."
+    },
+    "math.fraction.divide_no_invert": {
+      "description": "Multiplied straight across when the problem asked to divide.",
+      "example": "1/2 ÷ 1/4 = 1/8",
+      "remediation_strategy": "Division of fractions, turning the second fraction over before multiplying.",
+      "hint": "Dividing by a fraction is multiplying by it turned over.",
+      "parent_script": "Ask how many quarters fit in a half; a picture helps more than the rule."
+    },
+    "math.fraction.not_simplified": {
+      "description": "Right amount, not in the lowest terms the teacher asked for.",
+      "example": "2/4 for 1/2",
+      "remediation_strategy": "Simplify fractions by the greatest common factor.",
+      "hint": "Find the biggest number that divides the top and bottom, and divide both by it.",
+      "parent_script": "Praise that the amount is right, then ask whether it can be written more simply."
+    },
+    "math.decimal.place_value": {
+      "description": "Digits right, decimal point in the wrong place.",
+      "example": "1.2 × 0.3 = 3.6",
+      "remediation_strategy": "Decimal problems, estimating the size of the answer first.",
+      "hint": "Estimate first: about how big should the answer be?",
+      "parent_script": "Ask for a rough estimate before they calculate, then check the point against it."
+    },
+    "math.integer.sign": {
+      "description": "Right size, wrong sign, or a negative number treated as positive.",
+      "example": "−3 + 8 = −5",
+      "remediation_strategy": "Integer problems on a number line, saying which way each step moves.",
+      "hint": "Picture a number line. Which way does this move you?",
+      "parent_script": "Draw a quick number line and let them walk it."
+    },
+    "math.order_of_operations": {
+      "description": "Worked left to right instead of multiplying or dividing first.",
+      "example": "2 + 3 × 4 = 20",
+      "remediation_strategy": "Mixed-operation problems, circling the multiplication or division first.",
+      "hint": "Circle the × or ÷ and do it first.",
+      "parent_script": "Ask them to circle the part they will do first before writing anything."
+    },
+    "math.unclassified": {
+      "description": "A miss this pack cannot explain, or a problem it cannot work out; the parent is asked.",
+      "example": "a word problem",
+      "remediation_strategy": "Parent describes what went wrong; nothing is said to the child."
+    }
+  },
+  "strengths": {
+    "math.addition": "Addition was solid",
+    "math.subtraction": "Subtraction was solid",
+    "math.multiplication": "Multiplication was solid",
+    "math.division": "Division was solid",
+    "math.fractions": "Fractions were solid",
+    "math.decimals": "Decimals were solid",
+    "math.integers": "Negative numbers were handled well",
+    "math.order_of_operations": "Order of operations was right every time"
+  }
+}

@@ -153,3 +153,50 @@ async def list_sets(db, student_name: str, status: Optional[str] = None) -> list
         except Exception:
             continue
     return out
+
+
+async def record_outcome(db, student_name: str, set_id: int, item_index: int, response: str) -> str:
+    """Record one learner response on an approved set, encrypted with that set.
+
+    An item accepts one response. Repeating the same request is idempotent;
+    changing an already-recorded response is refused rather than silently
+    replacing the observation.
+    """
+    from core import student_keys
+    from core.database import PracticeSetRecord
+    from core.encryption import decrypt_json, encrypt_json
+    from models.practice import PracticeSet
+
+    row = (await db.execute(
+        select(PracticeSetRecord)
+        .where(
+            PracticeSetRecord.id == set_id,
+            PracticeSetRecord.student_name == student_name,
+        )
+        .with_for_update()
+    )).scalar_one_or_none()
+    if row is None:
+        return "not_found"
+    if row.status != "approved":
+        return "not_approved"
+    try:
+        key = await student_keys.get_existing(db, student_name)
+        detail = decrypt_json(row.detail_enc, _aad("practice_sets", student_name), key)
+        practice = PracticeSet.model_validate(detail["practice_set"])
+    except Exception:
+        return "not_found"
+    if item_index >= len(practice.items):
+        return "not_found"
+
+    outcomes = detail.setdefault("observed_outcomes", {})
+    prior = outcomes.get(str(item_index))
+    if prior is not None:
+        return "already_recorded" if prior.get("response") == response else "conflict"
+
+    outcomes[str(item_index)] = {
+        "response": response,
+        "recorded_at": datetime.now(timezone.utc).isoformat(),
+    }
+    row.detail_enc = encrypt_json(detail, _aad("practice_sets", student_name), key)
+    await db.commit()
+    return "recorded"

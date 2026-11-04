@@ -59,6 +59,7 @@ authentication rather than a rewrite of every authorization decision.
 | `sandbox.parent_chat` | ✅ | ❌ | ❌ | Additionally gated by `SANDBOX_PIN` — a second factor, not an authz question |
 | `sandbox.demo_preview` | ❌ | ❌ | ✅ | Demo domain only, deliberately not reachable by a family session |
 | `diagnostic.demo_preview` | ❌ | ❌ | ✅ | Same |
+| `practice.demo_preview` | ❌ | ❌ | ✅ | Transient Practice Coach preview, demo domain only |
 | `mfa.complete` | ❌ | ❌ | ❌ | `parent_pending` only |
 | `recovery.reset_password` | ❌ | ❌ | ❌ | `parent_recovery` only |
 
@@ -95,6 +96,7 @@ Regression: `tests/test_deps_policy_equivalence.py::test_parent_recovery_no_long
 | `require_elevated_parent` | `admin.privileged` | — (checks elevation instead) |
 | `require_email_summary` | `tutor.email_summary` | ✅ |
 | `require_demo_preview` | `sandbox.demo_preview` | ✅ |
+| `require_demo_practice_preview` | `practice.demo_preview` | ✅ |
 | `require_mfa_pending` | `mfa.complete` | — |
 | `require_parent_recovery` | `recovery.reset_password` | — |
 

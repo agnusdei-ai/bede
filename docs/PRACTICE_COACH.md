@@ -13,7 +13,10 @@ is the **teacher's** count, read off the page and labelled as such.
 
 ## How it works
 
-1. **Read.** The parent uploads up to six JPEG or PNG pages. They are sent to
+1. **Read.** The parent uploads up to six pages as JPEG or PNG
+   photos, or as a PDF of scanned pages (each PDF page counts toward the six).
+   Every file is first checked and rebuilt (see "File validation and
+   hardening" below), and the rebuilt PNG pages are sent to
    the model the same way the handwriting canvas sends a child's drawing, as
    base64 image blocks, and come back as a structured reading: sections,
    instructions, word banks, each item's prompt, the child's answer, the
@@ -52,20 +55,125 @@ The photos are read in one of two places:
 
 - **On the household's own model**, when one is configured. This is the
   default, and it never falls back to a cloud provider.
-- **On the household's configured cloud AI provider**, only when the parent
-  confirms it for that upload. Without that confirmation the request is
-  refused before anything is sent, and the response names the provider.
+- **On the household's configured cloud AI provider**, only when the
+  deployment has switched this on (`PRACTICE_CLOUD_READING_ENABLED=true`,
+  **off by default**) AND the parent confirms it for that upload. With the
+  switch off, the server refuses the cloud route outright, so a direct API
+  request cannot bypass it, and the reading-route screen offers no consent
+  tick. Without the parent's confirmation the request is refused before
+  anything is sent, and the response names the provider. The switch is off
+  because no provider's training, retention or logging terms for images have
+  been verified for this product. Turning it on is a decision to verify those
+  terms first, not a setting to flip. The cloud route is pinned to the provider the
+  parent's confirmation names (`services/adapters/router.py`'s
+  `resolve_named`): if it errors, the request fails rather than being retried
+  on another provider. The named provider follows any primary or backup
+  switch the parent made in AI provider settings, so the tick always names
+  where the photos actually go.
 
 `GET /practice/reading-route` tells the parent which applies before they
 upload.
 
-The photos exist only inside the request that reads them. They are never
-written to the database, a file or a log. The reading has **no field** for a
+**A quiz drafted from typed text only** (a topic, or a quiz pasted as text,
+with no photos) follows a narrower rule, because no photo leaves the browser:
+it is the same kind of text a tutoring turn already sends. It may use the
+configured cloud provider without the photo switch, but still only after the
+parent ticks the box naming that provider, and it is pinned to that one
+provider (`services/adapters/router.py`'s `resolve_named`): if it errors, the
+request fails rather than being retried on a backup the parent did not agree
+to. Teachers stay on the school's own model for typed drafts too. The route
+reports this as `draft_provider`, separate from the photo route's
+`cloud_provider`. On the public demo, which has no local model and keeps the
+photo switch off, typed drafts work and photos do not; the screen says so.
+The demo's Privacy Notice describes it.
+
+The photos are not saved to the database or a file by Bede; they are held in
+memory while the request runs, and no temporary file is created (a test pins
+that). Nothing from an upload is logged. The memory is released when the
+request ends; Bede cannot promise anything about a model provider's own
+retention once a parent has consented to a cloud read, which is why that
+consent is asked per upload. The reading has **no field** for a
 name, school, teacher or date, so a reading that includes one is rejected
 rather than stored. Readings and practice sets are encrypted with the
 student's own key and are removed when the student is deleted.
 
-Not on the public demo: these routes are parent-only.
+On the public demo the same routes exist as previews under `/practice/demo/`,
+with nothing stored.
+
+## File validation and hardening
+
+This is hardening, **not a guarantee that a file is free of malware**, and the
+parent-facing text never says "virus-free". It is `services/practice/upload_safety.py`,
+and it runs after the parent is authenticated and after consent and routing are
+settled, before anything reaches a model.
+
+- **Type comes from the bytes.** PNG, JPEG, HEIC/HEIF (`ftyp` brands `heic`,
+  `heix`, `hevc`, `mif1`, `msf1`, `heif`) and PDF are recognised by their magic
+  numbers only. The API receives no filename or content type for a page, and
+  none is consulted.
+- **Native HEIC security hold.** The pinned `pillow-heif 1.8.1` bundles
+  `libheif 1.23.6`; upstream libheif 1.23.7 (October 26, 2026) fixes
+  multiple high-severity vulnerabilities. HEIC/HEIF is refused before any
+  native decode unless the *linked* libheif reports 1.23.7 or newer. The
+  current UI offers JPEG, PNG and PDF only; export HEIC photos as JPEG first.
+  Independent native decoder review is still required before enabling HEIC
+  in a release. Python package audit alone is not sufficient evidence.
+- **Images are fully decoded and re-encoded** with Pillow into a fresh PNG: the pixel count is
+  capped from the header before decoding (30 megapixels, 12,000 px a side),
+  Pillow's own decompression-bomb warning is turned into an error, `verify()` is
+  followed by a real reload, EXIF rotation is applied, and metadata plus anything
+  appended after the image (a polyglot payload) does not survive. Pages are
+  scaled down to 3,000 px a side.
+- **PDFs are never rendered.** They are parsed with pypdf and refused if
+  encrypted (even with an empty user password) or if anything in the object
+  graph, object streams and hex-escaped names included, is `/JavaScript`,
+  `/JS`, `/Launch`, `/EmbeddedFile(s)`, `/OpenAction`, `/AA`, `/AcroForm`,
+  `/XFA`, `/RichMedia`, `/SubmitForm`, `/ImportData` or `/GoToE`. Only the one
+  scanned image on each page is taken out and re-encoded like any photo, but
+  **only from a page that is nothing but that one picture**: the page's content
+  stream is read with pypdf and the page is refused (with "photograph or scan
+  the marked-up paper, or print the PDF to an image") if it draws visible text,
+  paints any path or shading, uses an inline image or a form XObject, places
+  more than one image, or carries any annotation other than a plain link
+  (comments, highlights, stamps and typed-in marks would otherwise be dropped
+  silently, and the teacher's marks are part of what is read). An invisible OCR
+  text layer (text render mode 3), links, clipping and marked-content
+  operators are allowed. Any parse problem refuses. An image in a format other
+  than JPEG or 8-bit gray/RGB is also refused with a plain message; there is no
+  rasteriser here.
+- **Limits:** 6 MB a file, 6 pages in total across the upload, the pixel and
+  decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
+  25-second processing time per file, and at most two decode jobs at once
+  (others wait up to 10 seconds, then are asked to try again with a 503). A
+  job that times out or whose request is cancelled keeps its slot until the
+  worker thread really finishes.
+- **Isolation, honestly:** decoding runs in a worker thread inside the API
+  process. That is **not** process isolation; it has the container's network
+  and filesystem (which is `read_only` with all capabilities dropped). A
+  malformed file that crashes a native decoder (libheif, libjpeg, zlib) is a
+  risk this design reduces but does not remove. Bundled native libraries are
+  covered by `pip-audit` only to the extent PyPI advisories name them.
+- **Optional scanner.** Set `PRACTICE_SCANNER_URL` to a clamd on the same
+  machine: `unix:///path/to/clamd.ctl`, or TCP on the loopback interface only
+  (`tcp://127.0.0.1:3310`, `tcp://[::1]:3310`, `tcp://localhost:3310`).
+  Anything else, a hostname, a compose service name, `0.0.0.0` or any non-loopback
+  address, is refused when the API starts, and again before every scan; locality
+  is judged from the text of the URL and never by looking a name up. The scanner
+  is sent the original, unmodified file, which is why. A clamd in another
+  container is reached through a shared unix-socket volume, not over tcp. Each uploaded file is
+  streamed to it first. A "FOUND" answer, an unreachable or slow scanner, or an
+  answer it cannot understand **refuses the upload**. Unset (the default),
+  nothing is scanned and no screen or document claims it was. No external
+  scanning service is ever contacted.
+- **Timeouts do not stop a decode.** A worker thread cannot be killed. When the
+  25 s limit passes the caller is told to retry, but the thread runs until it
+  finishes, and keeps its slot until then. At most 2 decode jobs run at once
+  and a third caller waits 10 s and gets a busy answer, so a slow file cannot
+  pile up work, but it can tie up both slots for as long as the decode takes.
+  Process isolation would remove this and is not part of this change.
+- **Temporary files:** none are created. Everything is held in memory
+  (`io.BytesIO`), so there is nothing to clean up after success, error,
+  timeout or cancellation.
 
 ## Subject packs
 
@@ -83,6 +191,17 @@ The core never changes when a subject is added. A pack is a folder under
 
 Register a new pack with one line in `packs/__init__.py`.
 
+**The parent picks a school subject, not a pack.** Packs group subjects by how
+a mistake is checked (worked out exactly, named by spelling pattern, compared
+with the teacher's correction), which is not how a parent or a school looks
+for them. `_SUBJECTS` in `packs/__init__.py` lists Mathematics, Reading and
+language arts, Spelling, Grammar, Science, History and social studies,
+Geography, Latin and Other short-answer quiz, each naming the pack that checks
+it. That covers the subjects STAAR tests in grades 3-8 (mathematics, reading
+language arts, science and social studies), the state test the Valor pilot
+notes name, as well as the subjects a homeschool lists. A subject id is accepted
+wherever a pack id is, and pages are read under the subject's own name.
+
 **Latin** detects five patterns:
 
 - the general word for the specific one (*avis* for *anas*);
@@ -94,6 +213,134 @@ Register a new pack with one line in `packs/__init__.py`.
 Other categories (verb endings, noun cases, word order, translation
 direction) are in the taxonomy so a parent can name them, but are not
 detected yet.
+
+**Mathematics** (`packs/math/`) works each problem out exactly
+(`fractions.Fraction`, never floating point), then asks which known slip
+produces the child's answer:
+
+- adding without carrying, or taking the smaller digit from the larger;
+- a two-digit multiplication whose second row was not shifted;
+- a basic fact to 12;
+- the wrong operation for the sign;
+- adding across a fraction, dividing a fraction without inverting, a right
+  amount not in lowest terms;
+- a misplaced decimal point;
+- a lost or mishandled negative sign;
+- working left to right instead of multiplying first.
+
+Practice is new problems of the same shape with computed answers, never a
+problem already on the page. Two cases go to the parent instead of being
+diagnosed: a problem that is not written as an expression (a word problem,
+a variable), and a teacher's correction that disagrees with the pack's own
+answer, which usually means the problem was misread.
+
+**Spelling** (`packs/spelling/`) compares each word with the correct
+spelling on the page. It names:
+
+- a homophone;
+- two letters swapped, or ie/ei;
+- a doubled consonant;
+- a silent e kept before -ing or left off the end;
+- a y not changed to i;
+- a vowel or consonant sound spelled another way;
+- a letter left out or added.
+
+Practice is look-say-cover-write-check on the missed word itself, which is
+the remedy for spelling, then words with the same pattern from
+`item_bank/patterns.json`. The bank supplies examples only for a pattern the
+child already missed. A word with no correction on the page goes to the
+parent.
+
+**Short answers** (`packs/recall/`) covers history, science, geography,
+reading questions, grammar terms, vocabulary and multiple choice. It never
+supplies a fact. Every practice answer is the teacher's correction or the
+child's own right answer, so a miss with no correction goes to the parent.
+It names a different answer, a partial answer, another option chosen, or the
+right answer spelled differently. Practice asks the missed questions again,
+mixed with a few the child knew, because retrieval is the practice for
+remembered material.
+
+**Reading and language arts** (`packs/reading/`) is for comprehension
+questions on a passage, the kind state reading tests use. A question whose
+answer is in the passage is checked against the teacher's correction and
+named: a different detail, a different meaning for a word, another option
+chosen, a partial answer, or the right answer spelled differently. Practice
+sends the child back to the passage to find the answer. A question that asks
+for judgement (why, the main idea, the theme, the author's purpose, an
+inference) or any answer longer than twelve words is **never marked by Bede**:
+it goes to the parent with the child's answer and the teacher's comment. A
+multiple-choice item is always checked against the teacher's marked answer,
+whatever it asks, because the answer is then on the page.
+
+Each of these four has a golden quiz in its `golden/` folder, written for
+this repository, and `tests/test_practice_packs.py`.
+
+## Quizzes and exams
+
+Separate from diagnosing a graded quiz, Bede can **draft a new quiz or exam**
+for any Bede subject that is taught and assessed, K-8. The source can be:
+
+- photos or a scanned PDF of an existing quiz, a previous exam or a prep exam;
+- the text of one, pasted in;
+- or a description of what to cover.
+
+The adult chooses:
+
+- the grade;
+- the level (review, on grade level, challenge);
+- the type (quick check, quiz, unit test, midterm, final exam, exam prep);
+- the number of questions, up to 50.
+
+Bede works out what the source covers, then writes new questions at that
+grade and level (`services/practice/generate.py`). Grades 9-12 come later;
+the request model accepts K-8 only.
+
+Bede writes both questions and answers, so the draft is checked in code
+before anyone sees it:
+
+- **Maths answers are recomputed.** A question written as an arithmetic
+  expression is worked out with the maths pack's exact evaluator, and a
+  wrong model answer is replaced. These answers show **Worked out**.
+- **Every other answer is answered a second time, independently.** The
+  second answer is written without seeing the first, from the questions
+  alone and any source material the adult gave. When the two agree, the
+  answer shows **Double-checked**. When they disagree, it shows **Check**
+  with the second answer beside it. If the second pass is unsure, or fails,
+  the answer shows **Check**.
+
+  This is a cross-check by the same kind of model against the material
+  provided, not a search of outside sources. It makes a wrong answer key
+  less likely; it does not rule one out.
+- **Multiple-choice and true/false answers must be one of the options**, or
+  the question is dropped.
+- **A question copied word for word from the source is dropped.**
+
+Nothing reaches a student until the adult approves the quiz.
+
+Some subjects are not offered:
+
+- **Scripture, Saints & Catechism and Morning Time** are never quizzed or
+  scored. A child's spiritual life is not measured.
+- **Free Study** has no content of its own to quiz.
+- **Logic** starts in grade 3.
+
+Reading and drafting use the same route as photo reading: the household's
+local model, or the configured cloud provider only with consent for this
+request. Nothing is stored.
+
+- **In the app**, the parent prints the quiz and its answer key from the
+  student's Progress page.
+- **Teachers** have the same builder on the classroom page
+  (`/practice/educator/quiz/generate`, passkey-verified teacher session).
+  Teacher drafts run on the school's own local model only, never a cloud
+  provider, because a teacher's upload can hold students' work; with no
+  local model the teacher is told so. No learner is named, read or written.
+- **In the demo**, an approved quiz is delivered into the chat, questions
+  only. Each draft counts twice against the demo's message quota, since it
+  is two model calls.
+
+Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
+verified by breaking it.
 
 ## Golden tests
 
@@ -129,9 +376,10 @@ repository: they show a child's handwriting and a school's own worksheet.
 3. **Delivery to the child, inside an ordinary Bede session:** re-checks at
    +3/+7 days, mixed review of mastered items, pattern history recorded as
    events about the work, never labels about the child.
-4. **Spelling pack**, built on the existing phonics (K-2) and
-   reading-and-spelling (3-8) engines, and the optional game wrapper.
-   Rewards count **days practised**, never streaks, and never speed.
+4. **Done:** Mathematics, Spelling and Short-answer packs. **Not yet:** feeding
+   their results into the phonics (K-2) and reading-and-spelling (3-8)
+   mastery engines, and the optional game wrapper. Rewards count **days
+   practised**, never streaks, and never speed.
 
 **Not yet:** pages are not straightened or cropped before reading. That
 needs an image library this backend doesn't carry, and the reader copes with

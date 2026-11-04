@@ -34,8 +34,9 @@ React mounts:
 | `UNHANDLED REJECTION …` / `UNCAUGHT …` | An error nothing caught |
 | `RESOURCE FAILED <script> https://…` | A script/image/stylesheet failed to load |
 
-**A `→` with no matching `←` or `✗` is itself a diagnosis**: the request
-was stopped before it was sent, which almost always means CSP.
+**A `→` with no matching `←` or `✗` is an unresolved request**, not proof
+of a CSP failure. It may be waiting for response headers or blocked in the
+network path. A `CSP BLOCKED` entry identifies an actual policy refusal.
 
 This is genuinely always-on. Entries go to `debugBus`'s 100-entry ring
 buffer, which nothing reads until you open the panel, so the cost when
@@ -281,6 +282,12 @@ twice, followed by an error, means the connection stayed down.
 | A failure after the first chunk | Text is already on screen; a retry would restart a sentence under someone reading it. |
 | An abort | The child navigated away, or the next turn superseded this one. Nothing should be reissued on their behalf. |
 | A stall (`StreamStallError`, 60s) | The server accepted the request and went quiet, so it is very likely still working. A second model call buys nothing a longer wait would not. |
+| A response-header deadline (`Request timed out`, 60s) | No response arrived in time, but the server may already have accepted the turn. Abort the client wait without replaying potentially accepted work. |
+
+The existing 60-second body-read stall limit remains separate from the new
+60-second response-header deadline. Cancellation also closes the SSE reader.
+These limits prevent an indefinitely waiting client; they do not prove that
+a disconnected model request stopped executing on the server.
 
 **And the reader no longer sees the browser's own words.** `Load failed` in
 a chat bubble reads as Bede breaking, and names nothing anyone can act on;

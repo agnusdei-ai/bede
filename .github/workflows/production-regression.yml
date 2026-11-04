@@ -259,10 +259,15 @@ jobs:
             sleep 0.5
           done
           test "$ready" = 1 || { echo "Wizard not ready within 20 seconds" >&2; exit 1; }
-          grep -Fq "Welcome to Bede" "$RUNNER_TEMP/wizard-form.html"
+          # Before consent the wizard shows the notice, not the setup form.
+          grep -Fq "Parental Notice and Consent" "$RUNNER_TEMP/wizard-form.html"
+          ! grep -Fq 'name="license_key"' "$RUNNER_TEMP/wizard-form.html"
           # The wizard intentionally terminates after saving. A TCP reset can
           # race with the HTTP reply, so do not use curl's exit alone as success.
           # Verify the saved configuration and clean container exit instead.
+          # Install-time consent comes first; accept the notice explicitly.
+          curl -fsS --max-time 10 -X POST http://127.0.0.1:8765/consent \
+            --data-urlencode "agree=yes" -o /dev/null
           curl --silent --show-error --max-time 10 -X POST http://127.0.0.1:8765/submit \
             --data-urlencode "anthropic_key=sk-ant-ci-test-key" \
             --data-urlencode "db_choice=local" \
@@ -281,6 +286,9 @@ jobs:
           grep -Fxq "CHILD_PIN=${CI_CHILD_PIN}" .env
           grep -Fxq "LICENSE_KEY=${CI_TEST_LICENSE_KEY}" .env
           grep -Fxq "COMPOSE_PROFILES=local-db" .env
+          # The acknowledgement hash is computed from the real notice file.
+          grep -Fxq "CONSENT_INSTALL_ACK_HASH=$(sha256sum homeschool-api/data/consent_notice.txt | awk '{print $1}')" .env
+          grep -Eq '^CONSENT_INSTALL_ACK_AT=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z$' .env
 
           # wizard.py signals success by exiting its own process — confirm
           # the container actually stops on its own within a few seconds,

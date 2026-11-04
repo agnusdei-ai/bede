@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 TeacherMark = Literal["correct", "incorrect", "partial", "unmarked"]
 RequiredFormat = Literal["complete_sentence", "single_word", "color_fill", "free", "unknown"]
@@ -151,3 +151,83 @@ class ConfirmAssessmentRequest(_Strict):
 class ApproveSetRequest(_Strict):
     # Optional parent edits; None approves the draft as written.
     practice_set: Optional[PracticeSet] = None
+
+
+class PracticeOutcomeRequest(_Strict):
+    item_index: int = Field(..., ge=0, le=19)
+    response: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("response")
+    @classmethod
+    def response_must_contain_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A response is required.")
+        return value
+
+
+# ── Generated quizzes and exams ───────────────────────────────────────────────
+#
+# A quiz Bede drafts from an existing quiz, a prior or prep exam, or a lesson
+# description. Bede writes the questions AND the answers, so every answer
+# carries `answer_check`: "computed" when this backend worked a maths answer
+# out itself, "checked" when an independent second answer agreed, "verify"
+# otherwise, for the adult to check before approving.
+# Nothing here is stored; the draft lives in the request and on the screen.
+
+QuizKind = Literal["ad_hoc", "quiz", "unit_test", "midterm", "final", "prep_exam"]
+QuizLevel = Literal["review", "on_level", "challenge"]
+QuestionType = Literal["multiple_choice", "true_false", "short_answer", "fill_in_blank", "computation", "written_response"]
+QuizGrade = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+
+MAX_QUIZ_QUESTIONS = 50
+
+
+class QuizQuestion(_Strict):
+    number: int = Field(..., ge=1, le=MAX_QUIZ_QUESTIONS)
+    type: QuestionType
+    topic: str = Field(default="", max_length=80)
+    prompt: str = Field(..., min_length=1, max_length=600)
+    options: List[str] = Field(default_factory=list, max_length=6)
+    answer: str = Field(..., min_length=1, max_length=400)
+    # computed: worked out by this backend. checked: a second, independent
+    # answer agreed. verify: the adult should check it.
+    answer_check: Literal["computed", "checked", "verify"] = "verify"
+    # What the independent second answer said, when it disagreed.
+    second_answer: Optional[str] = Field(default=None, max_length=400)
+
+
+class GeneratedQuiz(_Strict):
+    title: str = Field(..., min_length=1, max_length=120)
+    subject: str = Field(..., min_length=1, max_length=30)
+    grade: QuizGrade
+    kind: QuizKind
+    level: QuizLevel
+    coverage: List[str] = Field(default_factory=list, max_length=20)
+    est_minutes: int = Field(..., ge=1, le=120)
+    questions: List[QuizQuestion] = Field(..., min_length=1, max_length=MAX_QUIZ_QUESTIONS)
+
+
+class GenerateQuizRequest(_Strict):
+    subject: str = Field(..., min_length=1, max_length=30)
+    grade: QuizGrade
+    kind: QuizKind = "quiz"
+    level: QuizLevel = "on_level"
+    question_count: int = Field(default=10, ge=1, le=MAX_QUIZ_QUESTIONS)
+    # What to cover, in the adult's words: a lesson, a unit, a chapter.
+    focus: Optional[str] = Field(default=None, max_length=600)
+    # An existing quiz, a previous exam or a prep exam to learn from: photos
+    # or scanned pages, and/or its text pasted in.
+    pages: List[PhotoPage] = Field(default_factory=list, max_length=6)
+    source_text: Optional[str] = Field(default=None, max_length=12000)
+    route: Optional[Literal["local", "cloud"]] = None
+    cloud_consent: bool = False
+
+    @field_validator("focus", "source_text")
+    @classmethod
+    def _blank_is_none(cls, value: Optional[str]) -> Optional[str]:
+        value = (value or "").strip()
+        return value or None
+
+    def has_material(self) -> bool:
+        return bool(self.pages or self.source_text or self.focus)

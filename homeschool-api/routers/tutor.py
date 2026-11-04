@@ -22,7 +22,7 @@ from core.demo_code_session import (
     has_message_quota as demo_code_has_message_quota,
     record_message as demo_code_record_message,
 )
-from core.deps import require_auth, require_email_summary, require_parent
+from core.deps import require_auth, require_email_summary, require_parent, require_learner_access
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import (
     CompanionMode,
@@ -175,6 +175,8 @@ async def chat(
     role. Passes db so Bede can persist narration assessments server-side
     mid-stream (skipped for the demo role — see below).
     """
+    if auth.get("role") == "child":
+        await require_learner_access(auth, req.session_config.student_name, db)
     # AIUC-1 A008 — redact credential-shaped text (API keys, tokens,
     # connection strings) before it reaches the safeguarding-audit excerpt
     # below, model context, or anywhere else this turn's message is used.

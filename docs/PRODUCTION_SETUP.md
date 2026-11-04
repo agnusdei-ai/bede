@@ -25,6 +25,32 @@ pass measured, target-device checks before a campus capacity is promised.
 The existing signed seat license remains authoritative; a separate
 purchase never enables unlimited seats by itself.
 
+## Parental Notice and Consent at install
+
+Every installation path begins with the **Parental Notice and Consent**
+(`homeschool-api/data/consent_notice.txt`, the single source of truth). The
+person installing Bede reads it and confirms they are the parent or legal
+guardian of each child who will use Bede and accept the responsibilities of
+custodian. Nothing is collected, written or started before that.
+
+- **Browser wizard** (`setup-gui.*`, the Windows and Linux/macOS installers,
+  the operator bundle): the first page is the Notice, a consent checkbox and
+  the buttons "I Consent and Continue" and "I Do Not Consent". Declining, or
+  leaving the box unticked, does not proceed. A decline shows "Installation
+  not completed", the wizard exits non-zero and no `.env` is written; the
+  launchers stop on that exit status and do not start Bede.
+- **Terminal wizard** (`setup.sh`): prints the Notice and asks `[y/N]`
+  (default no). For automation, `bash setup.sh --accept-consent-notice` is the
+  explicit non-interactive form of that consent. A run with no input and
+  without the flag stops with a message; it never skips consent silently.
+- On consent the installer adds two lines to `.env`:
+  `CONSENT_INSTALL_ACK_HASH` (hex SHA-256 of the exact bytes of the notice
+  file) and `CONSENT_INSTALL_ACK_AT` (UTC, ISO-8601). The API honours the
+  acknowledgement only while the hash equals the current notice's hash, so a
+  revised Notice asks again.
+
+The wording is a draft prepared for review by counsel and is not legal advice.
+
 ## First-time setup
 
 Three ways to do this — same result, different experience:

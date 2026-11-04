@@ -1162,7 +1162,26 @@ limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
 
 When your child brings home a graded quiz or worksheet, open **Pod
 Dashboard → Progress**, choose the student, and find **Practice from a
-graded quiz**. Today it works for **Latin**; more subjects will follow.
+graded quiz**. Choose the subject that matches the quiz:
+
+- **Mathematics**: sums written out as problems (`27 + 15 =`, fractions,
+  decimals, negative numbers, order of operations). Bede works each problem
+  out itself and names the slip behind a wrong answer, such as not carrying
+  a ten. Word problems are shown to you rather than guessed at.
+- **Spelling**: spelling tests. Bede compares each word with the correct
+  spelling the teacher wrote and names the pattern, such as a doubled letter
+  or *their* for *there*.
+- **Reading and language arts**: questions about a passage. Bede checks
+  answers that are in the passage against the teacher's correction, and
+  sends your child back to the passage to practise them. A question that
+  asks for judgement, such as why something happened or the main idea, is
+  never marked by Bede. It is shown to you with your child's answer and the
+  teacher's comment.
+- **Grammar, Science, History and social studies, Geography**, or **Other
+  short-answer quiz**: any quiz of things to remember, including multiple
+  choice. Practice uses only answers written on the page; Bede never
+  supplies a fact of its own.
+- **Latin**.
 
 1. **Choose the subject and photograph the pages.** You can add up to six
    pages, as JPEG or PNG. The card tells you where the photos will be read:
@@ -1190,8 +1209,11 @@ graded quiz**. Today it works for **Latin**; more subjects will follow.
      sentences. These are never shown to your child;
    - **What was solid.**
 4. **Approve, change or discard the practice.** Bede drafts about 5–10
-   minutes of practice on the pattern, using only words from your child's
-   own word banks and never the exact question they missed. Untick any item
+   minutes of practice on the pattern. In mathematics and Latin it is new
+   problems of the same kind, never the exact one they missed. In spelling
+   it is the missed word itself, then a few words with the same pattern. For
+   short answers it is the missed questions asked again, mixed with a few
+   they already knew, because remembering again later is the practice. Untick any item
    you don't want, read the **What to say** hints, and then:
    - **Approve** it;
    - **Print worksheet** to do it on paper; or
@@ -1201,6 +1223,51 @@ graded quiz**. Today it works for **Latin**; more subjects will follow.
 
 A circle left white for *alba* (white) on a colour question is a correct
 answer, and Bede treats it as one.
+
+**What you can upload.** Photos (JPEG, PNG, or iPhone HEIC) or a PDF of
+scanned pages, six pages in all and 6 MB a file. Bede checks each file and
+rebuilds every page as a plain image before anything reads it, and refuses PDFs
+that carry scripts, attachments, forms or a password, and any PDF page that is
+more than one scanned picture: typed or drawn marks, comments or highlights, or
+a second image would be lost, so photograph or scan the marked-up paper itself
+(or print the PDF to an image) instead. This is file validation and hardening, not a promise that a
+file is free of malware. The photos are not saved to the database or a file by
+Bede; they are held in memory while the request runs. If you run a clamd on
+the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
+`tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
+refused at startup, and if it is set and cannot be reached, uploads are refused.
+
+### Make a quiz or exam
+
+On the same Progress page, **Make a quiz or exam** drafts a new quiz from:
+
+- an old quiz, a past exam or a prep exam: add photos or a scanned PDF, or
+  paste its text in;
+- or just a description of what to cover.
+
+Choose the subject, grade, level and type, from a quick check to a final
+exam, and how many questions (up to 50). Bede works out what the source
+covers and writes new questions.
+
+Before you print:
+
+- Maths answers say **Worked out**: Bede computed them.
+- **Double-checked** means Bede answered the question a second time, without
+  looking at its first answer, and both agreed. That makes a mistake less
+  likely, not impossible.
+- **Check** means the two answers disagreed (the second one is shown), or
+  Bede wasn't sure. Read these over.
+- Untick any question you don't want.
+
+Then print the quiz and the answer key. Nothing is saved.
+
+Scripture, Saints & Catechism and Morning Time are not offered, because Bede
+never scores a child's faith.
+
+If your install has no AI model of its own, a quiz drafted from a typed topic
+or pasted text can still go to your AI provider, after you tick the box
+naming it. It goes to that provider only, never to a backup. Photos need the
+separate photo setting described above.
 
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use
@@ -1230,15 +1297,26 @@ supported first-release workflow and its limits.
 
 ## 5a. Consent, pausing, and reviewing your child's records
 
-Bede does not record a child's lessons until a parent has given consent to the
-privacy notice. The controls for this (consent, pausing collection for one
-child, and reviewing everything Bede holds about that child) are available
-through the API now. The parent screens for them are not built yet, so until
-they are, a household using the app will see that tutoring needs consent and
-cannot give it from the screen. The full description, including what is still
-open, is in [PARENTAL_CONSENT.md](PARENTAL_CONSENT.md). Whether the consent
-method you use is sufficient for your situation is a question for a lawyer, not
-for Bede.
+Bede does not record a child's lessons until consent is on record for that
+child. For most families this is already done: when you installed Bede, the
+installer showed you the family notice and asked you to confirm that you are
+the parent or legal guardian (or are acting with their authority) and the
+operator and custodian of the children's records. That one confirmation covers
+every child you add afterwards.
+
+If you did not install through the new installer (for example, you updated an
+existing setup), Parent Setup shows a banner asking you to read the notice and
+tick one box. One tick covers all your children, and you can also tick it as
+you save the setup, so a child you add later is covered too. If Bede later
+updates its notice, the banner asks you to review it again. New collection,
+including saved transcripts and tutoring interactions, is blocked until you
+review and accept the current notice.
+
+You can still pause collection for one child, withdraw consent, and review or
+export everything Bede holds about a child. Withdrawing consent is never
+undone by the install-time confirmation. The full description is in
+[PARENTAL_CONSENT.md](PARENTAL_CONSENT.md). The wording of the notice and
+whether the method suits your situation are for counsel, not for Bede.
 
 ## 6. Getting each child onto their own tablet
 
@@ -1312,6 +1390,12 @@ reliably in this mode, Bede switches back to press-and-hold on its own
 after a few failed attempts and says so in the chat: nothing gets stuck.
 Tapping the microphone itself at any time also switches straight back to
 press-and-hold.
+
+If a voice session loses its connection or cannot finish transcription,
+Bede ends that attempt instead of treating it as speech that was too quiet.
+Your child can try a new recording or type the answer; failed audio is not
+automatically replayed into a new session. See [Voice setup](VOICE_SETUP.md)
+for the bounded waits and diagnostic limits.
 
 The writing pad (the pencil icon in a session) has a print button if your child
 prefers a real pencil to a stylus. It prints at true page size on any printer

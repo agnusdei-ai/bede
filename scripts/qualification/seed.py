@@ -118,11 +118,23 @@ class Seeder:
             body = {"title": assert_synthetic(title)}
             self.fx.campus[key] = self._step(f"create_{key}", "POST", "/pilot/campuses",
                                              self.fx.admin_token, body)["campus_id"]
+        for campus_key in cfg.CAMPUS_TITLES:
+            self.authorize_campus(campus_key)
         for learner, campus in cfg.LEARNER_FIXTURES.items():
             body = {"display_name": assert_synthetic(cfg.SHARED_LEARNER_DISPLAY_NAME)}
             self.fx.learner[learner] = self._step(
                 f"create_{learner}", "POST", f"/pilot/campuses/{self.fx.campus[campus]}/learners",
                 self.fx.admin_token, body)["learner_id"]
+
+    def authorize_campus(self, key: str) -> None:
+        """School data authorization through the real endpoint with the real
+        current notice hash. The gate is never bypassed."""
+        path = f"/pilot/campuses/{self.fx.campus[key]}/data-authorization"
+        shown = self._step(f"data_authorization_notice_{key}", "GET", path, self.fx.admin_token)
+        self._step(f"data_authorization_grant_{key}", "POST", path, self.fx.admin_token,
+                   {"notice_hash": shown["notice_hash"],
+                    "authorizer_name": "Synthetic Administrator",
+                    "authorizer_role": "administrator"})
 
     # ── 4. teachers ──────────────────────────────────────────────────────────
     def seed_teachers(self) -> None:

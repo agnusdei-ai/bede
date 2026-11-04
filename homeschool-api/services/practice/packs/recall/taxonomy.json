@@ -1,0 +1,36 @@
+{
+  "categories": {
+    "recall.fact": {
+      "description": "A different answer from the one the teacher gave.",
+      "example": "wrote 1776 for 1789",
+      "remediation_strategy": "Ask the question again later, mixed with known ones; retrieval rather than rereading.",
+      "parent_script": "Ask the question again without the notes; recalling it is the practice, not reading it over."
+    },
+    "recall.partial": {
+      "description": "Part of the answer, or the teacher marked it partly right.",
+      "example": "wrote photosynthesis for photosynthesis uses sunlight to make food",
+      "remediation_strategy": "Ask again and ask for the whole answer, then 'what else?'.",
+      "parent_script": "When they give part of an answer, ask \"what else?\" before you fill in the rest."
+    },
+    "recall.choice": {
+      "description": "Chose a different option on a multiple-choice question.",
+      "example": "B for C",
+      "remediation_strategy": "Ask again, reading every option aloud before choosing.",
+      "parent_script": "Ask them to read every option aloud and rule out the ones they know are wrong."
+    },
+    "recall.spelling": {
+      "description": "The right answer, spelled differently.",
+      "example": "Mesopatamia for Mesopotamia",
+      "remediation_strategy": "Ask again; then look-say-cover-write-check on the word.",
+      "parent_script": "Praise that they knew it, then write the word together."
+    },
+    "recall.needs_answer": {
+      "description": "No correct answer written on the page; the parent is asked.",
+      "example": "",
+      "remediation_strategy": "Parent adds the correct answer so it can be practised; nothing is said to the child."
+    }
+  },
+  "strengths": {
+    "recall.section": "every answer right"
+  }
+}

@@ -43,6 +43,44 @@ from core.security import decode_token, validate_fingerprint
 _bearer = HTTPBearer()
 
 
+async def require_live_hosted_child_pairing(
+    request: Request, payload: dict, db: AsyncSession | None = None,
+) -> None:
+    """Enforce hosted child-device approval on *every* token use, not only login.
+
+    A parent revoking a ChildDevicePairing must invalidate already-issued
+    child JWTs immediately. This is a device authorization check, not a
+    learner/roster grant; the separate learner-scope issue #761 remains open.
+    Self-hosted family sessions and all non-child roles are unchanged.
+    """
+    if not settings.hosted_profile or payload.get("role") != "child":
+        return
+
+    from core.database import AsyncSessionLocal, ChildDevicePairing
+
+    device_id = payload.get("device_id")
+    pairing = None
+    if device_id:
+        if db is None:
+            async with AsyncSessionLocal() as session:
+                pairing = await session.get(ChildDevicePairing, device_id)
+        else:
+            pairing = await db.get(ChildDevicePairing, device_id)
+
+    if pairing is None or pairing.state != "paired":
+        await log_event(
+            AuditEvent.DEVICE_LOGIN_BLOCKED,
+            role="child",
+            success=False,
+            detail="hosted child pairing missing, pending, or revoked",
+            **audit_from_request(request),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This child's device access is not approved — please ask a parent",
+        )
+
+
 async def _validate_token(request: Request, credentials: HTTPAuthorizationCredentials) -> dict:
     """Shared JWT signature/expiry + device fingerprint validation.
 
@@ -114,6 +152,7 @@ async def _validate_token(request: Request, credentials: HTTPAuthorizationCreden
             detail="This device's access was revoked — please contact the parent",
         )
 
+    await require_live_hosted_child_pairing(request, payload)
     return payload
 
 
@@ -254,6 +293,16 @@ async def require_real_user(
     return await _require_live_session(request, payload)
 
 
+async def require_family_data_write(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Require a family parent or child for a learner-data write."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "family.data.write")
+    return await _require_live_session(request, payload)
+
+
 async def require_parent(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
@@ -352,3 +401,34 @@ async def require_demo_preview(
     payload = await _validate_token(request, credentials)
     await _authorize(request, payload, "sandbox.demo_preview")
     return await _require_live_session(request, payload)
+
+
+async def require_demo_practice_preview(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> dict:
+    """Keep transient Practice Coach previews in the demo identity domain."""
+    payload = await _validate_token(request, credentials)
+    await _authorize(request, payload, "practice.demo_preview")
+    return await _require_live_session(request, payload)
+
+async def require_learner_access(auth: dict, student_name: str, db: AsyncSession) -> None:
+    """Fail closed before any learner-specific read or write; parent remains separate."""
+    if auth.get("role") == "parent":
+        return
+    if auth.get("role") != "child":
+        raise HTTPException(status_code=404, detail="Resource unavailable")
+    from core.database import ChildLearnerBinding, ChildDevicePairing
+    device_id = auth.get("device_id")
+    nonce = auth.get("learner_nonce")
+    if not device_id or not nonce:
+        raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
+    binding = await db.get(ChildLearnerBinding, device_id)
+    if (binding is None or binding.nonce != nonce or binding.student_name != student_name):
+        raise HTTPException(status_code=404, detail="Resource unavailable")
+    if settings.hosted_profile:
+        pairing = await db.get(ChildDevicePairing, device_id)
+        if pairing is None or pairing.state != "paired":
+            raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
+    if device_registry.is_revoked(device_id):
+        raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")

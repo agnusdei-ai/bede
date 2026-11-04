@@ -54,6 +54,16 @@ happens inside `Setup-Bede.ps1` when the parent runs that shortcut:
    configured, pre-selected option instead of the usual cloud-provider
    fields — see below for how that handoff works.
 
+## Parental Notice and Consent
+
+The first screen of the browser wizard this installer hands off to is the
+Parental Notice and Consent. Declining ("I Do Not Consent") ends setup: the
+wizard exits non-zero, no `.env` is written and Bede is not started (`setup-gui.bat`
+stops on the wizard's exit status). Docker and, if chosen, Ollama are
+installed before the wizard runs, because the wizard itself needs Docker;
+they hold no child information. The wording is a draft for counsel. See
+`docs/PRODUCTION_SETUP.md`.
+
 ## Local AI (Ollama)
 
 The one thing this installer decides FOR the family, once they've said

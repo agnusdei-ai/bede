@@ -50,6 +50,10 @@ DOC_TESTS = {
     "docs/DATA_RETENTION.md": "test_coppa_compliance.py",
     "docs/INFORMATION_SECURITY_POLICY.md": "test_coppa_compliance.py",
     "docs/SYNTHETIC_QUALIFICATION.md": "test_qualification_workflow.py",
+    # Public crawl contracts must exercise the backend AEO guard.
+    "site/sitemap.xml": "test_site_aeo.py",
+    "site/robots.txt": "test_site_aeo.py",
+    "site/llms.txt": "test_site_aeo.py",
 }
 IGNORED_PREFIXES = ("docs/", "site/", ".github/", "assets/")
 TEST_EXT = re.compile(r"(?:\.test\.[jt]sx?$|\.spec\.[jt]sx?$|(^|/)test_[^/]+\.py$)")
@@ -184,6 +188,20 @@ def consumers(root: Path, scope: str, changed: set[str]) -> tuple[list[str], boo
     return tests, ambiguous or not tests
 
 
+def backend_readers(root: Path, name: str) -> list[str]:
+    """Backend tests that name a repository file by its full path."""
+    tests = root / "homeschool-api" / "tests"
+    found = []
+    for path in sorted(tests.rglob("test_*.py")) if tests.is_dir() else []:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if name in text:
+            found.append(path.relative_to(root / "homeschool-api").as_posix())
+    return found
+
+
 def select(root: Path, files: list[str], *, full: bool = False) -> dict:
     scopes: dict[str, dict] = {
         "backend": {"full": bool(full), "tests": [], "reasons": []},
@@ -201,6 +219,9 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
     for name in files:
         if name in DOC_TESTS:
             scopes["backend"]["tests"].append("tests/" + DOC_TESTS[name])
+        if name.startswith("site/schools/"):
+            # School markup and assets are read by test_site_aeo.py.
+            scopes["backend"]["tests"].append("tests/test_site_aeo.py")
         if name.startswith("homeschool-api/"):
             known = True
             if name in VOICE_CONTRACT_PATHS:
@@ -218,6 +239,12 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
         elif any(name.startswith(p + "/") for p in PACKAGES):
             known = True
             p = name.split("/")[0]
+            # A backend test may read a frontend file as text (for example
+            # tests/test_mixed_language_output.py reads ThemePicker.tsx).
+            # No import edge exists, so find those tests by the path they name.
+            readers = backend_readers(root, name)
+            if readers:
+                scopes["backend"]["tests"].extend(readers)
             if name.endswith(("/package.json", "/package-lock.json")) or "/vite.config" in name or "/tsconfig" in name:
                 broad(p, "dependency or build configuration")
             if CRITICAL.search(name):

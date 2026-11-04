@@ -31,6 +31,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import school_authorization as school_auth
 from core.database import PilotLearner, get_db
 from core.deps import require_educator
 from core.encryption import aad_for, decrypt_json, encrypt_json
@@ -101,6 +102,10 @@ async def _write_context(db: AsyncSession, auth: dict, learner: PilotLearner):
     )
     if ctx.campus_id != learner.campus_id:
         raise _NOT_FOUND
+    # Every journey write resolves its context here, so this is the one
+    # gate: no evidence, recommendation or decision is stored for a campus
+    # whose school has not authorized storage.
+    await school_auth.require_authorized(db, learner.campus_id)
     return ctx
 
 

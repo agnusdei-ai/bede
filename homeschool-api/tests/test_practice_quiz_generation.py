@@ -315,4 +315,124 @@ async def test_teacher_options_never_offer_a_cloud_provider(monkeypatch):
     _routing(monkeypatch, local=False, cloud="openai")
     monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
     options = await practice_router.educator_quiz_options(auth=TEACHER)
-    assert options["route"] == {"local_available": False, "cloud_provider": None}
+    assert options["route"] == {"local_available": False, "cloud_provider": None, "draft_provider": None}
+
+
+# ── Typed drafts: no photo leaves the browser ────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_a_typed_draft_needs_no_photo_switch_and_never_fails_over(monkeypatch, quota):
+    """A draft from a typed topic sends text only, so the photo switch does
+    not govern it. It goes to the one provider the parent agreed to and is
+    never retried on another, because the consent named that provider."""
+    from services.adapters import router
+    import services.ai_service as ai_service
+
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", False)
+    named = StubClient(draft(q("6 x 7 =", "42", "computation")))
+    failover = StubClient(draft(q("1 + 1 =", "2", "computation")))
+    _routing(monkeypatch, local=False, cloud="openai")
+    asked_for = []
+    monkeypatch.setattr(router, "resolve_named", lambda name, *a, **k: asked_for.append(name) or named)
+    monkeypatch.setattr(ai_service, "_client", failover)
+
+    out = await practice_router.demo_generate_quiz(
+        req(grade="2", focus="Multiplication", cloud_consent=True), auth=DEMO)
+    assert [x["prompt"] for x in out["quiz"]["questions"]] == ["6 x 7 ="]
+    assert asked_for == ["openai"]
+    assert named.calls and failover.calls == []
+
+
+@pytest.mark.asyncio
+async def test_a_typed_draft_still_needs_the_tick_for_that_provider(monkeypatch, quota):
+    named = StubClient(draft(q("6 x 7 =", "42", "computation")))
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=named)
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.demo_generate_quiz(req(), auth=DEMO)
+    assert exc.value.status_code == 409
+    assert exc.value.detail["provider"] == "openai"
+    assert named.calls == []
+
+
+@pytest.mark.asyncio
+async def test_photos_still_need_the_photo_switch_even_with_the_tick(monkeypatch, quota):
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", False)
+    named = StubClient(draft(q("6 x 7 =", "42", "computation")))
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=named)
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.demo_generate_quiz(
+            req(pages=[PhotoPage(data=b64(JPEG))], cloud_consent=True), auth=DEMO)
+    assert exc.value.status_code == 409
+    assert named.calls == []
+
+
+@pytest.mark.asyncio
+async def test_options_offer_typed_drafts_but_not_photos_while_the_switch_is_off(monkeypatch):
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", False)
+    _routing(monkeypatch, local=False, cloud="openai")
+    route = (await practice_router.demo_quiz_options(auth=DEMO))["route"]
+    assert route == {"local_available": False, "cloud_provider": None, "draft_provider": "openai"}
+
+
+@pytest.mark.asyncio
+async def test_teacher_options_offer_no_typed_cloud_draft_either(monkeypatch):
+    _routing(monkeypatch, local=True, cloud="openai")
+    route = (await practice_router.educator_quiz_options(auth=TEACHER))["route"]
+    assert route["cloud_provider"] is None and route["draft_provider"] is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_named_uses_exactly_one_adapter(monkeypatch):
+    from services.adapters import router
+
+    built = []
+
+    class Adapter:
+        def __init__(self, name):
+            self.name = name
+            self.messages = self
+
+        async def create(self, **kw):
+            return self.name
+
+    monkeypatch.setattr(router, "_configured_order", lambda settings: ["openai", "mistral"])
+    monkeypatch.setattr(router, "_build", lambda name, settings: built.append(name) or Adapter(name))
+    monkeypatch.setattr(router, "_named_clients", {})
+    client = router.resolve_named("openai")
+    assert await client.messages.create(model="m") == "openai"
+    # Built once and reused, so each draft does not open a new connection pool.
+    assert router.resolve_named("openai") is client
+    assert built == ["openai"]
+    with pytest.raises(router.NamedAdapterUnavailableError):
+        router.resolve_named("anthropic")
+
+
+@pytest.mark.asyncio
+async def test_photos_go_only_to_the_named_provider_never_a_backup(monkeypatch):
+    """Photos of a child's work go to the provider the parent ticked, and an
+    error there is never retried on another provider."""
+    from services.adapters import router
+    import services.ai_service as ai_service
+    from tests.test_practice_coach import GOLDEN, _req
+
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
+    named = StubClient(json.dumps(GOLDEN["assessment"]))
+    failover = StubClient(json.dumps(GOLDEN["assessment"]))
+    _routing(monkeypatch, local=False, cloud="openai")
+    asked_for = []
+    monkeypatch.setattr(router, "resolve_named", lambda name, *a, **k: asked_for.append(name) or named)
+    monkeypatch.setattr(ai_service, "_client", failover)
+    await extract.read_pages(_req(cloud_consent=True))
+    assert asked_for == ["openai"] and len(named.calls) == 1 and failover.calls == []
+
+
+@pytest.mark.asyncio
+async def test_the_tick_names_the_provider_the_parent_switched_to(monkeypatch):
+    from core import provider_state
+
+    _routing(monkeypatch, local=False, cloud="openai")
+    from services.adapters import router
+    monkeypatch.setattr(router, "configured_adapters", lambda *a, **k: ["openai", "mistral"])
+    monkeypatch.setattr(provider_state, "_cached_primary", "mistral")
+    route = (await practice_router.demo_quiz_options(auth=DEMO))["route"]
+    assert route["draft_provider"] == "mistral"

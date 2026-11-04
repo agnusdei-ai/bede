@@ -322,7 +322,15 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False) -> tuple[
     reaches a cloud provider: their uploads can hold students' work."""
     subject = check_request(req)
     # consent and routing are settled before anything is parsed
-    client = _local_client() if local_only else extract._choose_client(req)
+    if local_only:
+        client = _local_client()
+    elif req.pages:
+        # Photos: the photo-reading rules, including PRACTICE_CLOUD_READING_ENABLED.
+        client = extract._choose_client(req)
+    else:
+        # Typed text only: no photo leaves the browser, so the photo switch
+        # does not apply; the parent still agrees to the provider by name.
+        client = extract.text_draft_client(req)
     content: list[dict] = []
     if req.pages:
         pages = await extract.prepare_pages([p.data for p in req.pages])

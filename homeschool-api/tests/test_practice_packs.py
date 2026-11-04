@@ -31,6 +31,7 @@ GOLDENS = [
     ("math", "math_quiz_1"),
     ("spelling", "spelling_test_1"),
     ("recall", "history_quiz_1"),
+    ("reading", "reading_quiz_1"),
 ]
 
 
@@ -40,10 +41,44 @@ def assessment(pack: str, name: str) -> GradedAssessment:
 
 # ── Every pack ────────────────────────────────────────────────────────────────
 
-def test_the_core_subjects_are_registered_and_listed():
-    ids = {p["id"] for p in available_packs()}
-    assert {"latin", "math", "spelling", "recall"} <= ids
-    assert set(_PACKS) == ids
+def test_the_picker_lists_school_subjects_each_checked_by_a_real_pack():
+    subjects = available_packs()
+    ids = [s["id"] for s in subjects]
+    # The subjects a school or homeschool lists, including the four STAAR
+    # tests in grades 3-8: mathematics, reading language arts, science and
+    # social studies.
+    assert {"mathematics", "reading", "spelling", "grammar", "science",
+            "history", "geography", "latin"} <= set(ids)
+    assert len(ids) == len(set(ids))
+    for s in subjects:
+        pack = get_pack(s["id"])
+        assert pack is not None and pack.id == s["pack"]
+    # Every registered pack is reachable from the picker.
+    assert {s["pack"] for s in subjects} == set(_PACKS)
+    # A pack id is still accepted, so older requests keep working.
+    assert all(get_pack(pid).id == pid for pid in _PACKS)
+
+
+def test_pages_are_read_under_the_subject_the_parent_chose():
+    from services.practice.extract import _prompt
+
+    assert "Subject: Science" in _prompt("science")
+    assert "Subject: History and social studies" in _prompt("history")
+    assert "Subject: Reading and language arts" in _prompt("reading")
+
+
+@pytest.mark.parametrize("subject", ["science", "history", "grammar", "reading", "mathematics"])
+def test_a_quiz_read_under_a_subject_is_diagnosed_by_that_subjects_pack(subject):
+    pack = get_pack(subject)
+    golden = {"math": ("math", "math_quiz_1"), "recall": ("recall", "history_quiz_1"),
+              "reading": ("reading", "reading_quiz_1")}[pack.id]
+    a = assessment(*golden)
+    a.subject = subject
+    got = {e.item_ref: e.category for e in pipeline.diagnose(a).errors
+           if e.category.split(".")[0] == pack.id}
+    expected = fixture(*golden)["expected_categories"]
+    assert got == {ref: cat for ref, cat in expected.items() if cat.split(".")[0] == pack.id}
+    assert got
 
 
 @pytest.mark.parametrize("pack_id", sorted(_PACKS))
@@ -303,3 +338,58 @@ def test_a_division_remainder_is_not_called_a_forgotten_fact():
 def test_a_sign_slip_with_a_bracketed_negative_is_diagnosed():
     a = _one("math", prompt="−5 × (−3) =", student_response="-15", teacher_mark="incorrect", teacher_correction="15")
     assert [e.category for e in pipeline.diagnose(a).errors] == ["math.integer.sign"]
+
+
+# ── Reading and language arts ─────────────────────────────────────────────────
+
+def test_a_question_that_asks_for_judgement_never_reaches_the_child():
+    a = assessment("reading", "reading_quiz_1")
+    diagnosis = pipeline.diagnose(a)
+    judged = [e for e in diagnosis.errors if e.category == "reading.needs_judgement"]
+    assert judged and all(e.audience == "parent_only" for e in judged)
+    from services.practice.packs.reading import generate_practice
+    planned = generate_practice(diagnosis, a)
+    assert "Why did Father decide to wait until morning?" not in [i.prompt for i in planned.items]
+
+
+def test_a_long_written_answer_is_never_auto_marked():
+    a = _one("reading", prompt="What happened at the river?",
+             student_response="they waited by the river all night because Father said the ice was not safe yet",
+             teacher_mark="partial", teacher_correction="they waited for morning")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["reading.needs_judgement"]
+
+
+def test_a_multiple_choice_main_idea_question_is_checked_against_the_marked_answer():
+    a = assessment("reading", "reading_quiz_1")
+    cats = {e.item_ref: e.category for e in pipeline.diagnose(a).errors}
+    assert cats["The Long Winter Road #9"] == "reading.choice"
+
+
+def test_reading_practice_never_supplies_an_answer_the_page_did_not():
+    from services.practice.packs.reading import generate_practice
+
+    a = assessment("reading", "reading_quiz_1")
+    planned = generate_practice(pipeline.diagnose(a), a)
+    on_page = {i.teacher_correction for s in a.sections for i in s.items if i.teacher_correction}
+    on_page |= {i.student_response for s in a.sections for i in s.items
+                if i.teacher_mark == "correct" and i.student_response}
+    assert planned.items and all(i.expected_answer in on_page for i in planned.items)
+
+
+def test_a_different_real_word_is_not_called_a_spelling_slip():
+    a = _one("reading", prompt="What does the word ravenous mean?",
+             student_response="angry", teacher_mark="incorrect", teacher_correction="hungry")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["reading.vocabulary"]
+
+
+def test_an_answer_that_contains_the_right_one_is_not_called_partial():
+    for pack in ("reading", "recall"):
+        a = _one(pack, prompt="Where did they sleep?", student_response="not the barn",
+                 teacher_mark="incorrect", teacher_correction="the barn")
+        assert [e.category for e in pipeline.diagnose(a).errors] == [f"{pack}.{'detail' if pack == 'reading' else 'fact'}"]
+
+
+def test_what_the_author_meant_is_a_judgement_not_a_word_meaning():
+    a = _one("reading", prompt="What did the author mean when she wrote that the house held its breath?",
+             student_response="it was windy", teacher_mark="incorrect", teacher_correction="everyone was waiting")
+    assert [e.category for e in pipeline.diagnose(a).errors] == ["reading.needs_judgement"]

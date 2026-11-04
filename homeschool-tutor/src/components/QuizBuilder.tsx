@@ -87,8 +87,12 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
   }, [studentName])
 
   const route = options?.route
-  const usesCloud = !!route && !route.local_available && !!route.cloud_provider
-  const noReader = !!route && !route.local_available && !route.cloud_provider
+  // Photos follow the photo-reading rules; a typed topic or pasted quiz uses
+  // the draft provider, which needs no photo switch but still needs the tick.
+  const photosReadable = !!route && (route.local_available || !!route.cloud_provider)
+  const provider = files.length ? route?.cloud_provider : route?.draft_provider
+  const usesCloud = !!route && !route.local_available && !!provider
+  const noReader = !!route && !route.local_available && !provider
   const hasMaterial = files.length > 0 || sourceText.trim() !== '' || focus.trim() !== ''
   const canDraft = !!subject && hasMaterial && !noReader && (!usesCloud || consent) && !busy
 
@@ -195,14 +199,16 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
               </label>
               <label className={label}>{t('quizBuilder.pages', { max: MAX_PAGES })}
                 <input type="file" accept={ACCEPT} multiple aria-label={t('quizBuilder.pages', { max: MAX_PAGES })}
+                  disabled={!photosReadable}
                   onChange={(e) => { setFiles(Array.from(e.target.files ?? []).slice(0, MAX_PAGES)); e.target.value = '' }}
                   className="mt-1 block w-full text-xs" />
               </label>
+              {!photosReadable && !noReader && <p className="text-xs text-gray-600">{t('quizBuilder.noPhotos')}</p>}
               {files.length > 0 && <p className="text-xs text-gray-500">{t('quizBuilder.pagesChosen', { count: files.length })}</p>}
               {usesCloud && (
                 <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
-                  <span>{t('quizBuilder.cloud', { provider: route?.cloud_provider ?? '' })}</span>
+                  <span>{t('quizBuilder.cloud', { provider: provider ?? '' })}</span>
                 </label>
               )}
               {noReader && <p className="text-xs text-madder-800">{t(teacher ? 'quizBuilder.noLocalModel' : 'quizBuilder.noReader')}</p>}

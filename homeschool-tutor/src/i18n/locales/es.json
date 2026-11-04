@@ -830,7 +830,8 @@
     },
     "secondAnswer": "Una segunda revisión dijo: {{answer}}",
     "teacherDescription": "Parta de un examen, una prueba anterior o un tema. Bede lo prepara para su clase con el modelo de IA propio de la escuela.",
-    "noLocalModel": "Los exámenes de docentes se preparan con el modelo de IA propio de la escuela, y aquí no hay ninguno configurado."
+    "noLocalModel": "Los exámenes de docentes se preparan con el modelo de IA propio de la escuela, y aquí no hay ninguno configurado.",
+    "noPhotos": "Esta instalación todavía no puede leer fotos. Funciona con un tema escrito o un examen pegado."
   },
   "practiceDelivery": {
     "title": "Una pregunta de práctica aprobada por tu familia",

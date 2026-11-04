@@ -30,7 +30,7 @@ from pydantic import ValidationError
 
 from core.config import settings
 from models.practice import GradedAssessment, ReadPhotosRequest
-from services.practice.packs import get_pack
+from services.practice.packs import get_pack, subject_name
 from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
     PhotoRejected,
     ScannerUnavailable,
@@ -57,18 +57,72 @@ class ReadingFailed(Exception):
     pass
 
 
+def _cloud_name(configured: list[str] | None = None) -> str | None:
+    """The cloud provider a consent tick names: the first cloud adapter in
+    the live order, honouring a parent's primary/secondary override
+    (core/provider_state.py), so the tick names where the request really goes."""
+    from core import provider_state
+    from services.adapters import router
+
+    configured = router.configured_adapters() if configured is None else configured
+    order = provider_state.effective_order([a for a in router.preference_order() if a in configured])
+    return next((a for a in order if a != "local"), None)
+
+
+def _named_client(provider: str):
+    """Pinned to the provider the parent agreed to: no failover to another."""
+    from services.adapters import router
+
+    try:
+        return router.resolve_named(provider)
+    except router.NamedAdapterUnavailableError as exc:
+        raise ReadingUnavailable("No AI provider is configured for this.") from exc
+
+
 def reading_route() -> dict:
-    """What the parent is told before uploading: where pages would be read."""
+    """What the parent is told before uploading: where pages would be read.
+
+    `cloud_provider` is for photos and stays withheld while cloud reading is
+    switched off, so the screen never offers a consent tick for a route the
+    server will refuse. `draft_provider` is for a quiz drafted from typed
+    text only (a topic or a pasted quiz, no photos): the same kind of text a
+    tutoring turn already sends, so the photo switch does not govern it. It
+    still needs the parent's tick for that provider by name.
+    """
     from services.adapters import router
 
     configured = router.configured_adapters()
-    cloud = next((a for a in router.preference_order() if a in configured and a != "local"), None)
+    cloud = _cloud_name(configured)
     return {
         "local_available": "local" in configured,
-        # Withheld while cloud reading is switched off, so the screen never
-        # offers a consent tick for a route the server will refuse.
         "cloud_provider": cloud if settings.practice_cloud_reading_enabled else None,
+        "draft_provider": cloud,
     }
+
+
+def text_draft_client(req):
+    """The client for a quiz drafted from typed text only, never photos.
+
+    Local first. Otherwise the configured cloud provider, with the parent's
+    consent for that provider by name, and pinned to it: no failover, since
+    the consent named one provider. Photos never come through here.
+    """
+    from services.adapters import router
+
+    if getattr(req, "pages", None):
+        raise ValueError("text_draft_client is for drafts without photos")
+    local = "local" in router.configured_adapters()
+    chosen = req.route or ("local" if local else "cloud")
+    if chosen == "local":
+        if not local:
+            raise ReadingUnavailable("No local model is configured on this install.")
+        return router.resolve_local_only()
+    cloud = _cloud_name()
+    if not cloud:
+        raise ReadingUnavailable("No AI provider is configured to draft quizzes.")
+    if not req.cloud_consent:
+        raise ConsentRequired(cloud)
+    return _named_client(cloud)
 
 
 def _choose_client(req: ReadPhotosRequest):
@@ -86,8 +140,8 @@ def _choose_client(req: ReadPhotosRequest):
         raise ReadingUnavailable("No AI provider is configured to read photos.")
     if not req.cloud_consent:
         raise ConsentRequired(route["cloud_provider"])
-    from services.ai_service import _client  # the same client tutoring turns use
-    return _client
+    # Photos of a child's work go only to the provider the parent named.
+    return _named_client(route["cloud_provider"])
 
 
 _RULES = """You are reading a photographed, already-graded school worksheet so a parent can review it.
@@ -109,7 +163,7 @@ Rules:
 def _prompt(subject: str) -> str:
     pack = get_pack(subject)
     hints = pack.extract_hints if pack else ""
-    name = pack.manifest.get("display_name", subject) if pack else subject
+    name = subject_name(subject)
     return f"{_RULES}\n\nSubject: {name}\n\n{hints}".strip()
 
 

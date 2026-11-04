@@ -64,7 +64,7 @@
     "subject": "Materia",
     "local": "Lo lee el modelo propio de esta demo.",
     "cloud": "Acepto enviar estas páginas a {{provider}} para que las lea.",
-    "noReader": "En este momento no hay un proveedor de lectura disponible en esta demo.",
+    "noReader": "Leer fotos de exámenes requiere el propio modelo de IA de Bede, en una instalación familiar o escolar.",
     "photos": "Elige hasta {{max}} imágenes o archivos PDF escaneados",
     "photosHint": "JPEG, PNG o PDF escaneado. Las páginas escaneadas del PDF cuentan para el límite de seis.",
     "wordBank": "Banco de palabras",
@@ -158,7 +158,8 @@
       "checked": "Verificada dos veces",
       "verify": "Revisar"
     },
-    "secondAnswer": "Una segunda revisión dijo: {{answer}}"
+    "secondAnswer": "Una segunda revisión dijo: {{answer}}",
+    "noPhotos": "Las fotos requieren el propio modelo de IA de Bede, en una instalación familiar o escolar. Aquí funciona con un tema escrito o un examen pegado."
   },
   "canvas": {
     "cancel": "Cancelar",

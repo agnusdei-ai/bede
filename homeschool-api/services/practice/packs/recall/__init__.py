@@ -79,9 +79,9 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
             g, w = normalize(given), normalize(wanted)
             if _OPTIONS.search(item.prompt) and _CHOICE.match(given) and _CHOICE.match(wanted):
                 category, evidence = "recall.choice", f"chose {given}; the answer is {wanted}"
-            elif w and g and len(w) >= 5 and _distance(g, w) <= 2:
+            elif w and g and len(w) >= 5 and _distance(g, w) <= max(1, len(w) // 5):
                 category, evidence = "recall.spelling", f"wrote {given} for {wanted}: the right answer, spelled differently"
-            elif item.teacher_mark == "partial" or (g and w and (g in w or w in g)):
+            elif item.teacher_mark == "partial" or (g and w and g in w):
                 category, evidence = "recall.partial", f"wrote {given}; the full answer is {wanted}"
             else:
                 category, evidence = "recall.fact", f"wrote {given}; the answer is {wanted}"

@@ -1171,9 +1171,15 @@ graded quiz**. Choose the subject that matches the quiz:
 - **Spelling**: spelling tests. Bede compares each word with the correct
   spelling the teacher wrote and names the pattern, such as a doubled letter
   or *their* for *there*.
-- **History, science and other short answers**: any quiz of things to
-  remember, including geography, reading questions, grammar terms and
-  multiple choice. Practice uses only answers written on the page; Bede never
+- **Reading and language arts**: questions about a passage. Bede checks
+  answers that are in the passage against the teacher's correction, and
+  sends your child back to the passage to practise them. A question that
+  asks for judgement, such as why something happened or the main idea, is
+  never marked by Bede. It is shown to you with your child's answer and the
+  teacher's comment.
+- **Grammar, Science, History and social studies, Geography**, or **Other
+  short-answer quiz**: any quiz of things to remember, including multiple
+  choice. Practice uses only answers written on the page; Bede never
   supplies a fact of its own.
 - **Latin**.
 
@@ -1257,6 +1263,11 @@ Then print the quiz and the answer key. Nothing is saved.
 
 Scripture, Saints & Catechism and Morning Time are not offered, because Bede
 never scores a child's faith.
+
+If your install has no AI model of its own, a quiz drafted from a typed topic
+or pasted text can still go to your AI provider, after you tick the box
+naming it. It goes to that provider only, never to a backup. Photos need the
+separate photo setting described above.
 
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use

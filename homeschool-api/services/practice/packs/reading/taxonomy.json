@@ -1,0 +1,47 @@
+{
+  "categories": {
+    "reading.detail": {
+      "description": "A question answered in the passage, with a different answer from the teacher's.",
+      "example": "wrote the barn for the creek",
+      "remediation_strategy": "Ask again and have the child find the sentence in the passage that answers it before answering.",
+      "parent_script": "Before they answer, ask them to point to the sentence in the passage that tells them."
+    },
+    "reading.choice": {
+      "description": "Chose a different option on a multiple-choice reading question.",
+      "example": "B for D",
+      "remediation_strategy": "Ask again; check each option against the passage and rule out the ones it does not support.",
+      "parent_script": "Have them read each option and say whether the passage supports it, before choosing."
+    },
+    "reading.vocabulary": {
+      "description": "A different meaning for a word used in the passage.",
+      "example": "wrote happy for tired, for the meaning of weary",
+      "remediation_strategy": "Reread the sentence the word is in, and the ones around it, then ask for the meaning again.",
+      "parent_script": "Read the sentence with the word aloud together, and ask what else in it gives a clue."
+    },
+    "reading.partial": {
+      "description": "Part of the answer, or the teacher marked it partly right.",
+      "example": "wrote the dog for the dog and the cat",
+      "remediation_strategy": "Ask again, then 'what else does the passage say?'.",
+      "parent_script": "When they give part of an answer, ask \"what else does the passage say?\"."
+    },
+    "reading.spelling": {
+      "description": "The right answer, spelled differently.",
+      "example": "wrote pionear for pioneer",
+      "remediation_strategy": "Ask again; then look-say-cover-write-check on the word.",
+      "parent_script": "Praise that they knew it, then write the word together."
+    },
+    "reading.needs_judgement": {
+      "description": "A question that asks for judgement: why, the main idea, the author's purpose, an inference, or a written response. Bede does not mark it.",
+      "example": "",
+      "remediation_strategy": "The parent reads the child's answer and the teacher's comment, then talks it through with the child using the passage."
+    },
+    "reading.needs_answer": {
+      "description": "No correct answer written on the page; the parent is asked.",
+      "example": "",
+      "remediation_strategy": "Parent adds the correct answer so it can be practised; nothing is said to the child."
+    }
+  },
+  "strengths": {
+    "reading.section": "every answer right"
+  }
+}

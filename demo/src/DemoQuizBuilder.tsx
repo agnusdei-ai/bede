@@ -69,8 +69,12 @@ export default function DemoQuizBuilder({
   }, [token, t])
 
   const route = options?.route
-  const usesCloud = !!route && !route.local_available && !!route.cloud_provider
-  const noReader = !!route && !route.local_available && !route.cloud_provider
+  // Photos follow the photo-reading rules; a typed topic or pasted quiz uses
+  // the draft provider, which needs no photo switch but still needs the tick.
+  const photosReadable = !!route && (route.local_available || !!route.cloud_provider)
+  const provider = files.length ? route?.cloud_provider : route?.draft_provider
+  const usesCloud = !!route && !route.local_available && !!provider
+  const noReader = !!route && !route.local_available && !provider
   const hasMaterial = files.length > 0 || sourceText.trim() !== '' || focus.trim() !== ''
   const canDraft = !!subject && hasMaterial && !noReader && (!usesCloud || consent) && !busy
 
@@ -226,6 +230,7 @@ export default function DemoQuizBuilder({
           accept={ACCEPT}
           multiple
           aria-label={t('demoQuiz.pages', { max: MAX_PAGES })}
+          disabled={!photosReadable}
           onChange={(event) => {
             setFiles(Array.from(event.target.files ?? []).slice(0, MAX_PAGES))
             event.target.value = ''
@@ -233,11 +238,12 @@ export default function DemoQuizBuilder({
           className="mt-1 block w-full text-xs"
         />
       </label>
+      {!photosReadable && !noReader && <p className="text-xs text-gray-600">{t('demoQuiz.noPhotos')}</p>}
       {files.length > 0 && <p className="text-xs text-gray-500">{t('demoQuiz.pagesChosen', { count: files.length })}</p>}
       {usesCloud && (
         <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">
           <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5" />
-          <span>{t('demoQuiz.cloud', { provider: route?.cloud_provider ?? '' })}</span>
+          <span>{t('demoQuiz.cloud', { provider: provider ?? '' })}</span>
         </label>
       )}
       {noReader && <p className="text-xs text-madder-800">{t('demoQuiz.noReader')}</p>}

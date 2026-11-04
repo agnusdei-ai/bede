@@ -1,0 +1,35 @@
+{
+  "_fixture": "reading_quiz_1",
+  "_note": "A quiz written for this repository on an invented passage about a pioneer family. Not a real child's work.",
+  "assessment": {
+    "subject": "reading",
+    "sections": [
+      {
+        "label": "The Long Winter Road",
+        "instructions": "Read the passage, then answer the questions.",
+        "required_format": "free",
+        "items": [
+          {"number": 1, "prompt": "Where did the family cross the river?", "student_response": "at the bridge", "teacher_mark": "incorrect", "teacher_correction": "at the ford"},
+          {"number": 2, "prompt": "What does the word weary mean in paragraph 2? A) happy B) tired C) angry D) late", "student_response": "A", "teacher_mark": "incorrect", "teacher_correction": "B"},
+          {"number": 3, "prompt": "What does the word sturdy mean in paragraph 3?", "student_response": "pretty", "teacher_mark": "incorrect", "teacher_correction": "strong"},
+          {"number": 4, "prompt": "Why did Father decide to wait until morning?", "student_response": "he was hungry", "teacher_mark": "incorrect", "teacher_correction": "the ice was too thin to cross in the dark"},
+          {"number": 5, "prompt": "Who rode in the wagon?", "student_response": "Mother", "teacher_mark": "partial", "teacher_correction": "Mother and the baby"},
+          {"number": 6, "prompt": "What trees grew along the creek?", "student_response": "willos", "teacher_mark": "incorrect", "teacher_correction": "willows"},
+          {"number": 7, "prompt": "What season was it?", "student_response": "winter", "teacher_mark": "correct"},
+          {"number": 8, "prompt": "What did the family carry in the barrel?", "student_response": "water", "teacher_mark": "incorrect"},
+          {"number": 9, "prompt": "Which sentence best states the main idea? A) Winter is cold B) The family worked together to reach safety C) Oxen are strong", "student_response": "A", "teacher_mark": "incorrect", "teacher_correction": "B"}
+        ]
+      }
+    ]
+  },
+  "expected_categories": {
+    "The Long Winter Road #1": "reading.detail",
+    "The Long Winter Road #2": "reading.choice",
+    "The Long Winter Road #3": "reading.vocabulary",
+    "The Long Winter Road #4": "reading.needs_judgement",
+    "The Long Winter Road #5": "reading.partial",
+    "The Long Winter Road #6": "reading.spelling",
+    "The Long Winter Road #8": "reading.needs_answer",
+    "The Long Winter Road #9": "reading.choice"
+  }
+}

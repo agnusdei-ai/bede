@@ -105,7 +105,11 @@ async def generate_quiz(
 async def educator_quiz_options(auth: dict = Depends(require_educator)) -> dict:
     options = _quiz_options()
     # Teachers draft on the school's own model only, so no cloud consent is offered.
-    options["route"] = {"local_available": options["route"]["local_available"], "cloud_provider": None}
+    options["route"] = {
+        "local_available": options["route"]["local_available"],
+        "cloud_provider": None,
+        "draft_provider": None,
+    }
     return options
 
 

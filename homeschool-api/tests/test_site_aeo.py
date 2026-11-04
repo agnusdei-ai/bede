@@ -60,11 +60,33 @@ def test_sitemap_lists_only_real_pages():
                 f"sitemap lists {path} as build-produced, but build_pages_site.sh "
                 f"no longer creates {BUILD_PRODUCED_PATHS[path]}"
             )
+            if path == "/bede/tour/":
+                # Generated separately by Vite; verify source and both build steps.
+                assert (SITE.parent / "demo/tour/index.html").is_file()
+                assert (SITE.parent / "demo/vite.tour.config.ts").is_file()
+                assert "vite build --config vite.tour.config.ts" in build
+                assert "cp -r demo/dist-tour/* publish/bede/tour/" in build
             continue
         target = SITE / path.lstrip("/") if path != "/" else SITE / "index.html"
         if target.is_dir():
             target = target / "index.html"
         assert target.exists(), f"sitemap lists {path} but no page backs it"
+
+
+def test_llms_crawl_links_and_pilot_data_boundary():
+    """Crawl links must refer to published pages, and the data scope stays explicit."""
+    llms = (SITE / "llms.txt").read_text(encoding="utf-8")
+    sitemap = (SITE / "sitemap.xml").read_text(encoding="utf-8")
+    published = set(re.findall(r"<loc>(https://agnusdei\.ai/[^<]*)</loc>", sitemap))
+    links = re.findall(r"\]\((https://agnusdei\.ai/[^)]*)\)", llms)
+    assert links, "llms.txt must identify its public source pages"
+    for url in links:
+        # The hosted interactive demo is intentionally outside the static sitemap.
+        assert url in published or url == "https://agnusdei.ai/bede/", (
+            f"llms.txt links to an undeclared public page: {url}"
+        )
+    assert "synthetic data" in llms.lower()
+    assert "real learner data" in llms.lower()
 
 
 def test_robots_points_at_the_sitemap():

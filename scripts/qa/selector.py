@@ -50,6 +50,10 @@ DOC_TESTS = {
     "docs/DATA_RETENTION.md": "test_coppa_compliance.py",
     "docs/INFORMATION_SECURITY_POLICY.md": "test_coppa_compliance.py",
     "docs/SYNTHETIC_QUALIFICATION.md": "test_qualification_workflow.py",
+    # Public crawl contracts must exercise the backend AEO guard.
+    "site/sitemap.xml": "test_site_aeo.py",
+    "site/robots.txt": "test_site_aeo.py",
+    "site/llms.txt": "test_site_aeo.py",
 }
 IGNORED_PREFIXES = ("docs/", "site/", ".github/", "assets/")
 TEST_EXT = re.compile(r"(?:\.test\.[jt]sx?$|\.spec\.[jt]sx?$|(^|/)test_[^/]+\.py$)")
@@ -201,6 +205,9 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
     for name in files:
         if name in DOC_TESTS:
             scopes["backend"]["tests"].append("tests/" + DOC_TESTS[name])
+        if name.startswith("site/schools/"):
+            # School markup and assets are read by test_site_aeo.py.
+            scopes["backend"]["tests"].append("tests/test_site_aeo.py")
         if name.startswith("homeschool-api/"):
             known = True
             if name in VOICE_CONTRACT_PATHS:

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, ImagePlus, X, Sparkles } from 'lucide-react'
-import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText } from '../services/api'
+import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText, ParentalConsentRequiredError } from '../services/api'
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
@@ -13,6 +13,7 @@ import { readerFacingError } from '../utils/networkFailure'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
+import PracticeDelivery from './PracticeDelivery'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
@@ -483,7 +484,15 @@ export default function SocraticChat({
         // so this is a connection that stayed down, and the useful thing to
         // say is what to do next. Same distinction the mic already draws
         // with chat.micNetworkUnavailable.
-        addToolMessage('error', `⚠️ ${readerFacingError(err, t('chat.turnNetworkFailed'))}`)
+        // A parent has one quick step left in Parent Setup. Said plainly and
+        // without legal wording: a child can act on "ask a parent", not on
+        // the reason behind it.
+        addToolMessage(
+          'error',
+          err instanceof ParentalConsentRequiredError
+            ? `⚠️ ${t('chat.parentStepNeeded')}`
+            : `⚠️ ${readerFacingError(err, t('chat.turnNetworkFailed'))}`,
+        )
       }
     } finally {
       finalizeAssistantMessage()
@@ -838,6 +847,13 @@ export default function SocraticChat({
 
   return (
     <div className="flex flex-col h-full">
+      {role === 'child' && token && sessionConfig && (
+        <PracticeDelivery
+          token={token}
+          studentName={sessionConfig.student_name}
+          onAnswer={(prompt, response) => send(`${t('practiceDelivery.questionContext', { prompt })}\n${t('practiceDelivery.answerContext', { response })}`)}
+        />
+      )}
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (

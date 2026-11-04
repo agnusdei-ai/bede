@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig, Subject } from '../types'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import PilotTeacherJourney from '../components/PilotTeacherJourney'
+import QuizBuilder from '../components/QuizBuilder'
 import {
   fetchInstructorRoster,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
@@ -216,6 +217,7 @@ export default function EducatorDesk() {
           ))}
         </nav>
         {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
+        {token && <QuizBuilder token={token} audience="educator" />}
         <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
           <p className="text-xs text-gray-500">{roster.length} assigned learners. Your school administrator manages learner assignments.</p>

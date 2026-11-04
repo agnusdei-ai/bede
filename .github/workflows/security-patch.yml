@@ -147,7 +147,13 @@ jobs:
           advisory against it. The floors and ceilings in requirements*.in are
           unchanged. See the pull request body for which packages moved and why.
           MSG
-          git push --force-with-lease origin "$BRANCH"
+          # Checkout is shallow and has no remote-tracking ref for the standing
+          # patch branch. Capture the remote tip explicitly and lease against
+          # that exact SHA (or its absence) rather than relying on stale info.
+          # A concurrent branch update is rejected, never overwritten.
+          set -euo pipefail
+          remote_sha="$(git ls-remote --heads origin "refs/heads/$BRANCH" | awk '{print $1}')"
+          git push --force-with-lease="refs/heads/$BRANCH:$remote_sha" origin "HEAD:refs/heads/$BRANCH"
 
       - name: Open or update the standing pull request
         if: steps.patch.outputs.changed == 'true'

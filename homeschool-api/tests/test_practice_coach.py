@@ -22,7 +22,13 @@ from sqlalchemy.pool import StaticPool
 
 from core.config import settings
 from core.database import Base, PracticeAssessment, PracticeSetRecord, StudentConfig
-from core.deps import require_parent
+from core.deps import (
+    require_demo_practice_preview,
+    require_educator,
+    require_family_data_write,
+    require_parent,
+    require_real_user,
+)
 from core.encryption import encrypt_json
 from models.practice import (
     ApproveSetRequest,
@@ -30,6 +36,8 @@ from models.practice import (
     Diagnosis,
     GradedAssessment,
     PhotoPage,
+    PracticeOutcomeRequest,
+    PracticeSet,
     ReadPhotosRequest,
     teacher_mark_count,
 )
@@ -233,6 +241,8 @@ def _routing(monkeypatch, *, local: bool, cloud: str | None, local_client=None, 
     monkeypatch.setattr(router, "resolve_local_only", lambda *a, **k: local_client)
     if cloud_client is not None:
         monkeypatch.setattr(ai_service, "_client", cloud_client)
+        # A typed quiz draft is pinned to the one provider the parent agreed to.
+        monkeypatch.setattr(router, "resolve_named", lambda *a, **k: cloud_client)
 
 
 def _req(**kw):
@@ -337,11 +347,21 @@ async def db():
 PARENT = {"role": "parent"}
 
 
-def test_every_practice_route_requires_a_parent():
+def test_every_practice_route_uses_its_scoped_authorization_guard():
     for route in practice_router.router.routes:
         deps = [p.default for p in inspect.signature(route.endpoint).parameters.values()
                 if isinstance(p.default, DependsType)]
-        assert any(d.dependency is require_parent for d in deps), route.path
+        if route.path.startswith("/practice/demo/"):
+            expected = require_demo_practice_preview
+        elif route.path.startswith("/practice/educator/"):
+            expected = require_educator
+        elif route.path.endswith("/delivery"):
+            expected = require_real_user
+        elif route.path.endswith("/outcomes"):
+            expected = require_family_data_write
+        else:
+            expected = require_parent
+        assert any(d.dependency is expected for d in deps), route.path
 
 
 @pytest.mark.asyncio
@@ -418,6 +438,152 @@ async def test_deleting_the_student_deletes_their_practice_records(db):
     counts = await delete_all_student_data(db, "Alice")
     assert counts["practice_assessments"] == 1 and counts["practice_sets"] == 1
     assert not (await db.execute(select(PracticeAssessment))).scalars().all()
+
+
+@pytest.mark.asyncio
+async def test_approved_practice_delivery_records_only_scoped_responses(db):
+    from core import consent
+    from core.database import ChildLearnerBinding, PracticeSetRecord
+
+    for student in ("Alice", "Bob"):
+        await consent.grant(
+            db, student, parent_label="Synthetic parent",
+            method="parent_attested_checkbox", presented_notice_hash=consent.notice_hash(),
+        )
+    made = await practice_router.enter_assessment(
+        "Alice", ConfirmAssessmentRequest(assessment=settled()), auth=PARENT, db=db)
+    planned = await practice_router.plan_practice("Alice", made["id"], auth=PARENT, db=db)
+    set_id = planned["set_id"]
+
+    # A draft is never delivered, even when the caller can name its id.
+    assert await practice_router.get_delivery_sets("Alice", auth=PARENT, db=db) == []
+
+    await practice_router.approve_set(
+        "Alice", set_id, ApproveSetRequest(), auth=PARENT, db=db)
+    delivered = await practice_router.get_delivery_sets("Alice", auth=PARENT, db=db)
+    assert len(delivered) == 1
+    assert set(delivered[0]["items"][0]) == {"index", "prompt", "hint"}
+    assert "expected_answer" not in json.dumps(delivered)
+    assert "parent_script" not in json.dumps(delivered)
+    assert delivered[0]["completed_indices"] == []
+
+    response = "Synthetic learner response"
+    recorded = await practice_router.record_practice_outcome(
+        "Alice", set_id, PracticeOutcomeRequest(item_index=0, response=response),
+        auth=PARENT, db=db,
+    )
+    assert recorded == {"recorded": True, "already_recorded": False}
+    repeated = await practice_router.record_practice_outcome(
+        "Alice", set_id, PracticeOutcomeRequest(item_index=0, response=response),
+        auth=PARENT, db=db,
+    )
+    assert repeated == {"recorded": True, "already_recorded": True}
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.record_practice_outcome(
+            "Alice", set_id, PracticeOutcomeRequest(item_index=0, response="Changed response"),
+            auth=PARENT, db=db,
+        )
+    assert exc.value.status_code == 409
+
+    # The child's device binding is checked before any approved-set read.
+    db.add(ChildLearnerBinding(device_id="synthetic-device", student_name="Alice", nonce="synthetic-nonce"))
+    await db.commit()
+    child = {"role": "child", "device_id": "synthetic-device", "learner_nonce": "synthetic-nonce"}
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.get_delivery_sets("Bob", auth=child, db=db)
+    assert exc.value.status_code == 404
+
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.record_practice_outcome(
+            "Bob", set_id, PracticeOutcomeRequest(item_index=0, response=response),
+            auth=PARENT, db=db,
+        )
+    assert (exc.value.status_code, exc.value.detail) == (404, "Record not found")
+    saved = await practice_router.get_sets("Alice", status="approved", auth=PARENT, db=db)
+    assert saved[0]["observed_outcomes"]["0"]["response"] == response
+    row = await db.get(PracticeSetRecord, set_id)
+    assert response.encode() not in row.detail_enc
+
+
+@pytest.mark.asyncio
+@pytest.mark.real_consent
+async def test_consent_withdrawal_blocks_practice_delivery_and_outcomes(db):
+    from core import consent
+
+    await consent.grant(
+        db, "Alice", parent_label="Synthetic parent",
+        method="parent_attested_checkbox", presented_notice_hash=consent.notice_hash(),
+    )
+    made = await practice_router.enter_assessment(
+        "Alice", ConfirmAssessmentRequest(assessment=settled()), auth=PARENT, db=db)
+    planned = await practice_router.plan_practice("Alice", made["id"], auth=PARENT, db=db)
+    await practice_router.approve_set(
+        "Alice", planned["set_id"], ApproveSetRequest(), auth=PARENT, db=db)
+    revoked = await consent.revoke(db, "Alice", reason="synthetic test")
+    assert revoked is not None
+    assert await consent.active_record(db, "Alice") is None
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.get_delivery_sets("Alice", auth=PARENT, db=db)
+    assert exc.value.status_code == 403
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.record_practice_outcome(
+            "Alice", planned["set_id"], PracticeOutcomeRequest(item_index=0, response="synthetic"),
+            auth=PARENT, db=db,
+        )
+    assert exc.value.status_code == 403
+
+
+@pytest.mark.asyncio
+@pytest.mark.real_consent
+async def test_photo_read_requires_consent_before_model_processing_or_storage(db, monkeypatch):
+    monkeypatch.setattr(settings, "consent_install_ack_hash", "")
+    monkeypatch.setattr(settings, "consent_install_ack_at", "")
+    called = False
+
+    async def read_pages(_request):
+        nonlocal called
+        called = True
+        return settled()
+
+    monkeypatch.setattr(extract, "read_pages", read_pages)
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.read_assessment(
+            "Synthetic Learner",
+            ReadPhotosRequest(subject="latin", pages=[PhotoPage(data="syntheticbase64")]),
+            auth=PARENT,
+            db=db,
+        )
+    assert exc.value.status_code == 403
+    assert called is False
+    assert not (await db.execute(select(PracticeAssessment))).scalars().all()
+
+
+@pytest.mark.asyncio
+async def test_demo_practice_flow_is_transient_and_approval_is_explicit(db, monkeypatch):
+    from core.database import PracticeAssessment, PracticeSetRecord
+
+    demo = {"role": "demo_code", "code": "synthetic-demo"}
+    _routing(monkeypatch, local=True, cloud=None, local_client=StubClient(json.dumps(GOLDEN["assessment"])))
+    read = await practice_router.demo_read_assessment(_req(), auth=demo)
+    assert read["status"] == "needs_review"
+    assert read["ask_parent"]
+    assert not (await db.execute(select(PracticeAssessment))).scalars().all()
+
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.demo_plan_practice(
+            ConfirmAssessmentRequest(assessment=golden()), auth=demo)
+    assert exc.value.status_code == 409
+
+    planned = await practice_router.demo_plan_practice(
+        ConfirmAssessmentRequest(assessment=settled()), auth=demo)
+    assert planned["practice_set"]["items"]
+    approved = await practice_router.demo_approve_practice(
+        ApproveSetRequest(practice_set=PracticeSet.model_validate(planned["practice_set"])),
+        auth=demo,
+    )
+    assert approved["approved"] is True
+    assert approved["items"] and "expected_answer" not in json.dumps(approved)
+    assert not (await db.execute(select(PracticeSetRecord))).scalars().all()
 
 
 def test_practice_never_reaches_beyond_a_smaller_word_bank():

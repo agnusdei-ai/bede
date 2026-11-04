@@ -11,12 +11,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import license_state, licensing
+from core import consent, license_state, licensing
 from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
 from core.database import StudentConfig, get_db
-from core.deps import require_elevated_parent, require_parent, require_real_user
+from core.deps import require_elevated_parent, require_parent, require_real_user, require_learner_access
 from core import student_keys
 from core.encryption import decrypt_json, encrypt_json, student_aad
 from models.schemas import PodConfigsRequest, SessionConfig, VoiceNarrationPreferenceRequest
@@ -48,6 +48,7 @@ async def save_pod_configs(
     req: PodConfigsRequest,
     _: dict = Depends(require_parent),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,  # FastAPI injects it; direct callers may omit it
 ) -> None:
     """
     Parent saves all student configs for today's pod. Upserts per student
@@ -59,6 +60,16 @@ async def save_pod_configs(
     unlicensed instance never reaches this handler (LicenseGateMiddleware
     blocks it), so this is a defense-in-depth check, not the primary gate.
     """
+    # A wrong consent acknowledgement is refused before anything is saved.
+    if req.consent_notice_hash is not None and req.consent_notice_hash != consent.notice_hash():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": "notice_changed",
+                "message": "The privacy notice has changed since it was shown. Show the current notice and try again.",
+            },
+        )
+
     # Required the moment this deployment OFFERS a non-English login choice
     # at all (settings.locale != "en"), not just for students a parent
     # expects to use it — the toggle lives on the login screen itself
@@ -92,6 +103,37 @@ async def save_pod_configs(
                     f"(this pod would have {total_seats_used}) — contact us to upgrade."
                 ),
             )
+    # Consent is a server-side precondition, not merely a Parent Setup UI tick.
+    # Check every student before creating keys or writing configuration rows.
+    # Without a notice hash, only current consent or a valid installer
+    # acknowledgement can authorize the save; a new child cannot inherit
+    # a sibling's consent.
+    consent_result = None
+    if req.consent_notice_hash is not None:
+        # Refuse paused saves before refreshing any consent ledger entries.
+        for config in req.configs:
+            if await consent.is_paused(db, config.student_name):
+                raise HTTPException(
+                    status_code=status.HTTP_423_LOCKED,
+                    detail={"error": "collection_paused",
+                            "message": "A parent has paused collection for this student."},
+                )
+        try:
+            consent_result = await consent.ensure_consent(
+                db,
+                [c.student_name for c in req.configs],
+                parent_label=req.parent_label,
+                presented_notice_hash=req.consent_notice_hash,
+            )
+        except consent.ConsentError as exc:
+            raise HTTPException(
+                status_code=exc.http_status,
+                detail={"error": exc.code, "message": exc.message},
+            ) from exc
+
+    for config in req.configs:
+        await consent.require_collection(db, config.student_name)
+
     for config in req.configs:
         _key = await student_keys.get_or_create(db, config.student_name)
         enc = encrypt_json(config.model_dump(), _config_aad(config.student_name), _key)
@@ -104,6 +146,11 @@ async def save_pod_configs(
         else:
             row.config_enc = enc
     await db.commit()
+
+    if consent_result is not None:
+        from routers.consent import audit_consent_result
+
+        await audit_consent_result(request, consent_result)
 
 
 @router.get("/configs", response_model=list[SessionConfig])
@@ -127,10 +174,11 @@ async def list_pod_configs(
 @router.get("/configs/{student_name}", response_model=SessionConfig)
 async def get_student_config(
     student_name: str,
-    _: dict = Depends(require_real_user),
+    auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> SessionConfig:
-    """Any authenticated user can fetch a student config — child loads their own session."""
+    """Fetch only the server-authorized learner configuration."""
+    await require_learner_access(auth, student_name, db)
     result = await db.execute(
         select(StudentConfig).where(StudentConfig.student_name == student_name)
     )
@@ -149,7 +197,7 @@ async def get_student_config(
 async def update_voice_narration_preference(
     student_name: str,
     req: VoiceNarrationPreferenceRequest,
-    _: dict = Depends(require_real_user),
+    auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """
@@ -161,6 +209,7 @@ async def update_voice_narration_preference(
     can never use this to rewrite subjects, lesson focus, or any other setting
     that should stay parent-controlled.
     """
+    await require_learner_access(auth, student_name, db)
     result = await db.execute(
         select(StudentConfig).where(StudentConfig.student_name == student_name)
     )

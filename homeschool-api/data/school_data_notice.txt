@@ -1,0 +1,53 @@
+Notice version: 2026-10-30.3
+
+SCHOOL AUTHORIZATION FOR STORAGE OF STUDENT INFORMATION
+Storage, Use, Maintenance and Custody of Student Information by a School
+
+This Notice is provided with reference to the Children's Online Privacy Protection Act, 15 U.S.C. sections 6501 to 6506, and its implementing rule, 16 C.F.R. Part 312 ("COPPA"), and, to the extent applicable to the School, the Family Educational Rights and Privacy Act, 20 U.S.C. section 1232g, and 34 C.F.R. Part 99 ("FERPA"). It describes the information that Bede will store about students at the School's direction, the purposes for which it is used, and the responsibilities of the School. This Notice is a draft for review by counsel and is not a statement that any law is satisfied by it.
+
+1. Software Provider and Contact
+Bede is software provided by Agnus Dei Technologies, LLC (the "Provider"). Questions about this Notice may be directed to info@agnusdei.ai.
+
+2. Definitions
+"School" means the school, campus or other educational institution on whose behalf Bede is deployed and for which this authorization is given.
+"Authorized Official" means the designated school administrator or executive acting on the School's behalf, whose authority is verified by the School outside the Bede application.
+"Student Information" means information, in any form, that Bede stores about an identifiable student of the School, as described in Section 4.
+
+3. Authority of the Authorized Official
+The Authorized Official represents that he or she is authorized to act on behalf of the School in giving the authorization set out in this Notice. The Bede application requires an administrator passkey for the electronic authorization; possession of this credential does not itself establish authority from the School. Evidence of institutional authorization must be independently verified before real learner-data qualification or deployment.
+
+4. Student Information Stored
+Once authorization is given, the following categories of Student Information may be stored and maintained:
+(a) the student's name as entered by the School;
+(b) assessment records and the evidence recorded by a teacher concerning the student's work;
+(c) teaching plans, recommendations, and the decisions of a teacher concerning them; and
+(d) the record of the student's tutoring interactions with Bede, only where the School has enabled tutoring for that student.
+
+5. Educational Purpose and Use Limitation
+Student Information is stored and used by Bede for the School's educational purposes. Bede does not sell it, use it for advertising or targeted marketing, or use it to train its own general-purpose models. The School must separately verify each chosen cloud Service Provider's retention and model-training terms and settings before transmitting any Student Information to that provider; this Notice does not make a no-training promise on that provider's behalf.
+
+6. School Control and Custody
+Where Bede is installed and operated on equipment under the control of the School or its designee (a "self-hosted or school-managed deployment"), the School is the operator and custodian of the Student Information. The Provider does not collect, receive, access or maintain Student Information held on such a deployment.
+
+As custodian, the School is responsible for: (a) determining the purposes for which, and the means by which, the information is processed; (b) the retention and deletion of the information; and (c) the administration of access, including the approval of educators and the protection of credentials and of the equipment on which Bede operates.
+
+7. Access
+Access to Student Information is limited to educators whom the School has approved for the campus and to whom the School has granted the particular student, and to the administrator of the deployment.
+
+8. Parental Notice and Consent Responsibilities
+The School is responsible for providing any notice to parents, and for obtaining any consent from parents, that is required by applicable law, including COPPA and, to the extent applicable, FERPA, and by the School's own policies. The Provider does not give notice to, or obtain consent from, the parents of the School's students on the School's behalf.
+
+9. Third-Party Services
+Student Information is disclosed only to the artificial intelligence model and speech-service providers that the School elects to configure ("Service Providers"). Where a model that operates entirely on equipment under the School's control is used, no such disclosure occurs. The School is responsible for reviewing each Service Provider's terms concerning data retention and the use of data for model training before enabling that provider.
+
+10. Retention, Deletion and Withdrawal
+Student Information is retained until the School deletes it. The administrator may delete a student's records at any time. The administrator may withdraw this authorization at any time. Withdrawal ceases the storage of new Student Information for the School and does not delete existing records. Review and deletion remain available after withdrawal.
+
+11. Security
+Student Information maintained by Bede is protected by reasonable administrative and technical safeguards, including encryption at rest.
+
+12. Changes to this Notice
+If this Notice is materially changed, renewed authorization will be required before new Student Information is stored under the revised Notice.
+
+13. Authorization
+By indicating agreement below, the Authorized Official represents that he or she is authorized to act on behalf of the School, has read this Notice, and authorizes the storage, use and maintenance of Student Information as described in it, subject to the responsibilities of the School set out in Sections 6, 8 and 9.

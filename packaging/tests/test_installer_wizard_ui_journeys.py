@@ -38,6 +38,14 @@ def run():
                 errors = []
                 page.on("pageerror", lambda err: errors.append(str(err)))
                 page.goto(base)
+                # Consent comes first: the notice, not the setup form.
+                page.get_by_role("heading", name="Parental Notice and Consent").wait_for()
+                assert page.locator('[name="license_key"]').count() == 0
+                page.get_by_role("button", name="I Consent and Continue").click()
+                page.locator(".error").first.wait_for()  # unticked: refused
+                assert page.locator('[name="license_key"]').count() == 0
+                page.locator('input[name="agree"]').check()
+                page.get_by_role("button", name="I Consent and Continue").click()
                 page.get_by_role("heading", name="Welcome to Bede").wait_for()
                 assert page.title() == "Welcome to Bede"
                 outcomes.append("welcome title and branding")

@@ -719,6 +719,11 @@ class VoiceNarrationPreferenceRequest(BaseModel):
 
 class PodConfigsRequest(BaseModel):
     configs: List[SessionConfig] = Field(..., min_length=1, max_length=10)
+    # Optional parental-consent acknowledgement made at save time. When present
+    # it must equal the current notice hash (409 notice_changed otherwise), and
+    # consent is recorded for the students being saved. Absent: no change.
+    consent_notice_hash: Optional[str] = Field(default=None, max_length=128)
+    parent_label: str = Field(default="Parent", min_length=1, max_length=50)
 
 
 class TutorRequest(BaseModel):

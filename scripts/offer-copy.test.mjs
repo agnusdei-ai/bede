@@ -26,8 +26,8 @@ test("school inquiries preserve pilot limitations and implementation qualificati
   const html = read("schools");
   assert.match(html, /onsite implementation and customization/i);
   assert.match(html, /certified hardware/);
-  assert.match(html, /No direct student tutoring/);
-  assert.match(html, /institutional, security, and deployment qualification/);
+  assert.match(html, /does not tutor students directly/);
+  assert.match(html, /institutional, security and deployment approval/);
   assert.doesNotMatch(html, /pilot is free|current free, invite-only|published prices|See published pricing/i);
   const json = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   assert.ok(json);

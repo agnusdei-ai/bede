@@ -163,6 +163,7 @@ _POLICY: dict[str, frozenset[str]] = {
     # a real family session.
     "sandbox.demo_preview": frozenset({"demo_code"}),
     "diagnostic.demo_preview": frozenset({"demo_code"}),
+    "practice.demo_preview": frozenset({"demo_code"}),
     # The demo's own Parent Setup. A visitor configures their own demo
     # session the way a parent configures a real one; a family session
     # has ParentSetup.tsx and must never reach this path.

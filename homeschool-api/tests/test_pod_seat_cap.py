@@ -8,7 +8,7 @@ since require_parent's JWT plumbing isn't what's under test here.
 import base64
 import json
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 import pytest_asyncio
@@ -16,12 +16,19 @@ from Crypto.PublicKey import ECC
 from Crypto.Signature import eddsa
 from fastapi import HTTPException
 
-from core import license_state, licensing
+from core import consent, license_state, licensing
 from core.config import settings
 from models.schemas import GradeStage, PodConfigsRequest, SessionConfig
 from routers.pod import save_pod_configs
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
+
+
+@pytest.fixture(autouse=True)
+def authorized_install_ack(monkeypatch):
+    """Seat-cap tests use an authorized synthetic install, not an API bypass."""
+    monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
+    monkeypatch.setattr(settings, "consent_install_ack_at", datetime.now(timezone.utc).isoformat())
 
 
 @pytest_asyncio.fixture

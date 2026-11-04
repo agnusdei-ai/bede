@@ -350,3 +350,62 @@ async def test_existing_fingerprint_binding_still_applies_to_a_paired_token(db_s
     from core.middleware import compute_fingerprint
     assert validate_fingerprint(payload, compute_fingerprint("127.0.0.1", "agent-one"))
     assert not validate_fingerprint(payload, compute_fingerprint("127.0.0.1", "some-other-browser"))
+
+
+@pytest.mark.asyncio
+async def test_revoking_hosted_pairing_invalidates_existing_child_jwt(db_session, hosted, monkeypatch):
+    """The same signed JWT must fail both the real guard and /auth/validate
+    immediately after the parent revokes its pairing (no new login needed)."""
+    import core.database as database_module
+    from core.deps import require_real_user
+    from routers.auth import validate_token
+
+    # The guard opens its own session, as in production. Use the real
+    # in-memory test engine, not a fake pairing lookup.
+    monkeypatch.setattr(
+        database_module,
+        "AsyncSessionLocal",
+        async_sessionmaker(db_session.bind, expire_on_commit=False),
+    )
+
+    with pytest.raises(HTTPException):
+        await login(_child(device_id="tablet-live-revoke"), _request(), db_session)
+    await approve_child_device("tablet-live-revoke", _request(), db_session, {"role": "parent"})
+    issued = await login(_child(device_id="tablet-live-revoke"), _request(), db_session)
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=issued.access_token)
+
+    assert (await require_real_user(_request(), credentials))["role"] == "child"
+    assert (await validate_token(_request(), credentials, db_session))["valid"] is True
+
+    await revoke_child_device("tablet-live-revoke", _request(), db_session, {"role": "parent"})
+
+    with pytest.raises(HTTPException) as guard_denial:
+        await require_real_user(_request(), credentials)
+    assert guard_denial.value.status_code == 401
+
+    with pytest.raises(HTTPException) as validate_denial:
+        await validate_token(_request(), credentials, db_session)
+    assert validate_denial.value.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_hosted_child_token_without_live_pairing_fails_closed(db_session, hosted, monkeypatch):
+    """A signed legacy/misissued child token cannot skip hosted approval."""
+    import core.database as database_module
+    from core.deps import require_real_user
+    from core.middleware import compute_fingerprint
+    from core.security import create_access_token
+
+    monkeypatch.setattr(
+        database_module,
+        "AsyncSessionLocal",
+        async_sessionmaker(db_session.bind, expire_on_commit=False),
+    )
+    token = create_access_token(
+        {"sub": "child", "role": "child", "device_id": "never-approved"},
+        fingerprint=compute_fingerprint("127.0.0.1", "pytest"),
+    )
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+    with pytest.raises(HTTPException) as denial:
+        await require_real_user(_request(), credentials)
+    assert denial.value.status_code == 401

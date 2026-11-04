@@ -1387,8 +1387,12 @@ these controls operating effectively over a 6–12 month window, plus a
 documented policy set (Information Security, Access Control, Change
 Management, Vendor Management, Risk Assessment) — none of which a
 codebase alone can satisfy. `docs/INCIDENT_RESPONSE.md` covers the
-incident-response piece specifically; the other policies remain
-undocumented. The technical controls this repository already has
+incident-response piece specifically. Access control, change management,
+vendor management, risk assessment and business continuity exist as drafts
+awaiting owner approval in `docs/audit-readiness/policies/`, alongside the
+proposed system boundary, a dated current-state evidence table and assessor
+questions (`docs/audit-readiness/README.md`). Drafts are not policies in
+effect. The technical controls this repository already has
 (encryption at rest, constant-time auth, rate limiting, security headers,
 container hardening, the encrypted independent audit log) map most
 directly to the Security and Confidentiality criteria; Availability,

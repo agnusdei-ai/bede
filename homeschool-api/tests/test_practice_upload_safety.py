@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 from pypdf import PdfWriter
-from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NumberObject
+from pypdf.generic import BooleanObject, DecodedStreamObject, DictionaryObject, FloatObject, NameObject, NumberObject
 
 from models.practice import PhotoPage, ReadPhotosRequest
 from services.practice import extract, upload_safety
@@ -157,6 +157,102 @@ async def test_active_content_inside_an_object_stream_is_found_by_the_graph_walk
     reader = PdfReader(io.BytesIO(raw))
     with pytest.raises(PhotoRejected):
         upload_safety._refuse_active_content(reader, b"%PDF- nothing readable in the bytes")
+
+
+def test_unreadable_pdf_indirect_object_fails_closed(monkeypatch):
+    """A damaged indirect object cannot be silently skipped during PDF safety review."""
+    from pypdf import PdfReader
+    from pypdf.generic import IndirectObject
+
+    raw = make_pdf(("jpeg",))
+    reader = PdfReader(io.BytesIO(raw))
+
+    def unreadable(_self):
+        raise ValueError("synthetic unreadable indirect object")
+
+    monkeypatch.setattr(IndirectObject, "get_object", unreadable)
+    with pytest.raises(PhotoRejected, match="unreadable object"):
+        upload_safety._refuse_active_content(reader, raw)
+
+
+def _flate_scan(writer, data: bytes) -> None:
+    """Encode the existing synthetic 16x16 RGB scan as Flate in a real PDF."""
+    image = writer.pages[0]["/Resources"]["/XObject"]["/Im0"].get_object()
+    image[NameObject("/Filter")] = NameObject("/FlateDecode")
+    image._data = zlib.compress(data)
+
+
+@pytest.mark.asyncio
+async def test_flate_scan_bounded_before_pypdf_decoding(monkeypatch):
+    """A tiny compressed over-expansion must fail before unbounded get_data()."""
+    from pypdf.generic import EncodedStreamObject
+
+    expected = bytes([90, 140, 200]) * (16 * 16)
+    valid = make_pdf(("raw",), lambda writer: _flate_scan(writer, expected))
+    too_large = make_pdf(("raw",), lambda writer: _flate_scan(writer, expected + b"X"))
+
+    original = EncodedStreamObject.get_data
+
+    def guarded_get_data(stream):
+        if stream.get("/Subtype") == "/Image":
+            raise AssertionError("pypdf must not inflate a Flate image unchecked")
+        return original(stream)
+
+    monkeypatch.setattr(EncodedStreamObject, "get_data", guarded_get_data)
+    pages = await prep(valid)
+    assert len(pages) == 1 and decoded(pages)[0].format == "PNG"
+    with pytest.raises(PhotoRejected, match="expands beyond"):
+        await prep(too_large)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("key,value", [
+    ("/Predictor", FloatObject(1.5)),
+    ("/Columns", FloatObject(16.5)),
+    ("/Colors", FloatObject(3.5)),
+    ("/BitsPerComponent", FloatObject(8.5)),
+    ("/Predictor", BooleanObject(True)),
+])
+async def test_flate_scan_refuses_non_integral_decode_params(key, value):
+    """Do not silently truncate malformed PDF predictor metadata."""
+    expected = bytes([90, 140, 200]) * (16 * 16)
+
+    def mutate(writer):
+        _flate_scan(writer, expected)
+        image = writer.pages[0]["/Resources"]["/XObject"]["/Im0"].get_object()
+        image[NameObject("/DecodeParms")] = DictionaryObject({
+            NameObject("/Predictor"): NumberObject(1),
+            NameObject("/Columns"): NumberObject(16),
+            NameObject("/Colors"): NumberObject(3),
+            NameObject("/BitsPerComponent"): NumberObject(8),
+        })
+        image["/DecodeParms"][NameObject(key)] = value
+
+    with pytest.raises(PhotoRejected, match="unsupported decoding"):
+        await prep(make_pdf(("raw",), mutate))
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("predictor", [12, 15])
+async def test_flate_scan_png_predictor_bounded_and_decoded(predictor):
+    """A valid PNG predictor remains supported under the decompression cap."""
+    row = bytes([90, 140, 200]) * 16
+    # PNG predictor rows carry one filter byte (0 = None).
+    encoded = (bytes([0]) + row) * 16
+
+    def mutate(writer):
+        _flate_scan(writer, encoded)
+        image = writer.pages[0]["/Resources"]["/XObject"]["/Im0"].get_object()
+        image[NameObject("/DecodeParms")] = DictionaryObject({
+            NameObject("/Predictor"): NumberObject(predictor),
+            NameObject("/Columns"): NumberObject(16),
+            NameObject("/Colors"): NumberObject(3),
+            NameObject("/BitsPerComponent"): NumberObject(8),
+        })
+
+    pages = await prep(make_pdf(("raw",), mutate))
+    assert len(pages) == 1
+    assert decoded(pages)[0].getpixel((0, 0)) == (90, 140, 200)
 
 
 @pytest.mark.asyncio

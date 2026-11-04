@@ -17,7 +17,7 @@ const parentSteps = [
   "Return to the work",
 ];
 const educatorSteps = [
-  "Review synthetic evidence",
+  "Review sample evidence",
   "Consider the next instruction",
   "Confirm your review",
   "Review the record",
@@ -196,7 +196,7 @@ function PathPicker({ onChoose, onBack }: { onChoose: (path: TourPath) => void; 
           </button>
           <button className="tour-path-choice" onClick={() => onChoose("educator")} data-testid="button-choose-classical-educator">
             <strong>Classical educator</strong>
-            <span>Teacher-only, synthetic-only planning: separate illustrative evidence from observation, then make the instructional decision.</span>
+            <span>For teachers: look at an example record, note what you see, then decide.</span>
             <small>3 steps · school pilot simulation</small>
           </button>
         </div>
@@ -244,7 +244,7 @@ function ParentStep({
   if (step === 0) return (
     <>
       <p className="tour-eyebrow">Step 1 · the adult sets the direction</p>
-      <h1 tabIndex={-1} data-tour-heading>Choose a fictional learner, book, and goal.</h1>
+      <h1 tabIndex={-1} data-tour-heading>Choose a learner, book, and goal.</h1>
       <p className="tour-lead">Use only the prepared examples. Do not enter a real child’s name or personal information.</p>
       <div className="tour-field-grid">
         <label className="tour-field">Fictional learner
@@ -257,8 +257,8 @@ function ParentStep({
         <label className="tour-field">Book
           <select value={book} onChange={(e) => setBook(e.target.value)} data-testid="select-sample-book">
             <option value="Aesop’s Fables · “The Lion and the Mouse”">Aesop’s Fables · “The Lion and the Mouse” (fixed example)</option>
-            <option value="Charlotte’s Web">Charlotte’s Web (planning choice; exercise remains the Aesop fable)</option>
-            <option value="The Wind in the Willows">The Wind in the Willows (planning choice; exercise remains the Aesop fable)</option>
+            <option value="Charlotte’s Web">Charlotte’s Web (planning only)</option>
+            <option value="The Wind in the Willows">The Wind in the Willows (planning only)</option>
           </select>
         </label>
         <label className="tour-field full">A practical learning goal
@@ -269,30 +269,30 @@ function ParentStep({
           </select>
         </label>
       </div>
-      <p className="tour-note"><strong>Fixed sample exercise:</strong> The later scripted question and learner work always use “The Lion and the Mouse.” Choosing another book here is a planning choice only; the example does not switch texts.</p>
-      <p className="tour-note"><strong>You choose.</strong> Parent direction begins with a real text, an attainable purpose, and your knowledge of the learner.</p>
+      <p className="tour-note"><strong>Note:</strong> the example always uses “The Lion and the Mouse,” whichever book you pick.</p>
+      <p className="tour-note"><strong>You choose.</strong> Start with a real book, a clear goal, and what you know of your child.</p>
     </>
   );
   if (step === 1) return (
     <>
       <p className="tour-eyebrow">Step 2 · guided reasoning</p>
       <h1 tabIndex={-1} data-tour-heading>What does the Lion learn from the Mouse?</h1>
-      <p className="tour-lead">A representative Socratic question, followed by a choice of scripted learner response. Nothing is generated live.</p>
+      <p className="tour-lead">A sample question. Pick a scripted answer. Nothing is generated live.</p>
       <blockquote className="tour-quote">“Why might the Lion’s decision to spare the Mouse matter later in the story?”</blockquote>
-      <span className="tour-scripted-label">Select a fictional response</span>
+      <span className="tour-scripted-label">Select a response</span>
       <div className="tour-choice-list" role="radiogroup" aria-label="Choose a sample learner response">
         <label className="tour-choice"><input type="radio" name="parent-response" checked={response === "choice"} onChange={() => setResponse("choice")} data-testid="radio-response-reasoning" /><span><strong>“The Mouse could help him later.”</strong> A prediction tied to the story’s events.</span></label>
         <label className="tour-choice"><input type="radio" name="parent-response" checked={response === "evidence"} onChange={() => setResponse("evidence")} data-testid="radio-response-text-detail" /><span><strong>“He let it go, even though it was small.”</strong> A detail worth connecting to the outcome.</span></label>
         <label className="tour-choice"><input type="radio" name="parent-response" checked={response === "answer"} onChange={() => setResponse("answer")} data-testid="radio-response-short-answer" /><span><strong>“Because he was kind.”</strong> A starting thought that invites a reason from the text.</span></label>
       </div>
-      {selectedFeedback && <div className="tour-feedback" role="status" aria-live="polite" data-testid="status-scripted-feedback"><strong>{selectedFeedback.title}</strong>{selectedFeedback.text}<br /><small>Illustrative scripted feedback only · no inference or assessment</small></div>}
+      {selectedFeedback && <div className="tour-feedback" role="status" aria-live="polite" data-testid="status-scripted-feedback"><strong>{selectedFeedback.title}</strong>{selectedFeedback.text}<br /><small>Scripted example</small></div>}
     </>
   );
   if (step === 2) return (
     <>
       <p className="tour-eyebrow">Step 3 · sample learner work</p>
       <h1 tabIndex={-1} data-tour-heading>Listen before you evaluate.</h1>
-      <p className="tour-lead">A fictional narration might sound like this. Use the switch to compare a short written response.</p>
+      <p className="tour-lead">A narration might sound like this. Use the switch to compare a short written response.</p>
       <div className="tour-quote" aria-live="polite" data-testid="text-sample-learner-work">
         {workFormat === "writing"
           ? "The Lion let the Mouse go. Later, the Mouse helped free him from the net. The story shows that even a small friend can help."
@@ -302,30 +302,29 @@ function ParentStep({
         <button type="button" className={`tour-button ${workFormat !== "writing" ? "" : "secondary"}`} onClick={() => setWorkFormat("narration")} aria-pressed={workFormat !== "writing"} data-testid="button-show-sample-narration">Sample narration</button>
         <button type="button" className={`tour-button ${workFormat === "writing" ? "" : "secondary"}`} onClick={() => setWorkFormat("writing")} aria-pressed={workFormat === "writing"} data-testid="button-show-sample-writing">Sample writing</button>
       </div>
-      <p className="tour-note"><strong>Sample only.</strong> This is invented learner work. It is not a real child’s response, a learning outcome, or a model to copy.</p>
+      <p className="tour-note"><strong>Sample only.</strong> Invented work, not a real child’s.</p>
     </>
   );
   if (step === 3) return (
     <>
       <p className="tour-eyebrow">Step 4 · parent review</p>
       <h1 tabIndex={-1} data-tour-heading>You know what needs another question.</h1>
-      <p className="tour-lead">Review the fictional learner’s work in light of your chosen goal. Add a note if you like; it stays on this screen and is not saved.</p>
+      <p className="tour-lead">Review the work against your goal. Add a note if you like; it is not saved.</p>
       <div className="tour-review-card">
         <strong>{learner} · selected planning book: {book}</strong>
         <dl><dt>Your goal</dt><dd>{goal}</dd><dt>Fixed sample work · “The Lion and the Mouse”</dt><dd>{workFormat === "writing" ? "A brief written response connecting the Lion’s release of the Mouse to the later rescue." : "An oral retelling that notices the reversal between the large Lion and small Mouse."}</dd></dl>
       </div>
-      <p className="tour-note"><strong>For clarity:</strong> the selected planning book does not change this scripted Aesop exercise.</p>
-      <label className="tour-field full" style={{ marginTop: "1rem" }}>Your review note <small>Optional, fictional, and not stored beyond this tour state.</small>
+      <label className="tour-field full" style={{ marginTop: "1rem" }}>Your review note <small>Optional. Not saved.</small>
         <textarea value={parentNote} onChange={(e) => setParentNote(e.target.value)} maxLength={320} placeholder="For example: Ask which detail shows the Mouse can help." data-testid="textarea-parent-review" />
       </label>
-      <p className="tour-note"><strong>Your judgment leads.</strong> Bede may support a conversation; you decide whether the response meets your purpose.</p>
+      <p className="tour-note"><strong>You decide</strong> whether the answer meets your goal.</p>
     </>
   );
   return (
     <>
       <p className="tour-eyebrow">Step 5 · screen to real work</p>
       <h1 tabIndex={-1} data-tour-heading>Close the screen. Carry the question forward.</h1>
-      <p className="tour-lead">Choose one practical next move for the fictional learner. This is a prompt for your judgment, not an assigned lesson.</p>
+      <p className="tour-lead">Pick one next step.</p>
       <div className="tour-choice-list" role="radiogroup" aria-label="Choose a practical application">
         <label className="tour-choice"><input type="radio" name="application" checked={practical === "book"} onChange={() => setPractical("book")} data-testid="radio-practical-book" /><span><strong>Return to the book</strong> Find the line that gives the Mouse a chance to help.</span></label>
         <label className="tour-choice"><input type="radio" name="application" checked={practical === "handwriting"} onChange={() => setPractical("handwriting")} data-testid="radio-practical-handwriting" /><span><strong>Write by hand</strong> Put the character’s decision and its consequence into two sentences.</span></label>
@@ -349,27 +348,27 @@ function EducatorStep({
     <>
       <p className="tour-eyebrow">Step 1 · teacher-only review</p>
       <h1 tabIndex={-1} data-tour-heading>Keep evidence and observation distinct.</h1>
-      <p className="tour-lead">A fictional campus, learner, and sample record. No official assessment item or real student information appears here.</p>
-      <div className="tour-review-card" data-testid="card-synthetic-evidence">
-        <span className="tour-scripted-label">Synthetic illustrative evidence</span>
+      <p className="tour-lead">A made-up school, student and record.</p>
+      <div className="tour-review-card" data-testid="card-sample-evidence">
+        <span className="tour-scripted-label">Sample evidence</span>
         <strong>Fictional learner · Grade 5</strong>
         <dl><dt>Illustrative measure</dt><dd>Oral reading sample · 74 words correct per minute</dd><dt>Record status</dt><dd>Sample value only; not a benchmark, diagnosis, or official result.</dd></dl>
       </div>
       <div className="tour-review-card" style={{ marginTop: ".8rem" }} data-testid="card-teacher-observation">
         <span className="tour-scripted-label">Teacher observation · separately recorded</span>
-        <p>During a familiar passage, the fictional learner paused at longer words and retold the central events after a prompt.</p>
+        <p>During a familiar passage, the learner paused at longer words and retold the central events after a prompt.</p>
         <label className="tour-field">Your teacher observation <small>Optional example. Do not enter real student data.</small>
-          <textarea value={observation} onChange={(e) => { setObservation(e.target.value); setReviewConfirmed(false); }} maxLength={320} placeholder="What did you notice in this synthetic example?" data-testid="textarea-teacher-observation" />
+          <textarea value={observation} onChange={(e) => { setObservation(e.target.value); setReviewConfirmed(false); }} maxLength={320} placeholder="What did you notice in this example?" data-testid="textarea-teacher-observation" />
         </label>
       </div>
-      <p className="tour-note"><strong>School pilot scope:</strong> teacher-only and synthetic-only. No direct student instruction or delivery.</p>
+      <p className="tour-note"><strong>In the school pilot,</strong> teachers work with example records, and nothing goes to students.</p>
     </>
   );
   if (step === 1) return (
     <>
       <p className="tour-eyebrow">Step 2 · teacher judgment</p>
       <h1 tabIndex={-1} data-tour-heading>Decide what happens next.</h1>
-      <p className="tour-lead">Review this proposed next instruction. Edit the sample wording, approve it, or reject it. Your decision is illustrative and does not send a lesson.</p>
+      <p className="tour-lead">Approve, edit, or reject the proposed next step. Nothing is sent.</p>
       <label className="tour-field full">Proposed next instruction
         <textarea value={proposed} onChange={(e) => { setProposed(e.target.value); setReviewConfirmed(false); setDecision(null); }} maxLength={800} data-testid="textarea-proposed-instruction" />
       </label>
@@ -384,14 +383,14 @@ function EducatorStep({
         {decision === "rejected" && "Proposal rejected. No instructional step is assigned."}
         {!decision && "No decision yet. Choose approve, edit, or reject before reviewing the record."}
       </p>
-      <p className="tour-note"><strong>No direct instruction or delivery.</strong> This school-pilot illustration is for teacher review only; it does not message or teach a student.</p>
+      <p className="tour-note"><strong>This is for you to review.</strong> Nothing goes to a student.</p>
     </>
   );
   if (step === 2) return (
     <>
       <p className="tour-eyebrow">Step 3 · deliberate review</p>
       <h1 tabIndex={-1} data-tour-heading>Check the evidence, observation, and decision.</h1>
-      <p className="tour-lead">Before viewing the local review record, take a moment to confirm that this synthetic example reflects the choice you intended.</p>
+      <p className="tour-lead">Check that this example shows the choice you meant.</p>
       <div className="tour-review-card">
         <dl>
           <dt>Illustrative evidence</dt><dd>Fictional oral reading sample · 74 words correct per minute</dd>
@@ -402,16 +401,15 @@ function EducatorStep({
       </div>
       <label className="tour-choice" style={{ marginTop: "1rem" }}>
         <input type="checkbox" checked={reviewConfirmed} onChange={(e) => setReviewConfirmed(e.target.checked)} data-testid="checkbox-confirm-teacher-review" />
-        <span><strong>I have reviewed this fictional example.</strong> This confirms only my local walkthrough review; it does not approve delivery to a student.</span>
+        <span><strong>I’ve reviewed this example.</strong> Nothing is sent to a student.</span>
       </label>
-      <p className="tour-note"><strong>Human judgment stays visible.</strong> Review is separate from the evidence and from any instruction delivered in a real classroom.</p>
     </>
   );
   return (
     <>
       <p className="tour-eyebrow">Step 4 · review record</p>
       <h1 tabIndex={-1} data-tour-heading>Keep a clear record of the decision.</h1>
-      <p className="tour-lead">The record reflects only what the teacher reviewed and chose in this synthetic example.</p>
+      <p className="tour-lead">The record shows only what you reviewed and chose in this example.</p>
       <div className="tour-review-card" data-testid="card-teacher-review-record">
         <span className="tour-scripted-label">Local sample record · not saved</span>
         <dl>
@@ -440,8 +438,8 @@ function Completion({
       </h1>
       {skipped
         ? <p className="tour-lead">You chose to finish before all steps were reviewed. No missing response, review, or teacher decision has been filled in for you.</p>
-        : <p className="tour-lead">{path === "parent" ? "You chose the book, question, and practical next move. Bede’s role is support; your judgment remains central." : "You reviewed synthetic evidence, separated teacher observation, and made the instructional decision. Nothing was sent to a learner."}</p>}
-      <p className="tour-note"><strong>{path === "educator" ? "Teacher-only, synthetic-only." : "Fictional family example."}</strong> {decisionLabel} No live inference, account, or persistence.</p>
+        : <p className="tour-lead">{path === "parent" ? "You chose the book, question, and practical next move. Bede’s role is support; your judgment remains central." : "You reviewed sample evidence, kept your observation separate, and made the decision. Nothing was sent to a learner."}</p>}
+      <p className="tour-note"><strong>{path === "educator" ? "A made-up classroom example." : "Fictional family example."}</strong> {decisionLabel} Nothing here is live or saved.</p>
       <div className="tour-actions tour-complete-actions">
         <button className="tour-button" onClick={onRestart} data-testid="button-restart-tour"><RotateCcw size={16} /> Restart this path</button>
         <button className="tour-button secondary" onClick={onSwitch} data-testid="button-switch-path-complete">Switch path</button>
@@ -579,7 +577,7 @@ export function Tour() {
           <img className="tour-side-mark" src={asset("bede-icon.webp")} alt="" />
           <p className="tour-eyebrow">{path === "parent" ? "Family learning" : "School pilot scope"}</p>
           <h2 className="tour-side-heading">{path === "parent" ? "You choose. Bede supports. You review." : "The teacher decides."}</h2>
-          <p>{path === "parent" ? "Read closely, discuss thoughtfully, and return to the book or written work." : "Teacher-only, synthetic-only. No direct student tutoring or delivery."}</p>
+          <p>{path === "parent" ? "Read closely, discuss thoughtfully, and return to the book or written work." : "Teachers work with example records. Bede does not tutor students in the pilot."}</p>
           {path === "educator" && <p><strong>Decision:</strong> {decision ? decision[0].toUpperCase() + decision.slice(1) : "Not recorded"}</p>}
           <div className="tour-side-rule" />
           <p><span className="tour-kbd">←</span> Back <span className="tour-kbd">→</span> Continue</p>

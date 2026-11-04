@@ -55,6 +55,16 @@ existing browser setup wizard, without a manual Docker install or a manual
    it's the exact same marker format on every platform, read by the same
    `scripts/setup_wizard/wizard.py` regardless of which installer wrote it.
 
+## Parental Notice and Consent
+
+The first screen of the browser wizard this installer hands off to is the
+Parental Notice and Consent. Declining ("I Do Not Consent") ends setup: the
+wizard exits non-zero, no `.env` is written and Bede is not started (`setup-gui.sh` (via `scripts/setup-gui-common.sh`)
+stops on the wizard's exit status). Docker and, if chosen, Ollama are
+installed before the wizard runs, because the wizard itself needs Docker;
+they hold no child information. The wording is a draft for counsel. See
+`docs/PRODUCTION_SETUP.md`.
+
 ## Local AI (Ollama)
 
 Same hardware-tiering logic as `Setup-Bede.ps1`, deliberately kept in sync

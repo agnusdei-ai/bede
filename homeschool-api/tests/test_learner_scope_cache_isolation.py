@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
+from school_auth_helper import authorize_campus
 import pytest_asyncio
 from anthropic.types import RawContentBlockDeltaEvent, RawContentBlockStartEvent, RawContentBlockStopEvent
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -77,6 +78,8 @@ async def two_campuses(db):
     t2 = await provision_educator(db, "synthetic.teacher.two", "synthetic-passphrase-two-strong")
     c1 = (await create_campus(CampusInput(title="Synthetic Campus One"), auth=ADMIN, db=db))["campus_id"]
     c2 = (await create_campus(CampusInput(title="Synthetic Campus Two"), auth=ADMIN, db=db))["campus_id"]
+    await authorize_campus(db, c1)
+    await authorize_campus(db, c2)
     l1 = (await create_learner(c1, LearnerInput(display_name=SAME_NAME), auth=ADMIN, db=db))["learner_id"]
     l2 = (await create_learner(c2, LearnerInput(display_name=SAME_NAME), auth=ADMIN, db=db))["learner_id"]
     await approve_educator_membership(c1, t1["id"], auth=ADMIN, db=db)

@@ -7,6 +7,7 @@ import { useSessionStore } from '../store/sessionStore'
 import WorkLedger from '../components/WorkLedger'
 import EducatorAssessments from '../components/EducatorAssessments'
 import PracticeCoach from '../components/PracticeCoach'
+import QuizBuilder from '../components/QuizBuilder'
 import SubjectCoverage from '../components/SubjectCoverage'
 import MasteryOverview from '../components/MasteryOverview'
 import type { MasteryArea } from '../components/MasteryOverview'
@@ -907,6 +908,7 @@ export default function Progress() {
                 parent approves before the child sees any of it. See
                 docs/PRACTICE_COACH.md. */}
             <PracticeCoach token={token} studentName={activeStudent} />
+            <QuizBuilder token={token} studentName={activeStudent} />
             <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}

@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Palette, Check } from 'lucide-react'
 import { BUBBLE_COLORS, CHAT_THEMES, type BubbleColor, type ChatTheme } from './useChatTheme'
+import { MENU_GUTTER, MENU_WIDTH, placeThemeMenu } from './themeMenuPlacement'
 
 /**
  * Compact background-theme picker for the chat header: a palette icon that
@@ -11,6 +12,8 @@ import { BUBBLE_COLORS, CHAT_THEMES, type BubbleColor, type ChatTheme } from './
  * persisted by the parent via useChatTheme. Mirror of
  * homeschool-tutor/src/components/ThemePicker.tsx.
  */
+export { MENU_GUTTER, MENU_WIDTH, placeThemeMenu }
+
 export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }: {
   theme: ChatTheme
   onSelect: (id: string) => void
@@ -20,6 +23,35 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<{ top: number; left: number; maxHeight: number } | null>(null)
+
+  // Position against the viewport, not the header, so the menu can never
+  // open off the screen whatever sits beside the button.
+  useLayoutEffect(() => {
+    if (!open || !buttonRef.current) { setPlace(null); return }
+    const r = buttonRef.current.getBoundingClientRect()
+    setPlace(placeThemeMenu(r, window.innerWidth, window.innerHeight))
+  }, [open])
+
+  // A fixed menu would drift from its button on scroll or rotation, so it
+  // closes instead.
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    // Scrolling the menu's own list (a short screen) must not close it.
+    const onScroll = (e: Event) => {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return
+      setOpen(false)
+    }
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', onScroll, true)
+    }
+  }, [open])
 
   // Close on any tap/click outside — standard dropdown behavior, and on a
   // tablet there's no Esc key to reach for.
@@ -35,6 +67,7 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
+        ref={buttonRef}
         onClick={() => setOpen((v) => !v)}
         title={t('themePicker.backgroundTheme')}
         aria-label={t('themePicker.backgroundThemeAria', { name: theme.name })}
@@ -44,8 +77,13 @@ export default function ThemePicker({ theme, onSelect, bubble, onSelectBubble }:
         <Palette size={15} />
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 w-52">
+      {open && place && (
+        <div
+          ref={menuRef}
+          data-testid="theme-menu"
+          className="fixed z-50 bg-white rounded-xl border border-parchment-200 shadow-lg p-2 overflow-y-auto"
+          style={{ top: place.top, left: place.left, width: Math.min(MENU_WIDTH, window.innerWidth - 2 * MENU_GUTTER), maxHeight: place.maxHeight }}
+        >
           <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1 pb-1">{t('themePicker.background')}</div>
           {CHAT_THEMES.map((ct) => (
             <button

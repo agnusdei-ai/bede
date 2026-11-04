@@ -57,6 +57,12 @@ class SelectorTests(unittest.TestCase):
         self.assertEqual(plan["scopes"]["homeschool-tutor"]["tests"], ["src/Widget.test.tsx"])
         self.assertFalse(plan["scopes"]["homeschool-tutor"]["full"])
 
+    def test_backend_test_reading_a_frontend_file_is_selected(self):
+        (self.root / "homeschool-api/tests/test_reads_widget.py").write_text(
+            'PATH = "homeschool-tutor/src/Widget.tsx"\n')
+        plan = selector.select(self.root, ["homeschool-tutor/src/Widget.tsx"])
+        self.assertIn("tests/test_reads_widget.py", plan["scopes"]["backend"]["tests"])
+
     def test_unmapped_source_fails_closed(self):
         plan = selector.select(self.root, ["unknown-engine/x.go"])
         self.assertTrue(all(x["full"] for x in plan["scopes"].values()))
@@ -91,6 +97,17 @@ class SelectorTests(unittest.TestCase):
     def test_docs_contract_maps_to_specific_test(self):
         plan = selector.select(self.root, ["docs/DECISIONS.md"])
         self.assertIn("tests/test_decision_register.py", plan["scopes"]["backend"]["tests"])
+
+    def test_site_aeo_contracts_run_targeted_backend_guard(self):
+        # Public crawl contracts must select assertions rather than be skipped.
+        for path in ("site/sitemap.xml", "site/robots.txt", "site/llms.txt",
+                     "site/schools/index.html", "site/schools/assets.css"):
+            with self.subTest(path=path):
+                plan = selector.select(self.root, [path])
+                backend = plan["scopes"]["backend"]
+                self.assertEqual(backend["tests"], ["tests/test_site_aeo.py"])
+                self.assertFalse(backend["full"])
+                self.assertFalse(plan["critical"])
 
     def test_rename_includes_old_and_new_paths(self):
         old = self.root / "homeschool-api/services/example.py"

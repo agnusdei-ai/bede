@@ -369,30 +369,27 @@ readers" section.
 
 ### A session 404s on its own first chunk/finish, a few seconds after opening — same instance the whole time
 
-A third way to reach the same symptom as the two above, and the one that
-actually matters most in practice: reported live from the demo with a full
-trace, `instance=` identical across every single call (`start`, the failing
-`chunk`/`finish`, and the still-open `events`), which rules out
-cross-instance routing outright per the diagnostic rule above. A session
+A third reported trace has `instance=` identical across every call
+(`start`, the failing `chunk`/`finish`, and the still-open `events`). This
+does **not** prove that the requests reached one worker: `RENDER_INSTANCE_ID`
+identifies the platform instance and can be shared by multiple worker
+processes, each with its own session dictionary. The repository's Docker
+command starts one uvicorn worker, but that is not proof of the live
+platform's worker count or restart history. A session
 opened normally (`200`), then its own very first `chunk` and `finish` calls
 both 404'd ("Unknown or finished streaming session") about four seconds
 later — well under the 180s TTL, and the reported hold was itself under
 four seconds, so nothing about a stale/abandoned session applies either.
 
-The only server-side code path that can remove a session that young is
-`events()`'s own `finally` block running before a `'done'` item ever
-arrived — a client disconnect, or something cancelling that coroutine out
-from under it. Client-side, `useHybridVoiceInput.ts`'s `consumeEvents`
-issues exactly one `events()` request per turn and never aborts it early on
-its own, so the leading theory is an intermediary between the browser and
-the app (most plausibly something in Render's own edge/proxy path) treating
-a connection with zero bytes flowing as idle-and-dead — and this stream can
-genuinely sit fully silent for the first `CHUNK_UPLOAD_INTERVAL_MS` (4s)
-after opening, since nothing is pushed onto `session.queue` until the first
-chunk uploads; a short hold can end before that first tick ever fires at
-all. `sse-starlette`'s `EventSourceResponse` ping — the only thing that
-would otherwise put bytes on the wire during that gap — defaults to every
-15 seconds, longer than the whole gap in the reported trace.
+Historically an early events disconnect discarded the session. The current
+reader instead releases its reader lock and preserves the same owner-bound
+session until uploads, completion, or the existing idle TTL reclaim it.
+Repeated disconnects do not refresh that audio-retention deadline. A
+concurrent second reader cannot consume the first reader's queue. Thus an
+early disconnect alone is not a confirmed explanation for a 404 on this
+version. Expiry, explicit revocation, completion, process restarts, and
+routing to another worker must be distinguished using server logs; an
+events HTTP 200 is also not proof that its body contains a valid session.
 
 Not confirmed with certainty (that needs production log access this
 sandbox doesn't have), so two things shipped rather than a single guessed
@@ -405,13 +402,61 @@ server logs directly, the same "observe before fix" precedent
 seconds instead of the 15s default — specifically for this one stream,
 since `/tutor/chat`/`/sandbox/chat`'s `EventSourceResponse` calls stream
 near-continuous text from the model and rarely sit idle long enough for
-this to matter. If the root cause turns out to be exactly what's suspected
-here, more frequent bytes on the wire during the silent gap closes it
-directly; if not, the new server-side log will say so on the next report.
+this to matter. Those pings mitigate an intermediary's idle timeout, not session loss.
 See `tests/test_streaming_transcription.py`'s
 `test_events_torn_down_early_logs_a_warning_naming_the_session` and its
 `test_events_completing_normally_logs_no_early_teardown_warning` sibling
 (pinning the warning does NOT fire on an ordinary completed turn).
+
+### Terminal failures and bounded waits
+
+Transcription exceptions are terminal `error`/`done` events, never an empty
+successful transcript. Expiry or revocation clears queued transcripts and
+audio, cancels the session worker, and wakes an attached reader immediately.
+The same unknown-session response remains indistinguishable from an
+ownership mismatch; no recovery bypasses authorization or recreates a
+session under another identity.
+
+The events reader allows intentional recording silence within the existing
+180-second idle TTL. This matters for metered transcription, which emits no
+partials while a child is recording. At `/finish`, a private wake-up switches
+the reader to the existing 45-second final-processing timeout. Previously
+the generic 45-second data-item timeout also applied during a valid
+120-second hold; SSE pings did not reset that server-side timer. A final
+timeout now emits an error and ends the session rather than producing
+no-speech feedback. This server limit measures the gap between queued data
+items, not total inference time; the client also has an absolute post-release
+backstop. These limits bound coordination; canceling an asyncio
+task cannot forcibly stop native inference already executing in a thread.
+
+Both clients bound voice HTTP requests to 30 seconds, including the start
+response's JSON body. A separate 60-second post-release backstop prevents
+an events connection that stays alive without a terminal result from
+leaving “Transcribing” active indefinitely. Upload, finish, and stream
+failures end the attempt promptly with connection feedback, not the
+“speak closer” feedback reserved for a successful empty transcript.
+Cancellation aborts stale requests, readers, and timers; a transcript is
+delivered only after both `final` and `done`, at most once per attempt.
+Canceling a pending microphone permission request does not block the next
+press. Late results and errors from that canceled request cannot restart
+capture, open a fallback request, or end a newer turn. Outstanding audio
+graph teardowns remain tracked across repeated cancellations so an old
+close cannot clear a new recording's samples.
+
+Captured PCM remains in the current consented attempt only. A failed delta
+upload is not blindly resent: a lost acknowledgment could otherwise append
+the same audio twice. Starting another turn does not replay the canceled
+one, and a failed or canceled attempt clears its client-side buffers.
+Tutor chat now also bounds the response-header wait to 60 seconds, while
+retaining its existing 60-second body-read stall limit. A timed-out request
+is not automatically retried because the server may already be working;
+the existing limited retries remain for eligible transport failures before
+any reply reaches the caller.
+
+Synthetic regressions exercise the real router functions and session
+reader, with fake transcription and shortened test deadlines. They do not
+establish the cause of the reported production 404s, validate live routing,
+or verify microphone behavior on a physical tablet.
 
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 

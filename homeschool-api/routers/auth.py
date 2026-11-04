@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core import child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
-from core.database import ChildDevicePairing, get_db
+from core.database import ChildDevicePairing, ChildLearnerBinding, StudentConfig, get_db
 from core.demo_code_session import (
     end_session as end_code_session,
     generate_code,
@@ -23,7 +23,7 @@ from core.demo_code_session import (
     redeem_code,
     set_parent_config,
 )
-from core.deps import require_auth, require_demo_parent_config, require_parent
+from core.deps import require_auth, require_demo_parent_config, require_parent, require_live_hosted_child_pairing
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
@@ -409,6 +409,10 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
         # touches in routers/mfa.py's _issue_parent_token, the equivalent
         # point once the second factor completes.
         token_data["device_id"] = req.device_id
+        if req.role == "child":
+            binding = await db.get(ChildLearnerBinding, req.device_id)
+            if binding is not None:
+                token_data["learner_nonce"] = binding.nonce
         await device_registry.touch(db, req.device_id, req.role, ctx["user_agent"])
 
     # demo_code tokens skip IP+UA fingerprint binding (parent/child keep it
@@ -569,6 +573,37 @@ async def approve_child_device(
     return {"approved": device_id}
 
 
+class ChildLearnerAssignment(BaseModel):
+    student_name: str = Field(min_length=1, max_length=100)
+
+
+@router.post("/child-devices/{device_id}/learner")
+async def assign_child_learner(
+    device_id: str,
+    assignment: ChildLearnerAssignment,
+    db: AsyncSession = Depends(get_db),
+    _: dict = Depends(require_parent),
+):
+    # Only a configured learner can be assigned; never create access by naming one.
+    if await db.get(StudentConfig, assignment.student_name) is None:
+        raise HTTPException(status_code=404, detail="Resource unavailable")
+    if settings.hosted_profile:
+        paired = await db.get(ChildDevicePairing, device_id)
+        if paired is None or paired.state not in ("approved", "paired"):
+            raise HTTPException(status_code=404, detail="Resource unavailable")
+    if device_registry.is_revoked(device_id):
+        raise HTTPException(status_code=403, detail="Device unavailable")
+    binding = await db.get(ChildLearnerBinding, device_id)
+    if binding is None:
+        db.add(ChildLearnerBinding(device_id=device_id, student_name=assignment.student_name,
+                                   nonce=secrets.token_hex(24)))
+    else:
+        binding.student_name = assignment.student_name
+        binding.nonce = secrets.token_hex(24)
+    await db.commit()
+    return {"assigned": True}
+
+
 @router.post("/child-devices/{device_id}/revoke")
 async def revoke_child_device(
     device_id: str,
@@ -581,6 +616,9 @@ async def revoke_child_device(
         raise HTTPException(status_code=404, detail="Device not found")
     row.state = "revoked"
     row.token_hash = None
+    binding = await db.get(ChildLearnerBinding, device_id)
+    if binding is not None:
+        await db.delete(binding)
     row.decided_at = datetime.now(timezone.utc)
     await db.commit()
     log_event_nowait(AuditEvent.DEVICE_REVOKED, role="parent", success=True,
@@ -621,6 +659,7 @@ async def validate_token(
             raise HTTPException(status_code=403, detail="Educator pilot not enabled")
         from services.educator_access import live_educator
         await live_educator(db, payload)
+    await require_live_hosted_child_pairing(request, payload, db)
     return {"role": payload.get("role"), "valid": True}
 
 

@@ -18,6 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core import school_authorization as school_auth
 from core import student_keys
 from core.config import settings
 from core.database import SessionTranscript, get_db
@@ -95,6 +96,8 @@ async def pilot_tutor_turn(
     ctx = await pilot_authz.resolve_campus_learner(
         db, auth, learner_id, pilot_authz.ACTION_TUTOR,
     )
+    # The turn stores a transcript; refuse before any model is contacted.
+    await school_auth.require_authorized(db, ctx.campus_id)
     row = (await db.execute(
         select(PilotRecommendation).where(
             PilotRecommendation.campus_id == ctx.campus_id,

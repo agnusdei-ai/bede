@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 
 import pytest
 
-import routers.voice as voice_router
 import services.ai_service as ai_service
 import services.pilot_authz as pilot_authz
 import services.streaming_transcription as st
@@ -45,7 +44,7 @@ def _fast(monkeypatch):
     # here is the first 3 s ping), short enough that a broken guard fails
     # rather than hangs. A stream ending by stall can never pass for a
     # revocation: every revocation test also asserts the voice.events audit.
-    monkeypatch.setattr(voice_router, "STREAM_STALL_TIMEOUT_SECONDS", 12.0)
+    monkeypatch.setattr(st, "STREAM_STALL_TIMEOUT_SECONDS", 12.0)
     yield
     student_keys.clear_cache()
     for cache in ai_service._PROMPT_CACHES:

@@ -1,9 +1,10 @@
 """
 Speaker verification for student identity checks.
 
-Two-tier approach:
-  1. resemblyzer (GE2E-trained 256-dim embeddings) if available → more accurate
-  2. librosa MFCC + cosine similarity fallback → reliable, no model download
+Voice authentication requires the trained Resemblyzer GE2E speaker encoder.
+The previous MFCC fallback is disabled: its mean-centered features produced
+near-zero embeddings and could not reliably authenticate a speaker.
+If the model is unavailable, enrollment and verification fail closed.
 
 Confidence thresholds:
   ≥ 0.82   → HIGH    (auto-pass)
@@ -32,7 +33,7 @@ from core.encryption import aad_for, decrypt_json, encrypt_json
 
 logger = logging.getLogger(__name__)
 
-# ── Try resemblyzer; fall back to MFCC ──────────────────────────────────────
+# ── Lazy trained encoder; fail closed if unavailable ──────────────────────
 # Loaded lazily, NOT at import time: constructing VoiceEncoder() loads a torch
 # model, and this module is imported (via routers/voice.py) before uvicorn can
 # accept its first request — an import-time load added the full model-load
@@ -55,7 +56,7 @@ def _get_encoder():
             _encoder = VoiceEncoder()
             logger.info("Voice auth: using resemblyzer (GE2E model)")
         except Exception:
-            logger.info("Voice auth: resemblyzer unavailable, using librosa MFCC fallback")
+            logger.warning("Voice auth: speaker encoder unavailable; unqualified MFCC fallback disabled")
         finally:
             _encoder_load_attempted = True
         return _encoder
@@ -101,23 +102,21 @@ def _load_wav(audio_bytes: bytes, target_sr: int = 16000) -> np.ndarray:
 # ── Feature extraction ───────────────────────────────────────────────────────
 
 def _extract_embedding_mfcc(audio: np.ndarray, sr: int = 16000) -> np.ndarray:
-    import librosa  # type: ignore
-    mfcc   = librosa.feature.mfcc(y=audio, sr=sr, n_mfcc=20)
-    delta  = librosa.feature.delta(mfcc)
-    delta2 = librosa.feature.delta(mfcc, order=2)
-    features = np.concatenate([mfcc, delta, delta2], axis=0)
-    features = (features - features.mean(axis=1, keepdims=True)) / (
-        features.std(axis=1, keepdims=True) + 1e-9
-    )
-    return features.mean(axis=1)
+    """Unqualified biometric fallback. Never issue identity embeddings here.
+
+    The previous mean-center/average operation returned near-zero vectors,
+    making similarity depend on floating-point noise. Keep this explicit
+    failure even if a future caller invokes the old helper directly.
+    """
+    raise RuntimeError("MFCC speaker verification is disabled until independently qualified")
 
 
 def _extract_embedding(audio: np.ndarray) -> np.ndarray:
     """Blocking (torch/librosa inference) — only call from a worker thread."""
     encoder = _get_encoder()
-    if encoder is not None:
-        return encoder.embed_utterance(audio)
-    return _extract_embedding_mfcc(audio)
+    if encoder is None:
+        raise RuntimeError("Voice encoder unavailable; biometric verification disabled")
+    return encoder.embed_utterance(audio)
 
 
 def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
@@ -126,11 +125,17 @@ def _cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
 
 def _embed_samples_sync(audio_samples: list[bytes]) -> list[np.ndarray]:
     """Blocking decode + embedding for enrollment — run in an executor."""
+    if _get_encoder() is None:
+        raise ValueError("Voice enrollment unavailable: speaker model could not be loaded")
     embeddings = []
     for idx, raw in enumerate(audio_samples):
         try:
             audio = _load_wav(raw)
-            embeddings.append(_extract_embedding(audio))
+            embedding = np.asarray(_extract_embedding(audio), dtype=np.float64)
+            if (embedding.shape != (256,) or not np.all(np.isfinite(embedding))
+                    or np.linalg.norm(embedding) < 1e-6):
+                raise ValueError("Invalid or degenerate speaker encoder output")
+            embeddings.append(embedding)
         except Exception as exc:
             logger.warning("Sample %d failed to process: %s", idx, exc)
     return embeddings
@@ -141,10 +146,19 @@ def _score_against_profile_sync(audio_bytes: bytes, stored: np.ndarray) -> float
     executor. Like transcription.py, none of this may run on the event loop:
     it used to freeze every in-flight request (chat streams included) for the
     duration of each voice check."""
+    if stored.shape != (256,) or not np.all(np.isfinite(stored)):
+        raise ValueError("Invalid or unsupported stored voice profile")
+    stored_norm = np.linalg.norm(stored)
+    if stored_norm < 1e-6:
+        raise ValueError("Degenerate stored voice profile")
     audio = _load_wav(audio_bytes)
-    embedding = _extract_embedding(audio)
-    embedding = embedding / (np.linalg.norm(embedding) + 1e-9)
-    return _cosine_similarity(embedding, stored)
+    embedding = np.asarray(_extract_embedding(audio), dtype=np.float64)
+    if embedding.shape != stored.shape or not np.all(np.isfinite(embedding)):
+        raise ValueError("Invalid speaker encoder output")
+    embedding_norm = np.linalg.norm(embedding)
+    if embedding_norm < 1e-6:
+        raise ValueError("Degenerate speaker encoder output")
+    return _cosine_similarity(embedding / embedding_norm, stored / stored_norm)
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
@@ -221,14 +235,19 @@ async def enroll_student(
 
     if not embeddings:
         raise ValueError("No samples could be processed")
+    if len(embeddings) < 2:
+        raise ValueError("At least two valid voice samples are required")
 
     mean_embedding = np.mean(embeddings, axis=0)
-    mean_embedding = mean_embedding / (np.linalg.norm(mean_embedding) + 1e-9)
+    mean_norm = np.linalg.norm(mean_embedding)
+    if not np.isfinite(mean_norm) or mean_norm < 1e-6:
+        raise ValueError("Degenerate voice enrollment samples")
+    mean_embedding = mean_embedding / mean_norm
 
     profile = {
         "embedding":   mean_embedding.tolist(),
         "num_samples": len(embeddings),
-        "method":      "resemblyzer" if _get_encoder() is not None else "mfcc",
+        "method":      "resemblyzer",
     }
     await _save_profile(db, student_name, profile)
 
@@ -245,7 +264,18 @@ async def verify_student(
     db: AsyncSession,
 ) -> dict:
     """Compare audio against stored profile. Returns score + confidence level."""
-    profile = await _get_profile(db, student_name)
+    try:
+        profile = await _get_profile(db, student_name)
+    except Exception as exc:
+        # Corrupt ciphertext, missing student key, or a failed database read
+        # must never grant access or leak internal errors to the caller.
+        logger.error("Voice profile unavailable; verification denied (%s)", type(exc).__name__)
+        return {
+            "verified": False,
+            "score": 0.0,
+            "level": ConfidenceLevel.LOW,
+            "message": "Voice verification is unavailable — ask a parent to use another sign-in method.",
+        }
     if profile is None:
         return {
             "verified": False,
@@ -254,9 +284,18 @@ async def verify_student(
             "message":  "No voice profile found — ask a parent to enrol your voice first.",
         }
 
-    stored = np.array(profile["embedding"])
+    # Old MFCC profiles were derived from numerically degenerate features.
+    # Never compare them with a trained-model vector or grandfather them in.
+    if not isinstance(profile, dict) or profile.get("method") != "resemblyzer":
+        return {
+            "verified": False,
+            "score": 0.0,
+            "level": ConfidenceLevel.LOW,
+            "message": "This voice profile needs parent-supervised re-enrollment.",
+        }
 
     try:
+        stored = np.asarray(profile["embedding"], dtype=np.float64)
         loop  = asyncio.get_running_loop()
         score = await loop.run_in_executor(None, _score_against_profile_sync, audio_bytes, stored)
     except Exception as exc:

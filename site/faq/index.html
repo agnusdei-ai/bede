@@ -76,7 +76,7 @@
         </div>
         <ol class="classical-human-cycle">
           <li><span class="cycle-number" aria-hidden="true">01</span><h3>The adult sets direction</h3><p>Choose the text, the goal, and a practical question worth exploring. Connect the lesson to the child and the curriculum.</p><small>PARENT OR EDUCATOR</small></li>
-          <li><span class="cycle-number" aria-hidden="true">02</span><h3>Bede supports the work</h3><p>At home: Socratic questions and guided practice. In the current school pilot: evidence review and teacher-approved planning, with synthetic data only.</p><small>WITHIN THE APPROVED SCOPE</small></li>
+          <li><span class="cycle-number" aria-hidden="true">02</span><h3>Bede supports the work</h3><p>At home: Socratic questions and guided practice. In schools, teachers review the evidence and approve the plan, using example records for now.</p><small>WITHIN THE APPROVED SCOPE</small></li>
           <li><span class="cycle-number" aria-hidden="true">03</span><h3>The learner applies it</h3><p>Explain an idea, write an argument, solve a practical problem, or test a prediction. The adult guides a new situation—not just a repeat of the exercise.</p><small>HUMAN-LED APPLICATION</small></li>
           <li><span class="cycle-number" aria-hidden="true">04</span><h3>Review, then revisit</h3><p>Look at the work together. Ask what changed, what evidence supports the answer, and whether the learner can use the idea again later.</p><small>ADULT JUDGMENT &amp; NEXT STEPS</small></li>
         </ol>
@@ -628,6 +628,17 @@
           <p>So the page above describes what Bede does and what it refuses to do (both checkable the day you install it) rather than results we have not earned the right to claim. When we have real outcomes across real families, we will publish them, including the parts that did not work.</p>
         </details>
         <p class="faq-group">Safety, privacy, and screens</p>
+      <details id="socratic-guidance">
+        <summary>How does Bede support independent thinking?</summary>
+        <p>Bede is instructed to guide active learning tasks with questions and conceptual hints, leaving the learner to work out the answer. A parent or educator can ask for a teaching goal, three progressive questions, and adaptations for support, on-level practice, or extension.</p>
+        <p>Ask the learner to explain the evidence and apply the idea in a new situation. The adult reviews the reasoning and decides what comes next.</p>
+      </details>
+      <details id="offline-installations">
+        <summary>Can a school or family use an offline installation?</summary>
+        <p>An offline installation requires locally provisioned models and an isolated network setup. Its offline mode restricts the API to local services and denies cloud model fallback. The hosted public demo uses a separate provider configuration.</p>
+        <p>Reviewed curriculum search is being developed separately from live tutoring. It favors primary sources and reviewed learning objects matched to the learning goal and grade; TEKS or Common Core alignment requires an explicit reviewed mapping. We do not infer alignment from a document's topic.</p>
+        <p><a href="/inquire/">Request an implementation conversation</a> to review local hardware, model availability, privacy controls, and the school's requirements before using student information.</p>
+      </details>
       <details>
         <summary>Where does our data live, and can I delete it?</summary>
         <p>In your own database, on a machine in your own house. Voice profiles, student plans, transcripts, and assessments are AES-256-GCM encrypted at rest, so the database itself never holds plaintext. You also get narration history, mastery snapshots, session summaries, and an encrypted audit log: a real record for a real school year.</p>
@@ -659,7 +670,7 @@
         <details id="homeschool-trial">
           <summary>How does family onboarding work?</summary>
           <p><a href="/inquire/?audience=homeschool">Request a family onboarding conversation</a> to discuss your children’s learning goals, books, devices, and home setup. We’ll explain how to begin and provide current plan pricing in response to your inquiry.</p>
-          <p>Co-ops and schools have separate inquiry paths. The current school pilot is teacher-directed and uses synthetic data only; it does not provide direct student tutoring.</p>
+          <p>Co-ops and schools have separate inquiry paths. The school pilot is led by teachers, uses example records, and does not tutor students directly.</p>
         </details>
         <details id="guarantee">
           <summary>Can homeschool families cancel their learning plan?</summary>
@@ -670,7 +681,11 @@
           <summary>How do I request pricing for a plan?</summary>
           <p>Current pricing for all plans is provided in response to an email request. This includes household memberships, co-ops, school evaluations, and campus plans. We do not publish plan rates or pricing tables on this website.</p>
           <p><a href="/inquire/">Send a plan and pricing inquiry</a>. Select family, co-op, or charter school and share estimated learners, timing, and setup or support needs. The form emails our team; we’ll respond with the relevant plan details and next steps before you decide.</p>
-          <p>The public Bede demo beta runs through October 31, 2026, without an account or payment card. It is a demonstration, not enrollment in a household or school plan.</p>
+          <p>The demo is free, without an account or payment card. It is a demonstration, not enrollment in a household or school plan.</p>
+        </details>
+        <details>
+          <summary>When does the demo beta end?</summary>
+          <p>The demo beta runs through November 21, 2026. This date marks the end of the demo period, not a confirmed public launch date.</p>
         </details>
       </div>
       <p class="fineprint">

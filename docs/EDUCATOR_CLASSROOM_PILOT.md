@@ -12,6 +12,7 @@ Status: **integration candidate only**, not yet cleared as a complete Valor pilo
 6. Teacher reviews subject-specific academic evidence and may transcribe authorized externally administered DIBELS 8 results. DIBELS outcomes are never inferred from Bede conversation, and changes are not represented as evidence Bede caused learning gains.
 7. Teacher may inspect enrolled passkeys and revoke a spare key. Revocation invalidates existing sessions. Last-key revocation is not self-service: the authorized operator must independently approve recovery, verify school affiliation and send a one-time invitation to the previously associated mailbox.
 8. An authorized operator can disable instructor access and invalidate outstanding sessions and roster authorization.
+9. **Make a quiz or exam.** On the classroom page, the teacher can draft a quiz or exam from a past quiz, a previous or prep exam, pasted text, or a topic. The teacher picks the subject, grade K-8, level, type (quick check to final exam) and up to 50 questions, then prints the quiz and an answer key. Teacher drafts run on the school's own local AI model only, never a cloud provider, because an upload can hold students' work. No learner is named, read or written, and nothing is stored. Maths answers are computed. Other answers are double-checked by a second, independent answer, or marked **Check** for the teacher. See [Practice Coach](PRACTICE_COACH.md#quizzes-and-exams).
 
 ## Security requirements beyond a passing PR
 

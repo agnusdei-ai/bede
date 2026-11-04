@@ -89,12 +89,12 @@ def _save(c, names, **extra):
     return c.post("/pod/configs", json={"configs": [_cfg(n) for n in names], **extra}, headers=_h())
 
 
-def _transcript(c, name):
+def _transcript(c, name, headers=None):
     body = {
         "student_name": name, "subjects": ["history"], "duration_minutes": 10,
         "messages": [{"role": "user", "content": "x", "timestamp": "2026-10-29T10:00:00Z"}],
     }
-    return c.post(f"/transcripts/{name}", json=body, headers=_h("child"))
+    return c.post(f"/transcripts/{name}", json=body, headers=headers or _h("parent"))
 
 
 def _db(c, coro_fn):
@@ -133,6 +133,52 @@ def _records(c, name):
     return _db(c, q)
 
 
+def test_real_child_login_is_scoped_and_switch_rotates_context(ctx, monkeypatch):
+    """HTTP journey: parent assigns configured learners, child logs in, and old scope dies on switch."""
+    monkeypatch.setattr(settings, "hosted_profile", False)
+    monkeypatch.setattr(settings, "educator_pilot_enabled", False)
+    saved = _save(ctx, ["Emma", "Noah"], consent_notice_hash=consent.notice_hash())
+    assert saved.status_code == 204, saved.text
+    device = "synthetic-household-tablet-1"
+    assignment_url = f"/auth/child-devices/{device}/learner"
+
+    first_assignment = ctx.post(assignment_url, json={"student_name": "Emma"}, headers=_h())
+    assert first_assignment.status_code == 200, first_assignment.text
+    assert first_assignment.json() == {"assigned": True}
+
+    def child_login():
+        response = ctx.post("/auth/login", json={
+            "role": "child", "credential": settings.child_pin, "device_id": device,
+        })
+        assert response.status_code == 200, response.text
+        token = response.json()["access_token"]
+        from core.security import decode_token
+        claims = decode_token(token)
+        assert claims is not None and claims["device_id"] == device and claims["learner_nonce"]
+        return {"Authorization": f"Bearer {token}"}, claims["learner_nonce"]
+
+    emma_headers, first_nonce = child_login()
+    own_config = ctx.get("/pod/configs/Emma", headers=emma_headers)
+    assert own_config.status_code == 200, own_config.text
+    assert ctx.get("/pod/configs/Noah", headers=emma_headers).status_code == 404
+    assert _transcript(ctx, "Emma", emma_headers).json() == {"saved": True}
+    assert _transcript(ctx, "Noah", emma_headers).status_code == 404
+    assert ctx.get("/transcripts/Noah", headers=_h()).json()["transcripts"] == []
+    assert len(ctx.get("/transcripts/Emma", headers=_h()).json()["transcripts"]) == 1
+
+    switched = ctx.post(assignment_url, json={"student_name": "Noah"}, headers=_h())
+    assert switched.status_code == 200 and switched.json() == {"assigned": True}
+    assert ctx.get("/pod/configs/Emma", headers=emma_headers).status_code == 404
+    assert ctx.get("/pod/configs/Noah", headers=emma_headers).status_code == 404
+    noah_headers, next_nonce = child_login()
+    assert next_nonce != first_nonce
+    assert ctx.get("/pod/configs/Noah", headers=noah_headers).status_code == 200
+    assert ctx.get("/pod/configs/Emma", headers=noah_headers).status_code == 404
+    assert _transcript(ctx, "Noah", noah_headers).json() == {"saved": True}
+    assert ctx.get("/transcripts/Emma", headers=_h()).json()["transcripts"][0]["message_count"] == 1
+    assert len(ctx.get("/transcripts/Noah", headers=_h()).json()["transcripts"]) == 1
+
+
 # ── Install-time acknowledgement ────────────────────────────────────────────
 
 
@@ -143,6 +189,7 @@ def _ack(monkeypatch, *, hash_=None, at=None):
 
 @pytest.fixture(autouse=True)
 def _no_ack_by_default(monkeypatch):
+    monkeypatch.setattr(settings, "demo_pin", "")
     monkeypatch.setattr(settings, "consent_install_ack_hash", "")
     monkeypatch.setattr(settings, "consent_install_ack_at", "")
 
@@ -156,8 +203,13 @@ def test_no_ack_means_refused_with_parent_action(ctx, clock):
 
 def test_valid_ack_permits_and_writes_one_ledger_row_at_the_ack_time(ctx, clock, monkeypatch):
     _ack(monkeypatch)
-    assert _transcript(ctx, "Emma").status_code != 403
-    assert _transcript(ctx, "Emma").status_code != 403
+    first = _transcript(ctx, "Emma")
+    second = _transcript(ctx, "Emma")
+    assert first.status_code == 200 and first.json() == {"saved": True}, first.text
+    assert second.status_code == 200 and second.json() == {"saved": True}, second.text
+    saved = ctx.get("/transcripts/Emma", headers=_h())
+    assert saved.status_code == 200, saved.text
+    assert len(saved.json()["transcripts"]) == 2
     recs = _records(ctx, "Emma")
     assert len(recs) == 1
     assert recs[0].method == "install_custodian_attestation"
@@ -184,7 +236,7 @@ def test_invalid_acks_do_not_permit(ctx, clock, monkeypatch, label, kw):
 
 def test_ack_within_five_minutes_of_future_is_tolerated(ctx, clock, monkeypatch):
     _ack(monkeypatch, at="2026-11-01T12:04:00Z")
-    assert _transcript(ctx, "Emma").status_code != 403
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_ack_of_an_older_notice_is_not_valid(ctx, clock, monkeypatch):
@@ -195,7 +247,7 @@ def test_ack_of_an_older_notice_is_not_valid(ctx, clock, monkeypatch):
 
 def test_a_revoked_student_is_not_resurrected_by_the_ack(ctx, clock, monkeypatch):
     _ack(monkeypatch)
-    assert _transcript(ctx, "Emma").status_code != 403
+    assert _transcript(ctx, "Emma").status_code == 200
     assert ctx.post("/consent/Emma/revoke", json={}, headers=_h()).status_code == 200
     assert _transcript(ctx, "Emma").status_code == 403
     assert len(_records(ctx, "Emma")) == 1
@@ -298,7 +350,7 @@ def test_stale_consent_blocks_collection_until_refreshed(ctx, clock, monkeypatch
     assert len(recs) == 2 and recs[0].revoked_at is not None and recs[1].revoked_at is None
     assert recs[0].notice_hash == old and recs[1].notice_hash == consent.notice_hash()
     assert ctx.get("/household/consent", headers=_h()).json()["needs_consent"] is False
-    assert _transcript(ctx, "Emma").status_code != 403
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_stale_direct_grant_rotates_ledger_and_restores_collection(ctx, clock, monkeypatch):
@@ -313,7 +365,7 @@ def test_stale_direct_grant_rotates_ledger_and_restores_collection(ctx, clock, m
     assert len(records) == 2
     assert records[0].revoked_at is not None
     assert records[1].notice_hash == consent.notice_hash()
-    assert _transcript(ctx, "Emma").status_code != 403
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_household_routes_are_parent_only(ctx):
@@ -335,7 +387,7 @@ def test_pod_save_with_correct_hash_records_consent(ctx, clock, monkeypatch):
     assert len(_records(ctx, "Emma")) == 1 and len(_records(ctx, "Noah")) == 1
     _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())  # idempotent
     assert len(_records(ctx, "Emma")) == 1
-    assert _transcript(ctx, "Emma").status_code != 403
+    assert _transcript(ctx, "Emma").status_code == 200
 
 
 def test_pod_save_with_wrong_hash_is_409_and_saves_nothing(ctx):

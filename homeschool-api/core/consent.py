@@ -25,8 +25,9 @@ person who installed Bede acknowledged the family notice at install time
 covers a student only if that student has never had a consent record:
 withdrawal is never undone by the ack. The first collection for a covered
 student writes a ledger row (method install_custodian_attestation, dated at
-the ack time). There is no mode and no grace period. Hosted or pilot
-deployments never set the ack. The custodian wording is a draft for counsel.
+the ack time). There is no grace period. Hosted, public-demo, and educator-pilot
+deployments refuse the install ack even if its environment values are set.
+The custodian wording is a draft for counsel.
 
 A consent recorded against an older notice is STALE. Collection fails closed
 until a parent acknowledges the current notice. Household status reports stale
@@ -184,6 +185,11 @@ def install_ack_time() -> Optional[datetime]:
     older notice is not valid) and the time parses as a timezone-aware
     ISO-8601 value no more than five minutes in the future.
     """
+    # Install acknowledgements are a self-hosted family convenience only.
+    # Never turn deployment configuration into a substitute for a parent's
+    # recorded consent in a hosted, public-demo, or educator-pilot tenancy.
+    if settings.hosted_profile or settings.educator_pilot_enabled or settings.is_demo_deployment:
+        return None
     if settings.consent_install_ack_hash != notice_hash():
         return None
     raw = settings.consent_install_ack_at.strip()
@@ -377,9 +383,10 @@ async def status_for(db, student_name: str) -> dict:
     record = await active_record(db, student_name)
     paused = await is_paused(db, student_name)
     return {
-        "student_consented": record is not None,
+        "student_consented": record is not None and record.notice_hash == notice_hash(),
         "method": record.method if record else None,
         "notice_version": NOTICE_VERSION,
+        "stored_notice_hash": record.notice_hash if record else None,
         "granted_at": record.granted_at.isoformat() if record else None,
         "collection_paused": paused,
         "current_notice_hash": notice_hash(),

@@ -25,6 +25,12 @@ from core.config import settings
 from core.database import Base, ClassicalEducator
 from core.encryption import initialize_encryption
 from core.pilot_journey_models import PilotDecision, PilotEvidence, PilotRecommendation
+# Registers the canonical-assessment tables on Base.metadata. Pilot learner
+# deletion cascades through them, so without this import a test that runs
+# FIRST in its process creates a schema missing those tables and fails with
+# 'no such table: pilot_assessment_administrations'. It used to pass only
+# because an earlier test happened to import the module.
+import core.pilot_assessment_models  # noqa: F401,E402
 import routers.pilot_journey as journey
 from routers.pilot_campuses import (
     CampusInput, LearnerInput, approve_educator_membership,
@@ -547,3 +553,507 @@ async def test_revoked_before_decision_commit_rolls_back_ledger(db, monkeypatch)
     remaining = await db.get(PilotRecommendation, proposal["recommendation_id"])
     assert remaining is not None and remaining.status == "pending" and remaining.version == 1
     assert (await db.execute(select(PilotDecision))).scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
+    """Grade 2 regrouping: real G1/G2 authorization and a later educator recheck.
+
+    The teacher records a synthetic 27 + 15 applied-work observation without
+    storing a child's raw answer. A hint-dependent attempt may only produce
+    a DRAFT recommendation until explicitly approved. A later independent
+    observation supersedes the earlier evidence for the next proposal, but
+    cannot silently replace the previously approved instruction.
+
+    This exercises the actual pilot routes and durable decision ledger; it
+    does NOT claim that the diagnostic mastery vector, tutoring delivery, or
+    elapsed-time retention are connected to these classical observations.
+    """
+    ta, tb, _, _, learner, _ = await two_campuses(db)
+    educator = await token(db, ta)
+    other_campus_educator = await token(db, tb)
+
+    first_evidence = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical",
+            measure="applied_work",
+            assessed_on=ASSESSED,
+            source_name="Synthetic Grade 2 regrouping observation (27 + 15)",
+            assistance="with_a_hint",
+        ),
+        auth=educator, db=db,
+    )
+    first = await request_recommendation(learner, auth=educator, db=db)
+    assert first["abstained"] is False
+    assert first["status"] == "pending"
+    assert first["source_evidence_ids"] == [first_evidence["evidence_id"]]
+    assert "guided practice in applied work" in first["proposal"]
+    assert (await authorized_instruction(learner, auth=educator, db=db))["authorized_instruction"] is None
+
+    # A teacher from another campus cannot view or approve this learner's work.
+    with pytest.raises(HTTPException) as denied:
+        await authorized_instruction(learner, auth=other_campus_educator, db=db)
+    assert denied.value.status_code == 404
+
+    approved = await decide(
+        learner, first["recommendation_id"],
+        DecisionInput(action="approve", expected_version=1),
+        auth=educator, db=db,
+    )
+    assert approved["status"] == "approved"
+    assert (await authorized_instruction(learner, auth=educator, db=db))["recommendation_id"] == first["recommendation_id"]
+
+    # A later, independently observed attempt is new evidence, not an
+    # automatic promotion of the learner's diagnostic mastery probability.
+    later_evidence = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical",
+            measure="applied_work",
+            assessed_on=ASSESSED + timedelta(days=1),
+            source_name="Synthetic Grade 2 independent regrouping recheck",
+            assistance="unaided",
+        ),
+        auth=educator, db=db,
+    )
+    later = await request_recommendation(learner, auth=educator, db=db)
+    assert later["source_evidence_ids"] == [later_evidence["evidence_id"]]
+    assert "more demanding applied work task" in later["proposal"]
+    assert later["status"] == "pending"
+    # Pending or rejected follow-ups never become learner-facing instruction.
+    assert (await authorized_instruction(learner, auth=educator, db=db))["recommendation_id"] == first["recommendation_id"]
+    await decide(
+        learner, later["recommendation_id"],
+        DecisionInput(action="reject", expected_version=1),
+        auth=educator, db=db,
+    )
+    assert (await authorized_instruction(learner, auth=educator, db=db))["recommendation_id"] == first["recommendation_id"]
+    ledger = await decision_ledger(learner, auth=educator, db=db)
+    assert ledger["chain_valid"] is True
+    assert [entry["action"] for entry in ledger["entries"]] == ["approve", "reject"]
+
+
+# ── Grade K-8 mathematics lifecycle: one representative skill per grade ────
+#
+# ONE implementation, nine rows of scenario data. Every row runs the same
+# lifecycle on the same real routes, so the Grade 2 security and
+# adverse-evidence assertions (missing approval, cross-campus denial, AAD
+# non-portability, scoped deletion, denied resumption) hold for every grade
+# because they ARE the same code, not a copy of it.
+#
+# What a grade actually changes is narrow, and is checked rather than
+# assumed: models/schemas.py's grade_to_stage() maps it to one of three
+# bands, and services/diagnostic/mastery.py's new_vector() seeds a new
+# learner's unprobed skills by band distance (0.5 own band, 0.70 any band
+# below, 0.5 - 0.2 per band above). The pilot tutor, recommender and
+# deletion paths carry no learner grade at all. So each row also asserts the
+# persisted seeds of two unprobed sentinel skills, one K-2 and one 6-8,
+# which is the only persisted state a grade can move.
+#
+# Each skill is the one this grade's own year plan teaches
+# (tests/diagnostic/test_prep_school_scope.py pins the plan phrase), each has
+# a 1:1 probe in qmatrix, and the prerequisite is a real edge in skill_map.
+# The tutor's text is a deterministic local-model STUB: these are
+# model-stub integration results, not real-provider results. Dates are
+# controlled (assessed_on values), so "later" means a later-dated record,
+# never elapsed wall-clock retention.
+MATH_LIFECYCLE_GRADES = [
+    # grade, prerequisite gap, target skill, observation, stub tutor line
+    ("K", "cc.rote_count_20", "cc.count_objects_20",
+     "Synthetic Kindergarten counting 9 blocks", "Can you touch each block once as you count?"),
+    ("1", "cc.count_objects_20", "cc.number_bonds",
+     "Synthetic Grade 1 number bonds for 7", "Seven can be five and what?"),
+    ("2", "nbt.place_value_tens", "nbt.add_within_100",
+     "Synthetic Grade 2 regrouping 27 + 15",
+     "When you add 7 ones and 5 ones, what do you notice?"),
+    ("3", "oa.multiplication_facts", "oa.order_of_operations",
+     "Synthetic Grade 3 order of operations 2 + 3 x 4",
+     "Which part of 2 + 3 x 4 would you work first, and why?"),
+    ("4", "fr.add_subtract_fractions", "fr.mixed_numbers",
+     "Synthetic Grade 4 mixed number 2 1/3 as thirds",
+     "How many thirds are hiding in the whole number 2?"),
+    ("5", "fr.multiply_fractions", "fr.divide_fractions",
+     "Synthetic Grade 5 dividing 3 by 1/4",
+     "How many quarters fit inside one whole?"),
+    ("6", "ns.integers", "ns.absolute_value",
+     "Synthetic Grade 6 absolute value of -7",
+     "How far is -7 from zero on the number line?"),
+    ("7", "ee.multi_step_equations", "ee.variables_both_sides",
+     "Synthetic Grade 7 solving 3x + 4 = x + 10",
+     "What could you do to both sides so x appears only once?"),
+    ("8", "fn.linear_functions", "ee.systems_of_equations",
+     "Synthetic Grade 8 system x + y = 5 and x - y = 1",
+     "What happens if you add the two equations together?"),
+]
+K2_SENTINEL = "geo.compose_shapes"
+SIX8_SENTINEL = "sp.two_way_tables"
+# A sentinel only reads a band seed while nothing probes it. When the skill
+# under test IS a sentinel, the row reads this alternate leaf instead.
+SENTINEL_ALTERNATES = {K2_SENTINEL: "md.tell_time", SIX8_SENTINEL: "geo.volume"}
+EXPECTED_SEEDS = {  # band -> (K-2 sentinel, 6-8 sentinel), from new_vector
+    "K-2": (0.5, 0.1), "3-5": (0.70, 0.3), "6-8": (0.70, 0.5),
+}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "grade,prerequisite,target,observation_label,tutor_line",
+    MATH_LIFECYCLE_GRADES,
+    ids=[f"grade-{row[0]}" for row in MATH_LIFECYCLE_GRADES],
+)
+async def test_math_lifecycle_per_grade(
+    db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+):
+    """One representative skill per grade, K-8, pinned to that grade's year plan."""
+    await _run_math_lifecycle(
+        db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+    )
+
+
+# ── Every mathematics skill, K-8 ───────────────────────────────────────────
+#
+# The rows above are hand-chosen, one per grade. These are GENERATED from
+# services/diagnostic/skill_map.py, so a skill added to the map is covered
+# the moment it lands rather than when someone remembers to add a row. Each
+# skill runs the SAME lifecycle at a grade inside its own band (rotating
+# through the band's grades, so every grade K-8 is exercised), with its
+# first direct prerequisite as the gap. The two root skills, which have no
+# prerequisite, use themselves as the gap: an incorrect first attempt, then
+# a hinted one. Tutor text is still a deterministic local-model stub.
+_GRADES_IN_BAND = {"K-2": ("K", "1", "2"), "3-5": ("3", "4", "5"), "6-8": ("6", "7", "8")}
+
+
+def _every_math_skill_row():
+    from services.diagnostic.skill_map import all_skill_ids, get_skill, prerequisites_of
+
+    seen = {band: 0 for band in _GRADES_IN_BAND}
+    rows = []
+    for skill_id in all_skill_ids():
+        skill = get_skill(skill_id)
+        band = skill.band.value
+        grades = _GRADES_IN_BAND[band]
+        grade = grades[seen[band] % len(grades)]
+        seen[band] += 1
+        prerequisites = prerequisites_of(skill_id)
+        rows.append((
+            grade,
+            prerequisites[0] if prerequisites else None,
+            skill_id,
+            f"Synthetic Grade {grade} applied work: {skill.label}",
+            f"What do you notice first about {skill.label.lower()}?",
+        ))
+    return rows
+
+
+EVERY_MATH_SKILL = _every_math_skill_row()
+
+
+def test_every_math_skill_row_covers_the_whole_map_and_every_grade():
+    """The generated rows are the whole skill map, and reach every grade K-8."""
+    from models.schemas import grade_to_stage
+    from services.diagnostic.skill_map import all_skill_ids, get_skill
+
+    assert [row[2] for row in EVERY_MATH_SKILL] == all_skill_ids()
+    assert {row[0] for row in EVERY_MATH_SKILL} == {
+        "K", "1", "2", "3", "4", "5", "6", "7", "8",
+    }
+    for grade, _prerequisite, skill_id, _label, _line in EVERY_MATH_SKILL:
+        assert grade_to_stage(grade).value == get_skill(skill_id).band.value
+    # Kindergarten has its own representative row too, not only generated ones.
+    assert "K" in {row[0] for row in MATH_LIFECYCLE_GRADES}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "grade,prerequisite,target,observation_label,tutor_line",
+    EVERY_MATH_SKILL,
+    ids=[f"{row[2]}@grade-{row[0]}" for row in EVERY_MATH_SKILL],
+)
+async def test_math_lifecycle_every_skill(
+    db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+):
+    """Every skill in the mathematics skill map, through the same lifecycle."""
+    await _run_math_lifecycle(
+        db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+    )
+
+
+async def _run_math_lifecycle(
+    db, monkeypatch, grade, prerequisite, target, observation_label, tutor_line,
+):
+    """Real G1/G2 approval -> pilot tutor SSE -> encrypted institutional record.
+
+    Only the local model's text stream is deterministic synthetic test data.
+    This does not prove a physical model, diagnostic integration, or elapsed
+    delayed retention. No external model or real learner data is used.
+    """
+    import json
+    from types import SimpleNamespace
+
+    from core.database import MasteryProfile, SessionTranscript
+    from core.encryption import decrypt_json, student_aad
+    from core.learner_scope import LearnerScope
+    from core import student_keys
+    from models.schemas import grade_to_stage
+    import routers.pilot_tutor as tutor
+
+    band = grade_to_stage(grade).value
+    ta, tb, campus, other_campus, learner, other_learner = await two_campuses(db)
+    educator = await token(db, ta)
+    other_educator = await token(db, tb)
+    request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
+
+    # Probe the real prerequisite graph and persist the baseline BEFORE
+    # proposing a teacher-governed lesson. These are synthetic
+    # observations, not a model-inferred learning diagnosis.
+    from services.diagnostic import get_mastery_summary, process_evidence
+    from services.diagnostic.qmatrix import Q_MATRIX
+    from services.diagnostic.skill_map import get_skill, prerequisites_of
+    from services.pilot_learner_deletion import delete_pilot_learner
+
+    # The scenario row must name an implemented skill, a real edge, and a
+    # 1:1 probe; a typo here would otherwise test nothing.
+    assert get_skill(target) is not None
+    assert Q_MATRIX[f"probe.{target}"].skills == (target,)
+    if prerequisite is None:
+        # A root skill: nothing comes before it, so it is its own gap.
+        assert prerequisites_of(target) == []
+        gap = target
+    else:
+        assert get_skill(prerequisite) is not None
+        assert prerequisite in prerequisites_of(target)
+        assert Q_MATRIX[f"probe.{prerequisite}"].skills == (prerequisite,)
+        gap = prerequisite
+
+    scope = LearnerScope.institutional(campus, learner)
+    other_scope = LearnerScope.institutional(other_campus, other_learner)
+    assert await get_mastery_summary(db, scope.storage_subject) is None
+    missed = await process_evidence(
+        db, scope.storage_subject, f"probe.{gap}",
+        "incorrect", 1.0, band,
+    )
+    if prerequisite is None:
+        # The root skill's own wrong answer must lower its own estimate below
+        # the own-band cold start; a gap on any other skill would not.
+        assert missed[target] < 0.5
+    hinted = await process_evidence(
+        db, scope.storage_subject, f"probe.{target}",
+        "hint_dependent", 1.0, band,
+    )
+    baseline = await get_mastery_summary(db, scope.storage_subject)
+    assert baseline is not None and baseline["evidence_count"] == 2
+    assert gap in {item["skill_id"] for item in baseline["gaps"]}
+    # A hinted attempt is not mastery.
+    assert hinted[target] < 0.8
+    assert await get_mastery_summary(db, other_scope.storage_subject) is None
+
+    # A teacher's draft cannot authorize even a local-model tutoring call.
+    with pytest.raises(HTTPException) as missing_approval:
+        await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
+    assert missing_approval.value.status_code == 409
+
+    observation = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical", measure="applied_work",
+            assessed_on=ASSESSED,
+            source_name=observation_label,
+            assistance="with_a_hint",
+        ),
+        auth=educator, db=db,
+    )
+    proposal = await request_recommendation(learner, auth=educator, db=db)
+    assert proposal["source_evidence_ids"] == [observation["evidence_id"]]
+    approved = await decide(
+        learner, proposal["recommendation_id"],
+        DecisionInput(action="approve", expected_version=1),
+        auth=educator, db=db,
+    )
+    assert approved["status"] == "approved"
+    instruction = approved["authorized_instruction"]
+    assert instruction
+
+    with pytest.raises(HTTPException) as cross_campus:
+        await tutor.pilot_tutor_turn(learner, request, auth=other_educator, db=db)
+    assert cross_campus.value.status_code == 404
+
+    captured_prompts = []
+
+    class SyntheticLocalStream:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        def __aiter__(self):
+            async def one_chunk():
+                yield SimpleNamespace(
+                    type="content_block_delta",
+                    delta=SimpleNamespace(
+                        type="text_delta",
+                        text=tutor_line,
+                    ),
+                )
+            return one_chunk()
+
+    class SyntheticMessages:
+        def stream(self, **kwargs):
+            captured_prompts.append(kwargs["system"])
+            assert kwargs["model"] == settings.local_llm_model
+            return SyntheticLocalStream()
+
+    monkeypatch.setattr(
+        tutor, "_local_model",
+        lambda: SimpleNamespace(messages=SyntheticMessages()),
+    )
+    response = await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
+    events = [json.loads(item) async for item in response.body_iterator]
+    assert [event["type"] for event in events] == ["start", "text", "done"]
+    assert events[1]["content"] == tutor_line
+    assert len(captured_prompts) == 1
+    assert instruction in captured_prompts[0]
+
+    transcripts = (await db.execute(
+        select(SessionTranscript).where(
+            SessionTranscript.student_name == scope.storage_subject,
+        )
+    )).scalars().all()
+    assert len(transcripts) == 1
+    assert transcripts[0].subjects == "mathematics"
+    assert transcripts[0].transcript_enc
+    key = await student_keys.get_existing(db, scope)
+    assert key is not None
+    # Verify the actual stored student-key ciphertext, not just a nonempty blob.
+    stored = decrypt_json(
+        transcripts[0].transcript_enc,
+        student_aad("session_transcripts", "transcript_enc", scope.storage_subject),
+        key,
+    )
+    assert [message["role"] for message in stored["messages"]] == ["learner", "bede"]
+    assert stored["messages"][0]["content"] == "Begin the approved practice with one Socratic question."
+    assert stored["messages"][1]["content"] == events[1]["content"]
+    # A valid ciphertext must not be portable to a second learner's AAD.
+    with pytest.raises(ValueError):
+        decrypt_json(
+            transcripts[0].transcript_enc,
+            student_aad("session_transcripts", "transcript_enc", other_scope.storage_subject),
+            key,
+        )
+    other_transcripts = (await db.execute(
+        select(SessionTranscript).where(
+            SessionTranscript.student_name == other_scope.storage_subject,
+        )
+    )).scalars().all()
+    assert other_transcripts == []
+
+
+    # A later-dated, independent synthetic attempt enters the REAL educator
+    # evidence and decision path. This simulates a recheck; it does NOT
+    # establish elapsed-time retention or model-graded learner responses.
+    recheck = await record_evidence(
+        learner,
+        EducatorAssessmentSubmission(
+            framework="classical", measure="applied_work",
+            assessed_on=ASSESSED + timedelta(days=1),
+            source_name=f"{observation_label}: independent recheck",
+            assistance="unaided",
+        ),
+        auth=educator, db=db,
+    )
+    followup = await request_recommendation(learner, auth=educator, db=db)
+    assert followup["source_evidence_ids"] == [recheck["evidence_id"]]
+    assert followup["status"] == "pending"
+    assert (await authorized_instruction(learner, auth=educator, db=db))[
+        "recommendation_id"
+    ] == proposal["recommendation_id"]
+    await decide(
+        learner, followup["recommendation_id"],
+        DecisionInput(action="reject", expected_version=1),
+        auth=educator, db=db,
+    )
+    ledger = await decision_ledger(learner, auth=educator, db=db)
+    assert ledger["chain_valid"] is True
+    assert [entry["action"] for entry in ledger["entries"]] == [
+        "approve", "reject"
+    ]
+    assert (await authorized_instruction(learner, auth=educator, db=db))[
+        "recommendation_id"
+    ] == proposal["recommendation_id"]
+
+    # Independently reported diagnostic observations update the same
+    # encrypted institutional mastery profile, never a cross-campus one.
+    await process_evidence(
+        db, scope.storage_subject, f"probe.{gap}",
+        "correct", 1.0, band,
+    )
+    independent = await process_evidence(
+        db, scope.storage_subject, f"probe.{target}",
+        "correct", 1.0, band,
+    )
+    rechecked = await get_mastery_summary(db, scope.storage_subject)
+    assert rechecked is not None and rechecked["evidence_count"] == 4
+    # The independent response moves the estimate up from the hinted one.
+    assert independent[target] > hinted[target]
+    assert await get_mastery_summary(db, other_scope.storage_subject) is None
+
+    # The persisted outcome, read back from the encrypted row itself: the
+    # target matches what the engine returned, and the two unprobed
+    # sentinels carry this grade's band seeds, which is the only persisted
+    # state a grade can change.
+    profile = (await db.execute(select(MasteryProfile).where(
+        MasteryProfile.student_name == scope.storage_subject,
+        MasteryProfile.subject_area == "mathematics",
+    ))).scalar_one()
+    stored_vector = decrypt_json(
+        profile.profile_enc,
+        student_aad("mastery_profiles", "profile_enc", scope.storage_subject, "mathematics"),
+        await student_keys.get_existing(db, scope),
+    )
+    assert stored_vector[target] == pytest.approx(independent[target])
+    probed = {target, gap}
+    k2, six8 = (
+        SENTINEL_ALTERNATES[name] if name in probed else name
+        for name in (K2_SENTINEL, SIX8_SENTINEL)
+    )
+    assert not probed & {k2, six8}
+    assert (stored_vector[k2], stored_vector[six8]) == pytest.approx(
+        EXPECTED_SEEDS[band]
+    )
+
+    # Preserve an independently authorized learner on the other campus.
+    other_evidence = await record_evidence(
+        other_learner,
+        EducatorAssessmentSubmission(
+            framework="classical", measure="applied_work",
+            assessed_on=ASSESSED,
+            source_name="Synthetic other-campus applied-work observation",
+            assistance="unaided",
+        ),
+        auth=other_educator, db=db,
+    )
+    deleted = await delete_pilot_learner(db, campus, learner)
+    assert deleted.deleted["session_transcripts"] == 1
+    assert deleted.deleted["mastery_profiles"] == 1
+    assert deleted.deleted["pilot_evidence"] == 2
+    assert deleted.deleted["pilot_decisions"] == 2
+    assert deleted.deleted["pilot_recommendations"] == 2
+    assert await get_mastery_summary(db, scope.storage_subject) is None
+    assert (await db.execute(select(SessionTranscript).where(
+        SessionTranscript.student_name == scope.storage_subject,
+    ))).scalars().all() == []
+    remaining_other = await list_evidence(other_learner, auth=other_educator, db=db)
+    assert [item["evidence_id"] for item in remaining_other] == [
+        other_evidence["evidence_id"]
+    ]
+    with pytest.raises(HTTPException) as deleted_learner:
+        await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
+    assert deleted_learner.value.status_code == 401
+
+    # Deletion revokes the old educator token; a freshly issued token still
+    # cannot access the learner that no longer exists.
+    current_educator = await token(db, ta)
+    with pytest.raises(HTTPException) as missing_learner:
+        await tutor.pilot_tutor_turn(learner, request, auth=current_educator, db=db)
+    assert missing_learner.value.status_code == 404

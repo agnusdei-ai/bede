@@ -23,7 +23,7 @@ class StandardOfflineTests(unittest.TestCase):
         self.assertIn('name: bede-standard-', workflow)
         self.assertIn('name: bede-offline-', workflow)
         self.assertNotIn('dist/bede-operator*.tar.gz', workflow)
-        self.assertIn('dist/bede-operator-standard-${{ github.sha }}-${{ matrix.arch }}.tar.gz', workflow)
+        self.assertIn('dist/bede-operator-standard-${{ github.event.pull_request.head.sha || github.sha }}-${{ matrix.arch }}.tar.gz', workflow)
 
 
 if __name__ == "__main__":

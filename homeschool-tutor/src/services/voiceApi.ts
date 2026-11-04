@@ -1,4 +1,4 @@
-import { parseSSEStream } from './api'
+import { parseSSEStream, withRequestDeadline } from './api'
 
 const BASE = '/api'
 
@@ -122,9 +122,11 @@ export function voiceScopeFor(
 /** Starts a new server-side streaming-transcription session. Returns its id
  *  — pass it to pushVoiceStreamChunk/finishVoiceStream/streamVoiceEvents. */
 export async function startVoiceStream(
-  token: string, language = 'en', scope?: VoiceLearnerScope,
+  token: string, language = 'en', scope?: VoiceLearnerScope, signal?: AbortSignal,
 ): Promise<string> {
+  return withRequestDeadline(async (requestSignal) => {
   const res = await fetch(`${BASE}/voice/stream/start`, {
+    signal: requestSignal,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ language, ...(scope ?? {}) }),
@@ -132,6 +134,7 @@ export async function startVoiceStream(
   if (!res.ok) throw new Error('Could not start voice streaming')
   const data = await res.json()
   return data.session_id as string
+  }, signal)
 }
 
 /** Uploads a DELTA — only what was captured since the caller's last upload,
@@ -148,38 +151,39 @@ export async function startVoiceStream(
  *  decide which path to take, only routers/voice.py's own upload-size and
  *  container/extension allowlist check reads it.
  *
- *  Throws on failure. Unlike the old whole-buffer protocol, a dropped delta
- *  is genuinely lost unless the caller holds and resends it — see
- *  useHybridVoiceInput.ts's pendingPartsRef, which prepends a failed upload
- *  to the next one rather than assuming a later chunk will cover it. */
-export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob): Promise<void> {
+ *  Throws on failure. The caller ends the turn: a failed response cannot
+ *  prove whether the server appended the delta, so resending is unsafe. */
+export async function pushVoiceStreamChunk(token: string, sessionId: string, wavBlob: Blob, signal?: AbortSignal): Promise<void> {
   const form = new FormData()
   form.append('audio', wavBlob, 'chunk.wav')
-  const res = await fetch(`${BASE}/voice/stream/${sessionId}/chunk`, {
+  const res = await withRequestDeadline((requestSignal) => fetch(`${BASE}/voice/stream/${sessionId}/chunk`, {
+    signal: requestSignal,
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
-  })
+  }), signal)
   if (!res.ok) throw new Error('Voice chunk upload failed')
 }
 
 /** Signals no more chunks are coming — the server transcribes the final
  *  buffer once more, emits a 'final' event, then 'done' closes the stream. */
-export async function finishVoiceStream(token: string, sessionId: string): Promise<void> {
-  const res = await fetch(`${BASE}/voice/stream/${sessionId}/finish`, {
+export async function finishVoiceStream(token: string, sessionId: string, signal?: AbortSignal): Promise<void> {
+  const res = await withRequestDeadline((requestSignal) => fetch(`${BASE}/voice/stream/${sessionId}/finish`, {
+    signal: requestSignal,
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
-  })
+  }), signal)
   if (!res.ok) throw new Error('Voice stream finish failed')
 }
 
 /** Consumed via fetch() + parseSSEStream, NOT the browser's native
  *  EventSource API — EventSource can't attach an Authorization header (see
  *  homeschool-api's routers/voice.py's stream_events_endpoint docstring). */
-export async function* streamVoiceEvents(token: string, sessionId: string): AsyncGenerator<VoiceStreamEvent> {
-  const res = await fetch(`${BASE}/voice/stream/${sessionId}/events`, {
+export async function* streamVoiceEvents(token: string, sessionId: string, signal?: AbortSignal): AsyncGenerator<VoiceStreamEvent> {
+  const res = await withRequestDeadline((requestSignal) => fetch(`${BASE}/voice/stream/${sessionId}/events`, {
+    signal: requestSignal,
     headers: { Authorization: `Bearer ${token}` },
-  })
+  }), signal)
   if (!res.ok) throw new Error('Could not open the voice event stream')
-  yield* parseSSEStream<VoiceStreamEvent>(res)
+  yield* parseSSEStream<VoiceStreamEvent>(res, signal)
 }

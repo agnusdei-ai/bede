@@ -213,6 +213,20 @@ export async function revokeDevice(token: string, deviceId: string): Promise<Dev
   return res.json()
 }
 
+// A parent explicitly binds a registered device to one configured learner.
+// Switching rotates the server-side nonce, invalidating prior child tokens.
+export async function assignChildLearner(token: string, deviceId: string, studentName: string): Promise<void> {
+  const res = await fetch(`${BASE}/auth/child-devices/${encodeURIComponent(deviceId)}/learner`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_name: studentName }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not assign learner to this device')
+  }
+}
+
 // Recovery PIN/code enrollment (the "something you know" leg of account
 // recovery below) — mutually exclusive; enrolling one clears the other.
 
@@ -347,18 +361,47 @@ function stripDataUrlPrefix(dataUrl: string): string {
 const TUTOR_MAX_ATTEMPTS = 3
 const TUTOR_RETRY_BASE_DELAY_MS = 600
 
+// Bounds response headers (and short JSON bodies), not a whole SSE session.
+// A deadline is ambiguous: the server may already be working, so never retry it.
+export async function withRequestDeadline<T>(
+  operation: (signal: AbortSignal) => Promise<T>, signal?: AbortSignal, ms = 30_000,
+): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let abort: () => void = () => {}
+  const canceled = new Promise<never>((_, reject) => {
+    abort = () => {
+      reject(new DOMException('Aborted', 'AbortError'))
+      controller.abort()
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    timer = setTimeout(() => {
+      reject(new Error('Request timed out'))
+      controller.abort()
+    }, ms)
+  })
+  try {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return await Promise.race([canceled, operation(controller.signal)])
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', abort)
+  }
+}
+
 /** A cancellable pause, so a retry delay can't outlive the turn it belongs to. */
 function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms)
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer)
-        reject(new DOMException('Aborted', 'AbortError'))
-      },
-      { once: true },
-    )
+    const abort = () => {
+      clearTimeout(timer)
+      reject(new DOMException('Aborted', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', abort)
+      resolve()
+    }, ms)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
   })
 }
 
@@ -382,37 +425,33 @@ class StreamStallError extends Error {}
  *  voice stream (VoiceStreamEvent, see services/voiceApi.ts) and tutor
  *  chat stream (StreamChunk) differ, but both are a sequence of plain-JSON
  *  "data: " lines ending in a {type: 'done'} sentinel. */
-export async function* parseSSEStream<T extends { type: string }>(res: Response): AsyncGenerator<T> {
+export async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
   const reader = res.body!.getReader()
+  const cancel = () => { reader.cancel().catch(() => {}) }
+  signal?.addEventListener('abort', cancel, { once: true })
   const decoder = new TextDecoder()
   let buffer = ''
 
-  while (true) {
-    let timeoutId: ReturnType<typeof setTimeout>
-    const stallTimeout = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
-    })
-    let done: boolean, value: Uint8Array | undefined
-    try {
-      ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
-    } catch (err) {
-      // Release the underlying connection rather than leaving it dangling
-      // in the background — reader.read() itself is still pending at this
-      // point (that's exactly what stalled), so this is what actually
-      // frees it up instead of just abandoning the promise.
-      reader.cancel().catch(() => {})
-      throw err
-    } finally {
-      clearTimeout(timeoutId!)
-    }
-    if (done) break
-
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
+  try {
+    while (true) {
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      let timeoutId: ReturnType<typeof setTimeout>
+      const stallTimeout = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
+      })
+      let done: boolean, value: Uint8Array | undefined
+      try {
+        ;({ done, value } = await Promise.race([reader.read(), stallTimeout]))
+      } finally {
+        clearTimeout(timeoutId!)
+      }
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
         const jsonStr = line.slice(6).trim()
         if (!jsonStr) continue
         try {
@@ -424,6 +463,9 @@ export async function* parseSSEStream<T extends { type: string }>(res: Response)
         }
       }
     }
+  } finally {
+    signal?.removeEventListener('abort', cancel)
+    cancel()
   }
 }
 
@@ -454,7 +496,7 @@ export async function* streamTutorChat(
     // the sentence they are mid-way through reading.
     let delivered = false
     try {
-      const res = await fetch(`${BASE}/tutor/chat`, {
+      const res = await withRequestDeadline((requestSignal) => fetch(`${BASE}/tutor/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -484,8 +526,8 @@ export async function* streamTutorChat(
           // assuming the worst.
           time_remaining_seconds: timeRemainingSeconds ?? null,
         }),
-        signal,
-      })
+        signal: requestSignal,
+      }), signal, SSE_STALL_TIMEOUT_MS)
 
       if (!res.ok) {
         if (res.status === 403 && (await errorCode(res)) === 'parental_consent_required') {
@@ -494,7 +536,7 @@ export async function* streamTutorChat(
         throw new Error('Tutor request failed — check your connection')
       }
 
-      for await (const chunk of parseSSEStream<StreamChunk>(res)) {
+      for await (const chunk of parseSSEStream<StreamChunk>(res, signal)) {
         delivered = true
         yield chunk
       }
@@ -542,16 +584,17 @@ export async function* streamSandboxChat(
   history: ChatMessage[],
   message: string,
   customInstructions: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  educatorPlanning = false
 ): AsyncGenerator<StreamChunk> {
-  const res = await fetch(`${BASE}/sandbox/chat`, {
+  const res = await fetch(`${BASE}/sandbox/${educatorPlanning ? 'educator-chat' : 'chat'}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
-      sandbox_pin: sandboxPin,
+      ...(educatorPlanning ? {} : { sandbox_pin: sandboxPin }),
       conversation_history: history,
       message,
       custom_instructions: customInstructions,
@@ -559,7 +602,7 @@ export async function* streamSandboxChat(
     signal,
   })
 
-  if (res.status === 401) throw new Error('Incorrect sandbox PIN')
+  if (res.status === 401) throw new Error(educatorPlanning ? 'Please sign in again with your educator passkey' : 'Incorrect sandbox PIN')
   if (res.status === 404) throw new Error('Sandbox mode is not enabled on this deployment')
   if (!res.ok) throw new Error('Sandbox request failed — check your connection')
 
@@ -1756,9 +1799,24 @@ export interface PracticePlan {
   status: 'draft' | null
 }
 
+export interface PracticeDeliveryItem {
+  index: number
+  prompt: string
+  hint: string
+}
+
+export interface PracticeDeliverySet {
+  id: number
+  items: PracticeDeliveryItem[]
+  completed_indices: number[]
+}
+
 export interface ReadingRoute {
   local_available: boolean
+  // Reads photos. Withheld while photo reading with a cloud provider is off.
   cloud_provider: string | null
+  // Drafts a quiz from typed text only (no photos), with the parent's tick.
+  draft_provider?: string | null
 }
 
 /** A refusal the parent can act on: the backend wants consent to send the
@@ -1816,3 +1874,75 @@ export const discardPracticeSet = (token: string, studentName: string, setId: nu
   practiceFetch<{ id: number; status: 'discarded' }>(token, `/${encodeURIComponent(studentName)}/sets/${setId}/discard`, {
     method: 'POST',
   })
+
+export const fetchPracticeDelivery = (token: string, studentName: string) =>
+  practiceFetch<PracticeDeliverySet[]>(token, `/${encodeURIComponent(studentName)}/delivery`)
+
+export const recordPracticeOutcome = (
+  token: string, studentName: string, setId: number, itemIndex: number, response: string,
+) => practiceFetch<{ recorded: true; already_recorded: boolean }>(
+  token, `/${encodeURIComponent(studentName)}/sets/${setId}/outcomes`, {
+    method: 'POST',
+    body: JSON.stringify({ item_index: itemIndex, response }),
+  },
+)
+
+// ── Quizzes and exams drafted from an existing one (docs/PRACTICE_COACH.md) ──
+
+export type QuizKind = 'ad_hoc' | 'quiz' | 'unit_test' | 'midterm' | 'final' | 'prep_exam'
+export type QuizLevel = 'review' | 'on_level' | 'challenge'
+
+export interface QuizQuestion {
+  number: number
+  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'fill_in_blank' | 'computation' | 'written_response'
+  topic: string
+  prompt: string
+  options: string[]
+  answer: string
+  answer_check: 'computed' | 'checked' | 'verify'
+  second_answer?: string | null
+}
+
+export interface GeneratedQuiz {
+  title: string
+  subject: string
+  grade: string
+  kind: QuizKind
+  level: QuizLevel
+  coverage: string[]
+  est_minutes: number
+  questions: QuizQuestion[]
+}
+
+export interface QuizOptions {
+  subjects: { id: string; display_name: string }[]
+  grades: string[]
+  kinds: QuizKind[]
+  levels: QuizLevel[]
+  max_questions: number
+  route: ReadingRoute
+}
+
+export const fetchQuizOptions = (token: string) =>
+  practiceFetch<QuizOptions>(token, '/quiz-options')
+
+export const generateQuiz = (
+  token: string, studentName: string,
+  body: {
+    subject: string; grade: string; kind: QuizKind; level: QuizLevel; question_count: number
+    focus?: string; source_text?: string; pages: { data: string }[]; cloud_consent: boolean
+  },
+) => practiceFetch<{ quiz: GeneratedQuiz; report: { answers_recomputed: number; dropped: number; short_by: number } }>(
+  token, `/${encodeURIComponent(studentName)}/quizzes/generate`, { method: 'POST', body: JSON.stringify(body) },
+)
+
+// Teachers draft on the school's own model only; no learner is named.
+export const fetchEducatorQuizOptions = (token: string) =>
+  practiceFetch<QuizOptions>(token, '/educator/quiz-options')
+
+export const generateEducatorQuiz = (
+  token: string,
+  body: Parameters<typeof generateQuiz>[2],
+) => practiceFetch<Awaited<ReturnType<typeof generateQuiz>>>(
+  token, '/educator/quiz/generate', { method: 'POST', body: JSON.stringify(body) },
+)

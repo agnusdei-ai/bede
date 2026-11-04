@@ -18,6 +18,14 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 NOTICE = ROOT / "homeschool-api" / "data" / "consent_notice.txt"
 
+
+@pytest.fixture(autouse=True)
+def _self_hosted_install_ack_environment(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "demo_pin", "")
+
+
 # provider 1, api key, local db (default), parent password, child pin, licence
 ANSWERS = "1\nsk-ant-test\n\nparentpass123\n805274199\nlicense-value\n"
 

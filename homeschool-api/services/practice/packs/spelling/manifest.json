@@ -1,0 +1,22 @@
+{
+  "id": "spelling",
+  "display_name": "Spelling",
+  "grade_bands": ["K-2", "3-5", "6-8"],
+  "item_types": ["dictated_word", "sentence_blank", "word_list"],
+  "detects": [
+    "spelling.homophone",
+    "spelling.transposition",
+    "spelling.ie_ei",
+    "spelling.double_consonant",
+    "spelling.suffix.drop_e",
+    "spelling.suffix.y_to_i",
+    "spelling.silent_e",
+    "spelling.vowel_pattern",
+    "spelling.sound_spelling",
+    "spelling.omitted_letter",
+    "spelling.extra_letter",
+    "spelling.word_specific",
+    "spelling.unclassified"
+  ],
+  "_note": "A miss is diagnosed only against the correct spelling written on the page. A word with no correction goes to the parent rather than being guessed."
+}

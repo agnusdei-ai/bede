@@ -79,7 +79,7 @@ describe('concise copy and audience-specific FAQs', () => {
     expect(schema.mainEntity.map((item: { name: string; acceptedAnswer: { text: string } }) => ({
       name: item.name, answer: item.acceptedAnswer.text,
     }))).toEqual(visible)
-    expect(document.querySelector('.hero-footnote')!.textContent).toContain('No direct student tutoring')
+    expect(document.querySelector('.hero-footnote')!.textContent).toContain('does not tutor students directly')
     expect(document.getElementById('school-questions')!.textContent).toContain('nondevotional academic scope')
     expect(document.getElementById('school-questions')!.textContent).toContain('12-month commitment')
   })

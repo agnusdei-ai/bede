@@ -12,7 +12,7 @@ from core.demo_code_session import (
     has_message_quota as demo_code_has_message_quota,
     record_message as demo_code_record_message,
 )
-from core.deps import require_demo_preview, require_parent
+from core.deps import require_demo_preview, require_educator, require_parent
 from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services import mcp_client
@@ -29,6 +29,38 @@ router = APIRouter(prefix="/sandbox", tags=["sandbox"])
 
 _STALL_MESSAGE = "Sorry, that took too long to come through. Could you try sending that again?"
 _ERROR_MESSAGE = "Something went wrong on my end. Could you try sending that again?"
+
+
+@router.post("/educator-chat")
+async def educator_chat(
+    req: SandboxDemoChatRequest,
+    request: Request,
+    auth: dict = Depends(require_educator),
+):
+    """Passkey-authenticated adult planning; no roster, learner records, or MCP."""
+    async def event_generator():
+        if check_safeguarding(req.message):
+            yield json.dumps({"type": "text", "content": SAFEGUARDING_RESPONSE})
+            yield json.dumps({"type": "done"})
+            return
+        try:
+            async for chunk in with_stall_timeout(stream_sandbox_response(
+                conversation_history=req.conversation_history,
+                message=req.message,
+                custom_instructions=req.custom_instructions,
+                verified_educator=True,
+                locale=auth.get("locale", "en"),
+            )):
+                yield chunk
+        except asyncio.TimeoutError:
+            yield json.dumps({"type": "text", "content": _STALL_MESSAGE})
+            yield json.dumps({"type": "done"})
+        except Exception:
+            # Never log prompt text or a provider's exception payload.
+            log.warning("Educator planning service unavailable")
+            yield json.dumps({"type": "text", "content": _ERROR_MESSAGE})
+            yield json.dumps({"type": "done"})
+    return EventSourceResponse(event_generator(), media_type="text/event-stream")
 
 
 @router.post("/chat")
@@ -75,6 +107,7 @@ async def chat(
                 message=req.message,
                 custom_instructions=req.custom_instructions,
                 external_tools=external_tools,
+                verified_educator=True,
                 external_clients=external_clients,
                 audit_context=audit_from_request(request),
                 locale=auth.get("locale", "en"),

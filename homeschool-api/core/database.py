@@ -342,6 +342,14 @@ class PilotRosterGrant(Base):
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
+class ChildLearnerBinding(Base):
+    """Adult-authorized device-to-learner assignment. Rotating nonce invalidates old JWTs."""
+    __tablename__ = "child_learner_bindings"
+    device_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    student_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
 class PilotCampusDataAuthorization(Base):
     """A school official's recorded authorization to store learner data for a campus.
 

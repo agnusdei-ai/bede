@@ -60,11 +60,33 @@ def test_sitemap_lists_only_real_pages():
                 f"sitemap lists {path} as build-produced, but build_pages_site.sh "
                 f"no longer creates {BUILD_PRODUCED_PATHS[path]}"
             )
+            if path == "/bede/tour/":
+                # Generated separately by Vite; verify source and both build steps.
+                assert (SITE.parent / "demo/tour/index.html").is_file()
+                assert (SITE.parent / "demo/vite.tour.config.ts").is_file()
+                assert "vite build --config vite.tour.config.ts" in build
+                assert "cp -r demo/dist-tour/* publish/bede/tour/" in build
             continue
         target = SITE / path.lstrip("/") if path != "/" else SITE / "index.html"
         if target.is_dir():
             target = target / "index.html"
         assert target.exists(), f"sitemap lists {path} but no page backs it"
+
+
+def test_llms_crawl_links_and_pilot_data_boundary():
+    """Crawl links must refer to published pages, and the data scope stays explicit."""
+    llms = (SITE / "llms.txt").read_text(encoding="utf-8")
+    sitemap = (SITE / "sitemap.xml").read_text(encoding="utf-8")
+    published = set(re.findall(r"<loc>(https://agnusdei\.ai/[^<]*)</loc>", sitemap))
+    links = re.findall(r"\]\((https://agnusdei\.ai/[^)]*)\)", llms)
+    assert links, "llms.txt must identify its public source pages"
+    for url in links:
+        # The hosted interactive demo is intentionally outside the static sitemap.
+        assert url in published or url == "https://agnusdei.ai/bede/", (
+            f"llms.txt links to an undeclared public page: {url}"
+        )
+    assert "synthetic data" in llms.lower()
+    assert "real learner data" in llms.lower()
 
 
 def test_robots_points_at_the_sitemap():
@@ -87,7 +109,8 @@ def test_school_plans_require_email_pricing_and_preserve_scope():
         assert not re.search(r"\$\s*\d|&#(?:36|x24);|&dollar;|USD\s*\d|\d+\s*%\s*off", source, re.I)
         assert "provided in response to an email request" in source
         assert "/inquire/?audience=charter_school" in source
-        assert "synthetic data only" in source or "synthetic-data-only" in source
+        assert "example records" in source
+        assert "synthetic" not in source.lower()
         assert "mutually agreed written" in source
     assert "each additional campus" in page.lower()
     assert "site/assets/schools-pricing.css" not in page  # Website URLs are root-relative.
@@ -103,10 +126,10 @@ def test_school_inquiry_replaces_public_tables_and_uses_us_english():
     assert 'class="school-budget-table' not in page
     assert 'id="school-budget"' in page  # Preserve inbound anchor links.
     assert 'id="print-school-budget"' not in page
-    assert 'school evaluation requires its own signed scope' in page
+    assert 'school evaluation needs its own signed agreement' in page
     assert 'onsite implementation and customization' in page.lower()
     assert 'certified hardware' in page
-    assert 'No direct student tutoring' in page
+    assert 'does not tutor students directly' in page
     for british_spelling in ("licence", "enrolment", "organisation", "organisational",
                              "centre", "programme", "behaviour", "colour"):
         assert not re.search(rf"\b{british_spelling}\b", page, re.I), (
@@ -125,10 +148,15 @@ def test_streamlined_inquiry_navigation_and_demo_beta_dates_remain_current():
         assert "Free to use through August 31" not in text
         assert "Fall Launch: September" not in text
     launch = (SITE.parent / "demo" / "public" / "launch.html").read_text(encoding="utf-8")
-    assert "October&nbsp;31, 2026" in launch
+    assert "November&nbsp;21, 2026" in launch
+    assert "October&nbsp;31" not in launch
+    assert "not a confirmed public launch date" in launch
     assert "September 30" not in launch
     demo = (SITE.parent / "demo" / "src" / "App.tsx").read_text(encoding="utf-8")
-    assert "Public beta through October 31, 2026" in demo
+    assert "Demo beta extended through November 21, 2026" in demo
+    faq = (SITE / "faq" / "index.html").read_text(encoding="utf-8")
+    assert "The demo beta runs through November 21, 2026. This date marks the end of the demo period, not a confirmed public launch date." in faq
+    assert "October 31" not in faq
 
 
 def test_home_has_no_expired_beta_date_or_percentile_claim():

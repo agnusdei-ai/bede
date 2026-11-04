@@ -30,21 +30,17 @@ from pydantic import ValidationError
 
 from core.config import settings
 from models.practice import GradedAssessment, ReadPhotosRequest
-from services.practice.packs import get_pack
+from services.practice.packs import get_pack, subject_name
+from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
+    PhotoRejected,
+    ScannerUnavailable,
+    UploadBusy,
+    prepare_pages,
+)
 
 log = logging.getLogger(__name__)
 
-MAX_PAGE_BYTES = 6 * 1024 * 1024
 READ_TIMEOUT_SECONDS = 120
-
-_SIGNATURES = (
-    (b"\x89PNG\r\n\x1a\n", "image/png"),
-    (b"\xff\xd8\xff", "image/jpeg"),
-)
-
-
-class PhotoRejected(ValueError):
-    pass
 
 
 class ConsentRequired(Exception):
@@ -61,28 +57,72 @@ class ReadingFailed(Exception):
     pass
 
 
-def media_type_of(data_b64: str) -> str:
+def _cloud_name(configured: list[str] | None = None) -> str | None:
+    """The cloud provider a consent tick names: the first cloud adapter in
+    the live order, honouring a parent's primary/secondary override
+    (core/provider_state.py), so the tick names where the request really goes."""
+    from core import provider_state
+    from services.adapters import router
+
+    configured = router.configured_adapters() if configured is None else configured
+    order = provider_state.effective_order([a for a in router.preference_order() if a in configured])
+    return next((a for a in order if a != "local"), None)
+
+
+def _named_client(provider: str):
+    """Pinned to the provider the parent agreed to: no failover to another."""
+    from services.adapters import router
+
     try:
-        raw = base64.b64decode(data_b64, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise PhotoRejected("A page is not valid base64 image data.") from exc
-    if len(raw) > MAX_PAGE_BYTES:
-        raise PhotoRejected("A page is larger than 6 MB; please retake it at a lower resolution.")
-    for magic, media_type in _SIGNATURES:
-        if raw.startswith(magic):
-            return media_type
-    raise PhotoRejected("Pages must be JPEG or PNG photos.")
+        return router.resolve_named(provider)
+    except router.NamedAdapterUnavailableError as exc:
+        raise ReadingUnavailable("No AI provider is configured for this.") from exc
 
 
 def reading_route() -> dict:
-    """What the parent is told before uploading: where pages would be read."""
+    """What the parent is told before uploading: where pages would be read.
+
+    `cloud_provider` is for photos and stays withheld while cloud reading is
+    switched off, so the screen never offers a consent tick for a route the
+    server will refuse. `draft_provider` is for a quiz drafted from typed
+    text only (a topic or a pasted quiz, no photos): the same kind of text a
+    tutoring turn already sends, so the photo switch does not govern it. It
+    still needs the parent's tick for that provider by name.
+    """
     from services.adapters import router
 
     configured = router.configured_adapters()
+    cloud = _cloud_name(configured)
     return {
         "local_available": "local" in configured,
-        "cloud_provider": next((a for a in router.preference_order() if a in configured and a != "local"), None),
+        "cloud_provider": cloud if settings.practice_cloud_reading_enabled else None,
+        "draft_provider": cloud,
     }
+
+
+def text_draft_client(req):
+    """The client for a quiz drafted from typed text only, never photos.
+
+    Local first. Otherwise the configured cloud provider, with the parent's
+    consent for that provider by name, and pinned to it: no failover, since
+    the consent named one provider. Photos never come through here.
+    """
+    from services.adapters import router
+
+    if getattr(req, "pages", None):
+        raise ValueError("text_draft_client is for drafts without photos")
+    local = "local" in router.configured_adapters()
+    chosen = req.route or ("local" if local else "cloud")
+    if chosen == "local":
+        if not local:
+            raise ReadingUnavailable("No local model is configured on this install.")
+        return router.resolve_local_only()
+    cloud = _cloud_name()
+    if not cloud:
+        raise ReadingUnavailable("No AI provider is configured to draft quizzes.")
+    if not req.cloud_consent:
+        raise ConsentRequired(cloud)
+    return _named_client(cloud)
 
 
 def _choose_client(req: ReadPhotosRequest):
@@ -94,12 +134,14 @@ def _choose_client(req: ReadPhotosRequest):
         if not route["local_available"]:
             raise ReadingUnavailable("No local model is configured on this install.")
         return router.resolve_local_only()
+    if not settings.practice_cloud_reading_enabled:
+        raise ReadingUnavailable("Reading photos with a cloud AI provider is turned off on this install.")
     if not route["cloud_provider"]:
         raise ReadingUnavailable("No AI provider is configured to read photos.")
     if not req.cloud_consent:
         raise ConsentRequired(route["cloud_provider"])
-    from services.ai_service import _client  # the same client tutoring turns use
-    return _client
+    # Photos of a child's work go only to the provider the parent named.
+    return _named_client(route["cloud_provider"])
 
 
 _RULES = """You are reading a photographed, already-graded school worksheet so a parent can review it.
@@ -121,7 +163,8 @@ Rules:
 def _prompt(subject: str) -> str:
     pack = get_pack(subject)
     hints = pack.extract_hints if pack else ""
-    return f"{_RULES}\n\nSubject: {subject}\n\n{hints}".strip()
+    name = subject_name(subject)
+    return f"{_RULES}\n\nSubject: {name}\n\n{hints}".strip()
 
 
 def _text_of(response) -> str:
@@ -149,12 +192,10 @@ def parse_reading(text: str, subject: str) -> GradedAssessment:
 async def read_pages(req: ReadPhotosRequest) -> GradedAssessment:
     if get_pack(req.subject) is None:
         raise PhotoRejected(f"No practice pack for {req.subject!r} yet.")
-    blocks = [
-        {"type": "image", "source": {"type": "base64", "media_type": media_type_of(p.data), "data": p.data}}
-        for p in req.pages
-    ]
-    client = _choose_client(req)
-    blocks.append({"type": "text", "text": f"These are {len(req.pages)} page(s) of one worksheet, in order."})
+    client = _choose_client(req)  # consent and routing are settled before anything is parsed
+    pages = await prepare_pages([p.data for p in req.pages])
+    blocks = [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in pages]
+    blocks.append({"type": "text", "text": f"These are {len(pages)} page(s) of one worksheet, in order."})
     try:
         response = await asyncio.wait_for(
             client.messages.create(

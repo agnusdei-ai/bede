@@ -10,15 +10,17 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { fetchDevices, revokeDevice, getOrCreateDeviceId } = vi.hoisted(() => ({
+const { fetchDevices, revokeDevice, listPodConfigs, assignChildLearner, getOrCreateDeviceId } = vi.hoisted(() => ({
   fetchDevices: vi.fn(),
   revokeDevice: vi.fn(),
+  listPodConfigs: vi.fn(),
+  assignChildLearner: vi.fn(),
   getOrCreateDeviceId: vi.fn(),
 }))
 
 vi.mock('../services/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/api')>()
-  return { ...actual, fetchDevices, revokeDevice }
+  return { ...actual, fetchDevices, revokeDevice, listPodConfigs, assignChildLearner }
 })
 vi.mock('../utils/deviceId', () => ({ getOrCreateDeviceId }))
 
@@ -46,6 +48,9 @@ const DEV_2 = {
 beforeEach(() => {
   fetchDevices.mockReset()
   revokeDevice.mockReset()
+  listPodConfigs.mockReset()
+  listPodConfigs.mockResolvedValue([])
+  assignChildLearner.mockReset()
   getOrCreateDeviceId.mockReset()
   getOrCreateDeviceId.mockReturnValue('dev-1')
   vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -150,5 +155,30 @@ describe('DeviceSettings — revoking', () => {
 
     expect(await screen.findByText('This device could not be revoked')).toBeTruthy()
     expect(screen.getByText('Revoke')).toBeTruthy() // still there — not marked revoked
+  })
+})
+
+
+describe('DeviceSettings — parent-authorized learner assignment', () => {
+  it('lets a parent assign or switch a configured learner on a known device', async () => {
+    fetchDevices.mockResolvedValue([DEV_2])
+    listPodConfigs.mockResolvedValue([{ student_name: 'Emma' }, { student_name: 'Noah' }])
+    assignChildLearner.mockResolvedValue(undefined)
+    render(<DeviceSettings token="parent-token" />)
+    fireEvent.click(screen.getByText('Devices'))
+    const select = await screen.findByRole('combobox', { name: 'Learner for dev-2' })
+    fireEvent.change(select, { target: { value: 'Noah' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Assign / switch' }))
+    await waitFor(() => expect(assignChildLearner).toHaveBeenCalledWith('parent-token', 'dev-2', 'Noah'))
+    expect(await screen.findByRole('status')).toHaveProperty('textContent', expect.stringContaining('sign in again'))
+  })
+
+  it('does not offer learner assignment for a revoked device', async () => {
+    fetchDevices.mockResolvedValue([{ ...DEV_2, revoked: true, revoked_at: '2026-08-04T10:00:00Z' }])
+    listPodConfigs.mockResolvedValue([{ student_name: 'Emma' }])
+    render(<DeviceSettings token="parent-token" />)
+    fireEvent.click(screen.getByText('Devices'))
+    await screen.findByText(/Revoked/)
+    expect(screen.queryByRole('button', { name: 'Assign / switch' })).toBeNull()
   })
 })

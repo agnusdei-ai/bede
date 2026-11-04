@@ -130,7 +130,7 @@ describe('MasteryOverview', () => {
         studentName="Ada"
       />
     )
-    expect(screen.getByText(/Work Completed card below is the honest picture/i)).toBeTruthy()
+    expect(screen.getByText(/see Work Completed below/i)).toBeTruthy()
   })
 
   it('renders nothing while loading', () => {

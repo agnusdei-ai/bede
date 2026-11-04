@@ -2037,7 +2037,9 @@ def _build_static_prompt(config: SessionConfig, locale: str = "en") -> str:
     # end of a long prompt. "" for English keeps that prompt byte-for-byte
     # unchanged, same convention as _locale_directive itself.
     _rule_lang_note = f" — in {SUPPORTED_LOCALES.get(locale, locale)}, not English" if locale != "en" else ""
+    from services.socratic_policy import ACTIVE_TASK_POLICY
     return f"""{_constitution_preamble()}
+{ACTIVE_TASK_POLICY}
 
 <persona>
 You are Bede — a monk-scholar of Jarrow in the spirit of the Venerable Bede (c. 673–735), given to the twin \
@@ -5593,13 +5595,11 @@ Return ONLY a JSON object with keys: trivium_stage, processing_style, narration_
 # and conflating them would risk the sandbox's relaxed rules leaking into
 # real child sessions through a shared code path.
 
-_SANDBOX_SYSTEM_PROMPT = """You are Bede, but right now you're in an administrative sandbox used only by \
-the parent who runs this Bede deployment, to test and explore how you respond. Different rules apply here \
-than in a real tutoring session with their child:
+_SANDBOX_SYSTEM_PROMPT = """You are Bede in an adult planning and administrative workspace. The adult can \
+explore teaching approaches and ask administrative questions. This is separate from a child's tutoring session:
 
-1. Answer directly and completely. Do not respond with a guiding question instead of an answer, and don't \
-hold back information the way you would to preserve a child's discovery — the Socratic-only rule does not \
-apply here.
+1. Answer administrative and unrelated questions directly. For active learning tasks, preserve the learner's \
+discovery with scaffolding questions; never supply a solution or completed student work, even for an adult.
 2. The parent may ask about anything and change topics freely — homeschooling, curriculum ideas, how you'd \
 handle a hypothetical lesson, or general questions unrelated to tutoring at all.
 3. You may discuss your own behavior, instructions, and design openly if asked — the parent is the trusted \
@@ -5609,12 +5609,15 @@ no real confidentiality boundary between you and them the way there is with a ch
 Speak plainly to the parent as a knowledgeable colleague, not as a child's tutor."""
 
 
-def _build_sandbox_prompt(custom_instructions: str) -> str:
+def _build_sandbox_prompt(custom_instructions: str, *, verified_educator: bool = False) -> str:
     # The sandbox relaxes the Socratic-only rule and lets the parent ask
     # about anything (see _SANDBOX_SYSTEM_PROMPT above) — it does NOT relax
     # the constitution. Faith, ethics, and the non-negotiable rules still
     # govern this conversation even though it's parent-only and unsaved.
-    preamble = _constitution_preamble()
+    from services.socratic_policy import ACTIVE_TASK_POLICY, EDUCATOR_FORMAT
+    preamble = f"{_constitution_preamble()}\n{ACTIVE_TASK_POLICY}"
+    if verified_educator:
+        preamble += f"\n{EDUCATOR_FORMAT}"
     if custom_instructions.strip():
         return (
             f"{preamble}\n\n{_SANDBOX_SYSTEM_PROMPT}\n\n"
@@ -5641,6 +5644,7 @@ async def stream_sandbox_response(
     external_clients: Optional[dict] = None,
     audit_context: Optional[dict] = None,
     locale: str = "en",
+    verified_educator: bool = False,
 ) -> AsyncIterator[str]:
     """Direct-answer streaming chat for the parent sandbox — no subject/grade
     context, no database access. Same SSE text-chunk format as
@@ -5676,7 +5680,7 @@ async def stream_sandbox_response(
             "model": settings.tutor_model,
             # more room than the tutor's 500 — direct answers, not tight Socratic turns
             "max_tokens": 800,
-            "system": _build_sandbox_prompt(custom_instructions),
+            "system": _build_sandbox_prompt(custom_instructions, verified_educator=verified_educator),
             "messages": messages,
         }
         if tools_block:

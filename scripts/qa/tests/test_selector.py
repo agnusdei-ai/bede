@@ -57,6 +57,12 @@ class SelectorTests(unittest.TestCase):
         self.assertEqual(plan["scopes"]["homeschool-tutor"]["tests"], ["src/Widget.test.tsx"])
         self.assertFalse(plan["scopes"]["homeschool-tutor"]["full"])
 
+    def test_backend_test_reading_a_frontend_file_is_selected(self):
+        (self.root / "homeschool-api/tests/test_reads_widget.py").write_text(
+            'PATH = "homeschool-tutor/src/Widget.tsx"\n')
+        plan = selector.select(self.root, ["homeschool-tutor/src/Widget.tsx"])
+        self.assertIn("tests/test_reads_widget.py", plan["scopes"]["backend"]["tests"])
+
     def test_unmapped_source_fails_closed(self):
         plan = selector.select(self.root, ["unknown-engine/x.go"])
         self.assertTrue(all(x["full"] for x in plan["scopes"].values()))

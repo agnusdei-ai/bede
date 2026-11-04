@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import './i18n'
 import ThemePicker, { MENU_GUTTER, MENU_WIDTH, placeThemeMenu } from './ThemePicker'
-import { placeThemeMenu as appPlaceThemeMenu } from '../../homeschool-tutor/src/components/ThemePicker'
+import { placeThemeMenu as appPlaceThemeMenu } from '../../homeschool-tutor/src/utils/themeMenuPlacement'
 import { BUBBLE_COLORS, CHAT_THEMES } from './useChatTheme'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })

@@ -85,7 +85,10 @@ def test_llms_crawl_links_and_pilot_data_boundary():
         assert url in published or url == "https://agnusdei.ai/bede/", (
             f"llms.txt links to an undeclared public page: {url}"
         )
-    assert "synthetic data" in llms.lower()
+    # The data boundary is stated in plain words: "example records", never
+    # "synthetic" (owner direction 2026-11-03, as test_school_plans_require_email_pricing_and_preserve_scope checks for the school pages).
+    assert "example records" in llms.lower()
+    assert "synthetic" not in llms.lower()
     assert "real learner data" in llms.lower()
 
 

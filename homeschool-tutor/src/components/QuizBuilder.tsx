@@ -51,11 +51,13 @@ export function optionLines(options: string[]): string[] {
  * is marked to check. Nothing is saved: the parent prints the quiz and the
  * answer key.
  */
-export default function QuizBuilder({ token, studentName = '', audience = 'parent' }: {
+export default function QuizBuilder({ token, studentName = '', audience = 'parent', onEdit }: {
   token: string
   studentName?: string
   /** A teacher drafts for a class, on the school's own model only. */
   audience?: 'parent' | 'educator'
+  /** Hand the kept questions to the teacher quiz tool, to approve the key and score work. */
+  onEdit?: (quiz: GeneratedQuiz) => void
 }) {
   const teacher = audience === 'educator'
   const { t } = useTranslation()
@@ -319,6 +321,13 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                 <button type="button" onClick={() => setQuiz(null)} className={`${button} border border-gray-200 text-gray-700`}>
                   {t('quizBuilder.again')}
                 </button>
+                {onEdit && (
+                  <button type="button" disabled={!keep.some(Boolean)}
+                    onClick={() => quiz && onEdit({ ...quiz, questions: chosen() })}
+                    className={`${button} border border-sage-200 text-sage-800 disabled:opacity-40`}>
+                    {t('quizBuilder.editAsTeacher')}
+                  </button>
+                )}
               </div>
             </>
           )}

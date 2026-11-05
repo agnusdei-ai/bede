@@ -1191,7 +1191,8 @@ graded quiz**. Choose the subject that matches the quiz:
 1. **Choose the subject and photograph the pages.** Add every page of the
    quiz, as JPEG, PNG, WebP or AVIF photos or a scanned PDF. There is no page
    limit: Bede reads the pages six at a time and puts them back together as
-   one worksheet. The card tells
+   one worksheet. A bar shows how far it has got, as a percentage and as
+   "Read 12 of 18 pages"; a long quiz can take a few minutes. The card tells
    you where the photos will be read:
    - **On this computer's own AI model**, if your install has one. Nothing
      is sent anywhere else.
@@ -1275,9 +1276,12 @@ Before you print:
   table, the water cycle or another cycle, and the steps of a process. Check
   these answers yourself before printing, as you would any other question.
   When the page's picture is one Bede has no drawing for, it draws the
-  things the picture shows (a dog running, three apples). Only a picture of
-  something not on its list, such as a historical scene or a map, is still
-  given in words.
+  things the picture shows (a dog running, three apples). A picture of a
+  named, real thing, such as the Battle of Hastings, a mountain range or a
+  famous painting, is shown from Wikimedia Commons, the free picture library
+  behind Wikipedia, with a line saying where it came from. Look at these
+  before you approve or print, as you would any question. If no free picture
+  can be found, the name is shown in words.
 - **Double-checked** means Bede answered the question a second time, without
   looking at its first answer, and both agreed. That makes a mistake less
   likely, not impossible.

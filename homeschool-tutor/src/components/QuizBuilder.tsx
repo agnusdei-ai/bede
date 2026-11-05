@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { FileQuestion, Loader2, Printer } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import Diagram, { diagramMarkup } from './Diagram'
+import ReadingProgressBar from './ReadingProgressBar'
+import { newProgressId, overallPercent, watchProgress, withProgress, type ProgressState } from '../utils/readingProgress'
 import {
   copyEducatorQuizSource,
   copyQuizSource,
   fetchEducatorQuizOptions,
+  fetchReadingProgress,
   fetchQuizOptions,
   generateEducatorQuiz,
   generateQuiz,
@@ -101,6 +104,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
   const hasMaterial = files.length > 0 || sourceText.trim() !== '' || focus.trim() !== ''
   const canDraft = !!subject && hasMaterial && !noReader && (!usesCloud || consent) && !busy
 
+  const [progress, setProgress] = useState<ProgressState | null>(null)
   const draft = async () => {
     if (!canDraft) return
     setBusy(true)
@@ -115,31 +119,44 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
       if (parts.length <= 1) {
         pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
       } else {
-        const texts: string[] = []
         let firstPage = 1
-        for (const part of parts) {
+        const texts = await withProgress(parts, async (part, _index, progressId) => {
           const data = await Promise.all(part.map(async (file) => ({ data: await readFile(file) })))
-          const piece = { subject, pages: data, cloud_consent: usesCloud && consent, first_page: firstPage }
+          const piece = { subject, pages: data, cloud_consent: usesCloud && consent, first_page: firstPage, progress_id: progressId }
           const copied = teacher ? await copyEducatorQuizSource(token, piece) : await copyQuizSource(token, studentName, piece)
-          texts.push(copied.text)
           firstPage += copied.pages_read
-        }
+          return copied.text
+        }, (id) => fetchReadingProgress(token, id, teacher), setProgress)
         pagesText = texts.join('\n\n')
         trimmed = pagesText.length > SOURCE_TEXT_MAX_CHARS
         pagesText = pagesText.slice(0, SOURCE_TEXT_MAX_CHARS)
       }
+      const draftId = newProgressId()
       const body = {
         subject, grade, kind, level, question_count: count,
         focus: focus.trim() || undefined, source_text: sourceText.trim() || undefined,
-        pages, source_pages_text: pagesText, cloud_consent: usesCloud && consent,
+        pages, source_pages_text: pagesText, cloud_consent: usesCloud && consent, progress_id: draftId,
       }
-      const result = teacher ? await generateEducatorQuiz(token, body) : await generateQuiz(token, studentName, body)
+      if (files.length) setProgress({ stage: pagesText ? 'drafting' : 'sending', done: 0, total: null, part: 1, parts: 1, percent: pagesText ? 95 : 0 })
+      const stop = files.length
+        ? watchProgress((id) => fetchReadingProgress(token, id, teacher), draftId, (snap) => setProgress((was) => {
+          const percent = Math.max(was?.percent ?? 0, overallPercent(1, 1, snap))
+          return { ...snap, part: 1, parts: 1, percent }
+        }))
+        : () => undefined
+      let result
+      try {
+        result = teacher ? await generateEducatorQuiz(token, body) : await generateQuiz(token, studentName, body)
+      } finally {
+        stop()
+      }
       if (trimmed) setMessage(t('quizBuilder.sourceTrimmed'))
       setQuiz(result.quiz)
       setKeep(result.quiz.questions.map(() => true))
     } catch (err) {
       setMessage(err instanceof Error ? err.message : t('quizBuilder.draftError'))
     } finally {
+      setProgress(null)
       setBusy(false)
     }
   }
@@ -154,7 +171,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
     const rows = questions.map((q, i) => {
       const opts = q.options.length ? `<ul>${optionLines(q.options).map((o) => `<li>${escapeHtml(o)}</li>`).join('')}</ul>` : ''
       const tail = withAnswers ? `<p class="ans">${escapeHtml(q.answer)}</p>` : '<div class="line"></div>'
-      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${diagramMarkup(q.diagram)}${opts}${tail}</li>`
+      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${diagramMarkup(q.diagram, t)}${opts}${tail}</li>`
     }).join('')
     const heading = withAnswers ? `${quiz.title}: ${t('quizBuilder.answerKey')}` : quiz.title
     win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(heading)}</title>
@@ -254,6 +271,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                 className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
                 {busy ? <><Loader2 size={15} className="animate-spin" />{t('quizBuilder.drafting')}</> : t('quizBuilder.draft')}
               </button>
+              <ReadingProgressBar state={progress} />
             </>
           )}
 

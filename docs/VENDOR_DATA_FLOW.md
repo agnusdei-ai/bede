@@ -134,7 +134,12 @@ exactly the one outbound send that triggered it.
 Every other flow on this page is server-to-vendor: the family's own
 machine talks to Bede, and Bede talks to the provider. Picture study is
 the one exception, and the distinction is the whole reason it has its own
-section rather than a row in a table above.
+section rather than a row in a table above. The Practice Coach makes the same
+two requests for an `image` diagram (a named place, event or artwork a quiz
+question shows; `Diagram.tsx`, `WIKI_SUMMARY`): the diagram holds only the
+article title, and only a picture hosted on Wikimedia Commons (freely
+licensed) is shown, with a credit line. No quiz text, answer or learner
+detail goes with the request; the article title is the only thing sent.
 
 `data/visual_aids.json` stores a Wikipedia article title (`wiki_title`),
 never an image URL or a copy of the image — deliberately, so the catalog

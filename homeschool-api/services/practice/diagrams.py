@@ -51,6 +51,10 @@ PROMPT_SCHEMA = """  {"kind": "fraction_bar"|"fraction_circle", "parts": int, "s
   {"kind": "ruler", "unit": "cm"|"in", "length": int, "objects": [{"label": str, "start": number, "end": number, "icon": ICON|null}]}  (things laid along a ruler, ends on whole or half units)
   {"kind": "money", "pieces": [{"coin": "penny"|"nickel"|"dime"|"quarter"|"half_dollar"|"dollar_coin"|"one_bill"|"five_bill"|"ten_bill"|"twenty_bill", "count": int}]}
   {"kind": "thermometer", "unit": "F"|"C", "low": int, "high": int, "step": int, "reading": int}
+  {"kind": "image", "wiki_title": str, "caption": str}  (a real, named thing no other kind fits: an event,
+    a place, a landmark, an artwork, a person from history, a species. "wiki_title" is the exact title of
+    the English Wikipedia article whose main picture shows it, e.g. "Battle of Hastings", "Nile",
+    "Mona Lisa". Never a link, and never a title you are unsure exists.)
 ICON is one of: """ + ", ".join(ICONS) + """
 ACTION is one of: """ + ", ".join(ACTIONS) + """
 Labels are short (about 20 characters at most)."""
@@ -115,9 +119,35 @@ def _thing(word: str) -> Optional[str]:
     return None
 
 
+_LEAD = re.compile(r"^\s*(?:(?:a|an)\s+)?(?:picture|image|drawing|photo|painting|illustration)?\s*(?:of)?\s*:?\s*", re.I)
+
+
+def _named_image(text: str | None):
+    """A named, real thing ("the Battle of Hastings", "Mount Rushmore") shown
+    from its Wikipedia article. Only a short, capitalised name qualifies, so an
+    everyday description is never sent off as if it were a title."""
+    name = _LEAD.sub("", (text or "").strip()).strip(" .")
+    name = re.sub(r"^(?:the|a|an)\s+", "", name)  # a lower-case article is description; "The Starry Night" is a title
+    words = name.split()
+    if not words or len(words) > 8 or not name[0].isupper():
+        return None
+    if sum(1 for w in words if w[0].isupper()) < max(1, (len(words) + 1) // 2):
+        return None
+    return parse({"kind": "image", "wiki_title": name, "caption": name[:60]})
+
+
 def from_stimulus(text: str | None):
     """A drawing for a picture described in words, or None if it names
     nothing Bede can draw."""
+    # A full proper name ("Rocky Mountains", "The Starry Night") is a real
+    # thing: show it, rather than drawing whatever everyday word it contains.
+    name = re.sub(r"^(?:the|a|an)\s+", "", _LEAD.sub("", (text or "").strip()).strip(" ."))
+    major = [w for w in name.split() if len(w) > 3 or w[:1].isupper()]
+    everyday = all(_thing(w.lower()) or w.lower() in _ACTION_WORDS or w.lower() in _NUMBER_WORDS
+                   or w.lower() in ("and", "on", "in", "with") for w in name.split())
+    if (len(name.split()) >= 2 and major and not everyday
+            and all(w[:1].isupper() or not w[:1].isalpha() for w in major)):
+        return _named_image(text)
     words = re.sub(r"^\s*(picture|image|drawing|photo)\s*(of)?\s*:?\s*", "", (text or "").lower())
     words = re.sub(r"[^a-z0-9 ]+", " ", words)
     for phrase in sorted((k for k in _ALIASES if " " in k), key=len, reverse=True):
@@ -141,7 +171,7 @@ def from_stimulus(text: str | None):
         if len(groups) == 6:
             break
     if not groups:
-        return None
+        return _named_image(text)
     if len(groups) == 1 and groups[0]["count"] == 1 and action:
         return parse({"kind": "scene", "icon": groups[0]["icon"], "action": action})
     return parse({"kind": "pictures", "groups": groups})

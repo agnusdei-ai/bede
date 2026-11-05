@@ -29,7 +29,7 @@ from models.practice import (
     ReadPhotosRequest,
     teacher_mark_count,
 )
-from services.practice import extract, generate, pipeline, store
+from services.practice import extract, generate, pipeline, progress, store
 from services.practice.packs import available_packs
 
 router = APIRouter(prefix="/practice", tags=["practice"])
@@ -63,9 +63,11 @@ def _quiz_options() -> dict:
     }
 
 
-async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False, before_call=None) -> dict:
+async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False, before_call=None,
+                      auth: dict | None = None) -> dict:
+    reporter = progress.reporter(progress.owner_of(auth or {}), req.progress_id) if auth else None
     try:
-        quiz, report = await generate.generate(req, local_only=local_only, before_call=before_call)
+        quiz, report = await generate.generate(req, local_only=local_only, before_call=before_call, report=reporter)
     except generate.QuizRefused as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except extract.ConsentRequired as exc:
@@ -90,10 +92,12 @@ async def get_quiz_options(auth: dict = Depends(require_parent)) -> dict:
     return _quiz_options()
 
 
-async def _copy_source(req: QuizSourceRequest, local_only: bool = False, before_call=None) -> dict:
+async def _copy_source(req: QuizSourceRequest, local_only: bool = False, before_call=None, auth: dict | None = None) -> dict:
     """One part of a long quiz source, copied out as text. Nothing is stored."""
+    report = progress.reporter(progress.owner_of(auth or {}), req.progress_id) if auth else None
     try:
-        text, pages_read = await generate.transcribe_source(req, local_only=local_only, before_call=before_call)
+        text, pages_read = await generate.transcribe_source(
+            req, local_only=local_only, before_call=before_call, report=report)
     except generate.QuizRefused as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except extract.ConsentRequired as exc:
@@ -122,7 +126,27 @@ async def copy_quiz_source(
 ) -> dict:
     """A long quiz source is sent in parts; each part is copied out as text."""
     await consent.require_collection(db, student_name)
-    return await _copy_source(req)
+    return await _copy_source(req, auth=auth)
+
+
+def _progress_view(auth: dict, progress_id: str) -> dict:
+    if not progress.valid_id(progress_id):
+        raise HTTPException(status_code=404, detail="Unknown progress")
+    found = progress.read(progress.owner_of(auth), progress_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="Unknown progress")
+    return found
+
+
+@router.get("/progress/{progress_id}")
+async def get_progress(progress_id: str, auth: dict = Depends(require_parent)) -> dict:
+    """How far a reading in progress has got: pages read of the total."""
+    return _progress_view(auth, progress_id)
+
+
+@router.get("/educator/progress/{progress_id}")
+async def educator_progress(progress_id: str, auth: dict = Depends(require_educator)) -> dict:
+    return _progress_view(auth, progress_id)
 
 
 @router.post("/educator/quiz/source")
@@ -132,7 +156,7 @@ async def educator_copy_quiz_source(
 ) -> dict:
     if req.route == "cloud":
         raise HTTPException(status_code=422, detail="Teacher quizzes are drafted on the school's own AI model.")
-    return await _copy_source(req, local_only=True)
+    return await _copy_source(req, local_only=True, auth=auth)
 
 
 @router.post("/{student_name}/quizzes/generate")
@@ -144,7 +168,7 @@ async def generate_quiz(
 ) -> dict:
     """Draft a quiz or exam for this student. Nothing is stored."""
     await consent.require_collection(db, student_name)
-    return await _draft_quiz(req)
+    return await _draft_quiz(req, auth=auth)
 
 
 @router.get("/educator/quiz-options")
@@ -169,7 +193,7 @@ async def educator_generate_quiz(
     learner record is read or written."""
     if req.route == "cloud":
         raise HTTPException(status_code=422, detail="Teacher quizzes are drafted on the school's own AI model.")
-    return await _draft_quiz(req, local_only=True)
+    return await _draft_quiz(req, local_only=True, auth=auth)
 
 
 @router.get("/reading-route")
@@ -194,7 +218,9 @@ async def read_assessment(
         if earlier is None or earlier[0].status != "needs_review" or earlier[1].subject != req.subject:
             raise HTTPException(status_code=404, detail="Assessment not found")
     try:
-        assessment, pages_read = await extract.read_pages_counted(req, continues=earlier[1] if earlier else None)
+        assessment, pages_read = await extract.read_pages_counted(
+            req, continues=earlier[1] if earlier else None,
+            report=progress.reporter(progress.owner_of(auth), req.progress_id))
     except extract.ConsentRequired as exc:
         raise HTTPException(status_code=409, detail={
             "consent_required": True,
@@ -388,7 +414,7 @@ async def demo_generate_quiz(
             raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
         await record_message(code)
 
-    return await _draft_quiz(req, before_call=charge)
+    return await _draft_quiz(req, before_call=charge, auth=auth)
 
 
 @router.post("/demo/quiz/source")
@@ -406,7 +432,12 @@ async def demo_copy_quiz_source(
             raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
         await record_message(code)
 
-    return await _copy_source(req, before_call=charge)
+    return await _copy_source(req, before_call=charge, auth=auth)
+
+
+@router.get("/demo/progress/{progress_id}")
+async def demo_progress(progress_id: str, auth: dict = Depends(require_demo_practice_preview)) -> dict:
+    return _progress_view(auth, progress_id)
 
 
 @router.post("/demo/read")
@@ -430,7 +461,9 @@ async def demo_read_assessment(
         await record_message(code)
 
     try:
-        assessment, pages_read = await extract.read_pages_counted(req, before_call=charge, continues=req.continues)
+        assessment, pages_read = await extract.read_pages_counted(
+            req, before_call=charge, continues=req.continues,
+            report=progress.reporter(progress.owner_of(auth), req.progress_id))
     except extract.ConsentRequired as exc:
         raise HTTPException(status_code=409, detail={
             "consent_required": True,

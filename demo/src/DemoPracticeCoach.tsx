@@ -5,6 +5,7 @@ import {
   approveDemoPractice,
   fetchDemoPracticePacks,
   fetchDemoPracticeReadingRoute,
+  fetchDemoReadingProgress,
   readDemoPracticePhotos,
   planDemoPractice,
   type DemoPracticeAssessment,
@@ -12,6 +13,8 @@ import {
 } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
 import { splitIntoParts, uploadProblem } from './uploadParts'
+import { withProgress, type ProgressState } from './readingProgress'
+import ReadingProgressBar from './ReadingProgressBar'
 import Diagram, { pictureWords } from './Diagram'
 
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
@@ -53,6 +56,7 @@ export default function DemoPracticeCoach({
   const [route, setRoute] = useState<{ local_available: boolean; cloud_provider: string | null } | null>(null)
   const [subject, setSubject] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [progress, setProgress] = useState<ProgressState | null>(null)
   const [cloudConsent, setCloudConsent] = useState(false)
   const [stage, setStage] = useState<'start' | 'reading' | 'review' | 'planning' | 'plan'>('start')
   const [assessment, setAssessment] = useState<DemoPracticeAssessment | null>(null)
@@ -96,7 +100,7 @@ export default function DemoPracticeCoach({
       // so each part carries what the earlier parts read.
       let sofar: DemoPracticeAssessment | undefined
       let firstPage = 1
-      for (const part of splitIntoParts(files)) {
+      await withProgress(splitIntoParts(files), async (part, _index, progressId) => {
         const pages = await Promise.all(part.map(async (file) => ({ data: await readFile(file) })))
         const result = await readDemoPracticePhotos(token, {
           subject,
@@ -104,10 +108,11 @@ export default function DemoPracticeCoach({
           cloud_consent: usesCloud && cloudConsent,
           first_page: firstPage,
           continues: sofar,
+          progress_id: progressId,
         })
         sofar = result.assessment
         firstPage += result.pages_read ?? pages.length
-      }
+      }, (id) => fetchDemoReadingProgress(token, id), setProgress)
       if (!sofar) return
       setAssessment(sofar)
       setStage('review')
@@ -115,6 +120,7 @@ export default function DemoPracticeCoach({
       setStage('start')
       setError(reason instanceof Error ? reason.message : t('demoPractice.readError'))
     } finally {
+      setProgress(null)
       setFiles([])
     }
   }
@@ -255,6 +261,7 @@ export default function DemoPracticeCoach({
               <button type="button" onClick={() => void read()} disabled={stage === 'reading' || !files.length || !subject || noReader || (usesCloud && !cloudConsent)} className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
                 {stage === 'reading' ? t('demoPractice.reading') : t('demoPractice.read')}
               </button>
+              <ReadingProgressBar state={progress} />
             </div>
           )}
 

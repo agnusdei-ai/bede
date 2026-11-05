@@ -3,9 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { Check, Loader2 } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from './uploadParts'
 import Diagram from './Diagram'
+import ReadingProgressBar from './ReadingProgressBar'
+import { newProgressId, overallPercent, watchProgress, withProgress, type ProgressState } from './readingProgress'
 import type { DiagramSpec } from './Diagram'
 import {
   copyDemoQuizSource,
+  fetchDemoReadingProgress,
   fetchDemoQuizOptions,
   generateDemoQuiz,
   quizPrompt,
@@ -83,6 +86,7 @@ export default function DemoQuizBuilder({
   const hasMaterial = files.length > 0 || sourceText.trim() !== '' || focus.trim() !== ''
   const canDraft = !!subject && hasMaterial && !noReader && (!usesCloud || consent) && !busy
 
+  const [progress, setProgress] = useState<ProgressState | null>(null)
   const draft = async () => {
     if (!canDraft) return
     setBusy(true)
@@ -97,34 +101,48 @@ export default function DemoQuizBuilder({
       if (parts.length <= 1) {
         pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
       } else {
-        const texts: string[] = []
         let firstPage = 1
-        for (const part of parts) {
+        const texts = await withProgress(parts, async (part, _index, progressId) => {
           const data = await Promise.all(part.map(async (file) => ({ data: await readFile(file) })))
           const copied = await copyDemoQuizSource(token, {
-            subject, pages: data, cloud_consent: usesCloud && consent, first_page: firstPage,
+            subject, pages: data, cloud_consent: usesCloud && consent, first_page: firstPage, progress_id: progressId,
           })
-          texts.push(copied.text)
           firstPage += copied.pages_read
-        }
+          return copied.text
+        }, (id) => fetchDemoReadingProgress(token, id), setProgress)
         pagesText = texts.join('\n\n')
         trimmed = pagesText.length > SOURCE_TEXT_MAX_CHARS
         pagesText = pagesText.slice(0, SOURCE_TEXT_MAX_CHARS)
       }
-      const result = await generateDemoQuiz(token, {
-        subject, grade, kind, level, question_count: count,
-        focus: focus.trim() || undefined,
-        source_text: sourceText.trim() || undefined,
-        pages,
-        source_pages_text: pagesText,
-        cloud_consent: usesCloud && consent,
-      })
+      const draftId = newProgressId()
+      if (files.length) setProgress({ stage: pagesText ? 'drafting' : 'sending', done: 0, total: null, part: 1, parts: 1, percent: pagesText ? 95 : 0 })
+      const stop = files.length
+        ? watchProgress((id) => fetchDemoReadingProgress(token, id), draftId, (snap) => setProgress((was) => {
+          const percent = Math.max(was?.percent ?? 0, overallPercent(1, 1, snap))
+          return { ...snap, part: 1, parts: 1, percent }
+        }))
+        : () => undefined
+      let result
+      try {
+        result = await generateDemoQuiz(token, {
+          subject, grade, kind, level, question_count: count,
+          focus: focus.trim() || undefined,
+          source_text: sourceText.trim() || undefined,
+          pages,
+          source_pages_text: pagesText,
+          cloud_consent: usesCloud && consent,
+          progress_id: draftId,
+        })
+      } finally {
+        stop()
+      }
       if (trimmed) setError(t('demoQuiz.sourceTrimmed'))
       setQuiz(result.quiz)
       setKeep(result.quiz.questions.map(() => true))
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : t('demoQuiz.draftError'))
     } finally {
+      setProgress(null)
       setBusy(false)
     }
   }
@@ -289,6 +307,7 @@ export default function DemoQuizBuilder({
       <button type="button" onClick={() => void draft()} disabled={!canDraft} className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
         {busy ? <><Loader2 size={15} className="mr-1 inline animate-spin" />{t('demoQuiz.drafting')}</> : t('demoQuiz.draft')}
       </button>
+              <ReadingProgressBar state={progress} />
     </div>
   )
 }

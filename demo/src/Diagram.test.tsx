@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import './i18n'
-import Diagram, { ACTIONS, ICONS, diagramMarkup, type DiagramSpec } from './Diagram'
+import Diagram, { ACTIONS, COINS, ICONS, diagramMarkup, type DiagramSpec } from './Diagram'
 
 afterEach(cleanup)
 
@@ -25,6 +25,9 @@ const every: DiagramSpec[] = [
   { kind: 'table', header: ['Planet', 'Moons'], rows: [['Earth', '1'], ['Mars', '2']] },
   { kind: 'cycle', steps: ['evaporation', 'condensation', '?', 'collection'] },
   { kind: 'sequence', steps: ['seed', 'sprout', 'plant'] },
+  { kind: 'ruler', unit: 'cm', length: 15, objects: [{ label: 'crayon', start: 0, end: 9, icon: 'crayon' }, { label: 'linking cube', start: 9, end: 11 }] },
+  { kind: 'money', pieces: [{ coin: 'quarter', count: 2 }, { coin: 'one_bill', count: 1 }] },
+  { kind: 'thermometer', unit: 'F', low: 0, high: 100, step: 10, reading: 60 },
 ]
 
 describe('drawn diagrams', () => {
@@ -84,6 +87,20 @@ describe('drawn diagrams', () => {
     expect(texts).toContain('50 BC')
   })
 
+  it('lays each thing along the ruler from its start to its end', () => {
+    const { container } = render(<Diagram d={{ kind: 'ruler', unit: 'cm', length: 10, objects: [{ label: 'crayon', start: 2, end: 7 }] }} />)
+    const bar = container.querySelector('rect[rx="6"]')!
+    const numbers = [...container.querySelectorAll('text')].filter((t) => /^\d+$/.test(t.textContent ?? ''))
+    const at = (n: string) => Number(numbers.find((t) => t.textContent === n)!.getAttribute('x'))
+    expect(Number(bar.getAttribute('x'))).toBeCloseTo(at('2'))
+    expect(Number(bar.getAttribute('x')) + Number(bar.getAttribute('width'))).toBeCloseTo(at('7'))
+  })
+
+  it('draws one coin or bill per piece, showing what each is worth', () => {
+    const { container } = render(<Diagram d={{ kind: 'money', pieces: [{ coin: 'quarter', count: 2 }, { coin: 'dime', count: 1 }] }} />)
+    expect([...container.querySelectorAll('text')].map((t) => t.textContent)).toEqual(['25¢', '25¢', '10¢'])
+  })
+
   it('draws nothing for an unknown kind or no diagram', () => {
     const { container } = render(<Diagram d={{ kind: 'svg' } as unknown as DiagramSpec} />)
     expect(container.querySelector('svg')).toBeNull()
@@ -101,5 +118,7 @@ describe('drawn diagrams', () => {
     const list = (name: string) => py.match(new RegExp(`^${name} = \\(([^)]*)\\)`, 'm'))?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
     expect(list('ICONS').sort()).toEqual(Object.keys(ICONS).sort())
     expect(list('ACTIONS').sort()).toEqual(Object.keys(ACTIONS).sort())
+    const cents = Object.fromEntries([...(py.match(/^COIN_CENTS = \{([^}]*)\}/m)?.[1] ?? '').matchAll(/"(\w+)": (\d+)/g)].map((m) => [m[1], Number(m[2])]))
+    expect(Object.fromEntries(Object.entries(COINS).map(([k, v]) => [k, v.cents]))).toEqual(cents)
   })
 })

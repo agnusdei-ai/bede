@@ -14,7 +14,8 @@
   lower `confidence`, and say which character is unclear in `ask_parent`.
 - A picture problem (a shaded fraction, a clock, an array of dots, base-ten
   blocks, a rectangle or right triangle with its sides marked, a number line,
-  a bar graph, points on a grid): record the picture in `diagram` with its
+  a bar graph, points on a grid, things laid along a ruler, coins and bills,
+  a thermometer): record the picture in `diagram` with its
   exact numbers, and copy the question into `prompt` ("What fraction is
   shaded?"). Bede draws it again and checks the answer against it, so count
   carefully. A picture that is none of these goes in `stimulus` only.

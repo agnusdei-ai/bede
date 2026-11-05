@@ -27,7 +27,7 @@ from typing import Optional
 
 from pydantic import TypeAdapter
 
-from models.practice import ACTIONS, ICONS, Diagram
+from models.practice import ACTIONS, COIN_CENTS, ICONS, Diagram
 
 _ADAPTER = TypeAdapter(Diagram)
 
@@ -48,6 +48,9 @@ PROMPT_SCHEMA = """  {"kind": "fraction_bar"|"fraction_circle", "parts": int, "s
   {"kind": "venn", "left": str, "right": str, "left_items": [str], "right_items": [str], "both_items": [str]}
   {"kind": "table", "header": [str], "rows": [[str]]}
   {"kind": "cycle"|"sequence", "steps": [str]}  (a step written "?" is a blank)
+  {"kind": "ruler", "unit": "cm"|"in", "length": int, "objects": [{"label": str, "start": number, "end": number, "icon": ICON|null}]}  (things laid along a ruler, ends on whole or half units)
+  {"kind": "money", "pieces": [{"coin": "penny"|"nickel"|"dime"|"quarter"|"half_dollar"|"dollar_coin"|"one_bill"|"five_bill"|"ten_bill"|"twenty_bill", "count": int}]}
+  {"kind": "thermometer", "unit": "F"|"C", "low": int, "high": int, "step": int, "reading": int}
 ICON is one of: """ + ", ".join(ICONS) + """
 ACTION is one of: """ + ", ".join(ACTIONS) + """
 Labels are short (about 20 characters at most)."""
@@ -138,6 +141,56 @@ def _named_point(diagram, prompt: str):
     return 0 if count == 1 else None
 
 
+
+# ── Measuring pictures: ruler, money, thermometer ─────────────────────────────
+
+def _amount(text: str | None) -> Optional[Fraction]:
+    """The first number in an answer, ignoring a unit ("9 cm", "2.5 in")."""
+    m = re.search(r"-?\d+(?:\.\d+)?(?:\s+\d+/\d+|/\d+)?", (text or "").replace("−", "-"))
+    return _number(m.group(0)) if m else None
+
+
+def _cents(text: str | None) -> Optional[int]:
+    t = (text or "").lower().replace(",", "")
+    m = re.search(r"\d+(?:\.\d+)?", t)
+    if not m:
+        return None
+    value = Fraction(m.group(0))
+    if "$" in t or "dollar" in t or ("." in m.group(0) and "cent" not in t and "¢" not in t):
+        value *= 100
+    return int(value) if value.denominator == 1 else None
+
+
+def _fmt_measure(value: float) -> str:
+    return str(int(value)) if float(value).is_integer() else f"{value:g}"
+
+
+def _fmt_cents(cents: int) -> str:
+    return f"${cents // 100}.{cents % 100:02d}" if cents >= 100 else f"{cents}¢"
+
+
+def _named(diagram, prompt: str) -> list:
+    words = (prompt or "").lower()
+    found = [(words.find(o.label.lower()), o) for o in diagram.objects
+             if re.search(rf"(?<!\w){re.escape(o.label.lower())}(?!\w)", words)]
+    return [o for _, o in sorted(found, key=lambda pair: pair[0])]
+
+
+def _ruler_answer(diagram, prompt: str) -> Optional[str]:
+    words = (prompt or "").lower()
+    named = _named(diagram, prompt)
+    length = lambda o: o.end - o.start
+    if len(named) >= 2 and re.search(r"\b(total|together|altogether|in all|combined)\b", words):
+        return _fmt_measure(sum(length(o) for o in named))
+    if len(named) == 2 and re.search(r"\b(shorter|longer|difference|how much more|how much less)\b", words):
+        return _fmt_measure(abs(length(named[0]) - length(named[1])))
+    if len(named) == 1 or (len(diagram.objects) == 1 and not named):
+        target = named[0] if named else diagram.objects[0]
+        if re.search(r"\b(how long|length|long is|measure)\b", words):
+            return _fmt_measure(length(target))
+    return None
+
+
 def answer(diagram, prompt: str) -> Optional[str]:
     """The answer the picture shows, as text, or None if it cannot be settled."""
     kind = diagram.kind
@@ -173,6 +226,16 @@ def answer(diagram, prompt: str) -> Optional[str]:
             return None
         point = diagram.points[index]
         return _fmt_point(point.x, point.y)
+    if kind == "ruler":
+        return _ruler_answer(diagram, prompt)
+    if kind == "money":
+        if re.search(r"\b(how much|total|in all|altogether|worth)\b", (prompt or "").lower()):
+            return _fmt_cents(sum(COIN_CENTS[p.coin] * p.count for p in diagram.pieces))
+        return None
+    if kind == "thermometer":
+        if re.search(r"\b(temperature|how (hot|cold|warm)|degrees|read)\b", (prompt or "").lower()):
+            return f"{diagram.reading}°{diagram.unit}"
+        return None
     if kind == "pictures":
         words = (prompt or "").lower()
         if "how many" in words:
@@ -194,6 +257,11 @@ def same(diagram, given: str | None, right: str) -> bool:
         return _time(given) == _time(right)
     if diagram.kind == "coordinate_plane":
         return _point(given) == _point(right)
+    if diagram.kind == "money":
+        return _cents(given) is not None and _cents(given) == _cents(right)
+    if diagram.kind in ("ruler", "thermometer"):
+        a, b = _amount(given), _amount(right)
+        return a is not None and a == b
     a, b = _number(given), _number(right)
     return a is not None and a == b
 
@@ -209,6 +277,32 @@ def explain(diagram, prompt: str, given: str | None) -> str:
     kind = diagram.kind
     if kind == "coordinate_plane":
         return explain_point(diagram, prompt, given)
+    if kind == "ruler":
+        value = _amount(given)
+        named = _named(diagram, prompt) or list(diagram.objects[:1])
+        if value is None:
+            return ""
+        lengths = [Fraction(o.end - o.start).limit_denominator(2) for o in named]
+        for o in named:
+            if o.start and value == Fraction(o.end).limit_denominator(2):
+                return f"wrote {given} for {right}: read the number where the {o.label} ends; it starts at {_fmt_measure(o.start)}, so count from there"
+            if value == Fraction(o.end - o.start).limit_denominator(2) + 1:
+                return f"wrote {given} for {right}: counted the marks instead of the spaces between them"
+        if len(named) >= 2 and value in lengths:
+            return f"wrote {given} for {right}: gave one length instead of putting the two together" \
+                if "total" in (prompt or "").lower() or "together" in (prompt or "").lower() \
+                else f"wrote {given} for {right}: gave a length, not how much longer or shorter one is"
+        return ""
+    if kind == "money":
+        cents = _cents(given)
+        if cents is not None and cents == sum(p.count for p in diagram.pieces):
+            return f"wrote {given} for {right}: counted the coins, not what each one is worth"
+        return ""
+    if kind == "thermometer":
+        value = _amount(given)
+        if value is not None and value in (diagram.reading + diagram.step, diagram.reading - diagram.step):
+            return f"wrote {given} for {right}: read the line next to the top of the liquid"
+        return ""
     if kind in ("fraction_bar", "fraction_circle"):
         value = _number(given)
         p, s = diagram.parts, diagram.shaded
@@ -325,6 +419,43 @@ def new_like(diagram, prompt: str, rng: random.Random):
         mark = start + step * rng.randint(1, count - 1)
         d = {"kind": "number_line", "start": start, "end": start + step * count, "step": step,
              "marks": [mark], "mark_labels": ["A"]}
+    elif kind == "ruler":
+        words = (prompt or "").lower()
+        ordered = sorted(diagram.objects[:2], key=lambda o: o.end - o.start, reverse=True)
+        the = lambda label: label if label[:1].isupper() else f"the {label}"
+        icons = {o.label: o.icon for o in diagram.objects}
+        if len(ordered) == 2:
+            long_label, short_label = ordered[0].label, ordered[1].label
+            together = re.search(r"\b(total|together|altogether|in all|combined)\b", words)
+            room = diagram.length if not together else diagram.length - 1
+            big = rng.randint(3, max(3, (room if not together else room - 2)))
+            small = rng.randint(1, big - 1) if not together else rng.randint(1, max(1, room - big))
+            if together:
+                small = min(small, diagram.length - big)
+                objects = [{"label": long_label, "start": 0, "end": big, "icon": icons[long_label]},
+                           {"label": short_label, "start": big, "end": big + small, "icon": icons[short_label]}]
+                text = f"What is the total length of {the(long_label)} and {the(short_label)}?"
+            else:
+                objects = [{"label": long_label, "start": 0, "end": big, "icon": icons[long_label]},
+                           {"label": short_label, "start": 0, "end": small, "icon": icons[short_label]}]
+                text = f"How much shorter is {the(short_label)} than {the(long_label)}?"
+        else:
+            only = diagram.objects[0]
+            start_at = rng.randint(0, 3) if only.start else 0  # a measure that does not start at 0 stays that way
+            size = rng.randint(2, max(2, diagram.length - start_at))
+            objects = [{"label": only.label, "start": start_at, "end": start_at + size, "icon": only.icon}]
+            text = f"How long is {the(only.label)}?"
+        d = {"kind": "ruler", "unit": diagram.unit, "length": diagram.length, "objects": objects}
+    elif kind == "money":
+        kinds = sorted({p.coin for p in diagram.pieces}, key=lambda c: COIN_CENTS[c])
+        d = {"kind": "money", "pieces": [{"coin": c, "count": rng.randint(1, 4)} for c in kinds]}
+        text = "How much money is shown?"
+    elif kind == "thermometer":
+        steps = (diagram.high - diagram.low) // diagram.step
+        reading = diagram.low + diagram.step * rng.randint(1, max(1, steps - 1))
+        d = {"kind": "thermometer", "unit": diagram.unit, "low": diagram.low, "high": diagram.high,
+             "step": diagram.step, "reading": reading}
+        text = "What temperature does the thermometer show?"
     elif kind == "pictures":
         if len(diagram.groups) != 1:
             return None
@@ -350,6 +481,7 @@ FAMILY = {
     "base_ten": "base_ten", "clock": "clock", "rectangle": "area_perimeter",
     "right_triangle": "area_perimeter", "number_line": "number_line",
     "coordinate_plane": "coordinates", "bar_graph": "graph", "pictures": "counting",
+    "ruler": "measuring", "money": "money", "thermometer": "temperature",
 }
 
 

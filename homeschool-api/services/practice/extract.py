@@ -162,7 +162,10 @@ Rules:
 - "stimulus" describes a picture briefly in plain English (e.g. "picture: dog running").
 - "diagram" is null unless the question's picture can be given as one of these, with its exact numbers and words:
 """ + diagrams.PROMPT_SCHEMA + """
-  This is for any subject: an animal to name, a timeline, the water cycle, a table, a shape. Count parts,
+  This is for any subject: an animal to name, a timeline, the water cycle, a table, a shape, things on a
+  ruler, coins, a thermometer. Prefer a diagram whenever one fits, so the picture is drawn rather than
+  described: when the answer choices are pictures, give a "pictures" diagram with one group per choice,
+  labelled as the page labels them (A, B, C), using the nearest ICON. Count parts,
   dots, blocks and tick marks carefully; if you are unsure, lower "confidence" and say so in "ask_parent".
   Any other picture (a photograph, a map, a drawing none of these fits) goes in "stimulus" only."""
 

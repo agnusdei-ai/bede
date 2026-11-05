@@ -30,6 +30,9 @@ export type DiagramSpec =
   | { kind: 'venn'; left: string; right: string; left_items: string[]; right_items: string[]; both_items: string[] }
   | { kind: 'table'; header: string[]; rows: string[][] }
   | { kind: 'cycle' | 'sequence'; steps: string[] }
+  | { kind: 'ruler'; unit: 'cm' | 'in'; length: number; objects: { label: string; start: number; end: number; icon?: string | null }[] }
+  | { kind: 'money'; pieces: { coin: string; count: number }[] }
+  | { kind: 'thermometer'; unit: 'F' | 'C'; low: number; high: number; step: number; reading: number }
 
 /** Picture symbols for the API's ICONS (models/practice.py). A name not here draws nothing. */
 export const ICONS: Record<string, string> = {
@@ -48,6 +51,17 @@ export const ICONS: Record<string, string> = {
   boy: '👦', girl: '👧', man: '👨', woman: '👩', baby: '👶', farmer: '🧑‍🌾', king: '🤴', queen: '👸',
   hand: '✋', eye: '👁️', ear: '👂', foot: '🦶', heart: '🫀', brain: '🧠', tooth: '🦷', bone: '🦴',
   magnifier: '🔍', microscope: '🔬', thermometer: '🌡️', battery: '🔋', plant: '🪴',
+  crayon: '🖍️', paperclip: '📎', scissors: '✂️', spoon: '🥄', backpack: '🎒', chair: '🪑', bed: '🛏️',
+  watermelon: '🍉', bucket: '🪣', television: '📺', computer: '💻', phone: '📱', cup: '☕', bottle: '🍼',
+  toothbrush: '🪥',
+}
+
+/** Coins and bills (models/practice.py COIN_CENTS): what each is worth and how it is drawn. */
+export const COINS: Record<string, { cents: number; bill?: boolean; r?: number }> = {
+  penny: { cents: 1, r: 17 }, nickel: { cents: 5, r: 19 }, dime: { cents: 10, r: 16 },
+  quarter: { cents: 25, r: 22 }, half_dollar: { cents: 50, r: 25 }, dollar_coin: { cents: 100, r: 24 },
+  one_bill: { cents: 100, bill: true }, five_bill: { cents: 500, bill: true },
+  ten_bill: { cents: 1000, bill: true }, twenty_bill: { cents: 2000, bill: true },
 }
 
 /** What an action looks like beside the thing doing it. */
@@ -394,6 +408,83 @@ function Steps({ kind, steps }: { kind: 'cycle' | 'sequence'; steps: string[] })
   )
 }
 
+const BAR_COLOURS = ['#c98b5a', '#7d9bb8', '#b6a04a', '#9a7fb0']
+
+function Ruler({ unit, length, objects }: { unit: 'cm' | 'in'; length: number; objects: { label: string; start: number; end: number; icon?: string | null }[] }) {
+  const n = clamp(length, 2, 30)
+  const list = (objects ?? []).slice(0, 4)
+  const per = Math.max(18, Math.min(40, 540 / n))
+  const x = (v: number) => 20 + Math.max(0, Math.min(n, Number(v) || 0)) * per
+  const top = 14 + list.length * 34
+  const ticks: ReactElement[] = []
+  const sub = unit === 'in' ? 2 : 1
+  for (let k = 0; k <= n * sub; k++) {
+    const whole = k % sub === 0
+    ticks.push(<line key={k} x1={x(k / sub)} y1={top} x2={x(k / sub)} y2={top + (whole ? 16 : 9)} stroke={INK} strokeWidth={whole ? 1.5 : 1} />)
+    if (whole) ticks.push(<text key={`n${k}`} x={x(k / sub)} y={top + 30} textAnchor="middle" {...FONT} fontSize={11}>{k / sub}</text>)
+  }
+  return (
+    <svg viewBox={`0 0 ${n * per + 50} ${top + 44}`} width={n * per + 50} height={top + 44}>
+      {list.map((o, i) => (
+        <g key={i}>
+          <rect x={x(o.start)} y={10 + i * 34} width={Math.max(4, x(o.end) - x(o.start))} height={24} rx={6} fill={BAR_COLOURS[i % 4]} stroke={INK} strokeWidth={1.5} />
+          <text x={x(o.start) + 6} y={27 + i * 34} {...FONT} fill="#ffffff" fontWeight="bold">
+            {o.icon && ICONS[o.icon] ? `${ICONS[o.icon]} ` : ''}{o.label.slice(0, 16)}
+          </text>
+          <line x1={x(o.start)} y1={34 + i * 34} x2={x(o.start)} y2={top} stroke={INK} strokeWidth={0.75} strokeDasharray="2 3" />
+          <line x1={x(o.end)} y1={34 + i * 34} x2={x(o.end)} y2={top} stroke={INK} strokeWidth={0.75} strokeDasharray="2 3" />
+        </g>
+      ))}
+      <rect x={14} y={top} width={n * per + 12} height={36} fill="#f4e7b8" stroke={INK} strokeWidth={1.5} />
+      {ticks}
+      <text x={n * per + 22} y={top + 30} {...FONT} fontSize={11}>{unit}</text>
+    </svg>
+  )
+}
+
+function Money({ pieces }: { pieces: { coin: string; count: number }[] }) {
+  const items: { coin: string }[] = []
+  for (const p of (pieces ?? []).slice(0, 6)) {
+    if (!COINS[p.coin]) continue
+    for (let k = 0; k < clamp(p.count, 1, 10); k++) items.push({ coin: p.coin })
+  }
+  let x = 8
+  const drawn = items.map((it, i) => {
+    const c = COINS[it.coin]
+    const label = c.cents >= 100 ? `$${c.cents / 100}` : `${c.cents}¢`
+    if (c.bill) {
+      const g = <g key={i}><rect x={x} y={14} width={88} height={44} rx={4} fill="#cfe3c4" stroke="#3d6b35" strokeWidth={2} />
+        <text x={x + 44} y={42} textAnchor="middle" {...FONT} fontSize={16} fontWeight="bold" fill="#2f5229">{label}</text></g>
+      x += 96
+      return g
+    }
+    const r = c.r ?? 20
+    const g = <g key={i}><circle cx={x + r} cy={36} r={r} fill={it.coin === 'penny' ? '#d9a066' : '#d7d9dd'} stroke={INK} strokeWidth={1.5} />
+      <text x={x + r} y={40} textAnchor="middle" {...FONT} fontSize={11} fontWeight="bold">{label}</text></g>
+    x += r * 2 + 8
+    return g
+  })
+  return <svg viewBox={`0 0 ${Math.max(60, x)} 72`} width={Math.max(60, x)} height={72}>{drawn}</svg>
+}
+
+function Thermometer({ unit, low, high, step, reading }: { unit: 'F' | 'C'; low: number; high: number; step: number; reading: number }) {
+  const lo = Math.round(low), hi = Math.max(lo + 1, Math.round(high)), st = Math.max(1, Math.round(step))
+  const y = (v: number) => 210 - ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * 180
+  const marks: ReactElement[] = []
+  for (let v = lo; v <= hi && marks.length < 60; v += st) {
+    marks.push(<g key={v}><line x1={62} y1={y(v)} x2={74} y2={y(v)} stroke={INK} strokeWidth={1.5} />
+      <text x={80} y={y(v) + 4} {...FONT} fontSize={11}>{v}°{unit}</text></g>)
+  }
+  return (
+    <svg viewBox="0 0 140 250" width="140" height="250">
+      <rect x={42} y={20} width={20} height={200} rx={10} fill={PAPER} stroke={INK} strokeWidth={2} />
+      <rect x={47} y={y(reading)} width={10} height={220 - y(reading)} fill="#c0392b" />
+      <circle cx={52} cy={228} r={16} fill="#c0392b" stroke={INK} strokeWidth={2} />
+      {marks}
+    </svg>
+  )
+}
+
 /** What the picture shows, in words, for a screen reader. */
 export function describe(d: DiagramSpec, t: (key: string, values?: Record<string, unknown>) => string): string {
   switch (d.kind) {
@@ -414,6 +505,9 @@ export function describe(d: DiagramSpec, t: (key: string, values?: Record<string
     case 'table': return t('diagram.table', { header: d.header.join(', '), rows: d.rows.length })
     case 'cycle': return t('diagram.cycle', { steps: d.steps.join(', ') })
     case 'sequence': return t('diagram.sequence', { steps: d.steps.join(', ') })
+    case 'ruler': return t('diagram.ruler', { unit: d.unit, things: d.objects.map((o) => t('diagram.rulerThing', { label: o.label, start: o.start, end: o.end })).join('; ') })
+    case 'money': return t('diagram.money', { pieces: d.pieces.map((p) => `${p.count} × ${t(`diagram.coin.${p.coin}`, { defaultValue: p.coin })}`).join(', ') })
+    case 'thermometer': return t('diagram.thermometer', { low: d.low, high: d.high, unit: d.unit })
   }
 }
 
@@ -435,6 +529,9 @@ export function DiagramSvg({ d }: { d: DiagramSpec }) {
     case 'venn': return <Venn {...d} />
     case 'table': return <Table header={d.header} rows={d.rows} />
     case 'cycle': case 'sequence': return <Steps kind={d.kind} steps={d.steps} />
+    case 'ruler': return <Ruler unit={d.unit} length={d.length} objects={d.objects} />
+    case 'money': return <Money pieces={d.pieces} />
+    case 'thermometer': return <Thermometer {...d} />
     default: return null
   }
 }

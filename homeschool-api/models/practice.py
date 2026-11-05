@@ -154,6 +154,8 @@ ICONS = (
     "boy", "girl", "man", "woman", "baby", "farmer", "king", "queen",
     "hand", "eye", "ear", "foot", "heart", "brain", "tooth", "bone",
     "magnifier", "microscope", "thermometer", "battery", "plant",
+    "crayon", "paperclip", "scissors", "spoon", "backpack", "chair", "bed", "watermelon", "bucket",
+    "television", "computer", "phone", "cup", "bottle", "toothbrush",
 )
 ACTIONS = ("running", "swimming", "flying", "sleeping", "eating", "drinking", "singing", "walking", "reading", "writing")
 Icon = Literal[ICONS]  # type: ignore[valid-type]
@@ -236,15 +238,87 @@ class StepsDiagram(_Strict):
         return value
 
 
+class RulerObject(_Strict):
+    label: str = Field(..., min_length=1, max_length=16)
+    start: float = Field(..., ge=0, le=30)
+    end: float = Field(..., ge=0, le=30)
+    icon: Optional[Icon] = None
+
+    @field_validator("start", "end")
+    @classmethod
+    def _half_units(cls, value: float) -> float:
+        if round(value * 2) != value * 2:
+            raise ValueError("ends sit on a whole or half unit")
+        return value
+
+    @field_validator("end")
+    @classmethod
+    def _after_start(cls, value: float, info) -> float:
+        if value <= info.data.get("start", 0):
+            raise ValueError("an object ends after it starts")
+        return value
+
+
+class RulerDiagram(_Strict):
+    """Things laid along a ruler: "How long is the crayon?", "Pencil B is
+    ___ cm shorter than Pencil A", "the total length of the crayon and the cube"."""
+    kind: Literal["ruler"]
+    unit: Literal["cm", "in"] = "cm"
+    length: int = Field(..., ge=2, le=30)
+    objects: List[RulerObject] = Field(..., min_length=1, max_length=4)
+
+    @field_validator("objects")
+    @classmethod
+    def _on_the_ruler(cls, value: List[RulerObject], info) -> List[RulerObject]:
+        if any(o.end > info.data.get("length", 30) for o in value):
+            raise ValueError("every object fits on the ruler")
+        return value
+
+
+Coin = Literal["penny", "nickel", "dime", "quarter", "half_dollar", "dollar_coin", "one_bill", "five_bill", "ten_bill", "twenty_bill"]
+COIN_CENTS = {"penny": 1, "nickel": 5, "dime": 10, "quarter": 25, "half_dollar": 50, "dollar_coin": 100,
+              "one_bill": 100, "five_bill": 500, "ten_bill": 1000, "twenty_bill": 2000}
+
+
+class MoneyPiece(_Strict):
+    coin: Coin
+    count: int = Field(default=1, ge=1, le=10)
+
+
+class MoneyDiagram(_Strict):
+    """Coins and bills to count: "How much money is shown?"."""
+    kind: Literal["money"]
+    pieces: List[MoneyPiece] = Field(..., min_length=1, max_length=6)
+
+
+class ThermometerDiagram(_Strict):
+    kind: Literal["thermometer"]
+    unit: Literal["F", "C"] = "F"
+    low: int = Field(..., ge=-50, le=200)
+    high: int = Field(..., ge=-40, le=220)
+    step: int = Field(default=10, ge=1, le=50)
+    reading: int = Field(..., ge=-50, le=220)
+
+    @field_validator("reading")
+    @classmethod
+    def _in_range(cls, value: int, info) -> int:
+        low, high = info.data.get("low"), info.data.get("high")
+        if low is not None and high is not None and not (low < high and low <= value <= high):
+            raise ValueError("the reading is on the scale")
+        return value
+
+
 Diagram = Annotated[
     Union[FractionDiagram, ArrayDiagram, BaseTenDiagram, ClockDiagram, RectangleDiagram,
           RightTriangleDiagram, NumberLineDiagram, BarGraphDiagram, CoordinateDiagram,
-          PicturesDiagram, SceneDiagram, TimelineDiagram, VennDiagram, TableDiagram, StepsDiagram],
+          PicturesDiagram, SceneDiagram, TimelineDiagram, VennDiagram, TableDiagram, StepsDiagram,
+          RulerDiagram, MoneyDiagram, ThermometerDiagram],
     Field(discriminator="kind"),
 ]
 DIAGRAM_KINDS = ("fraction_bar", "fraction_circle", "array", "base_ten", "clock", "rectangle",
                  "right_triangle", "number_line", "bar_graph", "coordinate_plane",
-                 "pictures", "scene", "timeline", "venn", "table", "cycle", "sequence")
+                 "pictures", "scene", "timeline", "venn", "table", "cycle", "sequence",
+                 "ruler", "money", "thermometer")
 
 
 class AssessmentItem(_Strict):

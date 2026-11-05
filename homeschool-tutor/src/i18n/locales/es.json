@@ -1015,7 +1015,22 @@
       "microscope": "microscopio",
       "thermometer": "termómetro",
       "battery": "pila",
-      "plant": "planta"
+      "plant": "planta",
+      "crayon": "crayón",
+      "paperclip": "clip",
+      "scissors": "tijeras",
+      "spoon": "cuchara",
+      "backpack": "mochila",
+      "chair": "silla",
+      "bed": "cama",
+      "watermelon": "sandía",
+      "bucket": "cubeta",
+      "television": "televisión",
+      "computer": "computadora",
+      "phone": "teléfono",
+      "cup": "taza",
+      "bottle": "biberón",
+      "toothbrush": "cepillo de dientes"
     },
     "action": {
       "running": "corriendo",
@@ -1028,6 +1043,22 @@
       "walking": "caminando",
       "reading": "leyendo",
       "writing": "escribiendo"
+    },
+    "ruler": "Objetos sobre una regla en {{unit}}: {{things}}",
+    "rulerThing": "{{label}} de {{start}} a {{end}}",
+    "money": "Dinero: {{pieces}}",
+    "thermometer": "Un termómetro de {{low}} a {{high}} grados {{unit}}",
+    "coin": {
+      "penny": "centavo",
+      "nickel": "moneda de 5 centavos",
+      "dime": "moneda de 10 centavos",
+      "quarter": "moneda de 25 centavos",
+      "half_dollar": "moneda de 50 centavos",
+      "dollar_coin": "moneda de un dólar",
+      "one_bill": "billete de un dólar",
+      "five_bill": "billete de cinco dólares",
+      "ten_bill": "billete de diez dólares",
+      "twenty_bill": "billete de veinte dólares"
     }
   }
 }

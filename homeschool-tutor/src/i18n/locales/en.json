@@ -1015,7 +1015,22 @@
       "microscope": "microscope",
       "thermometer": "thermometer",
       "battery": "battery",
-      "plant": "plant"
+      "plant": "plant",
+      "crayon": "crayon",
+      "paperclip": "paper clip",
+      "scissors": "scissors",
+      "spoon": "spoon",
+      "backpack": "backpack",
+      "chair": "chair",
+      "bed": "bed",
+      "watermelon": "watermelon",
+      "bucket": "bucket",
+      "television": "television",
+      "computer": "computer",
+      "phone": "phone",
+      "cup": "cup",
+      "bottle": "bottle",
+      "toothbrush": "toothbrush"
     },
     "action": {
       "running": "running",
@@ -1028,6 +1043,22 @@
       "walking": "walking",
       "reading": "reading",
       "writing": "writing"
+    },
+    "ruler": "Things on a ruler in {{unit}}: {{things}}",
+    "rulerThing": "{{label}} from {{start}} to {{end}}",
+    "money": "Money: {{pieces}}",
+    "thermometer": "A thermometer from {{low}} to {{high}} degrees {{unit}}",
+    "coin": {
+      "penny": "penny",
+      "nickel": "nickel",
+      "dime": "dime",
+      "quarter": "quarter",
+      "half_dollar": "half dollar",
+      "dollar_coin": "dollar coin",
+      "one_bill": "one-dollar bill",
+      "five_bill": "five-dollar bill",
+      "ten_bill": "ten-dollar bill",
+      "twenty_bill": "twenty-dollar bill"
     }
   }
 }

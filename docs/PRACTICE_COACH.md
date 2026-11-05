@@ -229,10 +229,12 @@ Register a new pack with one line in `packs/__init__.py`.
 
 **Picture questions, in every subject (`services/practice/diagrams.py`,
 `Diagram.tsx`).** When a question's picture is the question, it carries a
-`diagram`: one of seventeen kinds holding only numbers and short labels
+`diagram`: one of twenty kinds holding only numbers and short labels
 (`models/practice.py`, `extra="forbid"`). For maths: fraction bar or circle,
 array, base-ten blocks, clock, rectangle, right triangle, number line, bar
-graph, coordinate plane. For any subject: pictures of things to name, sort or
+graph, coordinate plane, things laid along a ruler (cm or inches, ends on
+whole or half units: "how long", "total length", "how much shorter" are
+worked out), coins and bills (the total is worked out), and a thermometer. For any subject: pictures of things to name, sort or
 count (a fixed list of about a hundred animals, plants, weather, foods,
 objects, people and body parts, each drawn as a picture symbol), a scene (one
 thing doing one thing, which is how Latin's "Quid agit?" practice is drawn),

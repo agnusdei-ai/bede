@@ -254,3 +254,91 @@ def test_the_reader_and_drafter_share_one_picture_list_for_every_subject():
     from models.practice import ACTIONS, ICONS
     assert all(name in diagrams.PROMPT_SCHEMA for name in ICONS + ACTIONS)
     assert "any subject" in generate._rules()
+
+
+# ── Measuring pictures: ruler, money, thermometer ─────────────────────────────
+
+CRAYON_AND_CUBE = {"kind": "ruler", "length": 15, "objects": [
+    {"label": "crayon", "start": 0, "end": 9, "icon": "crayon"}, {"label": "linking cube", "start": 9, "end": 11}]}
+TWO_PENCILS = {"kind": "ruler", "length": 15, "objects": [
+    {"label": "Pencil A", "start": 0, "end": 12}, {"label": "Pencil B", "start": 0, "end": 8}]}
+
+
+@pytest.mark.parametrize("raw, prompt, right", [
+    (CRAYON_AND_CUBE, "What is the total length of the crayon and the linking cube?", "11"),
+    (TWO_PENCILS, "Pencil B is ____ cm shorter than Pencil A.", "4"),
+    ({"kind": "ruler", "unit": "in", "length": 6, "objects": [{"label": "eraser", "start": 1, "end": 3.5}]},
+     "How long is the eraser?", "2.5"),
+    ({"kind": "money", "pieces": [{"coin": "quarter", "count": 2}, {"coin": "dime"}]}, "How much money is shown?", "60¢"),
+    ({"kind": "money", "pieces": [{"coin": "one_bill"}, {"coin": "quarter"}]}, "How much money in all?", "$1.25"),
+    ({"kind": "thermometer", "low": 0, "high": 100, "reading": 60}, "What temperature does it show?", "60°F"),
+])
+def test_measuring_pictures_are_worked_out(raw, prompt, right):
+    picture = d(**raw)
+    assert diagrams.answer(picture, prompt) == right
+
+
+def test_measures_accept_the_ways_children_write_them():
+    assert diagrams.same(d(**CRAYON_AND_CUBE), "11 cm", "11")
+    assert diagrams.same(d(kind="money", pieces=[{"coin": "quarter", "count": 2}, {"coin": "dime"}]), "$0.60", "60¢")
+    assert diagrams.same(d(kind="money", pieces=[{"coin": "one_bill"}]), "100 cents", "$1.00")
+
+
+@pytest.mark.parametrize("raw, prompt, given, phrase", [
+    (CRAYON_AND_CUBE, "What is the total length of the crayon and the linking cube?", "9 cm", "putting the two together"),
+    (TWO_PENCILS, "Pencil B is ____ cm shorter than Pencil A.", "8", "how much longer or shorter"),
+    ({"kind": "ruler", "length": 10, "objects": [{"label": "crayon", "start": 2, "end": 7}]}, "How long is the crayon?", "7", "count from there"),
+    ({"kind": "ruler", "length": 10, "objects": [{"label": "crayon", "start": 0, "end": 5}]}, "How long is the crayon?", "6", "marks instead of the spaces"),
+    ({"kind": "money", "pieces": [{"coin": "quarter", "count": 2}, {"coin": "dime"}]}, "How much money?", "3", "counted the coins"),
+    ({"kind": "thermometer", "low": 0, "high": 100, "reading": 60}, "What temperature?", "70", "line next to"),
+])
+def test_measuring_slips_are_named(raw, prompt, given, phrase):
+    assert phrase in diagrams.explain(d(**raw), prompt, given)
+
+
+@pytest.mark.parametrize("raw, prompt", [
+    (CRAYON_AND_CUBE, "What is the total length of the crayon and the linking cube?"),
+    (TWO_PENCILS, "Pencil B is ____ cm shorter than Pencil A."),
+    ({"kind": "money", "pieces": [{"coin": "quarter"}, {"coin": "nickel"}]}, "How much money is shown?"),
+    ({"kind": "thermometer", "unit": "C", "low": -10, "high": 40, "step": 5, "reading": 20}, "What temperature?"),
+])
+def test_fresh_measuring_practice_always_comes_with_its_own_answer(raw, prompt):
+    import random
+
+    source = d(**raw)
+    for seed in range(100):
+        fresh = diagrams.new_like(source, prompt, random.Random(seed))
+        assert fresh is not None
+        picture, text, right = fresh
+        assert diagrams.answer(picture, text) == right
+
+
+@pytest.mark.parametrize("raw", [
+    {"kind": "ruler", "length": 10, "objects": [{"label": "x", "start": 0, "end": 12}]},
+    {"kind": "ruler", "length": 10, "objects": [{"label": "x", "start": 5, "end": 3}]},
+    {"kind": "ruler", "length": 10, "objects": [{"label": "x", "start": 0, "end": 2.3}]},
+    {"kind": "money", "pieces": [{"coin": "doubloon"}]},
+    {"kind": "thermometer", "low": 0, "high": 100, "reading": 150},
+])
+def test_impossible_measuring_pictures_are_refused(raw):
+    assert diagrams.parse(raw) is None
+
+
+def test_the_screenshot_quiz_is_diagnosed_and_practised_with_rulers():
+    from models.practice import Diagnosis
+
+    quiz = _quiz(
+        {"prompt": "What is the total length of the crayon and the linking cube?", "diagram": CRAYON_AND_CUBE,
+         "student_response": "9 cm", "teacher_mark": "incorrect", "teacher_correction": "11 cm"},
+        {"prompt": "Pencil B is ____ cm shorter than Pencil A.", "diagram": TWO_PENCILS,
+         "student_response": "8", "teacher_mark": "incorrect"},
+    )
+    errors = math_pack.classify_errors(quiz)
+    assert [e.category for e in errors] == ["math.diagram.measuring", "math.diagram.measuring"]
+    practice = math_pack.generate_practice(Diagnosis(errors=errors), quiz)
+    assert practice and all(i.diagram is not None and i.diagram.kind == "ruler" for i in practice.items)
+    assert all(diagrams.answer(i.diagram, i.prompt) == i.expected_answer for i in practice.items)
+
+
+def test_picture_answer_choices_are_drawn_not_described():
+    assert "answer choices are pictures" in extract._RULES

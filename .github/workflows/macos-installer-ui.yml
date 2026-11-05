@@ -7,11 +7,15 @@ on:
       - 'scripts/pilot/**'
       - 'scripts/setup_wizard/**'
       - 'packaging/tests/test_installer_wizard_ui_journeys.py'
+      - 'scripts/mac/**'
+      - 'packaging/tests/test_g3_evidence_script.py'
+      - 'packaging/bundle/**'
       - '.github/workflows/macos-installer-ui.yml'
   push:
     branches: [main]
     paths:
       - 'packaging/macos/**'
+      - 'scripts/mac/**'
       - '.github/workflows/macos-installer-ui.yml'
 permissions:
   contents: read
@@ -69,6 +73,11 @@ jobs:
           python-version: '3.12'
       - name: Verify scoped installation cleanup with mocked Docker
         run: python -m unittest -v packaging/tests/test_macos_uninstall_contract.py
+      # The G3 evidence collector runs only on the owner's Mac, so its secret
+      # scan, license reading and lockfile filter are exercised here under the
+      # Mac's own bash 3.2, BSD sed/grep and base64.
+      - name: G3 evidence collector functions and the facts it copies
+        run: python packaging/tests/test_g3_evidence_script.py -v
 
   wizard-ui-journeys:
     name: Synthetic installer wizard UI (${{ matrix.os }})

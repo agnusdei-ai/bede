@@ -1092,7 +1092,7 @@
     "writeNew": "Write a new quiz",
     "readHeading": "Bring a quiz you already have",
     "paste": "Paste the quiz text",
-    "quizPages": "Or add photos or a scanned PDF of the quiz, as many pages as it has",
+    "quizPages": "Or add photos or a PDF of the quiz, as many pages as it has",
     "filesChosen": "{{count}} file(s) added",
     "uploadConsent": "I agree that these pages are read on the school's own AI model for this upload, and not stored.",
     "read": "Read the quiz",

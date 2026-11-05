@@ -1092,7 +1092,7 @@
     "writeNew": "Escribir un examen nuevo",
     "readHeading": "Traer un examen que ya tienes",
     "paste": "Pega el texto del examen",
-    "quizPages": "O añada fotos o un PDF escaneado de la prueba, con todas sus páginas",
+    "quizPages": "O añada fotos o un PDF de la prueba, con todas sus páginas",
     "filesChosen": "{{count}} archivo(s) agregado(s)",
     "uploadConsent": "Acepto que estas páginas se lean con el modelo de IA propio de la escuela para esta carga, y que no se guarden.",
     "read": "Leer el examen",

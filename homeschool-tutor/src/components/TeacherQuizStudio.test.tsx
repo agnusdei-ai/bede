@@ -87,7 +87,7 @@ describe('TeacherQuizStudio', () => {
     })
     render(<TeacherQuizStudio token="t" />)
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
-    const upload = await screen.findByLabelText(/Or add photos or a scanned PDF of the quiz/)
+    const upload = await screen.findByLabelText(/Or add photos or a PDF of the quiz/)
     fireEvent.change(upload, { target: { files: [new File(['x'], 'quiz.jpg', { type: 'image/jpeg' })] } })
     const read = screen.getByRole('button', { name: 'Read the quiz' }) as HTMLButtonElement
     expect(read.disabled).toBe(true)
@@ -224,7 +224,7 @@ describe('teacher quiz copy', () => {
   it('takes any number of quiz pages, and refuses only by size, with a way forward', async () => {
     render(<TeacherQuizStudio token="t" />)
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
-    const input = await screen.findByLabelText(/scanned PDF of the quiz/)
+    const input = await screen.findByLabelText(/PDF of the quiz/)
     const page = (mb: number, i: number) => new File([new Uint8Array(mb * 1024 * 1024)], `p${i}.jpg`, { type: 'image/jpeg' })
     fireEvent.change(input, { target: { files: Array.from({ length: 13 }, (_, i) => page(1, i)) } })
     expect(screen.getByText('13 file(s) added')).toBeTruthy()

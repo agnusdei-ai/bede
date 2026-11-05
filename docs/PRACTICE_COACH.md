@@ -468,7 +468,7 @@ key, and then score a student's completed work against it. This is the card
 1. **Write or bring the quiz.** The teacher writes it on screen (questions,
    choices, the answer, other accepted answers, points, and for a written
    response a rubric and optional scoring guidance). Or they bring one they
-   already have: paste its text, or add photos or a scanned PDF through the
+   already have: paste its text, or add photos or a PDF through the
    same file checks as every other upload. Bede reads the
    questions, describes any diagram in a short line, and copies an answer key
    or the teacher's marked answer when the page shows one. A quiz Bede

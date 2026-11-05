@@ -8,6 +8,46 @@
 
 This is the controlling G3 test procedure for the above code baseline. Use [MAC_G3_CERTIFICATION_RECORD.md](MAC_G3_CERTIFICATION_RECORD.md) to record every observation, missing capability, failure and sign-off. A change to any application, installer, recovery, authorization or test-criterion code requires impact-based requalification of the new exact code SHA. Documentation-only updates do not require rerunning already qualified code tests.
 
+## 0. One command on the Mac mini
+
+`scripts/mac/collect-g3-evidence.sh` does every part of this procedure a machine can do alone, and stops only for a Touch ID tap. Run it on the physical Mac being certified.
+
+**Once per Mac:**
+
+1. Install and start Docker Desktop. Optionally install Ollama with a model, so the instance has a local model to call. Inference is not part of G3-01, and the script records whether a model answered.
+2. `brew install zstd gh`, then `gh auth login`. The script only downloads the workflow artifact with it. For `--mac-check`, also have Python 3.12 or newer, Node 20 or newer, and Apple's command-line tools (`xcode-select --install`): two pinned Python packages ship as source and are compiled on the Mac.
+3. Mint a campus key for a disposable synthetic campus and save the command's output to a file. The script reads the key from its `LICENSE_KEY=` line, and a bare key in a file works too.
+
+```bash
+python scripts/issue_license.py --tier campus_location --licensee "G3 test campus" \
+  --location-id g3-test-01 --days 31 --private-key /private/operator-signing.pem > ~/g3-campus.key
+```
+
+**Each run:**
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/agnusdei-ai/bede/main/scripts/mac/collect-g3-evidence.sh
+bash collect-g3-evidence.sh --license-file ~/g3-campus.key --run-id <operator workflow run ID> --mac-check
+```
+
+`<operator workflow run ID>` is the successful run of **Bede Standard and Offline operator bundles** for the commit being certified. That run, not the copy of the script, decides which commit is certified: the script reads the commit from the run and checks it against the bundle's `RELEASE` file. Leave out `--mac-check` to skip the Touch ID part. `--bundle PATH` takes a bundle already downloaded, with its `.sha256` file beside it, instead of `--run-id`.
+
+What it does, and which row it feeds:
+
+| Step | Row |
+| --- | --- |
+| Records model, chip, memory, macOS build, FileVault, Docker, Compose and browser versions. It never records a serial number, hardware UUID, user name or host name. | Section A |
+| Downloads the offline bundle and checks its SHA-256, `RELEASE` commit, `ARCH` and Docker architecture. | G3-01 |
+| Installs a fresh synthetic campus instance unattended, answering the setup wizard itself. It generates an administrator password into a private file. | G3-01 |
+| Runs `Verify-Bede.command`. Checks that Docker publishes HTTPS on 127.0.0.1 only, and that the served certificate verifies against this instance's CA. | G3-01 |
+| Restarts the stack and checks health and unchanged data volumes. | G3-09 (partial) |
+| With `--mac-check`: runs `mac_check.py` on a throwaway database. You tap Touch ID and answer its questions. | G3-02, G3-03 (source checkout) |
+| Scans every evidence file for any password, PIN, key or database URL this run used, writes `SHA256SUMS`, packs the evidence, and writes `G3-RECORD-DRAFT.md`. | G3-11 (partial) |
+
+Output: `~/Bede-G3/<UTC>/bede-g3-evidence-<SHA>-<UTC>.tar.gz`, its `.sha256`, and the record draft. `private/` holds the administrator password, the student PIN and the install log. Never share that folder.
+
+The draft marks a row PASS only from something the script measured. G3-04 to G3-08 and G3-10 stay NOT RUN. They need the administrator to act on the installed instance, which the script leaves running at `https://localhost`. A secret found in the evidence stops the run before anything is packed (exit 3).
+
 ## 1. Certification is a chain of distinct evidence
 
 | Evidence | Real implementation | Proves | Does not prove |

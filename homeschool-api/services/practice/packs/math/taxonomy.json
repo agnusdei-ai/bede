@@ -81,6 +81,83 @@
       "description": "A miss this pack cannot explain, or a problem it cannot work out; the parent is asked.",
       "example": "a word problem",
       "remediation_strategy": "Parent describes what went wrong; nothing is said to the child."
+    },
+    "math.diagram.fraction_model": {
+      "description": "Read a shaded fraction picture wrongly.",
+      "example": "A bar in 4 parts with 3 shaded, answered 3/1 or 1/4",
+      "remediation_strategy": "New shaded bars and circles: count all the parts for the bottom number first, then the shaded parts for the top.",
+      "hint": "Count every part first. That is the bottom number. Then count the shaded parts for the top.",
+      "parent_script": "Have them touch and count every part before they look at the shading."
+    },
+    "math.diagram.clock": {
+      "description": "Read an analogue clock wrongly.",
+      "example": "Short hand at 3, long hand at 12, answered 12:15",
+      "remediation_strategy": "New clock faces: find the short hand first and say the hour, then count the long hand in fives.",
+      "hint": "The short hand shows the hour. The long hand shows the minutes: count by fives.",
+      "parent_script": "Ask which hand is shorter before they read either one."
+    },
+    "math.diagram.array": {
+      "description": "Counted an array of dots wrongly.",
+      "example": "3 rows of 4 dots, answered 7",
+      "remediation_strategy": "New arrays: say the rows, say how many in each row, then multiply.",
+      "hint": "How many rows? How many in each row? Multiply them.",
+      "parent_script": "Let them run a finger along one row, then down the rows, before multiplying."
+    },
+    "math.diagram.base_ten": {
+      "description": "Read base-ten blocks wrongly.",
+      "example": "2 flats, 3 rods, 4 cubes, answered 9",
+      "remediation_strategy": "New block pictures: a flat is a hundred, a rod is ten, a cube is one; write each place, then the number.",
+      "hint": "A flat is 100, a rod is 10, a little cube is 1.",
+      "parent_script": "Ask what one rod is worth before they count."
+    },
+    "math.diagram.area_perimeter": {
+      "description": "Mixed up area and perimeter, or measured a shape wrongly.",
+      "example": "A 5 by 3 rectangle, area answered 16",
+      "remediation_strategy": "New shapes, asking for area or perimeter: say which one first (inside or the way around), then work it out.",
+      "hint": "Area is the space inside: multiply the sides. Perimeter is the way around: add every side.",
+      "parent_script": "Ask them to trace the inside (area) or the edge (perimeter) with a finger first."
+    },
+    "math.diagram.number_line": {
+      "description": "Read a point on a number line wrongly.",
+      "example": "Marks every 2 from 0, point at 6, answered 4 or 8",
+      "remediation_strategy": "New number lines: find the step between marks first, then count steps from a numbered mark.",
+      "hint": "How much does each jump add? Count the jumps from a number you know.",
+      "parent_script": "Ask what each space is worth before they count."
+    },
+    "math.diagram.coordinates": {
+      "description": "Gave a point's coordinates in the wrong order.",
+      "example": "Point at 3 across and 2 up, answered (2, 3)",
+      "remediation_strategy": "New points to read: across first (x), then up (y).",
+      "hint": "Go along the corridor, then up the stairs: x first, then y.",
+      "parent_script": "Have them move a finger across first, then up, saying each number."
+    },
+    "math.diagram.graph": {
+      "description": "Read a bar graph wrongly.",
+      "example": "",
+      "remediation_strategy": "New graph questions read against the scale.",
+      "hint": "Read across from the top of the bar to the numbers.",
+      "parent_script": "Let them use a ruler from the top of the bar to the scale."
+    },
+    "math.diagram.measuring": {
+      "description": "Read a length on a ruler wrongly.",
+      "example": "A crayon from 2 to 7 cm, answered 7",
+      "remediation_strategy": "New things laid on a ruler: find where each starts and ends, and count the spaces between.",
+      "hint": "Where does it start? Where does it end? Count the spaces in between.",
+      "parent_script": "Have them put a finger on each end before counting."
+    },
+    "math.diagram.money": {
+      "description": "Counted coins or bills wrongly.",
+      "example": "Two quarters and a dime, answered 3",
+      "remediation_strategy": "New handfuls of coins: say each coin's value, start with the biggest, count on.",
+      "hint": "Start with the coin worth the most, then count on.",
+      "parent_script": "Ask what each coin is worth before adding."
+    },
+    "math.diagram.temperature": {
+      "description": "Read a thermometer wrongly.",
+      "example": "Liquid at 60, answered 70",
+      "remediation_strategy": "New thermometers: find the top of the liquid, then the line it touches.",
+      "hint": "Find the top of the red line, then read across to the number.",
+      "parent_script": "Ask them to point at the top of the liquid first."
     }
   },
   "strengths": {
@@ -91,6 +168,18 @@
     "math.fractions": "Fractions were solid",
     "math.decimals": "Decimals were solid",
     "math.integers": "Negative numbers were handled well",
-    "math.order_of_operations": "Order of operations was right every time"
+    "math.order_of_operations": "Order of operations was right every time",
+    "math.fraction_model": "Shaded fraction pictures were solid",
+    "math.clock": "Telling the time was solid",
+    "math.array": "Arrays were solid",
+    "math.base_ten": "Base-ten blocks were solid",
+    "math.area_perimeter": "Area and perimeter were solid",
+    "math.number_line": "Number lines were solid",
+    "math.coordinates": "Coordinates were solid",
+    "math.graph": "Reading graphs was solid",
+    "math.counting": "Counting pictures was solid",
+    "math.measuring": "Measuring with a ruler was solid",
+    "math.money": "Counting money was solid",
+    "math.temperature": "Reading thermometers was solid"
   }
 }

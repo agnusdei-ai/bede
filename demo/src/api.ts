@@ -1,3 +1,4 @@
+import type { DiagramSpec } from './Diagram'
 // Client for the demo — talks to a real homeschool-api backend instead of
 // Anthropic directly, so the operator's key never reaches the browser. This
 // is the ONLY safe way to do it: a purely static site cannot hide a secret
@@ -136,6 +137,7 @@ export interface DemoPracticeAssessment {
       number: number
       prompt: string
       stimulus?: string | null
+      diagram?: DiagramSpec | null
       student_response?: string | null
       teacher_mark: 'correct' | 'incorrect' | 'partial' | 'unmarked'
       teacher_correction?: string | null
@@ -155,6 +157,7 @@ export interface DemoPracticeSetDraft {
     prompt: string
     expected_answer: string
     hint: string
+    diagram?: DiagramSpec | null
   }>
   parent_script: string
   recheck_schedule: string[]
@@ -164,6 +167,7 @@ export interface DemoPracticeDeliveryItem {
   index: number
   prompt: string
   hint: string
+  diagram?: DiagramSpec | null
 }
 
 async function demoPracticeFetch<T>(token: string, path: string, body?: unknown): Promise<T> {
@@ -228,6 +232,7 @@ export interface QuizQuestion {
   prompt: string
   options: string[]
   answer: string
+  diagram?: DiagramSpec | null
   answer_check: 'computed' | 'checked' | 'verify'
   second_answer?: string | null
 }
@@ -263,7 +268,15 @@ export interface GenerateQuizBody {
   source_text?: string
   pages: { data: string }[]
   cloud_consent: boolean
+  /** A long upload's pages, copied out as text part by part (copyDemoQuizSource). */
+  source_pages_text?: string
 }
+
+/** One part of a long quiz source, copied out as text; each six pages is one message. */
+export const copyDemoQuizSource = (
+  token: string,
+  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number },
+) => demoPracticeFetch<{ text: string; pages_read: number }>(token, '/quiz/source', body)
 
 export const fetchDemoQuizOptions = (token: string) =>
   demoPracticeFetch<QuizOptions>(token, '/quiz-options')

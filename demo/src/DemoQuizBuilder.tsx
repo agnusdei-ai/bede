@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Loader2 } from 'lucide-react'
+import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from './uploadParts'
+import Diagram from './Diagram'
+import type { DiagramSpec } from './Diagram'
 import {
+  copyDemoQuizSource,
   fetchDemoQuizOptions,
   generateDemoQuiz,
   quizPrompt,
@@ -39,7 +43,7 @@ export default function DemoQuizBuilder({
   onApproved,
 }: {
   token: string
-  onApproved: (items: { index: number; prompt: string; hint: string }[]) => void
+  onApproved: (items: { index: number; prompt: string; hint: string; diagram?: DiagramSpec | null }[]) => void
 }) {
   const { t } = useTranslation()
   const [options, setOptions] = useState<QuizOptions | null>(null)
@@ -84,14 +88,38 @@ export default function DemoQuizBuilder({
     setBusy(true)
     setError('')
     try {
-      const pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
+      // A source that fits one request goes as pages; a longer one is copied
+      // out as text a part at a time (each six pages is one demo message).
+      const parts = splitIntoParts(files)
+      let pages: { data: string }[] = []
+      let pagesText: string | undefined
+      let trimmed = false
+      if (parts.length <= 1) {
+        pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
+      } else {
+        const texts: string[] = []
+        let firstPage = 1
+        for (const part of parts) {
+          const data = await Promise.all(part.map(async (file) => ({ data: await readFile(file) })))
+          const copied = await copyDemoQuizSource(token, {
+            subject, pages: data, cloud_consent: usesCloud && consent, first_page: firstPage,
+          })
+          texts.push(copied.text)
+          firstPage += copied.pages_read
+        }
+        pagesText = texts.join('\n\n')
+        trimmed = pagesText.length > SOURCE_TEXT_MAX_CHARS
+        pagesText = pagesText.slice(0, SOURCE_TEXT_MAX_CHARS)
+      }
       const result = await generateDemoQuiz(token, {
         subject, grade, kind, level, question_count: count,
         focus: focus.trim() || undefined,
         source_text: sourceText.trim() || undefined,
         pages,
+        source_pages_text: pagesText,
         cloud_consent: usesCloud && consent,
       })
+      if (trimmed) setError(t('demoQuiz.sourceTrimmed'))
       setQuiz(result.quiz)
       setKeep(result.quiz.questions.map(() => true))
     } catch (reason) {
@@ -112,7 +140,7 @@ export default function DemoQuizBuilder({
     if (!quiz) return
     const items = quiz.questions
       .filter((_, i) => keep[i])
-      .map((q, index) => ({ index, prompt: quizPrompt(q), hint: '' }))
+      .map((q, index) => ({ index, prompt: quizPrompt(q), hint: '', ...(q.diagram ? { diagram: q.diagram } : {}) }))
     if (items.length) onApproved(items)
   }
 
@@ -146,6 +174,7 @@ export default function DemoQuizBuilder({
               />
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="whitespace-pre-line font-medium">{q.number}. {quizPrompt(q)}</p>
+                <Diagram d={q.diagram} />
                 <label className="flex items-center gap-2">
                   <span>{t('demoQuiz.answer')}</span>
                   <input
@@ -233,7 +262,10 @@ export default function DemoQuizBuilder({
           aria-label={t('demoQuiz.pages')}
           disabled={!photosReadable}
           onChange={(event) => {
-            setFiles(Array.from(event.target.files ?? []))
+            const picked = Array.from(event.target.files ?? [])
+            const problem = uploadProblem(picked)
+            setError(problem ? t(problem === 'file' ? 'demoQuiz.fileTooLarge' : 'demoQuiz.uploadTooLarge') : '')
+            setFiles(problem ? [] : picked)
             event.target.value = ''
           }}
           className="mt-1 block w-full text-xs"

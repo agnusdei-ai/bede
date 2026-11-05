@@ -38,6 +38,9 @@ on:
       - 'docs/LICENSE_SERVER_SETUP.md'
       - 'homeschool-api/core/licensing.py'
       - 'homeschool-api/core/tier_display.py'
+      # demo/src/uploadParts.test.ts checks the browser's upload limits against these.
+      - 'homeschool-api/services/practice/upload_safety.py'
+      - 'homeschool-api/models/practice.py'
       - 'site/assets/site.css'
       - 'site/index.html'
       - 'site/assets/offer.js'
@@ -94,7 +97,7 @@ jobs:
           # guard written for it — the same vacuous-coverage trap
           # test_decision_register.py documents for the backend filter.
           if git diff --name-only "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA" \
-               | grep -qE '^(homeschool-tutor/|demo/|license-server/|docs/LICENSE_SERVER_SETUP\.md|homeschool-api/core/licensing\.py|homeschool-api/core/tier_display\.py|site/assets/site\.css|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|\.github/workflows/frontend-tests\.yml)'; then
+               | grep -qE '^(homeschool-tutor/|demo/|license-server/|docs/LICENSE_SERVER_SETUP\.md|homeschool-api/core/licensing\.py|homeschool-api/core/tier_display\.py|homeschool-api/services/practice/upload_safety\.py|homeschool-api/models/practice\.py|site/assets/site\.css|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|\.github/workflows/frontend-tests\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

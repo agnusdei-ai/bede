@@ -17,9 +17,14 @@ after that every step is arithmetic a parent could check by hand:
   pack computes, the pack has probably misread the problem, so the item goes
   to the parent instead of being diagnosed.
 
-Only problems written as an expression can be diagnosed (``27 + 15 =``,
-``3/4 - 1/8``, ``2 + 3 × 4``). Word problems and anything with a variable
-are counted and named for the parent but not diagnosed.
+Problems written as an expression can be diagnosed (``27 + 15 =``,
+``3/4 - 1/8``, ``2 + 3 × 4``), and so can picture problems the reader
+recorded as a ``diagram`` (a shaded fraction, a clock, an array, base-ten
+blocks, a rectangle's area or perimeter, a number line, a coordinate point):
+``services/practice/diagrams.py`` works the picture's answer out, names the
+slip, and draws fresh pictures of the same kind for practice. Word problems
+and anything with a variable are counted and named for the parent but not
+diagnosed.
 """
 from __future__ import annotations
 
@@ -31,6 +36,7 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Optional
 
+from services.practice import diagrams
 from models.practice import (
     Diagnosis,
     ErrorInstance,
@@ -378,6 +384,9 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
             if not (item.student_response or "").strip():
                 continue  # core.unanswered owns blanks
             ref = _ref(section, item)
+            if item.diagram is not None and evaluate(item.prompt) is None:
+                out.append(_classify_picture(ref, item))
+                continue
             right = evaluate(item.prompt)
             given = parse_answer(item.student_response)
             correction = parse_answer(item.teacher_correction)
@@ -418,13 +427,40 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
     return out
 
 
+def _classify_picture(ref: str, item) -> ErrorInstance:
+    """A miss on a picture problem: checked against the picture itself."""
+    right = diagrams.answer(item.diagram, item.prompt)
+    if right is None:
+        return ErrorInstance(
+            item_ref=ref, category="math.unclassified", audience="parent_only",
+            evidence="Bede cannot work out what this picture question asks; please say what went wrong",
+        )
+    if item.teacher_correction and not diagrams.same(item.diagram, item.teacher_correction, right):
+        return ErrorInstance(
+            item_ref=ref, category="math.unclassified", audience="parent_only",
+            evidence=f"the teacher's answer ({item.teacher_correction}) differs from what the picture shows ({right}); please check the picture was read correctly",
+        )
+    if diagrams.same(item.diagram, item.student_response, right):
+        return ErrorInstance(
+            item_ref=ref, category="math.unclassified", audience="parent_only",
+            evidence=f"{item.student_response} matches the picture; the teacher's mark may be about the working or the form",
+        )
+    evidence = diagrams.explain(item.diagram, item.prompt, item.student_response)
+    if not evidence:
+        return ErrorInstance(
+            item_ref=ref, category="math.unclassified", audience="parent_only",
+            evidence=f"wrote {item.student_response} for {right}; no common slip explains it, so ask how they read the picture",
+        )
+    return ErrorInstance(item_ref=ref, category=diagrams.category(item.diagram), evidence=_clip(evidence))
+
+
 def find_strengths(assessment: GradedAssessment) -> list[Strength]:
     families: dict[str, list] = {}
     for section in assessment.sections:
         for item in section.items:
             if item.needs_parent() or item.teacher_mark == "unmarked":
                 continue
-            family = _family(item.prompt)
+            family = _family(item.prompt) or (diagrams.FAMILY.get(item.diagram.kind) if item.diagram is not None else None)
             if family:
                 families.setdefault(family, []).append(item)
     out = []
@@ -572,6 +608,26 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
     targets: list[str] = []
     script: list[str] = []
 
+    def add_pictures(category: str, source, prompt: str, kind: str, count: int, salt: str) -> None:
+        rng = _rng(category, salt)
+        made = 0
+        for _ in range(count * 20):
+            if made >= count:
+                break
+            fresh = diagrams.new_like(source, prompt, rng)
+            if fresh is None:
+                return
+            picture, text, right = fresh
+            mark = text + diagrams.key(picture)
+            if mark in seen or diagrams.key(picture) == diagrams.key(source):
+                continue
+            seen.add(mark)
+            items.append(PracticeItem(
+                kind=kind, target=category, prompt=text, expected_answer=right,
+                hint=_HINTS.get(category, ""), diagram=picture,
+            ))
+            made += 1
+
     def add(category: str, problem: Optional[Problem], kind: str, count: int, salt: str) -> None:
         rng = _rng(category, salt)
         made = 0
@@ -603,7 +659,10 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
     for category, error in first_miss.items():
         item = _find(assessment, error.item_ref)
         targets.append(category)
-        add(category, binary(item.prompt), "drill", per_pattern, error.item_ref + item.prompt)
+        if item.diagram is not None and category.startswith("math.diagram."):
+            add_pictures(category, item.diagram, item.prompt, "drill", per_pattern, error.item_ref + item.prompt)
+        else:
+            add(category, binary(item.prompt), "drill", per_pattern, error.item_ref + item.prompt)
         guidance = _TAXONOMY["categories"][category].get("parent_script")
         if guidance:
             script.append(guidance)
@@ -617,7 +676,10 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
             if len(items) >= max_items:
                 break
             item = _find(assessment, error.item_ref)
-            add(category, binary(item.prompt), "drill", 1, "second" + error.item_ref + item.prompt)
+            if item.diagram is not None and category.startswith("math.diagram."):
+                add_pictures(category, item.diagram, item.prompt, "drill", 1, "second" + error.item_ref + item.prompt)
+            else:
+                add(category, binary(item.prompt), "drill", 1, "second" + error.item_ref + item.prompt)
 
     # Mixed review of what went well, so the set ends on familiar ground.
     review = {"addition": "math.add.no_regroup", "subtraction": "math.sub.smaller_from_larger",

@@ -30,6 +30,7 @@ from pydantic import ValidationError
 
 from core.config import settings
 from models.practice import MAX_ITEMS_PER_SECTION, MAX_SECTIONS, GradedAssessment, ReadPhotosRequest
+from services.practice import diagrams
 from services.practice.packs import get_pack, subject_name
 from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
     PhotoRejected,
@@ -149,7 +150,7 @@ _RULES = """You are reading a photographed, already-graded school worksheet so a
 Return ONLY one JSON object, no prose, matching this shape:
 {"subject": "<subject>", "sections": [{"label": str, "instructions": str,
   "required_format": "complete_sentence"|"single_word"|"color_fill"|"free"|"unknown",
-  "word_bank": [str], "items": [{"number": int, "prompt": str, "stimulus": str|null,
+  "word_bank": [str], "items": [{"number": int, "prompt": str, "stimulus": str|null, "diagram": object|null,
   "student_response": str|null, "teacher_mark": "correct"|"incorrect"|"partial"|"unmarked",
   "teacher_correction": str|null, "confidence": number 0-1, "ask_parent": str|null}]}]}
 Rules:
@@ -158,7 +159,15 @@ Rules:
 - Record the teacher's mark only if you can see one; otherwise "unmarked". Never invent a mark.
 - If you cannot read something with confidence, give your best reading, lower "confidence",
   and say what is uncertain in "ask_parent".
-- "stimulus" describes a picture briefly in plain English (e.g. "picture: dog running")."""
+- "stimulus" is a few plain words for a picture no diagram fits, naming the things in it (e.g. "dog running", "3 apples"). Bede draws those things from its list, so name them simply.
+- "diagram" is null unless the question's picture can be given as one of these, with its exact numbers and words:
+""" + diagrams.PROMPT_SCHEMA + """
+  This is for any subject: an animal to name, a timeline, the water cycle, a table, a shape, things on a
+  ruler, coins, a thermometer. Prefer a diagram whenever one fits, so the picture is drawn rather than
+  described: when the answer choices are pictures, give a "pictures" diagram with one group per choice,
+  labelled as the page labels them (A, B, C), using the nearest ICON. Count parts,
+  dots, blocks and tick marks carefully; if you are unsure, lower "confidence" and say so in "ask_parent".
+  Any other picture (a photograph, a map, a drawing none of these fits) goes in "stimulus" only."""
 
 
 def _prompt(subject: str) -> str:

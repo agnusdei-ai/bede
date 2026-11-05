@@ -2314,8 +2314,10 @@ quiz. Bede reads any number of pages six at a time, one model call per group,
 and joins the groups into one worksheet. Memory stays bounded: every file is
 checked first, then pages are rebuilt one group at a time and released before
 the next, and the browser sends a long upload in parts that each fit the
-request ceiling. What remains are size limits, not page limits: 6 MB a file
-and 30 MB a request. On the public demo each group is one model call and
+request ceiling. What remains are size limits, not page limits: up to 1 GB
+for a whole upload (owner ruling, same day), 25 MB a file and 30 MB a
+request. One file stays bounded because the server must hold it to render
+it, and the demo server has 512 MB. On the public demo each group is one model call and
 counts as one message against the visitor's allowance, which is what bounds
 an anonymous visitor's spend.
 

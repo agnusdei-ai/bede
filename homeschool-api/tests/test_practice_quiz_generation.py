@@ -448,3 +448,62 @@ async def test_the_tick_names_the_provider_the_parent_switched_to(monkeypatch):
     monkeypatch.setattr(provider_state, "_cached_primary", "mistral")
     route = (await practice_router.demo_quiz_options(auth=DEMO))["route"]
     assert route["draft_provider"] == "mistral"
+
+
+# ── A long quiz source, sent in parts ─────────────────────────────────────────
+
+def _source(n, **kw):
+    from models.practice import QuizSourceRequest
+
+    return QuizSourceRequest(subject="mathematics", pages=[PhotoPage(data=b64(JPEG))] * n, **kw)
+
+
+@pytest.mark.asyncio
+async def test_a_source_part_is_copied_out_a_group_at_a_time_and_charged_per_group(monkeypatch, quota):
+    stub = StubClient("Q1. 2 + 2 = ?")
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    out = await practice_router.demo_copy_quiz_source(_source(8, first_page=13), auth=DEMO)
+    assert out["pages_read"] == 8
+    assert "[Pages 13-18]" in out["text"] and "[Pages 19-20]" in out["text"]
+    assert quota["recorded"] == 2
+    quota["allowed"] = False
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.demo_copy_quiz_source(_source(1), auth=DEMO)
+    assert exc.value.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_copying_a_source_follows_the_photo_consent_rules(monkeypatch):
+    cloud = StubClient("Q1.")
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
+    with pytest.raises(HTTPException) as exc:
+        await practice_router._copy_source(_source(1))
+    assert exc.value.status_code == 409 and cloud.calls == []
+    with pytest.raises(HTTPException) as exc:  # teachers never reach a cloud provider
+        await practice_router.educator_copy_quiz_source(_source(1, route="cloud", cloud_consent=True), auth={"role": "educator"})
+    assert exc.value.status_code == 422 and cloud.calls == []
+
+
+@pytest.mark.asyncio
+async def test_faith_subjects_cannot_be_copied_out_as_a_quiz_source(monkeypatch):
+    from models.practice import QuizSourceRequest
+
+    _routing(monkeypatch, local=True, cloud=None, local_client=StubClient("x"))
+    with pytest.raises(HTTPException) as exc:
+        await practice_router._copy_source(QuizSourceRequest(subject="scripture", pages=[PhotoPage(data=b64(JPEG))]))
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_copied_out_pages_reach_the_draft_and_count_as_photos_for_consent(monkeypatch, quota):
+    cloud = StubClient(draft(q("2 + 2 =", "4", "computation")))
+    _routing(monkeypatch, local=False, cloud="openai", cloud_client=cloud)
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", False)
+    with pytest.raises(HTTPException) as exc:  # the photo switch governs text copied from photos
+        await practice_router.demo_generate_quiz(
+            req(focus=None, source_pages_text="[Pages 1-6]\nQ1. 2+2", cloud_consent=True), auth=DEMO)
+    assert exc.value.status_code == 409 and cloud.calls == []
+    monkeypatch.setattr(extract.settings, "practice_cloud_reading_enabled", True)
+    await practice_router.demo_generate_quiz(
+        req(focus=None, source_pages_text="[Pages 1-6]\nQ1. 2+2", cloud_consent=True), auth=DEMO)
+    assert "[Pages 1-6]" in cloud.calls[0]["messages"][0]["content"][-1]["text"]

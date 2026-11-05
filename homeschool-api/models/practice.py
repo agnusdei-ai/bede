@@ -16,9 +16,9 @@ Two absences are deliberate and are the reason these models are strict
 """
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 TeacherMark = Literal["correct", "incorrect", "partial", "unmarked"]
 RequiredFormat = Literal["complete_sentence", "single_word", "color_fill", "free", "unknown"]
@@ -39,10 +39,295 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# ── Diagrams ──────────────────────────────────────────────────────────────────
+# A question whose picture IS the question, in any subject (a shaded
+# fraction, a clock, an animal to name, a timeline, the water cycle) carries
+# one of these. It is a closed vocabulary of numbers and
+# short labels, never markup: the app draws it itself (Diagram.tsx), so a model
+# can neither inject anything into the page nor draw a picture that disagrees
+# with the answer, and services/practice/diagrams.py can work the answer out.
+
+_Label = Field(default="", max_length=12)
+
+
+class FractionDiagram(_Strict):
+    kind: Literal["fraction_bar", "fraction_circle"]
+    parts: int = Field(..., ge=1, le=24)
+    shaded: int = Field(..., ge=0, le=24)
+
+    @field_validator("shaded")
+    @classmethod
+    def _within(cls, value: int, info) -> int:
+        if value > info.data.get("parts", 24):
+            raise ValueError("more parts shaded than there are")
+        return value
+
+
+class ArrayDiagram(_Strict):
+    kind: Literal["array"]
+    rows: int = Field(..., ge=1, le=12)
+    cols: int = Field(..., ge=1, le=12)
+
+
+class BaseTenDiagram(_Strict):
+    kind: Literal["base_ten"]
+    hundreds: int = Field(default=0, ge=0, le=9)
+    tens: int = Field(default=0, ge=0, le=9)
+    ones: int = Field(default=0, ge=0, le=9)
+
+
+class ClockDiagram(_Strict):
+    kind: Literal["clock"]
+    hour: int = Field(..., ge=1, le=12)
+    minute: int = Field(..., ge=0, le=59)
+
+
+class RectangleDiagram(_Strict):
+    kind: Literal["rectangle"]
+    width: int = Field(..., ge=1, le=100)
+    height: int = Field(..., ge=1, le=100)
+    unit: str = Field(default="", max_length=8)
+
+
+class RightTriangleDiagram(_Strict):
+    kind: Literal["right_triangle"]
+    base: int = Field(..., ge=1, le=100)
+    height: int = Field(..., ge=1, le=100)
+    unit: str = Field(default="", max_length=8)
+
+
+class NumberLineDiagram(_Strict):
+    kind: Literal["number_line"]
+    start: int = Field(..., ge=-100, le=1000)
+    end: int = Field(..., ge=-99, le=1010)
+    step: int = Field(default=1, ge=1, le=100)
+    # Points marked with a dot; with labels, the labels are drawn instead of
+    # the numbers, which is how "what number is at A?" is asked.
+    marks: List[int] = Field(default_factory=list, max_length=4)
+    mark_labels: List[str] = Field(default_factory=list, max_length=4)
+
+    @field_validator("end")
+    @classmethod
+    def _after_start(cls, value: int, info) -> int:
+        start = info.data.get("start")
+        if start is not None and not (start < value <= start + 40 * 100):
+            raise ValueError("a number line must run forwards")
+        return value
+
+
+class GraphBar(_Strict):
+    label: str = Field(..., min_length=1, max_length=12)
+    value: int = Field(..., ge=0, le=1000)
+
+
+class BarGraphDiagram(_Strict):
+    kind: Literal["bar_graph"]
+    title: str = Field(default="", max_length=40)
+    bars: List[GraphBar] = Field(..., min_length=1, max_length=8)
+
+
+class PlanePoint(_Strict):
+    label: str = Field(..., min_length=1, max_length=3)
+    x: int = Field(..., ge=-10, le=10)
+    y: int = Field(..., ge=-10, le=10)
+
+
+class CoordinateDiagram(_Strict):
+    kind: Literal["coordinate_plane"]
+    size: int = Field(default=10, ge=2, le=10)
+    four_quadrants: bool = False
+    points: List[PlanePoint] = Field(..., min_length=1, max_length=6)
+
+
+# Pictures of things, for any subject. A fixed list of names, each drawn by
+# the app as a picture symbol (Diagram.tsx's ICONS); a test keeps the lists equal.
+ICONS = (
+    "dog", "cat", "mouse", "bird", "duck", "fish", "horse", "cow", "pig", "sheep", "goat", "chicken",
+    "rabbit", "frog", "bee", "butterfly", "ant", "spider", "snake", "turtle", "lion", "tiger",
+    "elephant", "bear", "monkey", "owl", "whale", "wolf", "fox", "deer",
+    "tree", "flower", "leaf", "seedling", "sun", "moon", "star", "cloud", "rain", "snow", "lightning",
+    "rainbow", "water", "fire", "mountain", "volcano", "wave", "rock",
+    "apple", "banana", "grapes", "carrot", "bread", "cheese", "milk", "egg", "cake", "cookie",
+    "house", "castle", "ship", "boat", "car", "bus", "train", "plane", "bicycle", "book", "pencil",
+    "scroll", "crown", "ball", "hat", "shoe", "key", "bell", "lightbulb", "magnet", "compass",
+    "globe", "map", "coin",
+    "boy", "girl", "man", "woman", "baby", "farmer", "king", "queen",
+    "hand", "eye", "ear", "foot", "heart", "brain", "tooth", "bone",
+    "magnifier", "microscope", "thermometer", "battery", "plant",
+    "crayon", "paperclip", "scissors", "spoon", "backpack", "chair", "bed", "watermelon", "bucket",
+    "television", "computer", "phone", "cup", "bottle", "toothbrush",
+    "cube", "box", "basket", "truck", "ruler",
+)
+ACTIONS = ("running", "swimming", "flying", "sleeping", "eating", "drinking", "singing", "walking", "reading", "writing")
+Icon = Literal[ICONS]  # type: ignore[valid-type]
+Action = Literal[ACTIONS]  # type: ignore[valid-type]
+_Short = Field(..., min_length=1, max_length=20)
+
+
+class PictureGroup(_Strict):
+    icon: Icon
+    count: int = Field(default=1, ge=1, le=12)
+    label: str = Field(default="", max_length=16)
+
+
+class PicturesDiagram(_Strict):
+    """Things to name, sort or count: "Which of these is an insect?",
+    "How many apples?", "Label A and B"."""
+    kind: Literal["pictures"]
+    groups: List[PictureGroup] = Field(..., min_length=1, max_length=6)
+
+
+class SceneDiagram(_Strict):
+    """One thing doing one thing: "A duck swimming. Quid agit?"."""
+    kind: Literal["scene"]
+    icon: Icon
+    action: Optional[Action] = None
+
+
+class TimelineEvent(_Strict):
+    label: str = Field(..., min_length=1, max_length=30)
+    year: int = Field(..., ge=-5000, le=2100)  # negative years are BC
+
+
+class TimelineDiagram(_Strict):
+    kind: Literal["timeline"]
+    events: List[TimelineEvent] = Field(..., min_length=2, max_length=8)
+    show_years: bool = True
+
+
+class VennDiagram(_Strict):
+    kind: Literal["venn"]
+    left: str = _Short
+    right: str = _Short
+    left_items: List[str] = Field(default_factory=list, max_length=6)
+    right_items: List[str] = Field(default_factory=list, max_length=6)
+    both_items: List[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("left_items", "right_items", "both_items")
+    @classmethod
+    def _short_items(cls, value: List[str]) -> List[str]:
+        if any(not 0 < len(v) <= 20 for v in value):
+            raise ValueError("each item is 1 to 20 characters")
+        return value
+
+
+class TableDiagram(_Strict):
+    kind: Literal["table"]
+    header: List[str] = Field(..., min_length=1, max_length=4)
+    rows: List[List[str]] = Field(..., min_length=1, max_length=6)
+
+    @field_validator("rows")
+    @classmethod
+    def _fits(cls, value: List[List[str]], info) -> List[List[str]]:
+        width = len(info.data.get("header") or [])
+        if any(len(r) != width or any(len(c) > 20 for c in r) for r in value):
+            raise ValueError("every row has one short cell per column")
+        return value
+
+
+class StepsDiagram(_Strict):
+    """A cycle (the water cycle, a life cycle) or a sequence (the steps of a
+    process). A step written "?" is a blank to fill in."""
+    kind: Literal["cycle", "sequence"]
+    steps: List[str] = Field(..., min_length=2, max_length=8)
+
+    @field_validator("steps")
+    @classmethod
+    def _short_steps(cls, value: List[str]) -> List[str]:
+        if any(not 0 < len(v) <= 20 for v in value):
+            raise ValueError("each step is 1 to 20 characters")
+        return value
+
+
+class RulerObject(_Strict):
+    label: str = Field(..., min_length=1, max_length=16)
+    start: float = Field(..., ge=0, le=30)
+    end: float = Field(..., ge=0, le=30)
+    icon: Optional[Icon] = None
+
+    @field_validator("start", "end")
+    @classmethod
+    def _half_units(cls, value: float) -> float:
+        if round(value * 2) != value * 2:
+            raise ValueError("ends sit on a whole or half unit")
+        return value
+
+    @field_validator("end")
+    @classmethod
+    def _after_start(cls, value: float, info) -> float:
+        if value <= info.data.get("start", 0):
+            raise ValueError("an object ends after it starts")
+        return value
+
+
+class RulerDiagram(_Strict):
+    """Things laid along a ruler: "How long is the crayon?", "Pencil B is
+    ___ cm shorter than Pencil A", "the total length of the crayon and the cube"."""
+    kind: Literal["ruler"]
+    unit: Literal["cm", "in"] = "cm"
+    length: int = Field(..., ge=2, le=30)
+    objects: List[RulerObject] = Field(..., min_length=1, max_length=4)
+
+    @field_validator("objects")
+    @classmethod
+    def _on_the_ruler(cls, value: List[RulerObject], info) -> List[RulerObject]:
+        if any(o.end > info.data.get("length", 30) for o in value):
+            raise ValueError("every object fits on the ruler")
+        return value
+
+
+Coin = Literal["penny", "nickel", "dime", "quarter", "half_dollar", "dollar_coin", "one_bill", "five_bill", "ten_bill", "twenty_bill"]
+COIN_CENTS = {"penny": 1, "nickel": 5, "dime": 10, "quarter": 25, "half_dollar": 50, "dollar_coin": 100,
+              "one_bill": 100, "five_bill": 500, "ten_bill": 1000, "twenty_bill": 2000}
+
+
+class MoneyPiece(_Strict):
+    coin: Coin
+    count: int = Field(default=1, ge=1, le=10)
+
+
+class MoneyDiagram(_Strict):
+    """Coins and bills to count: "How much money is shown?"."""
+    kind: Literal["money"]
+    pieces: List[MoneyPiece] = Field(..., min_length=1, max_length=6)
+
+
+class ThermometerDiagram(_Strict):
+    kind: Literal["thermometer"]
+    unit: Literal["F", "C"] = "F"
+    low: int = Field(..., ge=-50, le=200)
+    high: int = Field(..., ge=-40, le=220)
+    step: int = Field(default=10, ge=1, le=50)
+    reading: int = Field(..., ge=-50, le=220)
+
+    @field_validator("reading")
+    @classmethod
+    def _in_range(cls, value: int, info) -> int:
+        low, high = info.data.get("low"), info.data.get("high")
+        if low is not None and high is not None and not (low < high and low <= value <= high):
+            raise ValueError("the reading is on the scale")
+        return value
+
+
+Diagram = Annotated[
+    Union[FractionDiagram, ArrayDiagram, BaseTenDiagram, ClockDiagram, RectangleDiagram,
+          RightTriangleDiagram, NumberLineDiagram, BarGraphDiagram, CoordinateDiagram,
+          PicturesDiagram, SceneDiagram, TimelineDiagram, VennDiagram, TableDiagram, StepsDiagram,
+          RulerDiagram, MoneyDiagram, ThermometerDiagram],
+    Field(discriminator="kind"),
+]
+DIAGRAM_KINDS = ("fraction_bar", "fraction_circle", "array", "base_ten", "clock", "rectangle",
+                 "right_triangle", "number_line", "bar_graph", "coordinate_plane",
+                 "pictures", "scene", "timeline", "venn", "table", "cycle", "sequence",
+                 "ruler", "money", "thermometer")
+
+
 class AssessmentItem(_Strict):
     number: int = Field(..., ge=1, le=500)
     prompt: str = Field(..., min_length=1, max_length=300)
     stimulus: Optional[str] = Field(default=None, max_length=200)
+    # The problem's picture, when it is one Bede can draw and check.
+    diagram: Optional[Diagram] = None
     # None or "" means nothing is written there. For a colour-fill item a
     # circle deliberately left white is the answer "uncolored", not a blank.
     student_response: Optional[str] = Field(default=None, max_length=200)
@@ -54,6 +339,14 @@ class AssessmentItem(_Strict):
 
     def needs_parent(self) -> bool:
         return bool(self.ask_parent) or self.confidence < CONFIDENCE_FLOOR
+
+    @model_validator(mode="after")
+    def _draw_the_description(self) -> "AssessmentItem":
+        if self.diagram is None and self.stimulus:
+            from services.practice.diagrams import from_stimulus
+
+            self.diagram = from_stimulus(self.stimulus)
+        return self
 
 
 class AssessmentSection(_Strict):
@@ -118,6 +411,7 @@ class PracticeItem(_Strict):
     prompt: str = Field(..., max_length=300)
     expected_answer: str = Field(..., max_length=200)
     hint: str = Field(default="", max_length=300)
+    diagram: Optional[Diagram] = None
 
 
 class PracticeSet(_Strict):
@@ -134,7 +428,8 @@ class PracticeSet(_Strict):
 class PhotoPage(_Strict):
     # Base64 without a "data:" prefix — the same shape the handwriting canvas
     # sends as TutorRequest.drawing_image.
-    data: str = Field(..., min_length=8, max_length=8_000_000)
+    # 25 MB a file (upload_safety.MAX_PAGE_BYTES), plus base64's third.
+    data: str = Field(..., min_length=8, max_length=35_000_000)
 
 
 class ReadPhotosRequest(_Strict):
@@ -200,6 +495,7 @@ class QuizQuestion(_Strict):
     prompt: str = Field(..., min_length=1, max_length=600)
     options: List[str] = Field(default_factory=list, max_length=6)
     answer: str = Field(..., min_length=1, max_length=400)
+    diagram: Optional[Diagram] = None
     # computed: worked out by this backend. checked: a second, independent
     # answer agreed. verify: the adult should check it.
     answer_check: Literal["computed", "checked", "verify"] = "verify"
@@ -218,6 +514,20 @@ class GeneratedQuiz(_Strict):
     questions: List[QuizQuestion] = Field(..., min_length=1, max_length=MAX_QUIZ_QUESTIONS)
 
 
+# How much copied-out source a quiz draft reads (a long upload's later pages
+# beyond this are not used, and the screen says so).
+MAX_SOURCE_PAGES_TEXT = 60_000
+
+
+class QuizSourceRequest(_Strict):
+    """One part of a long quiz source, to be copied out as text."""
+    subject: str = Field(..., min_length=1, max_length=30)
+    pages: List[PhotoPage] = Field(..., min_length=1)
+    route: Optional[Literal["local", "cloud"]] = None
+    cloud_consent: bool = False
+    first_page: int = Field(default=1, ge=1)
+
+
 class GenerateQuizRequest(_Strict):
     subject: str = Field(..., min_length=1, max_length=30)
     grade: QuizGrade
@@ -230,14 +540,17 @@ class GenerateQuizRequest(_Strict):
     # or scanned pages, and/or its text pasted in.
     pages: List[PhotoPage] = Field(default_factory=list)
     source_text: Optional[str] = Field(default=None, max_length=12000)
+    # A long upload's pages, already copied out as text part by part
+    # (POST .../quiz/source). Counts as photos for routing and consent.
+    source_pages_text: Optional[str] = Field(default=None, max_length=MAX_SOURCE_PAGES_TEXT)
     route: Optional[Literal["local", "cloud"]] = None
     cloud_consent: bool = False
 
-    @field_validator("focus", "source_text")
+    @field_validator("focus", "source_text", "source_pages_text")
     @classmethod
     def _blank_is_none(cls, value: Optional[str]) -> Optional[str]:
         value = (value or "").strip()
         return value or None
 
     def has_material(self) -> bool:
-        return bool(self.pages or self.source_text or self.focus)
+        return bool(self.pages or self.source_text or self.source_pages_text or self.focus)

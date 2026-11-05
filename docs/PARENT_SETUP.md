@@ -1167,7 +1167,12 @@ graded quiz**. Choose the subject that matches the quiz:
 - **Mathematics**: sums written out as problems (`27 + 15 =`, fractions,
   decimals, negative numbers, order of operations). Bede works each problem
   out itself and names the slip behind a wrong answer, such as not carrying
-  a ten. Word problems are shown to you rather than guessed at.
+  a ten. Picture problems work too: a shaded fraction, a clock, an array of
+  dots, base-ten blocks, the area or perimeter of a rectangle, a point on a
+  number line or a grid. Bede reads the picture, checks the answer against
+  it, and draws new pictures of the same kind for the practice, both on the
+  screen and on the printed worksheet. Word problems are shown to you rather
+  than guessed at.
 - **Spelling**: spelling tests. Bede compares each word with the correct
   spelling the teacher wrote and names the pattern, such as a doubled letter
   or *their* for *there*.
@@ -1236,8 +1241,7 @@ answer, and Bede treats it as one.
 
 **What you can upload.** Photos (JPEG, including the multi-picture files some
 Android cameras save, PNG, WebP or AVIF) or a PDF of scanned pages, as many
-pages as the quiz has and 6 MB a file. iPhone photos are sent as JPEG automatically. HEIC
-photos cannot be read: use JPEG, PNG, or PDF. Bede checks each file, draws
+pages as the quiz has, up to 1 GB in all and 25 MB a file. iPhone photos are sent as JPEG automatically. Bede checks each file, draws
 every PDF page the way you would see it (so scanned layers, typed text and a
 teacher's marks or comments are all kept), and rebuilds every page as a plain
 image before anything reads it. It refuses PDFs that carry scripts,
@@ -1262,7 +1266,18 @@ covers and writes new questions.
 
 Before you print:
 
-- Maths answers say **Worked out**: Bede computed them.
+- Maths answers say **Worked out**: Bede computed them. A picture question
+  (a shaded fraction, a clock, a shape) is drawn by Bede, and its answer is
+  counted off that same picture, so the two always agree.
+- Picture questions work in every subject, not only maths: things measured
+  on a ruler, coins to count, a thermometer, animals, plants and objects to
+  name or count (when the answer choices are pictures, they are drawn too), a scene, a timeline, a Venn diagram, a
+  table, the water cycle or another cycle, and the steps of a process. Check
+  these answers yourself before printing, as you would any other question.
+  When the page's picture is one Bede has no drawing for, it draws the
+  things the picture shows (a dog running, three apples). Only a picture of
+  something not on its list, such as a historical scene or a map, is still
+  given in words.
 - **Double-checked** means Bede answered the question a second time, without
   looking at its first answer, and both agreed. That makes a mistake less
   likely, not impossible.

@@ -19,8 +19,9 @@ is the **teacher's** count, read off the page and labelled as such.
    readings are joined into one worksheet (a section that runs across a group
    boundary is joined back into one). Each group's images are released before
    the next group is built, so memory does not grow with the page count. The
-   browser sends a long upload in parts of at most six files and 7 MB
-   (`utils/uploadParts.ts`), so each request fits nginx's 12 MB ceiling; each
+   browser sends a long upload in parts of at most six files and 24 MB
+   (`utils/uploadParts.ts`), so each request fits the API's 30 MB and nginx's
+   42 MB for `/api/practice/`; each
    part continues the same saved reading (`continues_record`; the demo, which
    stores nothing, sends back what the earlier parts read as `continues`). On
    the public demo each group of pages is one model call and counts as one
@@ -137,6 +138,9 @@ settled, before anything reaches a model.
   pillow-heif release bundling it existed on 2026-11-04. A HEIC upload is
   refused with "HEIC photos cannot be read. Use JPEG, PNG, or PDF." The file
   picker leaves HEIC out on purpose, so an iPhone hands over a JPEG copy.
+  The Practice Coach screens do not list formats Bede cannot read (owner
+  direction 2026-11-05); the message above appears only if a HEIC file is
+  actually sent, and the tests fail if the screen mentions HEIC.
   HEIC is not part of the Mac pilot's acceptance scope (owner ruling
   2026-11-04), and a refused HEIC never blocks the supported formats. The
   gate lifts on its own once a patched pillow-heif is pinned; it is never
@@ -169,9 +173,14 @@ settled, before anything reaches a model.
   (`tests/practice_scanner_fixture.py`) is built exactly like a real
   three-layer office-scanner PDF (background, white cleaning mask, CCITT ink
   mask); the real scan it copies stays out of this public repository.
-- **Limits:** 6 MB a file and 30 MB a request (a quiz source goes in one
-  request, so `/api/practice/` accepts 42 MB in nginx; base64 adds a third),
-  no limit on pages, the pixel and
+- **Limits:** up to 1 GB for a whole upload (checked in the browser, which
+  sends it in parts; owner ruling 2026-11-05), 25 MB a file and 30 MB a
+  request (`/api/practice/` accepts 42 MB in nginx, since base64 adds a
+  third), no limit on pages. A single file stays at 25 MB because the server
+  holds one file in memory to render it, and the demo server has 512 MB. A
+  long quiz source is copied out as text part by part
+  (`POST .../quiz/source`), and the draft reads the first 60,000 characters
+  of it; the screen says so when a source is longer. The pixel and
   decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
   25-second processing time per file, and at most two decode jobs at once
   (others wait up to 10 seconds, then are asked to try again with a 503). A
@@ -220,6 +229,49 @@ The core never changes when a subject is added. A pack is a folder under
 | `__init__.py` | `classify_errors`, `find_strengths`, `generate_practice` |
 
 Register a new pack with one line in `packs/__init__.py`.
+
+**Picture questions, in every subject (`services/practice/diagrams.py`,
+`Diagram.tsx`).** When a question's picture is the question, it carries a
+`diagram`: one of twenty kinds holding only numbers and short labels
+(`models/practice.py`, `extra="forbid"`). For maths: fraction bar or circle,
+array, base-ten blocks, clock, rectangle, right triangle, number line, bar
+graph, coordinate plane, things laid along a ruler (cm or inches, ends on
+whole or half units: "how long", "total length", "how much shorter" are
+worked out), coins and bills (the total is worked out), and a thermometer. For any subject: pictures of things to name, sort or
+count (a fixed list of about a hundred animals, plants, weather, foods,
+objects, people and body parts, each drawn as a picture symbol), a scene (one
+thing doing one thing, which is how Latin's "Quid agit?" practice is drawn),
+a timeline (BC years as negative numbers), a Venn diagram, a table, a cycle
+(the water cycle, a life cycle) and a sequence of steps, where a step written
+"?" is drawn as a blank. The recall and reading packs re-ask a missed
+question with its own picture, and the Latin pack draws every practice
+scene. The reader and the drafting model are given one shared list
+(`diagrams.PROMPT_SCHEMA`), so the two cannot drift. A photograph, a map or a
+drawing none of these fits is described in plain words by the reader, and
+`diagrams.from_stimulus` then draws whatever those words name from the same
+list ("dog running" becomes a dog with a running mark; "3 apples and 2
+bananas" becomes three apples and two bananas). This runs whenever an
+assessment item is built (an `AssessmentItem` validator), so readings saved
+before it existed are drawn too; a diagram the reader gave is never replaced.
+Only a description naming nothing on the list ("the Battle of Hastings") is
+still shown as words, without a "picture:" label. A written sum with a
+picture beside it is still worked out as a sum. The reader
+records it, the drafting rules ask for it, and the app draws it itself as SVG
+on screen and in print, so a model never writes markup into the page and the
+picture and its answer cannot disagree. `diagrams.answer` counts the answer
+off the picture (or returns nothing for a question it cannot settle, such as
+a bar graph's "how many more", which goes to the adult); `explain` names only
+slips a parent can check against the picture (shaded against unshaded parts,
+clock hands swapped, rows added instead of multiplied, area for perimeter, x
+and y swapped); `new_like` draws a fresh picture of the same kind for
+practice, never the missed one. In a drafted quiz the picture decides the
+answer: a short answer is replaced by the counted one, a multiple-choice
+question with no option matching the picture is dropped, and a diagram
+outside the vocabulary drops the question rather than leaving it described in
+words. A lettered number line numbers only its ends, so "what number is at
+A?" stays a question. `tests/test_practice_diagrams.py` and
+`demo/src/Diagram.test.tsx` (which also keeps the app and demo copies equal
+and the kinds in step with the API's); each guard was checked by breaking it.
 
 **The parent picks a school subject, not a pack.** Packs group subjects by how
 a mistake is checked (worked out exactly, named by spelling pattern, compared

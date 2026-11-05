@@ -25,6 +25,7 @@ from models.practice import (
     ConfirmAssessmentRequest,
     PracticeOutcomeRequest,
     PracticeSet,
+    QuizSourceRequest,
     ReadPhotosRequest,
     teacher_mark_count,
 )
@@ -87,6 +88,51 @@ async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False, before
 @router.get("/quiz-options")
 async def get_quiz_options(auth: dict = Depends(require_parent)) -> dict:
     return _quiz_options()
+
+
+async def _copy_source(req: QuizSourceRequest, local_only: bool = False, before_call=None) -> dict:
+    """One part of a long quiz source, copied out as text. Nothing is stored."""
+    try:
+        text, pages_read = await generate.transcribe_source(req, local_only=local_only, before_call=before_call)
+    except generate.QuizRefused as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except extract.ConsentRequired as exc:
+        raise HTTPException(status_code=409, detail={
+            "consent_required": True,
+            "provider": exc.provider,
+            "message": f"This would be sent to {exc.provider}. Tick the box to agree.",
+        })
+    except extract.PhotoRejected as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except extract.ReadingUnavailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except generate.QuizFailed as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"text": text, "pages_read": pages_read}
+
+
+@router.post("/{student_name}/quizzes/source")
+async def copy_quiz_source(
+    student_name: str,
+    req: QuizSourceRequest,
+    auth: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """A long quiz source is sent in parts; each part is copied out as text."""
+    await consent.require_collection(db, student_name)
+    return await _copy_source(req)
+
+
+@router.post("/educator/quiz/source")
+async def educator_copy_quiz_source(
+    req: QuizSourceRequest,
+    auth: dict = Depends(require_educator),
+) -> dict:
+    if req.route == "cloud":
+        raise HTTPException(status_code=422, detail="Teacher quizzes are drafted on the school's own AI model.")
+    return await _copy_source(req, local_only=True)
 
 
 @router.post("/{student_name}/quizzes/generate")
@@ -273,7 +319,8 @@ async def get_delivery_sets(
         out.append({
             "id": saved["id"],
             "items": [
-                {"index": index, "prompt": item.prompt, "hint": item.hint}
+                {"index": index, "prompt": item.prompt, "hint": item.hint,
+                 "diagram": item.diagram.model_dump(mode="json") if item.diagram else None}
                 for index, item in enumerate(practice.items)
             ],
             "completed_indices": sorted(
@@ -342,6 +389,24 @@ async def demo_generate_quiz(
         await record_message(code)
 
     return await _draft_quiz(req, before_call=charge)
+
+
+@router.post("/demo/quiz/source")
+async def demo_copy_quiz_source(
+    req: QuizSourceRequest,
+    auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """One part of a long demo quiz source; each group of pages is one message."""
+    from core.demo_code_session import has_message_quota, record_message
+
+    code = auth.get("code") or ""
+
+    async def charge() -> None:
+        if not await has_message_quota(code):
+            raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
+        await record_message(code)
+
+    return await _copy_source(req, before_call=charge)
 
 
 @router.post("/demo/read")
@@ -413,7 +478,8 @@ async def demo_approve_practice(
     return {
         "approved": True,
         "items": [
-            {"index": index, "prompt": item.prompt, "hint": item.hint}
+            {"index": index, "prompt": item.prompt, "hint": item.hint,
+                 "diagram": item.diagram.model_dump(mode="json") if item.diagram else None}
             for index, item in enumerate(req.practice_set.items)
         ],
     }

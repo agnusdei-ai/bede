@@ -2321,6 +2321,26 @@ it, and the demo server has 512 MB. On the public demo each group is one model c
 counts as one message against the visitor's allowance, which is what bounds
 an anonymous visitor's spend.
 
+**Amended (2026-11-05, owner-approved feature).**
+
+- **Teachers may use their own quiz with a reviewable answer key**, and
+  score a student's completed work against it: write or upload the quiz,
+  approve the key, print it, upload one student's work, review Bede's
+  proposed readings and scores, then approve or correct each result.
+- **Where each answer came from is shown**, and only an answer the teacher
+  typed counts as approved. An answer read from the page or suggested by
+  Bede, and any uncertain reading, waits for the teacher's **Looks right**.
+- **Scoring is deterministic where it can be.** Answers are compared with the
+  approved key in code. Only a written response with a rubric gets a
+  model-proposed score, always for the teacher's review. Nothing counts until
+  the teacher settles it; Bede never finalises a score.
+- **The reader of a student's work never sees the key.**
+- **Local model only**, per the standing teacher ruling above, with a tick
+  for each upload. **Nothing is stored**: the teacher keeps a quiz as a file,
+  and results are review and print only. Recording quiz results in a
+  learner's record would need a new evidence type and its own decision; it
+  is not part of this amendment.
+
 ---
 
 ## v1.0 owner ruling reconciliation — 2026-11-01 (amendments, not new decision IDs)

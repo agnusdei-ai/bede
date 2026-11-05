@@ -457,6 +457,114 @@ request. Nothing is stored.
 Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
 verified by breaking it.
 
+## Teacher quizzes with answer keys
+
+On the classroom page, a teacher can use their own quiz, approve its answer
+key, and then score a student's completed work against it. This is the card
+**Your own quiz, with an answer key**
+(`homeschool-tutor/src/components/TeacherQuizStudio.tsx`,
+`services/practice/teacher_quiz.py`). The steps are:
+
+1. **Write or bring the quiz.** The teacher writes it on screen (questions,
+   choices, the answer, other accepted answers, points, and for a written
+   response a rubric and optional scoring guidance). Or they bring one they
+   already have: paste its text, or add photos or a PDF through the
+   same file checks as every other upload. Bede reads the
+   questions, describes any diagram in a short line, and copies an answer key
+   or the teacher's marked answer when the page shows one. A quiz Bede
+   drafted in **Make a quiz or exam** can be handed over too, with
+   **Edit the key and score students' work**.
+2. **Review the key.** Every answer says where it came from: **Your answer**
+   (typed by the teacher), **Read from your page**, or **Suggested by Bede**.
+   Only the first counts as approved. The other two, and anything Bede was
+   unsure of reading, are highlighted and count only after the teacher
+   presses **Looks right**, the same step the Practice Coach uses for a
+   flagged reading. A suggested maths answer is worked out with the maths
+   pack's exact evaluator; when a key read from the page disagrees with the
+   computed answer, Bede flags it and leaves the teacher's key in place.
+   **Check and approve the key** asks the server, which refuses while
+   anything is unsettled and says what.
+3. **Print and give the quiz.** The blank quiz has a name line for the
+   student to fill in by hand. The answer key prints separately, with
+   accepted answers and rubrics.
+4. **Upload one student's work.** Photos or a scan of the completed quiz,
+   with a tick for that upload, or the answers typed in.
+5. **Review Bede's proposals.** Bede reads the work against the questions
+   only. **The reader never sees the answer key or the rubric**, so it
+   copies what the student wrote rather than what the key says. Each answer
+   is then compared with the approved key **in code**:
+   - multiple choice and true or false, by the choice's text or its letter;
+   - numbers exactly, with the maths pack's evaluator (`1/2` and `0.5` agree);
+   - short answers with case, accents and punctuation ignored, against the
+     answer and the teacher's other accepted answers.
+
+   A short answer that does not match the key is set to the teacher, never an
+   automatic zero, because the wording may differ and still be right. Only a
+   written response **with a rubric** gets a score from the model, rounded to
+   a half point and always marked for the teacher. Without a rubric the
+   teacher scores it. Any reading Bede was unsure of is marked too.
+6. **Approve or correct the results.** Results marked for review count only
+   after the teacher presses **Looks right** or types a score; the teacher
+   can change any score. **Approve these results** totals them on the server,
+   which refuses while any result is unsettled. Bede never settles one.
+
+**Where it runs.** Every page and every answer here is read on the school's
+own local model through `resolve_local_only()`, never a cloud provider, by
+the standing ruling that a teacher's upload can hold students' work
+(register entry 39). A page upload needs the teacher's tick for that upload,
+naming the school's own model, before anything is parsed. With no local
+model the teacher is told so: pages cannot be read, but a quiz can still be
+written, and typed answers are still scored (all but rubric proposals need
+no model).
+
+**What is stored.** Nothing. The quiz, its key, the student's pages, their
+answers and the results exist only in the request and on the teacher's
+screen. The teacher keeps a quiz by saving it as a file with **Save as a
+file** (`bede.teacher-quiz` JSON, version 1) and opens it again with **Open a
+saved quiz file**, which the server checks before it is used. Results are for
+the teacher's printout.
+
+Why nothing is stored:
+
+- **A blank quiz and its key hold no learner data**, so a server table would
+  add a retention category and a deletion obligation for something a file
+  does as well. The cost is that a saved quiz lives on the teacher's device,
+  not in their account.
+- **A student's results are not kept on the server.** The pilot's evidence
+  record (`routers/pilot_journey.py`) is campus-mode and UUID-scoped through
+  `_assigned`, and takes externally administered assessment reports
+  (`EducatorAssessmentSubmission`), not a classroom quiz score. The classroom
+  page's quiz tools name no learner at all. Recording quiz results against a
+  learner would need a new evidence type, school data authorization and an
+  owner decision on what a quiz score may mean in a learner's record. Until
+  then, results are review and print only.
+
+The quiz never names a learner and has no field for one; neither does a
+reading. Faith subjects are refused here as everywhere (never scored), and
+Logic starts in grade 3.
+
+**Pages and size.** There is no page-count limit. Every PDF page is drawn as
+you would see it, so a scanned page, a PDF of typed text, a diagram and a
+teacher's or student's drawn marks are all kept, the same as in the Practice
+Coach. Every file is checked first, then the pages are read six at a time,
+one model call per group (`upload_safety.page_groups`): the quiz's questions
+are joined in order and numbered again, and a student's answers are joined by
+question number, a question answered on one group's pages keeping its answer
+and the more confident of two readings winning (`teacher_quiz.merge_responses`).
+A teacher upload goes in one request, so the limits are bytes: 25 MB a file
+and 24 MB together (30 MB at the server). Over that, the screen says so
+before anything is sent and suggests smaller scans or pasting the text.
+Sending a larger teacher upload in several requests, as the Practice Coach
+does, and a progress bar for teacher uploads are not built yet.
+
+Routes (all `require_educator`, under `/practice/educator/teacher-quiz/`):
+`review`, `approve`, `extract`, `score`, `finalize`. Tests are in
+`tests/test_teacher_quiz.py` (over HTTP through the real practice router),
+`TeacherQuizStudio.test.tsx`, `utils/teacherQuiz.test.ts`,
+`services/teacherQuizApi.test.ts` and `pages/EducatorDesk.teacherQuiz.test.tsx`
+(the hand-off from the drafting tool, through the real classroom page). Each
+guard was verified by breaking it.
+
 ## Golden tests
 
 Golden test #1 is a parent's real graded Latin quiz, hand-typed into

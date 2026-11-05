@@ -1,9 +1,12 @@
-"""Practice Coach routes (docs/PRACTICE_COACH.md). Parent-only, every one.
+"""Practice Coach routes (docs/PRACTICE_COACH.md).
 
 Flow: read photos (or type the quiz in) -> parent confirms the reading ->
-diagnose and draft practice -> parent approves, edits, or discards. Nothing
-here is reachable by a child, an educator, or a demo visitor, and the child's
-delivery route (PR 3) will only ever return approved sets.
+diagnose and draft practice -> parent approves, edits, or discards. Each
+route has its own guard, pinned by
+test_every_practice_route_uses_its_scoped_authorization_guard: parent routes
+by default, `/practice/educator/*` for teachers (quiz drafting and teacher
+quizzes with answer keys, local model only, nothing stored), `/practice/demo/*`
+for the demo, and the child's delivery route only ever returns approved sets.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,10 +29,14 @@ from models.practice import (
     PracticeOutcomeRequest,
     PracticeSet,
     QuizSourceRequest,
+    ExtractQuizRequest,
+    FinalizeResultsRequest,
     ReadPhotosRequest,
+    ScoreSubmissionRequest,
+    TeacherQuizRequest,
     teacher_mark_count,
 )
-from services.practice import extract, generate, pipeline, progress, store
+from services.practice import extract, generate, pipeline, progress, store, teacher_quiz
 from services.practice.packs import available_packs
 
 router = APIRouter(prefix="/practice", tags=["practice"])
@@ -194,6 +201,97 @@ async def educator_generate_quiz(
     if req.route == "cloud":
         raise HTTPException(status_code=422, detail="Teacher quizzes are drafted on the school's own AI model.")
     return await _draft_quiz(req, local_only=True, auth=auth)
+
+
+# ── Teacher quizzes with reviewable answer keys (services/practice/teacher_quiz.py)
+#
+# Local model only, nothing stored, no learner named. A teacher keeps the
+# quiz as a file they export; a student's completed work is read, scored
+# against the approved key in code, and handed back for the teacher to
+# approve or correct. Results are for the teacher's own printout.
+
+def _teacher_quiz_errors(exc: Exception) -> HTTPException:
+    if isinstance(exc, teacher_quiz.QuizNotApproved):
+        return HTTPException(status_code=422, detail={
+            "problems": exc.problems,
+            "message": "Settle every question marked for review before using this quiz.",
+        })
+    if isinstance(exc, teacher_quiz.UploadConsentRequired):
+        return HTTPException(status_code=409, detail={
+            "consent_required": True,
+            "provider": teacher_quiz.LOCAL_PROVIDER,
+            "message": "These pages are read on the school's own AI model and not stored. Tick the box to agree for this upload.",
+        })
+    if isinstance(exc, teacher_quiz.ResultsNotSettled):
+        return HTTPException(status_code=409, detail={
+            "unsettled": exc.numbers,
+            "message": "Some results still need your review before they count.",
+        })
+    if isinstance(exc, (generate.QuizRefused, extract.PhotoRejected)):
+        return HTTPException(status_code=422, detail=str(exc))
+    if isinstance(exc, extract.ReadingUnavailable):
+        return HTTPException(status_code=409, detail=str(exc))
+    if isinstance(exc, (extract.ScannerUnavailable, extract.UploadBusy)):
+        return HTTPException(status_code=503, detail=str(exc))
+    if isinstance(exc, extract.ReadingFailed):
+        return HTTPException(status_code=502, detail=str(exc))
+    raise exc
+
+
+_TEACHER_QUIZ_ERRORS = (
+    teacher_quiz.QuizNotApproved, teacher_quiz.UploadConsentRequired, teacher_quiz.ResultsNotSettled,
+    generate.QuizRefused, extract.PhotoRejected, extract.ReadingUnavailable, extract.ScannerUnavailable,
+    extract.UploadBusy, extract.ReadingFailed,
+)
+
+
+@router.post("/educator/teacher-quiz/review")
+async def review_teacher_quiz(req: TeacherQuizRequest, auth: dict = Depends(require_educator)) -> dict:
+    """What still needs the teacher before this quiz can be approved. Used
+    for a quiz written on screen and for one imported from a file."""
+    return {"quiz": req.quiz.model_dump(mode="json"), "problems": teacher_quiz.approval_problems(req.quiz)}
+
+
+@router.post("/educator/teacher-quiz/approve")
+async def approve_teacher_quiz(req: TeacherQuizRequest, auth: dict = Depends(require_educator)) -> dict:
+    try:
+        quiz = teacher_quiz.approve(req.quiz)
+    except _TEACHER_QUIZ_ERRORS as exc:
+        raise _teacher_quiz_errors(exc)
+    return {"quiz": quiz.model_dump(mode="json"), "problems": []}
+
+
+@router.post("/educator/teacher-quiz/extract")
+async def extract_teacher_quiz(req: ExtractQuizRequest, auth: dict = Depends(require_educator)) -> dict:
+    """Read a quiz the teacher already has. Nothing in the result is approved."""
+    try:
+        quiz = await teacher_quiz.extract_quiz(req)
+    except _TEACHER_QUIZ_ERRORS as exc:
+        raise _teacher_quiz_errors(exc)
+    return {"quiz": quiz.model_dump(mode="json"), "problems": teacher_quiz.approval_problems(quiz)}
+
+
+@router.post("/educator/teacher-quiz/score")
+async def score_teacher_quiz(req: ScoreSubmissionRequest, auth: dict = Depends(require_educator)) -> dict:
+    """Propose readings and scores for one student's completed quiz. Nothing
+    counts until the teacher settles it, and nothing is stored."""
+    try:
+        results = await teacher_quiz.score_submission(req.quiz, req.pages, req.responses, req.upload_consent)
+    except _TEACHER_QUIZ_ERRORS as exc:
+        raise _teacher_quiz_errors(exc)
+    return {
+        "results": [r.model_dump(mode="json") for r in results],
+        "possible": sum(q.points for q in req.quiz.questions),
+        "read_by": teacher_quiz.LOCAL_PROVIDER if req.pages else None,
+    }
+
+
+@router.post("/educator/teacher-quiz/finalize")
+async def finalize_teacher_quiz(req: FinalizeResultsRequest, auth: dict = Depends(require_educator)) -> dict:
+    try:
+        return teacher_quiz.finalize(req)
+    except _TEACHER_QUIZ_ERRORS as exc:
+        raise _teacher_quiz_errors(exc)
 
 
 @router.get("/reading-route")

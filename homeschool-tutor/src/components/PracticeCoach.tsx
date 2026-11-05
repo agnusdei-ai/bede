@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { providerName } from '../utils/providerName'
 import { useTranslation } from 'react-i18next'
 import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import { withProgress, type ProgressState } from '../utils/readingProgress'
@@ -129,7 +130,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
     } catch (err) {
       setStage('start')
       setMessage(err instanceof PracticeConsentRequired
-        ? t('practiceCoach.consentNeeded', { provider: err.provider ?? '' })
+        ? t('practiceCoach.consentNeeded', { provider: providerName(err.provider) })
         : err instanceof Error ? err.message : t('practiceCoach.readError'))
     } finally {
       setProgress(null)
@@ -239,12 +240,12 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
               {usesCloud && (
                 <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs text-gray-700">
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
-                  <span>{t('practiceCoach.routeCloud', { provider: route?.cloud_provider ?? '' })}</span>
+                  <span>{t('practiceCoach.routeCloud', { provider: providerName(route?.cloud_provider) })}</span>
                 </label>
               )}
               {usesCloud && (
                 <>
-                  <p className="text-xs text-gray-600">{t('practiceCoach.cloudRetention', { provider: route?.cloud_provider ?? '' })}</p>
+                  <p className="text-xs text-gray-600">{t('practiceCoach.cloudRetention', { provider: providerName(route?.cloud_provider) })}</p>
                   <p className="text-xs text-gray-600">{t('practiceCoach.cropTip')}</p>
                 </>
               )}

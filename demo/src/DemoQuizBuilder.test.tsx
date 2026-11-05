@@ -53,7 +53,7 @@ describe('demo quiz builder', () => {
 
     const draft = screen.getByRole('button', { name: 'Draft quiz' })
     expect(draft).toHaveProperty('disabled', true)
-    fireEvent.click(screen.getByLabelText('I agree to send this to openai to draft the quiz.'))
+    fireEvent.click(screen.getByLabelText('I agree to send this to OpenAI to draft the quiz.'))
     fireEvent.click(draft)
     await waitFor(() => expect(api.generateDemoQuiz).toHaveBeenCalledWith('t', expect.objectContaining({
       focus: 'Multiplication', cloud_consent: true, pages: [],

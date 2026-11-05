@@ -184,8 +184,8 @@ describe('demo Practice Coach', () => {
     api.fetchDemoPracticeReadingRoute.mockResolvedValue({ local_available: false, cloud_provider: 'OpenAI' })
     render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
     await screen.findByText(/send these pages to OpenAI/i)
-    expect(screen.getByText(/OpenAI may keep the page images for up to 30 days/)).toBeTruthy()
-    expect(screen.getByText(/crop out anything you would rather not send/)).toBeTruthy()
+    expect(screen.getByText(/OpenAI may keep the images for up to 30 days/)).toBeTruthy()
+    expect(screen.getByText(/crop out a full name first/)).toBeTruthy()
     const picker = screen.getByLabelText(/Choose image files/i) as HTMLInputElement
     for (const kind of ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf']) {
       expect(picker.accept.split(',')).toContain(kind)

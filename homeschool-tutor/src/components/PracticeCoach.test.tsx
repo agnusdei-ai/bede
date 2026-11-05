@@ -146,9 +146,9 @@ describe('where the photos go', () => {
     mocks.fetchReadingRoute.mockResolvedValue({ local_available: false, cloud_provider: 'openai' })
     await openAndPick()
     const read = screen.getByRole('button', { name: 'Read the quiz' }) as HTMLButtonElement
-    expect(screen.getByText(/sent to openai/)).toBeTruthy()
-    expect(screen.getByText(/openai may keep the page images for up to 30 days/)).toBeTruthy()
-    expect(screen.getByText(/crop out anything you would rather not send/)).toBeTruthy()
+    expect(screen.getByText(/sent to OpenAI/)).toBeTruthy()  // a display name, not the provider id
+    expect(screen.getByText(/OpenAI may keep the images for up to 30 days/)).toBeTruthy()
+    expect(screen.getByText(/crop out a full name first/)).toBeTruthy()
     expect(read.disabled).toBe(true)
     fireEvent.click(read)
     expect(mocks.readPracticePhotos).not.toHaveBeenCalled()
@@ -263,14 +263,12 @@ describe('PDF and iPhone uploads', () => {
     expect(data).not.toMatch(/^data:/)
   })
 
-  it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
+  it('keeps the upload note short, and does not overclaim about the photos (en)', async () => {
     await openAndPick()
-    expect(screen.getByText(/as many pages as the quiz has/)).toBeTruthy()
-    // Owner direction: the coach does not list what it cannot read.
+    expect(screen.getByText('Photos or PDFs, up to 25 MB each.')).toBeTruthy()
+    // Owner direction: the coach does not list what it cannot read, or how files are checked.
     expect(screen.queryByText(/HEIC/)).toBeNull()
-    expect(screen.getByText(/scanned layers, typed text and a teacher's marks are all kept/)).toBeTruthy()
-    expect(screen.getByText(/iPhone photos are sent as JPEG/)).toBeTruthy()
-    expect(screen.getByText(/PDFs with scripts, attachments, forms or a password are refused/)).toBeTruthy()
+    expect(screen.queryByText(/scripts, attachments, forms/)).toBeNull()
     expect(screen.getByText(/not saved to the database or a file by Bede; they are held in memory while the request runs/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/never the photos|virus-free|malware-free/i)
   })
@@ -280,7 +278,7 @@ describe('PDF and iPhone uploads', () => {
     render(<PracticeCoach token="t" studentName="Alex" />)
     fireEvent.click(screen.getByRole('button', { name: /Comenzar|Empezar|Iniciar/ }))
     await screen.findByRole('option', { name: 'Latin' })
-    expect(screen.getByText(/Cada página del PDF se dibuja como usted la vería/)).toBeTruthy()
+    expect(screen.getByText('Fotos o PDF, hasta 25 MB cada uno.')).toBeTruthy()
     expect(screen.getByText(/no guarda las fotos en la base de datos ni en un archivo/)).toBeTruthy()
   })
 })

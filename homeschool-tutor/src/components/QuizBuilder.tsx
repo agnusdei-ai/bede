@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { providerName } from '../utils/providerName'
 import { useTranslation } from 'react-i18next'
 import { FileQuestion, Loader2, Printer } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from '../utils/uploadParts'
@@ -259,12 +260,12 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
               {usesCloud && (
                 <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
-                  <span>{t('quizBuilder.cloud', { provider: provider ?? '' })}</span>
+                  <span>{t('quizBuilder.cloud', { provider: providerName(provider) })}</span>
                 </label>
               )}
               {usesCloud && files.length > 0 && (
                 <>
-                  <p className="text-xs text-gray-600">{t('practiceCoach.cloudRetention', { provider: provider ?? '' })}</p>
+                  <p className="text-xs text-gray-600">{t('practiceCoach.cloudRetention', { provider: providerName(provider) })}</p>
                   <p className="text-xs text-gray-600">{t('practiceCoach.cropTip')}</p>
                 </>
               )}

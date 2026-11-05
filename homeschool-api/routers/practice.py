@@ -62,9 +62,9 @@ def _quiz_options() -> dict:
     }
 
 
-async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False) -> dict:
+async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False, before_call=None) -> dict:
     try:
-        quiz, report = await generate.generate(req, local_only=local_only)
+        quiz, report = await generate.generate(req, local_only=local_only, before_call=before_call)
     except generate.QuizRefused as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     except extract.ConsentRequired as exc:
@@ -140,8 +140,15 @@ async def read_assessment(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     await consent.require_collection(db, student_name)
+    if req.continues is not None:
+        raise HTTPException(status_code=422, detail="Continue an upload by its saved record, not by sending its reading.")
+    earlier = None
+    if req.continues_record is not None:
+        earlier = await store.load_assessment(db, student_name, req.continues_record)
+        if earlier is None or earlier[0].status != "needs_review" or earlier[1].subject != req.subject:
+            raise HTTPException(status_code=404, detail="Assessment not found")
     try:
-        assessment = await extract.read_pages(req)
+        assessment, pages_read = await extract.read_pages_counted(req, continues=earlier[1] if earlier else None)
     except extract.ConsentRequired as exc:
         raise HTTPException(status_code=409, detail={
             "consent_required": True,
@@ -156,11 +163,16 @@ async def read_assessment(
         raise HTTPException(status_code=503, detail=str(exc))
     except extract.ReadingFailed as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+    if earlier is not None:
+        # A later part of the same upload: the saved reading grows; it is still
+        # reviewed as one worksheet.
+        await store.replace_assessment(db, earlier[0], assessment, "needs_review")
+        return {**_view(earlier[0].id, "needs_review", assessment), "pages_read": pages_read}
     try:
         record_id = await store.save_assessment(db, student_name, assessment, "needs_review")
     except LookupError:
         raise HTTPException(status_code=404, detail="Student not found")
-    return _view(record_id, "needs_review", assessment)
+    return {**_view(record_id, "needs_review", assessment), "pages_read": pages_read}
 
 
 @router.post("/{student_name}/assessments", status_code=201)
@@ -322,7 +334,14 @@ async def demo_generate_quiz(
     # A draft is two model calls: writing the quiz, then checking its answers.
     await record_message(code)
     await record_message(code)
-    return await _draft_quiz(req)
+
+    async def charge() -> None:
+        # A long source is copied out a group of pages at a time; each is a call.
+        if not await has_message_quota(code):
+            raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
+        await record_message(code)
+
+    return await _draft_quiz(req, before_call=charge)
 
 
 @router.post("/demo/read")
@@ -330,9 +349,23 @@ async def demo_read_assessment(
     req: ReadPhotosRequest,
     auth: dict = Depends(require_demo_practice_preview),
 ) -> dict:
-    """Read synthetic/demo uploads without persisting the image or assessment."""
+    """Read demo uploads without persisting the image or assessment.
+
+    Each group of pages is one model call and counts as one demo message, so
+    a long upload uses the visitor's allowance as it really runs."""
+    from core.demo_code_session import has_message_quota, record_message
+
+    if req.continues_record is not None:
+        raise HTTPException(status_code=422, detail="The demo stores nothing, so there is no saved record to continue.")
+    code = auth.get("code") or ""
+
+    async def charge() -> None:
+        if not await has_message_quota(code):
+            raise HTTPException(status_code=429, detail="This demo has reached its limit. Start a new demo to keep going.")
+        await record_message(code)
+
     try:
-        assessment = await extract.read_pages(req)
+        assessment, pages_read = await extract.read_pages_counted(req, before_call=charge, continues=req.continues)
     except extract.ConsentRequired as exc:
         raise HTTPException(status_code=409, detail={
             "consent_required": True,
@@ -347,7 +380,8 @@ async def demo_read_assessment(
         raise HTTPException(status_code=503, detail=str(exc))
     except extract.ReadingFailed as exc:
         raise HTTPException(status_code=502, detail=str(exc))
-    return _view(0, "needs_review" if assessment.needs_parent() else "confirmed", assessment)
+    return {**_view(0, "needs_review" if assessment.needs_parent() else "confirmed", assessment),
+            "pages_read": pages_read}
 
 
 @router.post("/demo/plan")

@@ -188,13 +188,18 @@ export const fetchDemoPracticeReadingRoute = (token: string) =>
 
 export const readDemoPracticePhotos = (
   token: string,
-  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean },
+  body: {
+    subject: string; pages: { data: string }[]; cloud_consent: boolean
+    /** A long upload goes in parts: where this part starts, and what earlier parts read. */
+    first_page?: number; continues?: DemoPracticeAssessment
+  },
 ) => demoPracticeFetch<{
   id: 0
   status: 'needs_review' | 'confirmed'
   assessment: DemoPracticeAssessment
   ask_parent: string[]
   teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
+  pages_read?: number
 }>(token, '/read', body)
 
 export const planDemoPractice = (token: string, assessment: DemoPracticeAssessment) =>

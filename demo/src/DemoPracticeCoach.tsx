@@ -11,11 +11,11 @@ import {
   type DemoPracticeSetDraft,
 } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
+import { splitIntoParts } from './uploadParts'
 
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
 // HEIC decoder is held back until its security fix ships.
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
-const MAX_PAGES = 6
 
 function base64Payload(dataUrl: string) {
   const comma = dataUrl.indexOf(',')
@@ -91,13 +91,24 @@ export default function DemoPracticeCoach({
     setStage('reading')
     setError('')
     try {
-      const pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
-      const result = await readDemoPracticePhotos(token, {
-        subject,
-        pages,
-        cloud_consent: usesCloud && cloudConsent,
-      })
-      setAssessment(result.assessment)
+      // Any number of pages: sent a part at a time. The demo stores nothing,
+      // so each part carries what the earlier parts read.
+      let sofar: DemoPracticeAssessment | undefined
+      let firstPage = 1
+      for (const part of splitIntoParts(files)) {
+        const pages = await Promise.all(part.map(async (file) => ({ data: await readFile(file) })))
+        const result = await readDemoPracticePhotos(token, {
+          subject,
+          pages,
+          cloud_consent: usesCloud && cloudConsent,
+          first_page: firstPage,
+          continues: sofar,
+        })
+        sofar = result.assessment
+        firstPage += result.pages_read ?? pages.length
+      }
+      if (!sofar) return
+      setAssessment(sofar)
       setStage('review')
     } catch (reason) {
       setStage('start')
@@ -223,20 +234,20 @@ export default function DemoPracticeCoach({
               )}
               {noReader && <p className="text-xs text-madder-800">{t('demoPractice.noReader')}</p>}
               <label className={label}>
-                {t('demoPractice.photos', { max: MAX_PAGES })}
+                {t('demoPractice.photos')}
                 <input
                   type="file"
                   accept={ACCEPT}
                   multiple
-                  aria-label={t('demoPractice.photos', { max: MAX_PAGES })}
+                  aria-label={t('demoPractice.photos')}
                   onChange={(event) => {
-                    setFiles(Array.from(event.target.files ?? []).slice(0, MAX_PAGES))
+                    setFiles(Array.from(event.target.files ?? []))
                     event.target.value = ''
                   }}
                   className="mt-1 block w-full text-xs"
                 />
               </label>
-              <p className="text-xs text-gray-500">{t('demoPractice.photosHint', { max: MAX_PAGES })}</p>
+              <p className="text-xs text-gray-500">{t('demoPractice.photosHint')}</p>
               <button type="button" onClick={() => void read()} disabled={stage === 'reading' || !files.length || !subject || noReader || (usesCloud && !cloudConsent)} className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
                 {stage === 'reading' ? t('demoPractice.reading') : t('demoPractice.read')}
               </button>

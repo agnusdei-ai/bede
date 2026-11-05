@@ -2308,6 +2308,17 @@ provider choice, not this feature's).
   generated copy of its structure is the committed fixture, and the real scan
   stays out of the public repository (owner direction).
 
+**Amendment 2026-11-05 (owner ruling): no page limit.** The six-page cap is
+removed in the demo and the app, for practice from a quiz and for drafting a
+quiz. Bede reads any number of pages six at a time, one model call per group,
+and joins the groups into one worksheet. Memory stays bounded: every file is
+checked first, then pages are rebuilt one group at a time and released before
+the next, and the browser sends a long upload in parts that each fit the
+request ceiling. What remains are size limits, not page limits: 6 MB a file
+and 30 MB a request. On the public demo each group is one model call and
+counts as one message against the visitor's allowance, which is what bounds
+an anonymous visitor's spend.
+
 ---
 
 ## v1.0 owner ruling reconciliation — 2026-11-01 (amendments, not new decision IDs)

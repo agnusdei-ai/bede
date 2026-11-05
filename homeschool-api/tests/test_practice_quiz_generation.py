@@ -127,6 +127,18 @@ async def test_uploaded_pages_go_to_the_model_as_images(monkeypatch, quota):
     assert blocks[0]["type"] == "image" and blocks[0]["source"]["media_type"] == "image/png"
 
 
+@pytest.mark.asyncio
+async def test_a_long_source_is_copied_out_a_group_at_a_time_and_each_group_is_charged(monkeypatch, quota):
+    stub = StubClient(draft(q("2 + 2 =", "4", "computation")))
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    await practice_router.demo_generate_quiz(req(focus=None, pages=[PhotoPage(data=b64(JPEG))] * 8), auth=DEMO)
+    images = [sum(b["type"] == "image" for b in c["messages"][0]["content"]) for c in stub.calls]
+    assert images[:3] == [6, 2, 0]  # two groups copied out, then a text-only draft
+    draft_text = stub.calls[2]["messages"][0]["content"][-1]["text"]
+    assert "[Pages 1-6]" in draft_text and "[Pages 7-8]" in draft_text
+    assert quota["recorded"] == 4  # writing + checking, plus one per group copied out
+
+
 @pytest.mark.parametrize("subject", ["scripture", "saints", "morning_time", "free_study"])
 def test_faith_subjects_are_never_quizzed(subject):
     with pytest.raises(generate.QuizRefused):

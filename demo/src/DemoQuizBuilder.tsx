@@ -14,7 +14,6 @@ import {
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
 // HEIC decoder is held back until its security fix ships.
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
-const MAX_PAGES = 6
 
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -226,15 +225,15 @@ export default function DemoQuizBuilder({
         <textarea value={sourceText} onChange={(event) => setSourceText(event.target.value)} rows={3} className={field} />
       </label>
       <label className={label}>
-        {t('demoQuiz.pages', { max: MAX_PAGES })}
+        {t('demoQuiz.pages')}
         <input
           type="file"
           accept={ACCEPT}
           multiple
-          aria-label={t('demoQuiz.pages', { max: MAX_PAGES })}
+          aria-label={t('demoQuiz.pages')}
           disabled={!photosReadable}
           onChange={(event) => {
-            setFiles(Array.from(event.target.files ?? []).slice(0, MAX_PAGES))
+            setFiles(Array.from(event.target.files ?? []))
             event.target.value = ''
           }}
           className="mt-1 block w-full text-xs"

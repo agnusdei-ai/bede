@@ -29,12 +29,13 @@ import logging
 from pydantic import ValidationError
 
 from core.config import settings
-from models.practice import GradedAssessment, ReadPhotosRequest
+from models.practice import MAX_ITEMS_PER_SECTION, MAX_SECTIONS, GradedAssessment, ReadPhotosRequest
 from services.practice.packs import get_pack, subject_name
 from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
     PhotoRejected,
     ScannerUnavailable,
     UploadBusy,
+    page_groups,
     prepare_pages,
 )
 
@@ -189,20 +190,41 @@ def parse_reading(text: str, subject: str) -> GradedAssessment:
         raise ReadingFailed("The pages could not be read into a worksheet; try clearer photos.") from exc
 
 
-async def read_pages(req: ReadPhotosRequest) -> GradedAssessment:
-    if get_pack(req.subject) is None:
-        raise PhotoRejected(f"No practice pack for {req.subject!r} yet.")
-    client = _choose_client(req)  # consent and routing are settled before anything is parsed
-    pages = await prepare_pages([p.data for p in req.pages])
+def merge_readings(first: GradedAssessment, more: GradedAssessment) -> GradedAssessment:
+    """One worksheet read in parts -> one assessment, in page order.
+
+    A section that runs across a group boundary arrives as two halves with the
+    same label; they are joined back into one, so the parent sees the
+    worksheet's own sections rather than one per group of pages.
+    """
+    sections = [s.model_copy(deep=True) for s in first.sections]
+    for section in more.sections:
+        last = sections[-1] if sections else None
+        if (last is not None and last.label == section.label
+                and len(last.items) + len(section.items) <= MAX_ITEMS_PER_SECTION):
+            last.items.extend(section.items)
+            last.word_bank.extend(w for w in section.word_bank if w not in last.word_bank)
+            if not last.instructions:
+                last.instructions = section.instructions
+        else:
+            sections.append(section.model_copy(deep=True))
+    if len(sections) > MAX_SECTIONS:
+        raise ReadingFailed("This worksheet has more sections than can be shown at once; please send it in two parts.")
+    return GradedAssessment(subject=first.subject, sections=sections)
+
+
+async def _read_group(client, subject: str, pages: list[tuple[str, str]], first_page: int) -> GradedAssessment:
     blocks = [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in pages]
-    blocks.append({"type": "text", "text": f"These are {len(pages)} page(s) of one worksheet, in order."})
+    last_page = first_page + len(pages) - 1
+    where = f"page {first_page}" if first_page == last_page else f"pages {first_page} to {last_page}"
+    blocks.append({"type": "text", "text": f"These are {where} of one worksheet, in order."})
     try:
         response = await asyncio.wait_for(
             client.messages.create(
                 model=settings.tutor_model,
                 max_tokens=4000,
                 temperature=0,
-                system=_prompt(req.subject),
+                system=_prompt(subject),
                 messages=[{"role": "user", "content": blocks}],
             ),
             timeout=READ_TIMEOUT_SECONDS,
@@ -212,4 +234,32 @@ async def read_pages(req: ReadPhotosRequest) -> GradedAssessment:
     except Exception as exc:  # provider errors: never log the request, it holds the photos
         log.warning("Practice page reading failed: %s", type(exc).__name__)
         raise ReadingFailed("The pages could not be read right now; please try again.") from exc
-    return parse_reading(_text_of(response), req.subject)
+    return parse_reading(_text_of(response), subject)
+
+
+async def read_pages(req: ReadPhotosRequest, before_call=None,
+                     continues: GradedAssessment | None = None) -> GradedAssessment:
+    return (await read_pages_counted(req, before_call, continues))[0]
+
+
+async def read_pages_counted(req: ReadPhotosRequest, before_call=None,
+                             continues: GradedAssessment | None = None) -> tuple[GradedAssessment, int]:
+    """Read every uploaded page, READ_GROUP_SIZE pages per model call.
+
+    `before_call` runs before each call (the demo charges its message quota
+    there, so a long upload costs what it really uses). `continues` is what an
+    earlier part of the same upload already read; this part is added after it.
+    """
+    if get_pack(req.subject) is None:
+        raise PhotoRejected(f"No practice pack for {req.subject!r} yet.")
+    client = _choose_client(req)  # consent and routing are settled before anything is parsed
+    result = continues
+    next_page = req.first_page
+    async for pages in page_groups([p.data for p in req.pages]):
+        if before_call is not None:
+            await before_call()
+        part = await _read_group(client, req.subject, pages, next_page)
+        next_page += len(pages)
+        del pages  # this group's images are not needed once it is read
+        result = part if result is None else merge_readings(result, part)
+    return result, next_page - req.first_page

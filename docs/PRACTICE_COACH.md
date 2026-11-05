@@ -13,8 +13,18 @@ is the **teacher's** count, read off the page and labelled as such.
 
 ## How it works
 
-1. **Read.** The parent uploads up to six pages as JPEG or PNG
-   photos, or as a PDF of scanned pages (each PDF page counts toward the six).
+1. **Read.** The parent uploads as many pages as the quiz has, as JPEG or
+   PNG photos or as a PDF of scanned pages. There is no page limit: pages are
+   rebuilt and read six at a time, one model call per group, and the groups'
+   readings are joined into one worksheet (a section that runs across a group
+   boundary is joined back into one). Each group's images are released before
+   the next group is built, so memory does not grow with the page count. The
+   browser sends a long upload in parts of at most six files and 7 MB
+   (`utils/uploadParts.ts`), so each request fits nginx's 12 MB ceiling; each
+   part continues the same saved reading (`continues_record`; the demo, which
+   stores nothing, sends back what the earlier parts read as `continues`). On
+   the public demo each group of pages is one model call and counts as one
+   message against the visitor's allowance.
    Every file is first checked and rebuilt (see "File validation and
    hardening" below), and the rebuilt PNG pages are sent to
    the model the same way the handwriting canvas sends a child's drawing, as
@@ -159,7 +169,9 @@ settled, before anything reaches a model.
   (`tests/practice_scanner_fixture.py`) is built exactly like a real
   three-layer office-scanner PDF (background, white cleaning mask, CCITT ink
   mask); the real scan it copies stays out of this public repository.
-- **Limits:** 6 MB a file, 6 pages in total across the upload, the pixel and
+- **Limits:** 6 MB a file and 30 MB a request (a quiz source goes in one
+  request, so `/api/practice/` accepts 42 MB in nginx; base64 adds a third),
+  no limit on pages, the pixel and
   decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
   25-second processing time per file, and at most two decode jobs at once
   (others wait up to 10 seconds, then are asked to try again with a 503). A

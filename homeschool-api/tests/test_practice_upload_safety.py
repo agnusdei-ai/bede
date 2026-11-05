@@ -256,11 +256,51 @@ async def test_flate_scan_png_predictor_bounded_and_decoded(predictor):
 
 
 @pytest.mark.asyncio
-async def test_pdf_page_and_content_limits():
+async def test_there_is_no_page_count_limit():
+    """Any number of pages is accepted; they are only read in groups."""
+    assert not hasattr(upload_safety, "MAX_PAGES")
+    assert len(await prep(make_pdf(("jpeg",) * 7))) == 7
+    assert len(await prep(make_pdf(("jpeg",) * 4), make_pdf(("jpeg",) * 3), jpeg_bytes())) == 8
+
+
+@pytest.mark.asyncio
+async def test_pages_are_built_one_group_at_a_time_in_upload_order(monkeypatch):
+    """No group holds more than READ_GROUP_SIZE pages, and a PDF is rendered in
+    slices rather than all at once, so memory does not grow with page count."""
+    slices = []
+    real = upload_safety.render_pdf_pages
+
+    def spy(raw, start, stop, count):
+        slices.append((start, stop))
+        return real(raw, start, stop, count)
+
+    monkeypatch.setattr(upload_safety, "render_pdf_pages", spy)
+    files = [b64(jpeg_bytes()), b64(make_pdf(("jpeg",) * 13)), b64(png_bytes())]
+    sizes = [len(g) async for g in upload_safety.page_groups(files)]
+    assert sizes == [6, 6, 3]
+    assert all(stop - start <= upload_safety.READ_GROUP_SIZE for start, stop in slices)
+    assert slices == [(0, 5), (5, 11), (11, 13)]
+
+
+@pytest.mark.asyncio
+async def test_a_bad_file_anywhere_refuses_before_the_first_group_is_built(monkeypatch):
+    built = []
+    monkeypatch.setattr(upload_safety, "sanitize_upload", lambda raw: built.append(1) or [("image/png", raw)])
     with pytest.raises(PhotoRejected):
-        await prep(make_pdf(("jpeg",) * 7))
-    with pytest.raises(PhotoRejected):  # 4 + 3 pages across two files is still over six in total
-        await prep(make_pdf(("jpeg",) * 4), make_pdf(("jpeg",) * 3))
+        async for _ in upload_safety.page_groups([b64(png_bytes())] * 7 + [b64(b"not an image at all")]):
+            pass
+    assert built == []
+
+
+@pytest.mark.asyncio
+async def test_one_request_is_bounded_in_bytes_not_pages(monkeypatch):
+    monkeypatch.setattr(upload_safety, "MAX_REQUEST_BYTES", len(png_bytes()) * 2)
+    with pytest.raises(PhotoRejected, match="two parts"):
+        await prep(png_bytes(), png_bytes(), png_bytes())
+
+
+@pytest.mark.asyncio
+async def test_pdf_content_limits():
     with pytest.raises(PhotoRejected):  # a text/vector page has no scanned image to take
         await prep(make_pdf(("blank",)))
     with pytest.raises(PhotoRejected):
@@ -427,7 +467,7 @@ async def test_decode_jobs_are_bounded_and_the_slot_is_held_until_the_thread_end
     lock, state = threading.Lock(), {"now": 0, "max": 0}
     gate = threading.Event()
 
-    def slow(raw, room):
+    def slow(raw):
         with lock:
             state["now"] += 1
             state["max"] = max(state["max"], state["now"])
@@ -450,7 +490,7 @@ async def test_decode_jobs_are_bounded_and_the_slot_is_held_until_the_thread_end
 @pytest.mark.asyncio
 async def test_a_job_that_times_out_still_occupies_its_slot_until_the_thread_finishes(monkeypatch):
     gate = threading.Event()
-    monkeypatch.setattr(upload_safety, "sanitize_upload", lambda raw, room: gate.wait(5) or [])
+    monkeypatch.setattr(upload_safety, "sanitize_upload", lambda raw: gate.wait(5) or [])
     monkeypatch.setattr(upload_safety, "_slots", None)
     monkeypatch.setattr(upload_safety, "PROCESS_TIMEOUT_SECONDS", 0.1)
     with pytest.raises(PhotoRejected):
@@ -464,7 +504,7 @@ async def test_a_job_that_times_out_still_occupies_its_slot_until_the_thread_fin
 @pytest.mark.asyncio
 async def test_a_cancelled_request_releases_its_slot_when_the_thread_ends(monkeypatch):
     gate = threading.Event()
-    monkeypatch.setattr(upload_safety, "sanitize_upload", lambda raw, room: gate.wait(5) or [])
+    monkeypatch.setattr(upload_safety, "sanitize_upload", lambda raw: gate.wait(5) or [])
     monkeypatch.setattr(upload_safety, "_slots", None)
     task = asyncio.create_task(prep(png_bytes()))
     await asyncio.sleep(0.1)
@@ -629,7 +669,7 @@ async def test_a_two_page_pdf_reaches_the_reader_as_png_blocks_through_read_page
     for block in blocks[:2]:
         assert block["source"]["media_type"] == "image/png"
         assert base64.b64decode(block["source"]["data"]).startswith(b"\x89PNG")
-    assert "2 page(s)" in blocks[2]["text"]
+    assert "pages 1 to 2" in blocks[2]["text"]
 
 
 @pytest.mark.asyncio
@@ -757,7 +797,7 @@ async def test_a_compressed_content_stream_that_over_expands_is_refused_before_r
 def test_rendering_is_serialised_behind_one_lock():
     """pdfium is not thread-safe and two uploads may decode at once."""
     import inspect
-    source = inspect.getsource(upload_safety.pages_from_pdf)
+    source = inspect.getsource(upload_safety.render_pdf_pages)
     assert "with _PDFIUM_LOCK" in source and "pdfium.PdfDocument" in source
     assert source.index("with _PDFIUM_LOCK") < source.index("pdfium.PdfDocument")
 
@@ -876,7 +916,7 @@ def test_an_avif_inside_a_generic_heif_brand_is_routed_to_the_avif_decoder():
     assert upload_safety._ftyp_brands(relabelled)[0] == b"mif1"
     assert b"avif" in upload_safety._ftyp_brands(relabelled)[1]
     assert size >= 20
-    (kind, data), = upload_safety.sanitize_upload(relabelled, 6)
+    (kind, data), = upload_safety.sanitize_upload(relabelled)
     assert kind == "image/png"
 
 

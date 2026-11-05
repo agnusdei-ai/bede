@@ -26,9 +26,12 @@ a file is free of malware.
   layers, typed text and drawn marks all survive; the rendered page is what is
   validated (a blank result is refused) and re-encoded like a photo. pdfium is
   not thread-safe, so rendering is serialised behind one lock.
-* Limits: bytes per file, total pages, pixels and side length, decoded memory
-  (pixels x channels), PDF object count, a per-upload processing time, and a
-  semaphore bounding how many decode jobs run at once.
+* Limits: bytes per file and per request, pixels and side length, decoded
+  memory (pixels x channels), PDF object count, a per-file processing time,
+  and a semaphore bounding how many decode jobs run at once. There is no
+  limit on how many pages a parent uploads: pages are rebuilt and read
+  READ_GROUP_SIZE at a time (`page_groups`), and each group's images are
+  dropped before the next is built, so memory does not grow with page count.
 * Everything happens in memory (io.BytesIO). No temporary file is created, so
   there is nothing to clean up on success, error, timeout or cancellation; a
   test pins that. Decoding runs in a worker thread of the API process: that is
@@ -63,7 +66,12 @@ from core.config import settings
 from core.scanner_url import ScannerUrlRefused, parse_scanner_url
 
 MAX_PAGE_BYTES = 6 * 1024 * 1024
-MAX_PAGES = 6
+# Pages sent to the reader in one call. This is not a limit on how many pages
+# a parent may upload: any number is read, one group after another.
+READ_GROUP_SIZE = 6
+# One request's files together. A browser sends a long upload as several
+# requests (see PracticeCoach.tsx), so this bounds memory, not page count.
+MAX_REQUEST_BYTES = 30 * 1024 * 1024
 MAX_PIXELS = 30_000_000   # decoded memory is at most pixels x 4 bytes
 MAX_SIDE = 12_000
 MAX_OUTPUT_SIDE = 3_000   # pages are downscaled to this before re-encoding
@@ -364,12 +372,11 @@ def _bounded_inflate(x, limit: int) -> bytes:
     return decoded
 
 
-def pages_from_pdf(raw: bytes, limit: int) -> list[bytes]:
-    """Render every page of a checked PDF to a fresh PNG.
+def check_pdf(raw: bytes) -> int:
+    """Run every structural check on a PDF and return its page count.
 
-    The page is rendered as a viewer would show it, so scanned layers, typed
-    text, drawn marks and annotations all survive. What is validated is the
-    rendered page, not how many images it happens to be built from.
+    Nothing is rendered here, so a whole upload is checked before any of it
+    is read; pages are rendered later, a group at a time (`render_pdf_pages`).
     """
     try:
         reader = PdfReader(io.BytesIO(raw))
@@ -377,46 +384,72 @@ def pages_from_pdf(raw: bytes, limit: int) -> list[bytes]:
             raise PhotoRejected("Password-protected PDFs are not accepted.")
         _refuse_active_content(reader, raw)
         count = len(reader.pages)
-        if count < 1 or count > limit:
-            raise PhotoRejected(f"At most {MAX_PAGES} pages may be uploaded in total.")
+        if count < 1:
+            raise PhotoRejected("This PDF has no pages.")
         _check_streams(reader)
+        return count
+    except PhotoRejected:
+        raise
+    except Exception as exc:  # malformed structure: refuse, never half-read
+        raise PhotoRejected("This PDF could not be read safely.") from exc
+
+
+def render_pdf_pages(raw: bytes, start: int, stop: int, count: int) -> list[bytes]:
+    """Render pages [start, stop) of a PDF already passed by `check_pdf`.
+
+    The page is rendered as a viewer would show it, so scanned layers, typed
+    text, drawn marks and annotations all survive. What is validated is the
+    rendered page, not how many images it happens to be built from.
+    """
+    try:
         with _PDFIUM_LOCK:
             doc = pdfium.PdfDocument(raw)
             try:
                 if len(doc) != count:
                     raise PhotoRejected("This PDF could not be read safely.")
-                return [_render_page(doc, i) for i in range(count)]
+                return [_render_page(doc, i) for i in range(start, stop)]
             finally:
                 doc.close()
     except PhotoRejected:
         raise
-    except Exception as exc:  # malformed structure or a render failure: refuse, never half-read
+    except Exception as exc:  # a render failure: refuse, never half-read
         raise PhotoRejected("This PDF could not be read safely.") from exc
+
+
+def pages_from_pdf(raw: bytes) -> list[bytes]:
+    """Check a PDF and render every page to a fresh PNG."""
+    count = check_pdf(raw)
+    return render_pdf_pages(raw, 0, count, count)
 
 
 # ── Entry points ──────────────────────────────────────────────────────────────
 
-def sanitize_upload(raw: bytes, room: int) -> list[tuple[str, bytes]]:
-    """One uploaded file -> rebuilt (media_type, bytes) pages; at most `room` of them."""
-    if len(raw) > MAX_PAGE_BYTES:
-        raise PhotoRejected("A file is larger than 6 MB; please retake it at a lower resolution.")
+def _image_format(raw: bytes) -> str:
+    """The Pillow format of a photo, from its bytes alone; refuses anything else."""
     if raw.startswith(_PNG_SIG):
-        return [("image/png", reencode_image(raw, "PNG"))]
+        return "PNG"
     if raw.startswith(b"\xff\xd8\xff"):
-        return [("image/png", reencode_image(raw, "JPEG"))]
+        return "JPEG"
     if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
-        return [("image/png", reencode_image(raw, "WEBP"))]
+        return "WEBP"
     major, compatible = _ftyp_brands(raw)
     if major in AVIF_BRANDS or (major in HEIF_BRANDS and compatible & AVIF_BRANDS):
-        return [("image/png", reencode_image(raw, "AVIF"))]
+        return "AVIF"
     if major in HEIF_BRANDS:
         if not HEIF_DECODER_QUALIFIED:
             raise PhotoRejected("HEIC photos cannot be read. Use JPEG, PNG, or PDF. "
                                 "(On an iPhone, Bede's upload button sends a JPEG automatically.)")
-        return [("image/png", reencode_image(raw, "HEIF"))]
-    if raw.startswith(b"%PDF-"):
-        return [("image/png", p) for p in pages_from_pdf(raw, room)]
+        return "HEIF"
     raise PhotoRejected("Pages must be JPEG, PNG, WebP, AVIF or HEIC photos, or a scanned PDF.")
+
+
+def sanitize_upload(raw: bytes) -> list[tuple[str, bytes]]:
+    """One uploaded file -> rebuilt (media_type, bytes) pages."""
+    if len(raw) > MAX_PAGE_BYTES:
+        raise PhotoRejected("A file is larger than 6 MB; please retake it at a lower resolution.")
+    if raw.startswith(b"%PDF-"):
+        return [("image/png", p) for p in pages_from_pdf(raw)]
+    return [("image/png", reencode_image(raw, _image_format(raw)))]
 
 
 async def _scan(raw: bytes) -> None:
@@ -485,20 +518,63 @@ async def _bounded(fn, *args):
         raise PhotoRejected("Checking the pages took too long; please use smaller photos.") from exc
 
 
-async def prepare_pages(data_b64: list[str]) -> list[tuple[str, str]]:
-    """Base64 uploads -> [(media_type, base64)] of rebuilt images, ready for the reader."""
-    pages: list[tuple[str, str]] = []
+def _decode(item: str) -> bytes:
+    try:
+        raw = base64.b64decode(item, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise PhotoRejected("A file is not valid base64 data.") from exc
+    if len(raw) > MAX_PAGE_BYTES:
+        raise PhotoRejected("A file is larger than 6 MB; please retake it at a lower resolution.")
+    return raw
+
+
+async def page_groups(data_b64: list[str], size: int = READ_GROUP_SIZE):
+    """Base64 uploads -> groups of at most `size` rebuilt pages, in upload order.
+
+    Every file is decoded, scanned, typed and (for a PDF) structurally checked
+    before the first group is built, so a bad file anywhere refuses the upload
+    before any page is read. Pages are then rebuilt one group at a time, and a
+    group's images are released once the caller moves to the next.
+    """
+    if not data_b64:
+        raise PhotoRejected("Upload at least one page.")
+    files: list[tuple[bytes, int]] = []  # (raw, pdf page count or 0 for a photo)
+    total = 0
     for item in data_b64:
-        try:
-            raw = base64.b64decode(item, validate=True)
-        except (binascii.Error, ValueError) as exc:
-            raise PhotoRejected("A file is not valid base64 data.") from exc
-        if len(raw) > MAX_PAGE_BYTES:
-            raise PhotoRejected("A file is larger than 6 MB; please retake it at a lower resolution.")
+        raw = _decode(item)
+        total += len(raw)
+        if total > MAX_REQUEST_BYTES:
+            raise PhotoRejected("These files are too large to send together; please send them in two parts.")
         await _scan(raw)
-        room = MAX_PAGES - len(pages)
-        for media, clean in await _bounded(sanitize_upload, raw, room):
-            pages.append((media, base64.b64encode(clean).decode()))
-    if not pages or len(pages) > MAX_PAGES:
-        raise PhotoRejected(f"Upload between 1 and {MAX_PAGES} pages in total.")
-    return pages
+        if raw.startswith(b"%PDF-"):
+            files.append((raw, await _bounded(check_pdf, raw)))
+        else:
+            _image_format(raw)
+            files.append((raw, 0))
+
+    group: list[tuple[str, str]] = []
+    for raw, count in files:
+        if count == 0:
+            (media, clean), = await _bounded(sanitize_upload, raw)
+            group.append((media, base64.b64encode(clean).decode()))
+        else:
+            start = 0
+            while start < count:
+                stop = min(count, start + size - len(group))
+                for clean in await _bounded(render_pdf_pages, raw, start, stop, count):
+                    group.append(("image/png", base64.b64encode(clean).decode()))
+                start = stop
+                if len(group) == size:
+                    yield group
+                    group = []
+        if len(group) == size:
+            yield group
+            group = []
+    if group:
+        yield group
+
+
+async def prepare_pages(data_b64: list[str]) -> list[tuple[str, str]]:
+    """Every rebuilt page of an upload at once. Callers reading many pages use
+    `page_groups` instead, which never holds more than one group."""
+    return [page async for group in page_groups(data_b64) for page in group]

@@ -396,6 +396,10 @@ if [ "$MAC_CHECK" = 1 ]; then
   step "6. Touch ID teacher check"
   for cmd in git python3 node npm; do command -v "$cmd" >/dev/null 2>&1 || die "--mac-check needs $cmd"; done
   python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)' || die "--mac-check needs Python 3.12 or newer"
+  # Two pinned packages ship as source only (typing, webrtcvad); webrtcvad is a
+  # small C extension, so pip needs Apple's compiler to build it.
+  xcode-select -p >/dev/null 2>&1 && command -v clang >/dev/null 2>&1 \
+    || die "--mac-check needs Apple's command-line tools: run 'xcode-select --install'"
   SRC="$WORK/src"
   git init -q "$SRC"
   git -C "$SRC" remote add origin "https://github.com/$REPO_SLUG.git"

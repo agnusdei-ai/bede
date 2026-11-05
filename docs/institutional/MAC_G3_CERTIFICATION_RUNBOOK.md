@@ -15,7 +15,7 @@ This is the controlling G3 test procedure for the above code baseline. Use [MAC_
 **Once per Mac:**
 
 1. Install and start Docker Desktop. Optionally install Ollama with a model, so the instance has a local model to call. Inference is not part of G3-01, and the script records whether a model answered.
-2. `brew install zstd gh`, then `gh auth login`. The script only downloads the workflow artifact with it.
+2. `brew install zstd gh`, then `gh auth login`. The script only downloads the workflow artifact with it. For `--mac-check`, also have Python 3.12 or newer, Node 20 or newer, and Apple's command-line tools (`xcode-select --install`): two pinned Python packages ship as source and are compiled on the Mac.
 3. Mint a campus key for a disposable synthetic campus and save the command's output to a file. The script reads the key from its `LICENSE_KEY=` line, and a bare key in a file works too.
 
 ```bash

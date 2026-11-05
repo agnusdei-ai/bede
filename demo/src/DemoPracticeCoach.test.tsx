@@ -172,6 +172,7 @@ describe('demo Practice Coach', () => {
       expect(picker.accept.split(',')).toContain(kind)
     }
     expect(picker.accept).not.toMatch(/heic/i)
+    expect(screen.queryByText(/HEIC/)).toBeNull()  // the coach does not list what it cannot read
     fireEvent.change(screen.getByLabelText(/Choose image files/i), {
       target: { files: [new File(['synthetic'], 'synthetic.png', { type: 'image/png' })] },
     })

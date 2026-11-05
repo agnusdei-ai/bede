@@ -138,6 +138,9 @@ settled, before anything reaches a model.
   pillow-heif release bundling it existed on 2026-11-04. A HEIC upload is
   refused with "HEIC photos cannot be read. Use JPEG, PNG, or PDF." The file
   picker leaves HEIC out on purpose, so an iPhone hands over a JPEG copy.
+  The Practice Coach screens do not list formats Bede cannot read (owner
+  direction 2026-11-05); the message above appears only if a HEIC file is
+  actually sent, and the tests fail if the screen mentions HEIC.
   HEIC is not part of the Mac pilot's acceptance scope (owner ruling
   2026-11-04), and a refused HEIC never blocks the supported formats. The
   gate lifts on its own once a patched pillow-heif is pinned; it is never

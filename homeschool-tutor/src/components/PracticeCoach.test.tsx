@@ -266,7 +266,8 @@ describe('PDF and iPhone uploads', () => {
   it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
     await openAndPick()
     expect(screen.getByText(/as many pages as the quiz has/)).toBeTruthy()
-    expect(screen.getByText(/HEIC photos cannot be read: use JPEG, PNG, or PDF/)).toBeTruthy()
+    // Owner direction: the coach does not list what it cannot read.
+    expect(screen.queryByText(/HEIC/)).toBeNull()
     expect(screen.getByText(/scanned layers, typed text and a teacher's marks are all kept/)).toBeTruthy()
     expect(screen.getByText(/iPhone photos are sent as JPEG/)).toBeTruthy()
     expect(screen.getByText(/PDFs with scripts, attachments, forms or a password are refused/)).toBeTruthy()

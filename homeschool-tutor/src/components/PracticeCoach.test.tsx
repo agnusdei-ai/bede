@@ -87,7 +87,7 @@ async function openAndPick() {
   render(<PracticeCoach token="t" studentName="Alex" />)
   fireEvent.click(screen.getByRole('button', { name: 'Start' }))
   await screen.findByRole('option', { name: 'Latin' })
-  fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files: [png()] } })
+  fireEvent.change(screen.getByLabelText(/PDF of the graded pages/), { target: { files: [png()] } })
 }
 
 async function readQuiz() {
@@ -119,7 +119,7 @@ describe('long uploads', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     await screen.findByRole('option', { name: 'Latin' })
     const files = Array.from({ length: 8 }, () => png())
-    fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files } })
+    fireEvent.change(screen.getByLabelText(/PDF of the graded pages/), { target: { files } })
     fireEvent.click(screen.getByRole('button', { name: 'Read the quiz' }))
     await waitFor(() => expect(mocks.readPracticePhotos).toHaveBeenCalledTimes(2))
     const [first, second] = mocks.readPracticePhotos.mock.calls.map((c) => c[2])
@@ -224,7 +224,7 @@ it('starts over when the parent switches to another child', async () => {
   const { rerender } = render(<PracticeCoach token="t" studentName="Alex" />)
   fireEvent.click(screen.getByRole('button', { name: 'Start' }))
   await screen.findByRole('option', { name: 'Latin' })
-  fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files: [png()] } })
+  fireEvent.change(screen.getByLabelText(/PDF of the graded pages/), { target: { files: [png()] } })
   fireEvent.click(screen.getByRole('button', { name: 'Read the quiz' }))
   await screen.findByText('3 of 4, by the teacher\'s marks')
   rerender(<PracticeCoach token="t" studentName="Bea" />)
@@ -240,7 +240,7 @@ it('is written in Spanish for a Spanish session', async () => {
 describe('PDF and iPhone uploads', () => {
   it('offers JPEG, PNG, WebP, AVIF and PDF, and leaves HEIC out so iPhones send a JPEG', async () => {
     await openAndPick()
-    const input = screen.getByLabelText(/scanned PDF of the graded pages/) as HTMLInputElement
+    const input = screen.getByLabelText(/PDF of the graded pages/) as HTMLInputElement
     const accepted = input.accept.split(',')
     for (const kind of ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf', '.pdf']) {
       expect(accepted).toContain(kind)
@@ -255,7 +255,7 @@ describe('PDF and iPhone uploads', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     await screen.findByRole('option', { name: 'Latin' })
     const pdf = new File([new TextEncoder().encode('%PDF-1.7 scan')], 'quiz.pdf', { type: 'application/pdf' })
-    fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files: [pdf] } })
+    fireEvent.change(screen.getByLabelText(/PDF of the graded pages/), { target: { files: [pdf] } })
     fireEvent.click(screen.getByRole('button', { name: 'Read the quiz' }))
     await waitFor(() => expect(mocks.readPracticePhotos).toHaveBeenCalled())
     const data = mocks.readPracticePhotos.mock.calls[0][2].pages[0].data as string

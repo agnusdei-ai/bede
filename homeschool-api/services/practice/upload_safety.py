@@ -144,7 +144,8 @@ def _check_size(w: int, h: int) -> None:
 
 def reencode_image(raw: bytes, expect: str) -> bytes:
     """Fully decode `raw` (PNG, JPEG, WebP, AVIF or HEIF) and return a brand-new PNG."""
-    bad = PhotoRejected("A page is not a valid JPEG, PNG, WebP, AVIF or HEIC image.")
+    bad = PhotoRejected("A file could not be opened as a JPEG, PNG, WebP or AVIF image."
+                            " Save it again or retake the photo, then try again.")
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
@@ -195,7 +196,7 @@ def _refuse_active_content(reader: PdfReader, raw: bytes) -> None:
         raise refuse
     numbers = {n for gen in reader.xref.values() for n in gen} | set(reader.xref_objStm)
     if len(numbers) > MAX_PDF_OBJECTS:
-        raise PhotoRejected("This PDF is too complex to accept.")
+        raise PhotoRejected("This PDF has too many parts to check safely as one file. Split it into smaller PDFs and upload them again.")
     seen: set[int] = set()
     stack: list = [reader.trailer] + [IndirectObject(n, 0, reader) for n in numbers]
     while stack:
@@ -234,18 +235,21 @@ def _bounded_flate_image(x, expected: int, height: int) -> bytes:
     """
     compressed = getattr(x, "_data", None)
     if not isinstance(compressed, bytes):
-        raise PhotoRejected("This PDF image cannot be checked safely.")
+        raise PhotoRejected("An image inside this PDF cannot be checked safely."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
     params = x.get("/DecodeParms")
     if isinstance(params, ArrayObject):
         if len(params) != 1:
-            raise PhotoRejected("This PDF image uses unsupported decoding.")
+            raise PhotoRejected("An image inside this PDF uses an unsupported format."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
         params = params[0]
     if isinstance(params, IndirectObject):
         params = params.get_object()
     predictor = 1
     if params:
         if not isinstance(params, DictionaryObject):
-            raise PhotoRejected("This PDF image uses unsupported decoding.")
+            raise PhotoRejected("An image inside this PDF uses an unsupported format."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
         # PDF FloatObject values (e.g. /Predictor 1.5) must not be
         # truncated by int(): malformed decoding metadata fails closed.
         # pypdf NumberObject is an int subclass; bool is not a PDF integer.
@@ -256,14 +260,16 @@ def _bounded_flate_image(x, expected: int, height: int) -> bytes:
             params.get("/BitsPerComponent", 8),
         )
         if any(isinstance(value, bool) or not isinstance(value, int) for value in values):
-            raise PhotoRejected("This PDF image uses unsupported decoding.")
+            raise PhotoRejected("An image inside this PDF uses an unsupported format."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
         predictor, columns, colors, bits = values
         if (
             predictor not in (1, 2, 10, 11, 12, 13, 14, 15)
             or columns < 1 or colors < 1 or bits != 8
             or columns * colors > expected
         ):
-            raise PhotoRejected("This PDF image uses unsupported decoding.")
+            raise PhotoRejected("An image inside this PDF uses an unsupported format."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
     limit = expected + (height if 10 <= predictor <= 15 else 0)
     try:
         inflater = zlib.decompressobj()
@@ -272,12 +278,15 @@ def _bounded_flate_image(x, expected: int, height: int) -> bytes:
             len(decoded) > limit or inflater.unconsumed_tail
             or not inflater.eof or inflater.unused_data
         ):
-            raise PhotoRejected("This PDF image expands beyond its allowed size.")
+            raise PhotoRejected("An image inside this PDF is too large to check safely."
+                               " Scan at a lower resolution or split the PDF, then try again.")
         decoded += inflater.flush(limit + 1 - len(decoded))
     except zlib.error as exc:
-        raise PhotoRejected("This PDF image could not be decompressed safely.") from exc
+        raise PhotoRejected("An image inside this PDF could not be read."
+                               " Save or export it again as a PDF, or send photos of the pages instead.") from exc
     if len(decoded) > limit:
-        raise PhotoRejected("This PDF image expands beyond its allowed size.")
+        raise PhotoRejected("An image inside this PDF is too large to check safely."
+                               " Scan at a lower resolution or split the PDF, then try again.")
     # Only supported, size-bounded predictors reach pypdf's row decoding.
     return decoded if predictor == 1 else x.get_data()
 
@@ -338,7 +347,8 @@ def _render_page(doc, index: int) -> bytes:
     try:
         pw, ph = page.get_size()
         if not (0 < pw < 100_000 and 0 < ph < 100_000):
-            raise PhotoRejected("A page in this PDF has an impossible size.")
+            raise PhotoRejected("A page in this PDF has a size Bede cannot draw."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
         scale = MAX_OUTPUT_SIDE / max(pw, ph)
         _check_size(max(1, round(pw * scale)), max(1, round(ph * scale)))
         bitmap = page.render(scale=scale, draw_annots=True, may_draw_forms=False)
@@ -360,17 +370,21 @@ def _bounded_inflate(x, limit: int) -> bytes:
     """Inflate a Flate stream, refusing it once the output passes `limit` bytes."""
     compressed = getattr(x, "_data", None)
     if not isinstance(compressed, bytes):
-        raise PhotoRejected("This PDF image cannot be checked safely.")
+        raise PhotoRejected("An image inside this PDF cannot be checked safely."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
     try:
         inflater = zlib.decompressobj()
         decoded = inflater.decompress(compressed, limit + 1)
         if len(decoded) > limit or inflater.unconsumed_tail:
-            raise PhotoRejected("This PDF image expands beyond its allowed size.")
+            raise PhotoRejected("An image inside this PDF is too large to check safely."
+                               " Scan at a lower resolution or split the PDF, then try again.")
         decoded += inflater.flush(limit + 1 - len(decoded))
     except zlib.error as exc:
-        raise PhotoRejected("This PDF image could not be decompressed safely.") from exc
+        raise PhotoRejected("An image inside this PDF could not be read."
+                               " Save or export it again as a PDF, or send photos of the pages instead.") from exc
     if len(decoded) > limit:
-        raise PhotoRejected("This PDF image expands beyond its allowed size.")
+        raise PhotoRejected("An image inside this PDF is too large to check safely."
+                               " Scan at a lower resolution or split the PDF, then try again.")
     return decoded
 
 
@@ -393,7 +407,8 @@ def check_pdf(raw: bytes) -> int:
     except PhotoRejected:
         raise
     except Exception as exc:  # malformed structure: refuse, never half-read
-        raise PhotoRejected("This PDF could not be read safely.") from exc
+        raise PhotoRejected("This PDF could not be read; it may be damaged or use a feature Bede does not support."
+                               " Save or export it again as a PDF, or send photos of the pages instead.") from exc
 
 
 def render_pdf_pages(raw: bytes, start: int, stop: int, count: int) -> list[bytes]:
@@ -408,14 +423,16 @@ def render_pdf_pages(raw: bytes, start: int, stop: int, count: int) -> list[byte
             doc = pdfium.PdfDocument(raw)
             try:
                 if len(doc) != count:
-                    raise PhotoRejected("This PDF could not be read safely.")
+                    raise PhotoRejected("This PDF could not be read; it may be damaged or use a feature Bede does not support."
+                               " Save or export it again as a PDF, or send photos of the pages instead.")
                 return [_render_page(doc, i) for i in range(start, stop)]
             finally:
                 doc.close()
     except PhotoRejected:
         raise
     except Exception as exc:  # a render failure: refuse, never half-read
-        raise PhotoRejected("This PDF could not be read safely.") from exc
+        raise PhotoRejected("This PDF could not be read; it may be damaged or use a feature Bede does not support."
+                               " Save or export it again as a PDF, or send photos of the pages instead.") from exc
 
 
 def pages_from_pdf(raw: bytes) -> list[bytes]:
@@ -442,7 +459,8 @@ def _image_format(raw: bytes) -> str:
             raise PhotoRejected("HEIC photos cannot be read. Use JPEG, PNG, or PDF. "
                                 "(On an iPhone, Bede's upload button sends a JPEG automatically.)")
         return "HEIF"
-    raise PhotoRejected("Pages must be JPEG, PNG, WebP, AVIF or HEIC photos, or a scanned PDF.")
+    raise PhotoRejected("Pages must be JPEG, PNG, WebP or AVIF photos, or a PDF."
+                        " Save the file in one of these formats and try again.")
 
 
 def sanitize_upload(raw: bytes) -> list[tuple[str, bytes]]:
@@ -517,14 +535,14 @@ async def _bounded(fn, *args):
     try:
         return await asyncio.wait_for(asyncio.shield(job), PROCESS_TIMEOUT_SECONDS)
     except asyncio.TimeoutError as exc:
-        raise PhotoRejected("Checking the pages took too long; please use smaller photos.") from exc
+        raise PhotoRejected("This file took too long to check. Split it into smaller files or use smaller photos, then try again.") from exc
 
 
 def _decode(item: str) -> bytes:
     try:
         raw = base64.b64decode(item, validate=True)
     except (binascii.Error, ValueError) as exc:
-        raise PhotoRejected("A file is not valid base64 data.") from exc
+        raise PhotoRejected("A file did not arrive intact; please try again.") from exc
     if len(raw) > MAX_PAGE_BYTES:
         raise PhotoRejected("A file is larger than 25 MB; please split it or retake it at a lower resolution.")
     return raw

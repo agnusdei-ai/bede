@@ -1189,7 +1189,7 @@ graded quiz**. Choose the subject that matches the quiz:
 - **Latin**.
 
 1. **Choose the subject and photograph the pages.** Add every page of the
-   quiz, as JPEG, PNG, WebP or AVIF photos or a scanned PDF. There is no page
+   quiz, as JPEG, PNG, WebP or AVIF photos or a PDF. There is no page
    limit: Bede reads the pages six at a time and puts them back together as
    one worksheet. A bar shows how far it has got, as a percentage and as
    "Read 12 of 18 pages"; a long quiz can take a few minutes. The card tells
@@ -1257,7 +1257,7 @@ refused at startup, and if it is set and cannot be reached, uploads are refused.
 
 On the same Progress page, **Make a quiz or exam** drafts a new quiz from:
 
-- an old quiz, a past exam or a prep exam: add photos or a scanned PDF, or
+- an old quiz, a past exam or a prep exam: add photos or a PDF, or
   paste its text in;
 - or just a description of what to cover.
 

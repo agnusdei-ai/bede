@@ -201,7 +201,7 @@ async def test_flate_scan_bounded_before_pypdf_decoding(monkeypatch):
     monkeypatch.setattr(EncodedStreamObject, "get_data", guarded_get_data)
     pages = await prep(valid)
     assert len(pages) == 1 and decoded(pages)[0].format == "PNG"
-    with pytest.raises(PhotoRejected, match="expands beyond"):
+    with pytest.raises(PhotoRejected, match="too large to check safely"):
         await prep(too_large)
 
 
@@ -228,7 +228,7 @@ async def test_flate_scan_refuses_non_integral_decode_params(key, value):
         })
         image["/DecodeParms"][NameObject(key)] = value
 
-    with pytest.raises(PhotoRejected, match="unsupported decoding"):
+    with pytest.raises(PhotoRejected, match="unsupported format"):
         await prep(make_pdf(("raw",), mutate))
 
 
@@ -790,7 +790,7 @@ async def test_a_compressed_content_stream_that_over_expands_is_refused_before_r
         raise AssertionError("pdfium must not see an unchecked stream")
 
     monkeypatch.setattr(upload_safety, "_render_page", never_render)
-    with pytest.raises(PhotoRejected, match="expands beyond"):
+    with pytest.raises(PhotoRejected, match="too large to check safely"):
         await prep(make_pdf(("jpeg",), bomb))
 
 
@@ -953,3 +953,48 @@ async def test_a_three_layer_scanner_pdf_renders_with_background_cleaning_and_in
     assert at(*fixture.ink_point_on_page(45 / 746, 55 / 936)) < 80, "the ink layer was lost"
     assert at(*fixture.ink_point_on_page(0.9, 0.98)) > 240, "the white cleaning layer was lost"
     assert at(0.5, 0.02) < 160, "the background layer was lost"
+
+
+# ── Refusals say how to recover ──────────────────────────────────────────────
+
+_WAY_FORWARD = ("Save or export it again", "Split", "send photos", "try again", "Use JPEG")
+
+
+@pytest.mark.parametrize("raw", [
+    b"%PDF-1.7\n" + b"\x00" * 64,                       # malformed structure
+    make_pdf()[: len(make_pdf()) // 2],                 # truncated file
+    b"GIF89a" + b"\x00" * 64,                           # unsupported type
+])
+def test_a_refused_file_is_told_how_to_recover(raw):
+    with pytest.raises(PhotoRejected) as caught:
+        upload_safety.sanitize_upload(raw)
+    message = str(caught.value)
+    assert any(w in message for w in _WAY_FORWARD), message
+    assert "scanned PDF" not in message and "HEIC photos, or" not in message
+
+
+def test_every_upload_refusal_in_the_source_names_a_way_forward():
+    """A refusal a parent or teacher meets must say what to do next.
+
+    Read from the source, so a new refusal without a way forward fails here.
+    The ones exempt are about the file the person chose rather than something
+    they can redo, and each already says what is wrong in plain words."""
+    import re
+    src = Path(upload_safety.__file__).read_text()
+    messages = re.findall(r'PhotoRejected\(\s*((?:"[^"]*"\s*)+)', src)
+    exempt = {
+        "Password-protected PDFs are not accepted.",
+        "This PDF has no pages.",
+        "Upload at least one page.",
+        "This file was flagged by the upload scanner and was not accepted.",
+    }
+    missing = []
+    for m in messages:
+        text = "".join(re.findall(r'"([^"]*)"', m))
+        if text in exempt or text.startswith("This PDF contains"):
+            continue
+        if not any(w.lower() in text.lower() for w in ("split", "save or export", "send photos", "try again",
+                                                        "retake", "use jpeg", "scan or photograph", "in two parts",
+                                                        "lower resolution")):
+            missing.append(text)
+    assert not missing, missing

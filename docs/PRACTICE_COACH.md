@@ -186,6 +186,13 @@ settled, before anything reaches a model.
   (`tests/practice_scanner_fixture.py`) is built exactly like a real
   three-layer office-scanner PDF (background, white cleaning mask, CCITT ink
   mask); the real scan it copies stays out of this public repository.
+- **Every refusal says what to do next.** A damaged or unsupported PDF is
+  told to save or export it again or send photos of the pages; a file too
+  large, too complex or too slow to check is told to split it or use a lower
+  resolution; a busy server asks to try again in a moment. Nothing is
+  half-read. `test_every_upload_refusal_in_the_source_names_a_way_forward`
+  reads every refusal in `upload_safety.py` and fails on one without a way
+  forward.
 - **Limits:** up to 1 GB for a whole upload (checked in the browser, which
   sends it in parts; owner ruling 2026-11-05), 25 MB a file and 30 MB a
   request (`/api/practice/` accepts 42 MB in nginx, since base64 adds a
@@ -388,7 +395,7 @@ this repository, and `tests/test_practice_packs.py`.
 Separate from diagnosing a graded quiz, Bede can **draft a new quiz or exam**
 for any Bede subject that is taught and assessed, K-8. The source can be:
 
-- photos or a scanned PDF of an existing quiz, a previous exam or a prep exam;
+- photos or a PDF of an existing quiz, a previous exam or a prep exam;
 - the text of one, pasted in;
 - or a description of what to cover.
 

@@ -58,7 +58,7 @@ import zlib
 
 import pillow_heif
 import pypdfium2 as pdfium
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 from pypdf import PdfReader
 from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject, StreamObject
 
@@ -546,6 +546,47 @@ def _decode(item: str) -> bytes:
     if len(raw) > MAX_PAGE_BYTES:
         raise PhotoRejected("A file is larger than 25 MB; please split it or retake it at a lower resolution.")
     return raw
+
+
+# A page the reader could not make sense of is sharpened and read once more.
+# Small pages are enlarged to this long side first, never past MAX_OUTPUT_SIDE.
+ENHANCE_LONG_SIDE = 2_400
+
+
+def enhance_for_reading(png: bytes) -> bytes:
+    """A clearer copy of an already rebuilt page, for a second reading.
+
+    Faint, dark, blurred or small photos are the usual reason a reading
+    fails. This stretches the page's contrast (keeping its colours, so a
+    teacher's red marks stay red), enlarges a small page and sharpens edges.
+    It works only on the PNG this module already rebuilt, so nothing from the
+    original upload reaches it, and it adds no information that is not on
+    the page.
+    """
+    with Image.open(io.BytesIO(png)) as img:
+        img.load()
+        page = img.convert("RGB")
+    w, h = page.size
+    long_side = max(w, h)
+    if long_side < ENHANCE_LONG_SIDE:
+        scale = min(ENHANCE_LONG_SIDE, MAX_OUTPUT_SIDE) / long_side
+        size = (max(1, round(w * scale)), max(1, round(h * scale)))
+        _check_size(*size)
+        page = page.resize(size, Image.LANCZOS)
+    page = ImageOps.autocontrast(page, cutoff=1, preserve_tone=True)
+    page = page.filter(ImageFilter.UnsharpMask(radius=2, percent=160, threshold=3))
+    out = io.BytesIO()
+    page.save(out, "PNG")
+    return out.getvalue()
+
+
+async def enhance_group(group: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """enhance_for_reading over one group of (media_type, base64) pages."""
+    out = []
+    for _media, data in group:
+        clean = await _bounded(enhance_for_reading, base64.b64decode(data))
+        out.append(("image/png", base64.b64encode(clean).decode()))
+    return out
 
 
 async def page_groups(data_b64: list[str], size: int = READ_GROUP_SIZE, on_total=None):

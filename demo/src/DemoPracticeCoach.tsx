@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { providerName } from './providerName'
 import { useTranslation } from 'react-i18next'
 import { Check, Loader2, X } from 'lucide-react'
 import {
@@ -230,12 +231,12 @@ export default function DemoPracticeCoach({
               {usesCloud && (
                 <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">
                   <input type="checkbox" checked={cloudConsent} onChange={(event) => setCloudConsent(event.target.checked)} className="mt-0.5" />
-                  <span>{t('demoPractice.cloud', { provider: route?.cloud_provider ?? '' })}</span>
+                  <span>{t('demoPractice.cloud', { provider: providerName(route?.cloud_provider) })}</span>
                 </label>
               )}
               {usesCloud && (
                 <>
-                  <p className="text-xs text-gray-600">{t('demoPractice.cloudRetention', { provider: route?.cloud_provider ?? '' })}</p>
+                  <p className="text-xs text-gray-600">{t('demoPractice.cloudRetention', { provider: providerName(route?.cloud_provider) })}</p>
                   <p className="text-xs text-gray-600">{t('demoPractice.cropTip')}</p>
                 </>
               )}

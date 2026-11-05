@@ -186,6 +186,16 @@ settled, before anything reaches a model.
   (`tests/practice_scanner_fixture.py`) is built exactly like a real
   three-layer office-scanner PDF (background, white cleaning mask, CCITT ink
   mask); the real scan it copies stays out of this public repository.
+- **Unclear pages are read, not refused.** The reader is told to read
+  blurry, dark, faint, tilted or cut-off pages anyway and to mark what it is
+  unsure of. A reply wrapped in prose, cut off part-way or carrying one bad
+  field keeps every question that can be read (`extract.parse_reading`), and
+  anything repaired waits for the parent's **Looks right**. A group that still
+  cannot be read gets one second look at a sharpened copy
+  (`upload_safety.enhance_for_reading`: contrast stretched with colours kept,
+  small pages enlarged, edges sharpened), charged on the demo like any call.
+  A reply carrying a name, school or date field is still refused whole.
+  `tests/test_practice_unclear_pages.py`.
 - **Every refusal says what to do next.** A damaged or unsupported PDF is
   told to save or export it again or send photos of the pages; a file too
   large, too complex or too slow to check is told to split it or use a lower

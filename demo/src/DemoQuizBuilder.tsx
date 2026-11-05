@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { providerName } from './providerName'
 import { useTranslation } from 'react-i18next'
 import { Check, Loader2 } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from './uploadParts'
@@ -294,12 +295,12 @@ export default function DemoQuizBuilder({
       {usesCloud && (
         <label className="flex items-start gap-2 rounded-lg bg-gold-50 px-3 py-2 text-xs">
           <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5" />
-          <span>{t('demoQuiz.cloud', { provider: provider ?? '' })}</span>
+          <span>{t('demoQuiz.cloud', { provider: providerName(provider) })}</span>
         </label>
       )}
       {usesCloud && files.length > 0 && (
         <>
-          <p className="text-xs text-gray-600">{t('demoPractice.cloudRetention', { provider: provider ?? '' })}</p>
+          <p className="text-xs text-gray-600">{t('demoPractice.cloudRetention', { provider: providerName(provider) })}</p>
           <p className="text-xs text-gray-600">{t('demoPractice.cropTip')}</p>
         </>
       )}

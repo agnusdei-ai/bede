@@ -733,7 +733,7 @@
     "routeCloud": "Las páginas se enviarán a {{provider}} para leerlas, solo esta vez. Bede no guarda las fotos. Marque la casilla para aceptar.",
     "routeNone": "No hay un modelo de IA configurado para leer fotos en esta instalación.",
     "photos": "Fotos o un PDF escaneado de las páginas calificadas",
-    "photosHint": "Fotos JPEG, PNG, WebP o AVIF, o un PDF, todas las páginas que tenga la prueba, 6 MB por archivo. Las fotos del iPhone se envían como JPEG. Las fotos HEIC no se pueden leer: use JPEG, PNG o PDF. Cada página del PDF se dibuja como usted la vería, así que se conservan las capas escaneadas, el texto escrito y las marcas del maestro. Los archivos se revisan y se reconstruyen antes de que algo los lea, y se rechazan los PDF con scripts, adjuntos, formularios o contraseña.",
+    "photosHint": "Fotos JPEG, PNG, WebP o AVIF, o un PDF, todas las páginas que tenga la prueba, hasta 1 GB en total y 25 MB por archivo. Las fotos del iPhone se envían como JPEG. Las fotos HEIC no se pueden leer: use JPEG, PNG o PDF. Cada página del PDF se dibuja como usted la vería, así que se conservan las capas escaneadas, el texto escrito y las marcas del maestro. Los archivos se revisan y se reconstruyen antes de que algo los lea, y se rechazan los PDF con scripts, adjuntos, formularios o contraseña.",
     "cropTip": "Puede recortar lo que prefiera no enviar, como un nombre completo o un número de alumno. Un nombre de pila está bien.",
     "cloudRetention": "{{provider}} puede conservar las imágenes de las páginas hasta 30 días para revisar usos indebidos, según sus propias condiciones de API. Bede no las guarda.",
     "privacy": "Bede guarda solo lo que lee en la página. Bede no guarda las fotos en la base de datos ni en un archivo; se mantienen en memoria mientras se procesa la solicitud. No registra nombres, escuelas, maestros ni fechas.",
@@ -777,7 +777,9 @@
     "another": "Otra prueba",
     "worksheetTitle": "Práctica",
     "workOn": "Qué practicar",
-    "forYou": "Solo para usted (no se muestra a su hijo)"
+    "forYou": "Solo para usted (no se muestra a su hijo)",
+    "uploadTooLarge": "Estos archivos suman más de 1 GB. Elija menos páginas.",
+    "fileTooLarge": "Un archivo pesa más de 25 MB. Divídalo o escanéelo con menor resolución."
   },
   "quizBuilder": {
     "title": "Crear un examen",
@@ -833,7 +835,10 @@
     "secondAnswer": "Una segunda revisión dijo: {{answer}}",
     "teacherDescription": "Parta de un examen, una prueba anterior o un tema. Bede lo prepara para su clase con el modelo de IA propio de la escuela.",
     "noLocalModel": "Los exámenes de docentes se preparan con el modelo de IA propio de la escuela, y aquí no hay ninguno configurado.",
-    "noPhotos": "Esta instalación todavía no puede leer fotos. Funciona con un tema escrito o un examen pegado."
+    "noPhotos": "Esta instalación todavía no puede leer fotos. Funciona con un tema escrito o un examen pegado.",
+    "uploadTooLarge": "Estos archivos suman más de 1 GB. Elija menos páginas.",
+    "fileTooLarge": "Un archivo pesa más de 25 MB. Divídalo o escanéelo con menor resolución.",
+    "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas."
   },
   "practiceDelivery": {
     "title": "Una pregunta de práctica aprobada por tu familia",

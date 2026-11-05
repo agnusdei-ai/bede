@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { splitIntoParts } from '../utils/uploadParts'
+import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import { Camera, Check, Printer, Sparkles, X } from 'lucide-react'
 import {
   approvePracticeSet, confirmPracticeReading, discardPracticeSet, fetchPracticePacks,
@@ -246,7 +246,12 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
               <label className="block">
                 <span className="text-xs font-medium text-gray-600">{t('practiceCoach.photos')}</span>
                 <input type="file" accept={PRACTICE_ACCEPT} multiple aria-label={t('practiceCoach.photos')}
-                  onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? [])
+                    const problem = uploadProblem(picked)
+                    setMessage(problem ? t(problem === 'file' ? 'practiceCoach.fileTooLarge' : 'practiceCoach.uploadTooLarge') : '')
+                    setFiles(problem ? [] : picked)
+                  }}
                   className="mt-1 block w-full text-xs" />
               </label>
               <p className="text-xs text-gray-500">{t('practiceCoach.photosHint')}</p>

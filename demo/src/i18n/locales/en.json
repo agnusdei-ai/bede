@@ -66,7 +66,7 @@
     "cloud": "I agree to send these pages to {{provider}} to be read.",
     "noReader": "Reading quiz photos needs Bede's own AI model, on a family or school install.",
     "photos": "Choose image files or scanned PDFs",
-    "photosHint": "JPEG, PNG, WebP, AVIF or a PDF. iPhone photos are sent as JPEG; HEIC cannot be read, so use JPEG, PNG, or PDF. Upload as many pages as the quiz has. Each group of six pages counts as one demo message.",
+    "photosHint": "JPEG, PNG, WebP, AVIF or a PDF. iPhone photos are sent as JPEG; HEIC cannot be read, so use JPEG, PNG, or PDF. Upload as many pages as the quiz has, up to 1 GB in all and 25 MB a file. Each group of six pages counts as one demo message.",
     "cropTip": "You can crop out anything you would rather not send, such as a full name or a student number. A first name is fine.",
     "cloudRetention": "{{provider}} may keep the page images for up to 30 days to check for misuse, under its own API terms. Bede does not save them.",
     "wordBank": "Word bank",
@@ -113,7 +113,9 @@
     "turnContext": "I tried this approved practice question: {{prompt}} My answer is: {{response}}",
     "completed": "You finished {{count}} practice question(s).",
     "tabPractice": "Practice from a quiz",
-    "tabQuiz": "Make a quiz or exam"
+    "tabQuiz": "Make a quiz or exam",
+    "uploadTooLarge": "These files add up to more than 1 GB. Choose fewer pages.",
+    "fileTooLarge": "One file is larger than 25 MB. Split it, or scan it at a lower resolution."
   },
   "demoQuiz": {
     "loading": "Loading…",
@@ -161,7 +163,10 @@
       "verify": "Check"
     },
     "secondAnswer": "A second check said: {{answer}}",
-    "noPhotos": "Photos need Bede's own AI model, on a family or school install. A typed topic or pasted quiz works here."
+    "noPhotos": "Photos need Bede's own AI model, on a family or school install. A typed topic or pasted quiz works here.",
+    "uploadTooLarge": "These files add up to more than 1 GB. Choose fewer pages.",
+    "fileTooLarge": "One file is larger than 25 MB. Split it, or scan it at a lower resolution.",
+    "sourceTrimmed": "This source is very long, so Bede drafted the quiz from its first pages."
   },
   "canvas": {
     "cancel": "Cancel",

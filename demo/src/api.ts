@@ -263,7 +263,15 @@ export interface GenerateQuizBody {
   source_text?: string
   pages: { data: string }[]
   cloud_consent: boolean
+  /** A long upload's pages, copied out as text part by part (copyDemoQuizSource). */
+  source_pages_text?: string
 }
+
+/** One part of a long quiz source, copied out as text; each six pages is one message. */
+export const copyDemoQuizSource = (
+  token: string,
+  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number },
+) => demoPracticeFetch<{ text: string; pages_read: number }>(token, '/quiz/source', body)
 
 export const fetchDemoQuizOptions = (token: string) =>
   demoPracticeFetch<QuizOptions>(token, '/quiz-options')

@@ -11,7 +11,7 @@ import {
   type DemoPracticeSetDraft,
 } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
-import { splitIntoParts } from './uploadParts'
+import { splitIntoParts, uploadProblem } from './uploadParts'
 
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
 // HEIC decoder is held back until its security fix ships.
@@ -241,7 +241,10 @@ export default function DemoPracticeCoach({
                   multiple
                   aria-label={t('demoPractice.photos')}
                   onChange={(event) => {
-                    setFiles(Array.from(event.target.files ?? []))
+                    const picked = Array.from(event.target.files ?? [])
+                    const problem = uploadProblem(picked)
+                    setError(problem ? t(problem === 'file' ? 'demoPractice.fileTooLarge' : 'demoPractice.uploadTooLarge') : '')
+                    setFiles(problem ? [] : picked)
                     event.target.value = ''
                   }}
                   className="mt-1 block w-full text-xs"

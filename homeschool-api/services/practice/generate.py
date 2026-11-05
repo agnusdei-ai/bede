@@ -350,6 +350,17 @@ async def _transcribe(client, group: list[tuple[str, str]], first_page: int, bef
     return f"[Pages {first_page}-{last}]\n" + extract._text_of(response)[:TRANSCRIPT_CHARS_PER_GROUP]
 
 
+async def transcribe_source(req, local_only: bool = False, before_call=None) -> tuple[str, int]:
+    """Copy one part of a long quiz source out as text, a group of pages per call."""
+    check_request(GenerateQuizRequest(subject=req.subject, grade="3", focus="source"))
+    client = _local_client() if local_only else extract._choose_client(req)
+    parts, page = [], req.first_page
+    async for group in extract.page_groups([p.data for p in req.pages]):
+        parts.append(await _transcribe(client, group, page, before_call))
+        page += len(group)
+    return "\n\n".join(parts), page - req.first_page
+
+
 async def generate(req: GenerateQuizRequest, local_only: bool = False,
                    before_call=None) -> tuple[GeneratedQuiz, dict]:
     """Draft, check in code, then cross-check. `local_only` (teachers) never
@@ -358,8 +369,9 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False,
     # consent and routing are settled before anything is parsed
     if local_only:
         client = _local_client()
-    elif req.pages:
-        # Photos: the photo-reading rules, including PRACTICE_CLOUD_READING_ENABLED.
+    elif req.pages or req.source_pages_text:
+        # Photos (or text copied from them): the photo-reading rules,
+        # including PRACTICE_CLOUD_READING_ENABLED.
         client = extract._choose_client(req)
     else:
         # Typed text only: no photo leaves the browser, so the photo switch
@@ -386,6 +398,8 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False,
                 transcripts.append(await _transcribe(client, group, page, before_call))
                 page += len(group)
     text = _request_text(req, subject)
+    if req.source_pages_text:
+        transcripts.insert(0, req.source_pages_text)
     if transcripts:
         text += "\nThe uploaded pages, copied out as text:\n" + "\n\n".join(transcripts)
     content.append({"type": "text", "text": text})

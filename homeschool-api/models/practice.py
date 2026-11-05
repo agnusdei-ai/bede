@@ -134,7 +134,8 @@ class PracticeSet(_Strict):
 class PhotoPage(_Strict):
     # Base64 without a "data:" prefix — the same shape the handwriting canvas
     # sends as TutorRequest.drawing_image.
-    data: str = Field(..., min_length=8, max_length=8_000_000)
+    # 25 MB a file (upload_safety.MAX_PAGE_BYTES), plus base64's third.
+    data: str = Field(..., min_length=8, max_length=35_000_000)
 
 
 class ReadPhotosRequest(_Strict):
@@ -218,6 +219,20 @@ class GeneratedQuiz(_Strict):
     questions: List[QuizQuestion] = Field(..., min_length=1, max_length=MAX_QUIZ_QUESTIONS)
 
 
+# How much copied-out source a quiz draft reads (a long upload's later pages
+# beyond this are not used, and the screen says so).
+MAX_SOURCE_PAGES_TEXT = 60_000
+
+
+class QuizSourceRequest(_Strict):
+    """One part of a long quiz source, to be copied out as text."""
+    subject: str = Field(..., min_length=1, max_length=30)
+    pages: List[PhotoPage] = Field(..., min_length=1)
+    route: Optional[Literal["local", "cloud"]] = None
+    cloud_consent: bool = False
+    first_page: int = Field(default=1, ge=1)
+
+
 class GenerateQuizRequest(_Strict):
     subject: str = Field(..., min_length=1, max_length=30)
     grade: QuizGrade
@@ -230,14 +245,17 @@ class GenerateQuizRequest(_Strict):
     # or scanned pages, and/or its text pasted in.
     pages: List[PhotoPage] = Field(default_factory=list)
     source_text: Optional[str] = Field(default=None, max_length=12000)
+    # A long upload's pages, already copied out as text part by part
+    # (POST .../quiz/source). Counts as photos for routing and consent.
+    source_pages_text: Optional[str] = Field(default=None, max_length=MAX_SOURCE_PAGES_TEXT)
     route: Optional[Literal["local", "cloud"]] = None
     cloud_consent: bool = False
 
-    @field_validator("focus", "source_text")
+    @field_validator("focus", "source_text", "source_pages_text")
     @classmethod
     def _blank_is_none(cls, value: Optional[str]) -> Optional[str]:
         value = (value or "").strip()
         return value or None
 
     def has_material(self) -> bool:
-        return bool(self.pages or self.source_text or self.focus)
+        return bool(self.pages or self.source_text or self.source_pages_text or self.focus)

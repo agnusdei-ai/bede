@@ -1236,7 +1236,7 @@ answer, and Bede treats it as one.
 
 **What you can upload.** Photos (JPEG, including the multi-picture files some
 Android cameras save, PNG, WebP or AVIF) or a PDF of scanned pages, as many
-pages as the quiz has and 6 MB a file. iPhone photos are sent as JPEG automatically. HEIC
+pages as the quiz has, up to 1 GB in all and 25 MB a file. iPhone photos are sent as JPEG automatically. HEIC
 photos cannot be read: use JPEG, PNG, or PDF. Bede checks each file, draws
 every PDF page the way you would see it (so scanned layers, typed text and a
 teacher's marks or comments are all kept), and rebuilds every page as a plain

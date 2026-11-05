@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileQuestion, Loader2, Printer } from 'lucide-react'
+import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import {
+  copyEducatorQuizSource,
+  copyQuizSource,
   fetchEducatorQuizOptions,
   fetchQuizOptions,
   generateEducatorQuiz,
@@ -102,13 +105,35 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
     setBusy(true)
     setMessage('')
     try {
-      const pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
+      // A source that fits one request goes as pages; a longer one is copied
+      // out as text a part at a time, each part's photos read only when sent.
+      const parts = splitIntoParts(files)
+      let pages: { data: string }[] = []
+      let pagesText: string | undefined
+      let trimmed = false
+      if (parts.length <= 1) {
+        pages = await Promise.all(files.map(async (file) => ({ data: await readFile(file) })))
+      } else {
+        const texts: string[] = []
+        let firstPage = 1
+        for (const part of parts) {
+          const data = await Promise.all(part.map(async (file) => ({ data: await readFile(file) })))
+          const piece = { subject, pages: data, cloud_consent: usesCloud && consent, first_page: firstPage }
+          const copied = teacher ? await copyEducatorQuizSource(token, piece) : await copyQuizSource(token, studentName, piece)
+          texts.push(copied.text)
+          firstPage += copied.pages_read
+        }
+        pagesText = texts.join('\n\n')
+        trimmed = pagesText.length > SOURCE_TEXT_MAX_CHARS
+        pagesText = pagesText.slice(0, SOURCE_TEXT_MAX_CHARS)
+      }
       const body = {
         subject, grade, kind, level, question_count: count,
         focus: focus.trim() || undefined, source_text: sourceText.trim() || undefined,
-        pages, cloud_consent: usesCloud && consent,
+        pages, source_pages_text: pagesText, cloud_consent: usesCloud && consent,
       }
       const result = teacher ? await generateEducatorQuiz(token, body) : await generateQuiz(token, studentName, body)
+      if (trimmed) setMessage(t('quizBuilder.sourceTrimmed'))
       setQuiz(result.quiz)
       setKeep(result.quiz.questions.map(() => true))
     } catch (err) {
@@ -201,7 +226,12 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
               <label className={label}>{t('quizBuilder.pages')}
                 <input type="file" accept={ACCEPT} multiple aria-label={t('quizBuilder.pages')}
                   disabled={!photosReadable}
-                  onChange={(e) => { setFiles(Array.from(e.target.files ?? [])); e.target.value = '' }}
+                  onChange={(e) => {
+                    const picked = Array.from(e.target.files ?? [])
+                    const problem = uploadProblem(picked)
+                    setMessage(problem ? t(problem === 'file' ? 'quizBuilder.fileTooLarge' : 'quizBuilder.uploadTooLarge') : '')
+                    setFiles(problem ? [] : picked); e.target.value = ''
+                  }}
                   className="mt-1 block w-full text-xs" />
               </label>
               {!photosReadable && !noReader && <p className="text-xs text-gray-600">{t('quizBuilder.noPhotos')}</p>}

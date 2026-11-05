@@ -5,6 +5,7 @@ import type { GeneratedQuiz, QuizOptions } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
 
 const api = vi.hoisted(() => ({
+  copyDemoQuizSource: vi.fn(),
   fetchDemoQuizOptions: vi.fn(),
   generateDemoQuiz: vi.fn(),
 }))
@@ -57,6 +58,31 @@ describe('demo quiz builder', () => {
     await waitFor(() => expect(api.generateDemoQuiz).toHaveBeenCalledWith('t', expect.objectContaining({
       focus: 'Multiplication', cloud_consent: true, pages: [],
     })))
+  })
+
+  it('a long source is copied out a part at a time, then drafted from the text', async () => {
+    api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null, draft_provider: null }))
+    api.copyDemoQuizSource.mockImplementation(async (_t: string, body: { pages: unknown[]; first_page: number }) => ({
+      text: `[Pages ${body.first_page}-${body.first_page + body.pages.length - 1}]`, pages_read: body.pages.length,
+    }))
+    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    const files = Array.from({ length: 8 }, (_, i) => new File([`p${i}`], `p${i}.jpg`, { type: 'image/jpeg' }))
+    fireEvent.change(await screen.findByLabelText(/Or add photos/), { target: { files } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    await waitFor(() => expect(api.generateDemoQuiz).toHaveBeenCalled())
+    expect(api.copyDemoQuizSource.mock.calls.map((c) => c[1].first_page)).toEqual([1, 7])
+    expect(api.generateDemoQuiz.mock.calls[0][1]).toMatchObject({
+      pages: [], source_pages_text: '[Pages 1-6]\n\n[Pages 7-8]',
+    })
+  })
+
+  it('refuses a choice of files over 1 GB before anything is sent', async () => {
+    api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null, draft_provider: null }))
+    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    const big = (n: number) => Object.defineProperty(new File(['x'], `${n}.pdf`, { type: 'application/pdf' }), 'size', { value: 25 * 1024 * 1024 })
+    fireEvent.change(await screen.findByLabelText(/Or add photos/), { target: { files: Array.from({ length: 41 }, (_, i) => big(i)) } })
+    expect(await screen.findByText(/more than 1 GB/)).toBeTruthy()
+    expect(api.copyDemoQuizSource).not.toHaveBeenCalled()
   })
 
   it('needs something to learn from, then drafts with every choice the adult made', async () => {

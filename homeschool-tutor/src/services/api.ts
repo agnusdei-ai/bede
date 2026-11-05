@@ -1937,10 +1937,27 @@ export const generateQuiz = (
   body: {
     subject: string; grade: string; kind: QuizKind; level: QuizLevel; question_count: number
     focus?: string; source_text?: string; pages: { data: string }[]; cloud_consent: boolean
+    /** A long upload's pages, copied out as text part by part (copyQuizSource). */
+    source_pages_text?: string
   },
 ) => practiceFetch<{ quiz: GeneratedQuiz; report: { answers_recomputed: number; dropped: number; short_by: number } }>(
   token, `/${encodeURIComponent(studentName)}/quizzes/generate`, { method: 'POST', body: JSON.stringify(body) },
 )
+
+export interface QuizSourcePart {
+  subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number
+}
+
+/** One part of a long quiz source, copied out as text. Nothing is stored. */
+export const copyQuizSource = (token: string, studentName: string, body: QuizSourcePart) =>
+  practiceFetch<{ text: string; pages_read: number }>(
+    token, `/${encodeURIComponent(studentName)}/quizzes/source`, { method: 'POST', body: JSON.stringify(body) },
+  )
+
+export const copyEducatorQuizSource = (token: string, body: QuizSourcePart) =>
+  practiceFetch<{ text: string; pages_read: number }>(
+    token, '/educator/quiz/source', { method: 'POST', body: JSON.stringify(body) },
+  )
 
 // Teachers draft on the school's own model only; no learner is named.
 export const fetchEducatorQuizOptions = (token: string) =>

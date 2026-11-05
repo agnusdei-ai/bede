@@ -65,7 +65,9 @@ from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject, StreamO
 from core.config import settings
 from core.scanner_url import ScannerUrlRefused, parse_scanner_url
 
-MAX_PAGE_BYTES = 6 * 1024 * 1024
+# One file. Big enough for a long scanned PDF; a whole upload may be up to
+# 1 GB (checked in the browser, uploadParts.ts) and is sent in parts.
+MAX_PAGE_BYTES = 25 * 1024 * 1024
 # Pages sent to the reader in one call. This is not a limit on how many pages
 # a parent may upload: any number is read, one group after another.
 READ_GROUP_SIZE = 6
@@ -225,7 +227,7 @@ def _refuse_active_content(reader: PdfReader, raw: bytes) -> None:
 def _bounded_flate_image(x, expected: int, height: int) -> bytes:
     """Reject oversized Flate image streams before pypdf can inflate them.
 
-    A 6 MB PDF can contain a much larger compressed image stream. pypdf's
+    A 25 MB PDF can contain a much larger compressed image stream. pypdf's
     get_data() inflates it in full, so checking the result afterward is too
     late. Bound zlib output to the declared 8-bit image size, plus at most
     one predictor byte per row for PNG predictors.
@@ -280,7 +282,7 @@ def _bounded_flate_image(x, expected: int, height: int) -> bytes:
     return decoded if predictor == 1 else x.get_data()
 
 
-_JPEG_IN_FLATE_LIMIT = 4 * MAX_PAGE_BYTES  # a JPEG wrapped in Flate cannot be larger than this
+_JPEG_IN_FLATE_LIMIT = 2 * MAX_PAGE_BYTES  # a JPEG wrapped in Flate cannot be much larger than its file
 _STREAM_INFLATE_LIMIT = 32 * 1024 * 1024    # any other compressed stream (page content, fonts)
 _BLANK_PAGE = PhotoRejected("A page in this PDF came out blank. Please scan or photograph the paper again.")
 # pdfium is not safe to call from two threads at once, and up to two uploads
@@ -446,7 +448,7 @@ def _image_format(raw: bytes) -> str:
 def sanitize_upload(raw: bytes) -> list[tuple[str, bytes]]:
     """One uploaded file -> rebuilt (media_type, bytes) pages."""
     if len(raw) > MAX_PAGE_BYTES:
-        raise PhotoRejected("A file is larger than 6 MB; please retake it at a lower resolution.")
+        raise PhotoRejected("A file is larger than 25 MB; please split it or retake it at a lower resolution.")
     if raw.startswith(b"%PDF-"):
         return [("image/png", p) for p in pages_from_pdf(raw)]
     return [("image/png", reencode_image(raw, _image_format(raw)))]
@@ -524,7 +526,7 @@ def _decode(item: str) -> bytes:
     except (binascii.Error, ValueError) as exc:
         raise PhotoRejected("A file is not valid base64 data.") from exc
     if len(raw) > MAX_PAGE_BYTES:
-        raise PhotoRejected("A file is larger than 6 MB; please retake it at a lower resolution.")
+        raise PhotoRejected("A file is larger than 25 MB; please split it or retake it at a lower resolution.")
     return raw
 
 

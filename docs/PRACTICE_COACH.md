@@ -19,8 +19,9 @@ is the **teacher's** count, read off the page and labelled as such.
    readings are joined into one worksheet (a section that runs across a group
    boundary is joined back into one). Each group's images are released before
    the next group is built, so memory does not grow with the page count. The
-   browser sends a long upload in parts of at most six files and 7 MB
-   (`utils/uploadParts.ts`), so each request fits nginx's 12 MB ceiling; each
+   browser sends a long upload in parts of at most six files and 24 MB
+   (`utils/uploadParts.ts`), so each request fits the API's 30 MB and nginx's
+   42 MB for `/api/practice/`; each
    part continues the same saved reading (`continues_record`; the demo, which
    stores nothing, sends back what the earlier parts read as `continues`). On
    the public demo each group of pages is one model call and counts as one
@@ -169,9 +170,14 @@ settled, before anything reaches a model.
   (`tests/practice_scanner_fixture.py`) is built exactly like a real
   three-layer office-scanner PDF (background, white cleaning mask, CCITT ink
   mask); the real scan it copies stays out of this public repository.
-- **Limits:** 6 MB a file and 30 MB a request (a quiz source goes in one
-  request, so `/api/practice/` accepts 42 MB in nginx; base64 adds a third),
-  no limit on pages, the pixel and
+- **Limits:** up to 1 GB for a whole upload (checked in the browser, which
+  sends it in parts; owner ruling 2026-11-05), 25 MB a file and 30 MB a
+  request (`/api/practice/` accepts 42 MB in nginx, since base64 adds a
+  third), no limit on pages. A single file stays at 25 MB because the server
+  holds one file in memory to render it, and the demo server has 512 MB. A
+  long quiz source is copied out as text part by part
+  (`POST .../quiz/source`), and the draft reads the first 60,000 characters
+  of it; the screen says so when a source is longer. The pixel and
   decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
   25-second processing time per file, and at most two decode jobs at once
   (others wait up to 10 seconds, then are asked to try again with a 503). A

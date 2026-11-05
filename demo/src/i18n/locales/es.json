@@ -66,7 +66,7 @@
     "cloud": "Acepto enviar estas páginas a {{provider}} para que las lea.",
     "noReader": "Leer fotos de exámenes requiere el propio modelo de IA de Bede, en una instalación familiar o escolar.",
     "photos": "Elige imágenes o archivos PDF escaneados",
-    "photosHint": "JPEG, PNG, WebP, AVIF o un PDF. Las fotos del iPhone se envían como JPEG; HEIC no se puede leer, así que use JPEG, PNG o PDF. Sube todas las páginas que tenga la prueba. Cada grupo de seis páginas cuenta como un mensaje de la demostración.",
+    "photosHint": "JPEG, PNG, WebP, AVIF o un PDF. Las fotos del iPhone se envían como JPEG; HEIC no se puede leer, así que use JPEG, PNG o PDF. Sube todas las páginas que tenga la prueba, hasta 1 GB en total y 25 MB por archivo. Cada grupo de seis páginas cuenta como un mensaje de la demostración.",
     "cropTip": "Puede recortar lo que prefiera no enviar, como un nombre completo o un número de alumno. Un nombre de pila está bien.",
     "cloudRetention": "{{provider}} puede conservar las imágenes de las páginas hasta 30 días para revisar usos indebidos, según sus propias condiciones de API. Bede no las guarda.",
     "wordBank": "Banco de palabras",
@@ -113,7 +113,9 @@
     "turnContext": "Intenté esta pregunta de práctica aprobada: {{prompt}} Mi respuesta es: {{response}}",
     "completed": "Terminaste {{count}} pregunta(s) de práctica.",
     "tabPractice": "Practicar con un examen",
-    "tabQuiz": "Crear un examen"
+    "tabQuiz": "Crear un examen",
+    "uploadTooLarge": "Estos archivos suman más de 1 GB. Elige menos páginas.",
+    "fileTooLarge": "Un archivo pesa más de 25 MB. Divídelo o escanéalo con menor resolución."
   },
   "demoQuiz": {
     "loading": "Cargando…",
@@ -161,7 +163,10 @@
       "verify": "Revisar"
     },
     "secondAnswer": "Una segunda revisión dijo: {{answer}}",
-    "noPhotos": "Las fotos requieren el propio modelo de IA de Bede, en una instalación familiar o escolar. Aquí funciona con un tema escrito o un examen pegado."
+    "noPhotos": "Las fotos requieren el propio modelo de IA de Bede, en una instalación familiar o escolar. Aquí funciona con un tema escrito o un examen pegado.",
+    "uploadTooLarge": "Estos archivos suman más de 1 GB. Elige menos páginas.",
+    "fileTooLarge": "Un archivo pesa más de 25 MB. Divídelo o escanéalo con menor resolución.",
+    "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas."
   },
   "canvas": {
     "cancel": "Cancelar",

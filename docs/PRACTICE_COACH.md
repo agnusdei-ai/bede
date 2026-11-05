@@ -253,8 +253,21 @@ list ("dog running" becomes a dog with a running mark; "3 apples and 2
 bananas" becomes three apples and two bananas). This runs whenever an
 assessment item is built (an `AssessmentItem` validator), so readings saved
 before it existed are drawn too; a diagram the reader gave is never replaced.
-Only a description naming nothing on the list ("the Battle of Hastings") is
-still shown as words, without a "picture:" label. A written sum with a
+A named, real thing no drawing fits ("the Battle of Hastings", "Rocky
+Mountains", "The Starry Night") becomes an `image` diagram: the title of an
+English Wikipedia article, never a link (the model refuses URLs and anything
+shaped like a scheme). The browser fetches that article's lead picture with
+the same lookup picture study uses, and shows it only when the file is on
+Wikimedia Commons, which holds freely licensed files (English Wikipedia's own
+uploads can be non-free), with the credit "Picture: Wikimedia Commons, from
+the Wikipedia article ..."; a missing article, a disambiguation page, no
+picture or no network shows the words instead. A print shows the picture
+once the screen has shown it. An adult sees every such picture before a
+child does, because practice is approved and quizzes are reviewed. Only a
+short, capitalised name is ever looked up, so an everyday description is
+never sent off as a title, and a name made only of drawable words ("Dog
+Running") is drawn. The reader and the drafter may also ask for an `image`
+directly. A written sum with a
 picture beside it is still worked out as a sum. The reader
 records it, the drafting rules ask for it, and the app draws it itself as SVG
 on screen and in print, so a model never writes markup into the page and the

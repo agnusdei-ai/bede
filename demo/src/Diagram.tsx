@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { useEffect, useState, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useTranslation } from 'react-i18next'
 
@@ -33,6 +33,7 @@ export type DiagramSpec =
   | { kind: 'ruler'; unit: 'cm' | 'in'; length: number; objects: { label: string; start: number; end: number; icon?: string | null }[] }
   | { kind: 'money'; pieces: { coin: string; count: number }[] }
   | { kind: 'thermometer'; unit: 'F' | 'C'; low: number; high: number; step: number; reading: number }
+  | { kind: 'image'; wiki_title: string; caption?: string }
 
 /** Picture symbols for the API's ICONS (models/practice.py). A name not here draws nothing. */
 export const ICONS: Record<string, string> = {
@@ -485,6 +486,59 @@ function Thermometer({ unit, low, high, step, reading }: { unit: 'F' | 'C'; low:
   )
 }
 
+// ── A real thing, from Wikimedia Commons ─────────────────────────────────────
+// The same lookup picture study makes (VisualAidCard.tsx): the browser asks
+// Wikipedia for one article's summary and loads its lead picture. Only a file
+// on Wikimedia Commons is shown, because Commons holds freely licensed files
+// and English Wikipedia's own uploads can be non-free. Anything else, a
+// missing article, a disambiguation page or no picture, shows the words.
+export const WIKI_SUMMARY = 'https://en.wikipedia.org/api/rest_v1/page/summary/'
+const COMMONS = /^https:\/\/upload\.wikimedia\.org\/wikipedia\/commons\//
+
+type Found = { src: string; title: string } | null
+const found = new Map<string, Found>()
+
+export async function lookupImage(title: string): Promise<Found> {
+  if (found.has(title)) return found.get(title) ?? null
+  let result: Found = null
+  try {
+    const res = await fetch(`${WIKI_SUMMARY}${encodeURIComponent(title.replace(/ /g, '_'))}`)
+    if (res.ok) {
+      const data = await res.json()
+      const src = data?.thumbnail?.source || data?.originalimage?.source
+      if (data?.type !== 'disambiguation' && typeof src === 'string' && COMMONS.test(src)) {
+        result = { src, title: String(data?.title || title) }
+      }
+    }
+  } catch {
+    result = null
+  }
+  found.set(title, result)
+  return result
+}
+
+function Credit({ title }: { title: string }) {
+  const { t } = useTranslation()
+  return <span className="block text-xs text-gray-500">{t('diagram.imageCredit', { title })}</span>
+}
+
+function WikiImage({ wiki_title: title, caption }: { wiki_title: string; caption?: string }) {
+  const [image, setImage] = useState<Found | undefined>(found.get(title))
+  useEffect(() => {
+    let live = true
+    if (!found.has(title)) void lookupImage(title).then((r) => { if (live) setImage(r) })
+    return () => { live = false }
+  }, [title])
+  const words = caption || title
+  if (!image) return <span className="italic text-gray-500">{words}</span>
+  return (
+    <span className="block">
+      <img src={image.src} alt={words} className="max-h-64 max-w-full rounded" referrerPolicy="no-referrer" />
+      <Credit title={image.title} />
+    </span>
+  )
+}
+
 /** What the picture shows, in words, for a screen reader. */
 export function describe(d: DiagramSpec, t: (key: string, values?: Record<string, unknown>) => string): string {
   switch (d.kind) {
@@ -508,6 +562,7 @@ export function describe(d: DiagramSpec, t: (key: string, values?: Record<string
     case 'ruler': return t('diagram.ruler', { unit: d.unit, things: d.objects.map((o) => t('diagram.rulerThing', { label: o.label, start: o.start, end: o.end })).join('; ') })
     case 'money': return t('diagram.money', { pieces: d.pieces.map((p) => `${p.count} × ${t(`diagram.coin.${p.coin}`, { defaultValue: p.coin })}`).join(', ') })
     case 'thermometer': return t('diagram.thermometer', { low: d.low, high: d.high, unit: d.unit })
+    case 'image': return d.caption || d.wiki_title
   }
 }
 
@@ -532,6 +587,7 @@ export function DiagramSvg({ d }: { d: DiagramSpec }) {
     case 'ruler': return <Ruler unit={d.unit} length={d.length} objects={d.objects} />
     case 'money': return <Money pieces={d.pieces} />
     case 'thermometer': return <Thermometer {...d} />
+    case 'image': return <WikiImage wiki_title={d.wiki_title} caption={d.caption} />
     default: return null
   }
 }
@@ -553,6 +609,16 @@ export default function Diagram({ d }: { d?: DiagramSpec | null }) {
 
 /** The same picture as SVG markup, for a printed worksheet. React builds and
  *  escapes it, so no model text is ever written into the page as markup. */
-export function diagramMarkup(d?: DiagramSpec | null): string {
-  return d ? `<div class="diagram">${renderToStaticMarkup(<DiagramSvg d={d} />)}</div>` : ''
+export function diagramMarkup(d?: DiagramSpec | null, t?: (key: string, values?: Record<string, unknown>) => string): string {
+  if (!d) return ''
+  if (d.kind === 'image') {
+    // Printing cannot wait for a lookup: the picture is printed when the
+    // screen has already shown it, and the words otherwise.
+    const image = found.get(d.wiki_title)
+    const words = d.caption || d.wiki_title
+    return `<div class="diagram">${renderToStaticMarkup(image
+      ? <figure><img src={image.src} alt={words} style={{ maxHeight: '16rem', maxWidth: '100%' }} /><figcaption>{`${words}. ${t ? t('diagram.imageCredit', { title: image.title }) : `Picture: Wikimedia Commons, from the Wikipedia article “${image.title}”`}`}</figcaption></figure>
+      : <p><em>{words}</em></p>)}</div>`
+  }
+  return `<div class="diagram">${renderToStaticMarkup(<DiagramSvg d={d} />)}</div>`
 }

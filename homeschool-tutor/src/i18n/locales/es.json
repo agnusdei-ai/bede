@@ -1064,6 +1064,7 @@
       "five_bill": "billete de cinco dólares",
       "ten_bill": "billete de diez dólares",
       "twenty_bill": "billete de veinte dólares"
-    }
+    },
+    "imageCredit": "Imagen: Wikimedia Commons, del artículo de Wikipedia «{{title}}»"
   }
 }

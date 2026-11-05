@@ -1064,6 +1064,7 @@
       "five_bill": "five-dollar bill",
       "ten_bill": "ten-dollar bill",
       "twenty_bill": "twenty-dollar bill"
-    }
+    },
+    "imageCredit": "Picture: Wikimedia Commons, from the Wikipedia article “{{title}}”"
   }
 }

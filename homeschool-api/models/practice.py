@@ -16,6 +16,7 @@ Two absences are deliberate and are the reason these models are strict
 """
 from __future__ import annotations
 
+import re
 from typing import Annotated, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -309,17 +310,41 @@ class ThermometerDiagram(_Strict):
         return value
 
 
+_WIKI_TITLE = re.compile(r"^[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .,'()&:\-–]{0,99}$")
+
+
+class ImageDiagram(_Strict):
+    """A real thing no drawing fits (an event, a place, a map, an artwork, a
+    landmark, a species): the lead picture of one English Wikipedia article,
+    named by its title. Only the title is stored, never an address; the app
+    fetches the picture, shows it only when it is a freely licensed Wikimedia
+    Commons file, and credits it. An adult sees it before any child does
+    (practice is approved, quizzes are reviewed)."""
+    kind: Literal["image"]
+    wiki_title: str = Field(..., min_length=1, max_length=100)
+    caption: str = Field(default="", max_length=60)
+
+    @field_validator("wiki_title")
+    @classmethod
+    def _a_title_not_a_link(cls, value: str) -> str:
+        value = value.strip()
+        if (not _WIKI_TITLE.match(value) or "//" in value or value.lower().startswith(("http", "www."))
+                or re.match(r"^[A-Za-z][A-Za-z0-9+.\-]*:(?!\s)", value)):
+            raise ValueError("a Wikipedia article title, not a link")
+        return value
+
+
 Diagram = Annotated[
     Union[FractionDiagram, ArrayDiagram, BaseTenDiagram, ClockDiagram, RectangleDiagram,
           RightTriangleDiagram, NumberLineDiagram, BarGraphDiagram, CoordinateDiagram,
           PicturesDiagram, SceneDiagram, TimelineDiagram, VennDiagram, TableDiagram, StepsDiagram,
-          RulerDiagram, MoneyDiagram, ThermometerDiagram],
+          RulerDiagram, MoneyDiagram, ThermometerDiagram, ImageDiagram],
     Field(discriminator="kind"),
 ]
 DIAGRAM_KINDS = ("fraction_bar", "fraction_circle", "array", "base_ten", "clock", "rectangle",
                  "right_triangle", "number_line", "bar_graph", "coordinate_plane",
                  "pictures", "scene", "timeline", "venn", "table", "cycle", "sequence",
-                 "ruler", "money", "thermometer")
+                 "ruler", "money", "thermometer", "image")
 
 
 class AssessmentItem(_Strict):

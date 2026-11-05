@@ -1,9 +1,9 @@
 import { cleanup, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import './i18n'
-import Diagram, { ACTIONS, COINS, ICONS, diagramMarkup, type DiagramSpec } from './Diagram'
+import Diagram, { ACTIONS, COINS, ICONS, WIKI_SUMMARY, diagramMarkup, lookupImage, type DiagramSpec } from './Diagram'
 
 afterEach(cleanup)
 
@@ -29,6 +29,8 @@ const every: DiagramSpec[] = [
   { kind: 'money', pieces: [{ coin: 'quarter', count: 2 }, { coin: 'one_bill', count: 1 }] },
   { kind: 'thermometer', unit: 'F', low: 0, high: 100, step: 10, reading: 60 },
 ]
+// The one kind that is not drawn here: a real picture fetched from Wikimedia Commons.
+const image: DiagramSpec = { kind: 'image', wiki_title: 'Battle of Hastings', caption: 'The Battle of Hastings' }
 
 describe('drawn diagrams', () => {
   it.each(every.map((d) => [d.kind, d] as const))('draws a %s with a spoken description', (_kind, d) => {
@@ -101,6 +103,49 @@ describe('drawn diagrams', () => {
     expect([...container.querySelectorAll('text')].map((t) => t.textContent)).toEqual(['25¢', '25¢', '10¢'])
   })
 
+  describe('real pictures from Wikimedia Commons', () => {
+    const summary = (body: object) => vi.fn(async () => new Response(JSON.stringify(body), { status: 200 }))
+
+    it('shows a freely licensed Commons picture with its credit, and prints it once shown', async () => {
+      const fetchMock = summary({ type: 'standard', title: 'Battle of Hastings', thumbnail: { source: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Bayeux.jpg/320px-Bayeux.jpg' } })
+      vi.stubGlobal('fetch', fetchMock)
+      render(<Diagram d={image} />)
+      const img = await screen.findByAltText('The Battle of Hastings')
+      expect(img.getAttribute('src')).toContain('/wikipedia/commons/')
+      expect(screen.getByText(/Wikimedia Commons, from the Wikipedia article “Battle of Hastings”/)).toBeTruthy()
+      expect(fetchMock).toHaveBeenCalledWith(`${WIKI_SUMMARY}Battle_of_Hastings`)
+      expect(diagramMarkup(image)).toContain('<img src="https://upload.wikimedia.org/wikipedia/commons/')
+      vi.unstubAllGlobals()
+    })
+
+    it.each([
+      ['a non-free English Wikipedia upload', { type: 'standard', thumbnail: { source: 'https://upload.wikimedia.org/wikipedia/en/a/ab/Poster.jpg' } }],
+      ['a disambiguation page', { type: 'disambiguation', thumbnail: { source: 'https://upload.wikimedia.org/wikipedia/commons/x.jpg' } }],
+      ['an article with no picture', { type: 'standard' }],
+      ['a picture from anywhere else', { type: 'standard', thumbnail: { source: 'https://evil.example/x.jpg' } }],
+    ])('shows the words instead of %s', async (_what, body) => {
+      vi.stubGlobal('fetch', summary(body))
+      const title = `Test ${Math.random()}`
+      expect(await lookupImage(title)).toBeNull()
+      render(<Diagram d={{ kind: 'image', wiki_title: title, caption: 'A caption' }} />)
+      expect(screen.getByText('A caption')).toBeTruthy()
+      expect(document.querySelector('img')).toBeNull()
+      vi.unstubAllGlobals()
+    })
+
+    it('shows the words when Wikipedia cannot be reached, and prints the words before a lookup', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Load failed') }))
+      expect(await lookupImage('Unreachable Place')).toBeNull()
+      expect(diagramMarkup({ kind: 'image', wiki_title: 'Never Looked Up', caption: 'A <b>caption</b>' })).toBe('<div class="diagram"><p><em>A &lt;b&gt;caption&lt;/b&gt;</em></p></div>')
+      vi.unstubAllGlobals()
+    })
+
+    it('asks the same Wikipedia origin picture study already asks', () => {
+      const card = readFileSync(resolve(__dirname, 'VisualAidCard.tsx'), 'utf8')
+      expect(card).toContain(new URL(WIKI_SUMMARY).origin)
+    })
+  })
+
   it('draws nothing for an unknown kind or no diagram', () => {
     const { container } = render(<Diagram d={{ kind: 'svg' } as unknown as DiagramSpec} />)
     expect(container.querySelector('svg')).toBeNull()
@@ -114,7 +159,7 @@ describe('drawn diagrams', () => {
     expect(strip(demo)).toBe(strip(app))
     const py = readFileSync(resolve(__dirname, '../../homeschool-api/models/practice.py'), 'utf8')
     const kinds = py.match(/^DIAGRAM_KINDS = \(([^)]*)\)/m)?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
-    expect(kinds.sort()).toEqual(every.map((d) => d.kind).sort())
+    expect(kinds.sort()).toEqual([...every, image].map((d) => d.kind).sort())
     const list = (name: string) => py.match(new RegExp(`^${name} = \\(([^)]*)\\)`, 'm'))?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
     expect(list('ICONS').sort()).toEqual(Object.keys(ICONS).sort())
     expect(list('ACTIONS').sort()).toEqual(Object.keys(ACTIONS).sort())

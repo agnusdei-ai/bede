@@ -187,7 +187,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
     const win = window.open('', '_blank')
     if (!win) return
     const rows = set.items.map((item) =>
-      `<li><p>${escapeHtml(item.prompt)}</p>${diagramMarkup(item.diagram)}<div class="line"></div></li>`).join('')
+      `<li><p>${escapeHtml(item.prompt)}</p>${diagramMarkup(item.diagram, t)}<div class="line"></div></li>`).join('')
     win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(t('practiceCoach.worksheetTitle'))}</title>
 <style>body{font-family:Georgia,serif;margin:2rem;color:#1d2433}li{margin:0 0 1.4rem}.line{border-bottom:1px solid #999;height:2rem}</style>
 <h1>${escapeHtml(t('practiceCoach.worksheetTitle'))}</h1><ol>${rows}</ol>`)

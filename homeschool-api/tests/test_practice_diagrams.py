@@ -366,8 +366,31 @@ def test_counts_in_a_description_are_kept():
     assert [(g.icon, g.count) for g in picture.groups] == [("apple", 3), ("banana", 2)]
 
 
-def test_a_description_naming_nothing_drawable_is_left_alone():
-    assert diagrams.from_stimulus("picture: the Battle of Hastings") is None
+def test_a_named_real_thing_is_shown_from_its_wikipedia_article():
+    for words, title in [("picture: the Battle of Hastings", "Battle of Hastings"),
+                         ("picture: Rocky Mountains", "Rocky Mountains"),
+                         ("picture: The Starry Night", "The Starry Night")]:
+        picture = diagrams.from_stimulus(words)
+        assert picture.kind == "image" and picture.wiki_title == title
+
+
+def test_an_everyday_description_is_never_sent_off_as_a_title():
+    assert diagrams.from_stimulus("Dog Running").kind == "scene"
+    for words in ("some children playing outside after lunch", "a boy reading a book", "rain on a window"):
+        picture = diagrams.from_stimulus(words)
+        assert picture is None or picture.kind != "image"
+
+
+@pytest.mark.parametrize("title", ["https://evil.example/a.png", "//evil.example", "javascript:alert(1)",
+                                   "data:image/png;base64,AAAA", "<img src=x>", "x" * 101])
+def test_an_image_names_an_article_never_a_link(title):
+    assert diagrams.parse({"kind": "image", "wiki_title": title}) is None
+
+
+def test_an_image_question_is_left_to_the_adult():
+    picture = d(kind="image", wiki_title="Battle of Hastings")
+    assert diagrams.answer(picture, "In what year was this battle fought?") is None
+    assert "image" in diagrams.PROMPT_SCHEMA and "Never a link" in diagrams.PROMPT_SCHEMA
 
 
 def test_a_saved_reading_with_a_description_is_drawn_when_read_back():

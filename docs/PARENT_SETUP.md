@@ -1275,9 +1275,12 @@ Before you print:
   table, the water cycle or another cycle, and the steps of a process. Check
   these answers yourself before printing, as you would any other question.
   When the page's picture is one Bede has no drawing for, it draws the
-  things the picture shows (a dog running, three apples). Only a picture of
-  something not on its list, such as a historical scene or a map, is still
-  given in words.
+  things the picture shows (a dog running, three apples). A picture of a
+  named, real thing, such as the Battle of Hastings, a mountain range or a
+  famous painting, is shown from Wikimedia Commons, the free picture library
+  behind Wikipedia, with a line saying where it came from. Look at these
+  before you approve or print, as you would any question. If no free picture
+  can be found, the name is shown in words.
 - **Double-checked** means Bede answered the question a second time, without
   looking at its first answer, and both agreed. That makes a mistake less
   likely, not impossible.

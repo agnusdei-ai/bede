@@ -154,7 +154,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
     const rows = questions.map((q, i) => {
       const opts = q.options.length ? `<ul>${optionLines(q.options).map((o) => `<li>${escapeHtml(o)}</li>`).join('')}</ul>` : ''
       const tail = withAnswers ? `<p class="ans">${escapeHtml(q.answer)}</p>` : '<div class="line"></div>'
-      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${diagramMarkup(q.diagram)}${opts}${tail}</li>`
+      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${diagramMarkup(q.diagram, t)}${opts}${tail}</li>`
     }).join('')
     const heading = withAnswers ? `${quiz.title}: ${t('quizBuilder.answerKey')}` : quiz.title
     win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(heading)}</title>

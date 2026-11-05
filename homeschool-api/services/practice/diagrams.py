@@ -1,7 +1,8 @@
-"""Picture problems: diagrams Bede can draw, check, and vary.
+"""Picture questions, in any subject: diagrams Bede can draw, check, and vary.
 
-A maths problem whose picture is the problem (a shaded fraction, a clock, an
-array of dots, a rectangle with its sides marked) carries a `Diagram`
+A question whose picture is the question (a shaded fraction, a clock, an
+animal to name, a scene, a timeline, a Venn diagram, a table, the water
+cycle) carries a `Diagram`
 (models/practice.py): numbers and short labels from a closed list of kinds,
 never markup. The app draws it (Diagram.tsx), and this module:
 
@@ -26,9 +27,30 @@ from typing import Optional
 
 from pydantic import TypeAdapter
 
-from models.practice import Diagram
+from models.practice import ACTIONS, ICONS, Diagram
 
 _ADAPTER = TypeAdapter(Diagram)
+
+# What a reader or a drafting model is told it may use. One copy, so the two
+# prompts cannot drift from each other or from the model above.
+PROMPT_SCHEMA = """  {"kind": "fraction_bar"|"fraction_circle", "parts": int, "shaded": int}
+  {"kind": "array", "rows": int, "cols": int}
+  {"kind": "base_ten", "hundreds": int, "tens": int, "ones": int}
+  {"kind": "clock", "hour": 1-12, "minute": 0-59}
+  {"kind": "rectangle", "width": int, "height": int, "unit": str}
+  {"kind": "right_triangle", "base": int, "height": int, "unit": str}
+  {"kind": "number_line", "start": int, "end": int, "step": int, "marks": [int], "mark_labels": [str]}
+  {"kind": "bar_graph", "title": str, "bars": [{"label": str, "value": int}]}
+  {"kind": "coordinate_plane", "size": int, "four_quadrants": bool, "points": [{"label": str, "x": int, "y": int}]}
+  {"kind": "pictures", "groups": [{"icon": ICON, "count": int, "label": str}]}  (things to name, sort or count)
+  {"kind": "scene", "icon": ICON, "action": ACTION|null}  (one thing doing one thing)
+  {"kind": "timeline", "events": [{"label": str, "year": int}], "show_years": bool}  (negative years are BC)
+  {"kind": "venn", "left": str, "right": str, "left_items": [str], "right_items": [str], "both_items": [str]}
+  {"kind": "table", "header": [str], "rows": [[str]]}
+  {"kind": "cycle"|"sequence", "steps": [str]}  (a step written "?" is a blank)
+ICON is one of: """ + ", ".join(ICONS) + """
+ACTION is one of: """ + ", ".join(ACTIONS) + """
+Labels are short (about 20 characters at most)."""
 
 
 def parse(raw) -> Optional[object]:
@@ -151,7 +173,19 @@ def answer(diagram, prompt: str) -> Optional[str]:
             return None
         point = diagram.points[index]
         return _fmt_point(point.x, point.y)
-    return None  # bar_graph: the question decides, so the adult checks it
+    if kind == "pictures":
+        words = (prompt or "").lower()
+        if "how many" in words:
+            groups = diagram.groups
+            named = [g for g in groups if g.label and re.search(rf"\b{re.escape(g.label.lower())}\b", words)]
+            if len(named) == 1:
+                return str(named[0].count)
+            if len(groups) == 1:
+                return str(groups[0].count)
+        return None
+    # A bar graph, a scene, a timeline, a Venn diagram, a table or steps: the
+    # question decides what is asked, so the adult checks the answer.
+    return None
 
 
 def same(diagram, given: str | None, right: str) -> bool:
@@ -291,6 +325,12 @@ def new_like(diagram, prompt: str, rng: random.Random):
         mark = start + step * rng.randint(1, count - 1)
         d = {"kind": "number_line", "start": start, "end": start + step * count, "step": step,
              "marks": [mark], "mark_labels": ["A"]}
+    elif kind == "pictures":
+        if len(diagram.groups) != 1:
+            return None
+        icon = rng.choice(["apple", "star", "fish", "flower", "ball", "bird", "leaf", "coin"])
+        text = f"How many pictures are there?"
+        d = {"kind": "pictures", "groups": [{"icon": icon, "count": rng.randint(2, 12)}]}
     elif kind == "coordinate_plane":
         lo = -diagram.size if diagram.four_quadrants else 0
         x, y = rng.randint(lo, diagram.size), rng.randint(lo, diagram.size)
@@ -309,13 +349,13 @@ FAMILY = {
     "fraction_bar": "fraction_model", "fraction_circle": "fraction_model", "array": "array",
     "base_ten": "base_ten", "clock": "clock", "rectangle": "area_perimeter",
     "right_triangle": "area_perimeter", "number_line": "number_line",
-    "coordinate_plane": "coordinates", "bar_graph": "graph",
+    "coordinate_plane": "coordinates", "bar_graph": "graph", "pictures": "counting",
 }
 
 
 def category(diagram) -> str:
     """The maths-pack category for a miss on this kind of picture."""
-    return f"math.diagram.{FAMILY[diagram.kind]}"
+    return f"math.diagram.{FAMILY.get(diagram.kind, 'graph')}"
 
 
 __all__ = ["FAMILY", "category", "answer", "explain", "explain_point", "key", "new_like", "parse", "same"]

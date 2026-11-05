@@ -1270,6 +1270,11 @@ Before you print:
 - Maths answers say **Worked out**: Bede computed them. A picture question
   (a shaded fraction, a clock, a shape) is drawn by Bede, and its answer is
   counted off that same picture, so the two always agree.
+- Picture questions work in every subject, not only maths: animals, plants
+  and objects to name or count, a scene, a timeline, a Venn diagram, a
+  table, the water cycle or another cycle, and the steps of a process. Check
+  these answers yourself before printing, as you would any other question.
+  A photograph or a map is still described in words.
 - **Double-checked** means Bede answered the question a second time, without
   looking at its first answer, and both agreed. That makes a mistake less
   likely, not impossible.

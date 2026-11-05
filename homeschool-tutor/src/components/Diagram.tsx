@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { useTranslation } from 'react-i18next'
 
 /**
- * Draws a maths picture from a diagram: a closed list of kinds holding only
+ * Draws a question's picture, in any subject, from a diagram: a closed list of kinds holding only
  * numbers and short labels (models/practice.py). Nothing a model wrote is
  * ever inserted as markup; every shape is built here and every label is a
  * React text node, so it is escaped. The backend works the answer out from
@@ -24,6 +24,37 @@ export type DiagramSpec =
   | { kind: 'number_line'; start: number; end: number; step: number; marks: number[]; mark_labels: string[] }
   | { kind: 'bar_graph'; title?: string; bars: { label: string; value: number }[] }
   | { kind: 'coordinate_plane'; size: number; four_quadrants: boolean; points: { label: string; x: number; y: number }[] }
+  | { kind: 'pictures'; groups: { icon: string; count: number; label?: string }[] }
+  | { kind: 'scene'; icon: string; action?: string | null }
+  | { kind: 'timeline'; events: { label: string; year: number }[]; show_years: boolean }
+  | { kind: 'venn'; left: string; right: string; left_items: string[]; right_items: string[]; both_items: string[] }
+  | { kind: 'table'; header: string[]; rows: string[][] }
+  | { kind: 'cycle' | 'sequence'; steps: string[] }
+
+/** Picture symbols for the API's ICONS (models/practice.py). A name not here draws nothing. */
+export const ICONS: Record<string, string> = {
+  dog: '🐕', cat: '🐈', mouse: '🐁', bird: '🐦', duck: '🦆', fish: '🐟', horse: '🐎', cow: '🐄', pig: '🐖',
+  sheep: '🐑', goat: '🐐', chicken: '🐓', rabbit: '🐇', frog: '🐸', bee: '🐝', butterfly: '🦋', ant: '🐜',
+  spider: '🕷️', snake: '🐍', turtle: '🐢', lion: '🦁', tiger: '🐅', elephant: '🐘', bear: '🐻', monkey: '🐒',
+  owl: '🦉', whale: '🐋', wolf: '🐺', fox: '🦊', deer: '🦌',
+  tree: '🌳', flower: '🌼', leaf: '🍃', seedling: '🌱', sun: '☀️', moon: '🌙', star: '⭐', cloud: '☁️',
+  rain: '🌧️', snow: '❄️', lightning: '⚡', rainbow: '🌈', water: '💧', fire: '🔥', mountain: '⛰️',
+  volcano: '🌋', wave: '🌊', rock: '🪨',
+  apple: '🍎', banana: '🍌', grapes: '🍇', carrot: '🥕', bread: '🍞', cheese: '🧀', milk: '🥛', egg: '🥚',
+  cake: '🍰', cookie: '🍪',
+  house: '🏠', castle: '🏰', ship: '🚢', boat: '⛵', car: '🚗', bus: '🚌', train: '🚂', plane: '✈️',
+  bicycle: '🚲', book: '📕', pencil: '✏️', scroll: '📜', crown: '👑', ball: '⚽', hat: '🎩', shoe: '👟',
+  key: '🔑', bell: '🔔', lightbulb: '💡', magnet: '🧲', compass: '🧭', globe: '🌍', map: '🗺️', coin: '🪙',
+  boy: '👦', girl: '👧', man: '👨', woman: '👩', baby: '👶', farmer: '🧑‍🌾', king: '🤴', queen: '👸',
+  hand: '✋', eye: '👁️', ear: '👂', foot: '🦶', heart: '🫀', brain: '🧠', tooth: '🦷', bone: '🦴',
+  magnifier: '🔍', microscope: '🔬', thermometer: '🌡️', battery: '🔋', plant: '🪴',
+}
+
+/** What an action looks like beside the thing doing it. */
+export const ACTIONS: Record<string, string> = {
+  running: '💨', swimming: '🌊', flying: '☁️', sleeping: '💤', eating: '🍽️', drinking: '💧',
+  singing: '🎵', walking: '👣', reading: '📖', writing: '✏️',
+}
 
 const INK = '#1f2a44'
 const FILL = '#8fa37a'
@@ -235,6 +266,134 @@ function Plane({ size, four_quadrants: four, points }: { size: number; four_quad
   )
 }
 
+
+const EMOJI = { fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif' } as const
+
+function Pictures({ groups }: { groups: { icon: string; count: number; label?: string }[] }) {
+  const list = (groups ?? []).slice(0, 6).filter((g) => ICONS[g.icon])
+  const cols = (n: number) => Math.min(4, Math.max(1, n))
+  const widths = list.map((g) => cols(clamp(g.count, 1, 12)) * 38 + 16)
+  const total = widths.reduce((a, b) => a + b, 0) + 10
+  const tallest = Math.max(1, ...list.map((g) => Math.ceil(clamp(g.count, 1, 12) / 4)))
+  let x = 6
+  return (
+    <svg viewBox={`0 0 ${total} ${tallest * 40 + 34}`} width={total} height={tallest * 40 + 34}>
+      {list.map((g, i) => {
+        const n = clamp(g.count, 1, 12)
+        const left = x
+        x += widths[i]
+        return (
+          <g key={i}>
+            {Array.from({ length: n }, (_, k) => (
+              <text key={k} x={left + 8 + (k % 4) * 38} y={34 + Math.floor(k / 4) * 40} fontSize={30} {...EMOJI}>{ICONS[g.icon]}</text>
+            ))}
+            {g.label && <text x={left + widths[i] / 2 - 8} y={tallest * 40 + 26} textAnchor="middle" {...FONT} fontWeight="bold">{g.label.slice(0, 16)}</text>}
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
+
+function Scene({ icon, action }: { icon: string; action?: string | null }) {
+  if (!ICONS[icon]) return null
+  return (
+    <svg viewBox="0 0 150 100" width="150" height="100">
+      <text x={20} y={78} fontSize={64} {...EMOJI}>{ICONS[icon]}</text>
+      {action && ACTIONS[action] && <text x={100} y={44} fontSize={34} {...EMOJI}>{ACTIONS[action]}</text>}
+    </svg>
+  )
+}
+
+function Timeline({ events, show_years: years }: { events: { label: string; year: number }[]; show_years: boolean }) {
+  const list = [...(events ?? [])].slice(0, 8).sort((a, b) => a.year - b.year)
+  const lo = list[0]?.year ?? 0, hi = list[list.length - 1]?.year ?? 1
+  const x = (v: number) => 30 + ((v - lo) / Math.max(1, hi - lo)) * 460
+  const year = (v: number) => (v < 0 ? `${-v} BC` : `${v}`)
+  return (
+    <svg viewBox="0 0 520 130" width="520" height="130">
+      <line x1={20} y1={60} x2={500} y2={60} stroke={INK} strokeWidth={3} />
+      {list.map((e, i) => (
+        <g key={i}>
+          <circle cx={x(e.year)} cy={60} r={6} fill={FILL} stroke={INK} strokeWidth={2} />
+          <text x={x(e.year)} y={i % 2 ? 96 : 38} textAnchor="middle" {...FONT}>{e.label.slice(0, 30)}</text>
+          {years && <text x={x(e.year)} y={i % 2 ? 114 : 20} textAnchor="middle" {...FONT} fontSize={11}>{year(e.year)}</text>}
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+function Venn({ left, right, left_items: l, right_items: r, both_items: b }: { left: string; right: string; left_items: string[]; right_items: string[]; both_items: string[] }) {
+  const column = (items: string[], cx: number) => (items ?? []).slice(0, 6).map((t, i) => (
+    <text key={i} x={cx} y={88 + i * 18} textAnchor="middle" {...FONT} fontSize={12}>{t.slice(0, 20)}</text>
+  ))
+  return (
+    <svg viewBox="0 0 420 230" width="420" height="230">
+      <circle cx={150} cy={125} r={100} fill={FILL} fillOpacity={0.25} stroke={INK} strokeWidth={2} />
+      <circle cx={270} cy={125} r={100} fill={FILL} fillOpacity={0.25} stroke={INK} strokeWidth={2} />
+      <text x={110} y={18} textAnchor="middle" {...FONT} fontWeight="bold">{left.slice(0, 20)}</text>
+      <text x={310} y={18} textAnchor="middle" {...FONT} fontWeight="bold">{right.slice(0, 20)}</text>
+      {column(l, 100)}{column(b, 210)}{column(r, 320)}
+    </svg>
+  )
+}
+
+function Table({ header, rows }: { header: string[]; rows: string[][] }) {
+  const cols = (header ?? []).slice(0, 4)
+  const w = 120, h = 28
+  const body = (rows ?? []).slice(0, 6)
+  return (
+    <svg viewBox={`0 0 ${cols.length * w + 2} ${(body.length + 1) * h + 2}`} width={cols.length * w + 2} height={(body.length + 1) * h + 2}>
+      {[cols, ...body].map((row, r) => cols.map((_, c) => (
+        <g key={`${r}-${c}`}>
+          <rect x={1 + c * w} y={1 + r * h} width={w} height={h} fill={r === 0 ? '#e8ece2' : PAPER} stroke={INK} strokeWidth={1} />
+          <text x={1 + c * w + w / 2} y={1 + r * h + 19} textAnchor="middle" {...FONT} fontWeight={r === 0 ? 'bold' : 'normal'}>{(row[c] ?? '').slice(0, 20)}</text>
+        </g>
+      )))}
+    </svg>
+  )
+}
+
+function Steps({ kind, steps }: { kind: 'cycle' | 'sequence'; steps: string[] }) {
+  const list = (steps ?? []).slice(0, 8)
+  const box = (t: string, x: number, y: number, key: number) => (
+    <g key={key}>
+      <rect x={x - 62} y={y - 16} width={124} height={32} rx={8} fill={t === '?' ? PAPER : '#e8ece2'} stroke={INK} strokeWidth={1.5} strokeDasharray={t === '?' ? '4 3' : undefined} />
+      <text x={x} y={y + 5} textAnchor="middle" {...FONT}>{t.slice(0, 20)}</text>
+    </g>
+  )
+  if (kind === 'sequence') {
+    return (
+      <svg viewBox={`0 0 ${list.length * 150} 50`} width={list.length * 150} height={50}>
+        {list.map((t, i) => (
+          <g key={i}>
+            {box(t, 70 + i * 150, 25, i)}
+            {i < list.length - 1 && <path d={`M${134 + i * 150},25 l12,0 m-5,-5 l5,5 l-5,5`} stroke={INK} strokeWidth={2} fill="none" />}
+          </g>
+        ))}
+      </svg>
+    )
+  }
+  const cx = 200, cy = 150, r = 105
+  const at = (i: number) => {
+    const a = (i / list.length) * 2 * Math.PI - Math.PI / 2
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)]
+  }
+  return (
+    <svg viewBox="0 0 400 300" width="400" height="300">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#b9c1ad" strokeWidth={2} strokeDasharray="6 4" />
+      {list.map((_, i) => {
+        const a = ((i + 0.5) / list.length) * 2 * Math.PI - Math.PI / 2
+        const [ax, ay] = [cx + r * Math.cos(a), cy + r * Math.sin(a)]
+        const deg = (a * 180) / Math.PI + 90
+        return <path key={`a${i}`} d="M-5,-5 L5,0 L-5,5" transform={`translate(${ax},${ay}) rotate(${deg - 90})`} stroke={INK} strokeWidth={2} fill="none" />
+      })}
+      {list.map((t, i) => { const [x, y] = at(i); return box(t, x, y, i) })}
+    </svg>
+  )
+}
+
 /** What the picture shows, in words, for a screen reader. */
 export function describe(d: DiagramSpec, t: (key: string, values?: Record<string, unknown>) => string): string {
   switch (d.kind) {
@@ -248,6 +407,13 @@ export function describe(d: DiagramSpec, t: (key: string, values?: Record<string
     case 'number_line': return t('diagram.numberLine', { start: d.start, end: d.end, step: d.step, points: (d.mark_labels ?? []).join(', ') || d.marks.join(', ') })
     case 'bar_graph': return t('diagram.barGraph', { bars: d.bars.map((b) => `${b.label} ${b.value}`).join(', ') })
     case 'coordinate_plane': return t('diagram.plane', { points: d.points.map((p) => p.label).join(', ') })
+    case 'pictures': return t('diagram.pictures', { things: d.groups.map((g) => `${g.label ? `${g.label}: ` : ''}${g.count} ${t(`diagram.icon.${g.icon}`, { defaultValue: g.icon })}`).join(', ') })
+    case 'scene': return t('diagram.scene', { thing: t(`diagram.icon.${d.icon}`, { defaultValue: d.icon }), action: d.action ? t(`diagram.action.${d.action}`, { defaultValue: d.action }) : '' })
+    case 'timeline': return t('diagram.timeline', { events: d.events.map((e) => d.show_years ? `${e.label} (${e.year})` : e.label).join(', ') })
+    case 'venn': return t('diagram.venn', { left: d.left, right: d.right })
+    case 'table': return t('diagram.table', { header: d.header.join(', '), rows: d.rows.length })
+    case 'cycle': return t('diagram.cycle', { steps: d.steps.join(', ') })
+    case 'sequence': return t('diagram.sequence', { steps: d.steps.join(', ') })
   }
 }
 
@@ -263,6 +429,12 @@ export function DiagramSvg({ d }: { d: DiagramSpec }) {
     case 'number_line': return <NumberLine {...d} />
     case 'bar_graph': return <BarGraph title={d.title} bars={d.bars} />
     case 'coordinate_plane': return <Plane {...d} />
+    case 'pictures': return <Pictures groups={d.groups} />
+    case 'scene': return <Scene icon={d.icon} action={d.action} />
+    case 'timeline': return <Timeline events={d.events} show_years={d.show_years} />
+    case 'venn': return <Venn {...d} />
+    case 'table': return <Table header={d.header} rows={d.rows} />
+    case 'cycle': case 'sequence': return <Steps kind={d.kind} steps={d.steps} />
     default: return null
   }
 }

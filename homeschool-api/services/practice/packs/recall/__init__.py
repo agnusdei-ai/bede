@@ -138,6 +138,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
         items.append(PracticeItem(
             kind="retrieval", target=error.category,
             prompt=item.prompt, expected_answer=item.teacher_correction.strip()[:200], hint=_hint(item.teacher_correction),
+            diagram=item.diagram,
         ))
 
     if not items:
@@ -152,7 +153,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
     for _, item in known[:room]:
         items.append(PracticeItem(
             kind="retrieval", target="recall.review",
-            prompt=item.prompt, expected_answer=item.student_response.strip()[:200],
+            prompt=item.prompt, expected_answer=item.student_response.strip()[:200], diagram=item.diagram,
         ))
 
     items = items[:max_items]

@@ -30,6 +30,7 @@ from pydantic import ValidationError
 
 from core.config import settings
 from models.practice import MAX_ITEMS_PER_SECTION, MAX_SECTIONS, GradedAssessment, ReadPhotosRequest
+from services.practice import diagrams
 from services.practice.packs import get_pack, subject_name
 from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
     PhotoRejected,
@@ -159,18 +160,11 @@ Rules:
 - If you cannot read something with confidence, give your best reading, lower "confidence",
   and say what is uncertain in "ask_parent".
 - "stimulus" describes a picture briefly in plain English (e.g. "picture: dog running").
-- "diagram" is null unless the problem's picture is one of these, given with its exact numbers:
-    {"kind": "fraction_bar"|"fraction_circle", "parts": int, "shaded": int}
-    {"kind": "array", "rows": int, "cols": int}
-    {"kind": "base_ten", "hundreds": int, "tens": int, "ones": int}
-    {"kind": "clock", "hour": 1-12, "minute": 0-59}
-    {"kind": "rectangle", "width": int, "height": int, "unit": str}
-    {"kind": "right_triangle", "base": int, "height": int, "unit": str}
-    {"kind": "number_line", "start": int, "end": int, "step": int, "marks": [int], "mark_labels": [str]}
-    {"kind": "bar_graph", "title": str, "bars": [{"label": str, "value": int}]}
-    {"kind": "coordinate_plane", "size": int, "four_quadrants": bool, "points": [{"label": str, "x": int, "y": int}]}
-  Count parts, dots, blocks and tick marks carefully; if you are unsure of a number, lower "confidence"
-  and say so in "ask_parent". Any other picture goes in "stimulus" only."""
+- "diagram" is null unless the question's picture can be given as one of these, with its exact numbers and words:
+""" + diagrams.PROMPT_SCHEMA + """
+  This is for any subject: an animal to name, a timeline, the water cycle, a table, a shape. Count parts,
+  dots, blocks and tick marks carefully; if you are unsure, lower "confidence" and say so in "ask_parent".
+  Any other picture (a photograph, a map, a drawing none of these fits) goes in "stimulus" only."""
 
 
 def _prompt(subject: str) -> str:

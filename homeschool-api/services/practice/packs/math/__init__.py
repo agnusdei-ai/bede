@@ -460,7 +460,7 @@ def find_strengths(assessment: GradedAssessment) -> list[Strength]:
         for item in section.items:
             if item.needs_parent() or item.teacher_mark == "unmarked":
                 continue
-            family = diagrams.FAMILY[item.diagram.kind] if item.diagram is not None else _family(item.prompt)
+            family = diagrams.FAMILY.get(item.diagram.kind) if item.diagram is not None else _family(item.prompt)
             if family:
                 families.setdefault(family, []).append(item)
     out = []

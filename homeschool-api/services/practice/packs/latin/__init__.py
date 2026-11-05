@@ -146,6 +146,13 @@ def _scene(noun_key: str, verb_key: str) -> tuple[str, str]:
     return prompt, answer
 
 
+def _scene_picture(noun_key: str, verb_key: str):
+    """The scene drawn, when Bede has a picture for the animal and the action."""
+    from services.practice import diagrams
+
+    return diagrams.parse({"kind": "scene", "icon": _NOUNS[noun_key][1]["gloss"], "action": _VERBS[verb_key][1]["scene"]})
+
+
 def _used_scenes(assessment: GradedAssessment) -> set[tuple[str, str]]:
     """(noun, verb) pairs the quiz itself showed, so practice avoids them."""
     used = set()
@@ -178,7 +185,8 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
         for verb in verbs:
             if verb in bank and verb in _VERBS and (noun, verb) not in taken:
                 prompt, answer = _scene(noun, verb)
-                items.append(PracticeItem(kind=kind, target=target, prompt=prompt, expected_answer=answer, hint=hint))
+                items.append(PracticeItem(kind=kind, target=target, prompt=prompt, expected_answer=answer, hint=hint,
+                                          diagram=_scene_picture(noun, verb)))
                 taken.add((noun, verb))
                 return True
         return False
@@ -232,6 +240,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
             items.append(PracticeItem(
                 kind="sentence_habit", target="core.instruction.format",
                 prompt="Answer in a whole sentence. " + prompt, expected_answer=answer,
+                diagram=_scene_picture(noun, verb),
             ))
         hints.append("Praise whole-sentence answers: \"Anas est.\" rather than \"anas\".")
 

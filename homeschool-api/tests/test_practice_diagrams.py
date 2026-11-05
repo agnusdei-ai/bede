@@ -176,3 +176,81 @@ def test_the_drafting_rules_name_the_diagram_vocabulary():
     assert '"diagram"' in rules and "never describe it in words instead" in rules
     for kind in ("fraction_bar", "clock", "array", "base_ten", "rectangle", "number_line", "coordinate_plane"):
         assert kind in rules
+
+
+# ── Pictures in every subject ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("raw", [
+    {"kind": "pictures", "groups": [{"icon": "apple", "count": 3}]},
+    {"kind": "scene", "icon": "duck", "action": "swimming"},
+    {"kind": "timeline", "events": [{"label": "Rome founded", "year": -753}, {"label": "Magna Carta", "year": 1215}]},
+    {"kind": "venn", "left": "Frogs", "right": "Fish", "both_items": ["live in water"]},
+    {"kind": "table", "header": ["Planet", "Moons"], "rows": [["Earth", "1"], ["Mars", "2"]]},
+    {"kind": "cycle", "steps": ["evaporation", "condensation", "?", "collection"]},
+    {"kind": "sequence", "steps": ["seed", "sprout", "plant"]},
+])
+def test_every_subject_has_pictures(raw):
+    assert diagrams.parse(raw) is not None
+
+
+@pytest.mark.parametrize("raw", [
+    {"kind": "pictures", "groups": [{"icon": "unicorn"}]},
+    {"kind": "scene", "icon": "duck", "action": "exploding"},
+    {"kind": "table", "header": ["a"], "rows": [["1", "2"]]},
+    {"kind": "cycle", "steps": ["x" * 30, "y"]},
+    {"kind": "timeline", "events": [{"label": "only one", "year": 1}]},
+])
+def test_pictures_outside_the_lists_are_refused(raw):
+    assert diagrams.parse(raw) is None
+
+
+def test_counting_pictures_is_worked_out_and_other_questions_go_to_the_adult():
+    apples = d(kind="pictures", groups=[{"icon": "apple", "count": 4, "label": "A"}, {"icon": "banana", "count": 2, "label": "B"}])
+    assert diagrams.answer(apples, "How many are in group A?") == "4"
+    assert diagrams.answer(apples, "Which group is fruit?") is None
+    assert diagrams.answer(d(kind="timeline", events=[{"label": "a", "year": 1}, {"label": "b", "year": 2}]), "Which came first?") is None
+
+
+def test_a_re_asked_recall_question_keeps_its_picture():
+    from models.practice import Diagnosis
+    from services.practice.packs import recall
+
+    cycle = {"kind": "cycle", "steps": ["evaporation", "?", "precipitation"]}
+    quiz = GradedAssessment.model_validate({"subject": "recall", "sections": [{"label": "Water", "items": [
+        {"number": 1, "prompt": "What goes in the blank?", "diagram": cycle, "student_response": "rain",
+         "teacher_mark": "incorrect", "teacher_correction": "condensation", "confidence": 1},
+        {"number": 2, "prompt": "Name the step after evaporation in the picture.", "diagram": cycle,
+         "student_response": "condensation", "teacher_mark": "correct", "confidence": 1},
+    ]}]})
+    practice = recall.generate_practice(Diagnosis(errors=recall.classify_errors(quiz)), quiz)
+    assert practice is not None
+    assert all(item.diagram is not None and item.diagram.kind == "cycle" for item in practice.items)
+
+
+def test_latin_practice_scenes_are_drawn():
+    import json as _json
+    from pathlib import Path
+    from models.practice import Diagnosis
+    from services.practice.packs import latin
+
+    golden = _json.loads(Path("services/practice/packs/latin/golden/latin_quiz_1.expected.json").read_text())
+    quiz = GradedAssessment.model_validate(golden["assessment"])
+    for section in quiz.sections:
+        for item in section.items:
+            item.ask_parent, item.confidence = None, 1.0
+    practice = latin.generate_practice(Diagnosis(errors=latin.classify_errors(quiz)), quiz)
+    scenes = [i for i in practice.items if i.diagram is not None]
+    assert scenes, "Latin scenes should be drawn"
+    for item in scenes:
+        assert item.diagram.kind == "scene"
+        assert item.diagram.icon in item.prompt  # the picture matches the words beside it
+
+
+def test_the_reader_and_drafter_share_one_picture_list_for_every_subject():
+    for text in (extract._RULES, generate._rules()):
+        assert diagrams.PROMPT_SCHEMA in text
+    for kind in ("pictures", "scene", "timeline", "venn", "table", "cycle", "sequence"):
+        assert kind in diagrams.PROMPT_SCHEMA
+    from models.practice import ACTIONS, ICONS
+    assert all(name in diagrams.PROMPT_SCHEMA for name in ICONS + ACTIONS)
+    assert "any subject" in generate._rules()

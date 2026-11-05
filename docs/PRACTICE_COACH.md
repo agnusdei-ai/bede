@@ -227,11 +227,23 @@ The core never changes when a subject is added. A pack is a folder under
 
 Register a new pack with one line in `packs/__init__.py`.
 
-**Picture problems (`services/practice/diagrams.py`, `Diagram.tsx`).** When a
-maths problem's picture is the problem, it carries a `diagram`: one of ten
-kinds (fraction bar or circle, array, base-ten blocks, clock, rectangle,
-right triangle, number line, bar graph, coordinate plane) holding only
-numbers and short labels (`models/practice.py`, `extra="forbid"`). The reader
+**Picture questions, in every subject (`services/practice/diagrams.py`,
+`Diagram.tsx`).** When a question's picture is the question, it carries a
+`diagram`: one of seventeen kinds holding only numbers and short labels
+(`models/practice.py`, `extra="forbid"`). For maths: fraction bar or circle,
+array, base-ten blocks, clock, rectangle, right triangle, number line, bar
+graph, coordinate plane. For any subject: pictures of things to name, sort or
+count (a fixed list of about a hundred animals, plants, weather, foods,
+objects, people and body parts, each drawn as a picture symbol), a scene (one
+thing doing one thing, which is how Latin's "Quid agit?" practice is drawn),
+a timeline (BC years as negative numbers), a Venn diagram, a table, a cycle
+(the water cycle, a life cycle) and a sequence of steps, where a step written
+"?" is drawn as a blank. The recall and reading packs re-ask a missed
+question with its own picture, and the Latin pack draws every practice
+scene. The reader and the drafting model are given one shared list
+(`diagrams.PROMPT_SCHEMA`), so the two cannot drift. A photograph, a map or a
+drawing none of these fits is still described in words: drawing it would
+need real images, which is a separate decision. The reader
 records it, the drafting rules ask for it, and the app draws it itself as SVG
 on screen and in print, so a model never writes markup into the page and the
 picture and its answer cannot disagree. `diagrams.answer` counts the answer

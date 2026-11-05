@@ -119,16 +119,8 @@ Rules:
 - Match the requested grade, level and kind. Use the question types the source uses, mixed sensibly.
 - Every question has a correct answer in "answer". For multiple_choice give 3 or 4 "options" and make "answer" exactly one of them. For true_false the options are ["True", "False"].
 - For a computation, write the problem as a plain expression with + − × ÷ and = (for example "48 ÷ 6 ="), so it can be checked.
-- When a maths question needs a picture (a shaded fraction, telling the time, an array, base-ten blocks, the area or perimeter of a shape, a number line, a graph, points on a grid), give it a "diagram" and ask about the picture ("What fraction of the bar is shaded?"). Bede draws the picture from the diagram, so never describe it in words instead, and never put the answer in the prompt. Use one of:
-  {"kind": "fraction_bar"|"fraction_circle", "parts": int, "shaded": int}
-  {"kind": "array", "rows": int, "cols": int}
-  {"kind": "base_ten", "hundreds": int, "tens": int, "ones": int}
-  {"kind": "clock", "hour": 1-12, "minute": 0-59}
-  {"kind": "rectangle", "width": int, "height": int, "unit": str}
-  {"kind": "right_triangle", "base": int, "height": int, "unit": str}
-  {"kind": "number_line", "start": int, "end": int, "step": int, "marks": [int], "mark_labels": [str]}
-  {"kind": "bar_graph", "title": str, "bars": [{"label": str, "value": int}]}
-  {"kind": "coordinate_plane", "size": int, "four_quadrants": bool, "points": [{"label": str, "x": int, "y": int}]}
+- When a question in any subject needs a picture (a shaded fraction, telling the time, the area of a shape, a number line, a graph, an animal or object to name, a scene, a timeline, a Venn diagram, a table, a cycle or the steps of a process), give it a "diagram" and ask about the picture. Bede draws the picture from the diagram, so never describe it in words instead, and never put the answer in the prompt or in the picture's own labels. Use one of:
+""" + diagrams.PROMPT_SCHEMA + """
 - Otherwise leave "diagram" null.
 - Keep every question age-appropriate and factual. If you are not sure of a fact, leave that question out.
 - Never include a person's name, a school, a teacher, a class or a date.

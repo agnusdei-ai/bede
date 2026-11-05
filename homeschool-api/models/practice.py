@@ -40,8 +40,9 @@ class _Strict(BaseModel):
 
 
 # ── Diagrams ──────────────────────────────────────────────────────────────────
-# A maths problem whose picture IS the problem (a shaded fraction, a clock, an
-# array of dots) carries one of these. It is a closed vocabulary of numbers and
+# A question whose picture IS the question, in any subject (a shaded
+# fraction, a clock, an animal to name, a timeline, the water cycle) carries
+# one of these. It is a closed vocabulary of numbers and
 # short labels, never markup: the app draws it itself (Diagram.tsx), so a model
 # can neither inject anything into the page nor draw a picture that disagrees
 # with the answer, and services/practice/diagrams.py can work the answer out.
@@ -138,13 +139,112 @@ class CoordinateDiagram(_Strict):
     points: List[PlanePoint] = Field(..., min_length=1, max_length=6)
 
 
+# Pictures of things, for any subject. A fixed list of names, each drawn by
+# the app as a picture symbol (Diagram.tsx's ICONS); a test keeps the lists equal.
+ICONS = (
+    "dog", "cat", "mouse", "bird", "duck", "fish", "horse", "cow", "pig", "sheep", "goat", "chicken",
+    "rabbit", "frog", "bee", "butterfly", "ant", "spider", "snake", "turtle", "lion", "tiger",
+    "elephant", "bear", "monkey", "owl", "whale", "wolf", "fox", "deer",
+    "tree", "flower", "leaf", "seedling", "sun", "moon", "star", "cloud", "rain", "snow", "lightning",
+    "rainbow", "water", "fire", "mountain", "volcano", "wave", "rock",
+    "apple", "banana", "grapes", "carrot", "bread", "cheese", "milk", "egg", "cake", "cookie",
+    "house", "castle", "ship", "boat", "car", "bus", "train", "plane", "bicycle", "book", "pencil",
+    "scroll", "crown", "ball", "hat", "shoe", "key", "bell", "lightbulb", "magnet", "compass",
+    "globe", "map", "coin",
+    "boy", "girl", "man", "woman", "baby", "farmer", "king", "queen",
+    "hand", "eye", "ear", "foot", "heart", "brain", "tooth", "bone",
+    "magnifier", "microscope", "thermometer", "battery", "plant",
+)
+ACTIONS = ("running", "swimming", "flying", "sleeping", "eating", "drinking", "singing", "walking", "reading", "writing")
+Icon = Literal[ICONS]  # type: ignore[valid-type]
+Action = Literal[ACTIONS]  # type: ignore[valid-type]
+_Short = Field(..., min_length=1, max_length=20)
+
+
+class PictureGroup(_Strict):
+    icon: Icon
+    count: int = Field(default=1, ge=1, le=12)
+    label: str = Field(default="", max_length=16)
+
+
+class PicturesDiagram(_Strict):
+    """Things to name, sort or count: "Which of these is an insect?",
+    "How many apples?", "Label A and B"."""
+    kind: Literal["pictures"]
+    groups: List[PictureGroup] = Field(..., min_length=1, max_length=6)
+
+
+class SceneDiagram(_Strict):
+    """One thing doing one thing: "A duck swimming. Quid agit?"."""
+    kind: Literal["scene"]
+    icon: Icon
+    action: Optional[Action] = None
+
+
+class TimelineEvent(_Strict):
+    label: str = Field(..., min_length=1, max_length=30)
+    year: int = Field(..., ge=-5000, le=2100)  # negative years are BC
+
+
+class TimelineDiagram(_Strict):
+    kind: Literal["timeline"]
+    events: List[TimelineEvent] = Field(..., min_length=2, max_length=8)
+    show_years: bool = True
+
+
+class VennDiagram(_Strict):
+    kind: Literal["venn"]
+    left: str = _Short
+    right: str = _Short
+    left_items: List[str] = Field(default_factory=list, max_length=6)
+    right_items: List[str] = Field(default_factory=list, max_length=6)
+    both_items: List[str] = Field(default_factory=list, max_length=6)
+
+    @field_validator("left_items", "right_items", "both_items")
+    @classmethod
+    def _short_items(cls, value: List[str]) -> List[str]:
+        if any(not 0 < len(v) <= 20 for v in value):
+            raise ValueError("each item is 1 to 20 characters")
+        return value
+
+
+class TableDiagram(_Strict):
+    kind: Literal["table"]
+    header: List[str] = Field(..., min_length=1, max_length=4)
+    rows: List[List[str]] = Field(..., min_length=1, max_length=6)
+
+    @field_validator("rows")
+    @classmethod
+    def _fits(cls, value: List[List[str]], info) -> List[List[str]]:
+        width = len(info.data.get("header") or [])
+        if any(len(r) != width or any(len(c) > 20 for c in r) for r in value):
+            raise ValueError("every row has one short cell per column")
+        return value
+
+
+class StepsDiagram(_Strict):
+    """A cycle (the water cycle, a life cycle) or a sequence (the steps of a
+    process). A step written "?" is a blank to fill in."""
+    kind: Literal["cycle", "sequence"]
+    steps: List[str] = Field(..., min_length=2, max_length=8)
+
+    @field_validator("steps")
+    @classmethod
+    def _short_steps(cls, value: List[str]) -> List[str]:
+        if any(not 0 < len(v) <= 20 for v in value):
+            raise ValueError("each step is 1 to 20 characters")
+        return value
+
+
 Diagram = Annotated[
     Union[FractionDiagram, ArrayDiagram, BaseTenDiagram, ClockDiagram, RectangleDiagram,
-          RightTriangleDiagram, NumberLineDiagram, BarGraphDiagram, CoordinateDiagram],
+          RightTriangleDiagram, NumberLineDiagram, BarGraphDiagram, CoordinateDiagram,
+          PicturesDiagram, SceneDiagram, TimelineDiagram, VennDiagram, TableDiagram, StepsDiagram],
     Field(discriminator="kind"),
 ]
 DIAGRAM_KINDS = ("fraction_bar", "fraction_circle", "array", "base_ten", "clock", "rectangle",
-                 "right_triangle", "number_line", "bar_graph", "coordinate_plane")
+                 "right_triangle", "number_line", "bar_graph", "coordinate_plane",
+                 "pictures", "scene", "timeline", "venn", "table", "cycle", "sequence")
 
 
 class AssessmentItem(_Strict):

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import './i18n'
-import Diagram, { diagramMarkup, type DiagramSpec } from './Diagram'
+import Diagram, { ACTIONS, ICONS, diagramMarkup, type DiagramSpec } from './Diagram'
 
 afterEach(cleanup)
 
@@ -18,6 +18,13 @@ const every: DiagramSpec[] = [
   { kind: 'number_line', start: 0, end: 10, step: 2, marks: [6], mark_labels: ['A'] },
   { kind: 'bar_graph', title: 'Pets', bars: [{ label: 'cats', value: 4 }, { label: 'dogs', value: 6 }] },
   { kind: 'coordinate_plane', size: 5, four_quadrants: false, points: [{ label: 'A', x: 3, y: 2 }] },
+  { kind: 'pictures', groups: [{ icon: 'apple', count: 3, label: 'A' }, { icon: 'bee', count: 1, label: 'B' }] },
+  { kind: 'scene', icon: 'duck', action: 'swimming' },
+  { kind: 'timeline', events: [{ label: 'Rome founded', year: -753 }, { label: 'Magna Carta', year: 1215 }], show_years: true },
+  { kind: 'venn', left: 'Frogs', right: 'Fish', left_items: ['legs'], right_items: ['fins'], both_items: ['live in water'] },
+  { kind: 'table', header: ['Planet', 'Moons'], rows: [['Earth', '1'], ['Mars', '2']] },
+  { kind: 'cycle', steps: ['evaporation', 'condensation', '?', 'collection'] },
+  { kind: 'sequence', steps: ['seed', 'sprout', 'plant'] },
 ]
 
 describe('drawn diagrams', () => {
@@ -56,6 +63,27 @@ describe('drawn diagrams', () => {
     expect(printed).toContain('&lt;script&gt;')
   })
 
+  it('draws pictures of things for any subject, and nothing for a name it does not know', () => {
+    const { container } = render(<Diagram d={{ kind: 'pictures', groups: [{ icon: 'apple', count: 3 }] }} />)
+    expect([...container.querySelectorAll('text')].filter((t) => t.textContent === ICONS.apple)).toHaveLength(3)
+    cleanup()
+    const scene = render(<Diagram d={{ kind: 'scene', icon: 'duck', action: 'swimming' }} />)
+    expect(scene.getByRole('img', { name: 'A picture of a duck swimming' })).toBeTruthy()
+    cleanup()
+    const unknown = render(<Diagram d={{ kind: 'scene', icon: 'unicorn' }} />)
+    expect(unknown.container.querySelector('svg')).toBeNull()
+  })
+
+  it('shows a blank step as a blank, and puts timeline events in order', () => {
+    const { container } = render(<Diagram d={{ kind: 'cycle', steps: ['rain', '?', 'clouds'] }} />)
+    expect([...container.querySelectorAll('rect')].some((r) => r.getAttribute('stroke-dasharray'))).toBe(true)
+    cleanup()
+    const line = render(<Diagram d={{ kind: 'timeline', events: [{ label: 'later', year: 1900 }, { label: 'earlier', year: -50 }], show_years: true }} />)
+    const texts = [...line.container.querySelectorAll('text')].map((t) => t.textContent)
+    expect(texts.indexOf('earlier')).toBeLessThan(texts.indexOf('later'))
+    expect(texts).toContain('50 BC')
+  })
+
   it('draws nothing for an unknown kind or no diagram', () => {
     const { container } = render(<Diagram d={{ kind: 'svg' } as unknown as DiagramSpec} />)
     expect(container.querySelector('svg')).toBeNull()
@@ -70,5 +98,8 @@ describe('drawn diagrams', () => {
     const py = readFileSync(resolve(__dirname, '../../homeschool-api/models/practice.py'), 'utf8')
     const kinds = py.match(/^DIAGRAM_KINDS = \(([^)]*)\)/m)?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
     expect(kinds.sort()).toEqual(every.map((d) => d.kind).sort())
+    const list = (name: string) => py.match(new RegExp(`^${name} = \\(([^)]*)\\)`, 'm'))?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
+    expect(list('ICONS').sort()).toEqual(Object.keys(ICONS).sort())
+    expect(list('ACTIONS').sort()).toEqual(Object.keys(ACTIONS).sort())
   })
 })

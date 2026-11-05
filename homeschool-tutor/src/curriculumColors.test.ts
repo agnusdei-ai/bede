@@ -94,7 +94,7 @@ function parseCurriculumCards(): { title: string; description: string }[] {
 
 /** The handful of entities these titles actually use. */
 function decode(s: string): string {
-  return s.replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ')
+  return s.replace(/&(?:amp|nbsp);/g, (entity) => entity === '&amp;' ? '&' : ' ')
 }
 
 function hslToHex(h: number, s: number, l: number): string {

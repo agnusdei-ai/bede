@@ -691,7 +691,7 @@ def test_resolve_local_only_never_returns_a_cloud_adapter_even_when_local_is_las
     )
     client = router.resolve_local_only(s)
     assert isinstance(client, OpenAICompatibleClient)
-    assert str(client._openai.base_url).startswith("http://gpu-box.lan")
+    assert str(client._openai.base_url) == "http://gpu-box.lan:8000/v1/"
 
 
 def test_resolve_local_only_builds_a_fresh_client_each_call():

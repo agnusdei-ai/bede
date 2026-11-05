@@ -23,6 +23,7 @@ import os
 import secrets
 import sys
 import threading
+import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs
@@ -105,13 +106,21 @@ def _read_local_ai_marker() -> dict | None:
     local Ollama model on the host, else None. Re-read from disk on every
     call (GET render + POST submit) rather than cached at import time, since
     REPO_DIR itself is only known once the container actually starts."""
-    path = os.path.join(REPO_DIR, LOCAL_AI_MARKER_NAME)
+    marker = Path(REPO_DIR) / LOCAL_AI_MARKER_NAME
+    if marker.is_symlink():
+        return None
     try:
-        with open(path) as f:
+        with marker.open(encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, ValueError):
         return None
-    if isinstance(data, dict) and data.get("base_url") and data.get("model"):
+    # Only Setup-Bede.ps1 writes this Windows-local Ollama endpoint. Do not
+    # permit arbitrary URLs or newline-bearing model names to become .env
+    # assignments, even if the transient marker was modified on disk.
+    if (isinstance(data, dict)
+            and data.get("base_url") == "http://host.docker.internal:11434/v1"
+            and isinstance(data.get("model"), str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}", data["model"])):
         return data
     return None
 
@@ -788,6 +797,37 @@ def validate(fields: dict) -> str:
     return ""
 
 
+
+def _save_configuration(fields: dict) -> None:
+    """Atomically persist the installer-required .env with 0600 permissions.
+
+    Docker Compose needs the local configuration in this format. Never expose
+    a newly created secret file with the process umask, and never follow a
+    symlink or allow the configured path outside the mounted repository.
+    """
+    repo = Path(REPO_DIR).resolve(strict=True)
+    env = Path(ENV_PATH)
+    backup = Path(ENV_PATH + ".backup")
+    if (env.name != ".env" or env.parent.resolve() != repo
+            or env.is_symlink() or backup.is_symlink()):
+        raise OSError("Unsafe Bede configuration path")
+
+    content = build_env_file(fields)
+    fd, temp_name = tempfile.mkstemp(prefix=".env-tmp-", dir=str(repo))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as output:
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        if env.exists():
+            os.chmod(env, 0o600)
+            os.replace(env, backup)
+        os.replace(temp_name, env)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # keep the parent's terminal quiet — errors still show via 500s
@@ -804,12 +844,16 @@ class Handler(BaseHTTPRequestHandler):
         # Whitelist against a fixed, known set of filenames rather than
         # trusting the path — closes off traversal (`../..`) even though
         # this container is short-lived and localhost-only.
-        if name not in _AUDIO_FILES:
+        if name == "welcome.wav":
+            path = AUDIO_DIR / "welcome.wav"
+        elif name == "success.wav":
+            path = AUDIO_DIR / "success.wav"
+        else:
             self.send_response(404)
             self.end_headers()
             return
-        path = AUDIO_DIR / name
-        if not path.is_file():
+        # Reject symlinked clips that would escape the bundled audio directory.
+        if not path.resolve().is_relative_to(AUDIO_DIR.resolve()) or not path.is_file():
             self.send_response(404)
             self.end_headers()
             return
@@ -911,11 +955,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send_html(render_form(error=error, values=fields), status=400)
             return
 
-        if os.path.exists(ENV_PATH):
-            os.replace(ENV_PATH, ENV_PATH + ".backup")
-        with open(ENV_PATH, "w", encoding="utf-8", newline="\n") as f:
-            f.write(build_env_file(fields))
-        os.chmod(ENV_PATH, 0o600)
+        try:
+            _save_configuration(fields)
+        except OSError:
+            self.send_error(500, "Unable to save Bede configuration securely")
+            return
 
         # Transient install-time state, not something a family should ever
         # see lying around afterward — consumed above (build_env_file reads

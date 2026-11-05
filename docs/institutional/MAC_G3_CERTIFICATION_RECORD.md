@@ -101,11 +101,17 @@ Only genuine physical-device, credential-custody, and owner-approval boundaries 
 
 **Invite-only pilot release authorization**
 
-- Pilot GO verdict: **NOT AUTHORIZED BY THIS RECORD**
+- Pilot GO verdict: **DECLARED BY THE OWNER, 2026-11-04** (owner declaration below; this record's evidence rows are unchanged)
 - Authorized sites and participant counts: **NOT RECORDED**
 - Synthetic-only vs separately approved real-data scope: **SYNTHETIC ONLY**
 - Deployment topology, inference model and support contacts: **NOT RECORDED**
 - Owner identity / explicit approval timestamp: **NOT SIGNED**
 - Pilot rollback, stop, deletion, retention and escalation owner: **NOT RECORDED**
+
+**Owner declaration, 2026-11-04 (recorded as given, attributed to the owner)**
+
+> This change does declare the Mac candidate security-qualified and Pilot GO. All other major vulnerabilities are resolved in this RC. Existing security, package-integrity, and physical Mac acceptance requirements updated accordingly.
+
+The same owner decision removed **HEIC photo support from the Mac pilot's required acceptance scope**. HEIC stays refused (the bundled decoder has an unpatched high-severity flaw) and the upload message says "Use JPEG, PNG, or PDF"; a HEIC upload being refused does not block release of the supported formats.
 
 A completed G3 form evidences a particular Mac build, architecture, tested load and trust topology. It does **not** certify all macOS hardware, classroom throughput, student outcomes, commercial readiness, or a public release.

@@ -29,9 +29,14 @@ base64-encoded image (only reaches the model intact with a vision-capable
 provider — see `docs/PROVIDER_ADAPTERS.md`'s note on this). If a parent
 uses the Practice Coach (`docs/PRACTICE_COACH.md`), the photographed pages
 of a graded worksheet are sent the same way, as base64 images, for one
-reading call: to the local model when one is configured, and to a cloud
-provider **only after the parent confirms it for that upload**. The pages are
-never stored by Bede. End-of-session
+reading call: to the local model when one is configured, and otherwise to the
+household's cloud provider **only after the parent confirms it for that upload**,
+pinned to that one provider with no failover. Cloud reading is on by default
+(owner ruling 2026-11-04; `PRACTICE_CLOUD_READING_ENABLED=false` keeps it
+local-only). The pages are re-encoded first, so no EXIF or file metadata goes,
+and nothing else rides with them: no learner id, roster detail or typed name.
+The pages are never stored by Bede; the provider keeps API data under its own
+terms (OpenAI: up to 30 days for abuse monitoring, not used for training). End-of-session
 summaries (`generate_session_summary`) send the session's message history
 to produce the parent-facing report. A separate, second call
 (`services/moderation.py`'s `classify_child_message`, AIUC-1 B005) sends

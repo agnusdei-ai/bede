@@ -83,8 +83,13 @@
   </tr>
   <tr>
     <td>Un tema o examen que escribes o pegas en Practice Coach para preparar un examen <em>(opcional)</em></td>
-    <td>Se envía a OpenAI solo después de que marques la casilla aceptándolo, para preparar el examen y revisar sus respuestas. Nunca se envía a un proveedor de respaldo. En esta demo no se leen fotos de exámenes.</td>
+    <td>Se envía a OpenAI solo después de que marques la casilla aceptándolo, para preparar el examen y revisar sus respuestas. Nunca se envía a un proveedor de respaldo.</td>
     <td><strong>Nunca lo almacenamos.</strong> Se usa para esa sola solicitud y luego se descarta.</td>
+  </tr>
+  <tr>
+    <td>Fotos o un PDF escaneado de un examen que subes a Practice Coach <em>(opcional)</em></td>
+    <td>Se reconstruyen en nuestro servidor como imágenes simples, sin la ubicación de la foto, los datos de la cámara ni otros metadatos, y se envían a OpenAI solo después de que marques la casilla aceptándolo, para que lea la página. Con las imágenes no va nada más: ni el nombre que escribiste ni un identificador del alumno. Nunca se envían a un proveedor de respaldo. Una página puede mostrar el nombre escrito a mano de tu hijo; puedes recortarlo antes, y te sugerimos recortar un nombre completo o un número de alumno.</td>
+    <td><strong>Nunca las almacenamos.</strong> Las imágenes se mantienen en memoria durante esa solicitud y luego se descartan. OpenAI no usa los datos de su API para entrenar sus modelos y puede conservarlos hasta 30 días para revisar usos indebidos, según sus condiciones de API.</td>
   </tr>
   <tr>
     <td>Señales anonimizadas de patrones de interacción — qué herramientas de enseñanza se activaron, número de turnos, qué materias se visitaron/completaron</td>
@@ -170,8 +175,13 @@
     genera como audio con el servicio de texto a voz de OpenAI.</li>
   <li><strong>Un tema o examen escrito o pegado en Practice Coach</strong> <em>(opcional)</em>
     — se envía a OpenAI solo después de que marques la casilla aceptándolo, para preparar un
-    examen y revisar sus respuestas, y nunca a un proveedor de respaldo. No lo almacenamos. En
-    esta demo no se leen fotos de exámenes.</li>
+    examen y revisar sus respuestas, y nunca a un proveedor de respaldo. No lo almacenamos.</li>
+  <li><strong>Fotos o un PDF escaneado de un examen subidos a Practice Coach</strong>
+    <em>(opcional)</em> — se reconstruyen como imágenes simples sin metadatos y se envían a
+    OpenAI solo después de que marques la casilla aceptándolo, para que lea la página, y nunca a
+    un proveedor de respaldo. No las almacenamos. OpenAI puede conservar los datos de su API
+    hasta 30 días para revisar usos indebidos, según sus condiciones. Una página puede mostrar el
+    nombre escrito a mano de tu hijo; puedes recortarlo antes.</li>
   <li><strong>Señales anonimizadas de patrones de interacción</strong> (qué herramientas de
     enseñanza se usaron, cuántos turnos, qué materias) — vinculadas de forma criptográfica para
     que no puedan rastrearse hasta tu hijo o hija, y que nunca incluyen lo que realmente se

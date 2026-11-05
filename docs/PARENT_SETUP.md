@@ -1184,15 +1184,23 @@ graded quiz**. Choose the subject that matches the quiz:
 - **Latin**.
 
 1. **Choose the subject and photograph the pages.** You can add up to six
-   pages, as JPEG or PNG. The card tells you where the photos will be read:
+   pages, as JPEG, PNG, WebP or AVIF photos or a scanned PDF. The card tells
+   you where the photos will be read:
    - **On this computer's own AI model**, if your install has one. Nothing
      is sent anywhere else.
    - **By your AI provider** (for example OpenAI), if there is no local
      model. You must tick the box agreeing to that for this upload. Without
-     the tick, nothing is sent.
+     the tick, nothing is sent. The card says how long that provider may
+     keep the page images (OpenAI: up to 30 days, to check for misuse; it
+     does not train on them). Only the page images go, with their photo
+     details removed; no name you typed and no learner ID go with them. A
+     first name on the page is fine. If the page shows a full name or a
+     student number, you can crop it out before uploading. A school or
+     family install can turn cloud photo reading off with
+     `PRACTICE_CLOUD_READING_ENABLED=false`.
 
-   Bede keeps only what it reads off the page, never the photos, and it does
-   not record names, schools, teachers or dates.
+   Bede does not save the photos, and it does not record names, schools,
+   teachers or dates from them.
 2. **Check the reading.** You'll see every question with your child's answer
    and the teacher's mark, all editable. Anything Bede wasn't sure of is
    highlighted with the reason, for example "the macron on the ī is
@@ -1224,13 +1232,14 @@ graded quiz**. Choose the subject that matches the quiz:
 A circle left white for *alba* (white) on a colour question is a correct
 answer, and Bede treats it as one.
 
-**What you can upload.** Photos (JPEG, PNG, or iPhone HEIC) or a PDF of
-scanned pages, six pages in all and 6 MB a file. Bede checks each file and
-rebuilds every page as a plain image before anything reads it, and refuses PDFs
-that carry scripts, attachments, forms or a password, and any PDF page that is
-more than one scanned picture: typed or drawn marks, comments or highlights, or
-a second image would be lost, so photograph or scan the marked-up paper itself
-(or print the PDF to an image) instead. This is file validation and hardening, not a promise that a
+**What you can upload.** Photos (JPEG, including the multi-picture files some
+Android cameras save, PNG, WebP or AVIF) or a PDF of scanned pages, six pages
+in all and 6 MB a file. iPhone photos are sent as JPEG automatically. HEIC
+photos cannot be read: use JPEG, PNG, or PDF. Bede checks each file, draws
+every PDF page the way you would see it (so scanned layers, typed text and a
+teacher's marks or comments are all kept), and rebuilds every page as a plain
+image before anything reads it. It refuses PDFs that carry scripts,
+attachments, forms or a password. This is file validation and hardening, not a promise that a
 file is free of malware. The photos are not saved to the database or a file by
 Bede; they are held in memory while the request runs. If you run a clamd on
 the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
@@ -1266,8 +1275,8 @@ never scores a child's faith.
 
 If your install has no AI model of its own, a quiz drafted from a typed topic
 or pasted text can still go to your AI provider, after you tick the box
-naming it. It goes to that provider only, never to a backup. Photos need the
-separate photo setting described above.
+naming it. It goes to that provider only, never to a backup. Photos follow
+the same rules as reading a quiz, described above.
 
 Coming next: approved practice will appear in your child's ordinary Bede
 lesson, followed by short re-checks after 3 and 7 days. Until then, use

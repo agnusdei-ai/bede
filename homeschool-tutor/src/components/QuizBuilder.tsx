@@ -12,7 +12,9 @@ import {
   type QuizOptions,
 } from '../services/api'
 
-const ACCEPT = 'image/jpeg,image/png,application/pdf,.pdf'
+// HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
+// HEIC decoder is held back until its security fix ships.
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
 const MAX_PAGES = 6
 
 function readFile(file: File): Promise<string> {
@@ -210,6 +212,12 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
                   <span>{t('quizBuilder.cloud', { provider: provider ?? '' })}</span>
                 </label>
+              )}
+              {usesCloud && files.length > 0 && (
+                <>
+                  <p className="text-xs text-gray-600">{t('practiceCoach.cloudRetention', { provider: provider ?? '' })}</p>
+                  <p className="text-xs text-gray-600">{t('practiceCoach.cropTip')}</p>
+                </>
               )}
               {noReader && <p className="text-xs text-madder-800">{t(teacher ? 'quizBuilder.noLocalModel' : 'quizBuilder.noReader')}</p>}
               <button type="button" onClick={() => void draft()} disabled={!canDraft}

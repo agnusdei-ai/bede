@@ -20,10 +20,10 @@ const CONFIDENCE_FLOOR = 0.75
 
 /** What the file picker offers. The server decides the real type from the file's
  *  bytes (never from this list or the filename), so this only shapes the dialog.
- *  HEIC is withheld while the bundled native decoder lacks security fixes.
- *  The API also refuses HEIC before native decoding. A PDF counts for every page it holds. */
+ *  HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
+ *  HEIC decoder is held back until its security fix ships. A PDF counts for every page it holds. */
 export const PRACTICE_ACCEPT =
-  'image/jpeg,image/png,application/pdf,.pdf'
+  'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
 
 type Stage = 'start' | 'reading' | 'review' | 'planning' | 'plan' | 'done'
 
@@ -225,6 +225,12 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                   <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
                   <span>{t('practiceCoach.routeCloud', { provider: route?.cloud_provider ?? '' })}</span>
                 </label>
+              )}
+              {usesCloud && (
+                <>
+                  <p className="text-xs text-gray-600">{t('practiceCoach.cloudRetention', { provider: route?.cloud_provider ?? '' })}</p>
+                  <p className="text-xs text-gray-600">{t('practiceCoach.cropTip')}</p>
+                </>
               )}
               {noReader && <p className="text-xs text-madder-800">{t('practiceCoach.routeNone')}</p>}
 

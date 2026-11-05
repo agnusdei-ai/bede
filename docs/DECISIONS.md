@@ -2296,9 +2296,17 @@ provider choice, not this feature's).
   redaction or a release gate. Cropping is suggested for a full name or a
   student number, never required. Only the re-encoded images go: no learner
   id, roster detail or file metadata.
-- **More phone formats.** WebP, AVIF and multi-picture JPEG are read; scanner
-  PDFs saved as stacked image layers are combined. HEIC stays refused until a
-  patched decoder ships, and iPhones send a JPEG copy meanwhile.
+- **More phone formats.** WebP, AVIF and multi-picture JPEG are read. HEIC
+  stays refused until a patched decoder ships and the check is never
+  bypassed; the message says "Use JPEG, PNG, or PDF", iPhones send a JPEG
+  copy, HEIC is out of the Mac pilot's acceptance scope, and a refused HEIC
+  never blocks the supported formats.
+- **PDF pages are rendered, not taken apart.** No assumption about how many
+  images a page holds: each page is drawn with pdfium inside the existing
+  size, page-count, memory and time limits, and the rendered page is what is
+  validated. A real three-layer scanner PDF is the regression pattern; a
+  generated copy of its structure is the committed fixture, and the real scan
+  stays out of the public repository (owner direction).
 
 ---
 

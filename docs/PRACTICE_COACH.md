@@ -124,10 +124,13 @@ settled, before anything reaches a model.
   `libheif 1.23.6`; upstream libheif 1.23.7 (October 26, 2026) fixes
   multiple high-severity vulnerabilities. HEIC/HEIF is refused before any
   native decode unless the *linked* libheif reports 1.23.7 or newer, and no
-  pillow-heif release bundling it existed on 2026-11-04. The file picker
-  leaves HEIC out on purpose, so an iPhone hands over a JPEG copy; on Android,
-  a camera set to save HEIF can be switched to JPEG, and the refusal message
-  says so. The gate lifts on its own once a patched pillow-heif is pinned.
+  pillow-heif release bundling it existed on 2026-11-04. A HEIC upload is
+  refused with "HEIC photos cannot be read. Use JPEG, PNG, or PDF." The file
+  picker leaves HEIC out on purpose, so an iPhone hands over a JPEG copy.
+  HEIC is not part of the Mac pilot's acceptance scope (owner ruling
+  2026-11-04), and a refused HEIC never blocks the supported formats. The
+  gate lifts on its own once a patched pillow-heif is pinned; it is never
+  bypassed.
   Independent native decoder review is still required before enabling HEIC
   in a release. Python package audit alone is not sufficient evidence.
 - **Images are fully decoded and re-encoded** with Pillow into a fresh PNG: the pixel count is
@@ -136,31 +139,26 @@ settled, before anything reaches a model.
   followed by a real reload, EXIF rotation is applied, and metadata plus anything
   appended after the image (a polyglot payload) does not survive. Pages are
   scaled down to 3,000 px a side.
-- **PDFs are never rendered.** They are parsed with pypdf and refused if
-  encrypted (even with an empty user password) or if anything in the object
-  graph, object streams and hex-escaped names included, is `/JavaScript`,
-  `/JS`, `/Launch`, `/EmbeddedFile(s)`, `/OpenAction`, `/AA`, `/AcroForm`,
-  `/XFA`, `/RichMedia`, `/SubmitForm`, `/ImportData` or `/GoToE`. Only the
-  scanned images on each page are taken out and re-encoded like any photo, and
-  **only from a page that is nothing but scanned pictures**: the page's content
-  stream is read with pypdf and the page is refused (with "photograph or scan
-  the marked-up paper, or print the PDF to an image") if it draws visible text,
-  paints any path or shading, uses an inline image or a form XObject, or
-  carries any annotation other than a plain link (comments, highlights, stamps
-  and typed-in marks would otherwise be dropped silently, and the teacher's
-  marks are part of what is read). **A page saved as stacked layers is
-  combined, not refused** (since 2026-11-04): many office scanners (Canon,
-  Xerox and others, "compact" or "high compression" PDF) store one page as a
-  background picture plus black-and-white ink layers, and those are drawn
-  onto one canvas the way a viewer would, honouring each layer's position and
-  ink colour. At most four layers; a rotated, skewed or mirrored layer, or an
-  ink colour in a colour space this does not interpret, refuses the page
-  rather than guessing. Each layer is size-capped before decoding and a
-  Flate-wrapped layer is inflated against a fixed bound. An invisible OCR
-  text layer (text render mode 3), links, clipping and marked-content
-  operators are allowed. Any parse problem refuses. An image in a format other
-  than JPEG or 8-bit gray/RGB is also refused with a plain message; there is no
-  rasteriser here.
+- **PDFs are rendered, and the rendered page is what is checked.** pypdf
+  first refuses an encrypted PDF (even with an empty user password) or one
+  where anything in the object graph, object streams and hex-escaped names
+  included, is `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile(s)`,
+  `/OpenAction`, `/AA`, `/AcroForm`, `/XFA`, `/RichMedia`, `/SubmitForm`,
+  `/ImportData` or `/GoToE`. Every image in the file is then held to the photo
+  pixel cap and every compressed stream is inflated against a fixed bound
+  (an image: its declared size; anything else: 32 MB) **before** anything
+  renders, because a renderer inflates whatever a page asks for. Each page is
+  then drawn with **pdfium** (`pypdfium2`, the PDF engine Chrome ships) at no
+  more than 3,000 px a side, annotations drawn and form fields not, and the
+  result is re-encoded like any photo. So a scanner's stacked layers, typed
+  text, drawn marks and a teacher's comments all survive, whatever the page is
+  built from (owner ruling 2026-11-04: no assumption about how many images a
+  page holds). A page that renders blank is refused. pdfium is not
+  thread-safe and two uploads may decode at once, so rendering is serialised
+  behind one lock. A generated regression fixture
+  (`tests/practice_scanner_fixture.py`) is built exactly like a real
+  three-layer office-scanner PDF (background, white cleaning mask, CCITT ink
+  mask); the real scan it copies stays out of this public repository.
 - **Limits:** 6 MB a file, 6 pages in total across the upload, the pixel and
   decoded-memory caps above (a decoded page is at most pixels x 4 bytes), a
   25-second processing time per file, and at most two decode jobs at once

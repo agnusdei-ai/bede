@@ -66,7 +66,7 @@
     "cloud": "I agree to send these pages to {{provider}} to be read.",
     "noReader": "Reading quiz photos needs Bede's own AI model, on a family or school install.",
     "photos": "Choose up to {{max}} image files or scanned PDFs",
-    "photosHint": "JPEG, PNG, WebP, AVIF or a scanned PDF. iPhone photos are sent as JPEG. PDFs count their scanned pages toward the six-page limit.",
+    "photosHint": "JPEG, PNG, WebP, AVIF or a PDF. iPhone photos are sent as JPEG; HEIC cannot be read, so use JPEG, PNG, or PDF. PDFs count their pages toward the six-page limit.",
     "cropTip": "You can crop out anything you would rather not send, such as a full name or a student number. A first name is fine.",
     "cloudRetention": "{{provider}} may keep the page images for up to 30 days to check for misuse, under its own API terms. Bede does not save them.",
     "wordBank": "Word bank",

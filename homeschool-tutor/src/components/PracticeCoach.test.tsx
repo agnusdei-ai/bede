@@ -243,9 +243,11 @@ describe('PDF and iPhone uploads', () => {
 
   it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
     await openAndPick()
-    expect(screen.getByText(/a PDF of scanned pages, 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/or a PDF, 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/HEIC photos cannot be read: use JPEG, PNG, or PDF/)).toBeTruthy()
+    expect(screen.getByText(/scanned layers, typed text and a teacher's marks are all kept/)).toBeTruthy()
     expect(screen.getByText(/iPhone photos are sent as JPEG/)).toBeTruthy()
-    expect(screen.getByText(/scripts, attachments, forms or a password are refused/)).toBeTruthy()
+    expect(screen.getByText(/PDFs with scripts, attachments, forms or a password are refused/)).toBeTruthy()
     expect(screen.getByText(/not saved to the database or a file by Bede; they are held in memory while the request runs/)).toBeTruthy()
     expect(document.body.textContent).not.toMatch(/never the photos|virus-free|malware-free/i)
   })
@@ -255,7 +257,7 @@ describe('PDF and iPhone uploads', () => {
     render(<PracticeCoach token="t" studentName="Alex" />)
     fireEvent.click(screen.getByRole('button', { name: /Comenzar|Empezar|Iniciar/ }))
     await screen.findByRole('option', { name: 'Latin' })
-    expect(screen.getByText(/PDF de páginas escaneadas/)).toBeTruthy()
+    expect(screen.getByText(/Cada página del PDF se dibuja como usted la vería/)).toBeTruthy()
     expect(screen.getByText(/no guarda las fotos en la base de datos ni en un archivo/)).toBeTruthy()
   })
 })

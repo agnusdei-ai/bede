@@ -15,13 +15,17 @@ a file is free of malware.
   `verify()` is followed by a real reload, EXIF rotation is applied and then
   every piece of metadata is dropped with the original container, so a
   polyglot's appended payload does not survive.
-* A PDF is never rendered. It is parsed with pypdf, refused outright if it is
-  encrypted or carries any active-content or attachment marker (JavaScript,
-  Launch, embedded files, open actions, forms, rich media, submit/import
-  actions), checked across the whole object graph including object streams and
-  against hex-escaped names; only the scanned page IMAGES inside it are taken
-  out and then re-encoded exactly like an uploaded image. A PDF page that is
-  text or vector drawing (no scanned image) is refused.
+* A PDF is checked with pypdf first: refused outright if it is encrypted or
+  carries any active-content or attachment marker (JavaScript, Launch,
+  embedded files, open actions, forms, rich media, submit/import actions),
+  across the whole object graph including object streams and hex-escaped
+  names. Every image is held to the photo pixel cap and every compressed
+  stream is inflated against a fixed limit before anything renders. Each page
+  is then RENDERED with pdfium (the PDF engine Chrome ships) at no more than
+  3,000 px a side, with annotations drawn and form fields not, so scanned
+  layers, typed text and drawn marks all survive; the rendered page is what is
+  validated (a blank result is refused) and re-encoded like a photo. pdfium is
+  not thread-safe, so rendering is serialised behind one lock.
 * Limits: bytes per file, total pages, pixels and side length, decoded memory
   (pixels x channels), PDF object count, a per-upload processing time, and a
   semaphore bounding how many decode jobs run at once.
@@ -45,13 +49,15 @@ import binascii
 import io
 import re
 import struct
+import threading
 import warnings
 import zlib
 
 import pillow_heif
+import pypdfium2 as pdfium
 from PIL import Image, ImageOps
 from pypdf import PdfReader
-from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject
+from pypdf.generic import ArrayObject, DictionaryObject, IndirectObject, StreamObject
 
 from core.config import settings
 from core.scanner_url import ScannerUrlRefused, parse_scanner_url
@@ -159,16 +165,6 @@ def reencode_image(raw: bytes, expect: str) -> bytes:
         raise bad from exc
 
 
-def image_from_raw(w: int, h: int, channels: int, data: bytes) -> bytes:
-    """8-bit gray/RGB pixels from a scanned PDF page -> PNG."""
-    _check_size(w, h)
-    if len(data) != w * h * channels:
-        raise PhotoRejected("A scanned page inside the PDF is in a format that cannot be read.")
-    out = io.BytesIO()
-    Image.frombytes("L" if channels == 1 else "RGB", (w, h), data).save(out, format="PNG")
-    return reencode_image(out.getvalue(), "PNG")
-
-
 # ── PDF ───────────────────────────────────────────────────────────────────────
 
 FORBIDDEN_PDF_NAMES = frozenset({
@@ -216,110 +212,6 @@ def _refuse_active_content(reader: PdfReader, raw: bytes) -> None:
                 stack.append(value)
         elif isinstance(obj, ArrayObject):
             stack.extend(obj)
-
-
-_MARKED_PAGE = PhotoRejected(
-    "A page in this PDF has typed or drawn marks, comments or notes on top of the scan, and they would be lost. "
-    "Please photograph or scan the marked-up paper itself, or print the PDF to an image."
-)
-_NOT_A_SCAN = PhotoRejected(
-    "A page in this PDF is not a scanned photo (text and drawn pages cannot be read here). "
-    "Please scan or photograph the paper instead."
-)
-_ODD_LAYOUT = PhotoRejected(
-    "A scanned page in this PDF is laid out in a way that cannot be read; "
-    "please export the pages as JPEG or PNG photos."
-)
-# A scanner may save one page as a few stacked pictures: a background plus
-# black-and-white layers for the ink (Canon, Xerox and others call this
-# compact or high-compression PDF). Those layers are combined into one image.
-MAX_PDF_LAYERS = 4
-# Operators that only set state, build or clip a path without painting it, or mark content.
-_STATE_OPS = frozenset({
-    b"q", b"Q", b"cm", b"gs", b"w", b"J", b"j", b"M", b"d", b"ri", b"i",
-    b"g", b"G", b"rg", b"RG", b"k", b"K", b"cs", b"CS", b"sc", b"SC", b"scn", b"SCN",
-    b"m", b"l", b"c", b"v", b"y", b"h", b"re", b"W", b"W*", b"n",
-    b"BMC", b"BDC", b"EMC", b"MP", b"DP",
-})
-_TEXT_STATE_OPS = frozenset({b"BT", b"ET", b"Tf", b"Td", b"TD", b"Tm", b"T*", b"Tc", b"Tw", b"Tz", b"TL", b"Ts"})
-_TEXT_SHOW_OPS = frozenset({b"Tj", b"TJ", b"'", b'"'})
-
-
-def _matmul(m, n):
-    """PDF matrix product m x n, each as (a, b, c, d, e, f)."""
-    a, b, c, d, e, f = m
-    a2, b2, c2, d2, e2, f2 = n
-    return (a * a2 + b * c2, a * b2 + b * d2, c * a2 + d * c2, c * b2 + d * d2,
-            e * a2 + f * c2 + e2, e * b2 + f * d2 + f2)
-
-
-def _placed_images(page):
-    """Every image a page draws, with where it is drawn and the fill colour in force.
-
-    Proves nothing else is drawn or annotated first. Refuses visible text (an
-    invisible OCR layer, text render mode 3, is fine), path painting, shadings,
-    inline images, form XObjects, more than MAX_PDF_LAYERS images, and any
-    annotation other than a plain link. Any parse problem refuses too.
-    Returns (image, matrix, fill) triples; fill is an RGB tuple, or None when
-    the fill was set in a colour space this does not interpret.
-    """
-    try:
-        for annot in page.get("/Annots") or []:
-            if annot.get_object().get("/Subtype") != "/Link":
-                raise _MARKED_PAGE
-        xobjects = page["/Resources"].get_object()["/XObject"].get_object()
-        contents = page.get_contents()
-        if contents is None:
-            raise _NOT_A_SCAN
-        placed, saved = [], []
-        state = (0, (1.0, 0.0, 0.0, 1.0, 0.0, 0.0), (0, 0, 0))  # render mode, CTM, fill
-        for operands, op in contents.operations:
-            mode, ctm, fill = state
-            if op == b"q":
-                saved.append(state)
-            elif op == b"Q":
-                state = saved.pop() if saved else (0, (1.0, 0.0, 0.0, 1.0, 0.0, 0.0), (0, 0, 0))
-            elif op == b"cm":
-                state = (mode, _matmul(tuple(float(v) for v in operands), ctm), fill)
-            elif op == b"g":
-                level = round(float(operands[0]) * 255)
-                level = min(255, max(0, level))
-                state = (mode, ctm, (level, level, level))
-            elif op == b"rg":
-                state = (mode, ctm, tuple(min(255, max(0, round(float(v) * 255))) for v in operands))
-            elif op in (b"k", b"cs", b"sc", b"scn"):
-                state = (mode, ctm, None)
-            if op in _STATE_OPS or op in _TEXT_STATE_OPS:
-                continue
-            if op == b"Tr":
-                state = (int(operands[0]), ctm, fill)
-            elif op in _TEXT_SHOW_OPS:
-                if mode != 3:
-                    raise _MARKED_PAGE
-            elif op == b"Do":
-                target = xobjects[operands[0]].get_object()
-                if target.get("/Subtype") != "/Image":
-                    raise _MARKED_PAGE
-                placed.append((target, ctm, fill))
-                if len(placed) > MAX_PDF_LAYERS:
-                    raise _ODD_LAYOUT
-            else:  # painting, shading, inline image, type-3 glyph ops, anything unknown
-                raise _MARKED_PAGE
-        if not placed:
-            raise _NOT_A_SCAN
-        return placed
-    except PhotoRejected:
-        raise
-    except Exception as exc:  # fail closed on any parse problem
-        raise _MARKED_PAGE from exc
-
-
-def _placed_image(page):
-    """The ONE image a page draws (see _placed_images)."""
-    placed = _placed_images(page)
-    if len(placed) > 1:
-        raise _MARKED_PAGE
-    return placed[0][0]
 
 
 def _bounded_flate_image(x, expected: int, height: int) -> bytes:
@@ -380,54 +272,78 @@ def _bounded_flate_image(x, expected: int, height: int) -> bytes:
     return decoded if predictor == 1 else x.get_data()
 
 
-def _page_image(page) -> bytes:
-    placed = _placed_images(page)
-    if len(placed) == 1 and not placed[0][0].get("/ImageMask"):
-        return _single_image(placed[0][0])
-    return _composite(page, placed)
-
-
 _JPEG_IN_FLATE_LIMIT = 4 * MAX_PAGE_BYTES  # a JPEG wrapped in Flate cannot be larger than this
+_STREAM_INFLATE_LIMIT = 32 * 1024 * 1024    # any other compressed stream (page content, fonts)
+_BLANK_PAGE = PhotoRejected("A page in this PDF came out blank. Please scan or photograph the paper again.")
+# pdfium is not safe to call from two threads at once, and up to two uploads
+# are decoded in parallel (MAX_CONCURRENT_JOBS), so all rendering is serialised.
+_PDFIUM_LOCK = threading.Lock()
 
 
-def _filters(x) -> list:
+def _filters(x) -> list[str]:
     filt = x.get("/Filter")
     if filt is None:
         return []
-    return [str(f) for f in filt] if isinstance(filt, list) else [str(filt)]
+    filt = filt.get_object() if isinstance(filt, IndirectObject) else filt
+    return [str(f) for f in filt] if isinstance(filt, ArrayObject) else [str(filt)]
 
 
-def _layer(x) -> Image.Image:
-    """Decode one image layer of a scanned page, bounded before decoding."""
-    w, h = int(x.get("/Width", 0)), int(x.get("/Height", 0))
-    _check_size(w, h)
-    filters = _filters(x)
-    if x.get("/ImageMask"):
-        if filters not in ([], ["/CCITTFaxDecode"], ["/FlateDecode"]) or int(x.get("/BitsPerComponent", 1)) != 1:
-            raise _ODD_LAYOUT
-        if filters == ["/FlateDecode"]:
-            _bounded_flate_image(x, ((w + 7) // 8) * h, h)
-        return x.decode_as_image()
-    if filters in (["/DCTDecode"], ["/FlateDecode", "/DCTDecode"]):
-        if filters[0] == "/FlateDecode":
-            jpeg = _bounded_inflate(x, _JPEG_IN_FLATE_LIMIT)
-        else:
-            jpeg = x.get_data()
-        img = Image.open(io.BytesIO(jpeg), formats=("JPEG",))
-        _check_size(*img.size)
-        img.draft("RGB", (MAX_OUTPUT_SIDE, MAX_OUTPUT_SIDE))
-        img.load()
-        return img
-    if filters in ([], ["/FlateDecode"], ["/CCITTFaxDecode"]):
-        space = x.get("/ColorSpace")
-        bits = int(x.get("/BitsPerComponent", 0))
-        if "/Decode" in x or space not in ("/DeviceGray", "/DeviceRGB") or bits not in (1, 8):
-            raise _ODD_LAYOUT
-        if filters == ["/FlateDecode"]:
-            row = (w + 7) // 8 if bits == 1 else w * (1 if space == "/DeviceGray" else 3)
-            _bounded_flate_image(x, row * h, h)
-        return x.decode_as_image()
-    raise _ODD_LAYOUT
+def _check_streams(reader: PdfReader) -> None:
+    """Bound every image and every compressed stream before pdfium touches it.
+
+    pdfium inflates whatever a page asks for, so a few megabytes of Flate can
+    otherwise become gigabytes. Image dimensions are checked against the same
+    pixel cap as photos, and every Flate stream is inflated here against a
+    fixed limit first (images: their declared size).
+    """
+    numbers = {n for gen in reader.xref.values() for n in gen} | set(reader.xref_objStm)
+    for n in numbers:
+        obj = IndirectObject(n, 0, reader).get_object()
+        if not isinstance(obj, StreamObject):
+            continue
+        filters = _filters(obj)
+        if obj.get("/Subtype") == "/Image":
+            w, h = int(obj.get("/Width", 0)), int(obj.get("/Height", 0))
+            _check_size(w, h)
+            if "/FlateDecode" not in filters:
+                continue
+            if filters == ["/FlateDecode"]:
+                bits = 1 if obj.get("/ImageMask") else int(obj.get("/BitsPerComponent", 8))
+                space = obj.get("/ColorSpace")
+                comps = 3 if space == "/DeviceRGB" else 4 if space == "/DeviceCMYK" else 1
+                row = (w * comps * bits + 7) // 8
+                if bits == 8:
+                    _bounded_flate_image(obj, row * h, h)
+                else:
+                    _bounded_inflate(obj, row * h + h)
+            else:
+                _bounded_inflate(obj, _JPEG_IN_FLATE_LIMIT)
+        elif "/FlateDecode" in filters:
+            _bounded_inflate(obj, _STREAM_INFLATE_LIMIT)
+
+
+def _render_page(doc, index: int) -> bytes:
+    """Render one page the way a PDF viewer shows it, then rebuild it as a PNG."""
+    page = doc[index]
+    try:
+        pw, ph = page.get_size()
+        if not (0 < pw < 100_000 and 0 < ph < 100_000):
+            raise PhotoRejected("A page in this PDF has an impossible size.")
+        scale = MAX_OUTPUT_SIDE / max(pw, ph)
+        _check_size(max(1, round(pw * scale)), max(1, round(ph * scale)))
+        bitmap = page.render(scale=scale, draw_annots=True, may_draw_forms=False)
+        try:
+            img = bitmap.to_pil().convert("RGB")  # convert() copies, so the native buffer can go
+        finally:
+            bitmap.close()
+    finally:
+        page.close()
+    low, high = zip(*img.getextrema())
+    if max(high) - min(low) < 8:
+        raise _BLANK_PAGE
+    out = io.BytesIO()
+    img.save(out, format="PNG")
+    return reencode_image(out.getvalue(), "PNG")
 
 
 def _bounded_inflate(x, limit: int) -> bytes:
@@ -448,68 +364,13 @@ def _bounded_inflate(x, limit: int) -> bytes:
     return decoded
 
 
-def _composite(page, placed) -> bytes:
-    """Draw a page's image layers onto one canvas, the way a PDF viewer would."""
-    try:
-        box = page.mediabox
-        left, bottom = float(box.left), float(box.bottom)
-        pw, ph = float(box.width), float(box.height)
-        if pw <= 0 or ph <= 0:
-            raise _ODD_LAYOUT
-        widest = max(int(x.get("/Width", 0)) / max(abs(m[0]), 1e-6) for x, m, _ in placed)
-        scale = min(MAX_OUTPUT_SIDE / max(pw, ph), widest)
-        cw, ch = max(1, round(pw * scale)), max(1, round(ph * scale))
-        _check_size(cw, ch)
-        canvas = Image.new("RGB", (cw, ch), (255, 255, 255))
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", Image.DecompressionBombWarning)
-            for x, (a, b, c, d, e, f), fill in placed:
-                if b != 0 or c != 0 or a <= 0 or d <= 0:
-                    raise _ODD_LAYOUT  # rotated, skewed or mirrored placement
-                x0, y0 = round((e - left) * scale), round((ph - (f - bottom) - d) * scale)
-                size = (max(1, round(a * scale)), max(1, round(d * scale)))
-                if size[0] > 2 * cw or size[1] > 2 * ch:
-                    raise _ODD_LAYOUT  # a layer far larger than the page would only waste memory
-                layer = _layer(x)
-                if x.get("/ImageMask"):
-                    if fill is None:
-                        raise _ODD_LAYOUT
-                    decode = x.get("/Decode")
-                    painted_is_one = bool(decode) and float(decode[0]) == 1
-                    mask = layer.convert("L")
-                    if not painted_is_one:
-                        mask = mask.point(lambda v: 255 - v)
-                    canvas.paste(fill, (x0, y0), mask.resize(size, Image.Resampling.BOX))
-                else:
-                    canvas.paste(layer.convert("RGB").resize(size, Image.Resampling.LANCZOS), (x0, y0))
-        out = io.BytesIO()
-        canvas.save(out, format="PNG")
-        return reencode_image(out.getvalue(), "PNG")
-    except PhotoRejected:
-        raise
-    except Exception as exc:
-        raise _ODD_LAYOUT from exc
-
-
-def _single_image(x) -> bytes:
-    w, h = int(x.get("/Width", 0)), int(x.get("/Height", 0))
-    _check_size(w, h)
-    filt = x.get("/Filter")
-    if isinstance(filt, list) and len(filt) == 1:
-        filt = filt[0]
-    if filt == "/DCTDecode":
-        return reencode_image(x.get_data(), "JPEG")
-    space = x.get("/ColorSpace")
-    if (filt in (None, "/FlateDecode") and space in ("/DeviceGray", "/DeviceRGB")
-            and int(x.get("/BitsPerComponent", 0)) == 8 and "/Decode" not in x and not x.get("/ImageMask")):
-        channels = 1 if space == "/DeviceGray" else 3
-        data = _bounded_flate_image(x, w * h * channels, h) if filt == "/FlateDecode" else x.get_data()
-        return image_from_raw(w, h, channels, data)
-    raise PhotoRejected("A scanned page in this PDF uses an image format that cannot be read; "
-                        "please export the pages as JPEG or PNG photos.")
-
-
 def pages_from_pdf(raw: bytes, limit: int) -> list[bytes]:
+    """Render every page of a checked PDF to a fresh PNG.
+
+    The page is rendered as a viewer would show it, so scanned layers, typed
+    text, drawn marks and annotations all survive. What is validated is the
+    rendered page, not how many images it happens to be built from.
+    """
     try:
         reader = PdfReader(io.BytesIO(raw))
         if reader.is_encrypted or "/Encrypt" in reader.trailer:
@@ -518,10 +379,18 @@ def pages_from_pdf(raw: bytes, limit: int) -> list[bytes]:
         count = len(reader.pages)
         if count < 1 or count > limit:
             raise PhotoRejected(f"At most {MAX_PAGES} pages may be uploaded in total.")
-        return [_page_image(p) for p in reader.pages]
+        _check_streams(reader)
+        with _PDFIUM_LOCK:
+            doc = pdfium.PdfDocument(raw)
+            try:
+                if len(doc) != count:
+                    raise PhotoRejected("This PDF could not be read safely.")
+                return [_render_page(doc, i) for i in range(count)]
+            finally:
+                doc.close()
     except PhotoRejected:
         raise
-    except Exception as exc:  # malformed structure: refuse, never half-read
+    except Exception as exc:  # malformed structure or a render failure: refuse, never half-read
         raise PhotoRejected("This PDF could not be read safely.") from exc
 
 
@@ -542,9 +411,8 @@ def sanitize_upload(raw: bytes, room: int) -> list[tuple[str, bytes]]:
         return [("image/png", reencode_image(raw, "AVIF"))]
     if major in HEIF_BRANDS:
         if not HEIF_DECODER_QUALIFIED:
-            raise PhotoRejected("HEIC photos cannot be read yet: the HEIC decoder is waiting for a security fix. "
-                                "On an iPhone, Bede's upload button sends a JPEG automatically. On Android, set the camera "
-                                "to save JPEG, or share the photo as a JPEG.")
+            raise PhotoRejected("HEIC photos cannot be read. Use JPEG, PNG, or PDF. "
+                                "(On an iPhone, Bede's upload button sends a JPEG automatically.)")
         return [("image/png", reencode_image(raw, "HEIF"))]
     if raw.startswith(b"%PDF-"):
         return [("image/png", p) for p in pages_from_pdf(raw, room)]

@@ -513,7 +513,7 @@ async def test_unpatched_native_heif_decoder_is_never_called(monkeypatch):
         raise AssertionError("unsafe native decoder was invoked")
     monkeypatch.setattr(upload_safety, "reencode_image", fail)
     raw = b"\x00\x00\x00\x18ftypheic" + b"\x00" * 32
-    with pytest.raises(PhotoRejected, match="waiting for a security fix"):
+    with pytest.raises(PhotoRejected, match="Use JPEG, PNG, or PDF"):
         await prep(raw)
 
 
@@ -652,51 +652,114 @@ def test_the_read_route_is_parent_authenticated_and_maps_scanner_failures_to_503
     assert "ScannerUnavailable" in source and "503" in source
 
 
-# ── Marked-up PDF pages ───────────────────────────────────────────────────────
+# ── PDF pages are rendered, not taken apart ───────────────────────────────────
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name,kwargs", [
     ("visible text over the scan", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 10 10 Td (Good!) Tj ET"}),
     ("visible text, TJ form", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 10 10 Td [(Go) 20 (od)] TJ ET"}),
-    ("text made visible again after an invisible one", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 3 Tr (a) Tj 0 Tr (b) Tj ET"}),
     ("a vector rectangle", {"content": PLAIN_SCAN + b" 1 0 0 RG 5 5 20 20 re S"}),
-    ("a filled path", {"content": PLAIN_SCAN + b" 10 10 30 30 re f"}),
     ("an inline image", {"content": PLAIN_SCAN + b" BI /W 1 /H 1 /CS /G /BPC 8 ID \x00 EI"}),
-    ("only a form XObject drawn", {"content": b"/Fm0 Do", "form": True}),
     ("a form XObject drawn", {"content": PLAIN_SCAN + b" /Fm0 Do", "form": True}),
-    ("visible text after an invisible mode was restored by Q", {"content": b"q 3 Tr Q " + PLAIN_SCAN + b" BT /F1 8 Tf (x) Tj ET"}),
+    ("two images drawn", {"content": PLAIN_SCAN + b" q 50 0 0 50 0 0 cm /Im1 Do Q", "second_image": True}),
     ("a FreeText annotation", {"annots": ("/FreeText",)}),
-    ("a Highlight annotation", {"annots": ("/Highlight",)}),
     ("a link and a stamp", {"annots": ("/Link", "/Stamp")}),
-    ("no image drawn at all", {"content": b"q Q"}),
-    ("unparseable content", {"content": b"q 1 0 0 RG (unterminated Tj [[["}),
-])
-async def test_a_page_with_anything_beyond_one_scanned_picture_is_refused(name, kwargs):
-    with pytest.raises(PhotoRejected) as exc:
-        await prep(make_pdf(("jpeg",), **kwargs))
-    assert "photograph or scan" in str(exc.value).lower() or "scanned photo" in str(exc.value).lower()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("name,kwargs", [
-    ("a plain scan", {}),
-    ("a link annotation", {"annots": ("/Link",)}),
     ("an invisible OCR text layer", {"content": PLAIN_SCAN + b" BT /F1 12 Tf 3 Tr 10 10 Td (hello) Tj ET"}),
-    ("an OCR layer set inside q/Q", {"content": b"q 3 Tr Q " + PLAIN_SCAN.replace(b"Q", b"") + b" BT /F1 8 Tf 3 Tr (x) Tj ET Q"}),
     ("a clipped placement", {"content": b"q 0 0 100 100 re W n 100 0 0 100 0 0 cm /Im0 Do Q"}),
-    ("marked content around the image", {"content": b"/Artifact BMC " + PLAIN_SCAN + b" EMC"}),
 ])
-async def test_scans_with_nothing_else_on_the_page_are_accepted(name, kwargs):
-    (_, data), = await prep(make_pdf(("jpeg",), **kwargs))
-    assert Image.open(io.BytesIO(base64.b64decode(data))).format == "PNG"
+async def test_any_page_that_renders_is_accepted_whatever_it_is_built_from(name, kwargs):
+    (page,) = decoded(await prep(make_pdf(("jpeg",), **kwargs)))
+    assert page.format == "PNG"
 
 
 @pytest.mark.asyncio
-async def test_the_marked_up_refusal_names_what_to_do():
-    with pytest.raises(PhotoRejected) as exc:
-        await prep(make_pdf(("jpeg",), content=PLAIN_SCAN + b" BT /F1 12 Tf (x) Tj ET"))
-    assert "photograph or scan the marked-up paper" in str(exc.value)
+async def test_a_mark_drawn_over_the_scan_survives_into_the_rendered_page():
+    """The old extractor kept only the picture and dropped this red box."""
+    content = PLAIN_SCAN + b" q 1 0 0 rg 60 60 30 30 re f Q"
+    (page,) = decoded(await prep(make_pdf(("jpeg",), content=content)))
+    rgb = page.convert("RGB")
+    w, h = rgb.size
+    r, g, b = rgb.getpixel((int(w * 0.75), int(h * 0.25)))  # PDF y=75 is near the top
+    assert r > 200 and g < 60 and b < 60
 
+
+@pytest.mark.asyncio
+async def test_a_teachers_annotation_mark_is_drawn_into_the_rendered_page():
+    """A comment or stamp a teacher added in a PDF reader is part of the marking."""
+    from pypdf.generic import ArrayObject
+
+    def stamp(writer):
+        appearance = DecodedStreamObject()
+        appearance.set_data(b"1 0 0 rg 0 0 30 30 re f")
+        for k, v in {"/Type": NameObject("/XObject"), "/Subtype": NameObject("/Form"),
+                     "/BBox": ArrayObject([NumberObject(0), NumberObject(0), NumberObject(30), NumberObject(30)])}.items():
+            appearance[NameObject(k)] = v
+        annot = writer._add_object(DictionaryObject({
+            NameObject("/Type"): NameObject("/Annot"), NameObject("/Subtype"): NameObject("/Square"),
+            NameObject("/Rect"): ArrayObject([NumberObject(60), NumberObject(60), NumberObject(90), NumberObject(90)]),
+            NameObject("/AP"): DictionaryObject({NameObject("/N"): writer._add_object(appearance)}),
+        }))
+        writer.pages[0][NameObject("/Annots")] = ArrayObject([annot])
+
+    (page,) = decoded(await prep(make_pdf(("jpeg",), stamp)))
+    rgb = page.convert("RGB")
+    w, h = rgb.size
+    r, g, b = rgb.getpixel((int(w * 0.75), int(h * 0.25)))
+    assert r > 200 and g < 60 and b < 60
+
+
+@pytest.mark.asyncio
+async def test_a_typed_text_page_with_no_scan_is_read():
+    writer = PdfWriter()
+    page = writer.add_blank_page(200, 100)
+    page[NameObject("/Resources")] = DictionaryObject({NameObject("/Font"): DictionaryObject({
+        NameObject("/F1"): DictionaryObject({NameObject("/Type"): NameObject("/Font"),
+                                             NameObject("/Subtype"): NameObject("/Type1"),
+                                             NameObject("/BaseFont"): NameObject("/Helvetica")})})})
+    page[NameObject("/Contents")] = _content(writer, b"BT /F1 24 Tf 10 40 Td (1. 7 + 5 = 12) Tj ET")
+    out = io.BytesIO()
+    writer.write(out)
+    (rendered,) = decoded(await prep(out.getvalue()))
+    assert min(rendered.convert("L").getextrema()) < 80  # dark glyphs on the page
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("content", [b"q Q", b"q 1 0 0 RG (unterminated Tj [[["])
+async def test_a_page_that_renders_blank_is_refused(content):
+    with pytest.raises(PhotoRejected, match="blank"):
+        await prep(make_pdf(("jpeg",), content=content))
+
+
+@pytest.mark.asyncio
+async def test_an_image_larger_than_the_photo_cap_is_refused_before_rendering(monkeypatch):
+    monkeypatch.setattr(upload_safety, "MAX_PIXELS", 100)
+    with pytest.raises(PhotoRejected, match="too large"):
+        await prep(make_pdf(("jpeg",)))
+
+
+@pytest.mark.asyncio
+async def test_a_compressed_content_stream_that_over_expands_is_refused_before_rendering(monkeypatch):
+    monkeypatch.setattr(upload_safety, "_STREAM_INFLATE_LIMIT", 1000)
+
+    def bomb(writer):
+        content = writer.pages[0]["/Contents"].get_object()
+        content[NameObject("/Filter")] = NameObject("/FlateDecode")
+        content._data = zlib.compress(PLAIN_SCAN + b" " * 5000)
+
+    def never_render(*a, **k):
+        raise AssertionError("pdfium must not see an unchecked stream")
+
+    monkeypatch.setattr(upload_safety, "_render_page", never_render)
+    with pytest.raises(PhotoRejected, match="expands beyond"):
+        await prep(make_pdf(("jpeg",), bomb))
+
+
+def test_rendering_is_serialised_behind_one_lock():
+    """pdfium is not thread-safe and two uploads may decode at once."""
+    import inspect
+    source = inspect.getsource(upload_safety.pages_from_pdf)
+    assert "with _PDFIUM_LOCK" in source and "pdfium.PdfDocument" in source
+    assert source.index("with _PDFIUM_LOCK") < source.index("pdfium.PdfDocument")
 
 # ── Scanner locality ──────────────────────────────────────────────────────────
 
@@ -823,68 +886,30 @@ async def test_a_webp_header_on_other_bytes_is_refused():
         await prep(b"RIFF\x10\x00\x00\x00WEBPVP8 junkjunkjunk")
 
 
-# ── Scanner PDFs saved as stacked layers ──────────────────────────────────────
-
-def _layered_pdf(content: bytes, *, extra_masks: int = 0, fill_op: bytes = b"0 g") -> bytes:
-    """A 20x20 page: a light-gray background and a 1-bit ink mask painting the left half."""
-    writer = PdfWriter()
-    page = writer.add_blank_page(20, 20)
-    bg = DecodedStreamObject()
-    bg.set_data(bytes([220]) * 400)
-    for k, v in {"/Type": NameObject("/XObject"), "/Subtype": NameObject("/Image"),
-                 "/Width": NumberObject(20), "/Height": NumberObject(20),
-                 "/ColorSpace": NameObject("/DeviceGray"), "/BitsPerComponent": NumberObject(8)}.items():
-        bg[NameObject(k)] = v
-    mask = DecodedStreamObject()
-    # Each row: 3 bytes for 20 pixels. Bit 0 = paint; the left 10 pixels painted.
-    mask.set_data(bytes([0x00, 0x3F, 0xFF]) * 20)
-    for k, v in {"/Type": NameObject("/XObject"), "/Subtype": NameObject("/Image"),
-                 "/Width": NumberObject(20), "/Height": NumberObject(20),
-                 "/ImageMask": BooleanObject(True), "/BitsPerComponent": NumberObject(1)}.items():
-        mask[NameObject(k)] = v
-    xobjects = {NameObject("/Bg"): writer._add_object(bg), NameObject("/Ink"): writer._add_object(mask)}
-    page[NameObject("/Resources")] = DictionaryObject({NameObject("/XObject"): DictionaryObject(xobjects)})
-    page[NameObject("/Contents")] = _content(writer, content.replace(b"FILL", fill_op))
-    out = io.BytesIO()
-    writer.write(out)
-    return out.getvalue()
-
-
-LAYERED = b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL 20 0 0 20 0 0 cm /Ink Do Q"
-
+# ── Regression: a scanner's three-layer compact PDF ──────────────────────────
 
 @pytest.mark.asyncio
-async def test_a_scanner_pdf_saved_as_background_plus_ink_layers_is_combined():
-    (page,) = decoded(await prep(_layered_pdf(LAYERED)))
-    rgb = page.convert("RGB")
-    w, h = rgb.size
-    ink = rgb.getpixel((w // 5, h // 2))
-    paper = rgb.getpixel((4 * w // 5, h // 2))
-    assert max(ink) < 60, "the ink layer was dropped"
-    assert min(paper) > 190, "the background layer was dropped or painted over"
+async def test_a_three_layer_scanner_pdf_renders_with_background_cleaning_and_ink():
+    """Built like the owner's scanned answer key (see practice_scanner_fixture),
+    which the old one-image-per-page rule refused outright."""
+    from tests import practice_scanner_fixture as fixture
+    from pypdf import PdfReader
 
+    raw = fixture.build()
+    page = PdfReader(io.BytesIO(raw)).pages[0]
+    assert page.get_contents().get_data().startswith(b"% CANON_PFINF_TYPE2_TEXTOFF")
+    layers = [v.get_object() for v in page["/Resources"]["/XObject"].values()]
+    assert [str(x.get("/Filter")) for x in layers] == [
+        "['/FlateDecode', '/DCTDecode']", "/CCITTFaxDecode", "/CCITTFaxDecode"]
+    assert [bool(x.get("/ImageMask")) for x in layers] == [False, True, True]
 
-@pytest.mark.asyncio
-async def test_two_full_images_on_one_page_are_combined_not_refused():
-    (page,) = decoded(await prep(make_pdf(("jpeg",), content=PLAIN_SCAN + b" q 50 0 0 50 0 0 cm /Im1 Do Q",
-                                          second_image=True)))
-    assert page.format == "PNG"
+    (rendered,) = decoded(await prep(raw))
+    gray = rendered.convert("L")
+    w, h = gray.size
 
+    def at(fx, fy):
+        return gray.getpixel((min(w - 1, int(fx * w)), min(h - 1, int(fy * h))))
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("name,content,fill", [
-    ("a rotated layer", b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL 0 20 -20 0 20 0 cm /Ink Do Q", b"0 g"),
-    ("a mirrored layer", b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL -20 0 0 20 20 0 cm /Ink Do Q", b"0 g"),
-    ("an ink colour this cannot interpret", LAYERED, b"/CS0 cs 1 sc"),
-    ("too many layers", LAYERED + b" /Ink Do /Ink Do /Ink Do", b"0 g"),
-    ("a layer scaled far past the page", b"q 20 0 0 20 0 0 cm /Bg Do Q q FILL 900000 0 0 900000 0 0 cm /Ink Do Q", b"0 g"),
-])
-async def test_layered_pages_that_cannot_be_combined_faithfully_are_refused(name, content, fill):
-    with pytest.raises(PhotoRejected):
-        await prep(_layered_pdf(content, fill_op=fill))
-
-
-@pytest.mark.asyncio
-async def test_text_drawn_over_a_layered_scan_is_still_refused():
-    with pytest.raises(PhotoRejected, match="photograph or scan"):
-        await prep(_layered_pdf(LAYERED + b" BT /F1 9 Tf (ok) Tj ET"))
+    assert at(*fixture.ink_point_on_page(45 / 746, 55 / 936)) < 80, "the ink layer was lost"
+    assert at(*fixture.ink_point_on_page(0.9, 0.98)) > 240, "the white cleaning layer was lost"
+    assert at(0.5, 0.02) < 160, "the background layer was lost"

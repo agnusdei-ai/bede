@@ -1235,14 +1235,11 @@ answer, and Bede treats it as one.
 **What you can upload.** Photos (JPEG, including the multi-picture files some
 Android cameras save, PNG, WebP or AVIF) or a PDF of scanned pages, six pages
 in all and 6 MB a file. iPhone photos are sent as JPEG automatically. HEIC
-files are refused for now, until the HEIC decoder's security fix ships; on
-Android, set the camera to save JPEG. Bede checks each file and rebuilds every
-page as a plain image before anything reads it, and refuses PDFs that carry
-scripts, attachments, forms or a password, and any PDF page with typed or
-drawn marks, comments or highlights on top of the scan, which would be lost:
-photograph or scan the marked-up paper itself (or print the PDF to an image)
-instead. A scanner that saves each page as a few stacked pictures is fine;
-Bede puts them back together. This is file validation and hardening, not a promise that a
+photos cannot be read: use JPEG, PNG, or PDF. Bede checks each file, draws
+every PDF page the way you would see it (so scanned layers, typed text and a
+teacher's marks or comments are all kept), and rebuilds every page as a plain
+image before anything reads it. It refuses PDFs that carry scripts,
+attachments, forms or a password. This is file validation and hardening, not a promise that a
 file is free of malware. The photos are not saved to the database or a file by
 Bede; they are held in memory while the request runs. If you run a clamd on
 the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or

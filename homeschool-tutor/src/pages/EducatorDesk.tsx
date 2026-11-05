@@ -6,6 +6,8 @@ import type { SessionConfig, Subject } from '../types'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import PilotTeacherJourney from '../components/PilotTeacherJourney'
 import QuizBuilder from '../components/QuizBuilder'
+import TeacherQuizStudio from '../components/TeacherQuizStudio'
+import { fromGenerated } from '../utils/teacherQuiz'
 import {
   fetchInstructorRoster,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
@@ -13,6 +15,7 @@ import {
   fetchMyEducatorPasskeys, revokeMyEducatorPasskey,
 } from '../services/api'
 import type {
+  TeacherQuiz,
   AssessmentFrameworkMetadata, DibelsProgress, DibelsGrade, EducatorPasskeySummary,
   DibelsWindow, EducatorAssessmentBand,
 } from '../services/api'
@@ -46,6 +49,7 @@ export default function EducatorDesk() {
   const [passkeys, setPasskeys] = useState<EducatorPasskeySummary[]>([])
   const [showPasskeys, setShowPasskeys] = useState(false)
   const [journeyStep, setJourneyStep] = useState<'roster' | 'lesson' | 'evidence' | 'recommendations'>('roster')
+  const [handedQuiz, setHandedQuiz] = useState<TeacherQuiz | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -217,7 +221,8 @@ export default function EducatorDesk() {
           ))}
         </nav>
         {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
-        {token && <QuizBuilder token={token} audience="educator" />}
+        {token && <QuizBuilder token={token} audience="educator" onEdit={(q) => setHandedQuiz(fromGenerated(q))} />}
+        {token && <TeacherQuizStudio token={token} incoming={handedQuiz} />}
         <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
           <p className="text-xs text-gray-500">{roster.length} assigned learners. Your school administrator manages learner assignments.</p>

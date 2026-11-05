@@ -1981,3 +1981,112 @@ export const generateEducatorQuiz = (
 ) => practiceFetch<Awaited<ReturnType<typeof generateQuiz>>>(
   token, '/educator/quiz/generate', { method: 'POST', body: JSON.stringify(body) },
 )
+
+// ── Teacher quizzes with reviewable answer keys (docs/PRACTICE_COACH.md) ──
+// Local model only, nothing stored, no learner named. The teacher keeps a
+// quiz as a file they export and import.
+
+export type QuestionType = QuizQuestion['type']
+/** teacher: typed by the teacher. page: read off their uploaded page. bede: Bede's suggestion. */
+export type KeySource = 'teacher' | 'page' | 'bede'
+
+export interface TeacherQuestion {
+  number: number
+  type: QuestionType
+  prompt: string
+  stimulus?: string | null
+  options: string[]
+  answer: string
+  accepted_answers: string[]
+  rubric?: string | null
+  scoring_guidance?: string | null
+  points: number
+  key_source: KeySource
+  key_approved: boolean
+  answer_check?: 'computed' | 'checked' | 'verify' | null
+  reading_note?: string | null
+}
+
+export interface TeacherQuiz {
+  format: 'bede.teacher-quiz'
+  version: 1
+  title: string
+  subject: string
+  grade: string
+  questions: TeacherQuestion[]
+  approved: boolean
+}
+
+export interface QuizProblem {
+  number: number | null
+  problem: string
+}
+
+export interface StudentResponse {
+  number: number
+  response: string | null
+}
+
+export type ReviewReason = 'reading_uncertain' | 'not_in_key' | 'response_unclear' | 'rubric_proposal' | 'no_rubric' | 'not_found'
+
+export interface ProposedScore {
+  number: number
+  response: string | null
+  max_points: number
+  proposed_points: number | null
+  method: 'key_match' | 'numeric' | 'rubric_proposal' | 'teacher_scores'
+  needs_teacher: boolean
+  reasons: ReviewReason[]
+  reading_note?: string | null
+  rubric_reason?: string | null
+}
+
+/** The server refused to approve or use a quiz; `problems` says what to settle. */
+export class TeacherQuizProblems extends Error {
+  constructor(public problems: QuizProblem[], message: string) {
+    super(message)
+  }
+}
+
+async function teacherQuizFetch<T>(token: string, path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}/practice/educator/teacher-quiz/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    if (detail && typeof detail === 'object') {
+      const d = detail as { problems?: QuizProblem[]; consent_required?: boolean; provider?: string; message?: string }
+      if (d.problems) throw new TeacherQuizProblems(d.problems, d.message ?? '')
+      if (d.consent_required) throw new PracticeConsentRequired(d.provider ?? null, d.message ?? '')
+      if (d.message) throw new Error(d.message)
+    }
+    throw new Error(typeof detail === 'string' ? detail : 'That step could not be completed.')
+  }
+  return res.json()
+}
+
+export const reviewTeacherQuiz = (token: string, quiz: TeacherQuiz) =>
+  teacherQuizFetch<{ quiz: TeacherQuiz; problems: QuizProblem[] }>(token, 'review', { quiz })
+
+export const approveTeacherQuiz = (token: string, quiz: TeacherQuiz) =>
+  teacherQuizFetch<{ quiz: TeacherQuiz; problems: QuizProblem[] }>(token, 'approve', { quiz })
+
+export const extractTeacherQuiz = (
+  token: string,
+  body: { subject: string; grade: string; pages: { data: string }[]; source_text?: string; upload_consent: boolean },
+) => teacherQuizFetch<{ quiz: TeacherQuiz; problems: QuizProblem[] }>(token, 'extract', body)
+
+export const scoreTeacherQuiz = (
+  token: string,
+  body: { quiz: TeacherQuiz; pages: { data: string }[]; responses: StudentResponse[]; upload_consent: boolean },
+) => teacherQuizFetch<{ results: ProposedScore[]; possible: number; read_by: string | null }>(token, 'score', body)
+
+export const finalizeTeacherQuiz = (
+  token: string,
+  body: { quiz: TeacherQuiz; results: { number: number; points: number | null }[] },
+) => teacherQuizFetch<{ results: { number: number; points: number; max_points: number }[]; total: number; possible: number }>(
+  token, 'finalize', body,
+)

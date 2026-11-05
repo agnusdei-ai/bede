@@ -583,3 +583,144 @@ class GenerateQuizRequest(_Strict):
 
     def has_material(self) -> bool:
         return bool(self.pages or self.source_text or self.source_pages_text or self.focus)
+
+
+# ── Teacher quizzes with reviewable answer keys ──────────────────────────────
+#
+# A teacher writes a quiz, or uploads one for Bede to read, and approves the
+# answer key; prints it; then uploads a student's completed work for Bede to
+# read and propose scores the teacher approves or corrects
+# (docs/PRACTICE_COACH.md, "Teacher quizzes with answer keys").
+#
+# Two separations are the point of these models:
+#
+# * **The blank quiz and its key never travel with a student's work.** A
+#   `TeacherQuiz` names no learner and has no field for one, and a
+#   submission is read against the quiz's questions only, never its key, so
+#   the reader is not nudged towards the right answer.
+# * **Where every answer came from is recorded.** `key_source` is `teacher`
+#   (typed by the teacher), `page` (read off the teacher's uploaded page) or
+#   `bede` (Bede's suggestion). Typing an answer approves it; the other two
+#   stay unapproved until the teacher says so.
+#
+# Nothing here is stored on the server. The teacher keeps a quiz as a file
+# they export and import (format "bede.teacher-quiz").
+
+KeySource = Literal["teacher", "page", "bede"]
+TEACHER_QUIZ_FORMAT = "bede.teacher-quiz"
+MAX_QUESTION_POINTS = 20
+
+
+class TeacherQuestion(_Strict):
+    number: int = Field(..., ge=1, le=MAX_QUIZ_QUESTIONS)
+    type: QuestionType
+    prompt: str = Field(..., min_length=1, max_length=600)
+    # A short plain description of a diagram or picture on the page.
+    stimulus: Optional[str] = Field(default=None, max_length=200)
+    options: List[str] = Field(default_factory=list, max_length=6)
+    # The key. May be empty for a written response the teacher scores by hand.
+    answer: str = Field(default="", max_length=400)
+    # Other wordings the teacher accepts as correct.
+    accepted_answers: List[str] = Field(default_factory=list, max_length=6)
+    rubric: Optional[str] = Field(default=None, max_length=1500)
+    scoring_guidance: Optional[str] = Field(default=None, max_length=600)
+    points: int = Field(default=1, ge=1, le=MAX_QUESTION_POINTS)
+    key_source: KeySource = "teacher"
+    key_approved: bool = False
+    # How Bede checked a suggested answer, when it did (see QuizQuestion).
+    answer_check: Optional[Literal["computed", "checked", "verify"]] = None
+    # What the reader was unsure of; the teacher settles it with "Looks right".
+    reading_note: Optional[str] = Field(default=None, max_length=300)
+
+    @field_validator("options", "accepted_answers")
+    @classmethod
+    def _short_entries(cls, value: List[str]) -> List[str]:
+        cleaned = [v.strip() for v in value if v and v.strip()]
+        if any(len(v) > 200 for v in cleaned):
+            raise ValueError("Each option is at most 200 characters.")
+        return cleaned
+
+    def has_key(self) -> bool:
+        return bool(self.answer.strip() or (self.rubric or "").strip())
+
+
+class TeacherQuiz(_Strict):
+    format: Literal["bede.teacher-quiz"] = TEACHER_QUIZ_FORMAT
+    version: Literal[1] = 1
+    title: str = Field(..., min_length=1, max_length=120)
+    subject: str = Field(..., min_length=1, max_length=30)
+    grade: QuizGrade
+    questions: List[TeacherQuestion] = Field(..., min_length=1, max_length=MAX_QUIZ_QUESTIONS)
+    # Set by the server's approve route only when nothing is left to settle.
+    # Scoring checks again regardless, so setting it by hand buys nothing.
+    approved: bool = False
+
+
+class TeacherQuizRequest(_Strict):
+    quiz: TeacherQuiz
+
+
+class ExtractQuizRequest(_Strict):
+    """A quiz the teacher already has, as photos or scans, or pasted text."""
+    subject: str = Field(..., min_length=1, max_length=30)
+    grade: QuizGrade
+    pages: List[PhotoPage] = Field(default_factory=list)
+    source_text: Optional[str] = Field(default=None, max_length=12000)
+    # The teacher's acknowledgement for this upload: read on the school's own
+    # model, and not stored.
+    upload_consent: bool = False
+
+    @field_validator("source_text")
+    @classmethod
+    def _blank_is_none(cls, value: Optional[str]) -> Optional[str]:
+        value = (value or "").strip()
+        return value or None
+
+
+class StudentResponse(_Strict):
+    number: int = Field(..., ge=1, le=MAX_QUIZ_QUESTIONS)
+    response: Optional[str] = Field(default=None, max_length=1500)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    ask_teacher: Optional[str] = Field(default=None, max_length=300)
+
+    def uncertain(self) -> bool:
+        return bool(self.ask_teacher) or self.confidence < CONFIDENCE_FLOOR
+
+
+class ScoreSubmissionRequest(_Strict):
+    """One student's completed quiz: photos of it, or the answers typed in."""
+    quiz: TeacherQuiz
+    pages: List[PhotoPage] = Field(default_factory=list)
+    responses: List[StudentResponse] = Field(default_factory=list, max_length=MAX_QUIZ_QUESTIONS)
+    upload_consent: bool = False
+
+
+ScoreMethod = Literal["key_match", "numeric", "rubric_proposal", "teacher_scores"]
+# Why a result waits for the teacher. Codes, so the screen can word them.
+ReviewReason = Literal[
+    "reading_uncertain", "not_in_key", "response_unclear", "rubric_proposal", "no_rubric", "not_found",
+]
+
+
+class ProposedScore(_Strict):
+    number: int = Field(..., ge=1, le=MAX_QUIZ_QUESTIONS)
+    response: Optional[str] = Field(default=None, max_length=1500)
+    max_points: int = Field(..., ge=1, le=MAX_QUESTION_POINTS)
+    # None when Bede proposes nothing: the teacher scores it.
+    proposed_points: Optional[float] = Field(default=None, ge=0, le=MAX_QUESTION_POINTS)
+    method: ScoreMethod
+    needs_teacher: bool
+    reasons: List[ReviewReason] = Field(default_factory=list)
+    reading_note: Optional[str] = Field(default=None, max_length=300)
+    rubric_reason: Optional[str] = Field(default=None, max_length=400)
+
+
+class SettledScore(_Strict):
+    number: int = Field(..., ge=1, le=MAX_QUIZ_QUESTIONS)
+    # None means the teacher has not settled it yet, so it does not count.
+    points: Optional[float] = Field(default=None, ge=0, le=MAX_QUESTION_POINTS)
+
+
+class FinalizeResultsRequest(_Strict):
+    quiz: TeacherQuiz
+    results: List[SettledScore] = Field(..., min_length=1, max_length=MAX_QUIZ_QUESTIONS)

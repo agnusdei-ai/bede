@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Check, Loader2, RefreshCw } from 'lucide-react'
 import { fetchPracticeDelivery, recordPracticeOutcome } from '../services/api'
 import type { PracticeDeliverySet } from '../services/api'
+import Diagram from './Diagram'
 
 export default function PracticeDelivery({
   token,
@@ -80,6 +81,7 @@ export default function PracticeDelivery({
         <>
           <h3 className="font-semibold text-sage-900">{t('practiceDelivery.title')}</h3>
           <p className="mt-2 text-gray-800">{current.item.prompt}</p>
+          <Diagram d={current.item.diagram} />
           {current.item.hint && <p className="mt-1 text-xs text-gray-600">{t('practiceDelivery.hint', { hint: current.item.hint })}</p>}
           <label className="mt-2 block">
             <span className="sr-only">{t('practiceDelivery.responseLabel')}</span>

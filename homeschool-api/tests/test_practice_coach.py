@@ -581,7 +581,8 @@ async def test_approved_practice_delivery_records_only_scoped_responses(db):
         "Alice", set_id, ApproveSetRequest(), auth=PARENT, db=db)
     delivered = await practice_router.get_delivery_sets("Alice", auth=PARENT, db=db)
     assert len(delivered) == 1
-    assert set(delivered[0]["items"][0]) == {"index", "prompt", "hint"}
+    # The picture is part of the question; the answer key never travels.
+    assert set(delivered[0]["items"][0]) == {"index", "prompt", "hint", "diagram"}
     assert "expected_answer" not in json.dumps(delivered)
     assert "parent_script" not in json.dumps(delivered)
     assert delivered[0]["completed_indices"] == []

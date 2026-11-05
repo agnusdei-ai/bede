@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
+import Diagram, { diagramMarkup } from './Diagram'
 import { Camera, Check, Printer, Sparkles, X } from 'lucide-react'
 import {
   approvePracticeSet, confirmPracticeReading, discardPracticeSet, fetchPracticePacks,
@@ -186,7 +187,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
     const win = window.open('', '_blank')
     if (!win) return
     const rows = set.items.map((item) =>
-      `<li><p>${escapeHtml(item.prompt)}</p><div class="line"></div></li>`).join('')
+      `<li><p>${escapeHtml(item.prompt)}</p>${diagramMarkup(item.diagram)}<div class="line"></div></li>`).join('')
     win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(t('practiceCoach.worksheetTitle'))}</title>
 <style>body{font-family:Georgia,serif;margin:2rem;color:#1d2433}li{margin:0 0 1.4rem}.line{border-bottom:1px solid #999;height:2rem}</style>
 <h1>${escapeHtml(t('practiceCoach.worksheetTitle'))}</h1><ol>${rows}</ol>`)
@@ -282,7 +283,8 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                       return (
                         <li key={item.number} data-flagged={flagged || undefined}
                           className={`rounded-lg p-2 ${flagged ? 'bg-gold-50 ring-1 ring-gold-300' : 'bg-parchment-50'}`}>
-                          <p className="text-xs text-gray-600">{item.number}. {item.prompt}{item.stimulus ? ` (${item.stimulus})` : ''}</p>
+                          <p className="text-xs text-gray-600">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? ` (${item.stimulus})` : ''}</p>
+                          <Diagram d={item.diagram} />
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <input value={item.student_response ?? ''} aria-label={t('practiceCoach.answerFor', { item: label })}
                               onChange={(e) => editItem(si, ii, { student_response: e.target.value })}
@@ -356,6 +358,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                           onChange={(e) => setKeep((k) => k.map((v, j) => (j === i ? e.target.checked : v)))} className="mt-0.5" />
                         <div>
                           <p className="font-medium text-gray-800">{item.prompt}</p>
+                          <Diagram d={item.diagram} />
                           <p className="text-gray-600">{t('practiceCoach.answer')}: {item.expected_answer}</p>
                           {item.hint && <p className="text-gray-500">{t('practiceCoach.hint')}: {item.hint}</p>}
                         </div>

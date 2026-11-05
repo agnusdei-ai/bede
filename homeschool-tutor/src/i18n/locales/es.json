@@ -893,5 +893,17 @@
     "actionWithdraw": "retirar la autorización",
     "loadFailedHint": "El registro de información de estudiantes permanece no disponible hasta que el estado cargue.",
     "retry": "Intentar de nuevo"
+  },
+  "diagram": {
+    "fractionBar": "Una barra en {{parts}} partes iguales, {{shaded}} sombreadas",
+    "fractionCircle": "Un círculo en {{parts}} partes iguales, {{shaded}} sombreadas",
+    "array": "Un arreglo de puntos: {{rows}} filas de {{cols}}",
+    "baseTen": "Bloques de base diez: {{hundreds}} centenas, {{tens}} decenas y {{ones}} unidades",
+    "clock": "Un reloj: la manecilla corta cerca del {{hour}}, la larga en {{minute}} minutos",
+    "rectangle": "Un rectángulo de {{width}} {{unit}} por {{height}} {{unit}}",
+    "rightTriangle": "Un triángulo rectángulo, base {{base}} {{unit}}, altura {{height}} {{unit}}",
+    "numberLine": "Una recta numérica de {{start}} a {{end}}, con saltos de {{step}} y los puntos {{points}}",
+    "barGraph": "Una gráfica de barras: {{bars}}",
+    "plane": "Una cuadrícula con los puntos {{points}}"
   }
 }

@@ -16,7 +16,7 @@ Two absences are deliberate and are the reason these models are strict
 """
 from __future__ import annotations
 
-from typing import List, Literal, Optional
+from typing import Annotated, List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -39,10 +39,120 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# ── Diagrams ──────────────────────────────────────────────────────────────────
+# A maths problem whose picture IS the problem (a shaded fraction, a clock, an
+# array of dots) carries one of these. It is a closed vocabulary of numbers and
+# short labels, never markup: the app draws it itself (Diagram.tsx), so a model
+# can neither inject anything into the page nor draw a picture that disagrees
+# with the answer, and services/practice/diagrams.py can work the answer out.
+
+_Label = Field(default="", max_length=12)
+
+
+class FractionDiagram(_Strict):
+    kind: Literal["fraction_bar", "fraction_circle"]
+    parts: int = Field(..., ge=1, le=24)
+    shaded: int = Field(..., ge=0, le=24)
+
+    @field_validator("shaded")
+    @classmethod
+    def _within(cls, value: int, info) -> int:
+        if value > info.data.get("parts", 24):
+            raise ValueError("more parts shaded than there are")
+        return value
+
+
+class ArrayDiagram(_Strict):
+    kind: Literal["array"]
+    rows: int = Field(..., ge=1, le=12)
+    cols: int = Field(..., ge=1, le=12)
+
+
+class BaseTenDiagram(_Strict):
+    kind: Literal["base_ten"]
+    hundreds: int = Field(default=0, ge=0, le=9)
+    tens: int = Field(default=0, ge=0, le=9)
+    ones: int = Field(default=0, ge=0, le=9)
+
+
+class ClockDiagram(_Strict):
+    kind: Literal["clock"]
+    hour: int = Field(..., ge=1, le=12)
+    minute: int = Field(..., ge=0, le=59)
+
+
+class RectangleDiagram(_Strict):
+    kind: Literal["rectangle"]
+    width: int = Field(..., ge=1, le=100)
+    height: int = Field(..., ge=1, le=100)
+    unit: str = Field(default="", max_length=8)
+
+
+class RightTriangleDiagram(_Strict):
+    kind: Literal["right_triangle"]
+    base: int = Field(..., ge=1, le=100)
+    height: int = Field(..., ge=1, le=100)
+    unit: str = Field(default="", max_length=8)
+
+
+class NumberLineDiagram(_Strict):
+    kind: Literal["number_line"]
+    start: int = Field(..., ge=-100, le=1000)
+    end: int = Field(..., ge=-99, le=1010)
+    step: int = Field(default=1, ge=1, le=100)
+    # Points marked with a dot; with labels, the labels are drawn instead of
+    # the numbers, which is how "what number is at A?" is asked.
+    marks: List[int] = Field(default_factory=list, max_length=4)
+    mark_labels: List[str] = Field(default_factory=list, max_length=4)
+
+    @field_validator("end")
+    @classmethod
+    def _after_start(cls, value: int, info) -> int:
+        start = info.data.get("start")
+        if start is not None and not (start < value <= start + 40 * 100):
+            raise ValueError("a number line must run forwards")
+        return value
+
+
+class GraphBar(_Strict):
+    label: str = Field(..., min_length=1, max_length=12)
+    value: int = Field(..., ge=0, le=1000)
+
+
+class BarGraphDiagram(_Strict):
+    kind: Literal["bar_graph"]
+    title: str = Field(default="", max_length=40)
+    bars: List[GraphBar] = Field(..., min_length=1, max_length=8)
+
+
+class PlanePoint(_Strict):
+    label: str = Field(..., min_length=1, max_length=3)
+    x: int = Field(..., ge=-10, le=10)
+    y: int = Field(..., ge=-10, le=10)
+
+
+class CoordinateDiagram(_Strict):
+    kind: Literal["coordinate_plane"]
+    size: int = Field(default=10, ge=2, le=10)
+    four_quadrants: bool = False
+    points: List[PlanePoint] = Field(..., min_length=1, max_length=6)
+
+
+Diagram = Annotated[
+    Union[FractionDiagram, ArrayDiagram, BaseTenDiagram, ClockDiagram, RectangleDiagram,
+          RightTriangleDiagram, NumberLineDiagram, BarGraphDiagram, CoordinateDiagram],
+    Field(discriminator="kind"),
+]
+DIAGRAM_KINDS = ("fraction_bar", "fraction_circle", "array", "base_ten", "clock", "rectangle",
+                 "right_triangle", "number_line", "bar_graph", "coordinate_plane")
+
+
 class AssessmentItem(_Strict):
     number: int = Field(..., ge=1, le=500)
     prompt: str = Field(..., min_length=1, max_length=300)
     stimulus: Optional[str] = Field(default=None, max_length=200)
+    # The problem's picture, when it is one Bede can draw and check.
+    diagram: Optional[Diagram] = None
     # None or "" means nothing is written there. For a colour-fill item a
     # circle deliberately left white is the answer "uncolored", not a blank.
     student_response: Optional[str] = Field(default=None, max_length=200)
@@ -118,6 +228,7 @@ class PracticeItem(_Strict):
     prompt: str = Field(..., max_length=300)
     expected_answer: str = Field(..., max_length=200)
     hint: str = Field(default="", max_length=300)
+    diagram: Optional[Diagram] = None
 
 
 class PracticeSet(_Strict):
@@ -201,6 +312,7 @@ class QuizQuestion(_Strict):
     prompt: str = Field(..., min_length=1, max_length=600)
     options: List[str] = Field(default_factory=list, max_length=6)
     answer: str = Field(..., min_length=1, max_length=400)
+    diagram: Optional[Diagram] = None
     # computed: worked out by this backend. checked: a second, independent
     # answer agreed. verify: the adult should check it.
     answer_check: Literal["computed", "checked", "verify"] = "verify"

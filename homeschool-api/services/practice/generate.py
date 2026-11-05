@@ -45,7 +45,7 @@ from pydantic import ValidationError
 from core.config import settings
 from models.practice import MAX_QUIZ_QUESTIONS, GeneratedQuiz, GenerateQuizRequest
 from models.schemas import SUBJECT_LABELS, Subject
-from services.practice import extract
+from services.practice import diagrams, extract
 from services.practice.core_checks import normalize
 from services.practice.packs import math as math_pack
 
@@ -112,13 +112,24 @@ def _rules() -> str:
 You are drafting a school quiz or exam for an adult (a parent or teacher) to review before any student sees it.
 Return ONLY one JSON object, no prose, in this shape:
 {"title": str, "coverage": [str], "questions": [{"number": int, "type": "multiple_choice"|"true_false"|"short_answer"|"fill_in_blank"|"computation"|"written_response",
-  "topic": str, "prompt": str, "options": [str], "answer": str}]}
+  "topic": str, "prompt": str, "options": [str], "answer": str, "diagram": object|null}]}
 Rules:
 - First work out what the source material covers: topics, skills, question types and difficulty. List the topics in "coverage".
 - Write NEW questions on that material. Never copy a source question word for word.
 - Match the requested grade, level and kind. Use the question types the source uses, mixed sensibly.
 - Every question has a correct answer in "answer". For multiple_choice give 3 or 4 "options" and make "answer" exactly one of them. For true_false the options are ["True", "False"].
 - For a computation, write the problem as a plain expression with + − × ÷ and = (for example "48 ÷ 6 ="), so it can be checked.
+- When a maths question needs a picture (a shaded fraction, telling the time, an array, base-ten blocks, the area or perimeter of a shape, a number line, a graph, points on a grid), give it a "diagram" and ask about the picture ("What fraction of the bar is shaded?"). Bede draws the picture from the diagram, so never describe it in words instead, and never put the answer in the prompt. Use one of:
+  {"kind": "fraction_bar"|"fraction_circle", "parts": int, "shaded": int}
+  {"kind": "array", "rows": int, "cols": int}
+  {"kind": "base_ten", "hundreds": int, "tens": int, "ones": int}
+  {"kind": "clock", "hour": 1-12, "minute": 0-59}
+  {"kind": "rectangle", "width": int, "height": int, "unit": str}
+  {"kind": "right_triangle", "base": int, "height": int, "unit": str}
+  {"kind": "number_line", "start": int, "end": int, "step": int, "marks": [int], "mark_labels": [str]}
+  {"kind": "bar_graph", "title": str, "bars": [{"label": str, "value": int}]}
+  {"kind": "coordinate_plane", "size": int, "four_quadrants": bool, "points": [{"label": str, "x": int, "y": int}]}
+- Otherwise leave "diagram" null.
 - Keep every question age-appropriate and factual. If you are not sure of a fact, leave that question out.
 - Never include a person's name, a school, a teacher, a class or a date.
 - Do not ask about a student's beliefs, faith or feelings, and do not score them."""
@@ -187,12 +198,16 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
             report["dropped"] += 1
             continue
         q = {k: raw.get(k) for k in ("type", "topic", "prompt", "options", "answer")}
+        picture = diagrams.parse(raw.get("diagram")) if raw.get("diagram") is not None else None
+        if raw.get("diagram") is not None and picture is None:
+            report["dropped"] += 1  # the question needs a picture Bede cannot draw
+            continue
         q["prompt"] = str(q.get("prompt") or "").strip()[:600]
         q["topic"] = str(q.get("topic") or "").strip()[:80]
         q["options"] = [str(o).strip()[:200] for o in (q.get("options") or []) if str(o).strip()][:6]
         q["answer"] = str(q.get("answer") or "").strip()[:400]
-        key = _key(q["prompt"])
-        copied = len(key) >= 25 and key in source
+        key = _key(q["prompt"]) + diagrams.key(picture)
+        copied = len(_key(q["prompt"])) >= 25 and _key(q["prompt"]) in source
         if not q["prompt"] or not q["answer"] or key in seen or copied:
             report["dropped"] += 1
             continue
@@ -205,6 +220,30 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
                 report["dropped"] += 1
                 continue
             q["answer"] = fixed
+        if picture is not None:
+            q["diagram"] = picture.model_dump(mode="json")
+            shown = diagrams.answer(picture, q["prompt"])
+            if shown is not None:
+                # The answer is counted off the picture Bede will draw.
+                if q.get("type") in ("multiple_choice", "true_false"):
+                    match = next((o for o in q["options"] if diagrams.same(picture, o, shown)), None)
+                    if q.get("type") == "multiple_choice" and match is None:
+                        report["dropped"] += 1
+                        continue
+                    if match is not None and match != q["answer"]:
+                        report["answers_recomputed"] += 1
+                        q["answer"] = match
+                else:
+                    if not diagrams.same(picture, q["answer"], shown):
+                        report["answers_recomputed"] += 1
+                    q["answer"] = shown
+                if q.get("type") != "true_false":
+                    q["answer_check"] = "computed"
+            seen.add(key)
+            questions.append(q)
+            if len(questions) >= req.question_count:
+                break
+            continue
         right = math_pack.evaluate(q["prompt"]) if q.get("type") in ("computation", "fill_in_blank", "short_answer") else None
         if right is not None:
             computed = math_pack._fmt(right, "." in q["prompt"])
@@ -286,7 +325,8 @@ async def _check(client, quiz: GeneratedQuiz, req: GenerateQuizRequest) -> dict:
     lines = []
     for q in pending:
         options = "".join(f"\n   {chr(65 + i)}) {o}" for i, o in enumerate(q.options))
-        lines.append(f"{q.number}. {q.prompt}{options}")
+        picture = f"\n   (picture: {q.diagram.model_dump_json()})" if q.diagram is not None else ""
+        lines.append(f"{q.number}. {q.prompt}{picture}{options}")
     text = "Questions:\n" + "\n".join(lines)
     if req.source_text:
         text += f"\n\nSource material:\n{req.source_text}"

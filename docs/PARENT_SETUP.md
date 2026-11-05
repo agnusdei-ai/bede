@@ -1167,7 +1167,12 @@ graded quiz**. Choose the subject that matches the quiz:
 - **Mathematics**: sums written out as problems (`27 + 15 =`, fractions,
   decimals, negative numbers, order of operations). Bede works each problem
   out itself and names the slip behind a wrong answer, such as not carrying
-  a ten. Word problems are shown to you rather than guessed at.
+  a ten. Picture problems work too: a shaded fraction, a clock, an array of
+  dots, base-ten blocks, the area or perimeter of a rectangle, a point on a
+  number line or a grid. Bede reads the picture, checks the answer against
+  it, and draws new pictures of the same kind for the practice, both on the
+  screen and on the printed worksheet. Word problems are shown to you rather
+  than guessed at.
 - **Spelling**: spelling tests. Bede compares each word with the correct
   spelling the teacher wrote and names the pattern, such as a doubled letter
   or *their* for *there*.
@@ -1262,7 +1267,9 @@ covers and writes new questions.
 
 Before you print:
 
-- Maths answers say **Worked out**: Bede computed them.
+- Maths answers say **Worked out**: Bede computed them. A picture question
+  (a shaded fraction, a clock, a shape) is drawn by Bede, and its answer is
+  counted off that same picture, so the two always agree.
 - **Double-checked** means Bede answered the question a second time, without
   looking at its first answer, and both agreed. That makes a mistake less
   likely, not impossible.

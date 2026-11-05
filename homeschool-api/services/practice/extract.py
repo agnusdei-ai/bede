@@ -149,7 +149,7 @@ _RULES = """You are reading a photographed, already-graded school worksheet so a
 Return ONLY one JSON object, no prose, matching this shape:
 {"subject": "<subject>", "sections": [{"label": str, "instructions": str,
   "required_format": "complete_sentence"|"single_word"|"color_fill"|"free"|"unknown",
-  "word_bank": [str], "items": [{"number": int, "prompt": str, "stimulus": str|null,
+  "word_bank": [str], "items": [{"number": int, "prompt": str, "stimulus": str|null, "diagram": object|null,
   "student_response": str|null, "teacher_mark": "correct"|"incorrect"|"partial"|"unmarked",
   "teacher_correction": str|null, "confidence": number 0-1, "ask_parent": str|null}]}]}
 Rules:
@@ -158,7 +158,19 @@ Rules:
 - Record the teacher's mark only if you can see one; otherwise "unmarked". Never invent a mark.
 - If you cannot read something with confidence, give your best reading, lower "confidence",
   and say what is uncertain in "ask_parent".
-- "stimulus" describes a picture briefly in plain English (e.g. "picture: dog running")."""
+- "stimulus" describes a picture briefly in plain English (e.g. "picture: dog running").
+- "diagram" is null unless the problem's picture is one of these, given with its exact numbers:
+    {"kind": "fraction_bar"|"fraction_circle", "parts": int, "shaded": int}
+    {"kind": "array", "rows": int, "cols": int}
+    {"kind": "base_ten", "hundreds": int, "tens": int, "ones": int}
+    {"kind": "clock", "hour": 1-12, "minute": 0-59}
+    {"kind": "rectangle", "width": int, "height": int, "unit": str}
+    {"kind": "right_triangle", "base": int, "height": int, "unit": str}
+    {"kind": "number_line", "start": int, "end": int, "step": int, "marks": [int], "mark_labels": [str]}
+    {"kind": "bar_graph", "title": str, "bars": [{"label": str, "value": int}]}
+    {"kind": "coordinate_plane", "size": int, "four_quadrants": bool, "points": [{"label": str, "x": int, "y": int}]}
+  Count parts, dots, blocks and tick marks carefully; if you are unsure of a number, lower "confidence"
+  and say so in "ask_parent". Any other picture goes in "stimulus" only."""
 
 
 def _prompt(subject: str) -> str:

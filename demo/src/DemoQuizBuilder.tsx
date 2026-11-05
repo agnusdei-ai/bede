@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Loader2 } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from './uploadParts'
+import Diagram from './Diagram'
+import type { DiagramSpec } from './Diagram'
 import {
   copyDemoQuizSource,
   fetchDemoQuizOptions,
@@ -41,7 +43,7 @@ export default function DemoQuizBuilder({
   onApproved,
 }: {
   token: string
-  onApproved: (items: { index: number; prompt: string; hint: string }[]) => void
+  onApproved: (items: { index: number; prompt: string; hint: string; diagram?: DiagramSpec | null }[]) => void
 }) {
   const { t } = useTranslation()
   const [options, setOptions] = useState<QuizOptions | null>(null)
@@ -138,7 +140,7 @@ export default function DemoQuizBuilder({
     if (!quiz) return
     const items = quiz.questions
       .filter((_, i) => keep[i])
-      .map((q, index) => ({ index, prompt: quizPrompt(q), hint: '' }))
+      .map((q, index) => ({ index, prompt: quizPrompt(q), hint: '', ...(q.diagram ? { diagram: q.diagram } : {}) }))
     if (items.length) onApproved(items)
   }
 
@@ -172,6 +174,7 @@ export default function DemoQuizBuilder({
               />
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="whitespace-pre-line font-medium">{q.number}. {quizPrompt(q)}</p>
+                <Diagram d={q.diagram} />
                 <label className="flex items-center gap-2">
                   <span>{t('demoQuiz.answer')}</span>
                   <input

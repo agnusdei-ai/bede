@@ -893,5 +893,17 @@
     "actionWithdraw": "withdraw the authorization",
     "loadFailedHint": "Entry of student information remains unavailable until the status loads.",
     "retry": "Try again"
+  },
+  "diagram": {
+    "fractionBar": "A bar in {{parts}} equal parts, {{shaded}} of them shaded",
+    "fractionCircle": "A circle in {{parts}} equal parts, {{shaded}} of them shaded",
+    "array": "An array of dots: {{rows}} rows of {{cols}}",
+    "baseTen": "Base-ten blocks: {{hundreds}} hundreds, {{tens}} tens and {{ones}} ones",
+    "clock": "A clock: the short hand near {{hour}}, the long hand at {{minute}} minutes",
+    "rectangle": "A rectangle, {{width}} {{unit}} by {{height}} {{unit}}",
+    "rightTriangle": "A right triangle, base {{base}} {{unit}}, height {{height}} {{unit}}",
+    "numberLine": "A number line from {{start}} to {{end}} in steps of {{step}}, with points {{points}}",
+    "barGraph": "A bar graph: {{bars}}",
+    "plane": "A grid with points {{points}}"
   }
 }

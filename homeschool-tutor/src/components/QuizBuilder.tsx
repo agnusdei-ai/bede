@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileQuestion, Loader2, Printer } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from '../utils/uploadParts'
+import Diagram, { diagramMarkup } from './Diagram'
 import {
   copyEducatorQuizSource,
   copyQuizSource,
@@ -153,7 +154,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
     const rows = questions.map((q, i) => {
       const opts = q.options.length ? `<ul>${optionLines(q.options).map((o) => `<li>${escapeHtml(o)}</li>`).join('')}</ul>` : ''
       const tail = withAnswers ? `<p class="ans">${escapeHtml(q.answer)}</p>` : '<div class="line"></div>'
-      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${opts}${tail}</li>`
+      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${diagramMarkup(q.diagram)}${opts}${tail}</li>`
     }).join('')
     const heading = withAnswers ? `${quiz.title}: ${t('quizBuilder.answerKey')}` : quiz.title
     win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(heading)}</title>
@@ -272,6 +273,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                       onChange={(e) => setKeep((v) => v.map((x, i) => i === index ? e.target.checked : x))} />
                     <div className="min-w-0 flex-1 space-y-1">
                       <p className="font-medium">{q.number}. {q.prompt}</p>
+                      <Diagram d={q.diagram} />
                       {q.options.length > 0 && <p className="whitespace-pre-line text-gray-600">{optionLines(q.options).join('\n')}</p>}
                       <label className="flex items-center gap-2">
                         <span>{t('quizBuilder.answer')}</span>

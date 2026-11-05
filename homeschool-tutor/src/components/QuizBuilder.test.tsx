@@ -73,6 +73,26 @@ describe('QuizBuilder', () => {
     expect(written[1]).toContain('sunlight')
   })
 
+  it('draws a picture question on screen and in the printed quiz', async () => {
+    mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
+    mocks.generateQuiz.mockResolvedValue({ quiz: { ...quiz, questions: [{
+      number: 1, type: 'short_answer', topic: 'fractions', prompt: 'What fraction of the bar is shaded?', options: [],
+      answer: '3/4', answer_check: 'computed', diagram: { kind: 'fraction_bar', parts: 4, shaded: 3 },
+    }] }, report: { answers_recomputed: 0, dropped: 0, short_by: 0 } })
+    const written: string[] = []
+    const win = { document: { write: (h: string) => written.push(h), close: vi.fn() }, print: vi.fn() }
+    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window)
+    render(<QuizBuilder token="t" studentName="Ava" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'fractions' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    expect(await screen.findByRole('img', { name: /A bar in 4 equal parts, 3 of them shaded/ })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Print quiz' }))
+    expect(written[0]).toContain('<svg')
+    expect((written[0].match(/<rect/g) ?? []).length).toBe(4)
+    expect(written[0]).not.toContain('3/4')
+  })
+
   it('drafts from typed text on the cloud provider when photo reading is off', async () => {
     mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: null, draft_provider: 'OpenAI' }))
     render(<QuizBuilder token="t" studentName="Ava" />)

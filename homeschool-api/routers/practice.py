@@ -319,7 +319,8 @@ async def get_delivery_sets(
         out.append({
             "id": saved["id"],
             "items": [
-                {"index": index, "prompt": item.prompt, "hint": item.hint}
+                {"index": index, "prompt": item.prompt, "hint": item.hint,
+                 "diagram": item.diagram.model_dump(mode="json") if item.diagram else None}
                 for index, item in enumerate(practice.items)
             ],
             "completed_indices": sorted(
@@ -477,7 +478,8 @@ async def demo_approve_practice(
     return {
         "approved": True,
         "items": [
-            {"index": index, "prompt": item.prompt, "hint": item.hint}
+            {"index": index, "prompt": item.prompt, "hint": item.hint,
+                 "diagram": item.diagram.model_dump(mode="json") if item.diagram else None}
             for index, item in enumerate(req.practice_set.items)
         ],
     }

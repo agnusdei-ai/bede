@@ -1,3 +1,4 @@
+import type { DiagramSpec } from '../components/Diagram'
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
@@ -1742,6 +1743,7 @@ export interface PracticeItemReading {
   number: number
   prompt: string
   stimulus?: string | null
+  diagram?: DiagramSpec | null
   student_response?: string | null
   teacher_mark: TeacherMark
   teacher_correction?: string | null
@@ -1778,6 +1780,7 @@ export interface PracticeSetItem {
   prompt: string
   expected_answer: string
   hint: string
+  diagram?: DiagramSpec | null
 }
 
 export interface PracticeSetDraft {
@@ -1805,6 +1808,7 @@ export interface PracticeDeliveryItem {
   index: number
   prompt: string
   hint: string
+  diagram?: DiagramSpec | null
 }
 
 export interface PracticeDeliverySet {
@@ -1905,6 +1909,7 @@ export interface QuizQuestion {
   prompt: string
   options: string[]
   answer: string
+  diagram?: DiagramSpec | null
   answer_check: 'computed' | 'checked' | 'verify'
   second_answer?: string | null
 }

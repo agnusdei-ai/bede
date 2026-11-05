@@ -47,6 +47,17 @@ describe('approved practice delivery', () => {
     expect(await screen.findByRole('button', { name: 'Check for approved practice' })).toBeTruthy()
   })
 
+  it('shows the picture a picture problem needs', async () => {
+    mocks.fetchPracticeDelivery.mockResolvedValue([{
+      id: 22,
+      items: [{ index: 0, prompt: 'What time does the clock show?', hint: '', diagram: { kind: 'clock', hour: 4, minute: 30 } }],
+      completed_indices: [],
+    }])
+    render(<PracticeDelivery token="synthetic-token" studentName="Synthetic Learner" onAnswer={vi.fn()} />)
+    expect(await screen.findByText('What time does the clock show?')).toBeTruthy()
+    expect(screen.getByRole('img', { name: /A clock/ }).querySelector('svg')).not.toBeNull()
+  })
+
   it('does not send an answer to Bede when outcome recording fails', async () => {
     mocks.recordPracticeOutcome.mockRejectedValue(new Error('failed'))
     const onAnswer = vi.fn()

@@ -227,6 +227,28 @@ The core never changes when a subject is added. A pack is a folder under
 
 Register a new pack with one line in `packs/__init__.py`.
 
+**Picture problems (`services/practice/diagrams.py`, `Diagram.tsx`).** When a
+maths problem's picture is the problem, it carries a `diagram`: one of ten
+kinds (fraction bar or circle, array, base-ten blocks, clock, rectangle,
+right triangle, number line, bar graph, coordinate plane) holding only
+numbers and short labels (`models/practice.py`, `extra="forbid"`). The reader
+records it, the drafting rules ask for it, and the app draws it itself as SVG
+on screen and in print, so a model never writes markup into the page and the
+picture and its answer cannot disagree. `diagrams.answer` counts the answer
+off the picture (or returns nothing for a question it cannot settle, such as
+a bar graph's "how many more", which goes to the adult); `explain` names only
+slips a parent can check against the picture (shaded against unshaded parts,
+clock hands swapped, rows added instead of multiplied, area for perimeter, x
+and y swapped); `new_like` draws a fresh picture of the same kind for
+practice, never the missed one. In a drafted quiz the picture decides the
+answer: a short answer is replaced by the counted one, a multiple-choice
+question with no option matching the picture is dropped, and a diagram
+outside the vocabulary drops the question rather than leaving it described in
+words. A lettered number line numbers only its ends, so "what number is at
+A?" stays a question. `tests/test_practice_diagrams.py` and
+`demo/src/Diagram.test.tsx` (which also keeps the app and demo copies equal
+and the kinds in step with the API's); each guard was checked by breaking it.
+
 **The parent picks a school subject, not a pack.** Packs group subjects by how
 a mistake is checked (worked out exactly, named by spelling pattern, compared
 with the teacher's correction), which is not how a parent or a school looks

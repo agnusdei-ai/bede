@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
+import { withProgress, type ProgressState } from '../utils/readingProgress'
+import ReadingProgressBar from './ReadingProgressBar'
 import Diagram, { pictureWords, diagramMarkup } from './Diagram'
 import { Camera, Check, Printer, Sparkles, X } from 'lucide-react'
 import {
   approvePracticeSet, confirmPracticeReading, discardPracticeSet, fetchPracticePacks,
-  fetchReadingRoute, planPractice, PracticeConsentRequired, readPracticePhotos,
+  fetchReadingProgress, fetchReadingRoute, planPractice, PracticeConsentRequired, readPracticePhotos,
 } from '../services/api'
 import type {
   GradedAssessment, PracticePlan, PracticeReading, PracticeSetDraft, ReadingRoute, TeacherMark,
@@ -68,6 +70,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
   const [route, setRoute] = useState<ReadingRoute | null>(null)
   const [subject, setSubject] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [progress, setProgress] = useState<ProgressState | null>(null)
   const [consent, setConsent] = useState(false)
   const [stage, setStage] = useState<Stage>('start')
   const [reading, setReading] = useState<PracticeReading | null>(null)
@@ -111,22 +114,25 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
       // same saved reading, and each part's photos read only when it is sent.
       let result: PracticeReading | null = null
       let firstPage = 1
-      for (const part of splitIntoParts(files)) {
+      await withProgress(splitIntoParts(files), async (part, _index, progressId) => {
         const pages = await Promise.all(part.map(async (f) => ({ data: await readFile(f) })))
         result = await readPracticePhotos(token, studentName, {
           subject, pages, cloud_consent: usesCloud && consent,
-          first_page: firstPage, continues_record: result?.id,
+          first_page: firstPage, continues_record: result?.id, progress_id: progressId,
         })
         firstPage += result.pages_read ?? pages.length
-      }
-      if (!result) return
-      setReading(result); setDraft(result.assessment); setStage('review')
+      }, (id) => fetchReadingProgress(token, id), setProgress)
+      // Assigned inside the part callback, which TypeScript cannot follow.
+      const finished = result as PracticeReading | null
+      if (!finished) return
+      setReading(finished); setDraft(finished.assessment); setStage('review')
     } catch (err) {
       setStage('start')
       setMessage(err instanceof PracticeConsentRequired
         ? t('practiceCoach.consentNeeded', { provider: err.provider ?? '' })
         : err instanceof Error ? err.message : t('practiceCoach.readError'))
     } finally {
+      setProgress(null)
       setFiles([])  // the photos are not kept in this page either
     }
   }
@@ -263,6 +269,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                 className="rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
                 {stage === 'reading' ? t('practiceCoach.reading') : t('practiceCoach.read')}
               </button>
+              <ReadingProgressBar state={progress} />
             </div>
           )}
 

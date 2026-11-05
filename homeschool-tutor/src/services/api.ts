@@ -1861,11 +1861,17 @@ export const readPracticePhotos = (
   body: {
     subject: string; pages: { data: string }[]; route?: 'local' | 'cloud'; cloud_consent: boolean
     /** A long upload goes in parts: the page number this part starts at, and the record it continues. */
-    first_page?: number; continues_record?: number
+    first_page?: number; continues_record?: number; progress_id?: string
   },
 ) => practiceFetch<PracticeReading>(token, `/${encodeURIComponent(studentName)}/assessments/read`, {
   method: 'POST', body: JSON.stringify(body),
 })
+
+/** How far a reading has got (null when the server does not know). */
+export const fetchReadingProgress = (token: string, id: string, educator = false) =>
+  practiceFetch<{ stage: 'checking' | 'reading' | 'drafting'; done: number; total: number | null }>(
+    token, `${educator ? '/educator' : ''}/progress/${encodeURIComponent(id)}`,
+  ).catch(() => null)
 
 export const confirmPracticeReading = (token: string, studentName: string, id: number, assessment: GradedAssessment) =>
   practiceFetch<PracticeReading>(token, `/${encodeURIComponent(studentName)}/assessments/${id}`, {
@@ -1944,13 +1950,14 @@ export const generateQuiz = (
     focus?: string; source_text?: string; pages: { data: string }[]; cloud_consent: boolean
     /** A long upload's pages, copied out as text part by part (copyQuizSource). */
     source_pages_text?: string
+    progress_id?: string
   },
 ) => practiceFetch<{ quiz: GeneratedQuiz; report: { answers_recomputed: number; dropped: number; short_by: number } }>(
   token, `/${encodeURIComponent(studentName)}/quizzes/generate`, { method: 'POST', body: JSON.stringify(body) },
 )
 
 export interface QuizSourcePart {
-  subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number
+  subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number; progress_id?: string
 }
 
 /** One part of a long quiz source, copied out as text. Nothing is stored. */

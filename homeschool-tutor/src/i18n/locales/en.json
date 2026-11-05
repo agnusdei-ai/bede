@@ -1066,5 +1066,14 @@
       "twenty_bill": "twenty-dollar bill"
     },
     "imageCredit": "Picture: Wikimedia Commons, from the Wikipedia article “{{title}}”"
+  },
+  "readingProgress": {
+    "label": "Reading progress",
+    "sending": "Sending the pages…",
+    "checking": "Checking the pages…",
+    "reading": "Reading the pages…",
+    "read": "Read {{done}} of {{total}} pages",
+    "drafting": "Writing the quiz…",
+    "part": "(part {{part}} of {{parts}})"
   }
 }

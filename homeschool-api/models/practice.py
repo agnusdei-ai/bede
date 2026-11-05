@@ -472,6 +472,8 @@ class ReadPhotosRequest(_Strict):
     first_page: int = Field(default=1, ge=1)
     continues_record: Optional[int] = Field(default=None, ge=1)
     continues: Optional[GradedAssessment] = None
+    # A random id the browser polls (GET .../progress/{id}) for a progress bar.
+    progress_id: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9-]{8,64}$")
 
 
 class ConfirmAssessmentRequest(_Strict):
@@ -551,6 +553,7 @@ class QuizSourceRequest(_Strict):
     route: Optional[Literal["local", "cloud"]] = None
     cloud_consent: bool = False
     first_page: int = Field(default=1, ge=1)
+    progress_id: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9-]{8,64}$")
 
 
 class GenerateQuizRequest(_Strict):
@@ -570,6 +573,7 @@ class GenerateQuizRequest(_Strict):
     source_pages_text: Optional[str] = Field(default=None, max_length=MAX_SOURCE_PAGES_TEXT)
     route: Optional[Literal["local", "cloud"]] = None
     cloud_consent: bool = False
+    progress_id: Optional[str] = Field(default=None, pattern=r"^[A-Za-z0-9-]{8,64}$")
 
     @field_validator("focus", "source_text", "source_pages_text")
     @classmethod

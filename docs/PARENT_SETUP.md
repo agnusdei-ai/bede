@@ -1191,7 +1191,8 @@ graded quiz**. Choose the subject that matches the quiz:
 1. **Choose the subject and photograph the pages.** Add every page of the
    quiz, as JPEG, PNG, WebP or AVIF photos or a scanned PDF. There is no page
    limit: Bede reads the pages six at a time and puts them back together as
-   one worksheet. The card tells
+   one worksheet. A bar shows how far it has got, as a percentage and as
+   "Read 12 of 18 pages"; a long quiz can take a few minutes. The card tells
    you where the photos will be read:
    - **On this computer's own AI model**, if your install has one. Nothing
      is sent anywhere else.

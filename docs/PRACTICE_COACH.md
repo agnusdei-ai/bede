@@ -26,6 +26,19 @@ is the **teacher's** count, read off the page and labelled as such.
    stores nothing, sends back what the earlier parts read as `continues`). On
    the public demo each group of pages is one model call and counts as one
    message against the visitor's allowance.
+
+   **A progress bar shows how far a reading has got.** Each request carries a
+   random `progress_id`; `services/practice/progress.py` records, in memory
+   only, the page total once every file is checked and the pages read after
+   each group, and the browser polls `GET /practice/progress/{id}` (parent),
+   `/practice/educator/progress/{id}` or `/practice/demo/progress/{id}` about
+   once a second (`utils/readingProgress.ts`, mirrored in the demo). The bar
+   shows the whole upload: finished parts count in full, the current part by
+   its pages, and a quiz draft shows "Writing the quiz" near the end. An entry
+   holds four numbers and a stage word, nothing from the pages, is keyed by
+   who asked as well as the id, and expires ten minutes after its last update.
+   A poll that reaches a different API process answers "unknown" and the bar
+   keeps its last figure; it never goes backwards.
    Every file is first checked and rebuilt (see "File validation and
    hardening" below), and the rebuilt PNG pages are sent to
    the model the same way the handwriting canvas sends a child's drawing, as

@@ -581,5 +581,14 @@
       "twenty_bill": "billete de veinte dólares"
     },
     "imageCredit": "Imagen: Wikimedia Commons, del artículo de Wikipedia «{{title}}»"
+  },
+  "readingProgress": {
+    "label": "Progreso de la lectura",
+    "sending": "Enviando las páginas…",
+    "checking": "Revisando las páginas…",
+    "reading": "Leyendo las páginas…",
+    "read": "Leídas {{done}} de {{total}} páginas",
+    "drafting": "Preparando la prueba…",
+    "part": "(parte {{part}} de {{parts}})"
   }
 }

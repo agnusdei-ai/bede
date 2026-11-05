@@ -530,7 +530,7 @@ def _decode(item: str) -> bytes:
     return raw
 
 
-async def page_groups(data_b64: list[str], size: int = READ_GROUP_SIZE):
+async def page_groups(data_b64: list[str], size: int = READ_GROUP_SIZE, on_total=None):
     """Base64 uploads -> groups of at most `size` rebuilt pages, in upload order.
 
     Every file is decoded, scanned, typed and (for a PDF) structurally checked
@@ -554,6 +554,8 @@ async def page_groups(data_b64: list[str], size: int = READ_GROUP_SIZE):
             _image_format(raw)
             files.append((raw, 0))
 
+    if on_total is not None:
+        on_total(sum(count or 1 for _, count in files))
     group: list[tuple[str, str]] = []
     for raw, count in files:
         if count == 0:

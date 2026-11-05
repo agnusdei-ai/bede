@@ -252,7 +252,8 @@ async def read_pages(req: ReadPhotosRequest, before_call=None,
 
 
 async def read_pages_counted(req: ReadPhotosRequest, before_call=None,
-                             continues: GradedAssessment | None = None) -> tuple[GradedAssessment, int]:
+                             continues: GradedAssessment | None = None,
+                             report=None) -> tuple[GradedAssessment, int]:
     """Read every uploaded page, READ_GROUP_SIZE pages per model call.
 
     `before_call` runs before each call (the demo charges its message quota
@@ -264,11 +265,22 @@ async def read_pages_counted(req: ReadPhotosRequest, before_call=None,
     client = _choose_client(req)  # consent and routing are settled before anything is parsed
     result = continues
     next_page = req.first_page
-    async for pages in page_groups([p.data for p in req.pages]):
+    total = {"pages": 0}
+
+    def on_total(n: int) -> None:
+        total["pages"] = n
+        if report:
+            report("reading", 0, n)
+
+    if report:
+        report("checking", 0, None)
+    async for pages in page_groups([p.data for p in req.pages], on_total=on_total):
         if before_call is not None:
             await before_call()
         part = await _read_group(client, req.subject, pages, next_page)
         next_page += len(pages)
+        if report:
+            report("reading", next_page - req.first_page, total["pages"])
         del pages  # this group's images are not needed once it is read
         result = part if result is None else merge_readings(result, part)
     return result, next_page - req.first_page

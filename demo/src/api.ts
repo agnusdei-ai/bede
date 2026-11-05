@@ -195,7 +195,7 @@ export const readDemoPracticePhotos = (
   body: {
     subject: string; pages: { data: string }[]; cloud_consent: boolean
     /** A long upload goes in parts: where this part starts, and what earlier parts read. */
-    first_page?: number; continues?: DemoPracticeAssessment
+    first_page?: number; continues?: DemoPracticeAssessment; progress_id?: string
   },
 ) => demoPracticeFetch<{
   id: 0
@@ -205,6 +205,18 @@ export const readDemoPracticePhotos = (
   teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
   pages_read?: number
 }>(token, '/read', body)
+
+/** How far a reading has got (null when the server does not know). */
+export const fetchDemoReadingProgress = async (token: string, id: string) => {
+  try {
+    const res = await fetch(`${apiBase()}/practice/demo/progress/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    return res.ok ? (await res.json() as { stage: 'checking' | 'reading' | 'drafting'; done: number; total: number | null }) : null
+  } catch {
+    return null
+  }
+}
 
 export const planDemoPractice = (token: string, assessment: DemoPracticeAssessment) =>
   demoPracticeFetch<{
@@ -270,12 +282,13 @@ export interface GenerateQuizBody {
   cloud_consent: boolean
   /** A long upload's pages, copied out as text part by part (copyDemoQuizSource). */
   source_pages_text?: string
+  progress_id?: string
 }
 
 /** One part of a long quiz source, copied out as text; each six pages is one message. */
 export const copyDemoQuizSource = (
   token: string,
-  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number },
+  body: { subject: string; pages: { data: string }[]; cloud_consent: boolean; first_page: number; progress_id?: string },
 ) => demoPracticeFetch<{ text: string; pages_read: number }>(token, '/quiz/source', body)
 
 export const fetchDemoQuizOptions = (token: string) =>

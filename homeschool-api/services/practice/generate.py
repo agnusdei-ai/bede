@@ -382,19 +382,30 @@ async def _transcribe(client, group: list[tuple[str, str]], first_page: int, bef
     return f"[Pages {first_page}-{last}]\n" + extract._text_of(response)[:TRANSCRIPT_CHARS_PER_GROUP]
 
 
-async def transcribe_source(req, local_only: bool = False, before_call=None) -> tuple[str, int]:
+async def transcribe_source(req, local_only: bool = False, before_call=None, report=None) -> tuple[str, int]:
     """Copy one part of a long quiz source out as text, a group of pages per call."""
     check_request(GenerateQuizRequest(subject=req.subject, grade="3", focus="source"))
     client = _local_client() if local_only else extract._choose_client(req)
     parts, page = [], req.first_page
-    async for group in extract.page_groups([p.data for p in req.pages]):
+    total = {"pages": 0}
+
+    def on_total(n: int) -> None:
+        total["pages"] = n
+        if report:
+            report("reading", 0, n)
+
+    if report:
+        report("checking", 0, None)
+    async for group in extract.page_groups([p.data for p in req.pages], on_total=on_total):
         parts.append(await _transcribe(client, group, page, before_call))
         page += len(group)
+        if report:
+            report("reading", page - req.first_page, total["pages"])
     return "\n\n".join(parts), page - req.first_page
 
 
 async def generate(req: GenerateQuizRequest, local_only: bool = False,
-                   before_call=None) -> tuple[GeneratedQuiz, dict]:
+                   before_call=None, report=None) -> tuple[GeneratedQuiz, dict]:
     """Draft, check in code, then cross-check. `local_only` (teachers) never
     reaches a cloud provider: their uploads can hold students' work."""
     subject = check_request(req)
@@ -411,8 +422,17 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False,
         client = extract.text_draft_client(req)
     content: list[dict] = []
     transcripts: list[str] = []
+    total = {"pages": 0}
+
+    def on_total(n: int) -> None:
+        total["pages"] = n
+        if report:
+            report("reading", 0, n)
+
     if req.pages:
-        groups = extract.page_groups([p.data for p in req.pages])
+        if report:
+            report("checking", 0, None)
+        groups = extract.page_groups([p.data for p in req.pages], on_total=on_total)
         first = await groups.__anext__()
         second = await anext(groups, None)
         if second is None:
@@ -425,10 +445,16 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False,
             for group in (first, second):
                 transcripts.append(await _transcribe(client, group, page, before_call))
                 page += len(group)
+                if report:
+                    report("reading", page - 1, total["pages"])
             del first, second
             async for group in groups:
                 transcripts.append(await _transcribe(client, group, page, before_call))
                 page += len(group)
+                if report:
+                    report("reading", page - 1, total["pages"])
+    if report:
+        report("drafting", total["pages"], total["pages"] or None)
     text = _request_text(req, subject)
     if req.source_pages_text:
         transcripts.insert(0, req.source_pages_text)

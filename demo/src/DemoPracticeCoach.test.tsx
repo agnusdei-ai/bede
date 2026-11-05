@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
   approveDemoPractice: vi.fn(),
   fetchDemoPracticePacks: vi.fn(),
   fetchDemoPracticeReadingRoute: vi.fn(),
+  fetchDemoReadingProgress: vi.fn(),
   planDemoPractice: vi.fn(),
   readDemoPracticePhotos: vi.fn(),
 }))
@@ -78,6 +79,23 @@ beforeEach(() => {
 })
 
 describe('demo Practice Coach', () => {
+  it('shows a progress bar with the percentage while the pages are read', async () => {
+    let finish: (v: unknown) => void = () => undefined
+    api.readDemoPracticePhotos.mockImplementation(() => new Promise((r) => { finish = r }))
+    api.fetchDemoReadingProgress.mockResolvedValue({ stage: 'reading', done: 6, total: 12 })
+    render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    await screen.findByRole('option', { name: 'Latin' })
+    fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files: [new File(['x'], 'q.jpg', { type: 'image/jpeg' })] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
+    const bar = await screen.findByRole('progressbar')
+    await waitFor(() => expect(bar.getAttribute('aria-valuenow')).toBe('48'), { timeout: 3000 })
+    expect(screen.getByText(/48% · Read 6 of 12 pages/)).toBeTruthy()
+    const sent = api.readDemoPracticePhotos.mock.calls[0][1]
+    expect(api.fetchDemoReadingProgress).toHaveBeenCalledWith('synthetic-token', sent.progress_id)
+    finish({ id: 0, status: 'needs_review', assessment, ask_parent: [], teacher_mark_count: { correct: 0, total: 1, source: 'teacher_marks' }, pages_read: 1 })
+    await waitFor(() => expect(screen.queryByRole('progressbar')).toBeNull())
+  })
+
   it('draws a picture the page had, and never shows a "picture:" description', async () => {
     const pictured: DemoPracticeAssessment = { ...assessment, sections: [{ ...assessment.sections[0], items: [
       { ...assessment.sections[0].items[0], stimulus: 'picture: duck on water', diagram: { kind: 'pictures', groups: [{ icon: 'duck', count: 1 }, { icon: 'water', count: 1 }] } },
@@ -135,6 +153,7 @@ describe('demo Practice Coach', () => {
       cloud_consent: false,
       first_page: 1,
       continues: undefined,
+      progress_id: expect.any(String),
     })
     expect(await screen.findByDisplayValue('water')).toBeTruthy()
     fireEvent.change(screen.getByLabelText("Learner's answer for Vocabulary #1"), { target: { value: 'amo' } })

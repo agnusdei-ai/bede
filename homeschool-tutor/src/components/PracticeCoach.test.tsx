@@ -108,6 +108,28 @@ describe('helpers', () => {
   })
 })
 
+describe('long uploads', () => {
+  it('has no page limit: parts continue one saved reading, numbered across a PDF', async () => {
+    mocks.readPracticePhotos.mockImplementation(async (_t: string, _s: string, body: { pages: unknown[] }) => ({
+      id: 7, status: 'needs_review', assessment, ask_parent: [],
+      teacher_mark_count: { correct: 3, total: 4, source: 'teacher_marks' },
+      pages_read: body.pages.length + 4,  // the first file of each part is a five-page PDF
+    }))
+    render(<PracticeCoach token="t" studentName="Alex" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    await screen.findByRole('option', { name: 'Latin' })
+    const files = Array.from({ length: 8 }, () => png())
+    fireEvent.change(screen.getByLabelText(/scanned PDF of the graded pages/), { target: { files } })
+    fireEvent.click(screen.getByRole('button', { name: 'Read the quiz' }))
+    await waitFor(() => expect(mocks.readPracticePhotos).toHaveBeenCalledTimes(2))
+    const [first, second] = mocks.readPracticePhotos.mock.calls.map((c) => c[2])
+    expect(first).toMatchObject({ first_page: 1, continues_record: undefined })
+    expect(first.pages).toHaveLength(6)
+    expect(second).toMatchObject({ first_page: 11, continues_record: 7 })
+    expect(second.pages).toHaveLength(2)
+  })
+})
+
 describe('where the photos go', () => {
   it('reads on the local model without asking for cloud consent', async () => {
     await openAndPick()
@@ -243,7 +265,7 @@ describe('PDF and iPhone uploads', () => {
 
   it('says what is checked and refused, and does not overclaim about the photos (en)', async () => {
     await openAndPick()
-    expect(screen.getByText(/or a PDF, 6 pages in all/)).toBeTruthy()
+    expect(screen.getByText(/as many pages as the quiz has/)).toBeTruthy()
     expect(screen.getByText(/HEIC photos cannot be read: use JPEG, PNG, or PDF/)).toBeTruthy()
     expect(screen.getByText(/scanned layers, typed text and a teacher's marks are all kept/)).toBeTruthy()
     expect(screen.getByText(/iPhone photos are sent as JPEG/)).toBeTruthy()

@@ -15,7 +15,6 @@ import {
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
 // HEIC decoder is held back until its security fix ships.
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
-const MAX_PAGES = 6
 
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -199,10 +198,10 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
               <label className={label}>{t('quizBuilder.source')}
                 <textarea value={sourceText} onChange={(e) => setSourceText(e.target.value)} rows={3} className={field} />
               </label>
-              <label className={label}>{t('quizBuilder.pages', { max: MAX_PAGES })}
-                <input type="file" accept={ACCEPT} multiple aria-label={t('quizBuilder.pages', { max: MAX_PAGES })}
+              <label className={label}>{t('quizBuilder.pages')}
+                <input type="file" accept={ACCEPT} multiple aria-label={t('quizBuilder.pages')}
                   disabled={!photosReadable}
-                  onChange={(e) => { setFiles(Array.from(e.target.files ?? []).slice(0, MAX_PAGES)); e.target.value = '' }}
+                  onChange={(e) => { setFiles(Array.from(e.target.files ?? [])); e.target.value = '' }}
                   className="mt-1 block w-full text-xs" />
               </label>
               {!photosReadable && !noReader && <p className="text-xs text-gray-600">{t('quizBuilder.noPhotos')}</p>}

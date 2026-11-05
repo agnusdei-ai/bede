@@ -317,7 +317,41 @@ def _local_client():
     return router.resolve_local_only()
 
 
-async def generate(req: GenerateQuizRequest, local_only: bool = False) -> tuple[GeneratedQuiz, dict]:
+def _image(media: str, data: str) -> dict:
+    return {"type": "image", "source": {"type": "base64", "media_type": media, "data": data}}
+
+
+TRANSCRIPT_CHARS_PER_GROUP = 6000
+
+
+async def _transcribe(client, group: list[tuple[str, str]], first_page: int, before_call=None) -> str:
+    """Copy one group of source pages out as plain text for the drafting call."""
+    if before_call is not None:
+        await before_call()
+    last = first_page + len(group) - 1
+    try:
+        response = await asyncio.wait_for(
+            client.messages.create(
+                model=settings.tutor_model,
+                max_tokens=3000,
+                temperature=0,
+                system=("Copy out the questions, answer choices and any marked answers on these quiz pages as "
+                        "plain text, in order. Leave out any person's name, school, teacher, class or date."),
+                messages=[{"role": "user", "content": [_image(m, d) for m, d in group] + [
+                    {"type": "text", "text": f"Pages {first_page} to {last} of the source."}]}],
+            ),
+            timeout=GENERATE_TIMEOUT_SECONDS,
+        )
+    except asyncio.TimeoutError as exc:
+        raise QuizFailed("Reading the uploaded pages took too long; please try again.") from exc
+    except Exception as exc:  # never log the request: it holds the photos
+        log.warning("Quiz source reading failed: %s", type(exc).__name__)
+        raise QuizFailed("Bede could not read the uploaded pages right now; please try again.") from exc
+    return f"[Pages {first_page}-{last}]\n" + extract._text_of(response)[:TRANSCRIPT_CHARS_PER_GROUP]
+
+
+async def generate(req: GenerateQuizRequest, local_only: bool = False,
+                   before_call=None) -> tuple[GeneratedQuiz, dict]:
     """Draft, check in code, then cross-check. `local_only` (teachers) never
     reaches a cloud provider: their uploads can hold students' work."""
     subject = check_request(req)
@@ -332,10 +366,29 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False) -> tuple[
         # does not apply; the parent still agrees to the provider by name.
         client = extract.text_draft_client(req)
     content: list[dict] = []
+    transcripts: list[str] = []
     if req.pages:
-        pages = await extract.prepare_pages([p.data for p in req.pages])
-        content += [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in pages]
-    content.append({"type": "text", "text": _request_text(req, subject)})
+        groups = extract.page_groups([p.data for p in req.pages])
+        first = await groups.__anext__()
+        second = await anext(groups, None)
+        if second is None:
+            # Up to one group: the drafting call sees the pages themselves.
+            content += [_image(m, d) for m, d in first]
+        else:
+            # A longer source is copied out as text a group at a time, so no
+            # call (and no moment in memory) holds more than one group.
+            page = 1
+            for group in (first, second):
+                transcripts.append(await _transcribe(client, group, page, before_call))
+                page += len(group)
+            del first, second
+            async for group in groups:
+                transcripts.append(await _transcribe(client, group, page, before_call))
+                page += len(group)
+    text = _request_text(req, subject)
+    if transcripts:
+        text += "\nThe uploaded pages, copied out as text:\n" + "\n\n".join(transcripts)
+    content.append({"type": "text", "text": text})
     try:
         response = await asyncio.wait_for(
             client.messages.create(

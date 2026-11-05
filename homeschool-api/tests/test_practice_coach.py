@@ -279,7 +279,81 @@ async def test_cloud_reading_is_on_by_default_but_still_needs_consent(monkeypatc
     (message,) = call["messages"]
     kinds = [b["type"] for b in message["content"]]
     assert kinds == ["image", "image", "text"]
-    assert message["content"][-1]["text"] == "These are 2 page(s) of one worksheet, in order."
+    assert message["content"][-1]["text"] == "These are pages 1 to 2 of one worksheet, in order."
+
+
+def _many(n):
+    return ReadPhotosRequest(subject="latin", pages=[PhotoPage(data=b64(PNG))] * n, route="local")
+
+
+@pytest.mark.asyncio
+async def test_any_number_of_pages_is_read_six_at_a_time_and_merged(monkeypatch):
+    local = StubClient(json.dumps(GOLDEN["assessment"]))
+    _routing(monkeypatch, local=True, cloud=None, local_client=local)
+    one = await extract.read_pages(_many(1))
+    local.calls.clear()
+    merged = await extract.read_pages(_many(14))
+    assert [sum(b["type"] == "image" for b in c["messages"][0]["content"]) for c in local.calls] == [6, 6, 2]
+    assert [c["messages"][0]["content"][-1]["text"] for c in local.calls] == [
+        "These are pages 1 to 6 of one worksheet, in order.",
+        "These are pages 7 to 12 of one worksheet, in order.",
+        "These are pages 13 to 14 of one worksheet, in order.",
+    ]
+    # Same-labelled sections from consecutive groups are joined back together.
+    items = lambda a: sum(len(s.items) for s in a.sections)
+    assert items(merged) == 3 * items(one)
+
+
+def test_a_section_split_across_two_groups_is_joined_back_into_one():
+    def part(label, numbers, bank):
+        return GradedAssessment.model_validate({"subject": "latin", "sections": [{
+            "label": label, "word_bank": bank,
+            "items": [{"number": n, "prompt": f"q{n}", "teacher_mark": "correct", "confidence": 1}
+                      for n in numbers]}]})
+
+    joined = extract.merge_readings(part("Part 2", [1, 2], ["amo"]), part("Part 2", [3], ["amo", "aqua"]))
+    assert [s.label for s in joined.sections] == ["Part 2"]
+    assert [i.number for i in joined.sections[0].items] == [1, 2, 3]
+    assert joined.sections[0].word_bank == ["amo", "aqua"]
+    separate = extract.merge_readings(part("Part 1", [1], []), part("Part 2", [1], []))
+    assert [s.label for s in separate.sections] == ["Part 1", "Part 2"]
+
+
+@pytest.mark.asyncio
+async def test_a_continued_upload_numbers_its_pages_after_the_first_part(monkeypatch):
+    local = StubClient(json.dumps(GOLDEN["assessment"]))
+    _routing(monkeypatch, local=True, cloud=None, local_client=local)
+    first = await extract.read_pages(_many(6))
+    req = _many(2)
+    req.first_page = 7
+    both = await extract.read_pages(req, continues=first)
+    assert local.calls[-1]["messages"][0]["content"][-1]["text"] == "These are pages 7 to 8 of one worksheet, in order."
+    assert sum(len(s.items) for s in both.sections) == 2 * sum(len(s.items) for s in first.sections)
+
+
+@pytest.mark.asyncio
+async def test_the_demo_charges_one_message_per_group_and_stops_at_the_limit(monkeypatch):
+    import core.demo_code_session as demo_session
+
+    local = StubClient(json.dumps(GOLDEN["assessment"]))
+    _routing(monkeypatch, local=True, cloud=None, local_client=local)
+    left = {"n": 2}
+
+    async def has_quota(code):
+        return left["n"] > 0
+
+    async def record(code):
+        left["n"] -= 1
+
+    monkeypatch.setattr(demo_session, "has_message_quota", has_quota)
+    monkeypatch.setattr(demo_session, "record_message", record)
+    demo = {"role": "demo_code", "code": "synthetic-demo"}
+    await practice_router.demo_read_assessment(_many(12), auth=demo)
+    assert len(local.calls) == 2 and left["n"] == 0
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.demo_read_assessment(_many(1), auth=demo)
+    assert exc.value.status_code == 429
+    assert len(local.calls) == 2  # refused before any call
 
 
 @pytest.mark.asyncio
@@ -380,6 +454,33 @@ def test_every_practice_route_uses_its_scoped_authorization_guard():
         else:
             expected = require_parent
         assert any(d.dependency is expected for d in deps), route.path
+
+
+@pytest.mark.asyncio
+async def test_a_long_upload_sent_in_parts_grows_one_saved_reading(db, monkeypatch):
+    from core.database import PracticeAssessment
+
+    _routing(monkeypatch, local=True, cloud=None, local_client=StubClient(json.dumps(GOLDEN["assessment"])))
+    first = await practice_router.read_assessment("Alice", _many(6), auth=PARENT, db=db)
+    later = _many(3)
+    later.first_page, later.continues_record = 7, first["id"]
+    both = await practice_router.read_assessment("Alice", later, auth=PARENT, db=db)
+    assert both["id"] == first["id"]
+    assert len((await db.execute(select(PracticeAssessment))).scalars().all()) == 1
+    count = lambda view: sum(len(s["items"]) for s in view["assessment"]["sections"])
+    assert count(both) == 2 * count(first)
+    # Another child's record, or one already confirmed, cannot be continued.
+    other = _many(1)
+    other.continues_record = first["id"]
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.read_assessment("Bob", other, auth=PARENT, db=db)
+    assert exc.value.status_code == 404
+    # A reading cannot be smuggled in by value on the app route.
+    smuggled = _many(1)
+    smuggled.continues = golden()
+    with pytest.raises(HTTPException) as exc:
+        await practice_router.read_assessment("Alice", smuggled, auth=PARENT, db=db)
+    assert exc.value.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -563,7 +664,7 @@ async def test_photo_read_requires_consent_before_model_processing_or_storage(db
         called = True
         return settled()
 
-    monkeypatch.setattr(extract, "read_pages", read_pages)
+    monkeypatch.setattr(extract, "read_pages_counted", read_pages)
     with pytest.raises(HTTPException) as exc:
         await practice_router.read_assessment(
             "Synthetic Learner",
@@ -580,6 +681,16 @@ async def test_photo_read_requires_consent_before_model_processing_or_storage(db
 async def test_demo_practice_flow_is_transient_and_approval_is_explicit(db, monkeypatch):
     from core.database import PracticeAssessment, PracticeSetRecord
 
+    import core.demo_code_session as demo_session
+
+    async def has_quota(code):
+        return True
+
+    async def record(code):
+        return None
+
+    monkeypatch.setattr(demo_session, "has_message_quota", has_quota)
+    monkeypatch.setattr(demo_session, "record_message", record)
     demo = {"role": "demo_code", "code": "synthetic-demo"}
     _routing(monkeypatch, local=True, cloud=None, local_client=StubClient(json.dumps(GOLDEN["assessment"])))
     read = await practice_router.demo_read_assessment(_req(), auth=demo)

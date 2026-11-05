@@ -1183,8 +1183,10 @@ graded quiz**. Choose the subject that matches the quiz:
   supplies a fact of its own.
 - **Latin**.
 
-1. **Choose the subject and photograph the pages.** You can add up to six
-   pages, as JPEG, PNG, WebP or AVIF photos or a scanned PDF. The card tells
+1. **Choose the subject and photograph the pages.** Add every page of the
+   quiz, as JPEG, PNG, WebP or AVIF photos or a scanned PDF. There is no page
+   limit: Bede reads the pages six at a time and puts them back together as
+   one worksheet. The card tells
    you where the photos will be read:
    - **On this computer's own AI model**, if your install has one. Nothing
      is sent anywhere else.
@@ -1233,8 +1235,8 @@ A circle left white for *alba* (white) on a colour question is a correct
 answer, and Bede treats it as one.
 
 **What you can upload.** Photos (JPEG, including the multi-picture files some
-Android cameras save, PNG, WebP or AVIF) or a PDF of scanned pages, six pages
-in all and 6 MB a file. iPhone photos are sent as JPEG automatically. HEIC
+Android cameras save, PNG, WebP or AVIF) or a PDF of scanned pages, as many
+pages as the quiz has and 6 MB a file. iPhone photos are sent as JPEG automatically. HEIC
 photos cannot be read: use JPEG, PNG, or PDF. Bede checks each file, draws
 every PDF page the way you would see it (so scanned layers, typed text and a
 teacher's marks or comments are all kept), and rebuilds every page as a plain

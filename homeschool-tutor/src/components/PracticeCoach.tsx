@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { splitIntoParts } from '../utils/uploadParts'
 import { Camera, Check, Printer, Sparkles, X } from 'lucide-react'
 import {
   approvePracticeSet, confirmPracticeReading, discardPracticeSet, fetchPracticePacks,
@@ -14,7 +15,6 @@ import type {
 // pattern and drafts practice, and the parent approves or discards it.
 // Nothing here is ever shown to the child.
 
-export const MAX_PAGES = 6
 const MARKS: TeacherMark[] = ['correct', 'incorrect', 'partial', 'unmarked']
 const CONFIDENCE_FLOOR = 0.75
 
@@ -106,10 +106,19 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
     if (!files.length || !subject || (usesCloud && !consent)) return
     setStage('reading'); setMessage('')
     try {
-      const pages = await Promise.all(files.map(async (f) => ({ data: await readFile(f) })))
-      const result = await readPracticePhotos(token, studentName, {
-        subject, pages, cloud_consent: usesCloud && consent,
-      })
+      // Any number of pages: sent a part at a time, each part continuing the
+      // same saved reading, and each part's photos read only when it is sent.
+      let result: PracticeReading | null = null
+      let firstPage = 1
+      for (const part of splitIntoParts(files)) {
+        const pages = await Promise.all(part.map(async (f) => ({ data: await readFile(f) })))
+        result = await readPracticePhotos(token, studentName, {
+          subject, pages, cloud_consent: usesCloud && consent,
+          first_page: firstPage, continues_record: result?.id,
+        })
+        firstPage += result.pages_read ?? pages.length
+      }
+      if (!result) return
       setReading(result); setDraft(result.assessment); setStage('review')
     } catch (err) {
       setStage('start')
@@ -235,12 +244,12 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
               {noReader && <p className="text-xs text-madder-800">{t('practiceCoach.routeNone')}</p>}
 
               <label className="block">
-                <span className="text-xs font-medium text-gray-600">{t('practiceCoach.photos', { max: MAX_PAGES })}</span>
-                <input type="file" accept={PRACTICE_ACCEPT} multiple aria-label={t('practiceCoach.photos', { max: MAX_PAGES })}
-                  onChange={(e) => setFiles(Array.from(e.target.files ?? []).slice(0, MAX_PAGES))}
+                <span className="text-xs font-medium text-gray-600">{t('practiceCoach.photos')}</span>
+                <input type="file" accept={PRACTICE_ACCEPT} multiple aria-label={t('practiceCoach.photos')}
+                  onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
                   className="mt-1 block w-full text-xs" />
               </label>
-              <p className="text-xs text-gray-500">{t('practiceCoach.photosHint', { max: MAX_PAGES })}</p>
+              <p className="text-xs text-gray-500">{t('practiceCoach.photosHint')}</p>
               <p className="text-xs text-gray-500">{t('practiceCoach.privacy')}</p>
 
               <button type="button" onClick={read}

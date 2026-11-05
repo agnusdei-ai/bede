@@ -1768,6 +1768,8 @@ export interface PracticeReading {
   assessment: GradedAssessment
   ask_parent: string[]
   teacher_mark_count: { correct: number; total: number; source: 'teacher_marks' }
+  /** Pages read by this request (a PDF counts each page). */
+  pages_read?: number
 }
 
 export interface PracticeSetItem {
@@ -1852,7 +1854,11 @@ export const fetchReadingRoute = (token: string) =>
 
 export const readPracticePhotos = (
   token: string, studentName: string,
-  body: { subject: string; pages: { data: string }[]; route?: 'local' | 'cloud'; cloud_consent: boolean },
+  body: {
+    subject: string; pages: { data: string }[]; route?: 'local' | 'cloud'; cloud_consent: boolean
+    /** A long upload goes in parts: the page number this part starts at, and the record it continues. */
+    first_page?: number; continues_record?: number
+  },
 ) => practiceFetch<PracticeReading>(token, `/${encodeURIComponent(studentName)}/assessments/read`, {
   method: 'POST', body: JSON.stringify(body),
 })

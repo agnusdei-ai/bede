@@ -78,6 +78,24 @@ beforeEach(() => {
 })
 
 describe('demo Practice Coach', () => {
+  it('has no page limit: a long upload is sent in parts, each continuing the last', async () => {
+    api.readDemoPracticePhotos.mockImplementation(async (_t: string, body: { pages: unknown[] }) => ({
+      id: 0, status: 'needs_review', assessment, ask_parent: [],
+      teacher_mark_count: { correct: 0, total: 1, source: 'teacher_marks' }, pages_read: body.pages.length,
+    }))
+    render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    await screen.findByRole('option', { name: 'Latin' })
+    const files = Array.from({ length: 9 }, (_, i) => new File([`page-${i}`], `p${i}.jpg`, { type: 'image/jpeg' }))
+    fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files } })
+    fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
+    await waitFor(() => expect(api.readDemoPracticePhotos).toHaveBeenCalledTimes(2))
+    const [first, second] = api.readDemoPracticePhotos.mock.calls.map((c) => c[1])
+    expect(first.pages).toHaveLength(6)
+    expect(first).toMatchObject({ first_page: 1, continues: undefined })
+    expect(second.pages).toHaveLength(3)
+    expect(second).toMatchObject({ first_page: 7, continues: assessment })
+  })
+
   it.each([
     ['JPEG', 'image/jpeg', 'synthetic-jpeg'],
     ['PNG', 'image/png', 'synthetic-png'],
@@ -87,7 +105,7 @@ describe('demo Practice Coach', () => {
     render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={onApproved} />)
 
     await screen.findByRole('option', { name: 'Latin' })
-    const input = screen.getByLabelText(/Choose up to/i)
+    const input = screen.getByLabelText(/Choose image files/i)
     const file = new File([content], `synthetic.${mime === 'application/pdf' ? 'pdf' : mime === 'image/png' ? 'png' : 'jpg'}`, { type: mime })
     fireEvent.change(input, { target: { files: [file] } })
     fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
@@ -97,6 +115,8 @@ describe('demo Practice Coach', () => {
       subject: 'latin',
       pages: [{ data: btoa(content) }],
       cloud_consent: false,
+      first_page: 1,
+      continues: undefined,
     })
     expect(await screen.findByDisplayValue('water')).toBeTruthy()
     fireEvent.change(screen.getByLabelText("Learner's answer for Vocabulary #1"), { target: { value: 'amo' } })
@@ -129,12 +149,12 @@ describe('demo Practice Coach', () => {
     await screen.findByText(/send these pages to OpenAI/i)
     expect(screen.getByText(/OpenAI may keep the page images for up to 30 days/)).toBeTruthy()
     expect(screen.getByText(/crop out anything you would rather not send/)).toBeTruthy()
-    const picker = screen.getByLabelText(/Choose up to/i) as HTMLInputElement
+    const picker = screen.getByLabelText(/Choose image files/i) as HTMLInputElement
     for (const kind of ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'application/pdf']) {
       expect(picker.accept.split(',')).toContain(kind)
     }
     expect(picker.accept).not.toMatch(/heic/i)
-    fireEvent.change(screen.getByLabelText(/Choose up to/i), {
+    fireEvent.change(screen.getByLabelText(/Choose image files/i), {
       target: { files: [new File(['synthetic'], 'synthetic.png', { type: 'image/png' })] },
     })
     expect(screen.getByRole('button', { name: 'Read quiz' })).toHaveProperty('disabled', true)

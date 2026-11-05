@@ -28,7 +28,9 @@ Audience = Literal["parent_and_child", "parent_only"]
 # left out of the diagnosis until they do. Guardrail 4: ask, never guess.
 CONFIDENCE_FLOOR = 0.75
 
-MAX_SECTIONS = 12
+# A long upload is read in parts and its sections joined (extract.merge_readings),
+# so this bounds what one review screen shows, not how many pages are read.
+MAX_SECTIONS = 60
 MAX_ITEMS_PER_SECTION = 60
 MAX_WORD_BANK = 60
 
@@ -137,11 +139,19 @@ class PhotoPage(_Strict):
 
 class ReadPhotosRequest(_Strict):
     subject: str = Field(..., min_length=1, max_length=30)
-    pages: List[PhotoPage] = Field(..., min_length=1, max_length=6)
+    # Any number of pages. A browser sends a long upload as several requests,
+    # each continuing the last; the server reads them in groups either way.
+    pages: List[PhotoPage] = Field(..., min_length=1)
     # "local" = the household's own model only. "cloud" = the household's
     # configured AI provider, which needs cloud_consent for this upload.
     route: Optional[Literal["local", "cloud"]] = None
     cloud_consent: bool = False
+    # When this request continues an earlier part of the same upload: the page
+    # number of its first page, and (app) the record that part was saved as,
+    # or (demo, which stores nothing) what that part read.
+    first_page: int = Field(default=1, ge=1)
+    continues_record: Optional[int] = Field(default=None, ge=1)
+    continues: Optional[GradedAssessment] = None
 
 
 class ConfirmAssessmentRequest(_Strict):
@@ -218,7 +228,7 @@ class GenerateQuizRequest(_Strict):
     focus: Optional[str] = Field(default=None, max_length=600)
     # An existing quiz, a previous exam or a prep exam to learn from: photos
     # or scanned pages, and/or its text pasted in.
-    pages: List[PhotoPage] = Field(default_factory=list, max_length=6)
+    pages: List[PhotoPage] = Field(default_factory=list)
     source_text: Optional[str] = Field(default=None, max_length=12000)
     route: Optional[Literal["local", "cloud"]] = None
     cloud_consent: bool = False

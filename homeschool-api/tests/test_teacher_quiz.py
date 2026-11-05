@@ -416,3 +416,69 @@ def test_nothing_is_written_to_the_database():
     source = inspect.getsource(teacher_quiz)
     for forbidden in ("AsyncSession", "db.add", "commit(", "store."):
         assert forbidden not in source
+
+
+# ── Long uploads: no page-count limit, read a group at a time ────────────────
+
+def _q_raw(prompt, answer):
+    return {"type": "short_answer", "prompt": prompt, "answer": answer, "answer_from_page": True, "confidence": 1.0}
+
+
+def test_a_long_uploaded_quiz_is_read_a_group_at_a_time_and_joined_in_order(http, monkeypatch):
+    groups = [
+        json.dumps({"title": "Unit test", "questions": [_q_raw("Capital of France?", "Paris")]}),
+        json.dumps({"title": "ignored", "questions": [_q_raw("Largest ocean?", "Pacific")]}),
+        json.dumps({"questions": [_q_raw("Longest river?", "Nile")]}),
+    ]
+    local = SeqClient(*groups)
+    _routing(monkeypatch, local=True, cloud=None, local_client=local)
+    out = _extract(http, pages=[{"data": b64(JPEG)}] * 13, source_text="Also: name a planet.")
+    assert out.status_code == 200, out.text
+    quiz_out = out.json()["quiz"]
+    assert [q["prompt"] for q in quiz_out["questions"]] == ["Capital of France?", "Largest ocean?", "Longest river?"]
+    assert [q["number"] for q in quiz_out["questions"]] == [1, 2, 3]
+    assert quiz_out["title"] == "Unit test"
+    sizes = [sum(1 for b in c["messages"][0]["content"] if b["type"] == "image") for c in local.calls]
+    assert sizes == [6, 6, 1]
+    texts = [c["messages"][0]["content"][-1]["text"] for c in local.calls]
+    assert "pages 1 to 6 of 13" in texts[0] and "pages 13 to 13 of 13" in texts[2]
+    # The teacher's pasted text goes with the first group only.
+    assert "name a planet" in texts[0] and "name a planet" not in texts[1]
+
+
+def test_a_long_piece_of_student_work_is_read_in_groups_and_merged(http, monkeypatch):
+    first = json.dumps({"responses": [
+        {"number": 1, "response": "42", "confidence": 0.95},
+        {"number": 2, "response": None, "confidence": 0.0},
+    ]})
+    second = json.dumps({"responses": [
+        {"number": 1, "response": None, "confidence": 0.0},  # not on these pages: must not erase the answer
+        {"number": 2, "response": "Whale", "confidence": 0.95},
+        {"number": 3, "response": "Paris", "confidence": 0.95},
+    ]})
+    local = SeqClient(first, second, RUBRIC)
+    _routing(monkeypatch, local=True, cloud=None, local_client=local)
+    out = _score(http, pages=[{"data": b64(JPEG)}] * 7)
+    assert out.status_code == 200, out.text
+    rows = {r["number"]: r for r in out.json()["results"]}
+    assert rows[1]["response"] == "42" and rows[2]["response"] == "Whale" and rows[3]["response"] == "Paris"
+    # Both reads saw the questions and neither saw the key.
+    for call in local.calls[:2]:
+        sent = json.dumps(call["messages"])
+        assert "27 + 15" in sent and "Paris" not in sent
+
+
+def test_merging_keeps_the_more_confident_of_two_readings():
+    merged = teacher_quiz.merge_responses([
+        {"responses": [{"number": 1, "response": "7", "confidence": 0.4}]},
+        {"responses": [{"number": 1, "response": "1", "confidence": 0.9}, "junk"]},
+    ])
+    assert merged["responses"] == [{"number": 1, "response": "1", "confidence": 0.9}]
+
+
+def test_there_is_no_page_count_limit_on_a_teacher_upload():
+    from models.practice import ExtractQuizRequest, ScoreSubmissionRequest
+
+    pages = [{"data": "aGVsbG8gd29ybGQ="}] * 60
+    assert len(ExtractQuizRequest(subject="mathematics", grade="4", pages=pages).pages) == 60
+    assert len(ScoreSubmissionRequest(quiz=TeacherQuiz(**APPROVED), pages=pages).pages) == 60

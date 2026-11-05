@@ -27,9 +27,17 @@ import {
   removeQuestion,
   settleQuestion,
 } from '../utils/teacherQuiz'
+import { FILE_MAX_BYTES, PART_MAX_BYTES } from '../utils/uploadParts'
 
-const ACCEPT = 'image/jpeg,image/png,image/heic,image/heif,application/pdf,.pdf,.heic,.heif'
-const MAX_PAGES = 6
+/** A teacher upload goes in one request, so it is bounded by bytes, never by
+ * a page count: no file over 25 MB, and no more than 24 MB together. */
+export function teacherUploadProblem(files: { size: number }[]): 'file' | 'total' | null {
+  if (files.some((f) => f.size > FILE_MAX_BYTES)) return 'file'
+  if (files.reduce((n, f) => n + f.size, 0) > PART_MAX_BYTES) return 'total'
+  return null
+}
+
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
 const TYPES: QuestionType[] = ['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank', 'computation', 'written_response']
 const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8']
 
@@ -344,9 +352,9 @@ export default function TeacherQuizStudio({ token, incoming }: {
                 <label className={label}>{t('teacherQuiz.paste')}
                   <textarea value={sourceText} onChange={(e) => setSourceText(e.target.value)} rows={3} className={field} />
                 </label>
-                <label className={label}>{t('teacherQuiz.quizPages', { max: MAX_PAGES })}
-                  <input type="file" accept={ACCEPT} multiple aria-label={t('teacherQuiz.quizPages', { max: MAX_PAGES })}
-                    onChange={(e) => { setQuizFiles(Array.from(e.target.files ?? []).slice(0, MAX_PAGES)); e.target.value = '' }}
+                <label className={label}>{t('teacherQuiz.quizPages')}
+                  <input type="file" accept={ACCEPT} multiple aria-label={t('teacherQuiz.quizPages')}
+                    onChange={(e) => { const picked = Array.from(e.target.files ?? []); const problem = teacherUploadProblem(picked); setMessage(problem ? t(problem === 'file' ? 'teacherQuiz.fileTooLarge' : 'teacherQuiz.uploadTooLarge') : ''); setQuizFiles(problem ? [] : picked); e.target.value = '' }}
                     className="mt-1 block w-full text-xs" />
                 </label>
                 {quizFiles.length > 0 && (
@@ -476,10 +484,10 @@ export default function TeacherQuizStudio({ token, incoming }: {
               <h3 className="font-semibold text-gray-800">{t('teacherQuiz.scoringHeading', { title: quiz.title })}</h3>
               {!results && (
                 <>
-                  <label className={label}>{t('teacherQuiz.workPages', { max: MAX_PAGES })}
-                    <input type="file" accept={ACCEPT} multiple aria-label={t('teacherQuiz.workPages', { max: MAX_PAGES })}
+                  <label className={label}>{t('teacherQuiz.workPages')}
+                    <input type="file" accept={ACCEPT} multiple aria-label={t('teacherQuiz.workPages')}
                       disabled={noLocal}
-                      onChange={(e) => { setWorkFiles(Array.from(e.target.files ?? []).slice(0, MAX_PAGES)); e.target.value = '' }}
+                      onChange={(e) => { const picked = Array.from(e.target.files ?? []); const problem = teacherUploadProblem(picked); setMessage(problem ? t(problem === 'file' ? 'teacherQuiz.fileTooLarge' : 'teacherQuiz.uploadTooLarge') : ''); setWorkFiles(problem ? [] : picked); e.target.value = '' }}
                       className="mt-1 block w-full text-xs" />
                   </label>
                   {workFiles.length > 0 ? (

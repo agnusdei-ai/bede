@@ -274,9 +274,24 @@ async def _ask(client, system: str, content: list[dict], max_tokens: int) -> dic
     return _parse_json(extract._text_of(response))
 
 
-async def _page_blocks(pages) -> list[dict]:
-    prepared = await extract.prepare_pages([p.data for p in pages])
-    return [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in prepared]
+def _image_blocks(group: list[tuple[str, str]]) -> list[dict]:
+    return [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in group]
+
+
+async def _groups(pages):
+    """The upload as groups of rebuilt pages, with each group's first page
+    number and the upload's page total. There is no page-count limit: every
+    file is checked first, then pages are read `READ_GROUP_SIZE` at a time,
+    so memory does not grow with the number of pages."""
+    total = {"pages": 0}
+
+    def on_total(n: int) -> None:
+        total["pages"] = n
+
+    first = 1
+    async for group in extract.page_groups([p.data for p in pages], on_total=on_total):
+        yield group, first, total["pages"]
+        first += len(group)
 
 
 async def extract_quiz(req: ExtractQuizRequest) -> TeacherQuiz:
@@ -289,15 +304,24 @@ async def extract_quiz(req: ExtractQuizRequest) -> TeacherQuiz:
     if req.pages and not req.upload_consent:
         raise UploadConsentRequired()
     client = _client()
-    content: list[dict] = await _page_blocks(req.pages) if req.pages else []
-    text = f"Subject: {SUBJECT_LABELS.get(Subject(req.subject), req.subject)}\nGrade: {req.grade}"
-    if req.source_text:
-        text += f"\n\nThe quiz, as typed by the teacher:\n{req.source_text}"
-    if req.pages:
-        text += f"\n\nThe {len(req.pages)} attached page(s) are the quiz, in order."
-    content.append({"type": "text", "text": text})
-    data = await _ask(client, _EXTRACT_RULES, content, 8000)
-    return finish_extracted(data, req.subject, req.grade)
+    head = f"Subject: {SUBJECT_LABELS.get(Subject(req.subject), req.subject)}\nGrade: {req.grade}"
+    typed = f"\n\nThe quiz, as typed by the teacher:\n{req.source_text}" if req.source_text else ""
+    if not req.pages:
+        data = await _ask(client, _EXTRACT_RULES, [{"type": "text", "text": head + typed}], 8000)
+        return finish_extracted(data, req.subject, req.grade)
+    # One model call per group of pages; the questions are joined in order and
+    # numbered again by finish_extracted.
+    questions: list = []
+    title = None
+    async for group, first, total in _groups(req.pages):
+        last = first + len(group) - 1
+        text = head + (typed if first == 1 else "")
+        text += (f"\n\nThe attached page(s) are pages {first} to {last} of {total} of the quiz, in order. "
+                 "List only the questions that appear on these pages.")
+        data = await _ask(client, _EXTRACT_RULES, _image_blocks(group) + [{"type": "text", "text": text}], 8000)
+        title = title or data.get("title")
+        questions.extend(q for q in (data.get("questions") or []) if isinstance(q, dict))
+    return finish_extracted({"title": title, "questions": questions}, req.subject, req.grade)
 
 
 # ── Reading one student's completed work ─────────────────────────────────────
@@ -348,12 +372,43 @@ def parse_responses(data: dict, quiz: TeacherQuiz) -> list[StudentResponse]:
     return out
 
 
+def merge_responses(readings: list[dict]) -> dict:
+    """Join the readings of several page groups. A question answered on one
+    group's pages and absent from another's keeps its answer; if two groups
+    both give one, the more confident reading wins."""
+    best: dict = {}
+    for data in readings:
+        for item in data.get("responses") or []:
+            if not isinstance(item, dict) or not isinstance(item.get("number"), int):
+                continue
+            held = best.get(item["number"])
+            if held is None:
+                best[item["number"]] = item
+                continue
+            if item.get("response") not in (None, "") and (
+                    held.get("response") in (None, "") or _conf(item) > _conf(held)):
+                best[item["number"]] = item
+    return {"responses": list(best.values())}
+
+
+def _conf(item: dict) -> float:
+    try:
+        return float(item.get("confidence", 1.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 async def read_submission(quiz: TeacherQuiz, pages) -> list[StudentResponse]:
     client = _client()
-    content = await _page_blocks(pages)
-    content.append({"type": "text", "text": _question_lines(quiz)})
-    data = await _ask(client, _READ_RULES, content, min(8000, 400 + 150 * len(quiz.questions)))
-    return parse_responses(data, quiz)
+    readings = []
+    async for group, first, total in _groups(pages):
+        last = first + len(group) - 1
+        text = (_question_lines(quiz) + f"\n\nThe attached page(s) are pages {first} to {last} of {total} "
+                "of the student's work. Give a response only for questions answered on these pages; "
+                "leave out any question that is not on them.")
+        readings.append(await _ask(client, _READ_RULES, _image_blocks(group) + [{"type": "text", "text": text}],
+                                   min(8000, 400 + 150 * len(quiz.questions))))
+    return parse_responses(merge_responses(readings), quiz)
 
 
 # ── Scoring against the approved key ─────────────────────────────────────────

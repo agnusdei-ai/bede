@@ -1092,7 +1092,7 @@
     "writeNew": "Write a new quiz",
     "readHeading": "Bring a quiz you already have",
     "paste": "Paste the quiz text",
-    "quizPages": "Or add photos or a scanned PDF of the quiz (up to {{max}} pages)",
+    "quizPages": "Or add photos or a scanned PDF of the quiz, as many pages as it has",
     "filesChosen": "{{count}} file(s) added",
     "uploadConsent": "I agree that these pages are read on the school's own AI model for this upload, and not stored.",
     "read": "Read the quiz",
@@ -1161,7 +1161,7 @@
     "scoreWork": "Score a student's work",
     "discard": "Discard",
     "scoringHeading": "Score a student's work: {{title}}",
-    "workPages": "Photos or a scan of one student's completed quiz (up to {{max}} pages)",
+    "workPages": "Photos or a scan of one student's completed quiz, as many pages as it has",
     "workConsent": "I agree that this student's work is read on the school's own AI model for this upload, and not stored. Bede does not see the answer key while reading it.",
     "typeInstead": "Or type the student's answers",
     "responseFor": "Student's answer to question {{number}}",
@@ -1190,6 +1190,8 @@
     "total": "Total: {{total}} of {{possible}}",
     "results": "results",
     "printResults": "Print results",
-    "nextStudent": "Next student"
+    "nextStudent": "Next student",
+    "fileTooLarge": "A file is larger than 25 MB. Scan it at a lower resolution or split it, then add it again.",
+    "uploadTooLarge": "These files are more than 24 MB together, which is more than one upload can carry. Use smaller scans, or paste the quiz's text instead."
   }
 }

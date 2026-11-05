@@ -15,7 +15,7 @@ vi.mock('../services/api', async (importOriginal) => {
 })
 
 import i18n from '../i18n'
-import TeacherQuizStudio from './TeacherQuizStudio'
+import TeacherQuizStudio, { teacherUploadProblem } from './TeacherQuizStudio'
 import { TeacherQuizProblems, type QuizOptions, type TeacherQuiz } from '../services/api'
 
 afterEach(cleanup)
@@ -219,5 +219,25 @@ describe('teacher quiz copy', () => {
       expect(JSON.stringify(locale.teacherQuiz).toLowerCase()).not.toContain('synthetic')
       expect(JSON.stringify(locale.teacherQuiz).toLowerCase()).not.toContain('sintétic')
     }
+  })
+
+  it('takes any number of quiz pages, and refuses only by size, with a way forward', async () => {
+    render(<TeacherQuizStudio token="t" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    const input = await screen.findByLabelText(/scanned PDF of the quiz/)
+    const page = (mb: number, i: number) => new File([new Uint8Array(mb * 1024 * 1024)], `p${i}.jpg`, { type: 'image/jpeg' })
+    fireEvent.change(input, { target: { files: Array.from({ length: 13 }, (_, i) => page(1, i)) } })
+    expect(screen.getByText('13 file(s) added')).toBeTruthy()
+    fireEvent.change(input, { target: { files: [page(20, 1), page(20, 2)] } })
+    expect(screen.getByRole('alert').textContent).toMatch(/more than 24 MB together.*paste the quiz/)
+    expect(screen.queryByText(/file\(s\) added/)).toBeNull()
+  })
+})
+
+describe('teacherUploadProblem', () => {
+  it('has no page count, only the byte limits one request can carry', () => {
+    expect(teacherUploadProblem(Array.from({ length: 200 }, () => ({ size: 1000 })))).toBeNull()
+    expect(teacherUploadProblem([{ size: 26 * 1024 * 1024 }])).toBe('file')
+    expect(teacherUploadProblem([{ size: 13 * 1024 * 1024 }, { size: 12 * 1024 * 1024 }])).toBe('total')
   })
 })

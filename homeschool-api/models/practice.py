@@ -664,7 +664,7 @@ class ExtractQuizRequest(_Strict):
     """A quiz the teacher already has, as photos or scans, or pasted text."""
     subject: str = Field(..., min_length=1, max_length=30)
     grade: QuizGrade
-    pages: List[PhotoPage] = Field(default_factory=list, max_length=6)
+    pages: List[PhotoPage] = Field(default_factory=list)
     source_text: Optional[str] = Field(default=None, max_length=12000)
     # The teacher's acknowledgement for this upload: read on the school's own
     # model, and not stored.
@@ -690,7 +690,7 @@ class StudentResponse(_Strict):
 class ScoreSubmissionRequest(_Strict):
     """One student's completed quiz: photos of it, or the answers typed in."""
     quiz: TeacherQuiz
-    pages: List[PhotoPage] = Field(default_factory=list, max_length=6)
+    pages: List[PhotoPage] = Field(default_factory=list)
     responses: List[StudentResponse] = Field(default_factory=list, max_length=MAX_QUIZ_QUESTIONS)
     upload_consent: bool = False
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
-import Diagram, { diagramMarkup } from './Diagram'
+import Diagram, { pictureWords, diagramMarkup } from './Diagram'
 import { Camera, Check, Printer, Sparkles, X } from 'lucide-react'
 import {
   approvePracticeSet, confirmPracticeReading, discardPracticeSet, fetchPracticePacks,
@@ -283,7 +283,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                       return (
                         <li key={item.number} data-flagged={flagged || undefined}
                           className={`rounded-lg p-2 ${flagged ? 'bg-gold-50 ring-1 ring-gold-300' : 'bg-parchment-50'}`}>
-                          <p className="text-xs text-gray-600">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? ` (${item.stimulus})` : ''}</p>
+                          <p className="text-xs text-gray-600">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? <span className="italic text-gray-500"> ({pictureWords(item.stimulus)})</span> : null}</p>
                           <Diagram d={item.diagram} />
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <input value={item.student_response ?? ''} aria-label={t('practiceCoach.answerFor', { item: label })}

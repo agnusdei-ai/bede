@@ -384,7 +384,7 @@ def classify_errors(assessment: GradedAssessment, history: list | None = None) -
             if not (item.student_response or "").strip():
                 continue  # core.unanswered owns blanks
             ref = _ref(section, item)
-            if item.diagram is not None:
+            if item.diagram is not None and evaluate(item.prompt) is None:
                 out.append(_classify_picture(ref, item))
                 continue
             right = evaluate(item.prompt)
@@ -460,7 +460,7 @@ def find_strengths(assessment: GradedAssessment) -> list[Strength]:
         for item in section.items:
             if item.needs_parent() or item.teacher_mark == "unmarked":
                 continue
-            family = diagrams.FAMILY.get(item.diagram.kind) if item.diagram is not None else _family(item.prompt)
+            family = _family(item.prompt) or (diagrams.FAMILY.get(item.diagram.kind) if item.diagram is not None else None)
             if family:
                 families.setdefault(family, []).append(item)
     out = []
@@ -659,7 +659,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
     for category, error in first_miss.items():
         item = _find(assessment, error.item_ref)
         targets.append(category)
-        if item.diagram is not None:
+        if item.diagram is not None and category.startswith("math.diagram."):
             add_pictures(category, item.diagram, item.prompt, "drill", per_pattern, error.item_ref + item.prompt)
         else:
             add(category, binary(item.prompt), "drill", per_pattern, error.item_ref + item.prompt)
@@ -676,7 +676,7 @@ def generate_practice(diagnosis: Diagnosis, assessment: GradedAssessment, constr
             if len(items) >= max_items:
                 break
             item = _find(assessment, error.item_ref)
-            if item.diagram is not None:
+            if item.diagram is not None and category.startswith("math.diagram."):
                 add_pictures(category, item.diagram, item.prompt, "drill", 1, "second" + error.item_ref + item.prompt)
             else:
                 add(category, binary(item.prompt), "drill", 1, "second" + error.item_ref + item.prompt)

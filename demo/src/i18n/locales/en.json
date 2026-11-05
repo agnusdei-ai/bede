@@ -545,7 +545,12 @@
       "phone": "phone",
       "cup": "cup",
       "bottle": "bottle",
-      "toothbrush": "toothbrush"
+      "toothbrush": "toothbrush",
+      "cube": "cube",
+      "box": "box",
+      "basket": "basket",
+      "truck": "truck",
+      "ruler": "ruler"
     },
     "action": {
       "running": "running",

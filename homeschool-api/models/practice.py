@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 TeacherMark = Literal["correct", "incorrect", "partial", "unmarked"]
 RequiredFormat = Literal["complete_sentence", "single_word", "color_fill", "free", "unknown"]
@@ -156,6 +156,7 @@ ICONS = (
     "magnifier", "microscope", "thermometer", "battery", "plant",
     "crayon", "paperclip", "scissors", "spoon", "backpack", "chair", "bed", "watermelon", "bucket",
     "television", "computer", "phone", "cup", "bottle", "toothbrush",
+    "cube", "box", "basket", "truck", "ruler",
 )
 ACTIONS = ("running", "swimming", "flying", "sleeping", "eating", "drinking", "singing", "walking", "reading", "writing")
 Icon = Literal[ICONS]  # type: ignore[valid-type]
@@ -338,6 +339,14 @@ class AssessmentItem(_Strict):
 
     def needs_parent(self) -> bool:
         return bool(self.ask_parent) or self.confidence < CONFIDENCE_FLOOR
+
+    @model_validator(mode="after")
+    def _draw_the_description(self) -> "AssessmentItem":
+        if self.diagram is None and self.stimulus:
+            from services.practice.diagrams import from_stimulus
+
+            self.diagram = from_stimulus(self.stimulus)
+        return self
 
 
 class AssessmentSection(_Strict):

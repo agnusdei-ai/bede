@@ -72,6 +72,81 @@ def key(diagram) -> str:
     return "" if diagram is None else diagram.model_dump_json()
 
 
+# ── Drawing a description ─────────────────────────────────────────────────────
+# The reader is asked for a diagram, but a page's picture sometimes comes back
+# as words ("picture: dog running", "3 apples and 2 pears"). Those words are
+# drawn from the same closed list of things and actions, so the parent and the
+# child see a picture, not a description. Nothing is invented: only words that
+# name a drawable thing become a picture, and a description that names none is
+# left as it was.
+
+_ALIASES = {
+    "puppy": "dog", "puppies": "dog", "kitten": "cat", "kittens": "cat", "mice": "mouse", "hen": "chicken",
+    "rooster": "chicken", "bunny": "rabbit", "geese": "duck", "goose": "duck", "flowers": "flower",
+    "leaves": "leaf", "trees": "tree", "bike": "bicycle", "airplane": "plane", "aeroplane": "plane",
+    "kid": "boy", "children": "boy", "lady": "woman", "gentleman": "man", "teeth": "tooth", "feet": "foot",
+    "sunshine": "sun", "raindrop": "rain", "snowflake": "snow", "ocean": "wave", "sea": "wave",
+    "stone": "rock", "pebble": "rock", "paper clip": "paperclip", "paperclips": "paperclip",
+    "linking cube": "cube", "linking cubes": "cube", "block": "cube", "blocks": "cube", "tv": "television",
+    "laptop": "computer", "mug": "cup", "glass": "cup", "lorry": "truck", "jar": "bottle", "bag": "backpack",
+    "pound": "coin", "penny": "coin", "pennies": "coin", "sneaker": "shoe", "boot": "shoe", "gift": "box",
+}
+_ACTION_WORDS = {
+    "run": "running", "runs": "running", "running": "running", "swim": "swimming", "swims": "swimming",
+    "swimming": "swimming", "fly": "flying", "flies": "flying", "flying": "flying", "sleep": "sleeping",
+    "sleeps": "sleeping", "sleeping": "sleeping", "asleep": "sleeping", "eat": "eating", "eats": "eating",
+    "eating": "eating", "drink": "drinking", "drinks": "drinking", "drinking": "drinking", "sing": "singing",
+    "sings": "singing", "singing": "singing", "walk": "walking", "walks": "walking", "walking": "walking",
+    "read": "reading", "reads": "reading", "reading": "reading", "write": "writing", "writes": "writing",
+    "writing": "writing",
+}
+_NUMBER_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
+                 "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "a": 1, "an": 1}
+
+
+def _thing(word: str) -> Optional[str]:
+    if word in _ALIASES:
+        return _ALIASES[word]
+    if word in ICONS:
+        return word
+    for cut in ("es", "s"):
+        if word.endswith(cut) and word[: -len(cut)] in ICONS:
+            return word[: -len(cut)]
+    return None
+
+
+def from_stimulus(text: str | None):
+    """A drawing for a picture described in words, or None if it names
+    nothing Bede can draw."""
+    words = re.sub(r"^\s*(picture|image|drawing|photo)\s*(of)?\s*:?\s*", "", (text or "").lower())
+    words = re.sub(r"[^a-z0-9 ]+", " ", words)
+    for phrase in sorted((k for k in _ALIASES if " " in k), key=len, reverse=True):
+        words = words.replace(phrase, phrase.replace(" ", "_"))
+    tokens = [t.replace("_", " ") for t in words.split()]
+    groups: list[dict] = []
+    action = None
+    for i, token in enumerate(tokens):
+        if token in _ACTION_WORDS and action is None:
+            action = _ACTION_WORDS[token]
+            continue
+        icon = _thing(token)
+        if icon is None:
+            continue
+        before = tokens[i - 1] if i else ""
+        count = int(before) if before.isdigit() else _NUMBER_WORDS.get(before, 1)
+        count = max(1, min(12, count))
+        if any(g["icon"] == icon for g in groups):
+            continue
+        groups.append({"icon": icon, "count": count})
+        if len(groups) == 6:
+            break
+    if not groups:
+        return None
+    if len(groups) == 1 and groups[0]["count"] == 1 and action:
+        return parse({"kind": "scene", "icon": groups[0]["icon"], "action": action})
+    return parse({"kind": "pictures", "groups": groups})
+
+
 # ── Reading answers ───────────────────────────────────────────────────────────
 
 def _number(text: str | None) -> Optional[Fraction]:
@@ -490,4 +565,4 @@ def category(diagram) -> str:
     return f"math.diagram.{FAMILY.get(diagram.kind, 'graph')}"
 
 
-__all__ = ["FAMILY", "category", "answer", "explain", "explain_point", "key", "new_like", "parse", "same"]
+__all__ = ["FAMILY", "category", "from_stimulus", "answer", "explain", "explain_point", "key", "new_like", "parse", "same"]

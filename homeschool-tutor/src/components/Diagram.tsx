@@ -53,7 +53,7 @@ export const ICONS: Record<string, string> = {
   magnifier: '🔍', microscope: '🔬', thermometer: '🌡️', battery: '🔋', plant: '🪴',
   crayon: '🖍️', paperclip: '📎', scissors: '✂️', spoon: '🥄', backpack: '🎒', chair: '🪑', bed: '🛏️',
   watermelon: '🍉', bucket: '🪣', television: '📺', computer: '💻', phone: '📱', cup: '☕', bottle: '🍼',
-  toothbrush: '🪥',
+  toothbrush: '🪥', cube: '🟦', box: '📦', basket: '🧺', truck: '🚚', ruler: '📏',
 }
 
 /** Coins and bills (models/practice.py COIN_CENTS): what each is worth and how it is drawn. */
@@ -534,6 +534,11 @@ export function DiagramSvg({ d }: { d: DiagramSpec }) {
     case 'thermometer': return <Thermometer {...d} />
     default: return null
   }
+}
+
+/** A picture Bede cannot draw, said plainly: the words without a "picture:" label. */
+export function pictureWords(text: string): string {
+  return text.replace(/^\s*(picture|image|drawing|photo)\s*(of)?\s*:\s*/i, '')
 }
 
 export default function Diagram({ d }: { d?: DiagramSpec | null }) {

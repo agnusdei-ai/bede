@@ -1275,7 +1275,10 @@ Before you print:
   name or count (when the answer choices are pictures, they are drawn too), a scene, a timeline, a Venn diagram, a
   table, the water cycle or another cycle, and the steps of a process. Check
   these answers yourself before printing, as you would any other question.
-  A photograph or a map is still described in words.
+  When the page's picture is one Bede has no drawing for, it draws the
+  things the picture shows (a dog running, three apples). Only a picture of
+  something not on its list, such as a historical scene or a map, is still
+  given in words.
 - **Double-checked** means Bede answered the question a second time, without
   looking at its first answer, and both agreed. That makes a mistake less
   likely, not impossible.

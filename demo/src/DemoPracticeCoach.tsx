@@ -12,7 +12,7 @@ import {
 } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
 import { splitIntoParts, uploadProblem } from './uploadParts'
-import Diagram from './Diagram'
+import Diagram, { pictureWords } from './Diagram'
 
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
 // HEIC decoder is held back until its security fix ships.
@@ -275,7 +275,7 @@ export default function DemoPracticeCoach({
                     const itemName = `${section.label} #${item.number}`
                     return (
                       <div key={`${item.number}-${itemIndex}`} className={`mt-2 rounded-lg p-2 ${flagged ? 'bg-gold-50' : 'bg-white'}`}>
-                        <p className="text-xs">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? ` (${item.stimulus})` : ''}</p>
+                        <p className="text-xs">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? <span className="italic text-gray-500"> ({pictureWords(item.stimulus)})</span> : null}</p>
                         <Diagram d={item.diagram} />
                         <div className="mt-2 flex flex-wrap gap-2">
                           <input aria-label={t('demoPractice.answerFor', { item: itemName })} value={item.student_response ?? ''} onChange={(event) => editItem(sectionIndex, itemIndex, { student_response: event.target.value })} className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1" />

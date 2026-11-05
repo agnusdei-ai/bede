@@ -342,3 +342,51 @@ def test_the_screenshot_quiz_is_diagnosed_and_practised_with_rulers():
 
 def test_picture_answer_choices_are_drawn_not_described():
     assert "answer choices are pictures" in extract._RULES
+
+
+# ── "picture: ..." is drawn, not described ────────────────────────────────────
+
+@pytest.mark.parametrize("words, kind, icons", [
+    ("picture: dog running", "scene", ["dog"]),
+    ("picture: duck on water", "pictures", ["duck", "water"]),
+    ("picture: crayon and linking cube on a ruler", "pictures", ["crayon", "cube", "ruler"]),
+    ("3 apples and 2 bananas", "pictures", ["apple", "banana"]),
+    ("picture: two pencils with ruler showing lengths", "pictures", ["pencil", "ruler"]),
+    ("Picture of a castle on a hill", "pictures", ["castle"]),
+])
+def test_a_described_picture_is_drawn(words, kind, icons):
+    picture = diagrams.from_stimulus(words)
+    assert picture is not None and picture.kind == kind
+    drawn = [picture.icon] if kind == "scene" else [g.icon for g in picture.groups]
+    assert drawn == icons
+
+
+def test_counts_in_a_description_are_kept():
+    picture = diagrams.from_stimulus("picture: 3 apples and two bananas")
+    assert [(g.icon, g.count) for g in picture.groups] == [("apple", 3), ("banana", 2)]
+
+
+def test_a_description_naming_nothing_drawable_is_left_alone():
+    assert diagrams.from_stimulus("picture: the Battle of Hastings") is None
+
+
+def test_a_saved_reading_with_a_description_is_drawn_when_read_back():
+    from models.practice import AssessmentItem
+
+    item = AssessmentItem.model_validate({"number": 1, "prompt": "Quid agit?", "stimulus": "picture: dog running"})
+    assert item.diagram is not None and item.diagram.kind == "scene"
+    # A diagram the reader gave is never replaced by the description.
+    clock = AssessmentItem.model_validate({"number": 1, "prompt": "Time?", "stimulus": "picture: a clock",
+                                           "diagram": {"kind": "clock", "hour": 3, "minute": 0}})
+    assert clock.diagram.kind == "clock"
+
+
+def test_a_written_sum_beside_a_picture_is_still_worked_out():
+    quiz = _quiz({"prompt": "27 + 15 =", "stimulus": "picture: 27 apples and 15 apples",
+                  "student_response": "32", "teacher_mark": "incorrect"})
+    (error,) = math_pack.classify_errors(quiz)
+    assert error.category == "math.add.no_regroup"
+
+
+def test_the_reader_is_not_taught_to_write_picture_descriptions():
+    assert '"picture: dog running"' not in extract._RULES

@@ -78,6 +78,24 @@ beforeEach(() => {
 })
 
 describe('demo Practice Coach', () => {
+  it('draws a picture the page had, and never shows a "picture:" description', async () => {
+    const pictured: DemoPracticeAssessment = { ...assessment, sections: [{ ...assessment.sections[0], items: [
+      { ...assessment.sections[0].items[0], stimulus: 'picture: duck on water', diagram: { kind: 'pictures', groups: [{ icon: 'duck', count: 1 }, { icon: 'water', count: 1 }] } },
+      { ...assessment.sections[0].items[0], number: 2, stimulus: 'picture: the Battle of Hastings', diagram: null },
+    ] }] }
+    api.readDemoPracticePhotos.mockResolvedValue({
+      id: 0, status: 'needs_review', assessment: pictured, ask_parent: [],
+      teacher_mark_count: { correct: 0, total: 2, source: 'teacher_marks' },
+    })
+    render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    await screen.findByRole('option', { name: 'Latin' })
+    fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files: [new File(['x'], 'q.jpg', { type: 'image/jpeg' })] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
+    expect(await screen.findByRole('img', { name: /Pictures: 1 duck, 1 water/ })).toBeTruthy()
+    expect(screen.queryByText(/picture:/i)).toBeNull()
+    expect(screen.getByText(/the Battle of Hastings/)).toBeTruthy()
+  })
+
   it('has no page limit: a long upload is sent in parts, each continuing the last', async () => {
     api.readDemoPracticePhotos.mockImplementation(async (_t: string, body: { pages: unknown[] }) => ({
       id: 0, status: 'needs_review', assessment, ask_parent: [],

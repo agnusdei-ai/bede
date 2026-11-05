@@ -159,7 +159,7 @@ Rules:
 - Record the teacher's mark only if you can see one; otherwise "unmarked". Never invent a mark.
 - If you cannot read something with confidence, give your best reading, lower "confidence",
   and say what is uncertain in "ask_parent".
-- "stimulus" describes a picture briefly in plain English (e.g. "picture: dog running").
+- "stimulus" is a few plain words for a picture no diagram fits, naming the things in it (e.g. "dog running", "3 apples"). Bede draws those things from its list, so name them simply.
 - "diagram" is null unless the question's picture can be given as one of these, with its exact numbers and words:
 """ + diagrams.PROMPT_SCHEMA + """
   This is for any subject: an animal to name, a timeline, the water cycle, a table, a shape, things on a

@@ -1030,7 +1030,12 @@
       "phone": "teléfono",
       "cup": "taza",
       "bottle": "biberón",
-      "toothbrush": "cepillo de dientes"
+      "toothbrush": "cepillo de dientes",
+      "cube": "cubo",
+      "box": "caja",
+      "basket": "canasta",
+      "truck": "camión",
+      "ruler": "regla"
     },
     "action": {
       "running": "corriendo",

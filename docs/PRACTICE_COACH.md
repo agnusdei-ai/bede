@@ -244,8 +244,15 @@ a timeline (BC years as negative numbers), a Venn diagram, a table, a cycle
 question with its own picture, and the Latin pack draws every practice
 scene. The reader and the drafting model are given one shared list
 (`diagrams.PROMPT_SCHEMA`), so the two cannot drift. A photograph, a map or a
-drawing none of these fits is still described in words: drawing it would
-need real images, which is a separate decision. The reader
+drawing none of these fits is described in plain words by the reader, and
+`diagrams.from_stimulus` then draws whatever those words name from the same
+list ("dog running" becomes a dog with a running mark; "3 apples and 2
+bananas" becomes three apples and two bananas). This runs whenever an
+assessment item is built (an `AssessmentItem` validator), so readings saved
+before it existed are drawn too; a diagram the reader gave is never replaced.
+Only a description naming nothing on the list ("the Battle of Hastings") is
+still shown as words, without a "picture:" label. A written sum with a
+picture beside it is still worked out as a sum. The reader
 records it, the drafting rules ask for it, and the app draws it itself as SVG
 on screen and in print, so a model never writes markup into the page and the
 picture and its answer cannot disagree. `diagrams.answer` counts the answer

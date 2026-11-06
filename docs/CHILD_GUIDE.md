@@ -101,10 +101,8 @@ You can answer me in whichever way feels easiest:
     for a lighter, softer graphite look, and the **Eraser** to rub out a
     mistake. Pick whichever fits what you're making. Undo and Redo are up
     top too, if you change your mind.
-  - Drawing with your finger instead of a stylus? The line appears a little
-    above where your finger actually is, on purpose. That way your finger
-    isn't covering up the line while you draw it, just like how a marker
-    doesn't hide what you're writing.
+  - Whether you draw with your finger, a stylus or a mouse, the line appears
+    right where you touch, just like a real pencil on paper.
   - **Your page waits for you.** If you go back to talk with me in the middle
     of drawing, your page is still there when you come back: the same lines,
     the same paper, the same colors. You don't have to finish in one go, and

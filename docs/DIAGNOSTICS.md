@@ -274,6 +274,16 @@ The turn is reissued, with the child's own message unchanged, up to
 the whole diagnosis: the connection dropped and Bede covered it. Seeing it
 twice, followed by an error, means the connection stayed down.
 
+**A silent connection is retried.** The server sends a keep-alive every 15
+seconds for as long as it is working on a turn, and any byte resets the
+client's silence timer. So 35 seconds of complete silence (`TUTOR_SILENCE_MS`,
+two missed keep-alives plus slack) means the connection is gone, and asking
+again is the only way the child gets an answer. This replaced a rule that
+never retried a stall: a demo trace showed the response headers arrive and
+then no byte at all for 60 seconds, and the turn simply failed. Like every
+other retry it happens only before any of the reply is on screen.
+`tests/test_tutor_stream_keepalive.py` pins the keep-alive this depends on.
+
 **What it deliberately does not retry**, each for a reason worth keeping:
 
 | Case | Why not |
@@ -281,7 +291,6 @@ twice, followed by an error, means the connection stayed down.
 | A 4xx/5xx | A decision the server actually made. Repeating it asks to be refused twice and spends a family's tokens doing it. |
 | A failure after the first chunk | Text is already on screen; a retry would restart a sentence under someone reading it. |
 | An abort | The child navigated away, or the next turn superseded this one. Nothing should be reissued on their behalf. |
-| A stall (`StreamStallError`, 60s) | The server accepted the request and went quiet, so it is very likely still working. A second model call buys nothing a longer wait would not. |
 | A response-header deadline (`Request timed out`, 60s) | No response arrived in time, but the server may already have accepted the turn. Abort the client wait without replaying potentially accepted work. |
 
 The existing 60-second body-read stall limit remains separate from the new

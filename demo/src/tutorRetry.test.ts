@@ -226,3 +226,70 @@ describe('what it deliberately will not retry', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+// A real demo trace: headers arrived, then no byte at all for 60 seconds, and
+// the turn failed. The server sends a keep-alive every 15 seconds while it
+// works, so total silence means the connection is gone and asking again is
+// the only way the visitor gets an answer.
+describe('a connection that goes silent', () => {
+  function silentResponse(): Response {
+    return {
+      ok: true,
+      status: 200,
+      body: { getReader: () => ({ read: () => new Promise(() => {}), cancel: async () => {} }) },
+    } as unknown as Response
+  }
+
+  function timedResponse(steps: Array<{ afterMs: number; line: string }>): Response {
+    let i = 0
+    const encoder = new TextEncoder()
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        getReader: () => ({
+          read: () => {
+            if (i >= steps.length) return Promise.resolve({ done: true, value: undefined })
+            const step = steps[i++]
+            return new Promise((resolve) => setTimeout(() => resolve({ done: false, value: encoder.encode(step.line) }), step.afterMs))
+          },
+          cancel: async () => {},
+        }),
+      },
+    } as unknown as Response
+  }
+
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers() })
+
+  it('asks again and the visitor gets the reply', async () => {
+    fetchMock.mockResolvedValueOnce(silentResponse()).mockResolvedValueOnce(sseResponse(REPLY))
+    const pending = collect(run())
+    await vi.advanceTimersByTimeAsync(40_000)
+    const chunks = await pending
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(chunks[0]).toMatchObject({ type: 'text', content: 'Tell me what you remember.' })
+  })
+
+  it('waits patiently while keep-alives arrive', async () => {
+    const pings = Array.from({ length: 5 }, () => ({ afterMs: 15_000, line: ': ping\n' }))
+    fetchMock.mockResolvedValueOnce(timedResponse([...pings, ...REPLY.map((line) => ({ afterMs: 0, line }))]))
+    const pending = collect(run())
+    await vi.advanceTimersByTimeAsync(80_000)
+    const chunks = await pending
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(chunks[0]).toMatchObject({ type: 'text' })
+  })
+
+  it('does not restart a reply that has already begun', async () => {
+    fetchMock.mockResolvedValueOnce(timedResponse([
+      { afterMs: 0, line: 'data: {"type":"text","content":"Tell me"}\n' },
+      { afterMs: 10 ** 9, line: 'data: {"type":"done"}\n' },
+    ]))
+    const pending = collect(run()).catch((e: Error) => e)
+    await vi.advanceTimersByTimeAsync(40_000)
+    const result = await pending
+    expect(result).toBeInstanceOf(Error)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

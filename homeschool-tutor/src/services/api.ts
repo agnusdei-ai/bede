@@ -355,11 +355,18 @@ function stripDataUrlPrefix(dataUrl: string): string {
 //      superseded by the next one, must not have a request quietly
 //      reissued on their behalf.
 //
-// Deliberately NOT retried: a stall. `parseSSEStream`'s 60-second
-// StreamStallError means the server accepted the request and then went
-// quiet, so it is very likely still working — reissuing costs a second
-// model call for a family and buys nothing a longer wait would not.
+// A silent connection IS retried. The server sends a keep-alive comment
+// every 15 seconds for as long as it is working on a turn (sse-starlette's
+// default ping, pinned by tests/test_tutor_stream_keepalive.py), and any
+// byte, keep-alive included, restarts the silence timer. So TUTOR_SILENCE_MS
+// of total silence means the connection is gone, not that the server is
+// busy: nothing more can arrive on it, and asking again is the only way the
+// child gets an answer. Reported from a real demo trace: headers arrived,
+// then nothing at all for 60 seconds, and the turn simply failed. A stall is
+// still final once any chunk has been shown, like every other failure.
 const TUTOR_MAX_ATTEMPTS = 3
+// Two missed keep-alives plus slack.
+const TUTOR_SILENCE_MS = 35_000
 const TUTOR_RETRY_BASE_DELAY_MS = 600
 
 // Bounds response headers (and short JSON bodies), not a whole SSE session.
@@ -419,14 +426,14 @@ function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
 // indefinitely with no way to recover short of reloading the page.
 const SSE_STALL_TIMEOUT_MS = 60_000
 
-class StreamStallError extends Error {}
+export class StreamStallError extends Error {}
 
 /** Shared line-buffered SSE parser used by the tutor, sandbox, and
  *  voice-streaming chat streams — generic over the event shape since the
  *  voice stream (VoiceStreamEvent, see services/voiceApi.ts) and tutor
  *  chat stream (StreamChunk) differ, but both are a sequence of plain-JSON
  *  "data: " lines ending in a {type: 'done'} sentinel. */
-export async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal): AsyncGenerator<T> {
+export async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal, silenceMs = SSE_STALL_TIMEOUT_MS): AsyncGenerator<T> {
   const reader = res.body!.getReader()
   const cancel = () => { reader.cancel().catch(() => {}) }
   signal?.addEventListener('abort', cancel, { once: true })
@@ -438,7 +445,7 @@ export async function* parseSSEStream<T extends { type: string }>(res: Response,
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
       let timeoutId: ReturnType<typeof setTimeout>
       const stallTimeout = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), SSE_STALL_TIMEOUT_MS)
+        timeoutId = setTimeout(() => reject(new StreamStallError("Bede's connection stalled. Please try again.")), silenceMs)
       })
       let done: boolean, value: Uint8Array | undefined
       try {
@@ -537,17 +544,17 @@ export async function* streamTutorChat(
         throw new Error('Tutor request failed — check your connection')
       }
 
-      for await (const chunk of parseSSEStream<StreamChunk>(res, signal)) {
+      for await (const chunk of parseSSEStream<StreamChunk>(res, signal, TUTOR_SILENCE_MS)) {
         delivered = true
         yield chunk
       }
       return
     } catch (err) {
-      if (delivered || attempt >= TUTOR_MAX_ATTEMPTS || signal?.aborted || !isNetworkFailure(err)) {
+      if (delivered || attempt >= TUTOR_MAX_ATTEMPTS || signal?.aborted || !(isNetworkFailure(err) || err instanceof StreamStallError)) {
         throw err
       }
       const wait = TUTOR_RETRY_BASE_DELAY_MS * attempt
-      logDebug(`streamTutorChat retrying after network failure (attempt ${attempt}/${TUTOR_MAX_ATTEMPTS}, waiting ${wait}ms)`)
+      logDebug(`streamTutorChat retrying after ${err instanceof StreamStallError ? 'a silent connection' : 'network failure'} (attempt ${attempt}/${TUTOR_MAX_ATTEMPTS}, waiting ${wait}ms)`)
       await retryPause(wait, signal)
     }
   }

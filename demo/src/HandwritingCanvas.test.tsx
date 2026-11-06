@@ -7,7 +7,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from './i18n'
-import HandwritingCanvas from './HandwritingCanvas'
+import HandwritingCanvas, { canvasPoint } from './HandwritingCanvas'
 import { canvasStorageKey, loadPage, savePage } from './canvasPersistence'
 
 // jsdom has no 2D context. Everything this component asks of one is a draw
@@ -322,4 +322,36 @@ describe('demo HandwritingCanvas page persistence', () => {
     }
   })
 
+})
+
+// Reported: with a stylus the line was drawn above the pen tip. A capacitive
+// stylus reports pointerType 'touch', which used to be lifted 0.35in. Ink
+// must land exactly under the contact point for every input type, through
+// the real pointer handlers and not only in the helper.
+describe('HandwritingCanvas drawing accuracy', () => {
+  it.each(['touch', 'pen', 'mouse'])('puts %s ink exactly where the pointer is', (pointerType) => {
+    const { container, unmount } = render(
+      <HandwritingCanvas onSubmit={vi.fn()} onCancel={vi.fn()} persistKey="ABC123" />,
+    )
+    const canvas = container.querySelector('canvas')!
+    // Shown at half size: the stored point must still be the true page spot.
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue(
+      { left: 10, top: 20, width: 408, height: 528, right: 418, bottom: 548, x: 10, y: 20, toJSON: () => ({}) } as DOMRect,
+    )
+    Object.assign(canvas, { setPointerCapture: vi.fn(), releasePointerCapture: vi.fn(), hasPointerCapture: () => true })
+    const at = (clientX: number, clientY: number) => ({ clientX, clientY, pointerType, pointerId: 1, pressure: 0.5, button: 0, buttons: 1 })
+    fireEvent.pointerDown(canvas, at(60, 120))
+    fireEvent.pointerMove(canvas, at(110, 170))
+    fireEvent.pointerUp(canvas, at(110, 170))
+    unmount()
+
+    const points = loadPage('ABC123')!.strokes[0].points
+    expect(points[0]).toMatchObject({ x: 100, y: 200 })
+    expect(points[points.length - 1]).toMatchObject({ x: 200, y: 300 })
+  })
+
+  it('maps a screen point to the page with no offset of any kind', () => {
+    const rect = { left: 0, top: 0, width: 816, height: 1056 }
+    expect(canvasPoint(300, 400, rect)).toEqual({ x: 300, y: 400 })
+  })
 })

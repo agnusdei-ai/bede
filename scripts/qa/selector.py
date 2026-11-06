@@ -271,6 +271,10 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
             known = True
             # Marketing docs without application dependencies do not run
             # unit tests. They still pass source-map/self-test validation.
+            # A backend test may still read the file as text (CLAUDE.md,
+            # README.md, LICENSE): run those, so a docs-only change cannot
+            # skip the guard written for it.
+            scopes["backend"]["tests"].extend(backend_readers(root, name))
         else:
             # Unrecognized source is not a reason to skip every check.
             for p in scopes:

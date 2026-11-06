@@ -368,16 +368,23 @@ function toolOpacity(tool: Tool): number {
   return tool === 'pencil' ? PENCIL_OPACITY : 1
 }
 
-// Draws a finger's contact point noticeably below where the ink actually
-// appears — a fingertip covers the exact spot a stylus's precise tip would
-// mark, so without this the child can't see what they're drawing right as
-// they draw it, and the line feels uncalibrated even though the underlying
-// math is exact. A stylus or mouse needs none of this: its contact point
-// already IS the precise mark. Value is in fixed CANVAS_WIDTH/HEIGHT units
-// (see PRINT_DPI above), not on-screen CSS px, so it stays the same real
-// on-paper distance regardless of how small the letterboxed on-screen
-// paper is scaled down to fit the device.
-const TOUCH_FINGER_CLEARANCE = 0.35 * PRINT_DPI
+// Ink lands exactly under the contact point for every kind of input, and
+// that is a rule rather than a default. An earlier version lifted touch
+// input 0.35in above the finger so a fingertip would not hide the line, but
+// a capacitive stylus (the rubber-tipped kind) reports pointerType 'touch'
+// too, so its line was drawn above the tip and read as broken calibration.
+// The browser cannot tell a finger from such a stylus, so no offset is safe.
+// canvasPoint is exported so that rule is tested directly.
+export function canvasPoint(
+  clientX: number,
+  clientY: number,
+  rect: { left: number; top: number; width: number; height: number },
+): { x: number; y: number } {
+  return {
+    x: (clientX - rect.left) * (CANVAS_WIDTH / rect.width),
+    y: (clientY - rect.top) * (CANVAS_HEIGHT / rect.height),
+  }
+}
 
 // How long the page sits still before it is written to sessionStorage.
 // Deliberately short: the moment that actually matters is the child leaving
@@ -701,18 +708,10 @@ export default function HandwritingCanvas({ onSubmit, onCancel, subject, gradeSt
   // box (rect) can be smaller than the fixed CANVAS_WIDTH/HEIGHT drawing
   // space (it's letterboxed to fit the screen — see paperBox above), so
   // pointer position is rescaled into that drawing space rather than used
-  // as raw display pixels. e.pointerType ('touch' vs 'pen'/'mouse') lets
-  // this apply TOUCH_FINGER_CLEARANCE only for an actual finger — a stylus
-  // reports 'pen' here even on the same touchscreen, and needs no offset.
+  // as raw display pixels. No input type gets an offset; see canvasPoint.
   const getPos = (e: React.PointerEvent<HTMLCanvasElement>): Point => {
-    const canvas = canvasRef.current!
-    const rect = canvas.getBoundingClientRect()
-    const yOffset = e.pointerType === 'touch' ? -TOUCH_FINGER_CLEARANCE : 0
-    return {
-      x: (e.clientX - rect.left) * (CANVAS_WIDTH / rect.width),
-      y: (e.clientY - rect.top) * (CANVAS_HEIGHT / rect.height) + yOffset,
-      pressure: e.pressure,
-    }
+    const rect = canvasRef.current!.getBoundingClientRect()
+    return { ...canvasPoint(e.clientX, e.clientY, rect), pressure: e.pressure }
   }
 
   const getStrokeWidth = (pressure: number) => {

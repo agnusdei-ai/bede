@@ -961,3 +961,36 @@ def test_wizard_image_ships_the_notice_file():
     dockerfile = (Path(__file__).parent / "Dockerfile").read_text()
     assert "COPY homeschool-api/data/consent_notice.txt /app/consent_notice.txt" in dockerfile
     assert wizard._CONSENT_NOTICE_CANDIDATES[0] == Path("/app/consent_notice.txt")
+
+
+
+# ── Optional features (issue #763) ───────────────────────────────────────
+
+def test_rerunning_the_wizard_shows_the_choices_already_in_env(running_wizard):
+    with open(wizard.ENV_PATH, "w") as f:
+        f.write("PRACTICE_COACH_ENABLED=false\nCURRICULUM_ENGINE_ENABLED=true\n")
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'name="practice_coach" value="no" checked' in body
+    assert 'name="curriculum" value="yes" checked' in body
+
+
+def test_a_fresh_wizard_shows_coach_on_and_curriculum_off(running_wizard):
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'name="practice_coach" value="yes" checked' in body
+    assert 'name="curriculum" value="no" checked' in body
+
+
+def test_submitted_feature_choices_reach_env(running_wizard):
+    resp = _post(running_wizard, {
+        "anthropic_key": "sk-ant-real-key",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": TEST_PIN,
+        "license_key": MOCK_ENTITLEMENT,
+        "practice_coach": "no",
+        "curriculum": "yes",
+    })
+    assert resp.status == 200
+    env = open(wizard.ENV_PATH).read()
+    assert "PRACTICE_COACH_ENABLED=false\n" in env
+    assert "CURRICULUM_ENGINE_ENABLED=true\n" in env

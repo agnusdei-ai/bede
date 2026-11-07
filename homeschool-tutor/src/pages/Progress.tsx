@@ -8,6 +8,7 @@ import WorkLedger from '../components/WorkLedger'
 import EducatorAssessments from '../components/EducatorAssessments'
 import PracticeCoach from '../components/PracticeCoach'
 import QuizBuilder from '../components/QuizBuilder'
+import { usePracticeCoachEnabled } from '../hooks/usePracticeCoachEnabled'
 import SubjectCoverage from '../components/SubjectCoverage'
 import MasteryOverview from '../components/MasteryOverview'
 import type { MasteryArea } from '../components/MasteryOverview'
@@ -620,6 +621,7 @@ export default function Progress() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { token, podStudents } = useSessionStore()
+  const practiceCoachEnabled = usePracticeCoachEnabled(token)
 
   const studentNames = podStudents.map((s) => s.student_name)
   // Deep-linked from the Pod Dashboard's "recommendations ready" nudge when
@@ -907,8 +909,12 @@ export default function Progress() {
             {/* Parent-only: a photographed, graded quiz becomes practice the
                 parent approves before the child sees any of it. See
                 docs/PRACTICE_COACH.md. */}
-            <PracticeCoach token={token} studentName={activeStudent} />
-            <QuizBuilder token={token} studentName={activeStudent} />
+            {practiceCoachEnabled === true && (
+              <>
+                <PracticeCoach token={token} studentName={activeStudent} />
+                <QuizBuilder token={token} studentName={activeStudent} />
+              </>
+            )}
             <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}

@@ -215,6 +215,11 @@ services:
       - PRACTICE_SCANNER_URL=${PRACTICE_SCANNER_URL:-}
       # Practice Coach cloud reading of page images (with a per-upload consent tick): on unless set to false.
       - PRACTICE_CLOUD_READING_ENABLED=${PRACTICE_CLOUD_READING_ENABLED:-true}
+      # Installer choices (issue #763). Practice Coach on unless set false;
+      # Curriculum Intelligence off unless set true. Both asked by the setup
+      # wizard and setup.sh, and written to .env only when changed.
+      - PRACTICE_COACH_ENABLED=${PRACTICE_COACH_ENABLED:-true}
+      - CURRICULUM_ENGINE_ENABLED=${CURRICULUM_ENGINE_ENABLED:-false}
       - MCP_EXTERNAL_ENABLED=${MCP_EXTERNAL_ENABLED:-false}
       - MCP_EXTERNAL_SERVERS=${MCP_EXTERNAL_SERVERS:-}
       - MCP_EXTERNAL_TIMEOUT_SECONDS=${MCP_EXTERNAL_TIMEOUT_SECONDS:-10.0}

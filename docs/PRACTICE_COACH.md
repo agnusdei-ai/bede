@@ -5,6 +5,15 @@ out *why* each miss happened, and drafts a short practice set and a follow-up
 re-check. **The parent reviews and approves everything before the child sees
 it.** The ruling behind each design choice is `docs/DECISIONS.md` entry 39.
 
+## Turning it on or off
+
+Practice Coach is on by default. The setup wizard and `setup.sh` ask about it
+under "Optional features"; choosing Off writes `PRACTICE_COACH_ENABLED=false`.
+When it is off, its cards are hidden in the app (`GET /practice/status`) and
+every `/practice` route answers 403 `practice_coach_disabled` to a signed-in
+caller. Nothing already saved is deleted, and turning it back on changes no
+approval or consent rule.
+
 ## What it is not
 
 Bede is not an assessment platform. It never assigns a grade, never keeps a

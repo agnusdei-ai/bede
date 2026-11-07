@@ -1,6 +1,6 @@
 import hmac
 from pydantic_settings import BaseSettings
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from typing import List
 
 from core.scanner_url import ScannerUrlRefused, parse_scanner_url
@@ -17,6 +17,13 @@ from core.pin_policy import (
 # set to. services/email_service.py's email_configured() treats this value
 # the same as an empty string — see that module for the full explanation.
 DEFAULT_RESEND_FROM_ADDRESS = "Bede <bede@example.com>"
+
+# The exact words services/curriculum/flag.py treats as on and off. Kept as a
+# copy here, not an import: that package must not be imported at startup
+# while it is off (services/curriculum/__init__.py). tests/
+# test_installer_feature_choices.py asserts the two copies agree.
+CURRICULUM_FLAG_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+CURRICULUM_FLAG_FALSE_VALUES = frozenset({"", "0", "false", "no", "off"})
 
 # Public (not module-private) since core/parent_credential.py's change-
 # password/recovery-reset flow enforces the exact same floor when a parent
@@ -556,6 +563,39 @@ class Settings(BaseSettings):
     # choke point (services/practice/extract.py), so a direct API request cannot
     # bypass it.
     practice_cloud_reading_enabled: bool = True
+
+    # Whether Practice Coach exists on this installation at all: photographed
+    # quizzes, drafted quizzes, teacher quiz keys, and practice delivered to a
+    # child. On by default (issue #763). False makes every /practice route
+    # answer 403 practice_coach_disabled (routers/practice.py) and hides the
+    # cards in the app (GET /practice/status). Turning it off deletes nothing.
+    # Turning it on changes no approval, consent or routing rule: each upload
+    # still needs its own tick, and a set still reaches a child only after a
+    # parent approves it. Asked by the setup wizard and setup.sh.
+    practice_coach_enabled: bool = True
+
+    # Curriculum Intelligence (services/curriculum/). Off by default; the
+    # installers write CURRICULUM_ENGINE_ENABLED=true only on an explicit
+    # opt-in. services/curriculum/flag.py reads the environment itself; this
+    # field exists so a value set in .env reaches the container (compose
+    # passes it) and so a misspelled value fails at boot instead of quietly
+    # meaning off. Turning it on approves no content: every rights and review
+    # gate in that package still applies.
+    curriculum_engine_enabled: bool = False
+
+    @field_validator("curriculum_engine_enabled", mode="before")
+    @classmethod
+    def _curriculum_flag_words(cls, value):
+        if isinstance(value, bool):
+            return value
+        word = str(value).strip().lower()
+        if word in CURRICULUM_FLAG_TRUE_VALUES:
+            return True
+        if word in CURRICULUM_FLAG_FALSE_VALUES:
+            return False
+        raise ValueError(
+            f"CURRICULUM_ENGINE_ENABLED={value!r} is not understood; use true or false"
+        )
 
     # ── Diagnostic engine (optional) ──────────────────────────────────────────
     # On by default — this is what powers the end-of-session "Math Skill

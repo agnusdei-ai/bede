@@ -1857,6 +1857,24 @@ async function practiceFetch<T>(token: string, path: string, init?: RequestInit)
   return res.json()
 }
 
+/** Whether Practice Coach is on for this installation (PRACTICE_COACH_ENABLED).
+ *  Its cards are shown only on a clear yes. A server too old to have this
+ *  route (404) always had Coach on, so it reads as on; any other failure
+ *  reads as off, since Coach's own routes would fail the same way. */
+export async function fetchPracticeCoachEnabled(token: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${BASE}/practice/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.status === 404) return true
+    if (!res.ok) return false
+    const data = await res.json()
+    return data?.enabled === true
+  } catch {
+    return false
+  }
+}
+
 export const fetchPracticePacks = (token: string) =>
   practiceFetch<{ id: string; display_name: string }[]>(token, '/packs')
 

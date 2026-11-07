@@ -350,6 +350,42 @@ class ChildLearnerBinding(Base):
     nonce: Mapped[str] = mapped_column(String(64), nullable=False)
 
 
+class ChildPin(Base):
+    """A household learner's own sign-in PIN (core/child_pin.py).
+
+    One row per learner that has a PIN of its own; a learner with no row
+    signs in exactly as before, with the shared CHILD_PIN plus the tablet's
+    ChildLearnerBinding. Standalone table because this codebase has no
+    ALTER TABLE path. Keyed by ``student_name``, which is the household
+    ``storage_subject`` (core/learner_scope.py): household names are capped
+    at 50 characters and institutional subjects are 79, so a household row
+    can never collide with a pilot learner, and pilot learners never get a
+    row (child sign-in is refused in the educator pilot).
+
+    The PIN is verify-only, so it is stored as a PBKDF2 hash and salt
+    (core/credential_hash.py), never under reversible encryption.
+    ``nonce`` is embedded in every token this PIN issues and rotated on
+    every set, so changing or clearing the PIN ends that child's sessions;
+    a random nonce rather than a counter so a PIN cleared and set again
+    cannot revive a token minted under the old row. The failure fields are
+    the per-child lockout, persisted so a restart or a change of source
+    address resets nothing.
+    """
+    __tablename__ = "child_pins"
+    student_name: Mapped[str] = mapped_column(String(100), primary_key=True)
+    pin_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    pin_salt: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[str] = mapped_column(String(64), nullable=False)
+    failure_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_failure_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
 class PilotCampusDataAuthorization(Base):
     """A school official's recorded authorization to store learner data for a campus.
 

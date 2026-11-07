@@ -48,6 +48,7 @@ years and nothing here assumes otherwise.
 | `educator_assessment_evidence` | Educator-entered external assessment scores and classical work observations, with provenance; scores do not feed Bede's diagnostic mastery model |
 | `session_transcripts` | The full encrypted session transcript, for parent review |
 | `api_usage_events` | Per-call token counts (student-scoped rows only — see below) |
+| `child_pins` | Only for a child you gave their own PIN: a one-way PBKDF2 hash and salt of that PIN (never the PIN itself), a session nonce, and the failed-attempt count and lock time. Also removed the moment you tap **Remove PIN**; withheld from the parent export as a sign-in credential (see `core/child_pin.py`) |
 
 **Deleting a student:** Pod Dashboard → each student's card → **Delete all
 data…** → type the student's name to confirm. This calls

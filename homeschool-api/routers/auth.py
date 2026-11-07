@@ -12,7 +12,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import child_throttle, device_registry, elevation, parent_lockout
+from core import child_pin, child_throttle, device_registry, elevation, parent_lockout
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.database import ChildDevicePairing, ChildLearnerBinding, StudentConfig, get_db
@@ -23,7 +23,13 @@ from core.demo_code_session import (
     redeem_code,
     set_parent_config,
 )
-from core.deps import require_auth, require_demo_parent_config, require_parent, require_live_hosted_child_pairing
+from core.deps import (
+    require_auth,
+    require_demo_parent_config,
+    require_live_child_pin,
+    require_live_hosted_child_pairing,
+    require_parent,
+)
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
@@ -356,6 +362,48 @@ async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(
     elif req.role == "child":
         if settings.educator_pilot_enabled:
             raise HTTPException(status_code=403, detail="Classroom pilot requires an authorized educator")
+        # Per-child PIN (core/child_pin.py). A named learner with a PIN of
+        # its own is signed in ONLY by that PIN — the shared CHILD_PIN does
+        # not grant them. Every refusal here is the same 401 a wrong shared
+        # PIN gets, so a caller cannot tell an unknown name from a wrong PIN
+        # from a locked child.
+        named = (req.student_name or "").strip() or None
+        pin_row = await child_pin.get(db, named)
+        if pin_row is None and named is None and req.device_id:
+            # No name typed, but this tablet is bound to a learner who has
+            # their own PIN: the shared PIN is not enough for them either.
+            bound = await db.get(ChildLearnerBinding, req.device_id)
+            if bound is not None and await child_pin.get(db, bound.student_name) is not None:
+                child_pin.burn_dummy_verify(req.credential)
+                log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                                 detail="shared pin refused: learner has own pin", **ctx)
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        if pin_row is not None:
+            if not await child_pin.check(db, pin_row, req.credential):
+                log_event_nowait(AuditEvent.AUTH_FAILURE, role="child", success=False,
+                                 detail="child pin refused", **ctx)
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+            _reject_if_device_revoked("child")
+            if settings.hosted_profile:
+                child_device_token = await _gate_child_device(db, req, ctx)
+            token_data = {
+                "sub": "child", "role": "child", "locale": locale,
+                "learner": pin_row.student_name, "learner_pin_nonce": pin_row.nonce,
+            }
+            if req.device_id:
+                token_data["device_id"] = req.device_id
+                await device_registry.touch(db, req.device_id, "child", ctx["user_agent"])
+            token = create_access_token(
+                token_data, fingerprint=fp,
+                expires_delta=timedelta(minutes=settings.child_token_expire_minutes),
+            )
+            log_event_nowait(AuditEvent.AUTH_SUCCESS, role="child", success=True,
+                             detail="signed in with own pin", **ctx)
+            return TokenResponse(access_token=token, role="child", device_token=child_device_token)
+        if named is not None:
+            # Equalise timing with the PIN path above; the shared-PIN check
+            # that follows is unchanged.
+            child_pin.burn_dummy_verify(req.credential)
         if not hmac.compare_digest(req.credential, settings.child_pin):
             # Escalating delay, not a lockout — see core/child_throttle.py
             # for why copying parent_lockout's fixed-threshold refusal here
@@ -660,6 +708,7 @@ async def validate_token(
         from services.educator_access import live_educator
         await live_educator(db, payload)
     await require_live_hosted_child_pairing(request, payload, db)
+    await require_live_child_pin(request, payload, db)
     return {"role": payload.get("role"), "valid": True}
 
 

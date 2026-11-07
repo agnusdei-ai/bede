@@ -54,12 +54,14 @@ def student_scoped_models() -> tuple:
         StudentCollectionState,
         StudentConfig,
         ChildLearnerBinding,
+        ChildPin,
         VoiceProfile,
     )
 
     return (
         ("student_config", StudentConfig),
         ("child_learner_bindings", ChildLearnerBinding),
+        ("child_pins", ChildPin),
         ("voice_profile", VoiceProfile),
         ("narration_assessments", NarrationAssessment),
         ("learner_profile", LearnerProfile),

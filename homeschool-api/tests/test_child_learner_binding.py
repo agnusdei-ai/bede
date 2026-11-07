@@ -7,11 +7,19 @@ from core.deps import require_learner_access
 from core.database import ChildLearnerBinding
 
 
+def _only(binding):
+    """db.get that returns the binding for its own table and nothing for any
+    other (no learner here has a per-child PIN; see test_child_pins.py)."""
+    async def get(model, key):
+        return binding if model is ChildLearnerBinding else None
+    return get
+
+
 @pytest.mark.asyncio
 async def test_child_only_reads_bound_learner():
     binding = ChildLearnerBinding(device_id="tablet-1", student_name="Alice", nonce="v1")
     db = AsyncMock()
-    db.get.return_value = binding
+    db.get.side_effect = _only(binding)
     auth = {"role": "child", "device_id": "tablet-1", "learner_nonce": "v1"}
     with patch("core.deps.settings") as settings, patch("core.deps.device_registry") as devices:
         settings.hosted_profile = False
@@ -26,7 +34,7 @@ async def test_child_only_reads_bound_learner():
 @pytest.mark.asyncio
 async def test_unbound_rotated_and_revoked_fail_closed():
     db = AsyncMock()
-    db.get.return_value = ChildLearnerBinding(device_id="tablet-1", student_name="Alice", nonce="v2")
+    db.get.side_effect = _only(ChildLearnerBinding(device_id="tablet-1", student_name="Alice", nonce="v2"))
     with patch("core.deps.settings") as settings, patch("core.deps.device_registry") as devices:
         settings.hosted_profile = False
         devices.is_revoked.return_value = False

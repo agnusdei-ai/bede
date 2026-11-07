@@ -117,6 +117,11 @@ class AuditEvent:
     DATA_EXPORTED              = "data.exported"
     COLLECTION_REFUSED         = "collection.refused"
     CONSENT_INSTALL_ACK_RECORDED = "consent.install_ack_recorded"
+    # core/child_pin.py: a parent set, changed, or cleared a learner's own
+    # sign-in PIN. Detail carries a keyed learner reference only — never the
+    # PIN, its hash, or the learner's name.
+    CHILD_PIN_SET              = "child_pin.set"
+    CHILD_PIN_CLEARED          = "child_pin.cleared"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────

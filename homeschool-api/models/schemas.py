@@ -883,6 +883,11 @@ class LoginRequest(BaseModel):
     # per-device token a parent-approved tablet presents on every child
     # sign-in after its first. Absent on self-hosted deployments.
     device_token: Optional[str] = Field(default=None, max_length=128)
+    # Per-child PIN (core/child_pin.py): the learner a child is signing in
+    # as. Optional and child-only. When the named learner has a PIN of its
+    # own, only that PIN signs in as them; otherwise this field changes
+    # nothing and the shared CHILD_PIN works exactly as before.
+    student_name: Optional[str] = Field(default=None, max_length=100)
 
 
 class DemoCodeRequest(BaseModel):

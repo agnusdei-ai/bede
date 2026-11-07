@@ -12,6 +12,10 @@ Deliberately withheld from the export:
   parent reads. Returning it would copy a biometric template out of the
   store for no review purpose. The row is listed with its date and marked
   withheld, so the parent still sees that it exists.
+- child_pins' hash, salt and session nonce. They are a sign-in credential,
+  not a record about the child, and an export is a file that travels. The
+  row is listed (that a PIN exists, when it changed, any lockout) with those
+  three columns marked withheld.
 """
 from __future__ import annotations
 
@@ -24,6 +28,7 @@ from core import student_keys
 from core.encryption import decrypt_json, student_aad
 
 WITHHELD = "withheld: biometric template, not exported"
+CREDENTIAL_WITHHELD = "withheld: sign-in credential, not exported"
 
 
 def _enc_aads() -> dict[str, dict[str, Callable[[Any], bytes | None]]]:
@@ -35,6 +40,11 @@ def _enc_aads() -> dict[str, dict[str, Callable[[Any], bytes | None]]]:
     """
     return {
         "child_learner_bindings": {},  # Learner binding metadata is not encrypted.
+        "child_pins": {
+            "pin_hash": CREDENTIAL_WITHHELD,
+            "pin_salt": CREDENTIAL_WITHHELD,
+            "nonce": CREDENTIAL_WITHHELD,
+        },
         "student_config": {
             "config_enc": lambda r: student_aad("student_configs", "config_enc", r.student_name),
         },
@@ -107,6 +117,9 @@ def _render_row(row, label: str, encrypted: dict, key: bytes | None) -> dict:
         blob = getattr(row, column, None)
         if aad_for is None:
             out[column] = WITHHELD
+            continue
+        if isinstance(aad_for, str):
+            out[column] = aad_for  # a withheld-column marker, never the value
             continue
         if blob is None:
             out[column] = None

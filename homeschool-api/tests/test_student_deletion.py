@@ -22,6 +22,7 @@ from core.database import (
     AdaptiveInstructionTrace,
     ConsentRecord,
     ChildLearnerBinding,
+    ChildPin,
     StudentCollectionState,
     EducatorAssessmentEvidence,
     PracticeAssessment,
@@ -88,6 +89,10 @@ async def _seed_all_tables(db, student_name: str):
         device_id=f"test-device-{student_name}",
         student_name=student_name,
         nonce=f"test-nonce-{student_name}",
+    ))
+    db.add(ChildPin(
+        student_name=student_name, pin_hash=b"synthetic-hash", pin_salt=b"synthetic-salt",
+        nonce=f"pin-nonce-{student_name}", failure_count=0,
     ))
     db.add(VoiceProfile(student_name=student_name, profile_enc=encrypt_json({"a": 1})))
     # NarrationAssessment/SessionTranscript use a plain (non-SQLite-variant)
@@ -162,6 +167,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("practice_sets", PracticeSetRecord),
         ("educator_roster_assignments", EducatorRosterAssignment),
         ("child_learner_bindings", ChildLearnerBinding),
+        ("child_pins", ChildPin),
         ("mastery_profiles", MasteryProfile),
         ("diagnostic_evidence_log", DiagnosticEvidenceLog),
         ("session_transcripts", SessionTranscript),
@@ -216,6 +222,20 @@ async def test_student_export_includes_only_the_requested_child_binding(db_sessi
         "nonce": "test-nonce-Emma",
     }]
     assert liam["tables"]["child_learner_bindings"][0]["student_name"] == "Liam"
+
+
+@pytest.mark.asyncio
+async def test_student_export_lists_a_child_pin_but_never_its_credential(db_session):
+    """The export shows that a PIN exists; its hash, salt and session nonce
+    are a sign-in credential and stay out of a file that travels."""
+    await _seed_all_tables(db_session, "Emma")
+    rows = (await export_student(db_session, "Emma"))["tables"]["child_pins"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["student_name"] == "Emma"
+    for column in ("pin_hash", "pin_salt", "nonce"):
+        assert row[column] == "withheld: sign-in credential, not exported"
+    assert "synthetic-hash" not in repr(row) and "pin-nonce-Emma" not in repr(row)
 
 
 @pytest.mark.asyncio

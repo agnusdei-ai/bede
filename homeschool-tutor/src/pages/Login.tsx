@@ -114,6 +114,15 @@ export default function Login() {
   const { setAuth, sessionConfig } = useSessionStore()
   const knownStudentName = (sessionConfig?.student_name ?? studentFromUrl) || studentName
 
+  // The learner a child is signing in as: the tablet link's ?student= when
+  // there is one, otherwise the name typed on the child tab. Sent with the
+  // PIN so a child with their own PIN (core/child_pin.py) signs in as
+  // themselves; blank keeps the shared family PIN working as before.
+  const signInName = studentFromUrl || studentName.trim()
+  const childDestination = studentFromUrl || !signInName
+    ? childTarget
+    : `/session?student=${encodeURIComponent(signInName)}`
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     // Must happen synchronously in this gesture, before any await — see
@@ -127,7 +136,9 @@ export default function Login() {
     try {
       const result = role === 'educator'
         ? await educatorPasskeyLogin(educatorUsername)
-        : await login(role, credential, selectedLocale)
+        : role === 'child' && signInName
+          ? await login(role, credential, selectedLocale, signInName)
+          : await login(role, credential, selectedLocale)
 
       if (role === 'parent') {
         if (result.mfaRequired) {
@@ -151,13 +162,13 @@ export default function Login() {
       const token = result.accessToken
 
       // Child: check if voice verification is required for this student
-      if (studentFromUrl) {
+      if (signInName) {
         try {
-          const config = await fetchStudentConfig(token, studentFromUrl)
+          const config = await fetchStudentConfig(token, signInName)
           if (config.voice_required === false) {
             // Mute student or accessibility mode — skip voice check entirely
             setAuth(token, 'child')
-            navigate(childTarget)
+            navigate(childDestination)
             return
           }
         } catch {
@@ -170,7 +181,9 @@ export default function Login() {
     } catch (err: unknown) {
       setError(err instanceof DOMException && err.name === 'NotAllowedError'
         ? 'Passkey prompt was canceled. You can try again without an account lockout.'
-        : err instanceof Error ? err.message : 'Login failed')
+        : role === 'child' && err instanceof Error && err.message === 'Invalid credentials'
+          ? t('login.childPinError')
+          : err instanceof Error ? err.message : 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -178,7 +191,7 @@ export default function Login() {
 
   const handleVoiceVerified = (_result: VerifyResult) => {
     setAuth(pendingToken, 'child', selectedLocale)
-    navigate(childTarget)
+    navigate(childDestination)
   }
 
   const handleMfaVerified = (result: LoginResult) => {
@@ -340,13 +353,31 @@ export default function Login() {
                 onChange={(e) => setEducatorUsername(e.target.value)} />
             </div>
           )}
+          {role === 'child' && !studentFromUrl && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="child-name">
+                {t('login.labelChildName')}
+              </label>
+              <input
+                id="child-name"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+                placeholder={t('login.placeholderChildName')}
+                autoComplete="off"
+                maxLength={100}
+                className="w-full px-3 py-2.5 border border-navy-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy-400"
+              />
+              <p className="text-xs text-gray-500 mt-1">{t('login.childNameHint')}</p>
+            </div>
+          )}
           {role !== 'educator' && <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="login-credential">
               {role === 'child' ? t('login.labelStudentPin') : t('login.labelParentPassword')}
             </label>
             <div className="relative">
               <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
+                id="login-credential"
                 type="password"
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}

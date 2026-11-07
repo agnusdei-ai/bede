@@ -108,6 +108,58 @@ describe('Login language toggle', () => {
   })
 })
 
+describe('per-child PIN sign-in', () => {
+  // core/child_pin.py: a child with their own PIN signs in by name + PIN.
+  // The name is sent with the PIN; a blank name keeps the shared family PIN
+  // request byte-identical to before (the two tests above pin that shape).
+  function renderAt(path: string) {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Login />
+      </MemoryRouter>,
+    )
+  }
+
+  it('sends the typed name with the PIN', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    login.mockResolvedValue({ accessToken: 'tok', role: 'child', mfaRequired: false, mfaMethods: [] })
+    renderLogin()
+    await waitFor(() => expect(fetchAvailableLocales).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('Student'))
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: '  Synthetic Learner One ' } })
+    fireEvent.change(screen.getByLabelText('Student PIN'), { target: { value: '481937' } })
+    fireEvent.click(screen.getByText('Continue →'))
+    await waitFor(() => expect(login).toHaveBeenCalledWith('child', '481937', 'en', 'Synthetic Learner One'))
+  })
+
+  it('uses the tablet link’s student and shows no name box', async () => {
+    fetchAvailableLocales.mockResolvedValue([])
+    login.mockResolvedValue({ accessToken: 'tok', role: 'child', mfaRequired: false, mfaMethods: [] })
+    renderAt('/?returnTo=%2Fsession%3Fstudent%3DSynthetic%2520Learner%2520Two')
+    await waitFor(() => expect(fetchAvailableLocales).toHaveBeenCalled())
+    fireEvent.click(screen.getByText('Student'))
+    expect(screen.queryByLabelText('Your name')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Student PIN'), { target: { value: '730582' } })
+    fireEvent.click(screen.getByText('Continue →'))
+    await waitFor(() => expect(login).toHaveBeenCalledWith('child', '730582', 'en', 'Synthetic Learner Two'))
+  })
+
+  it('turns a refusal into plain words for a child, in both languages', async () => {
+    fetchAvailableLocales.mockResolvedValue([{ code: 'es', name: 'Spanish (Español)' }])
+    login.mockRejectedValue(new Error('Invalid credentials'))
+    renderLogin()
+    await waitFor(() => expect(screen.queryByText('Español')).not.toBeNull())
+    fireEvent.click(screen.getByText('Student'))
+    fireEvent.change(screen.getByLabelText('Student PIN'), { target: { value: '000123' } })
+    fireEvent.click(screen.getByText('Continue →'))
+    await screen.findByText(/Check your name and PIN/)
+    expect(screen.queryByText('Invalid credentials')).toBeNull()
+    fireEvent.click(screen.getByText('Español'))
+    fireEvent.click(screen.getByText('Continuar →'))
+    await screen.findByText(/Revisa tu nombre y tu PIN/)
+  })
+})
+
 describe('why you are looking at this screen', () => {
   // The whole reason utils/logoutNotice.ts exists: an automated logout used
   // to drop someone here with no explanation, which mid-lesson reads as the

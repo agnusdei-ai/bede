@@ -52,6 +52,11 @@ from — and you can still move it on this tablet if you want to.
    see **English** and **Español** at the top. Tap the one you want before you log in,
    and I'll talk with you in that language the whole time.
 2. Tap **Student**, then type in your PIN.
+   - **If you have your own secret number**, a PIN just for you, type your
+     name too (your tablet link may have filled it in already). Your own
+     secret number is only for you, so please don't share it, not even with
+     your brothers and sisters. If it doesn't work, check your name and your
+     number, or wait a few minutes and try again. A parent can always help.
 3. When I ask, say: **"I am ready to learn today!"**, that's how I know it's really
    you, not just anyone with the PIN.
 4. If I don't recognize your voice, that's okay: a parent can approve your session

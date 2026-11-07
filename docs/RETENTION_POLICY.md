@@ -28,7 +28,10 @@ self-hosted family's own retention of their own data, in their own
 database, is that family's decision — see `docs/DATA_RETENTION.md`'s
 "Your family's data" section for the technical facts of what's stored
 there and how a family deletes it themselves. This company has no access
-to that data and sets no retention policy over it.
+to that data and sets no retention policy over it. That includes a child's
+own sign-in PIN (`child_pins`, a one-way hash kept in the family's database
+until a parent removes the PIN or deletes the child), which the demo never
+creates: a demo visitor has no child PIN.
 
 ## Categories, purpose, and deletion timeframe
 

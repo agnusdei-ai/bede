@@ -229,6 +229,7 @@ Bede uses **three separate layers**, and it matters which one you tell your chil
 |---|---|---|
 | **Parent password** | You only — never the child | Full administrative access: configure students, view progress reports and transcripts, approve a session if voice check fails. |
 | **Child PIN** | Every child in the household (it's shared, not per-child) | Gets to the "child" login screen — a low-stakes shared secret, like a house key. Must be 6+ digits and not an easily-guessable pattern — no sequential run (`123456`), repeated block (`111111`, `123123`), or palindrome (`669966`); repeated digits are otherwise fine. Both installers offer you a freshly generated PIN if you'd rather not think one up, and neither prints a fixed example, because a PIN printed in Bede's own instructions would be public. The app refuses to start in production mode with a weak one, or with any PIN published in this repository. |
+| **A child's own PIN** *(optional)* | That one child | Signs that child in as themselves. Once a child has their own PIN, the shared child PIN no longer opens their lessons or records, from any tablet. Same strength rules as the shared PIN. Set it in **Setup** (see §5, "Give a child their own PIN"). |
 | **Voice passphrase** | Each child, for their own profile | The actual identity check — after entering the PIN, the child says *"I am ready to learn today!"* and Bede matches their voice against their enrolled profile. This is what personalizes their session, not the PIN. |
 
 The PIN alone does **not** grant access to a specific child's lesson plan or history:
@@ -348,6 +349,38 @@ said there is ever saved: no transcript, no student record. Leave
    diagnostic engine: a plan without math gives you no real mastery signal
    at all. You can still remove it, but no preset will ever leave it out
    for you.
+
+### Give a child their own PIN
+
+By default every child signs in with the one shared child PIN, and the
+tablet you assigned decides which child it is. That is easy, but anyone who
+knows the shared PIN could sign in as another child. If you want each child
+to sign in as themselves, give them their own PIN:
+
+1. Save the student first (their PIN control appears once Bede has their
+   plan).
+2. In that student's card, tap **Set a PIN for this child**, type 6 to 12
+   digits, and tap **Save PIN**. Bede will ask for your password first.
+3. Tell only that child. At the login screen they tap **Student**, type
+   their name (or open their tablet link, which fills it in) and their PIN.
+
+What changes once a child has their own PIN:
+
+- **The shared child PIN stops working for that child**, on every tablet.
+  Children without their own PIN keep using the shared one exactly as before,
+  so you can move one child at a time.
+- **Each child needs a different PIN**, and it cannot be the shared child
+  PIN, your parent password, or one of the published example PINs. Bede tells
+  you which rule a PIN broke and never shows a PIN back.
+- **Changing or removing a PIN signs that child out** everywhere, and only
+  that child. **Remove PIN** puts them back on the shared PIN.
+- **Too many wrong tries locks that child's PIN for 15 minutes.** Brothers
+  and sisters are not affected. The login screen gives the same "that didn't
+  work" message for a wrong PIN, an unknown name, or a locked PIN, so it never
+  tells anyone which names have a PIN. The card shows the lock, and setting
+  the PIN again unlocks it straight away.
+- On a hosted deployment, the tablet still has to be one you approved: the
+  child's PIN works only from an approved tablet.
 
 ### How often you get an honest read: the mastery cycle
 

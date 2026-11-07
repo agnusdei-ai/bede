@@ -15,7 +15,11 @@
     "submitChild": "Continue →",
     "quote": "\"The sole true end of education is simply this: to teach men how to teach themselves.\" — Dorothy L. Sayers, <italic>The Lost Tools of Learning</italic>",
     "voiceNamePrompt": "Enter your name for the voice check:",
-    "voiceNamePlaceholder": "Emma"
+    "voiceNamePlaceholder": "Emma",
+    "labelChildName": "Your name",
+    "placeholderChildName": "Emma",
+    "childNameHint": "If you have your own PIN, type your name too.",
+    "childPinError": "That didn't work. Check your name and PIN, or wait a few minutes and try again."
   },
   "betaIntake": {
     "title": "One quick question before you begin",
@@ -263,6 +267,24 @@
     "copied": "Copied!",
     "copyLinkForTablet": "Copy Link for Tablet",
     "deleteAllData": "Delete all data…"
+  },
+  "childPin": {
+    "usesFamilyPin": "Signs in with the family PIN",
+    "hasPin": "Has their own PIN",
+    "set": "Set a PIN for this child",
+    "change": "Change PIN",
+    "remove": "Remove PIN",
+    "inputLabel": "New PIN for this child",
+    "placeholder": "6 to 12 digits",
+    "save": "Save PIN",
+    "cancel": "Cancel",
+    "saved": "PIN saved. Any open session for this child has ended.",
+    "removed": "PIN removed. This child uses the family PIN again.",
+    "saveFailed": "Could not save the PIN.",
+    "removeFailed": "Could not remove the PIN.",
+    "locked": "Locked after too many wrong tries. Setting the PIN again unlocks it.",
+    "hint": "With their own PIN, the family PIN no longer signs this child in. They type their name and their PIN.",
+    "saveFirst": "Save this student first to give them their own PIN."
   },
   "parentSetup": {
     "title": "Plan Today's Pod",

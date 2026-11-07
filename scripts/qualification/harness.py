@@ -230,8 +230,10 @@ class Api:
                                    headers={"User-Agent": user_agent})
 
     def call(self, method: str, path: str, token: str | None = None,
-             body: dict | None = None, files: dict | None = None) -> httpx.Response:
+             body: dict | None = None, files: dict | None = None,
+             extra_headers: dict | None = None) -> httpx.Response:
         headers = {"Authorization": f"Bearer {token}"} if token else {}
+        headers.update(extra_headers or {})
         return self.client.request(method, path, headers=headers,
                                    json=body if files is None else None, files=files)
 

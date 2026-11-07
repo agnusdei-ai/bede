@@ -8,17 +8,21 @@ grant/version; revoked streams stop without durable transcript writes.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from datetime import datetime, timezone
+from typing import Optional
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import school_authorization as school_auth
+from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core import student_keys
 from core.config import settings
 from core.database import SessionTranscript, get_db
@@ -26,14 +30,33 @@ from core.deps import require_educator
 from core.encryption import aad_for, decrypt_json, encrypt_json, student_aad
 from core.learner_scope import LearnerScope
 from core.pilot_journey_models import PilotRecommendation
+from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from services import pilot_authz
 from services.adapters.router import LocalAdapterUnavailableError, resolve_local_only
 from services.ai_service import _redact_credentials, check_safeguarding
 
 router = APIRouter(prefix="/pilot/me/learners", tags=["valor-pilot-tutor"])
+log = logging.getLogger(__name__)
 
 _ALLOWED_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "host.docker.internal"})
 _MAX_OUTPUT_CHARS = 1600
+
+
+def _backend_failure(request: Optional[Request], subject: str, cause: str,
+                     exc: Optional[BaseException] = None) -> None:
+    """Feed core/audit.py's pooled AI_BACKEND_FAILURE anomaly rule, exactly
+    as routers/tutor.py does, so a broken local model on a campus alerts the
+    operator instead of surfacing only as a string of "unavailable" replies.
+    The detail carries the cause, subject and exception TYPE only: never the
+    learner's words, name or the exception message (which can echo them).
+    Fire-and-forget: must not delay the reply the educator is waiting on."""
+    detail = f"cause={cause} subject={subject}"
+    if exc is not None:
+        detail += f" error={type(exc).__name__}"
+    log_event_nowait(
+        AuditEvent.AI_BACKEND_FAILURE, role="educator", success=False, detail=detail,
+        **(audit_from_request(request) if request is not None else {}),
+    )
 
 
 class PilotTutorInput(BaseModel):
@@ -56,7 +79,8 @@ def _local_model():
         raise HTTPException(status_code=503, detail="Local Bede model is unavailable") from exc
 
 
-async def _classify_local(client, message: str) -> None:
+async def _classify_local(client, message: str, *, request: Optional[Request] = None,
+                          subject: str = "reading") -> None:
     """Fail closed if the *local-only* classifier cannot give a valid answer.
 
     A deterministic synthetic [START] instruction contains no learner content
@@ -74,6 +98,13 @@ async def _classify_local(client, message: str) -> None:
                     '{"safe":true} or {"safe":false}. If uncertain return false.'),
             messages=[{"role": "user", "content": message}],
         )
+    except Exception as exc:
+        # The model call itself failed (server down, refused, timed out):
+        # an AI backend failure. An answer we cannot verify, below, is not.
+        _backend_failure(request, subject, "exception", exc)
+        raise HTTPException(status_code=503,
+                            detail="Safe local tutoring could not be verified") from exc
+    try:
         output = json.loads(result.content[0].text.strip())
         if not isinstance(output, dict) or output.get("safe") is not True:
             raise ValueError("unverified or unsafe content")
@@ -87,6 +118,7 @@ async def pilot_tutor_turn(
     learner_id: str, payload: PilotTutorInput,
     auth: dict = Depends(require_educator),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,  # None only when called directly as a function
 ):
     # Permit no real learner records or unsupervised delivery during
     # qualification. Pilot GO, production use and student login remain gated.
@@ -132,7 +164,8 @@ async def pilot_tutor_turn(
         raise HTTPException(status_code=409,
                             detail="Verified teacher instruction is unavailable")
     client = _local_model()
-    await _classify_local(client, payload.child_message)
+    await _classify_local(client, payload.child_message, request=request,
+                          subject=payload.subject)
     try:
         await pilot_authz.require_valid(ctx, "pilot.tutoring.preflight")
     except pilot_authz.AuthzRevoked as exc:
@@ -173,13 +206,16 @@ async def pilot_tutor_turn(
 
     async def response_events():
         output: list[str] = []
+        model_finished = False
         try:
             yield json.dumps({"type": "start"})
             async for chunk in pilot_authz.guarded_stream(
-                local_chunks(), ctx, stage="pilot.tutoring", interval=0.5
+                with_stall_timeout(local_chunks(), timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS),
+                ctx, stage="pilot.tutoring", interval=0.5,
             ):
                 output.append(chunk)
                 yield json.dumps({"type": "text", "content": chunk})
+            model_finished = True
             if not output:
                 yield json.dumps({"type": "error", "message": "Local tutoring returned no text"})
                 return
@@ -207,7 +243,17 @@ async def pilot_tutor_turn(
             yield json.dumps({"type": "done"})
         except pilot_authz.AuthzRevoked:
             yield json.dumps({"type": "error", "message": "Learner access ended"})
-        except Exception:
+        except asyncio.TimeoutError:
+            log.warning("Pilot tutor stream stalled past %.0fs", STREAM_STALL_TIMEOUT_SECONDS)
+            _backend_failure(request, payload.subject, "stall")
+            await db.rollback()
+            yield json.dumps({"type": "error", "message": "Local tutoring unavailable"})
+        except Exception as exc:
+            # Only a failure while the model was producing the reply is an AI
+            # backend failure; a transcript write failing afterwards is not.
+            if not model_finished:
+                log.error("Pilot tutor stream failed mid-turn: %s", type(exc).__name__)
+                _backend_failure(request, payload.subject, "exception", exc)
             await db.rollback()
             yield json.dumps({"type": "error", "message": "Local tutoring unavailable"})
 

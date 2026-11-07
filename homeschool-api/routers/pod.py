@@ -8,10 +8,11 @@ at rest — no plaintext student data is written to the database.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import consent, license_state, licensing
+from core import child_pin, consent, license_state, licensing
 from core import tier_display
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.config import settings
@@ -253,4 +254,64 @@ async def delete_student_config(
         student_name=student_name,
         detail=f"rows_deleted={sum(counts.values())}",
         **audit_from_request(request),
+    )
+
+
+# ── Per-child PINs (core/child_pin.py) ──────────────────────────────────────
+# Status is ordinary parent reading. Setting, changing and clearing change an
+# authentication factor, so they need a current elevation (P8) — the same
+# line routers/mfa.py draws for the parent's own recovery PIN.
+
+class ChildPinRequest(BaseModel):
+    pin: str = Field(min_length=1, max_length=32)
+
+
+@router.get("/child-pins")
+async def get_child_pins(
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Which learners have their own PIN, and whether one is locked. Never
+    the PIN or anything derived from it."""
+    return {"children": await child_pin.status(db)}
+
+
+@router.put("/child-pins/{student_name}", status_code=204)
+async def set_child_pin(
+    student_name: str,
+    req: ChildPinRequest,
+    request: Request,
+    _: dict = Depends(require_elevated_parent),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Set or change a learner's own PIN. Ends that child's existing
+    sessions (old-PIN tokens and shared-PIN tablet tokens) and clears any
+    lockout. The PIN is never returned or logged."""
+    if await db.get(StudentConfig, student_name) is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+    try:
+        await child_pin.validate_new_pin(db, student_name, req.pin)
+    except child_pin.ChildPinRejected as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await child_pin.set_pin(db, student_name, req.pin)
+    await log_event(
+        AuditEvent.CHILD_PIN_SET, role="parent", success=True, student_name=student_name,
+        detail="child pin set", **audit_from_request(request),
+    )
+
+
+@router.delete("/child-pins/{student_name}", status_code=204)
+async def clear_child_pin(
+    student_name: str,
+    request: Request,
+    _: dict = Depends(require_elevated_parent),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Remove a learner's own PIN; they go back to the shared family PIN.
+    Ends every session the old PIN issued."""
+    if not await child_pin.clear_pin(db, student_name):
+        raise HTTPException(status_code=404, detail="No PIN set for this student")
+    await log_event(
+        AuditEvent.CHILD_PIN_CLEARED, role="parent", success=True, student_name=student_name,
+        detail="child pin cleared", **audit_from_request(request),
     )

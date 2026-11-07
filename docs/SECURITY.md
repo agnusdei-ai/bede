@@ -210,6 +210,42 @@ list as items are closed.
 
 ## Closed gaps
 
+- **A tablet's device id stood in for a child's identity (#761 follow-up) —
+  closed for every child who has their own PIN, 2026-11-07.** After #761 a
+  child token was bound to a learner by the tablet's `ChildLearnerBinding`
+  (device id + nonce). The device id is a client-held UUID, not a secret, so
+  anyone with the shared `CHILD_PIN` who learned another tablet's id could
+  sign in "as that tablet" and read that child's plan and records. The owner
+  chose per-child PINs over a pairing ceremony (`core/child_pin.py`, table
+  `child_pins`). A child signs in by naming the learner with that learner's
+  own PIN; the token carries the verified learner and the PIN row's nonce, so
+  `require_learner_access` binds the session to that learner server-side and
+  consults neither a client-chosen name nor the device id for which child it
+  is. For a learner with their own PIN the shared PIN is refused by every
+  route: at login when the learner is named or the tablet is bound to them,
+  and on every learner-scoped read or write of a binding-path token. The PIN
+  is a PBKDF2 hash (`core/credential_hash.py`), held to `pin_is_strong()` and
+  `is_published_credential()`, and may not equal `CHILD_PIN`,
+  `PARENT_PASSWORD`, `DEMO_PIN`, `SANDBOX_PIN` or a sibling's PIN. Setting,
+  changing or clearing it needs an elevated parent and rotates the row's
+  nonce plus the learner's binding nonces, which ends that child's sessions
+  and only theirs (checked in `_validate_token`, not only on learner routes).
+  Lockout is per child and persisted (10 failures in 30 minutes, 15 minutes
+  locked, keyed by the learner rather than the address); while locked even
+  the right PIN gets the same `Invalid credentials` as a wrong PIN or an
+  unknown name, and a named attempt against a learner with no PIN pays the
+  same PBKDF2 cost, so neither the response nor its hashing work names which
+  children have a PIN. Hosted pairing (C-23) is unchanged and composes: the
+  child's PIN works only from an approved tablet. **What remains:** a learner
+  WITHOUT their own PIN still has the old shared-PIN-plus-device-id exposure,
+  by design (the owner kept that path byte for byte so families move one
+  child at a time); a failed attempt against a PIN-protected learner commits
+  a row update that an unknown name does not, a small timing difference; and
+  the lockout is a denial-of-service lever a sibling can pull for 15 minutes,
+  cleared by the parent setting the PIN again. Pinned by
+  `tests/test_child_pins.py` over real HTTP, each guard verified by breaking
+  it.
+
 - **`production-regression.yml`'s "Confirm the license is ACTIVE" step now
   blocks, so a license that stops verifying reds `main` instead of being
   reported and ignored.** It ran `continue-on-error: true` through two

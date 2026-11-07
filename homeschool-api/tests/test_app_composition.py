@@ -187,6 +187,11 @@ GUARDS = {
     ('GET', '/narration/{student_name}/profile'): 'require_real_user',
     ('POST', '/narration/{student_name}/profile'): 'require_real_user',
     ('GET', '/pod/roster-capacity'): 'require_parent',
+    # Per-child PINs: status is ordinary parent reading; setting, changing
+    # or clearing changes an authentication factor, so it needs elevation.
+    ('GET', '/pod/child-pins'): 'require_parent',
+    ('PUT', '/pod/child-pins/{student_name}'): 'require_elevated_parent',
+    ('DELETE', '/pod/child-pins/{student_name}'): 'require_elevated_parent',
     ('GET', '/pod/configs'): 'require_parent',
     ('POST', '/pod/configs'): 'require_parent',
     ('DELETE', '/pod/configs/{student_name}'): 'require_elevated_parent',

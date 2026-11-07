@@ -15,7 +15,11 @@
     "submitChild": "Continuar →",
     "quote": "«El único fin verdadero de la educación es simplemente este: enseñar a las personas a enseñarse a sí mismas.» — Dorothy L. Sayers, <italic>The Lost Tools of Learning</italic>",
     "voiceNamePrompt": "Escribe tu nombre para la verificación de voz:",
-    "voiceNamePlaceholder": "Sofía"
+    "voiceNamePlaceholder": "Sofía",
+    "labelChildName": "Tu nombre",
+    "placeholderChildName": "Sofía",
+    "childNameHint": "Si tienes tu propio PIN, escribe también tu nombre.",
+    "childPinError": "No funcionó. Revisa tu nombre y tu PIN, o espera unos minutos e inténtalo de nuevo."
   },
   "betaIntake": {
     "title": "Una pregunta rápida antes de empezar",
@@ -263,6 +267,24 @@
     "copied": "¡Copiado!",
     "copyLinkForTablet": "Copiar enlace para la tableta",
     "deleteAllData": "Eliminar todos los datos…"
+  },
+  "childPin": {
+    "usesFamilyPin": "Entra con el PIN de la familia",
+    "hasPin": "Tiene su propio PIN",
+    "set": "Crear un PIN para este niño",
+    "change": "Cambiar PIN",
+    "remove": "Quitar PIN",
+    "inputLabel": "PIN nuevo para este niño",
+    "placeholder": "De 6 a 12 dígitos",
+    "save": "Guardar PIN",
+    "cancel": "Cancelar",
+    "saved": "PIN guardado. Se cerró cualquier sesión abierta de este niño.",
+    "removed": "PIN quitado. Este niño vuelve a usar el PIN de la familia.",
+    "saveFailed": "No se pudo guardar el PIN.",
+    "removeFailed": "No se pudo quitar el PIN.",
+    "locked": "Bloqueado por demasiados intentos. Al crear el PIN de nuevo se desbloquea.",
+    "hint": "Con su propio PIN, el PIN de la familia ya no sirve para este niño. Escribe su nombre y su PIN.",
+    "saveFirst": "Guarda primero a este alumno para darle su propio PIN."
   },
   "parentSetup": {
     "title": "Planificar el grupo de hoy",

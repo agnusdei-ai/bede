@@ -82,9 +82,9 @@ async def test_voice_verify_checks_child_learner_before_audio_or_profile(
     from core.database import ChildLearnerBinding
 
     db = AsyncMock()
-    db.get.return_value = ChildLearnerBinding(
-        device_id="tablet-1", student_name="Alice", nonce="v1",
-    )
+    _binding = ChildLearnerBinding(device_id="tablet-1", student_name="Alice", nonce="v1")
+    # Only the binding table answers; no learner here has a per-child PIN.
+    db.get.side_effect = lambda model, _key: _binding if model is ChildLearnerBinding else None
     async def forbidden_inference(*_args, **_kwargs):
         pytest.fail("unauthorized voice profile must never be queried")
     monkeypatch.setattr(voice_router, "verify_student", forbidden_inference)
@@ -110,9 +110,9 @@ async def test_voice_verify_preserves_authorized_household_access(monkeypatch, r
     from core.database import ChildLearnerBinding
 
     db = AsyncMock()
-    db.get.return_value = ChildLearnerBinding(
-        device_id="tablet-1", student_name="Alice", nonce="v1",
-    )
+    _binding = ChildLearnerBinding(device_id="tablet-1", student_name="Alice", nonce="v1")
+    # Only the binding table answers; no learner here has a per-child PIN.
+    db.get.side_effect = lambda model, _key: _binding if model is ChildLearnerBinding else None
     calls = []
     async def synthetic_inference(student_name, audio, _db):
         calls.append((student_name, audio))

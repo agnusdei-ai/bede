@@ -155,7 +155,37 @@ async def _validate_token(request: Request, credentials: HTTPAuthorizationCreden
         )
 
     await require_live_hosted_child_pairing(request, payload)
+    await require_live_child_pin(request, payload)
     return payload
+
+
+async def require_live_child_pin(request: Request, payload: dict, db: AsyncSession | None = None) -> None:
+    """A token issued by a learner's own PIN (core/child_pin.py) stops
+    working on its very next request once a parent changes or clears that
+    PIN — the child-PIN counterpart of the parent credentials_version check
+    above. Tokens without the claim (every shared-PIN token) are untouched."""
+    if payload.get("role") != "child" or "learner" not in payload:
+        return
+    from core import child_pin
+    from core.database import AsyncSessionLocal
+
+    if db is None:
+        async with AsyncSessionLocal() as session:
+            live = await child_pin.token_is_live(session, payload)
+    else:
+        live = await child_pin.token_is_live(db, payload)
+    if not live:
+        await log_event(
+            AuditEvent.TOKEN_INVALID,
+            role="child",
+            success=False,
+            detail="child pin changed or cleared since this token was issued",
+            **audit_from_request(request),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your PIN was changed — please sign in again",
+        )
 
 
 async def _authorize(request: Request, payload: dict, action: str) -> dict:
@@ -438,17 +468,30 @@ async def require_learner_access(auth: dict, student_name: str, db: AsyncSession
         return
     if auth.get("role") != "child":
         raise HTTPException(status_code=404, detail="Resource unavailable")
-    from core.database import ChildLearnerBinding, ChildDevicePairing
+    from core.database import ChildLearnerBinding, ChildDevicePairing, ChildPin
     device_id = auth.get("device_id")
-    nonce = auth.get("learner_nonce")
-    if not device_id or not nonce:
-        raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
-    binding = await db.get(ChildLearnerBinding, device_id)
-    if (binding is None or binding.nonce != nonce or binding.student_name != student_name):
-        raise HTTPException(status_code=404, detail="Resource unavailable")
+    if "learner" in auth:
+        # Signed in with the learner's own PIN: the session is bound to the
+        # learner whose PIN was verified, server-side, and to nothing else.
+        # The device id is not consulted for WHICH child this is.
+        from core import child_pin
+        if auth.get("learner") != student_name or not await child_pin.token_is_live(db, auth):
+            raise HTTPException(status_code=404, detail="Resource unavailable")
+    else:
+        nonce = auth.get("learner_nonce")
+        if not device_id or not nonce:
+            raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
+        binding = await db.get(ChildLearnerBinding, device_id)
+        if (binding is None or binding.nonce != nonce or binding.student_name != student_name):
+            raise HTTPException(status_code=404, detail="Resource unavailable")
+        # A learner with their own PIN is never reachable through the shared
+        # PIN + tablet binding: the device id is a client-held identifier,
+        # not a secret, so it cannot stand in for that child's PIN.
+        if await db.get(ChildPin, student_name) is not None:
+            raise HTTPException(status_code=404, detail="Resource unavailable")
     if settings.hosted_profile:
-        pairing = await db.get(ChildDevicePairing, device_id)
+        pairing = await db.get(ChildDevicePairing, device_id) if device_id else None
         if pairing is None or pairing.state != "paired":
             raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")
-    if device_registry.is_revoked(device_id):
+    if device_id and device_registry.is_revoked(device_id):
         raise HTTPException(status_code=403, detail="Ask your parent or teacher to set up this device.")

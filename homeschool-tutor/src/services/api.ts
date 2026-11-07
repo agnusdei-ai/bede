@@ -51,7 +51,15 @@ export async function fetchAvailableLocales(): Promise<AvailableLocale[]> {
   }
 }
 
-export async function login(role: 'parent' | 'child', credential: string, locale?: string): Promise<LoginResult> {
+export async function login(
+  role: 'parent' | 'child',
+  credential: string,
+  locale?: string,
+  // Child only: the learner signing in. When that learner has their own PIN
+  // (core/child_pin.py), only that PIN signs in as them; otherwise the
+  // shared family PIN works exactly as before and this changes nothing.
+  studentName?: string,
+): Promise<LoginResult> {
   // P9 device revocation (core/device_registry.py) — identifies this
   // physical device so a parent can later revoke it (see fetchDevices/
   // revokeDevice below) if it's lost or compromised. null when
@@ -64,13 +72,55 @@ export async function login(role: 'parent' | 'child', credential: string, locale
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ role, credential, ...(locale ? { locale } : {}), ...(deviceId ? { device_id: deviceId } : {}) }),
+    body: JSON.stringify({
+      role,
+      credential,
+      ...(locale ? { locale } : {}),
+      ...(deviceId ? { device_id: deviceId } : {}),
+      ...(role === 'child' && studentName?.trim() ? { student_name: studentName.trim() } : {}),
+    }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.detail || 'Login failed')
   }
   return toLoginResult(await res.json())
+}
+
+// ── Per-child PINs (core/child_pin.py) ───────────────────────────────────────
+// Setting, changing and clearing need a current elevation; ElevationPrompt
+// catches the 403 and retries, so these call sites need not know.
+
+export interface ChildPinState {
+  has_pin: boolean
+  locked: boolean
+  changed_at: string | null
+}
+
+export async function fetchChildPins(token: string): Promise<Record<string, ChildPinState>> {
+  const res = await fetch(`${BASE}/pod/child-pins`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new Error('Failed to load child PINs')
+  return (await res.json()).children ?? {}
+}
+
+export async function setChildPin(token: string, studentName: string, pin: string): Promise<void> {
+  const res = await fetch(`${BASE}/pod/child-pins/${encodeURIComponent(studentName)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ pin }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(typeof err.detail === 'string' ? err.detail : 'Could not save the PIN')
+  }
+}
+
+export async function clearChildPin(token: string, studentName: string): Promise<void> {
+  const res = await fetch(`${BASE}/pod/child-pins/${encodeURIComponent(studentName)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error('Could not remove the PIN')
 }
 
 export async function logout(token: string): Promise<void> {

@@ -9,6 +9,7 @@ import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
 import { licenseTierLabel } from '../utils/licenseTierLabel'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
+import ChildPinSettings from '../components/ChildPinSettings'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
 import LicenseSettings from '../components/LicenseSettings'
@@ -289,6 +290,9 @@ export default function ParentSetup() {
 
   const [students, setStudents] = useState<StudentForm[]>([blankStudent()])
   const [enrolledProfiles, setEnrolledProfiles] = useState<string[]>([])
+  // Names the server already holds a config for. A child's own PIN can only
+  // be set for a saved student (the PIN route 404s otherwise).
+  const [savedNames, setSavedNames] = useState<string[]>([])
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null)
   const [statusError, setStatusError] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -322,6 +326,7 @@ export default function ParentSetup() {
     // while the request was in flight; failure just leaves the blank form.
     listPodConfigs(token)
       .then((configs) => {
+        setSavedNames(configs.map((c) => c.student_name))
         if (!configs.length) return
         setStudents((prev) =>
           prev.length === 1 && !prev[0].student_name.trim() && !prev[0].grade.trim()
@@ -436,6 +441,7 @@ export default function ParentSetup() {
     try {
       await savePodConfigs(token, configs, consentOutstanding && consentTick ? consent!.notice_hash : null)
       setPodStudents(configs)
+      setSavedNames(configs.map((c) => c.student_name))
       if (isFirstEverPod && feedbackEnabled) {
         // Hold off on navigating — BetaIntakeModal's onDone finishes this
         // exact navigation once the one-time prompt is skipped or sent.
@@ -572,6 +578,8 @@ export default function ParentSetup() {
               onToggleSubject={(id) => toggleSubject(i, id)}
               onEnrolled={() => listVoiceProfiles(token!).then(setEnrolledProfiles).catch(() => {})}
               onRemove={() => removeStudent(i)}
+              token={token}
+              saved={savedNames.includes(student.student_name.trim())}
             />
           ))}
         </div>
@@ -653,6 +661,8 @@ interface StudentCardProps {
   onToggleSubject: (id: Subject) => void
   onEnrolled: () => void
   onRemove: () => void
+  token: string | null
+  saved: boolean
 }
 
 function SetupConsentTick({
@@ -686,7 +696,7 @@ function SetupConsentTick({
 
 function StudentCard({
   index, student, total, isEnrolled, requireSex,
-  onUpdate, onToggleSubject, onEnrolled, onRemove,
+  onUpdate, onToggleSubject, onEnrolled, onRemove, token, saved,
 }: StudentCardProps) {
   const { t } = useTranslation()
   // Both the grid and the minutes total read from this, so a student moved
@@ -759,6 +769,11 @@ function StudentCard({
             />
           </div>
         </div>
+
+        {/* This child's own sign-in PIN (core/child_pin.py) */}
+        {token && (
+          <ChildPinSettings token={token} studentName={student.student_name.trim()} saved={saved} />
+        )}
 
         {/* Grade stage */}
         <div className="grid grid-cols-3 gap-2">

@@ -14,6 +14,7 @@ import { renderEmphasis } from '../utils/renderEmphasis'
 import HandwritingCanvas from './HandwritingCanvas'
 import VisualAidCard from './VisualAidCard'
 import PracticeDelivery from './PracticeDelivery'
+import { usePracticeCoachEnabled } from '../hooks/usePracticeCoachEnabled'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
@@ -142,6 +143,8 @@ export default function SocraticChat({
     nextSubject,
     setSessionConfig,
   } = useSessionStore()
+  // Approved practice shows only while Practice Coach is on for this install.
+  const practiceCoachEnabled = usePracticeCoachEnabled(role === 'child' ? token : null)
 
   // ── Text-to-speech: Bede speaks its responses ────────────────────────────
   const {
@@ -847,7 +850,7 @@ export default function SocraticChat({
 
   return (
     <div className="flex flex-col h-full">
-      {role === 'child' && token && sessionConfig && (
+      {role === 'child' && token && sessionConfig && practiceCoachEnabled === true && (
         <PracticeDelivery
           token={token}
           studentName={sessionConfig.student_name}

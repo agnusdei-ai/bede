@@ -179,6 +179,47 @@ if [[ -f .env ]]; then
   success "Existing .env backed up to .env.backup"
 fi
 
+# ── Optional features: start from what this installation already chose ──────
+# Re-running setup (or upgrading through it) must not silently undo a choice
+# someone made (issue #763). A value the API would not read as a clear yes is
+# treated as off, matching scripts/setup_wizard/wizard.py's existing_choices().
+# Only a .env being replaced in this run counts (.env.backup was just written
+# from it above); a stale .env.backup from an earlier run is ignored.
+PRIOR_ENV=""
+[[ "${OVERWRITE:-}" == "y" || "${OVERWRITE:-}" == "Y" ]] && PRIOR_ENV=".env.backup"
+prior_value() {
+  [[ -n "$2" && -f "$2" ]] || return 0
+  sed -n "s/^$1=//p" "$2" | tail -n1 | tr -d "\"'" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]'
+}
+COACH_DEFAULT="y"
+CURRICULUM_DEFAULT="n"
+if [[ -n "$PRIOR_ENV" ]] && grep -q '^PRACTICE_COACH_ENABLED=' "$PRIOR_ENV"; then
+  case "$(prior_value PRACTICE_COACH_ENABLED "$PRIOR_ENV")" in
+    1|true|yes|on|t|y) COACH_DEFAULT="y" ;;
+    *) COACH_DEFAULT="n" ;;
+  esac
+fi
+case "$(prior_value CURRICULUM_ENGINE_ENABLED "$PRIOR_ENV")" in
+  1|true|yes|on) CURRICULUM_DEFAULT="y" ;;
+esac
+
+# ask_yes_no VAR DEFAULT PROMPT: y or n into VAR. End of input keeps DEFAULT.
+ask_yes_no() {
+  local __var="$1" __default="$2" __prompt="$3" __answer
+  while true; do
+    if ! read -rp "$__prompt" __answer; then
+      printf -v "$__var" '%s' "$__default"
+      return 0
+    fi
+    __answer="${__answer,,}"
+    case "${__answer:-$__default}" in
+      y|yes) printf -v "$__var" 'y'; return 0 ;;
+      n|no)  printf -v "$__var" 'n'; return 0 ;;
+    esac
+    warn "Please answer y or n."
+  done
+}
+
 blank
 echo -e "${BOLD}Let's collect the required values.${RESET}"
 echo -e "Press Enter to skip optional fields."
@@ -309,6 +350,18 @@ while true; do
   warn "This field is required — Bede will not start in production without a valid license."
 done
 
+# ── Optional features ─────────────────────────────────────────────────────────
+blank
+info "Optional features (run setup again to change these later)"
+echo "     Practice Coach: photograph a graded quiz and Bede suggests practice."
+echo "     A parent or teacher approves everything before a learner sees it."
+if [[ "$COACH_DEFAULT" == "y" ]]; then COACH_HINT="[Y/n]"; else COACH_HINT="[y/N]"; fi
+ask_yes_no PRACTICE_COACH "$COACH_DEFAULT" "     Turn on Practice Coach? ${COACH_HINT} "
+echo "     Curriculum Intelligence: Bede's newer curriculum tools, still in testing."
+echo "     It approves no content on its own. Off is recommended."
+if [[ "$CURRICULUM_DEFAULT" == "y" ]]; then CURRICULUM_HINT="[Y/n]"; else CURRICULUM_HINT="[y/N]"; fi
+ask_yes_no CURRICULUM "$CURRICULUM_DEFAULT" "     Turn on Curriculum Intelligence? ${CURRICULUM_HINT} "
+
 # ── Auto-generate secrets ─────────────────────────────────────────────────────
 blank
 info "6/6  Generating cryptographic secrets..."
@@ -377,6 +430,10 @@ COMPOSE_PROFILES=${COMPOSE_PROFILES}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 EOF
 fi
+# Written only when the choice differs from the code default, as the browser
+# wizard does: silence means Practice Coach on, Curriculum Intelligence off.
+if [[ "$PRACTICE_COACH" == "n" ]]; then echo "PRACTICE_COACH_ENABLED=false" >> .env; fi
+if [[ "$CURRICULUM" == "y" ]]; then echo "CURRICULUM_ENGINE_ENABLED=true" >> .env; fi
 chmod 600 .env
 success ".env written (mode 600 — only readable by you)"
 

@@ -41,6 +41,8 @@ from core.policy import Subject, decide
 from core.security import decode_token, validate_fingerprint
 
 _bearer = HTTPBearer()
+# Optional form, for a gate that must not demand a token unless it refuses.
+_optional_bearer = HTTPBearer(auto_error=False)
 
 
 async def require_live_hosted_child_pairing(
@@ -233,6 +235,24 @@ async def require_auth(
     payload = await _validate_token(request, credentials)
     await _authorize(request, payload, "session.self")
     return await _require_live_session(request, payload)
+
+
+async def require_practice_coach_enabled(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(_optional_bearer),
+) -> None:
+    """Router-wide gate for every /practice route (PRACTICE_COACH_ENABLED).
+
+    When Coach is on this does nothing, and each route's own guard decides
+    who may call it, exactly as before. When it is off, a genuine session
+    gets 403 practice_coach_disabled; a missing or bad token still gets the
+    usual 401 first, so the switch is not readable without signing in."""
+    if settings.practice_coach_enabled:
+        return
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    await _validate_token(request, credentials)
+    raise HTTPException(status_code=403, detail="practice_coach_disabled")
 
 
 async def require_educator(

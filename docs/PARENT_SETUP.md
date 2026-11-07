@@ -176,8 +176,8 @@ above, click the button, and everything else happens automatically. When
 it says Bede is running, open `https://localhost` on the same computer to
 confirm.
 
-One question on that form is worth a moment's thought, because it is the
-only one you cannot change later without editing a file by hand.
+One question on that form is worth a moment's thought, because
+changing it later means running setup again or editing a file by hand.
 
 **"Should Bede remember what your child has mastered between sessions?"**
 
@@ -198,6 +198,17 @@ Bede's opinion about them.
 Either way, nothing goes to us. On your own machine, on your own hardware,
 this is a choice about what exists in your house, not about what anyone
 else can see.
+
+Two more choices sit together under **Optional features**:
+
+- **Practice Coach: On (recommended).** Photograph a graded quiz and Bede
+  suggests practice. You approve everything before your child sees it, and
+  each upload asks before any photo goes to an online AI service. Choose
+  **Off** to hide it; nothing you saved is deleted.
+- **Curriculum Intelligence: Off (recommended).** Bede's newer curriculum
+  tools, still in testing. Turning it on approves no content by itself.
+
+If you run setup again, the form starts from what you chose last time.
 
 *(Prefer a terminal? `make setup` or `bash setup.sh` asks the same
 questions as typed prompts instead: see `docs/PRODUCTION_SETUP.md`.)*
@@ -1729,7 +1740,8 @@ If you type your own current unit for Living Books, Bede follows that
 instead and the fable list steps aside.
 
 The fable list is part of Bede's new curriculum features, which are off
-until whoever runs your server turns on `CURRICULUM_ENGINE_ENABLED`. Until
+until whoever runs your server turns on Curriculum Intelligence (the setup
+form's "Optional features", or `CURRICULUM_ENGINE_ENABLED=true`). Until
 then, Living Books works exactly as before.
 
 ## Reading and spelling (grades 3-8)

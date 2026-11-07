@@ -12,12 +12,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.config import settings
 from core.deps import (
+    require_auth,
     require_demo_practice_preview,
     require_educator,
     require_family_data_write,
     require_learner_access,
     require_parent,
+    require_practice_coach_enabled,
     require_real_user,
 )
 from core import consent
@@ -39,7 +42,22 @@ from models.practice import (
 from services.practice import extract, generate, pipeline, progress, store, teacher_quiz
 from services.practice.packs import available_packs
 
-router = APIRouter(prefix="/practice", tags=["practice"])
+# PRACTICE_COACH_ENABLED switches the whole feature off: every route below
+# answers 403 practice_coach_disabled when it is false. It is a router-wide
+# dependency so a route added later cannot forget it.
+router = APIRouter(
+    prefix="/practice", tags=["practice"],
+    dependencies=[Depends(require_practice_coach_enabled)],
+)
+
+# The one practice route outside that gate: the app asks it whether to show
+# the Practice Coach cards at all. Any signed-in role may ask.
+status_router = APIRouter(prefix="/practice", tags=["practice"])
+
+
+@status_router.get("/status")
+async def practice_coach_status(auth: dict = Depends(require_auth)) -> dict:
+    return {"enabled": bool(settings.practice_coach_enabled)}
 
 _NOT_FOUND = "Record not found"
 

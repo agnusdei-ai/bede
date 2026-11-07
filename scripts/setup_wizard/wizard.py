@@ -311,6 +311,43 @@ def _narration_block(clip: str, enable_mic: bool) -> str:
     """
 
 
+# The values each setting's own reader treats as true or false. Coach and
+# mastery retention are pydantic booleans; Curriculum Intelligence is read by
+# services/curriculum/flag.py, which accepts a narrower set of words.
+_PYDANTIC_TRUE = {"1", "true", "yes", "on", "t", "y"}
+_PYDANTIC_FALSE = {"0", "false", "no", "off", "f", "n"}
+_CURRICULUM_TRUE = {"1", "true", "yes", "on"}
+
+
+def existing_choices(env_path: str | None = None) -> dict:
+    """The optional-feature answers already recorded in an existing .env.
+
+    Running setup again, or upgrading through it, starts from these instead of
+    the defaults, so a choice someone made is never silently undone. A value
+    the API would not read as a clear yes is shown as off: for Curriculum
+    Intelligence that is what the API does with it, and for Practice Coach it
+    is the safer reading of a line the API would refuse to start on."""
+    path = env_path or ENV_PATH
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    found: dict[str, str] = {}
+    for line in text.splitlines():
+        if "=" not in line or line.lstrip().startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        found[key.strip()] = value.strip().strip('"').strip("'").lower()
+    choices: dict[str, str] = {}
+    if "PRACTICE_COACH_ENABLED" in found:
+        choices["practice_coach"] = "yes" if found["PRACTICE_COACH_ENABLED"] in _PYDANTIC_TRUE else "no"
+    if "CURRICULUM_ENGINE_ENABLED" in found:
+        choices["curriculum"] = "yes" if found["CURRICULUM_ENGINE_ENABLED"] in _CURRICULUM_TRUE else "no"
+    if found.get("RETAIN_MASTERY_PROFILES") in _PYDANTIC_FALSE:
+        choices["keep_mastery"] = "no"
+    return choices
+
+
 def render_form(error: str = "", banner: str = "", values: dict | None = None) -> str:
     v = values or {}
     if DEPLOYMENT_CONTEXT == "campus" and APPROVED_CAMPUS_ID and not v.get("location_id"):
@@ -459,6 +496,35 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
       <input type="radio" name="keep_mastery" value="no" {'checked' if keep_mastery == 'no' else ''}>
       <span class="choice-title">No, review each session separately</span>
       <div class="choice-desc">Bede still assesses fully and still reports what it saw at the end of each session, but keeps no lasting estimate of your child anywhere. The trade is real: judgements get steadier with evidence, so with this on you'll see "still getting to know your learner" more often, and the Progress page won't show a term's picture. Your record of the work they actually completed is kept either way.</div>
+    </label>
+    """)
+
+    practice_coach = v.get("practice_coach", "yes")
+    curriculum = v.get("curriculum", "no")
+    body.append('<label>Optional features</label>')
+    body.append('<div class="hint">You can change either of these later by running setup again.</div>')
+    body.append(f"""
+    <div class="choice-desc"><strong>Practice Coach</strong></div>
+    <label class="choice {'selected' if practice_coach == 'yes' else ''}">
+      <input type="radio" name="practice_coach" value="yes" {'checked' if practice_coach == 'yes' else ''}>
+      <span class="choice-title">On (recommended)</span>
+      <div class="choice-desc">Photograph a graded quiz and Bede suggests practice. A parent or teacher approves everything before a learner sees it, and each upload asks before any photo is sent to an online AI service.</div>
+    </label>
+    <label class="choice {'selected' if practice_coach == 'no' else ''}">
+      <input type="radio" name="practice_coach" value="no" {'checked' if practice_coach == 'no' else ''}>
+      <span class="choice-title">Off</span>
+      <div class="choice-desc">The Practice Coach and quiz tools are hidden and cannot be used. Nothing already saved is deleted.</div>
+    </label>
+    <div class="choice-desc"><strong>Curriculum Intelligence</strong></div>
+    <label class="choice {'selected' if curriculum == 'no' else ''}">
+      <input type="radio" name="curriculum" value="no" {'checked' if curriculum == 'no' else ''}>
+      <span class="choice-title">Off (recommended)</span>
+      <div class="choice-desc">Bede uses its standard lesson plans.</div>
+    </label>
+    <label class="choice {'selected' if curriculum == 'yes' else ''}">
+      <input type="radio" name="curriculum" value="yes" {'checked' if curriculum == 'yes' else ''}>
+      <span class="choice-title">On</span>
+      <div class="choice-desc">Turns on Bede's newer curriculum tools, still in testing. It approves no content on its own: material still has to pass its review and rights checks.</div>
     </label>
     """)
 
@@ -701,6 +767,11 @@ def build_env_file(fields: dict) -> str:
         # .env stays free of settings nobody picked, and the code default
         # (True) already means "remember", so silence and "yes" agree.
         + ("RETAIN_MASTERY_PROFILES=false\n" if fields.get("keep_mastery") == "no" else "")
+        # Same rule for the two optional features (issue #763): a line only
+        # when the choice differs from the code default, so Coach on and
+        # Curriculum Intelligence off are what silence means.
+        + ("PRACTICE_COACH_ENABLED=false\n" if fields.get("practice_coach") == "no" else "")
+        + ("CURRICULUM_ENGINE_ENABLED=true\n" if fields.get("curriculum") == "yes" else "")
     )
 
 
@@ -741,6 +812,10 @@ def license_preflight_error(license_key: str, context: str, campus_id: str) -> s
 
 def validate(fields: dict) -> str:
     """Returns an error message, or empty string if everything's valid."""
+    if fields.get("practice_coach", "yes") not in ("yes", "no"):
+        return "Please choose whether Practice Coach is on or off."
+    if fields.get("curriculum", "no") not in ("yes", "no"):
+        return "Please choose whether Curriculum Intelligence is on or off."
     lan_error = validate_lan_fields(fields)
     if lan_error:
         return lan_error
@@ -892,7 +967,7 @@ class Handler(BaseHTTPRequestHandler):
             "overwrite it (the old one is saved as .env.backup first)."
             if os.path.exists(ENV_PATH) else ""
         )
-        self._send_html(render_form(banner=banner))
+        self._send_html(render_form(banner=banner, values=existing_choices()))
 
     def do_POST(self):
         if self.path == "/cancel":

@@ -79,6 +79,30 @@ tab when it says Bede is starting. It asks the exact same questions as the
 terminal wizard, just as text fields and clickable choices instead of typed
 answers, and produces the identical `.env`/Docker setup underneath.
 
+**Optional features, asked by both wizards.** Both setups ask two
+questions together, near the end:
+
+| Choice | Default | Written to `.env` only when |
+| --- | --- | --- |
+| **Practice Coach** (photographed quizzes, drafted quizzes, teacher answer keys, approved practice for a child) | On | turned off: `PRACTICE_COACH_ENABLED=false` |
+| **Curriculum Intelligence** (`services/curriculum/`, still in testing) | Off | turned on: `CURRICULUM_ENGINE_ENABLED=true` |
+
+Off for Practice Coach hides its cards and makes every `/practice` route
+answer 403 `practice_coach_disabled`; nothing saved is deleted. On changes
+no approval or consent rule: each upload still needs its own tick, and a set
+reaches a child only after a parent approves it. Curriculum Intelligence on
+approves no content by itself; its rights and review gates still apply.
+Neither choice sends anything anywhere.
+
+Running setup again (browser wizard, or `setup.sh` and answering "y" to
+overwrite) starts from the choices already in `.env`, so pressing Enter or
+submitting unchanged keeps them. `make update` does not touch `.env`. To
+change either later without rerunning setup, edit the line in `.env` and run
+`make start` (or `docker compose up -d`). `CURRICULUM_ENGINE_ENABLED` must be
+`true` or `false`: a misspelling stops the API at startup rather than quietly
+meaning off. The native installers (Windows, macOS, Linux, the operator
+bundle) all hand off to the browser wizard and ask these the same way.
+
 **Windows installer** (`Bede Setup.exe`) — no Docker Desktop pre-install
 step either: double-click the installer, run "Bede Setup" from the Start Menu
 it adds, and it installs Docker Desktop for you if needed before handing off

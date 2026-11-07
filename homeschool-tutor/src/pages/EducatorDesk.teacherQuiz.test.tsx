@@ -15,6 +15,7 @@ const m = vi.hoisted(() => ({
   fetchEducatorQuizOptions: vi.fn(),
   generateEducatorQuiz: vi.fn(),
   approveTeacherQuiz: vi.fn(),
+  fetchPracticeCoachEnabled: vi.fn(),
 }))
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(),
@@ -38,6 +39,7 @@ beforeEach(async () => {
   m.fetchInstructorRoster.mockResolvedValue([])
   m.fetchInstructorFrameworks.mockResolvedValue([])
   m.fetchMyEducatorPasskeys.mockResolvedValue([])
+  m.fetchPracticeCoachEnabled.mockResolvedValue(true)
   m.fetchEducatorQuizOptions.mockResolvedValue({
     subjects: [{ id: 'history', display_name: 'History' }], grades: ['4'], kinds: ['quiz'], levels: ['on_level'],
     max_questions: 50, route: { local_available: true, cloud_provider: null, draft_provider: null },

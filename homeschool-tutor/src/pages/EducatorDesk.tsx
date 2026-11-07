@@ -7,6 +7,7 @@ import { prepareFocusedLesson } from '../utils/focusedLesson'
 import PilotTeacherJourney from '../components/PilotTeacherJourney'
 import QuizBuilder from '../components/QuizBuilder'
 import TeacherQuizStudio from '../components/TeacherQuizStudio'
+import { usePracticeCoachEnabled } from '../hooks/usePracticeCoachEnabled'
 import { fromGenerated } from '../utils/teacherQuiz'
 import {
   fetchInstructorRoster,
@@ -30,6 +31,7 @@ const field = 'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2
 export default function EducatorDesk() {
   const navigate = useNavigate()
   const { token, setSessionConfig, startSession, logout } = useSessionStore()
+  const practiceCoachEnabled = usePracticeCoachEnabled(token)
   const [roster, setRoster] = useState<SessionConfig[]>([])
   const [student, setStudent] = useState('')
   const [subject, setSubject] = useState<Subject>('mathematics')
@@ -221,8 +223,8 @@ export default function EducatorDesk() {
           ))}
         </nav>
         {journeyStep === 'recommendations' && token && <PilotTeacherJourney token={token} />}
-        {token && <QuizBuilder token={token} audience="educator" onEdit={(q) => setHandedQuiz(fromGenerated(q))} />}
-        {token && <TeacherQuizStudio token={token} incoming={handedQuiz} />}
+        {token && practiceCoachEnabled === true && <QuizBuilder token={token} audience="educator" onEdit={(q) => setHandedQuiz(fromGenerated(q))} />}
+        {token && practiceCoachEnabled === true && <TeacherQuizStudio token={token} incoming={handedQuiz} />}
         <section hidden={journeyStep !== 'roster'} className="bg-white rounded-2xl border p-4 space-y-3">
           <div className="flex items-center gap-2 font-semibold"><Users size={17}/> Authorized class roster</div>
           <p className="text-xs text-gray-500">{roster.length} assigned learners. Your school administrator manages learner assignments.</p>

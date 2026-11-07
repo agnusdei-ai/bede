@@ -102,6 +102,33 @@ _SKIP_MESSAGES = {"[START]", "[CONTINUE]"}
 _BLOCKING_CATEGORIES = {"self_harm", "violence", "sexual_content", "hate_or_harassment"}
 
 
+_UNCLASSIFIED = {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
+
+
+def _normalize(parsed: object) -> Optional[dict]:
+    """The classifier's reply as the shape every caller relies on, or None.
+
+    The model is asked for ``{"flagged", "categories", "confidence"}``, and
+    valid JSON is not the same as that shape. A reply with no boolean
+    ``flagged`` used to pass straight through, and routers/tutor.py's
+    ``moderation["flagged"]`` then raised KeyError and ended the child's turn
+    with "Something went wrong". None means "no classification", which the
+    caller turns into the documented fail-open result. A reply that DOES say
+    whether it flagged is kept, with its other fields coerced to the types
+    the callers read (unknown confidence is ``low``, so it can never block).
+    """
+    if not isinstance(parsed, dict) or not isinstance(parsed.get("flagged"), bool):
+        return None
+    categories = parsed.get("categories")
+    confidence = parsed.get("confidence")
+    return {
+        "flagged": parsed["flagged"],
+        "categories": [c for c in categories if isinstance(c, str)]
+        if isinstance(categories, list) else [],
+        "confidence": confidence if confidence in ("low", "medium", "high") else "low",
+    }
+
+
 def _should_block(result: dict) -> bool:
     if not result.get("flagged"):
         return False
@@ -118,7 +145,7 @@ async def classify_child_message(text: str, student_name: Optional[str] = None) 
     warning, not a request-ending exception.
     """
     if not text or text in _SKIP_MESSAGES:
-        return {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
+        return dict(_UNCLASSIFIED)
 
     try:
         from services.ai_service import _client  # single shared client/connection pool, not a second one
@@ -147,10 +174,14 @@ async def classify_child_message(text: str, student_name: Optional[str] = None) 
         raw = response.content[0].text.strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        result = json.loads(raw)
-        result["categories"] = result.get("categories") or []
+        result = _normalize(json.loads(raw))
+        if result is None:
+            # Logged without the reply itself: it can quote the child.
+            log.warning("Moderation classifier reply lacked a boolean 'flagged' — "
+                        "failing open (turn proceeds unblocked)")
+            return dict(_UNCLASSIFIED)
         result["should_block"] = _should_block(result)
         return result
     except Exception:
         log.warning("Moderation classification failed — failing open (turn proceeds unblocked)", exc_info=True)
-        return {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
+        return dict(_UNCLASSIFIED)

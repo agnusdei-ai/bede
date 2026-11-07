@@ -288,7 +288,9 @@ transaction it:
    `pilot_assessment_evidence`, `pilot_assessment_proposals`,
    `pilot_assessment_decisions`, `pilot_assessment_plans`,
    `pilot_progress_monitoring_schedules`, `pilot_assessment_follow_ups`, **G2** `pilot_evidence`,
-   `pilot_recommendations`, `pilot_decisions`, `pilot_roster_grants`, and last
+   `pilot_recommendations`, `pilot_decisions`, `pilot_idempotency_keys` (the
+   administrator's create-learner submission record, which holds no name),
+   `pilot_roster_grants`, and last
    `pilot_learners` (the encrypted display name);
 4. deletes any household-shaped row stored under the learner's institutional
    storage subject (`pilot:<campus_uuid>:<learner_uuid>`) in every table with a

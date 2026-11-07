@@ -342,6 +342,33 @@ class PilotRosterGrant(Base):
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
+class PilotIdempotencyKey(Base):
+    """One administrator submission of a create request, keyed by the
+    client's ``Idempotency-Key`` header (routers/pilot_campuses.py).
+
+    The composite primary key is what makes a retry or a concurrent
+    duplicate produce exactly one campus or learner: the claim is a
+    database constraint, never a check-then-insert. It stores no learner
+    content: ``request_hash`` is an HMAC (keyed by SECRET_KEY) of the
+    request body, so a short display name cannot be recovered from it by
+    guessing, and the original response is re-rendered from the created
+    row. ``learner_id`` puts it in the pilot learner deletion cascade, so
+    deleting a learner removes its idempotency record too. A standalone
+    table because there is no ALTER TABLE path: create_all is the
+    migration."""
+    __tablename__ = "pilot_idempotency_keys"
+
+    operation: Mapped[str] = mapped_column(String(32), primary_key=True)
+    caller: Mapped[str] = mapped_column(String(80), primary_key=True)
+    idem_key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    campus_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    learner_id: Mapped[Optional[str]] = mapped_column(String(36), index=True, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+
+
 class ChildLearnerBinding(Base):
     """Adult-authorized device-to-learner assignment. Rotating nonce invalidates old JWTs."""
     __tablename__ = "child_learner_bindings"

@@ -27,6 +27,7 @@ import asyncio
 import json
 import os
 import sys
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -75,8 +76,12 @@ class Seeder:
 
     # ── helpers ──────────────────────────────────────────────────────────────
     def _step(self, label: str, method: str, path: str, token: str | None = None,
-              body: dict | None = None, expect: tuple = (200, 201, 202, 204)):
-        r = self.api.call(method, path, token, body)
+              body: dict | None = None, expect: tuple = (200, 201, 202, 204),
+              idempotent: bool = False):
+        # A create step sends a fresh Idempotency-Key, so a retried submission
+        # can never mint a second campus or learner.
+        extra = {"Idempotency-Key": str(uuid.uuid4())} if idempotent else None
+        r = self.api.call(method, path, token, body, extra_headers=extra)
         self.fx.steps.append({"step": label, "method": method, "route": path,
                               "status": r.status_code, "ok": r.status_code in expect})
         if r.status_code not in expect:
@@ -117,14 +122,15 @@ class Seeder:
         for key, title in cfg.CAMPUS_TITLES.items():
             body = {"title": assert_synthetic(title)}
             self.fx.campus[key] = self._step(f"create_{key}", "POST", "/pilot/campuses",
-                                             self.fx.admin_token, body)["campus_id"]
+                                             self.fx.admin_token, body,
+                                             idempotent=True)["campus_id"]
         for campus_key in cfg.CAMPUS_TITLES:
             self.authorize_campus(campus_key)
         for learner, campus in cfg.LEARNER_FIXTURES.items():
             body = {"display_name": assert_synthetic(cfg.SHARED_LEARNER_DISPLAY_NAME)}
             self.fx.learner[learner] = self._step(
                 f"create_{learner}", "POST", f"/pilot/campuses/{self.fx.campus[campus]}/learners",
-                self.fx.admin_token, body)["learner_id"]
+                self.fx.admin_token, body, idempotent=True)["learner_id"]
 
     def authorize_campus(self, key: str) -> None:
         """School data authorization through the real endpoint with the real

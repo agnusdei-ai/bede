@@ -282,3 +282,58 @@ describe('PDF and iPhone uploads', () => {
     expect(screen.getByText(/no guarda las fotos en la base de datos ni en un archivo/)).toBeTruthy()
   })
 })
+
+/** A file input as a browser treats it: picking the SAME selection again
+ * fires no change event, until the page clears the input's value. jsdom
+ * fires whatever it is told, so this models the browser's rule and observes
+ * whether the component cleared the value. */
+function browserFileInput(input: HTMLInputElement) {
+  let selected = ''
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    get: () => selected,
+    set: (v: string) => { if (v === '') selected = '' },
+  })
+  return (files: File[]) => {
+    const key = files.map((f) => f.name).join('|')
+    if (key === selected) return false
+    selected = key
+    fireEvent.change(input, { target: { files } })
+    return true
+  }
+}
+
+describe('retrying after a failed read', () => {
+  it('lets the parent pick the same file again and read it', async () => {
+    mocks.readPracticePhotos.mockRejectedValueOnce(new Error('The pages could not be read.'))
+    render(<PracticeCoach token="t" studentName="Alex" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    await screen.findByRole('option', { name: 'Latin' })
+    const input = screen.getByLabelText(/PDF of the graded pages/) as HTMLInputElement
+    const pick = browserFileInput(input)
+    const button = () => screen.getByRole('button', { name: 'Read the quiz' }) as HTMLButtonElement
+
+    expect(pick([png()])).toBe(true)
+    fireEvent.click(button())
+    await screen.findByText('The pages could not be read.')
+    expect(button().disabled).toBe(true)  // the list was cleared
+
+    // The same file, picked again, must reach the component.
+    expect(screen.getByLabelText(/PDF of the graded pages/)).toBe(input)
+    expect(pick([png()])).toBe(true)
+    expect(button().disabled).toBe(false)
+    fireEvent.click(button())
+    await screen.findByText('3 of 4, by the teacher\'s marks')
+  })
+
+  it('clears the picker when an oversized file is refused, so a retry is seen', async () => {
+    render(<PracticeCoach token="t" studentName="Alex" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    await screen.findByRole('option', { name: 'Latin' })
+    const input = screen.getByLabelText(/PDF of the graded pages/) as HTMLInputElement
+    const pick = browserFileInput(input)
+    const huge = new File([new Uint8Array(26 * 1024 * 1024)], 'big.png', { type: 'image/png' })
+    expect(pick([huge])).toBe(true)
+    expect(input.value).toBe('')
+  })
+})

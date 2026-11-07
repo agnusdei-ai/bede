@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { providerName } from '../utils/providerName'
 import { useTranslation } from 'react-i18next'
 import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
@@ -71,6 +71,14 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
   const [route, setRoute] = useState<ReadingRoute | null>(null)
   const [subject, setSubject] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  // Clearing the list must clear the picker too: a file input fires no
+  // change event when the same file is picked again, so a stale value left
+  // "Read the quiz" disabled after a failed read with no way to retry.
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const clearFiles = () => {
+    setFiles([])
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
   const [progress, setProgress] = useState<ProgressState | null>(null)
   const [consent, setConsent] = useState(false)
   const [stage, setStage] = useState<Stage>('start')
@@ -98,7 +106,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
   // A different child starts over: nothing from one child's quiz may linger
   // on another child's page.
   useEffect(() => {
-    setStage('start'); setReading(null); setDraft(null); setPlan(null); setFiles([])
+    setStage('start'); setReading(null); setDraft(null); setPlan(null); clearFiles()
     setConsent(false); setMessage(''); setDecision(null)
   }, [studentName])
 
@@ -134,7 +142,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
         : err instanceof Error ? err.message : t('practiceCoach.readError'))
     } finally {
       setProgress(null)
-      setFiles([])  // the photos are not kept in this page either
+      clearFiles()  // the photos are not kept in this page either
     }
   }
 
@@ -253,12 +261,14 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
 
               <label className="block">
                 <span className="text-xs font-medium text-gray-600">{t('practiceCoach.photos')}</span>
-                <input type="file" accept={PRACTICE_ACCEPT} multiple aria-label={t('practiceCoach.photos')}
+                <input ref={fileInputRef} type="file" accept={PRACTICE_ACCEPT} multiple
+                  aria-label={t('practiceCoach.photos')}
                   onChange={(e) => {
                     const picked = Array.from(e.target.files ?? [])
                     const problem = uploadProblem(picked)
                     setMessage(problem ? t(problem === 'file' ? 'practiceCoach.fileTooLarge' : 'practiceCoach.uploadTooLarge') : '')
-                    setFiles(problem ? [] : picked)
+                    if (problem) clearFiles()
+                    else setFiles(picked)
                   }}
                   className="mt-1 block w-full text-xs" />
               </label>

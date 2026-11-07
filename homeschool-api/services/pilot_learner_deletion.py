@@ -57,7 +57,9 @@ from sqlalchemy import Table, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, log_event
-from core.database import Base, ClassicalEducator, PilotLearner, PilotRosterGrant
+from core.database import (
+    Base, ClassicalEducator, PilotIdempotencyKey, PilotLearner, PilotRosterGrant,
+)
 from core.learner_scope import LearnerScope, evict_learner
 from core.pilot_assessment_models import LEARNER_SCOPED_TABLES
 from core.pilot_journey_models import PilotDecision, PilotEvidence, PilotRecommendation
@@ -104,7 +106,8 @@ def storage_subject_tables() -> tuple[Table, ...]:
 def pilot_cascade() -> tuple[Table, ...]:
     """The UUID-keyed pilot tables, children first, the learner row last."""
     return (*LEARNER_SCOPED_TABLES, PilotEvidence.__table__, PilotRecommendation.__table__,
-            PilotDecision.__table__, PilotRosterGrant.__table__, PilotLearner.__table__)
+            PilotDecision.__table__, PilotIdempotencyKey.__table__,
+            PilotRosterGrant.__table__, PilotLearner.__table__)
 
 
 def _learner_col(table: Table):

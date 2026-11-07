@@ -128,3 +128,25 @@ async def test_usage_recording_failure_does_not_break_classification(monkeypatch
     )
     result = await classify_child_message("some message", student_name="Sam")
     assert result["flagged"] is False
+
+
+async def test_a_reply_without_flagged_is_no_classification(monkeypatch):
+    """Valid JSON is not the documented shape: no boolean "flagged" means no
+    classification, never a dict a caller's ``result["flagged"]`` breaks on."""
+    monkeypatch.setattr(
+        ai_service._client.messages, "create",
+        AsyncMock(return_value=_fake_response({"categories": ["violence"], "confidence": "high"})),
+    )
+    result = await classify_child_message("some message")
+    assert result == {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
+
+
+async def test_a_flagged_reply_with_malformed_fields_never_blocks(monkeypatch):
+    monkeypatch.setattr(
+        ai_service._client.messages, "create",
+        AsyncMock(return_value=_fake_response(
+            {"flagged": True, "categories": ["violence", 7], "confidence": "certain"})),
+    )
+    result = await classify_child_message("some message")
+    assert result == {"flagged": True, "categories": ["violence"], "confidence": "low",
+                      "should_block": False}

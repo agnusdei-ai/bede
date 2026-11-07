@@ -154,3 +154,45 @@ async def test_classifier_exception_fails_open_at_the_router_level(monkeypatch):
     # catches this and still ends with a recoverable {"type": "done"} —
     # never a hung connection or an unhandled 500.
     assert any('"type": "done"' in c for c in chunks)
+
+
+
+@pytest.mark.parametrize("reply", [
+    {"categories": [], "confidence": "low"},     # valid JSON, no "flagged" (the reported case)
+    {"flagged": "false", "categories": []},       # "flagged" not a boolean
+    ["flagged", False],                            # valid JSON, not an object
+    "unflagged",                                   # a bare JSON string
+    {"flagged": True},                             # flagged, but no categories or confidence
+    {"flagged": True, "categories": "violence", "confidence": "certain"},  # wrong types
+])
+async def test_a_malformed_classifier_reply_fails_open_through_the_real_route(
+    monkeypatch, created_tasks, reply,
+):
+    """The REAL classify_child_message, fed a reply that is valid JSON but not
+    the documented shape. It used to pass the dict through unchanged, and
+    the router's ``moderation["flagged"]`` raised KeyError, ending the turn
+    with "Something went wrong". It must instead be treated as no
+    classification (or, where it does say whether it flagged, as a
+    non-blocking low-confidence result) and the turn must reach the tutor."""
+    from unittest.mock import MagicMock
+    from services import ai_service
+
+    response = MagicMock()
+    response.content = [MagicMock(text=json.dumps(reply))]
+    response.usage = MagicMock(input_tokens=1, output_tokens=1)
+    monkeypatch.setattr(ai_service._client.messages, "create", AsyncMock(return_value=response))
+    stream_called = []
+
+    async def fake_stream(*args, **kwargs):
+        stream_called.append(True)
+        yield '{"type": "text", "content": "Let\'s think about that."}'
+        yield '{"type": "done"}'
+
+    monkeypatch.setattr("routers.tutor.stream_tutor_response", fake_stream)
+    response_obj = await tutor_chat(_req(), _fake_request(), auth={"role": "parent"}, db=None)
+    chunks = [c async for c in response_obj.body_iterator]
+    await asyncio.gather(*created_tasks)
+
+    assert stream_called == [True], chunks
+    assert not any("Something went wrong" in c for c in chunks)
+    assert any("Let's think about that." in c for c in chunks)

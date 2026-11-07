@@ -12,6 +12,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
@@ -100,6 +101,20 @@ async def invite_educator(
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except IntegrityError as exc:
+        # A concurrent identical invite created this username first. The
+        # unique index refused this one at its flush, before any email was
+        # sent, so the loser gets exactly the answer a sequential duplicate
+        # gets and nothing else happens.
+        await db.rollback()
+        taken = (await db.execute(
+            select(ClassicalEducator.id).where(ClassicalEducator.username == username)
+        )).scalar_one_or_none()
+        if taken is None:
+            raise
+        raise HTTPException(
+            status_code=422, detail="That educator username is already enrolled",
+        ) from exc
     except Exception:
         await db.rollback()
         raise

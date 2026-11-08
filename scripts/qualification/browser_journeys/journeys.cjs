@@ -127,6 +127,12 @@ async function child(br, bname, i) {
   // The first child blocks the app's service worker so the #794 transport retry can be observed with route().
   const ctx = await br.newContext({ viewport: { width: 1180, height: 820 }, ...(first ? { serviceWorkers: 'block' } : {}) });
   const c = await ctx.newPage(); c.on('dialog', d => d.accept());
+  // Record what the browser itself reports, so an engine-specific failure
+  // (a WebKit page crash, a script error) is visible in the job log.
+  c.on('pageerror', err => console.log(`PAGEERROR ${who}: ${String(err).slice(0, 300)}`));
+  c.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log(`CONSOLE ${who} ${m.type()}: ${m.text().slice(0, 300)}`); });
+  c.on('crash', () => console.log(`CRASH ${who} at ${c.url()}`));
+  c.on('requestfailed', r => console.log(`REQFAIL ${who} ${r.method()} ${r.url().replace(/^https?:\/\/[^/]+/, '')} ${r.failure()?.errorText || ''}`));
   let setId = null;
   try {
     await step(who, 'sign_in_and_session_start', () => childLogin(c, name));
@@ -201,13 +207,13 @@ async function child(br, bname, i) {
     else { await passIntro(c); }
   }).catch(() => {});
   await step(who, 'lesson_turn_after_restart', () => sendChat(c, 'One more thing about Egypt.')).catch(() => {});
-  if (setId) {
+  if (setId) try {
     const r = JSON.parse((await apiCall(c, `/practice/${encodeURIComponent(name)}/delivery`)).body || '[]').find(x => x.id === setId);
     check(who, 'answer_persisted_after_restart', r && r.completed_indices.length >= 1, JSON.stringify(r?.completed_indices));
     const again = await apiCall(c, `/practice/${encodeURIComponent(name)}/sets/${setId}/outcomes`, 'POST', { item_index: r?.completed_indices?.[0] ?? 0, response: 'pharaoh' });
     check(who, 'answer_retry_is_idempotent', again.status === 200 && /"already_recorded":\s*true/.test(again.body), `${again.status} ${again.body.slice(0, 80)}`);
-  }
-  await ctx.close();
+  } catch (e) { check(who, 'answer_persisted_after_restart', false, e.message); }
+  await ctx.close().catch(() => {});
 }
 
 function pct(a, q) { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : null; }

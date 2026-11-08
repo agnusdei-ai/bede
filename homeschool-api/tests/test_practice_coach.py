@@ -43,7 +43,7 @@ from models.practice import (
 )
 from routers import practice as practice_router
 from services.practice import upload_safety
-from services.practice import core_checks, extract, pipeline
+from services.practice import core_checks, extract, pipeline, store
 from services.practice.core_checks import normalize
 from services.practice.packs import get_pack
 
@@ -518,6 +518,99 @@ async def test_the_whole_flow_and_the_photo_is_never_stored(db, monkeypatch):
                 assert page[12:40] not in row.detail_enc
             for media, data in await upload_safety.prepare_pages([b64(PNG), b64(JPEG)]):
                 assert data[40:80] not in plain
+
+
+def _leave_out(assessment: GradedAssessment, label: str, number: int) -> GradedAssessment:
+    data = assessment.model_dump(mode="json")
+    for section in data["sections"]:
+        for item in section["items"]:
+            if section["label"] == label and item["number"] == number:
+                item["excluded"] = True
+                # Still unsettled: leaving it out is itself how it is settled.
+                item["ask_parent"], item["confidence"] = "The question may have been misread.", 0.4
+    return GradedAssessment.model_validate(data)
+
+
+@pytest.mark.asyncio
+async def test_a_question_the_parent_leaves_out_is_never_diagnosed_counted_or_planned(db, monkeypatch):
+    """A question read wrongly (its meaning changed) is left out by the
+    parent; the server drops it from diagnosis, the teacher's count and the
+    practice plan, whatever else the client sends about it."""
+    _routing(monkeypatch, local=True, cloud=None, local_client=StubClient(json.dumps(GOLDEN["assessment"])))
+    read = await practice_router.read_assessment("Alice", _req(), auth=PARENT, db=db)
+    # Part 1 #5 is the quiz's only miss; with it in, Bede diagnoses it.
+    assert "Part 1 #5" in refs(pipeline.diagnose(settled()).errors, "latin.vocab.hypernym_substitution")
+
+    left_out = _leave_out(settled(), "Part 1", 5)
+    confirmed = await practice_router.confirm_assessment(
+        "Alice", read["id"], ConfirmAssessmentRequest(assessment=left_out), auth=PARENT, db=db)
+    assert confirmed["status"] == "confirmed"
+    stored = await store.load_assessment(db, "Alice", read["id"])
+    assert stored[1].sections[0].items[4].excluded  # the decision is kept with the reading
+
+    planned = await practice_router.plan_practice("Alice", read["id"], auth=PARENT, db=db)
+    assert not any(e["item_ref"] == "Part 1 #5" for e in planned["diagnosis"]["errors"])
+    assert planned["summary"].startswith("12 of 12,")
+    for item in (planned["practice_set"] or {"items": []})["items"]:
+        assert item["prompt"] != golden().sections[0].items[4].prompt
+
+
+@pytest.mark.asyncio
+async def test_leaving_every_question_out_plans_nothing_rather_than_failing(db):
+    everything = golden().model_dump(mode="json")
+    for section in everything["sections"]:
+        for item in section["items"]:
+            item["excluded"] = True
+    a = GradedAssessment.model_validate(everything)
+    made = await practice_router.enter_assessment("Alice", ConfirmAssessmentRequest(assessment=a), auth=PARENT, db=db)
+    assert made["status"] == "confirmed"
+    planned = await practice_router.plan_practice("Alice", made["id"], auth=PARENT, db=db)
+    assert planned["practice_set"] is None and planned["diagnosis"]["errors"] == []
+    assert planned["summary"].startswith("0 of 0,")
+
+
+def test_no_pack_ever_sees_a_question_the_parent_left_out(monkeypatch):
+    """The pipeline removes left-out questions itself rather than trusting
+    each of the five packs to skip them: watch what the real pack receives."""
+    real = get_pack("latin")
+    seen = []
+
+    class Spy:
+        def __getattr__(self, name):
+            attr = getattr(real, name)
+            if name in ("classify_errors", "find_strengths", "generate_practice"):
+                def watched(*args, **kw):
+                    seen.append((name, args[1] if name == "generate_practice" else args[0]))
+                    return attr(*args, **kw)
+                return watched
+            return attr
+
+    monkeypatch.setattr(pipeline, "get_pack", lambda subject: Spy())
+    a = _leave_out(settled(), "Part 1", 5)
+    pipeline.plan(pipeline.diagnose(a), a)
+    assert {name for name, _ in seen} == {"classify_errors", "find_strengths", "generate_practice"}
+    for name, given in seen:
+        assert not any(i.excluded for s in given.sections for i in s.items), name
+        assert len(given.sections[0].items) == len(a.sections[0].items) - 1, name
+
+    seen.clear()
+    nothing = golden().model_dump(mode="json")
+    for section in nothing["sections"]:
+        for item in section["items"]:
+            item["excluded"] = True
+    nothing = GradedAssessment.model_validate(nothing)
+    assert pipeline.plan(pipeline.diagnose(nothing), nothing) is None
+    assert "generate_practice" not in {name for name, _ in seen}
+
+
+@pytest.mark.asyncio
+async def test_the_reader_cannot_leave_a_question_out(monkeypatch):
+    """Excluding is the parent's decision: a reading that sets it is refused."""
+    data = copy.deepcopy(GOLDEN["assessment"])
+    data["sections"][0]["items"][4]["excluded"] = True
+    _routing(monkeypatch, local=True, cloud=None, local_client=StubClient(json.dumps(data)))
+    with pytest.raises(extract.ReadingFailed):
+        await extract.read_pages(_req())
 
 
 @pytest.mark.asyncio

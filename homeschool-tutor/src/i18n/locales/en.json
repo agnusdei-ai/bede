@@ -773,6 +773,11 @@
     "correction": "Teacher's correction",
     "unsure": "We weren't sure we read this correctly.",
     "looksRight": "Looks right",
+    "leaveOut": "Leave this question out",
+    "leaveOutFor": "Leave out {{item}}",
+    "putBack": "Put it back",
+    "putBackFor": "Put back {{item}}",
+    "leftOut": "Left out. Bede will not check or practise this question. If the question itself was read wrongly, you can also start over with a clearer photo.",
     "mark": {
       "correct": "Correct",
       "incorrect": "Incorrect",

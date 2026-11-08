@@ -183,6 +183,29 @@ describe('reviewing the reading', () => {
     await waitFor(() => expect(mocks.confirmPracticeReading).toHaveBeenCalled())
     expect(mocks.confirmPracticeReading.mock.calls[0][3].sections[0].items[1].student_response).toBe('volat')
   })
+
+  it('lets the parent leave out a question that was read wrongly, and put it back', async () => {
+    await readQuiz()
+    const confirm = screen.getByRole('button', { name: 'Confirm and plan practice' }) as HTMLButtonElement
+    expect(confirm.disabled).toBe(true)
+    // The flagged question's wording itself was misread: leave it out.
+    fireEvent.click(screen.getByRole('button', { name: 'Leave out Part 2 #4' }))
+    expect(screen.queryByText('The macron on the i is unclear')).toBeNull()
+    expect(screen.getByText(/Bede will not check or practise this question/)).toBeTruthy()
+    // Leaving it out settles it, and it no longer counts in the teacher's tally.
+    expect(confirm.disabled).toBe(false)
+    expect(screen.getByText('2 of 3, by the teacher\'s marks')).toBeTruthy()
+    // Putting it back brings the flag back.
+    fireEvent.click(screen.getByRole('button', { name: 'Put back Part 2 #4' }))
+    expect(confirm.disabled).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Leave out Part 2 #4' }))
+    fireEvent.click(confirm)
+    await waitFor(() => expect(mocks.confirmPracticeReading).toHaveBeenCalled())
+    const sent: GradedAssessment = mocks.confirmPracticeReading.mock.calls[0][3]
+    expect(sent.sections[1].items[0].excluded).toBe(true)
+    // The server is told, not trusted to infer: the flag itself is unchanged.
+    expect(sent.sections[1].items[0].ask_parent).toBe('The macron on the i is unclear')
+  })
 })
 
 describe('approving', () => {

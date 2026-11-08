@@ -34,6 +34,9 @@ def _known(pack: SubjectPack, error: ErrorInstance) -> bool:
 
 
 def diagnose(assessment: GradedAssessment, history: list | None = None) -> Diagnosis:
+    # A question the parent left out because it was read wrongly is never
+    # diagnosed: it is removed here, not trusted to each pack to skip.
+    assessment = assessment.reviewed()
     pack = pack_for(assessment)
     errors = [e for e in core_checks.run(assessment) + pack.classify_errors(assessment, history) if _known(pack, e)]
     strengths = [s for s in pack.find_strengths(assessment) if pack.knows(s.category)]
@@ -44,6 +47,9 @@ def plan(diagnosis: Diagnosis, assessment: GradedAssessment, constraints: dict |
     if diagnosis.ask_parent:
         # Guardrail 4: nothing is planned on a reading the parent hasn't settled.
         raise ValueError("Confirm the flagged answers before planning practice")
+    assessment = assessment.reviewed()  # nor planned from
+    if not assessment.sections:
+        return None  # every question was left out: nothing to plan from
     return pack_for(assessment).generate_practice(diagnosis, assessment, constraints or {})
 
 

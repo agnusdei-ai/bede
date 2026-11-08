@@ -1806,6 +1806,9 @@ export interface PracticeItemReading {
   teacher_correction?: string | null
   confidence: number
   ask_parent?: string | null
+  /** The parent left it out because it was read wrongly; the server never
+   *  diagnoses, counts or plans from it. */
+  excluded?: boolean
 }
 
 export interface PracticeSection {

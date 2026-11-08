@@ -1259,6 +1259,15 @@ graded quiz**. Choose the subject that matches the quiz:
    unclear". Fix it if it's wrong, then press **Looks right**. You can't go
    on until every highlighted answer is settled, because Bede never builds
    practice on a guess.
+
+   **If Bede read a question itself wrongly** (the wording on screen says
+   something different from the page, so checking the answer against it
+   would be unfair), you have two choices. Press **Leave this question
+   out** beside it: Bede then won't check it, count it in the teacher's
+   tally, or build practice from it, and **Put it back** undoes that. Or
+   press **Start over** and upload a clearer photo or scan; the earlier
+   reading is not used. You can't retype the question's wording yourself
+   yet, only the answers and marks.
 3. **Read what Bede found.** The card shows:
    - the teacher's own count (for example "12 of 13, by the teacher's
      marks"). Bede does not grade the quiz itself;

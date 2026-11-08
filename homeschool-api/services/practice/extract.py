@@ -203,7 +203,9 @@ _NOT_READ = "The pages could not be read; check each page is the right way up an
 # refuses the whole reading, so it is never stored.
 _TOP_KEYS = set(GradedAssessment.model_fields)
 _SECTION_KEYS = set(AssessmentSection.model_fields)
-_ITEM_KEYS = set(AssessmentItem.model_fields)
+# "excluded" is the parent's decision, never the reader's: a reply carrying it
+# is refused whole, like any field the worksheet has no place for.
+_ITEM_KEYS = set(AssessmentItem.model_fields) - {"excluded"}
 _MARKS = {"correct", "incorrect", "partial", "unmarked"}
 _FORMATS = {"complete_sentence", "single_word", "color_fill", "free", "unknown"}
 # A repaired item is shown to the parent to check, like any unsure reading.

@@ -496,6 +496,48 @@ def test_seeding_refuses_a_non_synthetic_name():
         seed.assert_synthetic("Valor Academy")
 
 
+class _KeyedApi:
+    """Records each create's Idempotency-Key. The first attempt of each
+    operation loses its response (a timeout), as a real retry would see it;
+    an unkeyed call counts as a new operation every time."""
+
+    def __init__(self):
+        self.sent: list[tuple[str, str | None]] = []
+        self.seen: set[str] = set()
+
+    def call(self, method, path, token=None, body=None, files=None, extra_headers=None):
+        import httpx
+
+        key = (extra_headers or {}).get("Idempotency-Key")
+        self.sent.append((path, key))
+        if key is None or key not in self.seen:
+            if key is not None:
+                self.seen.add(key)
+            raise httpx.ReadTimeout("response lost")
+        return httpx.Response(201, json={"campus_id": "c-" + key[:8], "learner_id": "l-" + key[:8]})
+
+
+def test_seeding_reuses_one_idempotency_key_across_retries_of_the_same_create():
+    import seed
+
+    api = _KeyedApi()
+    seeder = seed.Seeder(api, driver=None, env={})
+    seeder.authorize_campus = lambda key: None  # not under test here
+    seeder.fx.admin_token = "t"
+    seeder.seed_campuses_and_learners()
+    keys = [key for _, key in api.sent]
+    assert None not in keys
+    # Two campuses and two learners: each create retried once, with its own key.
+    assert len(api.sent) == 2 * len(set(keys)) and len(set(keys)) == 4
+    assert all(keys.count(k) == 2 for k in set(keys))
+    assert keys[0::2] == keys[1::2]  # each retry follows its attempt with the same key
+    # Running the seeding step again on the same seeder replays, not re-creates.
+    first = dict(seeder._idempotency_keys)
+    api.sent.clear()
+    seeder.seed_campuses_and_learners()
+    assert {key for _, key in api.sent} == set(first.values())
+
+
 def test_credential_scan_fails_closed(tmp_path):
     import package
     (tmp_path / "server.log").write_text("ok\nAuthorization: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4eHh4eHgifQ.c2lnbmF0dXJlc2ln\n")

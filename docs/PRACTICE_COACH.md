@@ -57,6 +57,26 @@ is the **teacher's** count, read off the page and labelled as such.
 2. **Confirm.** Anything the reader was unsure of is flagged with what is
    uncertain ("the macron on the ī is unclear"). Nothing flagged is diagnosed
    until the parent settles it. A quiz can also be typed in by hand.
+
+   **A question read wrongly is left out, never graded against.** When the
+   reading changed what a question asks, the parent corrects the answers and
+   marks they can, and otherwise either presses **Leave this question out**
+   (`AssessmentItem.excluded`) or starts over with a clearer upload (a fresh
+   reading is a new record; the old one, still in review, is never planned
+   from). Rewording a question on screen is deferred for this pilot. The
+   exclusion is enforced on the server, not trusted to the screen:
+   `GradedAssessment.reviewed()` removes every excluded question before
+   `pipeline.diagnose` and `pipeline.plan` hand the worksheet to any pack, the
+   teacher's count skips it, leaving a question out settles its flag, and a
+   worksheet with everything left out plans nothing. Only the parent can set
+   it: a reader reply that carries `excluded` is refused whole, like a name
+   field. `tests/test_practice_coach.py` (the route flow, a spy on the real
+   pack, the all-excluded case, the reader refusal) and `PracticeCoach.test.tsx`,
+   each guard verified by breaking it. The teacher flow already had its own
+   correction path: an extracted question can be edited or removed, either of
+   which unapproves the quiz, and a question whose `reading_note` still stands
+   is refused by `/score` and `/finalize` whatever the client's `approved`
+   flag says (`test_a_question_whose_reading_is_unsettled_is_never_scored`).
 3. **Diagnose.** Deterministic rules, not the model, decide what each miss
    means. Core checks apply to every subject and report to the parent only:
    - **answer format**: answers didn't take the form the instructions asked

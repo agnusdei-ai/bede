@@ -269,6 +269,30 @@ def test_scoring_refuses_an_unapproved_key_before_reading_anything(http, monkeyp
     assert _score(http, quiz=not_flagged).status_code == 422 and local.calls == []
 
 
+def test_a_question_whose_reading_is_unsettled_is_never_scored(http, monkeypatch):
+    """A question the reader may have changed the meaning of (its reading_note
+    is still standing) is not scored or totalled, whatever the client's
+    approved flag says. The teacher settles it, corrects it, or removes it."""
+    local = SeqClient(READING)
+    _routing(monkeypatch, local=True, cloud=None, local_client=local)
+    questions = [dict(q) for q in APPROVED["questions"]]
+    questions[0]["reading_note"] = "The 15 may be a 16."
+    unsettled = quiz(*questions, approved=True)
+    out = _score(http, quiz=unsettled)
+    assert out.status_code == 422 and local.calls == []
+    assert {"number": 1, "problem": "reading_unsettled"} in out.json()["detail"]["problems"]
+    typed = _score(http, quiz=unsettled, pages=[], responses=[{"number": 1, "response": "42"}],
+                   upload_consent=False)
+    assert typed.status_code == 422
+    results = [{"number": n, "points": 1} for n in range(1, 6)]
+    assert http.post("/practice/educator/teacher-quiz/finalize",
+                     json={"quiz": unsettled, "results": results}).status_code == 422
+    # Removing the question (the correction path) and re-approving clears it.
+    removed = quiz(*[dict(q, number=i) for i, q in enumerate(questions[1:], start=1)], approved=False)
+    approved = http.post("/practice/educator/teacher-quiz/approve", json={"quiz": removed})
+    assert approved.status_code == 200 and approved.json()["quiz"]["approved"]
+
+
 def test_student_work_needs_the_teachers_tick_and_the_local_model(http, monkeypatch):
     local = SeqClient(READING)
     _routing(monkeypatch, local=True, cloud=None, local_client=local)

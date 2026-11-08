@@ -361,8 +361,15 @@ class AssessmentItem(_Strict):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
     # Set when the reader could not settle something; the parent answers it.
     ask_parent: Optional[str] = Field(default=None, max_length=200)
+    # The parent left this question out because it was read wrongly (its
+    # meaning changed). Only the parent sets it: a reader's reply carrying it
+    # is refused whole (extract._ITEM_KEYS). An excluded question is never
+    # diagnosed, counted or planned from (GradedAssessment.reviewed).
+    excluded: bool = False
 
     def needs_parent(self) -> bool:
+        if self.excluded:
+            return False  # leaving it out is how the parent settles it
         return bool(self.ask_parent) or self.confidence < CONFIDENCE_FLOOR
 
     @model_validator(mode="after")
@@ -400,10 +407,23 @@ class GradedAssessment(_Strict):
             for s in self.sections for i in s.items if i.needs_parent()
         ]
 
+    def reviewed(self) -> "GradedAssessment":
+        """The worksheet as diagnosis and planning see it: every question the
+        parent left out is gone, and a section left empty goes with it. Built
+        without re-validation, so a worksheet with everything left out is an
+        empty one rather than an error."""
+        sections = [
+            s.model_copy(update={"items": [i for i in s.items if not i.excluded]})
+            for s in self.sections
+        ]
+        return self.model_copy(update={"sections": [s for s in sections if s.items]})
+
 
 def teacher_mark_count(assessment: GradedAssessment) -> dict:
-    """The teacher's own tally, for display only — never a Bede grade."""
-    marked = [i for s in assessment.sections for i in s.items if i.teacher_mark != "unmarked"]
+    """The teacher's own tally, for display only — never a Bede grade. A
+    question the parent left out is not counted."""
+    marked = [i for s in assessment.sections for i in s.items
+              if i.teacher_mark != "unmarked" and not i.excluded]
     return {
         "correct": sum(1 for i in marked if i.teacher_mark == "correct"),
         "total": len(marked),

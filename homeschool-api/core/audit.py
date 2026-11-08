@@ -99,10 +99,12 @@ class AuditEvent:
     # itself, so a revocation is evidenced even when nothing was in flight
     # to be refused. Detail carries UUIDs and the grant version only.
     # routers/educator_passkeys.py: an administrator issued a teacher's
-    # passkey enrollment invitation. Detail carries the educator UUID and how
+    # passkey enrollment invitation (or, for RECOVERY_ISSUED, a lost-passkey
+    # recovery link). Detail carries the educator UUID and how
     # the one-time link was delivered (email | shown_to_admin), never the
     # link, the ticket, the token or the email address.
     EDUCATOR_INVITED           = "educator.passkey_invited"
+    EDUCATOR_RECOVERY_ISSUED   = "educator.passkey_recovery_issued"
     PILOT_GRANT_APPROVED       = "pilot.roster_grant_approved"
     PILOT_GRANT_REVOKED        = "pilot.roster_grant_revoked"
     PILOT_MEMBERSHIP_DISABLED  = "pilot.campus_membership_disabled"

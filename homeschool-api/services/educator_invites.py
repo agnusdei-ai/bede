@@ -105,7 +105,7 @@ async def issue_invitation(db, educator_id: str, email: str, *, recovery: bool =
     return True
 
 
-async def issue_invitation_for_admin(db, educator_id: str, email: str) -> str:
+async def issue_invitation_for_admin(db, educator_id: str, email: str, *, recovery: bool = False) -> str:
     """No outbound mail on this computer: commit the invitation and return
     its one-time link for the issuing administrator to hand over in person.
 
@@ -118,14 +118,17 @@ async def issue_invitation_for_admin(db, educator_id: str, email: str) -> str:
     response and nowhere else: never logged, never audited, never stored.
 
     Refuses when mail IS configured, so a configured install can never be
-    made to reveal a link it would otherwise have emailed.
+    made to reveal a link it would otherwise have emailed. With recovery=True
+    the same rules apply, plus issue_invitation's: the address must match the
+    educator's previously verified school mailbox, and consuming the ticket
+    disables every older passkey and ends every session.
     """
     address = _normalize_email(email)
     if email_configured():
         raise ValueError("Email delivery is configured; the invitation is emailed")
     if not settings.webauthn_origin.startswith("https://"):
         raise ValueError("HTTPS WebAuthn is required")
-    _ticket, url = await _add_ticket(db, educator_id, address, recovery=False)
+    _ticket, url = await _add_ticket(db, educator_id, address, recovery=recovery)
     # Commit before the link leaves this function: a concurrent duplicate's
     # IntegrityError surfaces here, and the losing request never sees a link.
     await db.commit()

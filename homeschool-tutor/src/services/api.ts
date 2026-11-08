@@ -1440,6 +1440,20 @@ export const invitePasskeyInstructor = (token: string, username: string, institu
   educatorApi<PasskeyInviteResult>('/auth/educator-passkey/invite',
     token, 'POST', { username, institutional_email })
 
+/** Lost-passkey recovery. Same delivery rules as the invite: emailed when
+ * mail is configured (`sent: true`, no link), otherwise the one-time link is
+ * returned once for the administrator to hand over in person. */
+export interface PasskeyRecoveryResult {
+  sent: boolean
+  delivery?: 'shown_to_admin'
+  enrollment_url?: string
+  expires_in_minutes?: number
+}
+
+export const recoverPasskeyInstructor = (token: string, educatorId: string, institutional_email: string) =>
+  educatorApi<PasskeyRecoveryResult>(`/auth/educator-passkey/recovery/${encodeURIComponent(educatorId)}`,
+    token, 'POST', { institutional_email })
+
 export interface EducatorPasskeySummary {
   id: string
   created_at: string

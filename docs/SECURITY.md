@@ -254,8 +254,23 @@ list as items are closed.
   the link is emailed and the response is byte-for-byte what it was.
   The risk the admin now carries is handing the link to the right person;
   they should do it in person, not paste it into a shared channel.
-  Recovery (`/recovery/{educator_id}`) still requires mail.
-  `tests/test_educator_invite_without_mail.py` (each guard verified by
+  Lost-passkey recovery (`POST /auth/educator-passkey/recovery/{educator_id}`,
+  "Replace a lost passkey" on `ClassroomSetup.tsx`) follows the same rules:
+  with mail configured it still answers `{"sent": true}` and only emails;
+  without, it returns the recovery link once to the same admin. It still
+  requires the educator's previously verified mailbox, and consuming the
+  ticket still disables every older passkey and ends every session. Its
+  audit row is `AuditEvent.EDUCATOR_RECOVERY_ISSUED` with the same
+  `educator=<uuid> delivery=...` detail. What is guaranteed is that no
+  response carries a link whose ticket was not committed first.
+  **Known limitation:** recovery has no unique index to lose a race on, so
+  concurrent (or repeated) recoveries for one teacher each get their own
+  valid, single-use, ten-minute link, exactly as each gets its own email
+  today. A newer recovery does not cancel an older unused one. Changing
+  that would change the email path too, so it is left as a separate
+  decision.
+  `tests/test_educator_invite_without_mail.py` and
+  `tests/test_educator_recovery_without_mail.py` (each guard verified by
   breaking it).
 
 - **A tablet's device id stood in for a child's identity (#761 follow-up) —

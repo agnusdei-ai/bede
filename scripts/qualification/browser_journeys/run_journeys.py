@@ -199,6 +199,15 @@ def main() -> int:
                 p.send_signal(signal.SIGTERM) if os.name != "nt" else p.terminate()
         (out / "journeys.db").unlink(missing_ok=True)
     sys.stdout.write((out / "journeys.log").read_text(encoding="utf-8", errors="replace"))
+    if rc:
+        # Artifacts are not always reachable by whoever reads the run, so a
+        # failing run also prints the end of the service logs it depended on.
+        # Synthetic data only; these logs carry no credentials.
+        for name in ("api.log", "stub.log", "preview.log"):
+            f = out / name
+            if f.exists():
+                tail = f.read_text(encoding="utf-8", errors="replace").splitlines()[-80:]
+                sys.stdout.write(f"\n===== last {len(tail)} lines of {name} =====\n" + "\n".join(tail) + "\n")
     return rc or 0
 
 

@@ -125,6 +125,22 @@ async function child(br, bname, i) {
       await step(who, 'lesson_turn_with_dropped_connection', () => sendChat(c, 'The river was the Nile.'));
       await c.unrouteAll({ behavior: 'ignoreErrors' });
       check(who, 'client_retry_recovers_dropped_connection', aborted === 1 && seen >= 2 && !/didn't reach me/.test(await c.locator('body').innerText()), `attempts=${seen} aborted=${aborted}`);
+    } else if (i === 1) {
+      // D-1 (#806): with the app's service worker in control, a one-second
+      // network drop while a turn is sent must still deliver the turn. The
+      // old worker answered the failed send with a fake 200 and the turn was
+      // lost with no message.
+      const controlled = await c.evaluate(async () => { await navigator.serviceWorker?.ready; return !!navigator.serviceWorker?.controller; });
+      check(who, 'service_worker_in_control', controlled);
+      await step(who, 'lesson_turn_through_network_blip', async () => {
+        const n = await replies(c); await inputReady(c);
+        const ta = c.locator('textarea').last(); await ta.fill('The river was the Nile.');
+        await ctx.setOffline(true); await ta.press('Enter');
+        await c.waitForTimeout(1000); await ctx.setOffline(false);
+        await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 60000 });
+        await inputReady(c);
+      });
+      check(who, 'turn_survives_network_blip_with_service_worker', true);
     } else {
       await step(who, 'lesson_turn_1', () => sendChat(c, 'The river was the Nile.'));
     }

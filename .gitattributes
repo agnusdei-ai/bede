@@ -1,0 +1,8 @@
+# Files whose exact bytes are checked at runtime. Git must never rewrite
+# their line endings: on Windows, core.autocrlf turns LF into CRLF on
+# checkout, the SHA-256 changes, and Bede refuses to start (constitution)
+# or consent acknowledgements stop matching (notices). Found by the first
+# real windows-2022 run of the cross-platform browser journeys.
+homeschool-api/constitution/*.json -text
+homeschool-api/data/consent_notice.txt -text
+homeschool-api/data/school_data_notice.txt -text

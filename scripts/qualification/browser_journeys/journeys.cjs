@@ -46,13 +46,24 @@ async function parentLogin(p) {
   await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
 }
+// The one-time "Meet Bede" introduction can take several seconds to render
+// on a slow runner. Wait for either its button or Bede's first message
+// rather than giving up after a fixed few seconds.
+async function passIntro(c) {
+  const go = c.getByRole('button', { name: "Let's begin!" });
+  for (let i = 0; i < 150; i++) {
+    if (await go.isVisible().catch(() => false)) { await go.click(); return; }
+    if (await c.evaluate(() => /STUB-TUTOR/.test(document.body.innerText)).catch(() => false)) return;
+    await c.waitForTimeout(200);
+  }
+}
 async function childLogin(c, name) {
   await c.goto(F.ui + '/?returnTo=' + encodeURIComponent('/session?student=' + name));
   await c.getByRole('button', { name: /Student/ }).first().click();
   const nm = c.getByPlaceholder('Emma'); if (await nm.count()) await nm.fill(name);
   await c.getByPlaceholder('Enter PIN').fill(F.learners[name]);
   await c.getByRole('button', { name: /Continue/ }).click(); await c.waitForURL(/session/, { timeout: 30000 });
-  const go = c.getByRole('button', { name: "Let's begin!" }); try { await go.waitFor({ timeout: 4000 }); await go.click(); } catch {}
+  await passIntro(c);
   await c.waitForFunction(() => /STUB-TUTOR/.test(document.body.innerText), null, { timeout: 60000 });
 }
 async function openCoach(p, learner, viaPodSave) {
@@ -156,7 +167,7 @@ async function child(br, bname, i) {
     await step(who, 'receive_approved_practice', async () => {
       for (let k = 0; k < 90 && !setId; k++) { const r = JSON.parse((await apiCall(c, `/practice/${encodeURIComponent(name)}/delivery`)).body || '[]'); if (Array.isArray(r) && r.length) setId = r[0].id; else await c.waitForTimeout(1000); }
       if (!setId) throw new Error('no approved set');
-      await c.reload(); const go = c.getByRole('button', { name: "Let's begin!" }); try { await go.waitFor({ timeout: 4000 }); await go.click(); } catch {}
+      await c.reload(); await passIntro(c);
       const chk = c.getByRole('button', { name: 'Check for approved practice' }); if (await chk.count()) await chk.click();
       await sec.waitFor({ timeout: 30000 });
     });
@@ -187,7 +198,7 @@ async function child(br, bname, i) {
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
     await c.reload(); if (!/session/.test(c.url()) || await c.getByPlaceholder('Enter PIN').count()) await childLogin(c, name);
-    else { const go = c.getByRole('button', { name: "Let's begin!" }); try { await go.waitFor({ timeout: 4000 }); await go.click(); } catch {} }
+    else { await passIntro(c); }
   }).catch(() => {});
   await step(who, 'lesson_turn_after_restart', () => sendChat(c, 'One more thing about Egypt.')).catch(() => {});
   if (setId) {

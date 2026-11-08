@@ -69,6 +69,18 @@ class SelectorTests(unittest.TestCase):
         plan = selector.select(self.root, ["CLAUDE.md"])
         self.assertEqual(plan["scopes"]["backend"]["tests"], ["tests/test_reads_guide.py"])
 
+    def test_backend_test_reading_a_folder_selects_files_in_it(self):
+        (self.root / "homeschool-api/tests/test_reads_locales.py").write_text(
+            'DIRS = ["demo/src/i18n/"]\n')
+        plan = selector.select(self.root, ["demo/src/i18n/locales/en.json"])
+        self.assertIn("tests/test_reads_locales.py", plan["scopes"]["backend"]["tests"])
+
+    def test_a_shallow_folder_mention_selects_nothing(self):
+        (self.root / "homeschool-api/tests/test_mentions_demo.py").write_text(
+            'NOTE = "see demo/ and demo/src/"\n')
+        plan = selector.select(self.root, ["demo/src/i18n/locales/en.json"])
+        self.assertNotIn("tests/test_mentions_demo.py", plan["scopes"]["backend"]["tests"])
+
     def test_unmapped_source_fails_closed(self):
         plan = selector.select(self.root, ["unknown-engine/x.go"])
         self.assertTrue(all(x["full"] for x in plan["scopes"].values()))

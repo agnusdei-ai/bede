@@ -206,10 +206,20 @@ def main() -> int:
     finally:
         ev(e="journeys_exit", rc=rc)
         (out / "events.json").write_text(json.dumps(EVENTS, indent=1))
-        for p in [api_state["proc"], *procs]:
-            if p and p.poll() is None:
-                p.send_signal(signal.SIGTERM) if os.name != "nt" else p.terminate()
-        (out / "journeys.db").unlink(missing_ok=True)
+        live = [p for p in [api_state["proc"], *procs] if p and p.poll() is None]
+        for p in live:
+            p.send_signal(signal.SIGTERM) if os.name != "nt" else p.terminate()
+        # Windows cannot delete a file another process still has open, so
+        # wait for the processes to exit before removing the database.
+        for p in live:
+            try:
+                p.wait(timeout=20)
+            except subprocess.TimeoutExpired:
+                p.kill()
+        try:
+            (out / "journeys.db").unlink(missing_ok=True)
+        except PermissionError as exc:
+            print(f"could not remove journeys.db: {exc}", flush=True)
     sys.stdout.write((out / "journeys.log").read_text(encoding="utf-8", errors="replace"))
     if rc:
         print_log_tails(out)

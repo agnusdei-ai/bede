@@ -247,6 +247,17 @@ Every harness setting also has a `QUAL_*` environment override in
 `scripts/qualification/qualconfig.py`, including the synthetic names, the
 forbidden-variable lists, the delivery markers, ports and timeouts.
 
+## Cross-platform browser journeys (Windows and Mac browsers)
+
+`.github/workflows/cross-platform-browser-journeys.yml` runs the family journeys in real browsers on real Windows and macOS runners: Google Chrome and Microsoft Edge on `windows-2022`, and Chrome, Edge and Playwright's WebKit on `macos-15`. WebKit is the engine Safari uses; it is not Safari, and results are labelled WebKit. Dispatch it with a full `candidate_sha`.
+
+`scripts/qualification/browser_journeys/run_journeys.py` starts the real `uvicorn main:app` on the runner (file-backed SQLite), the real app build under `vite preview`, and a loopback model stub that waits 0.5 to 3 seconds per call. It seeds one synthetic household through the API. `journeys.cjs` then runs every browser at once against that one service, with a parent device and a child device per browser: sign-in and session start, lesson turns, a Practice Coach upload, review, approval and delivery, the child's answer, a dropped connection on the first chat attempt (the client retry), a one-second network drop while a turn is sent with the app's service worker in control (D-1, fixed in #806), an API restart while a reply is streaming, and reopening afterwards to check what was saved. Uploads, approvals and answers start within the same few milliseconds. Each child also asks for a sibling's data and must be refused. Results, per-step timings (p50, p95, max) and screenshots of any failure are uploaded as an artifact.
+
+What it does not cover:
+- Windows and Mac clients against one service at the same time. The two runners cannot reach each other. The physical Mac session covers that by adding a Windows laptop as a client.
+- The production server shape (the Mac candidate's containers and Postgres).
+- Real Safari, Windows Hello or Touch ID passkeys, teacher screens, or any installer.
+
 ## G3 / Mac
 
 This **qualification workflow** does not build or certify a physical Mac package: `mac_package` accepts only `none`, and its manifest explicitly records `built: false` and `physical_mac_verification: NOT RUN`. A **separate** workflow, `.github/workflows/build-bede-operator.yml`, builds source-free architecture-specific operator archives; these also remain unqualified for G3 until actually installed and tested on the exact physical Mac. The owner follows [the G3 runbook](institutional/MAC_G3_CERTIFICATION_RUNBOOK.md) and records results in [the certification record](institutional/MAC_G3_CERTIFICATION_RECORD.md).

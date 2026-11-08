@@ -1,0 +1,104 @@
+name: Cross-platform browser journeys
+
+# Real Windows and macOS browsers driving the real Bede app against one local
+# service per runner: Google Chrome and Microsoft Edge on windows-2022 and
+# macos-15, plus Playwright's WebKit build on macos-15 (the Safari engine,
+# NOT Safari itself). All browsers on a runner run at the same time against
+# the same service. Synthetic data and a loopback model stub only.
+#
+# What this does NOT prove, stated so a green run is not over-read:
+# - Mixed Windows + Mac clients against ONE service. The two runners cannot
+#   reach each other; that check belongs to the physical Mac session.
+# - The production server shape. The API runs natively on the runner with
+#   SQLite, not in the Mac candidate's containers with Postgres.
+# - Real Safari, real passkeys (Windows Hello / Touch ID), or the Windows
+#   installer. See docs/SYNTHETIC_QUALIFICATION.md.
+#
+# Evidence is about one fixed candidate SHA, never a branch.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: 'Full 40-character commit SHA to test'
+        required: true
+  pull_request:
+    paths:
+      - 'scripts/qualification/browser_journeys/**'
+      - '.github/workflows/cross-platform-browser-journeys.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cross-platform-browser-journeys-${{ github.event.inputs.candidate_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  journeys:
+    name: Browser journeys (${{ matrix.os }}; ${{ matrix.browsers }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            browsers: chrome,msedge
+          - os: macos-15
+            browsers: chrome,msedge,webkit
+    env:
+      CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+      BROWSERS: ${{ matrix.browsers }}
+      PLAYWRIGHT_VERSION: '1.56.0'
+      EVIDENCE_DIR: ${{ runner.temp }}/bede-browser-journeys
+    steps:
+      - name: Validate candidate SHA
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "candidate_sha must be a full 40-character SHA"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install the API from the hash-pinned development lockfile
+        shell: bash
+        run: |
+          # uvloop has no Windows build and uvicorn does not use it there.
+          python - <<'PY'
+          import re, sys
+          text = open("homeschool-api/requirements-dev.lock.txt", encoding="utf-8").read()
+          if sys.platform == "win32":
+              text = re.sub(r"(?ms)^uvloop==.*?(?=^\S)", "", text)
+          open("lock-for-runner.txt", "w", encoding="utf-8").write(text)
+          PY
+          python -m pip install --require-hashes --no-deps -r lock-for-runner.txt
+      - name: Build the app UI
+        shell: bash
+        working-directory: homeschool-tutor
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Install pinned Playwright (drives the installed Chrome and Edge)
+        shell: bash
+        working-directory: scripts/qualification/browser_journeys
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+          if [[ ",$BROWSERS," == *",webkit,"* ]]; then npx playwright install webkit; fi
+      - name: Run concurrent journeys
+        shell: bash
+        run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --browsers "$BROWSERS" --out "$EVIDENCE_DIR"
+      - name: Preserve journey evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-browser-journeys-${{ matrix.os }}-${{ env.CANDIDATE_SHA }}
+          path: |
+            ${{ runner.temp }}/bede-browser-journeys/*.json
+            ${{ runner.temp }}/bede-browser-journeys/*.log
+            ${{ runner.temp }}/bede-browser-journeys/*.png
+          if-no-files-found: warn
+          retention-days: 14

@@ -46,13 +46,24 @@ async function parentLogin(p) {
   await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
 }
+// The one-time "Meet Bede" introduction can take several seconds to render
+// on a slow runner. Wait for either its button or Bede's first message
+// rather than giving up after a fixed few seconds.
+async function passIntro(c) {
+  const go = c.getByRole('button', { name: "Let's begin!" });
+  for (let i = 0; i < 150; i++) {
+    if (await go.isVisible().catch(() => false)) { await go.click(); return; }
+    if (await c.evaluate(() => /STUB-TUTOR/.test(document.body.innerText)).catch(() => false)) return;
+    await c.waitForTimeout(200);
+  }
+}
 async function childLogin(c, name) {
   await c.goto(F.ui + '/?returnTo=' + encodeURIComponent('/session?student=' + name));
   await c.getByRole('button', { name: /Student/ }).first().click();
   const nm = c.getByPlaceholder('Emma'); if (await nm.count()) await nm.fill(name);
   await c.getByPlaceholder('Enter PIN').fill(F.learners[name]);
   await c.getByRole('button', { name: /Continue/ }).click(); await c.waitForURL(/session/, { timeout: 30000 });
-  const go = c.getByRole('button', { name: "Let's begin!" }); try { await go.waitFor({ timeout: 4000 }); await go.click(); } catch {}
+  await passIntro(c);
   await c.waitForFunction(() => /STUB-TUTOR/.test(document.body.innerText), null, { timeout: 60000 });
 }
 async function openCoach(p, learner, viaPodSave) {
@@ -116,6 +127,12 @@ async function child(br, bname, i) {
   // The first child blocks the app's service worker so the #794 transport retry can be observed with route().
   const ctx = await br.newContext({ viewport: { width: 1180, height: 820 }, ...(first ? { serviceWorkers: 'block' } : {}) });
   const c = await ctx.newPage(); c.on('dialog', d => d.accept());
+  // Record what the browser itself reports, so an engine-specific failure
+  // (a WebKit page crash, a script error) is visible in the job log.
+  c.on('pageerror', err => console.log(`PAGEERROR ${who}: ${String(err).slice(0, 300)}`));
+  c.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log(`CONSOLE ${who} ${m.type()}: ${m.text().slice(0, 300)}`); });
+  c.on('crash', () => console.log(`CRASH ${who} at ${c.url()}`));
+  c.on('requestfailed', r => console.log(`REQFAIL ${who} ${r.method()} ${r.url().replace(/^https?:\/\/[^/]+/, '')} ${r.failure()?.errorText || ''}`));
   let setId = null;
   try {
     await step(who, 'sign_in_and_session_start', () => childLogin(c, name));
@@ -156,7 +173,7 @@ async function child(br, bname, i) {
     await step(who, 'receive_approved_practice', async () => {
       for (let k = 0; k < 90 && !setId; k++) { const r = JSON.parse((await apiCall(c, `/practice/${encodeURIComponent(name)}/delivery`)).body || '[]'); if (Array.isArray(r) && r.length) setId = r[0].id; else await c.waitForTimeout(1000); }
       if (!setId) throw new Error('no approved set');
-      await c.reload(); const go = c.getByRole('button', { name: "Let's begin!" }); try { await go.waitFor({ timeout: 4000 }); await go.click(); } catch {}
+      await c.reload(); await passIntro(c);
       const chk = c.getByRole('button', { name: 'Check for approved practice' }); if (await chk.count()) await chk.click();
       await sec.waitFor({ timeout: 30000 });
     });
@@ -167,7 +184,11 @@ async function child(br, bname, i) {
       const r = await o; if (r.status() !== 200) throw new Error('outcome ' + r.status());
       await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 90000 });
     });
-  } catch (e) { check(who, 'journey_completed', false, e.message); await c.screenshot({ path: path.join(OUT, `fail-${who}.png`), fullPage: true }).catch(() => {}); release(['start', 'overlap']); }
+  } catch (e) {
+    // Screenshots live in an artifact not every reader can download, so say what was on screen.
+    const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+    console.log(`SCREEN ${who} at ${c.url()}: ${screen}`);
+    check(who, 'journey_completed', false, e.message); await c.screenshot({ path: path.join(OUT, `fail-${who}.png`), fullPage: true }).catch(() => {}); release(['start', 'overlap']); }
   barrier('answer_done');
   if (first) {
     // Restart the service while this child's reply is streaming.
@@ -183,16 +204,16 @@ async function child(br, bname, i) {
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
     await c.reload(); if (!/session/.test(c.url()) || await c.getByPlaceholder('Enter PIN').count()) await childLogin(c, name);
-    else { const go = c.getByRole('button', { name: "Let's begin!" }); try { await go.waitFor({ timeout: 4000 }); await go.click(); } catch {} }
+    else { await passIntro(c); }
   }).catch(() => {});
   await step(who, 'lesson_turn_after_restart', () => sendChat(c, 'One more thing about Egypt.')).catch(() => {});
-  if (setId) {
+  if (setId) try {
     const r = JSON.parse((await apiCall(c, `/practice/${encodeURIComponent(name)}/delivery`)).body || '[]').find(x => x.id === setId);
     check(who, 'answer_persisted_after_restart', r && r.completed_indices.length >= 1, JSON.stringify(r?.completed_indices));
     const again = await apiCall(c, `/practice/${encodeURIComponent(name)}/sets/${setId}/outcomes`, 'POST', { item_index: r?.completed_indices?.[0] ?? 0, response: 'pharaoh' });
     check(who, 'answer_retry_is_idempotent', again.status === 200 && /"already_recorded":\s*true/.test(again.body), `${again.status} ${again.body.slice(0, 80)}`);
-  }
-  await ctx.close();
+  } catch (e) { check(who, 'answer_persisted_after_restart', false, e.message); }
+  await ctx.close().catch(() => {});
 }
 
 function pct(a, q) { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : null; }

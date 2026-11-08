@@ -67,10 +67,15 @@ jobs:
       - name: Install the API from the hash-pinned development lockfile
         shell: bash
         run: |
-          # uvloop has no Windows build and uvicorn does not use it there.
+          # The lockfile is resolved on Linux. torch's CUDA dependencies
+          # (nvidia-*, cuda-*, triton) are Linux-only and carry no platform
+          # marker, so they are dropped on macOS and Windows. uvloop has no
+          # Windows build and uvicorn does not use it there.
           python - <<'PY'
           import re, sys
           text = open("homeschool-api/requirements-dev.lock.txt", encoding="utf-8").read()
+          if sys.platform != "linux":
+              text = re.sub(r"(?ms)^(?:nvidia-[^=\s]+|cuda-[^=\s\[]+(?:\[[^\]]*\])?|triton)==.*?(?=^\S)", "", text)
           if sys.platform == "win32":
               text = re.sub(r"(?ms)^uvloop==.*?(?=^\S)", "", text)
           open("lock-for-runner.txt", "w", encoding="utf-8").write(text)

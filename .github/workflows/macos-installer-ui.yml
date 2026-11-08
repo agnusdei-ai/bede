@@ -33,6 +33,16 @@ jobs:
           grep -F "BedeUninstall.sh" packaging/macos/build-app.sh
           grep -F "BedeUninstall.sh" packaging/macos/BedeInstallerApp.swift
           bash -n packaging/macos/uninstall.sh
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Mac path records the installed Ollama model for .env (macOS bash 3.2)
+        env:
+          BEDE_TEST_BASH: /bin/bash
+        run: |
+          python -m pip install 'pycryptodome==4.0.1' 'pytest==8.4.2'
+          /bin/bash -n packaging/bundle/record-local-ai.sh
+          python -m pytest -q scripts/setup_wizard/test_wizard.py -k "mac_ or start_sh or hand_entered"
       - name: Confirm release is NOT certified by compilation
         run: echo "Compile-only check; signed DMG, payload provisioning and physical Mac evidence remain required."
 

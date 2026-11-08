@@ -994,3 +994,145 @@ def test_submitted_feature_choices_reach_env(running_wizard):
     env = open(wizard.ENV_PATH).read()
     assert "PRACTICE_COACH_ENABLED=false\n" in env
     assert "CURRICULUM_ENGINE_ENABLED=true\n" in env
+
+
+# ── Mac DMG path: the Ollama model on the Mac must reach .env ───────────────
+# The Mac app runs packaging/bundle/start.sh, which previously wrote no
+# local-ai.json, so LOCAL_LLM_MODEL fell back to docker-compose.yml's vLLM
+# default that no Ollama serves. These drive the REAL helper against a fake
+# Ollama /api/tags, then the REAL wizard over HTTP, so the whole chain
+# (detect -> marker -> wizard -> .env) is one assertion.
+import subprocess
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer as _Srv
+from pathlib import Path as _Path
+
+_REPO_ROOT = _Path(__file__).resolve().parents[2]
+_HELPER = _REPO_ROOT / "packaging" / "bundle" / "record-local-ai.sh"
+_GIB = 1073741824
+
+
+def _fake_ollama(models):
+    payload = json.dumps({"models": [{"name": m, "model": m} for m in models]}).encode()
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path != "/api/tags":
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, *a):
+            pass
+
+    srv = _Srv(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def _run_helper(bundle_dir, url, ram_gib=16):
+    env = {**os.environ, "BEDE_OLLAMA_URL": url, "BEDE_HOST_RAM_BYTES": str(ram_gib * _GIB)}
+    # macOS CI sets BEDE_TEST_BASH=/bin/bash so the helper is exercised under
+    # the bash 3.2 the Mac app actually runs it with.
+    shell = os.environ.get("BEDE_TEST_BASH", "bash")
+    subprocess.run([shell, str(_HELPER), str(bundle_dir)], env=env, check=True, timeout=20)
+    marker = _Path(bundle_dir) / wizard.LOCAL_AI_MARKER_NAME
+    return json.loads(marker.read_text()) if marker.exists() else None
+
+
+@pytest.mark.parametrize("installed,ram,expected", [
+    (["llama3.2:latest", "qwen3:4b"], 16, "qwen3:4b"),   # recommended wins over others
+    (["qwen3:8b"], 16, "qwen3:8b"),                     # the only model there
+    (["qwen3:1.7b", "qwen3:4b"], 8, "qwen3:1.7b"),      # same tiers as install.sh
+    (["a:1", "b:2"], 16, None),                         # ambiguous: guess nothing
+    ([], 16, None),
+])
+def test_mac_helper_records_the_installed_model(tmp_path, installed, ram, expected):
+    srv = _fake_ollama(installed)
+    try:
+        marker = _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}", ram)
+    finally:
+        srv.shutdown()
+    if expected is None:
+        assert marker is None
+    else:
+        assert marker == {"base_url": "http://host.docker.internal:11434/v1", "model": expected}
+
+
+def test_mac_helper_writes_nothing_and_clears_stale_marker_without_ollama(tmp_path):
+    _write_local_ai_marker(tmp_path, model="gone:1b")
+    assert _run_helper(tmp_path, "http://127.0.0.1:9") is None
+
+
+def test_mac_helper_never_records_an_env_injecting_model_name(tmp_path):
+    srv = _fake_ollama(["bad\nLICENSE_KEY=x"])
+    try:
+        assert _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}") is None
+    finally:
+        srv.shutdown()
+
+
+def test_mac_detected_model_reaches_env_through_the_real_wizard(running_wizard, tmp_path):
+    srv = _fake_ollama(["qwen3:4b"])
+    try:
+        _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}")
+    finally:
+        srv.shutdown()
+    body = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'value="local_auto" onclick="showProvider(\'local_auto\')" checked' in body
+    _post(running_wizard, {
+        "provider": "local_auto",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": TEST_PIN,
+        "license_key": MOCK_ENTITLEMENT,
+    })
+    env = open(wizard.ENV_PATH).read()
+    assert "LOCAL_LLM_MODEL=qwen3:4b" in env
+    assert "LOCAL_LLM_BASE_URL=http://host.docker.internal:11434/v1" in env
+    assert "Qwen/Qwen3-Coder" not in env
+
+
+def test_start_sh_records_the_model_on_mac_only_before_env_exists():
+    """Invocation guard: the helper is useless unless start.sh calls it, on
+    macOS, inside the no-.env branch (so an upgrade never overrides a saved
+    choice), BEFORE the wizard container starts, and the bundle ships it."""
+    script = (_REPO_ROOT / "packaging" / "bundle" / "start.sh").read_text()
+    branch = script.index('if [[ ! -s .env ]]; then')
+    call = script.index("bash ./record-local-ai.sh")
+    wizard_run = script.index("docker run --rm --network bridge")
+    assert branch < call < wizard_run
+    assert 'uname -s)" = Darwin' in script[branch:call]
+    builder = (_REPO_ROOT / "packaging" / "build_operator_bundle.py").read_text()
+    assert '"record-local-ai.sh", out / "record-local-ai.sh"' in builder
+
+
+def test_hand_entered_local_model_reaches_env(running_wizard):
+    _post(running_wizard, {
+        "provider": "local",
+        "local_base_url": "http://host.docker.internal:11434/v1",
+        "local_model": "qwen3:4b",
+        "db_choice": "local",
+        "parent_password": "parentpass123",
+        "child_pin": TEST_PIN,
+        "license_key": MOCK_ENTITLEMENT,
+    })
+    assert "LOCAL_LLM_MODEL=qwen3:4b" in open(wizard.ENV_PATH).read()
+
+
+def test_hand_entered_local_model_cannot_inject_env_lines(running_wizard):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "provider": "local",
+            "local_base_url": "http://gpu-box.lan:8000/v1",
+            "local_model": "qwen3:4b\nLICENSE_KEY=forged",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": TEST_PIN,
+            "license_key": MOCK_ENTITLEMENT,
+        })
+    assert exc_info.value.code == 400
+    assert not os.path.exists(wizard.ENV_PATH)

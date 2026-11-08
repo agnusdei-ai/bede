@@ -420,6 +420,9 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append('<label>Your model server\'s address</label>')
     body.append('<div class="hint">The OpenAI-compatible /v1 endpoint URL, e.g. http://your-gpu-box.lan:8000/v1</div>')
     body.append(f'<input type="text" name="local_base_url" value="{html.escape(v.get("local_base_url", ""))}" placeholder="http://your-gpu-box.lan:8000/v1">')
+    body.append('<label>Model name (optional)</label>')
+    body.append('<div class="hint">The exact name your model service serves, e.g. qwen3:4b for Ollama. Leave blank to use Bede\'s default.</div>')
+    body.append(f'<input type="text" name="local_model" value="{html.escape(v.get("local_model", ""))}" placeholder="qwen3:4b">')
     body.append('</div>')
 
     body.append("""
@@ -609,8 +612,14 @@ _PROVIDER_ENV_LINES = {
     "anthropic": lambda f: f"ANTHROPIC_API_KEY={f['anthropic_key']}\n",
     "openai": lambda f: f"OPENAI_API_KEY={f['openai_key']}\n",
     "mistral": lambda f: f"MISTRAL_API_KEY={f['mistral_key']}\n",
-    "local": lambda f: f"LOCAL_LLM_BASE_URL={f['local_base_url']}\n",
+    "local": lambda f: f"LOCAL_LLM_BASE_URL={f['local_base_url']}\n" + (
+        f"LOCAL_LLM_MODEL={f['local_model'].strip()}\n" if f.get("local_model", "").strip() else ""
+    ),
 }
+
+# Same rule _read_local_ai_marker() applies to a marker's model: a model name
+# must never be able to carry a newline (another .env assignment) into .env.
+_LOCAL_MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}")
 _PROVIDER_FIELD_NAMES = {
     "anthropic": "anthropic_key",
     "openai": "openai_key",
@@ -832,6 +841,9 @@ def validate(fields: dict) -> str:
         field_name = _PROVIDER_FIELD_NAMES[provider]
         if not fields.get(field_name, "").strip():
             return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
+        local_model = fields.get("local_model", "").strip()
+        if provider == "local" and local_model and not _LOCAL_MODEL_RE.fullmatch(local_model):
+            return "Enter the model name exactly as your model service lists it (letters, numbers, and . _ : / - only)."
     if fields.get("db_choice") == "managed" and not fields.get("database_url", "").strip():
         return "Please enter your database connection string, or choose \"On this computer\" instead."
     if len(fields.get("parent_password", "")) < 12:

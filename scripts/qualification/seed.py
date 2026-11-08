@@ -35,6 +35,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import qualconfig as cfg  # noqa: E402
 from harness import Api, Driver, HarnessError  # noqa: E402
 
+import httpx  # noqa: E402
+
+# A keyed create retried after a lost response; the key makes it a replay.
+CREATE_ATTEMPTS = 3
+
 
 class NotSynthetic(ValueError):
     pass
@@ -73,15 +78,30 @@ class Seeder:
         self.driver = driver
         self.env = env
         self.fx = Fixture(mode=env.get("QUAL_TEACHER_AUTH_MODE", cfg.TEACHER_AUTH_MODE))
+        # One Idempotency-Key per create operation, minted the first time the
+        # operation is attempted and reused by every retry of it (a lost
+        # response, or the seeding step run again by the same seeder), so a
+        # retry replays the original campus or learner instead of a second.
+        self._idempotency_keys: dict[str, str] = {}
 
     # ── helpers ──────────────────────────────────────────────────────────────
+    def idempotency_key(self, label: str) -> str:
+        return self._idempotency_keys.setdefault(label, str(uuid.uuid4()))
+
     def _step(self, label: str, method: str, path: str, token: str | None = None,
               body: dict | None = None, expect: tuple = (200, 201, 202, 204),
               idempotent: bool = False):
-        # A create step sends a fresh Idempotency-Key, so a retried submission
-        # can never mint a second campus or learner.
-        extra = {"Idempotency-Key": str(uuid.uuid4())} if idempotent else None
-        r = self.api.call(method, path, token, body, extra_headers=extra)
+        extra = {"Idempotency-Key": self.idempotency_key(label)} if idempotent else None
+        attempts = CREATE_ATTEMPTS if idempotent else 1
+        for attempt in range(1, attempts + 1):
+            try:
+                r = self.api.call(method, path, token, body, extra_headers=extra)
+                break
+            except httpx.TransportError:
+                # No response arrived, so the create may or may not have
+                # happened; only a keyed create is safe to send again.
+                if attempt == attempts:
+                    raise
         self.fx.steps.append({"step": label, "method": method, "route": path,
                               "status": r.status_code, "ok": r.status_code in expect})
         if r.status_code not in expect:

@@ -38,7 +38,10 @@ export function toBase64Payload(dataUrl: string): string {
   return comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl
 }
 
-export function isFlagged(item: { confidence: number; ask_parent?: string | null }): boolean {
+/** Mirrors AssessmentItem.needs_parent: a question the parent left out is
+ *  settled by leaving it out. */
+export function isFlagged(item: { confidence: number; ask_parent?: string | null; excluded?: boolean }): boolean {
+  if (item.excluded) return false
   return Boolean(item.ask_parent) || item.confidence < CONFIDENCE_FLOOR
 }
 
@@ -47,7 +50,7 @@ export function flaggedCount(a: GradedAssessment): number {
 }
 
 export function teacherCount(a: GradedAssessment) {
-  const marked = a.sections.flatMap((s) => s.items).filter((i) => i.teacher_mark !== 'unmarked')
+  const marked = a.sections.flatMap((s) => s.items).filter((i) => !i.excluded && i.teacher_mark !== 'unmarked')
   return { correct: marked.filter((i) => i.teacher_mark === 'correct').length, total: marked.length }
 }
 
@@ -298,10 +301,32 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                     {section.items.map((item, ii) => {
                       const flagged = isFlagged(item)
                       const label = `${section.label} #${item.number}`
+                      if (item.excluded) {
+                        // Left out because it was read wrongly: shown so the parent
+                        // can see it and put it back, never diagnosed or planned.
+                        return (
+                          <li key={item.number} data-excluded className="rounded-lg bg-gray-50 p-2 text-gray-500">
+                            <p className="text-xs line-through">{item.number}. {item.prompt}</p>
+                            <p className="mt-1 text-xs">{t('practiceCoach.leftOut')}</p>
+                            <button type="button" onClick={() => editItem(si, ii, { excluded: false })}
+                              aria-label={t('practiceCoach.putBackFor', { item: label })}
+                              className="mt-1 rounded bg-white px-2 py-1 text-xs font-medium text-navy-800 ring-1 ring-navy-100">
+                              {t('practiceCoach.putBack')}
+                            </button>
+                          </li>
+                        )
+                      }
                       return (
                         <li key={item.number} data-flagged={flagged || undefined}
                           className={`rounded-lg p-2 ${flagged ? 'bg-gold-50 ring-1 ring-gold-300' : 'bg-parchment-50'}`}>
-                          <p className="text-xs text-gray-600">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? <span className="italic text-gray-500"> ({pictureWords(item.stimulus)})</span> : null}</p>
+                          <div className="flex items-start gap-2">
+                            <p className="flex-1 text-xs text-gray-600">{item.number}. {item.prompt}{item.stimulus && !item.diagram ? <span className="italic text-gray-500"> ({pictureWords(item.stimulus)})</span> : null}</p>
+                            <button type="button" onClick={() => editItem(si, ii, { excluded: true })}
+                              aria-label={t('practiceCoach.leaveOutFor', { item: label })}
+                              className="shrink-0 text-xs text-madder-700 underline">
+                              {t('practiceCoach.leaveOut')}
+                            </button>
+                          </div>
                           <Diagram d={item.diagram} />
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <input value={item.student_response ?? ''} aria-label={t('practiceCoach.answerFor', { item: label })}

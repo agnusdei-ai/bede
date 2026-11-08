@@ -773,6 +773,11 @@
     "correction": "Corrección del maestro",
     "unsure": "No estamos seguros de haberlo leído bien.",
     "looksRight": "Está bien",
+    "leaveOut": "Dejar fuera esta pregunta",
+    "leaveOutFor": "Dejar fuera {{item}}",
+    "putBack": "Volver a incluirla",
+    "putBackFor": "Volver a incluir {{item}}",
+    "leftOut": "Fuera. Bede no revisará ni practicará esta pregunta. Si la pregunta misma se leyó mal, también puede empezar de nuevo con una foto más clara.",
     "mark": {
       "correct": "Correcta",
       "incorrect": "Incorrecta",

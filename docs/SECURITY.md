@@ -151,6 +151,23 @@ list as items are closed.
   The license server Worker is now part of that same exposure: an
   internet-facing surface with its own webhook verification, rate limits,
   and signing key, untested until an engagement covers it.
+- **Pilot campus and learner creation is idempotent only when the caller
+  sends a key.** `POST /pilot/campuses` and
+  `POST /pilot/campuses/{id}/learners` (`routers/pilot_campuses.py`) replay
+  the original result for a repeated `Idempotency-Key`, but a request with
+  no key keeps the earlier behaviour on purpose (owner ruling 2026-11-08,
+  for compatibility): retrying a keyless create after a lost response, or
+  sending it twice at once, can create a duplicate campus or learner, which
+  an administrator then disables by hand. Every pilot path that creates
+  these sends a key that is stable across its own retries: the
+  qualification seeder (`scripts/qualification/seed.py`, also used by
+  `mac_check.py`) mints one per create operation and reuses it when it
+  retries a lost response or runs the seeding step again
+  (`test_seeding_reuses_one_idempotency_key_across_retries_of_the_same_create`).
+  No app screen or installer creates campuses or learners today; one that
+  does must generate the key once per submission, not per attempt. The test
+  harness `tests/g1_harness.py` deliberately calls without a key, against a
+  fresh database with no retries.
 - **Parent MFA is opt-in, not required.** WebAuthn/TOTP only gate login once
   a parent has separately enrolled a method (`services/mfa_service.py`) — a
   family that never visits MFA setup runs single-factor (password only) on

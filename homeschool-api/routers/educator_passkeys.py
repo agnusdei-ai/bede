@@ -23,7 +23,10 @@ from core.middleware import compute_fingerprint
 from core.security import create_access_token
 from models.schemas import TokenResponse
 from services.educator_access import normalize_username, provision_educator
-from services.educator_invites import issue_invitation, validate_invitation, _normalize_email, _digest
+from services.educator_invites import (
+    INVITATION_TTL, issue_invitation, issue_invitation_for_admin, validate_invitation,
+    _normalize_email, _digest,
+)
 from services import educator_passkey_runtime as passkeys
 from services.email_service import email_configured
 
@@ -72,11 +75,16 @@ def _enabled() -> None:
 async def invite_educator(
     body: InviteRequest, admin: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
     _enabled()
     _require_strong_admin(admin)
-    if not email_configured():
-        raise HTTPException(status_code=503, detail="Verified school invitation delivery is not configured")
+    # Owner decision 2026-11-08: with no outbound mail configured (no
+    # RESEND_API_KEY, or the placeholder from-address), the one-time link is
+    # shown once to this administrator instead of failing. With mail
+    # configured nothing below changes: the link is emailed and never returned.
+    show_to_admin = not email_configured()
+    enrollment_url: str | None = None
     try:
         school_email = _normalize_email(str(body.institutional_email))
         username = normalize_username(body.username)
@@ -97,7 +105,11 @@ async def invite_educator(
         created = await provision_educator(
             db, username, secrets.token_urlsafe(48), commit=False,
         )
-        ok = await issue_invitation(db, created["id"], school_email)
+        if show_to_admin:
+            enrollment_url = await issue_invitation_for_admin(db, created["id"], school_email)
+            ok = True
+        else:
+            ok = await issue_invitation(db, created["id"], school_email)
     except ValueError as exc:
         await db.rollback()
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -122,6 +134,25 @@ async def invite_educator(
         # issue_invitation rolls back a failed send, including the new account.
         await db.rollback()
         raise HTTPException(status_code=503, detail="School invitation delivery failed")
+    delivery = "shown_to_admin" if show_to_admin else "email"
+    # The audit row names the educator and the delivery route only. Never
+    # the link, ticket, token or mailbox.
+    log_event_nowait(
+        AuditEvent.EDUCATOR_INVITED, role="parent", success=True,
+        detail=f"educator={created['id']} delivery={delivery}",
+        **(audit_from_request(request) if request is not None else {}),
+    )
+    if show_to_admin:
+        minutes = int(INVITATION_TTL.total_seconds() // 60)
+        return {
+            "sent": False,
+            "delivery": "shown_to_admin",
+            "username": username,
+            "enrollment_url": enrollment_url,
+            "expires_in_minutes": minutes,
+            "message": ("Email isn't set up on this computer. Give this link to the "
+                        f"teacher in person. It works once and expires in {minutes} minutes."),
+        }
     return {"sent": True, "username": username, "message": "Passkey invite sent to verified school mailbox"}
 
 
@@ -130,17 +161,48 @@ async def recover_educator(
     educator_id: str, body: RecoveryRequest,
     admin: dict = Depends(require_elevated_parent),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
     _enabled()
     _require_strong_admin(admin)
     # A real campus administrator must independently confirm staff identity
     # and continued school affiliation before triggering this route.
+    # Same owner decision as the invite: with no outbound mail, the one-time
+    # recovery link is shown once to this administrator instead of failing.
+    show_to_admin = not email_configured()
     try:
-        ok = await issue_invitation(db, educator_id, str(body.institutional_email), recovery=True)
+        if show_to_admin:
+            recovery_url = await issue_invitation_for_admin(
+                db, educator_id, str(body.institutional_email), recovery=True,
+            )
+            ok = True
+        else:
+            ok = await issue_invitation(db, educator_id, str(body.institutional_email), recovery=True)
     except ValueError:
+        await db.rollback()
         raise HTTPException(status_code=422, detail="School recovery criteria were not satisfied")
+    except Exception:
+        await db.rollback()
+        raise
     if not ok:
         raise HTTPException(status_code=503, detail="Recovery notice could not be delivered")
+    delivery = "shown_to_admin" if show_to_admin else "email"
+    # Educator UUID and delivery route only; never the link, ticket or mailbox.
+    log_event_nowait(
+        AuditEvent.EDUCATOR_RECOVERY_ISSUED, role="parent", success=True,
+        detail=f"educator={educator_id} delivery={delivery}",
+        **(audit_from_request(request) if request is not None else {}),
+    )
+    if show_to_admin:
+        minutes = int(INVITATION_TTL.total_seconds() // 60)
+        return {
+            "sent": False,
+            "delivery": "shown_to_admin",
+            "enrollment_url": recovery_url,
+            "expires_in_minutes": minutes,
+            "message": ("Email isn't set up on this computer. Give this link to the "
+                        f"teacher in person. It works once and expires in {minutes} minutes."),
+        }
     return {"sent": True}
 
 

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { UserPlus, Users, ShieldCheck, ArrowLeft } from 'lucide-react'
+import { UserPlus, Users, ShieldCheck, ArrowLeft, Copy } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig } from '../types'
 import {
   assignInstructorRoster, disableInstructor, fetchEducatorPilotMode, fetchInstructors,
-  invitePasskeyInstructor,
+  invitePasskeyInstructor, recoverPasskeyInstructor,
 } from '../services/api'
 import type { InstructorAccount, LocutoCapacity } from '../services/api'
 
@@ -38,6 +38,8 @@ function parseRoster(text: string): SessionConfig[] {
   })
 }
 
+interface Handover { url: string; minutes: number; username: string; kind: 'invite' | 'recovery' }
+
 export default function ClassroomSetup() {
   const navigate = useNavigate()
   const token = useSessionStore((s) => s.token)
@@ -50,6 +52,12 @@ export default function ClassroomSetup() {
   const [capacity, setCapacity] = useState<LocutoCapacity | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  // A one-time enrollment link, shown only when this computer has no
+  // outbound mail. Component state only: never localStorage/sessionStorage,
+  // and cleared on the next invite, on Done, or when the page is left.
+  const [handover, setHandover] = useState<Handover | null>(null)
+  const [recoveryEmail, setRecoveryEmail] = useState('')
+  const [copied, setCopied] = useState(false)
 
   const refresh = async () => {
     if (!token) return
@@ -77,11 +85,22 @@ export default function ClassroomSetup() {
     if (!token || busy) return
     setBusy(true)
     setMessage('')
+    setHandover(null)
+    setCopied(false)
     try {
       const result = await invitePasskeyInstructor(token, username, institutionalEmail)
       setUsername('')
       setInstitutionalEmail('')
-      setMessage(`Passkey invitation sent to the school mailbox for ${result.username}.`)
+      if (result.delivery === 'shown_to_admin' && result.enrollment_url) {
+        setHandover({
+          url: result.enrollment_url,
+          minutes: result.expires_in_minutes ?? 10,
+          username: result.username,
+          kind: 'invite',
+        })
+      } else {
+        setMessage(`Passkey invitation sent to the school mailbox for ${result.username}.`)
+      }
       const rows = await fetchInstructors(token)
       setEducators(rows)
       setSelectedId(rows.find(e => e.username === result.username)?.id ?? rows[0]?.id ?? '')
@@ -108,6 +127,59 @@ export default function ClassroomSetup() {
       setBusy(false)
     }
   }
+
+  const recover = async () => {
+    if (!token || !selectedId || busy) return
+    const teacher = educators.find(e => e.id === selectedId)
+    setBusy(true)
+    setMessage('')
+    setHandover(null)
+    setCopied(false)
+    try {
+      const result = await recoverPasskeyInstructor(token, selectedId, recoveryEmail)
+      setRecoveryEmail('')
+      if (result.delivery === 'shown_to_admin' && result.enrollment_url) {
+        setHandover({
+          url: result.enrollment_url,
+          minutes: result.expires_in_minutes ?? 10,
+          username: teacher?.username ?? '',
+          kind: 'recovery',
+        })
+      } else {
+        setMessage('Passkey recovery link sent to the school mailbox.')
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not issue a recovery link')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handoverBox = handover && (
+    <div role="alert" className="bg-amber-50 border border-amber-300 rounded-xl p-3 text-sm space-y-2">
+      <p>
+        Email isn't set up on this computer. Give this link to the teacher in person.
+        It works once and expires in {handover.minutes} minutes.
+      </p>
+      <p className="text-xs text-gray-600">
+        {handover.kind === 'recovery' ? 'Recovery link' : 'Enrollment link'} for {handover.username}
+      </p>
+      <input readOnly aria-label="Enrollment link" value={handover.url}
+        onFocus={e => e.currentTarget.select()}
+        className="block w-full border rounded-lg p-2 font-mono text-xs bg-white" />
+      <div className="flex gap-3 items-center">
+        <button type="button" className="border border-navy-300 text-navy-800 px-3 py-1.5 rounded-lg"
+          onClick={() => {
+            void navigator.clipboard?.writeText(handover.url)
+              .then(() => setCopied(true), () => setCopied(false))
+          }}>
+          <Copy size={14} className="inline mr-1"/> {copied ? 'Copied' : 'Copy link'}
+        </button>
+        <button type="button" className="text-navy-700 underline"
+          onClick={() => { setHandover(null); setCopied(false) }}>Done</button>
+      </div>
+    </div>
+  )
 
   const revoke = async () => {
     if (!token || !selectedId || busy ||
@@ -143,7 +215,7 @@ export default function ClassroomSetup() {
 
         <section className="bg-white border rounded-2xl p-5 space-y-3">
           <h2 className="font-semibold flex items-center gap-2"><ShieldCheck size={18}/> Add an instructor</h2>
-          <p className="text-xs text-gray-600">Requires a strongly authenticated Bede administrator using a registered passkey. A one-use enrollment invitation is delivered only to the approved school mailbox. No password or TOTP secret is shared.</p>
+          <p className="text-xs text-gray-600">Requires a strongly authenticated Bede administrator using a registered passkey. A one-use enrollment invitation is delivered only to the approved school mailbox, or, if email isn't set up on this computer, shown once here for you to give the teacher in person. No password or TOTP secret is shared.</p>
           <label className="block text-sm">Instructor username
             <input autoComplete="off" value={username} onChange={e => setUsername(e.target.value)}
               className="mt-1 block border rounded-lg p-2 w-full" placeholder="instructor.name" />
@@ -158,6 +230,7 @@ export default function ClassroomSetup() {
             onClick={() => void enroll()} className="bg-navy-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">
             <UserPlus size={15} className="inline mr-1"/> Send passkey invitation
           </button>
+          {handover?.kind === 'invite' && handoverBox}
         </section>
 
         <section className="bg-white border rounded-2xl p-5 space-y-3">
@@ -181,6 +254,21 @@ export default function ClassroomSetup() {
               className="bg-navy-600 text-white px-4 py-2 rounded-lg disabled:opacity-50">Save authorized roster</button>
             <button type="button" disabled={busy || !selectedId} onClick={() => void revoke()}
               className="border border-red-300 text-red-700 px-4 py-2 rounded-lg disabled:opacity-50">Disable instructor</button>
+          </div>
+          <div className="border-t pt-3 space-y-2">
+            <h3 className="text-sm font-semibold">Replace a lost passkey</h3>
+            <p className="text-xs text-gray-600">Confirm the teacher's identity and school affiliation yourself first. Using the new link turns off the teacher's old passkeys and signs out their sessions.</p>
+            <label className="block text-sm">The teacher's school email (the one they were invited with)
+              <input type="email" autoComplete="off" value={recoveryEmail}
+                onChange={e => setRecoveryEmail(e.target.value)}
+                className="mt-1 block border rounded-lg p-2 w-full" placeholder="teacher@school.example" />
+            </label>
+            <button type="button" disabled={!pilotMode || busy || !selectedId || !recoveryEmail.includes('@')}
+              onClick={() => void recover()}
+              className="border border-navy-300 text-navy-800 px-4 py-2 rounded-lg disabled:opacity-50">
+              Issue recovery link
+            </button>
+            {handover?.kind === 'recovery' && handoverBox}
           </div>
           {capacity && <p className="text-xs text-gray-600">
             Locuto capacity planning: {capacity.groups.length} potential Pods, each at most {capacity.maximum_members} people, including instructor. Messaging integration is NOT connected or enabled; no roster details are transmitted.

@@ -76,7 +76,9 @@ this pilot setup until an authorized migration/reconfiguration route exists.
    pilot mode and verified invitation delivery are configured securely;
    the basic wizard does not yet provision institution/educator identities.
 2. Invite an authorized synthetic instructor to a verified test mailbox.
-   Complete Bede's single-use invitation on the older Mac.
+   Complete Bede's single-use invitation on the older Mac. If email isn't
+   set up on the Mac mini, the invite screen shows the link once instead;
+   open it on the older Mac within ten minutes.
 3. At the passkey prompt, use built-in Touch ID only if supported and offered.
    Otherwise select the browser's offered **Other Options** for a compatible
    phone or external FIDO2 security key. A browser capability hint is not

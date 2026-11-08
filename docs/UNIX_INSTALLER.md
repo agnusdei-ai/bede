@@ -110,6 +110,36 @@ specifically so the same marker file (and the same `LOCAL_LLM_BASE_URL`)
 works unmodified on all three platforms. Harmless no-op on Docker Desktop,
 which already provides the mapping natively; required on Linux.
 
+### The Mac app (`Bede Installer.app`, the DMG) path
+
+The native Mac app does not run `install.sh`. It runs the operator bundle's
+`start.sh`, and it does **not** install Ollama or download a model. Before
+this was fixed, it also wrote no `local-ai.json`, so `.env` never named a
+model and `LOCAL_LLM_MODEL` fell back to `docker-compose.yml`'s default
+(`Qwen/Qwen3-Coder-30B-A3B-Instruct`, a vLLM name no Ollama serves). Campus
+tutoring uses only the local model, so every lesson failed on that install.
+
+Now, on macOS and only while no `.env` exists yet, `start.sh` runs
+`packaging/bundle/record-local-ai.sh`. It asks the Mac's own Ollama
+(`http://127.0.0.1:11434/api/tags`) which models are installed and writes
+the same `local-ai.json` marker described above. It chooses the model
+`install.sh` would pull for this Mac (`qwen3:4b` at 16 GB or more, else
+`qwen3:1.7b`) if it is installed; otherwise the one model installed, if
+there is exactly one. With no Ollama, no models, or several and none of them
+the recommended one, it writes nothing and the wizard shows its ordinary
+choices. It never downloads anything. So for a Mac pilot:
+
+1. Install Ollama on the Mac and run `ollama pull qwen3:4b` (or the model
+   your pilot approved) **before** opening the Bede app.
+2. Open the app. The wizard shows "Run AI on this computer", using that
+   model, already selected.
+
+An existing `.env` is never changed: the helper only runs before the first
+setup, so an upgrade keeps whatever model was saved. The wizard's "A
+tutoring model hosted by my school" choice also has an optional **Model
+name** field now, written to `LOCAL_LLM_MODEL` when filled in, for a model
+service the helper did not find.
+
 ## Verifying this script
 
 This script is **not code-signed** — see "Why unsigned, and what verifying

@@ -100,6 +100,12 @@ phase="configuration-wizard"
 progress "Completing setup" working "Opening Bede setup in your browser"
 if [[ ! -s .env ]]; then
   echo "Launching the secure Bede setup wizard..."
+  # Mac: record the Ollama model already on this Mac in local-ai.json, the
+  # marker the Windows/unix installers write, so the wizard sets
+  # LOCAL_LLM_MODEL to a model Ollama actually serves. Only before .env exists.
+  if [[ "$(uname -s)" = Darwin && -f record-local-ai.sh ]]; then
+    bash ./record-local-ai.sh "$(pwd)" || true
+  fi
   image="$(tr -d '\r\n' < WIZARD_IMAGE)"
   [[ -n "$image" ]] || fail "Wizard image missing"
   # Never assume the container starts within a fixed two-second delay.

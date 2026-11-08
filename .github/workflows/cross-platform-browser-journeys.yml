@@ -50,7 +50,6 @@ jobs:
       CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
       BROWSERS: ${{ matrix.browsers }}
       PLAYWRIGHT_VERSION: '1.56.0'
-      EVIDENCE_DIR: ${{ runner.temp }}/bede-browser-journeys
     steps:
       - name: Validate candidate SHA
         shell: bash
@@ -90,7 +89,9 @@ jobs:
           if [[ ",$BROWSERS," == *",webkit,"* ]]; then npx playwright install webkit; fi
       - name: Run concurrent journeys
         shell: bash
-        run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --browsers "$BROWSERS" --out "$EVIDENCE_DIR"
+        # runner.temp is not available in job-level env, so the evidence
+        # directory is built from the RUNNER_TEMP variable here instead.
+        run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --browsers "$BROWSERS" --out "$RUNNER_TEMP/bede-browser-journeys"
       - name: Preserve journey evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

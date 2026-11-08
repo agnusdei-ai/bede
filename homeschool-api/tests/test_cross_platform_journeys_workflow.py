@@ -59,3 +59,24 @@ def test_the_journeys_launch_the_installed_branded_browsers():
     assert "pw.webkit.launch()" in js
     # Every browser runs at the same time against one service.
     assert "Promise.all(F.browsers.flatMap" in js
+
+
+def _env_values(env) -> list[str]:
+    return [str(v) for v in (env or {}).values()]
+
+
+def test_no_workflow_uses_the_runner_context_where_github_forbids_it():
+    """GitHub rejects `runner.*` in workflow- and job-level `env` when it
+    parses the file, so a dispatch fails with 422 before anything runs. The
+    YAML still loads cleanly, which is how this workflow first shipped with
+    `${{ runner.temp }}` in its job env and only failed at dispatch. Steps
+    may use it; these two levels may not."""
+    offenders = []
+    for wf in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        data = yaml.safe_load(wf.read_text(encoding="utf-8")) or {}
+        if any("runner." in v for v in _env_values(data.get("env"))):
+            offenders.append(f"{wf.name}: workflow env")
+        for name, job in (data.get("jobs") or {}).items():
+            if any("runner." in v for v in _env_values((job or {}).get("env"))):
+                offenders.append(f"{wf.name}: jobs.{name}.env")
+    assert not offenders, offenders

@@ -1424,8 +1424,20 @@ export async function educatorPasskeyEnroll(ticket_id: string, ticket_token: str
   if (!verified.ok) throw new Error('Passkey enrollment could not be verified. Request a fresh invitation.')
 }
 
+/** The invite answer. With outbound mail configured the link is emailed and
+ * never returned (`sent: true`). With no mail configured, the one-time link
+ * comes back once, here, for the issuing administrator to hand over in
+ * person (`delivery: 'shown_to_admin'`). Never store it. */
+export interface PasskeyInviteResult {
+  sent: boolean
+  username: string
+  delivery?: 'shown_to_admin'
+  enrollment_url?: string
+  expires_in_minutes?: number
+}
+
 export const invitePasskeyInstructor = (token: string, username: string, institutional_email: string) =>
-  educatorApi<{ sent: boolean; username: string }>('/auth/educator-passkey/invite',
+  educatorApi<PasskeyInviteResult>('/auth/educator-passkey/invite',
     token, 'POST', { username, institutional_email })
 
 export interface EducatorPasskeySummary {

@@ -227,6 +227,37 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Teacher enrollment required a third-party mail secret — closed
+  2026-11-08 (owner decision).** `POST /auth/educator-passkey/invite`
+  answered 503 whenever outbound mail was not configured, and the setup
+  wizard never asks for `RESEND_API_KEY`, so a campus install could not
+  enroll a single teacher without first adding a vendor key. Now, when
+  `services/email_service.py`'s `email_configured()` is false (no
+  `RESEND_API_KEY`, or the placeholder from-address), the route commits the
+  invitation exactly as before and returns its one-time link once, in the
+  202 body, to the administrator who issued it (`delivery:
+  "shown_to_admin"`, `enrollment_url`, `expires_in_minutes`). `ClassroomSetup.tsx`
+  shows it with a copy button and keeps it in component state only.
+  **The trade-off, and why it is acceptable:** the link is a bearer
+  credential for one passkey enrollment, and it now passes through the
+  admin's screen instead of only the teacher's mailbox. But that admin is
+  already the approving authority (a fresh passkey session, elevated via
+  `require_elevated_parent`, unchanged), so seeing the link grants them
+  nothing they could not already grant. What is kept: the guard is
+  unchanged; the ticket is stored as before (SHA-256 digests of token and
+  mailbox, never either value); the link is single-use and expires in ten
+  minutes; it is never logged, never written to the audit row (which
+  records only `educator=<uuid> delivery=shown_to_admin|email`), and
+  never returned by any other route; and `issue_invitation_for_admin`
+  commits before returning, so a concurrent duplicate that loses the race
+  gets the same 422 and no link. With mail configured nothing changes:
+  the link is emailed and the response is byte-for-byte what it was.
+  The risk the admin now carries is handing the link to the right person;
+  they should do it in person, not paste it into a shared channel.
+  Recovery (`/recovery/{educator_id}`) still requires mail.
+  `tests/test_educator_invite_without_mail.py` (each guard verified by
+  breaking it).
+
 - **A tablet's device id stood in for a child's identity (#761 follow-up) —
   closed for every child who has their own PIN, 2026-11-07.** After #761 a
   child token was bound to a learner by the tablet's `ChildLearnerBinding`

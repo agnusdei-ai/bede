@@ -167,7 +167,11 @@ async function child(br, bname, i) {
       const r = await o; if (r.status() !== 200) throw new Error('outcome ' + r.status());
       await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 90000 });
     });
-  } catch (e) { check(who, 'journey_completed', false, e.message); await c.screenshot({ path: path.join(OUT, `fail-${who}.png`), fullPage: true }).catch(() => {}); release(['start', 'overlap']); }
+  } catch (e) {
+    // Screenshots live in an artifact not every reader can download, so say what was on screen.
+    const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+    console.log(`SCREEN ${who} at ${c.url()}: ${screen}`);
+    check(who, 'journey_completed', false, e.message); await c.screenshot({ path: path.join(OUT, `fail-${who}.png`), fullPage: true }).catch(() => {}); release(['start', 'overlap']); }
   barrier('answer_done');
   if (first) {
     // Restart the service while this child's reply is streaming.

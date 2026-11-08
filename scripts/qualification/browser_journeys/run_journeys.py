@@ -46,6 +46,18 @@ def ev(**k):
     print("EVENT", json.dumps(k), flush=True)
 
 
+def print_log_tails(out: Path) -> None:
+    """Artifacts are not always reachable by whoever reads the run, so a
+    failing run also prints the end of the service logs it depended on.
+    Synthetic data only; these logs carry no credentials."""
+    for name in ("api.log", "stub.log", "preview.log"):
+        f = out / name
+        if f.exists():
+            tail = f.read_text(encoding="utf-8", errors="replace").splitlines()[-80:]
+            sys.stdout.write(f"\n===== last {len(tail)} lines of {name} =====\n" + "\n".join(tail) + "\n")
+    sys.stdout.flush()
+
+
 def wait_http(url: str, proc: subprocess.Popen | None, what: str, timeout: float = 240) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -200,16 +212,18 @@ def main() -> int:
         (out / "journeys.db").unlink(missing_ok=True)
     sys.stdout.write((out / "journeys.log").read_text(encoding="utf-8", errors="replace"))
     if rc:
-        # Artifacts are not always reachable by whoever reads the run, so a
-        # failing run also prints the end of the service logs it depended on.
-        # Synthetic data only; these logs carry no credentials.
-        for name in ("api.log", "stub.log", "preview.log"):
-            f = out / name
-            if f.exists():
-                tail = f.read_text(encoding="utf-8", errors="replace").splitlines()[-80:]
-                sys.stdout.write(f"\n===== last {len(tail)} lines of {name} =====\n" + "\n".join(tail) + "\n")
+        print_log_tails(out)
     return rc or 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit as exc:
+        if exc.code not in (0, None) and not isinstance(exc.code, int):
+            print(exc.code, flush=True)
+            for i, arg in enumerate(sys.argv):
+                if arg == "--out" and i + 1 < len(sys.argv):
+                    print_log_tails(Path(sys.argv[i + 1]))
+            raise SystemExit(1)
+        raise

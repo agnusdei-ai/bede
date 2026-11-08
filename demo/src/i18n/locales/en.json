@@ -107,6 +107,7 @@
     "nothingToPractice": "Nothing on this worksheet needs practice.",
     "approve": "Approve and start this practice",
     "discard": "Discard this plan",
+    "deliveryHint": "Hint: {{hint}}",
     "deliveryTitle": "Adult-approved practice",
     "responseLabel": "Your response",
     "submitResponse": "Send answer to Bede",

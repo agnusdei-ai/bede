@@ -107,6 +107,7 @@
     "nothingToPractice": "No hay nada que practicar en esta hoja.",
     "approve": "Aprobar e iniciar esta práctica",
     "discard": "Descartar este plan",
+    "deliveryHint": "Pista: {{hint}}",
     "deliveryTitle": "Práctica aprobada por una persona adulta",
     "responseLabel": "Tu respuesta",
     "submitResponse": "Enviar respuesta a Bede",

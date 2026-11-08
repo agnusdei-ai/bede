@@ -189,15 +189,21 @@ def consumers(root: Path, scope: str, changed: set[str]) -> tuple[list[str], boo
 
 
 def backend_readers(root: Path, name: str) -> list[str]:
-    """Backend tests that name a repository file by its full path."""
+    """Backend tests that name a repository file by its full path, or name a
+    folder that holds it (for example tests/test_mixed_language_output.py
+    names demo/src/i18n/ and reads every locale file in it). Only folders at
+    least three levels deep count, so a bare "demo/" does not select every
+    test that mentions the demo."""
     tests = root / "homeschool-api" / "tests"
+    parts = name.split("/")
+    needles = [name] + ["/".join(parts[:i]) + "/" for i in range(3, len(parts))]
     found = []
     for path in sorted(tests.rglob("test_*.py")) if tests.is_dir() else []:
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
-        if name in text:
+        if any(n in text for n in needles):
             found.append(path.relative_to(root / "homeschool-api").as_posix())
     return found
 

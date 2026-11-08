@@ -38,7 +38,7 @@ export default function DemoPracticeDelivery({
           <h3 className="font-semibold text-sage-900">{t('demoPractice.deliveryTitle')}</h3>
           <p className="mt-2 text-gray-800">{current.prompt}</p>
           <Diagram d={current.diagram} />
-          {current.hint && <p className="mt-1 text-xs text-gray-600">{t('demoPractice.hint', { hint: current.hint })}</p>}
+          {current.hint && <p className="mt-1 text-xs text-gray-600">{t('demoPractice.deliveryHint', { hint: current.hint })}</p>}
           <label className="mt-2 block">
             <span className="sr-only">{t('demoPractice.responseLabel')}</span>
             <textarea

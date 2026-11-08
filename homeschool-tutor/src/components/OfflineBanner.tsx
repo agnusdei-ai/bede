@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { WifiOff } from 'lucide-react'
 
 /**
- * Surfaces browser connectivity loss distinctly from a generic API error —
- * the service worker already falls back to a synthetic {error:'offline'}
- * response on fetch failure, but nothing told the user *why* things stalled.
+ * Surfaces browser connectivity loss distinctly from a generic API error.
+ * The service worker deliberately leaves API requests alone, so a failed
+ * call reaches the app as a real network error (and a tutoring turn is
+ * retried); this banner tells the user *why* things stalled.
  */
 export default function OfflineBanner() {
   const [offline, setOffline] = useState(() => !navigator.onLine)

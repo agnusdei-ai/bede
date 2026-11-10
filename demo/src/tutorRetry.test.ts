@@ -16,10 +16,6 @@ import {
   streamTutorChat, startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents, transcribeAudio,
   StreamStallError, StreamTruncatedError, TUTOR_RETRY_DELAYS_MS, TUTOR_RETRY_BUDGET_MS, VOICE_EVENTS_SILENCE_MS, MAX_TRANSCRIBE_UPLOAD_BYTES,
 } from './api'
-import {
-  TUTOR_RETRY_DELAYS_MS as APP_TUTOR_RETRY_DELAYS_MS, TUTOR_RETRY_BUDGET_MS as APP_TUTOR_RETRY_BUDGET_MS,
-  VOICE_EVENTS_SILENCE_MS as APP_VOICE_EVENTS_SILENCE_MS, MAX_TRANSCRIBE_UPLOAD_BYTES as APP_MAX_TRANSCRIBE_UPLOAD_BYTES,
-} from '../../homeschool-tutor/src/services/api'
 import { readerFacingError } from './networkFailure'
 import type { SessionConfig, StreamChunk, Subject } from './api'
 
@@ -490,11 +486,24 @@ describe('transcribeAudio, the one-shot fallback for a lost voice stream (demo)'
 // One fact, two apps and a server. These constants decide how long a child
 // waits and what may be uploaded, so the demo must not drift from the product.
 describe('the demo and the product agree on the resilience constants', () => {
+  // Read as source text, not imported: the app's api.ts pulls in its own
+  // dependencies (lucide-react, via types/index.ts), which the demo's CI job
+  // does not install, so an import fails the demo's type-check there.
   it('match each other', () => {
-    expect(TUTOR_RETRY_DELAYS_MS).toEqual(APP_TUTOR_RETRY_DELAYS_MS)
-    expect(TUTOR_RETRY_BUDGET_MS).toBe(APP_TUTOR_RETRY_BUDGET_MS)
-    expect(VOICE_EVENTS_SILENCE_MS).toBe(APP_VOICE_EVENTS_SILENCE_MS)
-    expect(MAX_TRANSCRIBE_UPLOAD_BYTES).toBe(APP_MAX_TRANSCRIBE_UPLOAD_BYTES)
+    const declaration = (src: string, name: string) => {
+      const line = src.split('\n').find((l) => l.startsWith(`export const ${name}`))
+      expect(line, `${name} is declared`).toBeTruthy()
+      return line
+    }
+    const demoSrc = readFileSync(join(__dirname, 'api.ts'), 'utf8')
+    const appSrc = readFileSync(join(__dirname, '../../homeschool-tutor/src/services/api.ts'), 'utf8')
+    for (const name of ['TUTOR_RETRY_DELAYS_MS', 'TUTOR_RETRY_BUDGET_MS', 'VOICE_EVENTS_SILENCE_MS', 'MAX_TRANSCRIBE_UPLOAD_BYTES']) {
+      expect(declaration(demoSrc, name)).toBe(declaration(appSrc, name))
+    }
+    // And the values the demo actually runs on are the ones declared.
+    expect(TUTOR_RETRY_BUDGET_MS).toBe(TUTOR_RETRY_DELAYS_MS.reduce((a, b) => a + b, 0))
+    expect(VOICE_EVENTS_SILENCE_MS).toBeGreaterThan(0)
+    expect(MAX_TRANSCRIBE_UPLOAD_BYTES).toBeGreaterThan(0)
   })
 
   it('the upload cap is the server\'s own, and both hooks\' recording ceiling fits under it', () => {

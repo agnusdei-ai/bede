@@ -267,8 +267,11 @@ to confirm this for certain the next time it's reported.
 
 `core/instance_id.py` + `core/middleware.py`'s `InstanceIdHeaderMiddleware`
 stamp every `/voice/stream/*` response — success or 404 alike — with
-`X-Bede-Instance: <id>`, resolved once per process from Render's own
-`RENDER_INSTANCE_ID` (or a random `local-*` value when that's unset).
+`X-Bede-Instance: <id>.p<pid>`, resolved once per process from Render's own
+`RENDER_INSTANCE_ID` (or a random `local-*` value when that's unset) plus
+that process's id. The pid is there because one instance can run several
+worker processes that share `RENDER_INSTANCE_ID`, each with its own
+in-memory sessions; see "One worker process, on purpose" below.
 `homeschool-tutor/src/hooks/diagnostics.ts` (and its `demo/` mirror) append
 `instance=<id>` to the same `← <status> <method> <url> (<ms>ms)` debug line
 already used to report this class of bug, so the very next screenshot of a
@@ -288,6 +291,29 @@ routing entirely and points somewhere else (a restart recycling the
 process — `local-*` values also change on every restart, which doubles as
 a signal for that case — or a genuine client-side bug in how the session
 id is threaded through).
+
+### One worker process, on purpose
+
+On 2026-11-10 a phone on the public demo traced voice sessions that opened
+with a 200 and then answered "unknown or expired session" on their own very
+next request: a chunk upload 404 three seconds in, or the events stream
+erroring a millisecond after it opened. Every line carried the SAME
+instance id, and other requests in between (the tutor chat, text-to-speech)
+all succeeded. Nothing inside one process can discard a session that fast:
+the idle sweep needs 180 seconds and the owner key was unchanged. Several
+worker processes on one instance fit every line, since each has its own
+`_sessions` dict and the old header could not tell them apart.
+
+The Dockerfile's uvicorn command passed no `--workers`, and uvicorn then
+takes its worker count from `WEB_CONCURRENCY` when the host sets it. It now
+pins `--workers 1` (`tests/test_single_worker.py` fails if that goes), and
+the header carries the process id, so if this symptom ever comes back the
+trace shows directly whether two processes were involved (a different
+`.p<pid>` on the failing line). Everything that keeps per-session state in
+memory relies on the single process: voice sessions, the demo diagnostic
+store, Practice Coach progress, the rate limiter and the anomaly window.
+Scaling means more instances with sticky routing or a shared store, never
+more workers.
 
 Deliberately scoped to `/voice/stream/*` only, not stamped on every
 response: `core/middleware.py`'s `SecurityHeadersMiddleware` goes out of

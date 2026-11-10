@@ -42,7 +42,14 @@ describe('the request body', () => {
     vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
       bodies.push(JSON.parse(init.body as string))
       return { ok: true, status: 200, body: { getReader: () => ({
-        read: async () => ({ done: true, value: undefined }), cancel: async () => {},
+        // A complete stream: one `done`, then the end. (A body that ends with
+        // no `done` is now a truncation, and is retried.)
+        read: (() => {
+          let sent = false
+          return async () => sent
+            ? { done: true, value: undefined }
+            : ((sent = true), { done: false, value: new TextEncoder().encode('data: {"type":"done"}\n') })
+        })(), cancel: async () => {},
       }) } } as unknown as Response
     }))
     const config = { student_name: 'Ada', grade: '4', subjects: [] } as unknown as SessionConfig

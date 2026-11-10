@@ -12,10 +12,11 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { isNetworkFailure, readerFacingError } from './networkFailure'
+import { isNetworkFailure, readerFacingError, StreamTruncatedError } from './networkFailure'
 import {
   isNetworkFailure as appIsNetworkFailure,
   readerFacingError as appReaderFacingError,
+  StreamTruncatedError as AppStreamTruncatedError,
 } from '../../homeschool-tutor/src/utils/networkFailure'
 
 const CASES: ReadonlyArray<[string, unknown, boolean]> = [
@@ -49,7 +50,7 @@ it('the two copies are the same source below their headers', () => {
   // catches a divergence in one nobody did.
   const body = (p: string) => {
     const src = readFileSync(p, 'utf8')
-    return src.slice(src.indexOf('export function isNetworkFailure'))
+    return src.slice(src.indexOf('export class StreamTruncatedError'))
   }
   expect(body(join(__dirname, 'networkFailure.ts'))).toBe(
     body(join(__dirname, '../../homeschool-tutor/src/utils/networkFailure.ts')),
@@ -76,6 +77,21 @@ describe('what the reader is shown', () => {
     for (const fn of [readerFacingError, appReaderFacingError]) {
       expect(fn(ours, CONNECTION)).toBe("Bede's connection stalled. Please try again.")
     }
+  })
+
+  it('shows the translated connection message for a stream cut off mid-reply, never its English text', () => {
+    // A Spanish session must never read English here. The error's own message
+    // is for the debug log; the reader gets the message passed in.
+    const ES = 'Se perdió la conexión por un momento.'
+    expect(readerFacingError(new StreamTruncatedError(), ES)).toBe(ES)
+    expect(appReaderFacingError(new AppStreamTruncatedError(), ES)).toBe(ES)
+  })
+
+  it('a cut-off stream is not a transport failure, so it is not retried by that rule', () => {
+    // Retrying a truncated stream is streamTutorChat's own decision (only
+    // before anything was shown). isNetworkFailure must stay narrow.
+    expect(isNetworkFailure(new StreamTruncatedError())).toBe(false)
+    expect(appIsNetworkFailure(new AppStreamTruncatedError())).toBe(false)
   })
 
   it('falls back to the connection message rather than showing nothing', () => {

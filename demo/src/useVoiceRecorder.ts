@@ -220,7 +220,11 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     })
   }, [])
 
-  const stopRecording = useCallback(async () => {
+  // Resolves to the whole recording as one WAV (or null when there was
+  // nothing to stop, or it was too short to be speech). useHybridVoiceInput
+  // keeps it so a turn whose streaming upload failed can still be
+  // transcribed in one piece rather than thrown away.
+  const stopRecording = useCallback(async (): Promise<Blob | null> => {
     logDebug('useVoiceRecorder.stopRecording()')
     // Both SYNCHRONOUSLY and first, before anything below can await: this is
     // what a startRecording() still waiting on getUserMedia() checks to learn
@@ -240,7 +244,7 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
     if (!processor || !audioCtx || !stream) {
       setIsRecording(false)
       onStopped?.()
-      return
+      return null
     }
 
     // Null every ref out SYNCHRONOUSLY, right here — before the `await
@@ -287,12 +291,13 @@ export function useVoiceRecorder({ maxDurationMs = 6000, onComplete, onError, on
       // the only signal the caller otherwise had, never fires here), with
       // nothing to recover it short of a much-later safety timeout.
       onStopped?.()
-      return
+      return null
     }
 
     const wavBlob = _encodeChunksToWav(chunks, nativeSampleRate)
     onComplete?.(wavBlob)
     onStopped?.()
+    return wavBlob
   }, [onComplete, onStopped])
 
   const startRecording = useCallback(async () => {

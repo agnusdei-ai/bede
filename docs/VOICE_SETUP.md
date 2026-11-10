@@ -458,9 +458,15 @@ task cannot forcibly stop native inference already executing in a thread.
 Both clients bound voice HTTP requests to 30 seconds, including the start
 response's JSON body. A separate 60-second post-release backstop prevents
 an events connection that stays alive without a terminal result from
-leaving “Transcribing” active indefinitely. Upload, finish, and stream
-failures end the attempt promptly with connection feedback, not the
-“speak closer” feedback reserved for a successful empty transcript.
+leaving “Transcribing” active indefinitely. That backstop ends the turn with
+connection feedback. Upload, finish, and stream failures no longer end it
+that way first: the whole answer is sent once more in one piece (see "A
+failed voice stream sends the whole answer instead" below), and connection
+feedback appears only if that fails too. Neither is the “speak closer”
+feedback reserved for a successful empty transcript. The events stream
+itself gives up after 10 seconds with no byte at all (`VOICE_EVENTS_SILENCE_MS`;
+the server pings every 3 seconds), and a stream that ends without `done` is
+a truncation, not a finished turn.
 Cancellation aborts stale requests, readers, and timers; a transcript is
 delivered only after both `final` and `done`, at most once per attempt.
 Canceling a pending microphone permission request does not block the next
@@ -471,8 +477,10 @@ close cannot clear a new recording's samples.
 
 Captured PCM remains in the current consented attempt only. A failed delta
 upload is not blindly resent: a lost acknowledgment could otherwise append
-the same audio twice. Starting another turn does not replay the canceled
-one, and a failed or canceled attempt clears its client-side buffers.
+the same audio twice. Instead the same attempt's whole recording goes, once,
+to the stateless one-shot endpoint. Starting another turn does not replay
+the canceled one, a canceled attempt is never uploaded, and a finished or
+failed attempt clears its client-side buffers.
 Tutor chat now also bounds the response-header wait to 60 seconds, while
 retaining its existing 60-second body-read stall limit. A timed-out request
 is not automatically retried because the server may already be working;
@@ -483,6 +491,65 @@ Synthetic regressions exercise the real router functions and session
 reader, with fake transcription and shortened test deadlines. They do not
 establish the cause of the reported production 404s, validate live routing,
 or verify microphone behavior on a physical tablet.
+
+
+### A failed voice stream sends the whole answer instead
+
+On a phone over cellular, any one of the four streaming requests (start,
+chunk, finish, events) can drop. Each of those failures used to end the turn
+and throw the recording away, although the recorder still held all of it, so
+a child who had just spoken for twenty seconds was told the connection had
+dropped and had to say it all again.
+
+Now `useHybridVoiceInput.ts` (both apps) keeps the answer:
+
+- **The stream fails while the child is still talking.** The streaming
+  session is retired but the microphone stays open. When they let go (or the
+  silence endpoint or the 120-second ceiling ends the turn), the whole
+  recording goes in one piece to `POST /voice/transcribe`.
+- **It fails after they let go** (the last chunk, the finish call, or the
+  events stream erroring, going silent for 10 seconds, or ending without
+  `done`). The recording `stopRecording()` returned at release is sent the
+  same way.
+- The text comes back through the same `onFinal` as a normal turn. An empty
+  result after a real hold is "I didn't quite catch that", as usual.
+- A dropped connection on that upload gets **one** more try a second later.
+  A refusal, or the 60-second request deadline, is final. Only then does the
+  child see the connection message.
+
+In the debug panel:
+
+```
+voice stream lost while still recording — keeping the microphone open for the whole answer
+voice stream lost — sending the whole answer in one piece (412844 bytes, ~12901ms)
+one-shot transcription delivered "I was coughing the whole day"
+```
+
+What deliberately does **not** fall back:
+
+| Case | Why not |
+| --- | --- |
+| The child (or the app) cancelled the turn | Their decision. A cancelled recording is never sent anywhere. |
+| The server refused to open a session, or the start request hit its deadline | A refusal is a decision, and a deadline is ambiguous. Only a start that failed on the connection keeps listening. |
+| The 60-second post-release backstop | The server is evidently alive and busy; the same audio again would only queue behind it. |
+| An educator session (app only) | Educator voice is bound to one learner's grant (G1). The one-shot endpoint carries no learner scope, so an educator turn keeps the old behaviour. |
+
+**Size.** The server accepts up to 10 MB (`_MAX_AUDIO_BYTES` in
+`routers/voice.py`). The recorder stores 16 kHz 16-bit mono, 32,000 bytes a
+second, so even the 120-second ceiling is about 3.84 MB. `transcribeAudio`
+still refuses, without sending, anything over the cap, and
+`demo/src/tutorRetry.test.ts` checks the cap against the server's own
+constant and both hooks' ceiling.
+
+**What it costs.** The answer is uploaded a second time (up to about 3.8 MB)
+only on a turn whose stream already failed. On the demo it is transcribed by
+the same provider the stream would have used. The endpoint stores nothing,
+and it counts against the same per-minute `voice` rate-limit bucket as
+opening a session (one request per failed turn).
+
+Guards: the "a lost voice stream falls back to sending the whole answer"
+describe in both `useHybridVoiceInput.test.ts` files, and the
+`transcribeAudio` and truncation cases in both `tutorRetry.test.ts` files.
 
 ## Troubleshooting: the mic works at first, then every attempt fails with "something's wrong with the microphone"
 
@@ -587,6 +654,11 @@ shows two failed `startVoiceStream` attempts in a row for the same hold
 (not just one), that's a real, sustained connectivity problem on that
 device/network, not something a client-side retry can paper over — check
 whether the server itself is reachable at all from that device.
+
+Since then, two start attempts that failed on the connection no longer end
+the turn: the microphone keeps listening, and the whole answer goes in one
+piece at release (see "A failed voice stream sends the whole answer instead"
+above). The child sees the connection message only if that upload fails too.
 
 ## Troubleshooting: after a run of `Load failed`, the mic button stops doing anything at all — and the phone still shows the recording indicator
 

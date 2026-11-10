@@ -9,7 +9,18 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { streamTutorChat, startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents } from './api'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+import {
+  streamTutorChat, startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents, transcribeAudio,
+  StreamStallError, StreamTruncatedError, TUTOR_RETRY_DELAYS_MS, TUTOR_RETRY_BUDGET_MS, VOICE_EVENTS_SILENCE_MS, MAX_TRANSCRIBE_UPLOAD_BYTES,
+} from './api'
+import {
+  TUTOR_RETRY_DELAYS_MS as APP_TUTOR_RETRY_DELAYS_MS, TUTOR_RETRY_BUDGET_MS as APP_TUTOR_RETRY_BUDGET_MS,
+  VOICE_EVENTS_SILENCE_MS as APP_VOICE_EVENTS_SILENCE_MS, MAX_TRANSCRIBE_UPLOAD_BYTES as APP_MAX_TRANSCRIBE_UPLOAD_BYTES,
+} from '../../homeschool-tutor/src/services/api'
+import { readerFacingError } from './networkFailure'
 import type { SessionConfig, StreamChunk, Subject } from './api'
 
 const CONFIG = { student_name: 'Guest', grade: '4', subjects: [] } as unknown as SessionConfig
@@ -50,6 +61,15 @@ function run(signal?: AbortSignal) {
   return streamTutorChat('tok', CONFIG, SUBJECT, [], 'I was coughing the whole day', null, signal)
 }
 
+/** Runs a promise to completion under fake timers, a second at a time, so a
+ *  test of the retry backoff does not have to count its waits. */
+async function drive<T>(promise: Promise<T>): Promise<T> {
+  let settled = false
+  promise.then(() => { settled = true }, () => { settled = true })
+  for (let i = 0; i < 300 && !settled; i++) await vi.advanceTimersByTimeAsync(1_000)
+  return promise
+}
+
 let fetchMock: ReturnType<typeof vi.fn>
 
 beforeEach(() => {
@@ -70,8 +90,10 @@ describe('real HTTP path deadlines and voice cancellation', () => {
     const events = streamVoiceEvents('tok', 'synthetic')
     const first = events.next()
     const encoder = new TextEncoder()
-    for (let seconds = 0; seconds < 120; seconds += 30) {
-      await vi.advanceTimersByTimeAsync(30_000)
+    // The server pings every 3 seconds (routers/voice.py); the client now
+    // gives up after 10 seconds of total silence.
+    for (let seconds = 0; seconds < 120; seconds += 3) {
+      await vi.advanceTimersByTimeAsync(3_000)
       stream.enqueue(encoder.encode(': ping\n\n'))
       await vi.advanceTimersByTimeAsync(0)
     }
@@ -157,24 +179,28 @@ describe('real HTTP path deadlines and voice cancellation', () => {
 })
 
 describe('a connection that drops before Bede answers', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+
   it('retries, and the visitor gets the reply they would have lost', async () => {
     fetchMock.mockRejectedValueOnce(loadFailed()).mockResolvedValueOnce(sseResponse(REPLY))
-    const chunks = await collect(run())
+    const chunks = await drive(collect(run()))
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(chunks.map((c) => c.type)).toEqual(['text', 'done'])
   })
 
   it('gives up rather than retrying forever', async () => {
     fetchMock.mockRejectedValue(loadFailed())
-    await expect(collect(run())).rejects.toThrow('Load failed')
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    await expect(drive(collect(run()))).rejects.toThrow('Load failed')
+    expect(fetchMock).toHaveBeenCalledTimes(6)
   })
 })
 
 describe('what it deliberately will not retry', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+
   it('leaves a refusal the server actually made alone', async () => {
     fetchMock.mockResolvedValue(sseResponse([], false, 500))
-    await expect(collect(run())).rejects.toThrow(/Tutor request failed/)
+    await expect(drive(collect(run()))).rejects.toThrow(/Tutor request failed/)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -183,7 +209,7 @@ describe('what it deliberately will not retry', () => {
     // more round trips to be told the same thing, and delay the visitor
     // reaching the screen that actually helps them (generate a new code).
     fetchMock.mockResolvedValue(sseResponse([], false, 401))
-    await expect(collect(run())).rejects.toThrow(/session has ended/i)
+    await expect(drive(collect(run()))).rejects.toThrow(/session has ended/i)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -208,9 +234,9 @@ describe('what it deliberately will not retry', () => {
 
     const seen: StreamChunk[] = []
     await expect(
-      (async () => {
+      drive((async () => {
         for await (const c of run()) seen.push(c)
-      })(),
+      })()),
     ).rejects.toThrow('Load failed')
     expect(seen).toHaveLength(1)
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -222,7 +248,7 @@ describe('what it deliberately will not retry', () => {
       controller.abort()
       throw loadFailed()
     })
-    await expect(collect(run(controller.signal))).rejects.toThrow('Aborted')
+    await expect(drive(collect(run(controller.signal)))).rejects.toThrow('Aborted')
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
@@ -291,5 +317,195 @@ describe('a connection that goes silent', () => {
     const result = await pending
     expect(result).toBeInstanceOf(Error)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+// The retry has to outlast a dead zone, not just a blip: three attempts 600ms
+// apart gave up within about two seconds, shorter than a tunnel, a lift, or
+// a cellular handoff.
+describe('a dead zone, not just a blip (demo)', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('outlasts a 20-second dead zone and the reply still arrives', async () => {
+    const t0 = Date.now()
+    fetchMock.mockImplementation(async () => {
+      if (Date.now() - t0 < 20_000) throw loadFailed()
+      return sseResponse(REPLY)
+    })
+    const chunks = await drive(collect(run()))
+    expect(chunks.map((c) => c.type)).toEqual(['text', 'done'])
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(3)
+  })
+
+  it('waits in widening steps, about 25 seconds in all, then reports the real failure', async () => {
+    const t0 = Date.now()
+    const at: number[] = []
+    fetchMock.mockImplementation(async () => {
+      at.push(Date.now() - t0)
+      throw loadFailed()
+    })
+    await expect(drive(collect(run()))).rejects.toThrow('Load failed')
+    expect(at).toEqual([0, 1_000, 3_000, 7_000, 15_000, 25_000])
+    expect(TUTOR_RETRY_BUDGET_MS).toBeGreaterThanOrEqual(20_000)
+    expect(TUTOR_RETRY_BUDGET_MS).toBeLessThanOrEqual(30_000)
+  })
+
+  it('waits for the browser to come back online rather than knocking while offline', async () => {
+    let online = false
+    vi.spyOn(navigator, 'onLine', 'get').mockImplementation(() => online)
+    fetchMock.mockRejectedValueOnce(loadFailed()).mockResolvedValueOnce(sseResponse(REPLY))
+    const pending = collect(run())
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    online = true
+    window.dispatchEvent(new Event('online'))
+    const chunks = await pending
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(chunks[0]).toMatchObject({ type: 'text' })
+  })
+
+  it('gives up with the real failure once the budget runs out while still offline', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    fetchMock.mockRejectedValue(loadFailed())
+    const t0 = Date.now()
+    await expect(drive(collect(run()))).rejects.toThrow('Load failed')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(Date.now() - t0).toBeLessThanOrEqual(TUTOR_RETRY_BUDGET_MS + 1_000)
+  })
+
+  it('stops waiting for the network when the reader leaves', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    fetchMock.mockRejectedValue(loadFailed())
+    const controller = new AbortController()
+    const pending = collect(run(controller.signal))
+    const rejected = expect(pending).rejects.toThrow('Aborted')
+    await vi.advanceTimersByTimeAsync(5_000)
+    controller.abort()
+    await rejected
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+// A body that simply ENDS without `done` was cut off in transit. Treating
+// that end as normal made half an answer look complete.
+describe('a stream cut off before it finished (demo)', () => {
+  beforeEach(() => { vi.useFakeTimers() })
+
+  it('is asked again when nothing had been shown yet', async () => {
+    fetchMock.mockResolvedValueOnce(sseResponse([': ping\n'])).mockResolvedValueOnce(sseResponse(REPLY))
+    const chunks = await drive(collect(run()))
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(chunks.map((c) => c.type)).toEqual(['text', 'done'])
+  })
+
+  it('once part of the reply is on screen, is reported as a dropped connection and not replayed', async () => {
+    fetchMock.mockResolvedValue(sseResponse(['data: {"type":"text","content":"Well"}\n']))
+    const seen: StreamChunk[] = []
+    const err = await drive((async () => { for await (const c of run()) seen.push(c) })().then(() => null, (e: unknown) => e))
+    expect(err).toBeInstanceOf(StreamTruncatedError)
+    expect(seen).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    // What the reader sees is the translated connection message, never the
+    // error's English text.
+    expect(readerFacingError(err, 'Se perdió la conexión.')).toBe('Se perdió la conexión.')
+  })
+
+  it('a final `done` with no trailing newline is still a complete reply', async () => {
+    fetchMock.mockResolvedValue(sseResponse(['data: {"type":"text","content":"Hi"}\n', 'data: {"type":"done"}']))
+    const chunks = await drive(collect(run()))
+    expect(chunks.map((c) => c.type)).toEqual(['text', 'done'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('a voice events stream that ends without `done` is a truncation, not a finished turn', async () => {
+    fetchMock.mockResolvedValue(sseResponse(['data: {"type":"partial","text":"I was"}\n']))
+    const events = streamVoiceEvents('tok', 'synthetic')
+    await expect(events.next()).resolves.toMatchObject({ value: { type: 'partial' } })
+    await expect(events.next()).rejects.toBeInstanceOf(StreamTruncatedError)
+  })
+})
+
+describe('the voice events stream gives up on a silent connection quickly (demo)', () => {
+  it('after ten seconds with no byte at all, not sixty', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockResolvedValue(new Response(new ReadableStream({ start: () => {} })))
+    const events = streamVoiceEvents('tok', 'synthetic')
+    const next = events.next()
+    let rejected: unknown = null
+    next.catch((e) => { rejected = e })
+    await vi.advanceTimersByTimeAsync(VOICE_EVENTS_SILENCE_MS - 1)
+    expect(rejected).toBeNull()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(rejected).toBeInstanceOf(StreamStallError)
+    expect(VOICE_EVENTS_SILENCE_MS).toBe(10_000)
+  })
+})
+
+describe('transcribeAudio, the one-shot fallback for a lost voice stream (demo)', () => {
+  it('sends the whole answer and its language, authenticated, and returns the text', async () => {
+    fetchMock.mockResolvedValue(new Response('{"text":"I was coughing","language":"es"}'))
+    const wav = new Blob(['RIFF....'], { type: 'audio/wav' })
+    await expect(transcribeAudio('tok', wav, 'es')).resolves.toBe('I was coughing')
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url as string).toMatch(/\/voice\/transcribe$/)
+    expect(init.method).toBe('POST')
+    expect(init.headers.Authorization).toBe('Bearer tok')
+    const form = init.body as FormData
+    expect(form.get('language')).toBe('es')
+    expect(form.get('audio')).toBeInstanceOf(Blob)
+  })
+
+  it('throws on a refusal rather than returning nothing', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 413 }))
+    await expect(transcribeAudio('tok', new Blob(['x']))).rejects.toThrow('Voice transcription failed')
+  })
+
+  it('refuses, without sending, a recording larger than the server accepts', async () => {
+    const huge = { size: MAX_TRANSCRIBE_UPLOAD_BYTES + 1 } as Blob
+    await expect(transcribeAudio('tok', huge)).rejects.toThrow(/too large/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('is bounded by a request deadline long enough for a whole answer', async () => {
+    vi.useFakeTimers()
+    fetchMock.mockImplementation(() => new Promise<Response>(() => {}))
+    const pending = transcribeAudio('tok', new Blob(['x']))
+    let rejected: unknown = null
+    pending.catch((e) => { rejected = e })
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(rejected).toBeNull()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect((rejected as Error).message).toBe('Request timed out')
+    expect((fetchMock.mock.calls[0][1].signal as AbortSignal).aborted).toBe(true)
+  })
+
+  it('the longest recording fits under the upload cap', () => {
+    // 16kHz 16-bit mono is 32,000 bytes a second, plus a 44-byte WAV header;
+    // the hook's ceiling is 120 seconds.
+    expect((120_000 / 1000) * 32_000 + 44).toBeLessThan(MAX_TRANSCRIBE_UPLOAD_BYTES)
+  })
+})
+
+// One fact, two apps and a server. These constants decide how long a child
+// waits and what may be uploaded, so the demo must not drift from the product.
+describe('the demo and the product agree on the resilience constants', () => {
+  it('match each other', () => {
+    expect(TUTOR_RETRY_DELAYS_MS).toEqual(APP_TUTOR_RETRY_DELAYS_MS)
+    expect(TUTOR_RETRY_BUDGET_MS).toBe(APP_TUTOR_RETRY_BUDGET_MS)
+    expect(VOICE_EVENTS_SILENCE_MS).toBe(APP_VOICE_EVENTS_SILENCE_MS)
+    expect(MAX_TRANSCRIBE_UPLOAD_BYTES).toBe(APP_MAX_TRANSCRIBE_UPLOAD_BYTES)
+  })
+
+  it('the upload cap is the server\'s own, and both hooks\' recording ceiling fits under it', () => {
+    const voicePy = readFileSync(join(__dirname, '../../homeschool-api/routers/voice.py'), 'utf8')
+    const m = voicePy.match(/^_MAX_AUDIO_BYTES = (\d+) \* (\d+) \* (\d+)$/m)
+    expect(m, 'routers/voice.py _MAX_AUDIO_BYTES').toBeTruthy()
+    expect(Number(m![1]) * Number(m![2]) * Number(m![3])).toBe(MAX_TRANSCRIBE_UPLOAD_BYTES)
+    for (const hook of ['./useHybridVoiceInput.ts', '../../homeschool-tutor/src/hooks/useHybridVoiceInput.ts']) {
+      const src = readFileSync(join(__dirname, hook), 'utf8')
+      const ceiling = Number(src.match(/^const MAX_RECORDING_MS = (\d+)$/m)![1])
+      expect((ceiling / 1000) * 32_000 + 44).toBeLessThan(MAX_TRANSCRIBE_UPLOAD_BYTES)
+    }
   })
 })

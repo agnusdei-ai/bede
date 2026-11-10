@@ -266,13 +266,30 @@ had never answered. In the trace that prompted this, the child had just said
 **What happens now**, in `services/api.ts` and `demo/src/api.ts`:
 
 ```
-[  ...  ] streamTutorChat retrying after network failure (attempt 1/3, waiting 600ms)
+[  ...  ] streamTutorChat retrying after network failure (attempt 1/6, waiting 1000ms)
+[  ...  ] streamTutorChat offline after network failure (attempt 2/6); waiting up to 24000ms for the connection to return
 ```
 
-The turn is reissued, with the child's own message unchanged, up to
-`TUTOR_MAX_ATTEMPTS` (3) with a 600ms/1200ms backoff. Seeing that line is
-the whole diagnosis: the connection dropped and Bede covered it. Seeing it
-twice, followed by an error, means the connection stayed down.
+The turn is reissued, with the child's own message unchanged, up to six
+times. The waits double from one second (1s, 2s, 4s, 8s, then 10s), about 25
+seconds in all (`TUTOR_RETRY_BUDGET_MS`, counted from the first failure). An
+earlier version gave up after three attempts 600ms apart, about two seconds,
+which is shorter than a tunnel, a lift or a cellular handoff. When the
+browser reports it is offline (`navigator.onLine === false`) the next
+attempt waits for the `online` event instead of knocking, inside the same
+budget: that is the second log line above. Seeing a retry line is the whole
+diagnosis: the connection dropped and Bede covered it. Seeing it repeat and
+then an error means the connection stayed down for the whole 25 seconds.
+
+**A reply cut off before it finished is not shown as finished.** Every
+stream the apps read ends with a `{"type": "done"}` event. A body that just
+stops before it was cut off in transit, and the parser (`parseSSEStream`)
+used to end quietly, so half a reply looked complete. It now throws
+`StreamTruncatedError` (`utils/networkFailure.ts`, mirrored in `demo/src/`).
+Before any of the reply is on screen, the turn is retried like any other
+dropped connection (`retrying after a stream cut off before it finished`).
+After, the reader sees the translated connection message, never the error's
+English text.
 
 **A silent connection is retried.** The server sends a keep-alive every 15
 seconds for as long as it is working on a turn, and any byte resets the
@@ -290,7 +307,7 @@ other retry it happens only before any of the reply is on screen.
 | --- | --- |
 | A 4xx/5xx | A decision the server actually made. Repeating it asks to be refused twice and spends a family's tokens doing it. |
 | A failure after the first chunk | Text is already on screen; a retry would restart a sentence under someone reading it. |
-| An abort | The child navigated away, or the next turn superseded this one. Nothing should be reissued on their behalf. |
+| An abort | The child navigated away, or the next turn superseded this one. Nothing should be reissued on their behalf, including while waiting to come back online. |
 | A response-header deadline (`Request timed out`, 60s) | No response arrived in time, but the server may already have accepted the turn. Abort the client wait without replaying potentially accepted work. |
 
 The existing 60-second body-read stall limit remains separate from the new
@@ -304,8 +321,8 @@ one report of exactly this had a family looking for a fault in the app when
 the answer was a weak signal. `readerFacingError` (`utils/networkFailure.ts`,
 mirrored in `demo/src/`) substitutes the translated
 `chat.turnNetworkFailed` / `chatScreen.turnNetworkFailed` for a dropped
-connection, and leaves every other error's own text alone, since those are
-our sentences and were written for a reader.
+connection or a cut-off stream, and leaves every other error's own text
+alone, since those are our sentences and were written for a reader.
 
 The same predicate, `isNetworkFailure`, answers both questions — what to say,
 and whether trying again is reasonable — and is shared with the voice path,

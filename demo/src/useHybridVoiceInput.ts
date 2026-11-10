@@ -1,7 +1,7 @@
 // Mirror of homeschool-tutor/src/hooks/useHybridVoiceInput.ts for the demo app.
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useVoiceRecorder } from './useVoiceRecorder'
-import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents } from './api'
+import { finishVoiceStream, pushVoiceStreamChunk, startVoiceStream, streamVoiceEvents, transcribeAudio } from './api'
 import { logDebug } from './debugBus'
 import { enterRecordingAudioSession, restorePlaybackAudioSession } from './audioSession'
 import { isNetworkFailure } from './networkFailure'
@@ -87,6 +87,22 @@ const MAX_RECORDING_MS = 120000
 // on the backend side for the identical class of failure.
 const START_STREAM_MAX_ATTEMPTS = 2
 const START_STREAM_RETRY_DELAY_MS = 500
+// Never throw away a spoken answer. The streaming path is four requests per
+// turn (start, chunks, finish, events), and on a phone over cellular any one
+// of them can drop. Every one of those failures used to end the turn and
+// discard the recording, although the recorder still held all of it. Now a
+// failed streaming step after the child has spoken sends the WHOLE answer,
+// as one WAV, to the stateless POST /voice/transcribe, and delivers the
+// result through the same onFinal as a normal turn. Only if that also fails
+// is the connection message shown.
+//
+// If the stream dies while the child is still talking, the microphone stays
+// open: they finish their answer, and their release (or the endpoint, or
+// the hold ceiling) sends all of it. A transport failure on the upload gets
+// exactly one more try; anything else (a refusal, the request deadline) is
+// final, because repeating it asks to be refused twice.
+const FALLBACK_MAX_ATTEMPTS = 2
+const FALLBACK_RETRY_DELAY_MS = 1000
 
 interface Options {
   token: string | null
@@ -173,6 +189,12 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   const recorderStopRef = useRef<Promise<unknown> | null>(null)
   const recorderStartRef = useRef<Promise<unknown> | null>(null)
   const recorderStartOwnerRef = useRef(0)
+  // The attempt whose streaming session was lost while the child was still
+  // recording. release() sees it and sends the whole answer in one piece.
+  const streamLostAttemptRef = useRef(0)
+  // The whole recording of a released turn, kept until the turn finishes so
+  // a streaming failure AFTER release can still transcribe it.
+  const releasedAudioRef = useRef<{ attempt: number; audio: Promise<Blob | null> } | null>(null)
 
   // Pin WebKit's audio session category to match whether the mic is
   // actually capturing right now — see audioSession.ts for why. Reacts to
@@ -228,15 +250,19 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
       setMicError(reason)
     },
   })
-  const stopRecorder = useCallback(() => {
+  // Resolves to the whole recording (or null), for the fallback below.
+  const stopRecorder = useCallback((): Promise<Blob | null> => {
     recorderStartRef.current = null
     const previousStop = recorderStopRef.current
-    const currentStop = Promise.resolve(recorder.stopRecording()).catch(() => {})
+    const currentStop = Promise.resolve(recorder.stopRecording())
+      .then((blob) => (blob instanceof Blob ? blob : null))
+      .catch(() => null)
     const stopped = Promise.all([previousStop, currentStop])
     recorderStopRef.current = stopped
     void stopped.finally(() => {
       if (recorderStopRef.current === stopped) recorderStopRef.current = null
     })
+    return currentStop
   }, [recorder.stopRecording])
 
   // Uploads whatever's been captured so far, if anything and if this
@@ -244,11 +270,96 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   // and once more, immediately, right at release() so the FINAL chunk
   // reflects audio up to the actual release moment rather than however
   // stale the last interval tick was.
-  const failTurn = useCallback((attempt: number) => {
+  // Sends the whole recording of `attempt` to the one-shot endpoint and ends
+  // the turn with what comes back. See FALLBACK_MAX_ATTEMPTS above.
+  const transcribeWholeAnswer = useCallback(async (attempt: number, audio: Promise<Blob | null>) => {
+    setMode('transcribing')
+    const blob = await audio
     if (attemptRef.current !== attempt) return
-    stopRef.current()
-    setMicError('network')
-  }, [])
+    const signal = controllerRef.current?.signal
+    let text: string | null = null
+    if (blob && token) {
+      logDebug(`voice stream lost — sending the whole answer in one piece (${blob.size} bytes, ~${Math.round(blob.size / 32)}ms)`)
+      for (let tries = 1; tries <= FALLBACK_MAX_ATTEMPTS; tries++) {
+        try {
+          text = await transcribeAudio(token, blob, language.slice(0, 2), signal)
+          break
+        } catch (err) {
+          if (attemptRef.current !== attempt) return
+          logDebug(`one-shot transcription failed: ${err instanceof Error ? err.message : String(err)} (try ${tries}/${FALLBACK_MAX_ATTEMPTS})`)
+          if (tries >= FALLBACK_MAX_ATTEMPTS || !isNetworkFailure(err)) break
+          await new Promise((resolve) => setTimeout(resolve, FALLBACK_RETRY_DELAY_MS))
+          if (attemptRef.current !== attempt) return
+        }
+      }
+    } else {
+      logDebug('voice stream lost and there is no recording to fall back on')
+    }
+    if (attemptRef.current !== attempt) return
+    attemptRef.current += 1
+    controllerRef.current?.abort()
+    controllerRef.current = null
+    streamLostAttemptRef.current = 0
+    releasedAudioRef.current = null
+    clearHoldSafety()
+    setMode('idle')
+    if (text === null) {
+      setMicError('network')
+      return
+    }
+    const trimmed = text.trim()
+    const heldMs = Date.now() - holdStartedAtRef.current
+    if (trimmed) {
+      logDebug(`one-shot transcription delivered "${trimmed.slice(0, 40)}${trimmed.length > 40 ? '…' : ''}"`)
+      onFinal?.(trimmed)
+    } else if (heldMs >= MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK) {
+      setMicError('no-speech-heard')
+    }
+  }, [token, language, onFinal, setMode, clearHoldSafety])
+
+  const canFallBack = useCallback((): boolean => {
+    if (!token) return false
+    return true
+  }, [token])
+
+  // A streaming step failed for `attempt`. With `fallback` (every transport
+  // failure), the answer is kept and sent in one piece instead; without it
+  // (the post-release processing deadline, where the server is evidently
+  // alive and busy, so the same audio again would only queue behind it),
+  // the turn ends with the connection message as before.
+  const failTurn = useCallback((attempt: number, fallback = true) => {
+    if (attemptRef.current !== attempt) return
+    if (!fallback || !canFallBack()) {
+      stopRef.current()
+      setMicError('network')
+      return
+    }
+    const wasRecording = modeRef.current === 'recording'
+    // Retire the streaming half of this turn: every upload, finish and
+    // events reader still in flight for it is now stale and stops itself.
+    const next = ++attemptRef.current
+    if (recorderStartOwnerRef.current === attempt) recorderStartOwnerRef.current = next
+    controllerRef.current?.abort()
+    controllerRef.current = new AbortController()
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
+    if (finishTimerRef.current) clearTimeout(finishTimerRef.current)
+    retryTimerRef.current = null
+    finishTimerRef.current = null
+    clearChunkTimer()
+    pendingReleaseRef.current = null
+    sessionIdRef.current = null
+    uploadTailRef.current = Promise.resolve()
+    setInterim('')
+    if (wasRecording) {
+      // Keep listening. release() sends the whole answer once they finish.
+      logDebug('voice stream lost while still recording — keeping the microphone open for the whole answer')
+      streamLostAttemptRef.current = next
+      return
+    }
+    const released = releasedAudioRef.current
+    const audio = released && released.attempt === attempt ? released.audio : Promise.resolve(null)
+    void transcribeWholeAnswer(next, audio)
+  }, [canFallBack, clearChunkTimer, transcribeWholeAnswer])
 
   const uploadSnapshot = useCallback(async (attempt: number, preCapturedBlob?: Blob | null) => {
     const sessionId = sessionIdRef.current
@@ -339,9 +450,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     // recording while one is live, so the child's NEXT press reached _start()
     // and never reached startRecording() at all. That is the same latch-off
     // failure #372 fixed on the give-up path, arriving through a different
-    // door.
+    // door. failTurn now retires the stream but keeps the microphone open,
+    // so the child finishes and their release sends the whole answer in one
+    // piece (see FALLBACK_MAX_ATTEMPTS).
     if (modeRef.current === 'recording') {
-      logDebug(`voice stream ended while still recording after ${heldMs}ms (errored=${streamErrored}) — tearing the turn down`)
+      logDebug(`voice stream ended while still recording after ${heldMs}ms (errored=${streamErrored}) — retiring the stream`)
       failTurn(attempt)
       return
     }
@@ -490,7 +603,13 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
           // the rest of the session. Confirmed from a real debug-panel trace
           // (four presses after the failure, none of which reached the
           // recorder). See docs/VOICE_SETUP.md.
-          failTurn(attempt)
+          //
+          // A start that failed on the CONNECTION keeps the microphone open
+          // and sends the whole answer at release (see FALLBACK_MAX_ATTEMPTS).
+          // A start the server refused, or one that hit the request deadline,
+          // is a decision or an ambiguity rather than a dropped connection,
+          // and ends the turn as before.
+          failTurn(attempt, isNetworkFailure(err))
         })
     }
     beginStream(START_STREAM_MAX_ATTEMPTS)
@@ -559,6 +678,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     retryTimerRef.current = null
     finishTimerRef.current = null
     pendingReleaseRef.current = null // a cancel discards a deferred release too
+    // A cancel is the child's (or the caller's) decision: never send the
+    // recording anywhere afterwards.
+    streamLostAttemptRef.current = 0
+    releasedAudioRef.current = null
     clearHoldSafety()
     clearChunkTimer()
     if (modeRef.current === 'recording') stopRecorder()
@@ -580,6 +703,14 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     if (modeRef.current !== 'recording') return
     releasedAtRef.current = Date.now()
     const attempt = attemptRef.current
+    if (streamLostAttemptRef.current === attempt) {
+      // The streaming session died while they were talking; send the whole
+      // answer in one piece now that they have finished.
+      clearChunkTimer()
+      clearHoldSafety()
+      void transcribeWholeAnswer(attempt, stopRecorder())
+      return
+    }
     const sessionId = sessionIdRef.current
     const signal = controllerRef.current?.signal
     clearChunkTimer()
@@ -608,10 +739,10 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     // speech — rather than a transcription or network problem.
     const capturedMs = finalWavBlob ? Math.round(finalWavBlob.size / 32) : 0
     logDebug(`release() captured ~${capturedMs}ms of audio this delta (${finalWavBlob?.size ?? 0} bytes)`)
-    stopRecorder()
+    releasedAudioRef.current = { attempt, audio: stopRecorder() }
     setMode('transcribing')
     clearHoldSafety()
-    finishTimerRef.current = setTimeout(() => failTurn(attempt), 60_000)
+    finishTimerRef.current = setTimeout(() => failTurn(attempt, false), 60_000)
 
     if (!token) {
       clearHoldSafety()
@@ -635,7 +766,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
         failTurn(attempt)
       }
     })()
-  }, [token, recorder, stopRecorder, clearChunkTimer, clearHoldSafety, uploadSnapshot, setMode, failTurn])
+  }, [token, recorder, stopRecorder, clearChunkTimer, clearHoldSafety, uploadSnapshot, setMode, failTurn, transcribeWholeAnswer])
   releaseRef.current = release
   stopRef.current = stop
   useEffect(() => () => stopRef.current(), [token])

@@ -1,4 +1,4 @@
-import { parseSSEStream, withRequestDeadline } from './api'
+import { MAX_TRANSCRIBE_UPLOAD_BYTES, VOICE_EVENTS_SILENCE_MS, parseSSEStream, withRequestDeadline } from './api'
 
 const BASE = '/api'
 
@@ -185,5 +185,33 @@ export async function* streamVoiceEvents(token: string, sessionId: string, signa
     headers: { Authorization: `Bearer ${token}` },
   }), signal)
   if (!res.ok) throw new Error('Could not open the voice event stream')
-  yield* parseSSEStream<VoiceStreamEvent>(res, signal)
+  yield* parseSSEStream<VoiceStreamEvent>(res, signal, VOICE_EVENTS_SILENCE_MS)
+}
+
+/** The fallback when a streaming turn fails: the child's whole answer, as
+ *  one WAV, to the stateless one-shot POST /voice/transcribe (homeschool-api's
+ *  routers/voice.py). Returns the text, possibly empty. Nothing is stored
+ *  server-side. Throws on any failure; the caller decides whether a transport
+ *  failure is worth one more try (useHybridVoiceInput.ts). Refuses, without
+ *  sending, a file larger than the server accepts. */
+export async function transcribeAudio(token: string, wavBlob: Blob, language = 'en', signal?: AbortSignal): Promise<string> {
+  if (wavBlob.size > MAX_TRANSCRIBE_UPLOAD_BYTES) {
+    throw new Error(`Recording too large to send (${wavBlob.size} bytes)`)
+  }
+  return withRequestDeadline(async (requestSignal) => {
+    const form = new FormData()
+    form.append('audio', wavBlob, 'answer.wav')
+    form.append('language', language)
+    const res = await fetch(`${BASE}/voice/transcribe`, {
+      signal: requestSignal,
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    })
+    if (!res.ok) throw new Error('Voice transcription failed')
+    const data = await res.json()
+    return typeof data?.text === 'string' ? data.text : ''
+  // A whole answer is up to ~3.8MB on a phone connection, and the server
+  // transcribes it in one pass, so this gets longer than the 30s default.
+  }, signal, 60_000)
 }

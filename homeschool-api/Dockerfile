@@ -106,4 +106,16 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
 # — still doesn't survive one; that's a separate, larger decision, not
 # something this flag can fix), only that whatever's actively streaming
 # when the deploy begins gets to complete.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-graceful-shutdown", "120"]
+#
+# --workers 1: this API keeps state that only works in ONE process — voice
+# stream sessions (services/streaming_transcription.py), the demo diagnostic
+# store, Practice Coach progress, the per-IP rate limiter and the anomaly
+# window are all in-memory dicts. Without the flag, uvicorn reads its worker
+# count from WEB_CONCURRENCY when that variable is set, so a host that sets
+# it silently splits those dicts across processes: a voice session opened on
+# one worker answers "unknown or expired session" when its chunk or events
+# request reaches another, under the same instance id. That is exactly what
+# a phone on the public demo reported on 2026-11-10. Scale with more
+# instances behind sticky routing or a shared store, never with workers.
+# tests/test_single_worker.py fails if this flag goes.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips=*", "--timeout-graceful-shutdown", "120"]

@@ -37,4 +37,13 @@ import uuid
 # process restart — a session that failed because its instance recycled
 # mid-turn is a different, equally real cause this same signal happens to
 # catch.
-INSTANCE_ID = os.getenv("RENDER_INSTANCE_ID") or f"local-{uuid.uuid4().hex[:8]}"
+_HOST_ID = os.getenv("RENDER_INSTANCE_ID") or f"local-{uuid.uuid4().hex[:8]}"
+
+# The process id is part of the value because one instance can run several
+# worker processes, and RENDER_INSTANCE_ID is the same in all of them. Each
+# worker has its own in-memory sessions, so the host id alone could not tell
+# "same process" from "another worker on the same instance": a 2026-11-10
+# demo trace showed a voice session 404ing on its own next request with an
+# identical instance id on every line. With the pid, a worker split shows up
+# as a different `.p<pid>` suffix on the failing request.
+INSTANCE_ID = f"{_HOST_ID}.p{os.getpid()}"

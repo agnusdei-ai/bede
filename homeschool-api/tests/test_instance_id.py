@@ -24,7 +24,7 @@ def _reload_with_env(monkeypatch, render_instance_id):
 
 def test_prefers_render_instance_id_when_set(monkeypatch):
     value = _reload_with_env(monkeypatch, "srv-abc123-x7f2q")
-    assert value == "srv-abc123-x7f2q"
+    assert value.startswith("srv-abc123-x7f2q.p")
 
 
 def test_falls_back_to_a_local_id_when_unset(monkeypatch):
@@ -47,6 +47,21 @@ def test_local_fallback_is_not_the_same_every_process(monkeypatch):
     importlib.reload(instance_id_module)
     second = instance_id_module.INSTANCE_ID
     assert first != second
+
+
+def test_two_worker_processes_on_one_instance_report_different_ids(monkeypatch):
+    # One Render instance can run several worker processes, all with the same
+    # RENDER_INSTANCE_ID. Each has its own in-memory voice sessions, so the
+    # header must tell them apart or a worker split looks like one process.
+    monkeypatch.setenv("RENDER_INSTANCE_ID", "srv-abc123-x7f2q")
+    monkeypatch.setattr(instance_id_module.os, "getpid", lambda: 101)
+    importlib.reload(instance_id_module)
+    first = instance_id_module.INSTANCE_ID
+    monkeypatch.setattr(instance_id_module.os, "getpid", lambda: 202)
+    importlib.reload(instance_id_module)
+    second = instance_id_module.INSTANCE_ID
+    assert first != second
+    assert first.endswith(".p101") and second.endswith(".p202")
 
 
 def teardown_module(module):

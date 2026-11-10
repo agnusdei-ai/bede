@@ -3,7 +3,7 @@ import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessm
 import type { TimeOfDay } from '../store/sessionStore'
 import { logDebug } from '../hooks/debugBus'
 import { getOrCreateDeviceId } from '../utils/deviceId'
-import { isNetworkFailure } from '../utils/networkFailure'
+import { isNetworkFailure, StreamTruncatedError } from '../utils/networkFailure'
 import { ApiRequestError } from '../utils/requestFailure'
 
 const BASE = '/api'
@@ -414,10 +414,49 @@ function stripDataUrlPrefix(dataUrl: string): string {
 // child gets an answer. Reported from a real demo trace: headers arrived,
 // then nothing at all for 60 seconds, and the turn simply failed. A stall is
 // still final once any chunk has been shown, like every other failure.
-const TUTOR_MAX_ATTEMPTS = 3
+//
+// A stream that ENDS without its `done` event is retried the same way, for
+// the same reason (StreamTruncatedError): before anything was shown, the
+// turn simply never arrived; after, the reader is told the connection dropped.
+//
+// The retries have to outlast a dead zone, not just a blip. Three attempts
+// 600ms apart gave up within about two seconds, which is shorter than a
+// lift, a tunnel or a cellular handoff. The waits below double from one
+// second and stop after about 25 seconds in all (TUTOR_RETRY_BUDGET_MS,
+// measured from the first failure). When the browser says it is offline
+// there is no point knocking, so the next attempt waits for the `online`
+// event instead, inside the same budget.
+export const TUTOR_RETRY_DELAYS_MS: readonly number[] = [1_000, 2_000, 4_000, 8_000, 10_000]
+export const TUTOR_RETRY_BUDGET_MS = TUTOR_RETRY_DELAYS_MS.reduce((sum, ms) => sum + ms, 0)
+const TUTOR_MAX_ATTEMPTS = TUTOR_RETRY_DELAYS_MS.length + 1
 // Two missed keep-alives plus slack.
 const TUTOR_SILENCE_MS = 35_000
-const TUTOR_RETRY_BASE_DELAY_MS = 600
+
+function browserSaysOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false
+}
+
+/** Resolves true once the browser reports it is back online, or false if it
+ *  is still offline when `ms` runs out. Cancellable like retryPause. */
+function waitForOnline(ms: number, signal?: AbortSignal): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    if (!browserSaysOffline()) {
+      resolve(true)
+      return
+    }
+    const cleanup = () => {
+      clearTimeout(timer)
+      if (typeof window !== 'undefined') window.removeEventListener('online', onOnline)
+      signal?.removeEventListener('abort', abort)
+    }
+    const onOnline = () => { cleanup(); resolve(true) }
+    const abort = () => { cleanup(); reject(new DOMException('Aborted', 'AbortError')) }
+    const timer = setTimeout(() => { cleanup(); resolve(!browserSaysOffline()) }, ms)
+    if (typeof window !== 'undefined') window.addEventListener('online', onOnline)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
+  })
+}
 
 // Bounds response headers (and short JSON bodies), not a whole SSE session.
 // A deadline is ambiguous: the server may already be working, so never retry it.
@@ -477,12 +516,28 @@ function retryPause(ms: number, signal?: AbortSignal): Promise<void> {
 const SSE_STALL_TIMEOUT_MS = 60_000
 
 export class StreamStallError extends Error {}
+export { StreamTruncatedError }
+
+// The voice events stream gets a much shorter silence limit than a chat
+// turn: the server pings it every 3 seconds (routers/voice.py), so ten
+// seconds of nothing is three missed pings and a connection that is gone.
+// Noticing that in 10s rather than 60 is what lets a lost stream fall back
+// to a one-shot upload of the child's answer while they are still waiting.
+export const VOICE_EVENTS_SILENCE_MS = 10_000
+
+// homeschool-api's routers/voice.py `_MAX_AUDIO_BYTES`. The recorder stores
+// 16kHz 16-bit mono (32,000 bytes a second), so even the 120-second ceiling
+// is about 3.84MB, well under this. transcribeAudio checks anyway rather
+// than uploading a file the server is certain to refuse.
+export const MAX_TRANSCRIBE_UPLOAD_BYTES = 10 * 1024 * 1024
 
 /** Shared line-buffered SSE parser used by the tutor, sandbox, and
  *  voice-streaming chat streams — generic over the event shape since the
  *  voice stream (VoiceStreamEvent, see services/voiceApi.ts) and tutor
  *  chat stream (StreamChunk) differ, but both are a sequence of plain-JSON
- *  "data: " lines ending in a {type: 'done'} sentinel. */
+ *  "data: " lines ending in a {type: 'done'} sentinel. A body that ends without that sentinel
+ *  throws StreamTruncatedError rather than ending quietly, so half an
+ *  answer can never pass for a whole one. */
 export async function* parseSSEStream<T extends { type: string }>(res: Response, signal?: AbortSignal, silenceMs = SSE_STALL_TIMEOUT_MS): AsyncGenerator<T> {
   const reader = res.body!.getReader()
   const cancel = () => { reader.cancel().catch(() => {}) }
@@ -504,10 +559,12 @@ export async function* parseSSEStream<T extends { type: string }>(res: Response,
         clearTimeout(timeoutId!)
       }
       if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
+      // The body ended. Read whatever is left of the last line (a final
+      // `done` with no trailing newline is still a complete stream), and if
+      // that was not the sentinel, the stream was cut off in transit.
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
-      buffer = lines.pop() ?? ''
+      buffer = done ? '' : (lines.pop() ?? '')
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue
         const jsonStr = line.slice(6).trim()
@@ -520,6 +577,7 @@ export async function* parseSSEStream<T extends { type: string }>(res: Response,
           // skip malformed chunk
         }
       }
+      if (done) throw new StreamTruncatedError()
     }
   } finally {
     signal?.removeEventListener('abort', cancel)
@@ -548,6 +606,8 @@ export async function* streamTutorChat(
   logDebug(`streamTutorChat local_date=${localDate ?? 'null'} local_time_of_day=${timeOfDay ?? 'null'}`)
   // See TUTOR_MAX_ATTEMPTS above for why this loop exists and what it
   // deliberately will not retry.
+  // Set at the first retryable failure: the whole retry budget runs from there.
+  let retryDeadline: number | undefined
   for (let attempt = 1; ; attempt++) {
     // Set before the first yield, so a failure that arrives after the child
     // has already seen part of Bede's reply is final rather than restarting
@@ -600,12 +660,24 @@ export async function* streamTutorChat(
       }
       return
     } catch (err) {
-      if (delivered || attempt >= TUTOR_MAX_ATTEMPTS || signal?.aborted || !(isNetworkFailure(err) || err instanceof StreamStallError)) {
+      const retryable = isNetworkFailure(err) || err instanceof StreamStallError || err instanceof StreamTruncatedError
+      if (delivered || attempt >= TUTOR_MAX_ATTEMPTS || signal?.aborted || !retryable) {
         throw err
       }
-      const wait = TUTOR_RETRY_BASE_DELAY_MS * attempt
-      logDebug(`streamTutorChat retrying after ${err instanceof StreamStallError ? 'a silent connection' : 'network failure'} (attempt ${attempt}/${TUTOR_MAX_ATTEMPTS}, waiting ${wait}ms)`)
-      await retryPause(wait, signal)
+      retryDeadline ??= Date.now() + TUTOR_RETRY_BUDGET_MS
+      const remaining = retryDeadline - Date.now()
+      if (remaining <= 0) throw err
+      const why = err instanceof StreamStallError ? 'a silent connection'
+        : err instanceof StreamTruncatedError ? 'a stream cut off before it finished'
+        : 'network failure'
+      if (browserSaysOffline()) {
+        logDebug(`streamTutorChat offline after ${why} (attempt ${attempt}/${TUTOR_MAX_ATTEMPTS}); waiting up to ${remaining}ms for the connection to return`)
+        if (!(await waitForOnline(remaining, signal))) throw err
+      } else {
+        const wait = Math.min(TUTOR_RETRY_DELAYS_MS[attempt - 1], remaining)
+        logDebug(`streamTutorChat retrying after ${why} (attempt ${attempt}/${TUTOR_MAX_ATTEMPTS}, waiting ${wait}ms)`)
+        await retryPause(wait, signal)
+      }
     }
   }
 }

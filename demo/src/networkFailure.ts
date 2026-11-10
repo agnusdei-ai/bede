@@ -31,6 +31,28 @@
  * chat turn needed the same question answered — see `services/api.ts`'s own
  * retry, and `docs/VOICE_SETUP.md`.
  */
+/**
+ * A stream that ended without its closing `done` event.
+ *
+ * Every SSE stream this app reads ends with `{"type": "done"}` — the tutor,
+ * the sandbox, the diagnostic chat and the voice events all guarantee it
+ * server-side. A body that simply stops before that sentinel was cut off in
+ * transit (a cellular handoff, a proxy closing an idle connection), and
+ * treating that end as normal made half an answer look complete.
+ *
+ * It lives here rather than beside the parser because it answers the same
+ * question as `isNetworkFailure`: the connection failed us, nothing the
+ * server decided. `readerFacingError` therefore shows the reader the
+ * translated connection message for it, never this English text, which is
+ * only for the debug log and pages that have no translated message.
+ */
+export class StreamTruncatedError extends Error {
+  constructor() {
+    super("Bede's connection dropped before the reply finished. Please try again.")
+    this.name = 'StreamTruncatedError'
+  }
+}
+
 export function isNetworkFailure(err: unknown): boolean {
   if (err instanceof TypeError) return true
   const message = err instanceof Error ? err.message : String(err)
@@ -53,6 +75,6 @@ export function isNetworkFailure(err: unknown): boolean {
  * text: those are our own sentences, written for a reader.
  */
 export function readerFacingError(err: unknown, connectionMessage: string): string {
-  if (isNetworkFailure(err)) return connectionMessage
+  if (isNetworkFailure(err) || err instanceof StreamTruncatedError) return connectionMessage
   return err instanceof Error && err.message ? err.message : connectionMessage
 }

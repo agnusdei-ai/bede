@@ -504,15 +504,22 @@ dropped and had to say it all again.
 Now `useHybridVoiceInput.ts` (both apps) keeps the answer:
 
 - **The stream fails while the child is still talking.** The streaming
-  session is retired but the microphone stays open. When they let go (or the
+  session is retired but the microphone stays open (even when that press was
+  still waiting for the previous turn's recorder to close). When they let go (or the
   silence endpoint or the 120-second ceiling ends the turn), the whole
   recording goes in one piece to `POST /voice/transcribe`.
 - **It fails after they let go** (the last chunk, the finish call, or the
-  events stream erroring, going silent for 10 seconds, or ending without
-  `done`). The recording `stopRecording()` returned at release is sent the
+  events stream reporting a lost session, going silent for 10 seconds, or
+  ending without `done`). The recording `stopRecording()` returned at release is sent the
   same way.
 - The text comes back through the same `onFinal` as a normal turn. An empty
   result after a real hold is "I didn't quite catch that", as usual.
+- If the recorder has nothing to send (a tap under its 400 ms minimum, or a
+  recorder that never started), no request is made and the answer is the
+  same as the normal release path's: nothing for a tap under 1.2 seconds
+  (measured to the release, not to when the stream later failed), otherwise
+  the microphone message. Never the connection message, since nothing was
+  sent.
 - A dropped connection on that upload gets **one** more try a second later.
   A refusal, or the 60-second request deadline, is final. Only then does the
   child see the connection message.
@@ -532,6 +539,7 @@ What deliberately does **not** fall back:
 | The child (or the app) cancelled the turn | Their decision. A cancelled recording is never sent anywhere. |
 | The server refused to open a session, or the start request hit its deadline | A refusal is a decision, and a deadline is ambiguous. Only a start that failed on the connection keeps listening. |
 | The 60-second post-release backstop | The server is evidently alive and busy; the same audio again would only queue behind it. |
+| The server reports that its own transcription failed (`transcription failed`, a worker error) or timed out (`transcription timed out`) | Same reason: the server answered, so it is alive. Only a lost session (`unknown or expired session`), a dropped or silent connection, or a stream that ends without `done` falls back. The server sends message text only, so the hook (`isServerTranscriptionFailure`) matches text, and both test files read the server's own source to fail on a new or renamed message. |
 | An educator session (app only) | Educator voice is bound to one learner's grant (G1). The one-shot endpoint carries no learner scope, so an educator turn keeps the old behaviour. |
 
 **Size.** The server accepts up to 10 MB (`_MAX_AUDIO_BYTES` in

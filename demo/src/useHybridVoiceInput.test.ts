@@ -13,6 +13,8 @@
  * recording/transcription round-trip.
  */
 import { act, renderHook } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { VoiceStreamEvent } from './api'
 
@@ -72,7 +74,7 @@ vi.mock('./useVoiceRecorder', () => ({
 vi.mock('./api', () => ({ startVoiceStream, pushVoiceStreamChunk, finishVoiceStream, streamVoiceEvents, transcribeAudio }))
 vi.mock('./audioSession', () => ({ enterRecordingAudioSession, restorePlaybackAudioSession }))
 
-import { useHybridVoiceInput } from './useHybridVoiceInput'
+import { isServerTranscriptionFailure, useHybridVoiceInput } from './useHybridVoiceInput'
 
 // A real macrotask tick — reliably flushes however many microtask hops a
 // given action needs (startVoiceStream's .then(), consumeEvents' own
@@ -122,6 +124,10 @@ async function* pendingForever(): AsyncGenerator<VoiceStreamEvent> {
 beforeEach(() => {
   startRecording.mockClear()
   stopRecording.mockReset()
+  // A real recorder hands back the recording it made. A test about a failed
+  // connection must not accidentally be a test about an empty recorder,
+  // which is answered differently (see the "nothing was captured" cases).
+  stopRecording.mockResolvedValue(new Blob(['recording'], { type: 'audio/wav' }))
   snapshotWav.mockReset()
   snapshotWav.mockReturnValue(new Blob(['pcm']))
   snapshotPcmDelta.mockReset()
@@ -139,7 +145,9 @@ beforeEach(() => {
   streamVoiceEvents.mockReset()
   streamVoiceEvents.mockImplementation(() => pendingForever())
   transcribeAudio.mockReset()
-  transcribeAudio.mockRejectedValue(new TypeError('Load failed'))
+  // Refused, so a test that never meant to exercise the fallback still ends
+  // on the connection message at once rather than after a retry delay.
+  transcribeAudio.mockRejectedValue(new Error('Voice transcription failed'))
 
   enterRecordingAudioSession.mockClear()
   restorePlaybackAudioSession.mockClear()
@@ -1410,5 +1418,155 @@ describe('a lost voice stream falls back to sending the whole answer (demo)', ()
     expect(result.current.isListening).toBe(false)
     expect(result.current.micError).toBe('network')
     expect(transcribeAudio).not.toHaveBeenCalled()
+  })
+})
+
+// Review follow-ups to the whole-answer fallback. Each was verified by
+// breaking the guard it pins (see the commit message).
+const SERVER_VOICE_SOURCES = [
+  resolve(__dirname, '../../homeschool-api/services/streaming_transcription.py'),
+  resolve(__dirname, '../../homeschool-api/routers/voice.py'),
+]
+
+describe('which voice-stream failures fall back, and what is said when nothing was captured', () => {
+  const WHOLE = new Blob(['the whole recording'], { type: 'audio/wav' })
+
+  // The server is alive and answered: its own transcription failed or timed
+  // out. Uploading the same audio again would only queue behind it.
+  for (const message of ['transcription failed', 'transcription timed out']) {
+    it(`does not fall back when the server reports "${message}" after release`, async () => {
+      const onFinal = vi.fn()
+      const eq = makeEventStream()
+      streamVoiceEvents.mockImplementation(() => eq.stream())
+      stopRecording.mockResolvedValue(WHOLE)
+      transcribeAudio.mockResolvedValue('should never be sent')
+      const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+      await act(async () => { result.current.startHold(); await flush() })
+      await act(async () => { result.current.release(); await flush() })
+      await act(async () => { eq.push({ type: 'error', message }); eq.push({ type: 'done' }); await flush(); await flush() })
+      expect(transcribeAudio).not.toHaveBeenCalled()
+      expect(onFinal).not.toHaveBeenCalled()
+      expect(result.current.micError).toBe('network')
+      expect(result.current.isTranscribing).toBe(false)
+      expect(result.current.isListening).toBe(false)
+    })
+  }
+
+  it('does not fall back when the server reports a transcription failure mid-hold', async () => {
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    stopRecording.mockResolvedValue(WHOLE)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { eq.push({ type: 'error', message: 'transcription failed' }); eq.push({ type: 'done' }); await flush() })
+    expect(result.current.isListening).toBe(false)
+    expect(stopRecording).toHaveBeenCalled()
+    expect(result.current.micError).toBe('network')
+    await act(async () => { result.current.release(); await flush() })
+    expect(transcribeAudio).not.toHaveBeenCalled()
+  })
+
+  it('still falls back when the session is lost after release', async () => {
+    const onFinal = vi.fn()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    stopRecording.mockResolvedValue(WHOLE)
+    transcribeAudio.mockResolvedValue('the whole answer')
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { result.current.release(); await flush() })
+    await act(async () => { eq.push({ type: 'error', message: 'unknown or expired session' }); eq.push({ type: 'done' }); await flush(); await flush() })
+    expect(transcribeAudio).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('the whole answer')
+  })
+
+  it('classifies every error message the server actually sends', () => {
+    // The server carries message text only, so the hook matches text. This
+    // reads the server's own source so a renamed or new message cannot pass
+    // silently: a new one fails here until someone decides which it is.
+    const expected: Record<string, boolean> = {
+      'transcription failed': true,
+      'transcription timed out': true,
+      'unknown or expired session': false,
+    }
+    const found = new Set<string>()
+    for (const file of SERVER_VOICE_SOURCES) {
+      const src = readFileSync(file, 'utf8')
+      for (const m of src.matchAll(/"message":\s*"([^"]+)"/g)) found.add(m[1])
+    }
+    expect([...found].sort()).toEqual(Object.keys(expected).sort())
+    for (const [message, isFailure] of Object.entries(expected)) {
+      expect(isServerTranscriptionFailure(message)).toBe(isFailure)
+    }
+    // Unrecognised text keeps the fallback: the answer is worth one upload.
+    expect(isServerTranscriptionFailure('gone')).toBe(false)
+    expect(isServerTranscriptionFailure(undefined)).toBe(false)
+  })
+
+  it('a stream lost before a deferred recorder start still leaves the recorder running', async () => {
+    // The previous turn's teardown is still pending, so this press defers
+    // its recorder start behind it. A fast session loss lands first.
+    const onFinal = vi.fn()
+    let closed!: () => void
+    stopRecording.mockResolvedValue(WHOLE)
+    stopRecording.mockImplementationOnce(() => new Promise<void>((resolve) => { closed = resolve }))
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementationOnce(() => pendingForever()).mockImplementation(() => eq.stream())
+    transcribeAudio.mockResolvedValue('the whole answer')
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
+    await act(async () => { result.current.startHold(); await flush(); result.current.stop(); result.current.startHold(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(1)
+    await act(async () => { eq.push({ type: 'error', message: 'unknown or expired session' }); eq.push({ type: 'done' }); await flush() })
+    expect(result.current.isListening).toBe(true)
+    await act(async () => { closed(); await flush() })
+    expect(startRecording).toHaveBeenCalledTimes(2)
+    await act(async () => { result.current.release(); await flush() })
+    expect(transcribeAudio).toHaveBeenCalledTimes(1)
+    expect(onFinal).toHaveBeenCalledWith('the whole answer')
+  })
+
+  it('an accidental tap whose stream was lost stays silent', async () => {
+    // The recorder discards a sub-400ms tap and returns nothing. That is not
+    // a connection problem and not worth a message at all.
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    stopRecording.mockResolvedValue(null)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await flush() })
+    await act(async () => { eq.push({ type: 'error', message: 'unknown or expired session' }); eq.push({ type: 'done' }); await flush() })
+    await act(async () => { result.current.release(); await flush() })
+    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(result.current.micError).toBeNull()
+    expect(result.current.isTranscribing).toBe(false)
+  })
+
+  it('a tap is measured to its release, not to when the stream later failed', async () => {
+    // The stream can spend seconds failing after a brief tap; that waiting is
+    // not the child holding the button and must not turn a tap into a report.
+    vi.useFakeTimers()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    stopRecording.mockResolvedValue(null)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(300) })
+    await act(async () => { result.current.release(); await vi.advanceTimersByTimeAsync(5000) })
+    await act(async () => { eq.push({ type: 'error', message: 'unknown or expired session' }); eq.push({ type: 'done' }); await vi.advanceTimersByTimeAsync(0) })
+    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(result.current.micError).toBeNull()
+    expect(result.current.isTranscribing).toBe(false)
+  })
+
+  it('a real hold whose stream was lost and captured nothing reports the microphone, not the connection', async () => {
+    vi.useFakeTimers()
+    const eq = makeEventStream()
+    streamVoiceEvents.mockImplementation(() => eq.stream())
+    stopRecording.mockResolvedValue(null)
+    const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
+    await act(async () => { result.current.startHold(); await vi.advanceTimersByTimeAsync(0) })
+    await act(async () => { eq.push({ type: 'error', message: 'unknown or expired session' }); eq.push({ type: 'done' }); await vi.advanceTimersByTimeAsync(3000) })
+    await act(async () => { result.current.release(); await vi.advanceTimersByTimeAsync(0) })
+    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(result.current.micError).toBe('unavailable')
+    expect(result.current.isTranscribing).toBe(false)
   })
 })

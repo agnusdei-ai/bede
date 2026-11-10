@@ -104,6 +104,30 @@ const START_STREAM_RETRY_DELAY_MS = 500
 const FALLBACK_MAX_ATTEMPTS = 2
 const FALLBACK_RETRY_DELAY_MS = 1000
 
+/**
+ * Whether an SSE `error` event is the SERVER reporting that transcription
+ * itself failed, as opposed to the session having gone missing.
+ *
+ * The two need different answers. A lost session ("unknown or expired
+ * session": an instance that does not hold it, a TTL sweep) is the case the
+ * whole-answer fallback exists for. A transcription failure means the server
+ * is alive and answered: its own worker raised ("transcription failed") or it
+ * waited too long for a result ("transcription timed out"). Re-uploading the
+ * same audio there would only queue behind the same busy server for up to
+ * another two attempts of 60 seconds each, the same reason the post-release
+ * processing deadline does not fall back.
+ *
+ * The server sends message text only (homeschool-api/services/
+ * streaming_transcription.py; no code field), so this matches text. Both
+ * transcription failures it emits begin with the word "transcription", and
+ * nothing else it emits does. Anything unrecognised keeps the fallback,
+ * because a whole-answer upload is bounded and losing the answer is not.
+ * Pinned against the server's own source by test.
+ */
+export function isServerTranscriptionFailure(message: string | undefined): boolean {
+  return /^\s*transcription\b/i.test(message ?? '')
+}
+
 interface Options {
   token: string | null
   onFinal?: (transcript: string) => void
@@ -189,6 +213,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   const recorderStopRef = useRef<Promise<unknown> | null>(null)
   const recorderStartRef = useRef<Promise<unknown> | null>(null)
   const recorderStartOwnerRef = useRef(0)
+  // One per press. attemptRef cannot say "is this still the same hold": a
+  // stream lost mid-hold moves attemptRef on while the child keeps talking.
+  // A recorder start deferred behind the previous turn's teardown checks this
+  // instead, so that loss cannot leave the hold without a running recorder.
+  const turnRef = useRef(0)
   // The attempt whose streaming session was lost while the child was still
   // recording. release() sees it and sends the whole answer in one piece.
   const streamLostAttemptRef = useRef(0)
@@ -303,12 +332,23 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     releasedAudioRef.current = null
     clearHoldSafety()
     setMode('idle')
+    // How long they held, measured to the release rather than to now: the
+    // stream may have spent seconds failing after it, and that is not a hold.
+    const heldMs = (releasedAtRef.current || Date.now()) - holdStartedAtRef.current
+    if (!blob) {
+      // Nothing was captured: an accidental tap the recorder discards (under
+      // its 400ms minimum) or a recorder that never started. Same answer as
+      // the normal release path gives nothing captured: silent for a brief
+      // tap, the microphone message otherwise. Not the connection message;
+      // no request was ever made.
+      if (heldMs >= MIN_HOLD_MS_FOR_NO_SPEECH_FEEDBACK) setMicError('unavailable')
+      return
+    }
     if (text === null) {
       setMicError('network')
       return
     }
     const trimmed = text.trim()
-    const heldMs = Date.now() - holdStartedAtRef.current
     if (trimmed) {
       logDebug(`one-shot transcription delivered "${trimmed.slice(0, 40)}${trimmed.length > 40 ? '…' : ''}"`)
       onFinal?.(trimmed)
@@ -410,7 +450,9 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
         } else if (event.type === 'error') {
           streamErrored = true
           logDebug(`voice stream event error: ${event.message}`)
-          failTurn(attempt)
+          // A lost session falls back; a transcription the server itself
+          // reported failing does not. See isServerTranscriptionFailure.
+          failTurn(attempt, !isServerTranscriptionFailure(event.message))
           return
         } else if (event.type === 'done') {
           sawDone = true
@@ -493,6 +535,7 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
   const _start = useCallback(() => {
     if (modeRef.current !== 'idle') return
     const attempt = ++attemptRef.current
+    const turn = ++turnRef.current
     controllerRef.current?.abort()
     const controller = new AbortController()
     controllerRef.current = controller
@@ -516,10 +559,16 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     enterRecordingAudioSession()
     setMode('recording')
     const beginRecording = () => {
-      if (attemptRef.current !== attempt || modeRef.current !== 'recording') return
-      recorderStartOwnerRef.current = attempt
+      // Checked by TURN, not attempt: when this was deferred behind the last
+      // turn's teardown, a stream lost in the meantime has already moved
+      // attemptRef on, yet the child is still holding and the fallback needs
+      // the recording. Every way the hold actually ends (cancel, release, a
+      // new press) also leaves 'recording' or bumps the turn.
+      if (turnRef.current !== turn || modeRef.current !== 'recording') return
+      const owner = attemptRef.current
+      recorderStartOwnerRef.current = owner
       const started = Promise.resolve(recorder.startRecording()).catch(() => {
-        if (attemptRef.current !== attempt) return
+        if (turnRef.current !== turn || recorderStartOwnerRef.current !== attemptRef.current) return
         stopRef.current()
         setMicError('unavailable')
       })
@@ -678,10 +727,11 @@ export function useHybridVoiceInput({ token, onFinal, language = 'en-US', endpoi
     retryTimerRef.current = null
     finishTimerRef.current = null
     pendingReleaseRef.current = null // a cancel discards a deferred release too
-    // A cancel is the child's (or the caller's) decision: never send the
-    // recording anywhere afterwards.
-    streamLostAttemptRef.current = 0
-    releasedAudioRef.current = null
+    // A cancel is the child's (or the caller's) decision: the recording is
+    // never sent anywhere afterwards. The attempt bump above is what ensures
+    // that: streamLostAttemptRef and releasedAudioRef are keyed by attempt,
+    // attempts only ever increase, and release() is a no-op once this has
+    // left 'recording', so neither can match again.
     clearHoldSafety()
     clearChunkTimer()
     if (modeRef.current === 'recording') stopRecorder()

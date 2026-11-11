@@ -379,7 +379,7 @@ async def enter_assessment(
         record_id = await store.save_assessment(db, student_name, req.assessment, status)
     except LookupError:
         raise HTTPException(status_code=404, detail="Student not found")
-    return _view(record_id, status, req.assessment)
+    return await _confirmed_view(db, student_name, record_id, status, req.assessment)
 
 
 @router.put("/{student_name}/assessments/{record_id}")
@@ -399,7 +399,18 @@ async def confirm_assessment(
     row, _ = found
     status = "needs_review" if req.assessment.needs_parent() else "confirmed"
     await store.replace_assessment(db, row, req.assessment, status)
-    return _view(record_id, status, req.assessment)
+    return await _confirmed_view(db, student_name, record_id, status, req.assessment)
+
+
+async def _confirmed_view(db, student_name: str, record_id: int, status: str, assessment) -> dict:
+    """A confirmed reading counts toward the mastery estimate and the work
+    record, once (services/practice/evidence.py). `counted` is how many
+    marked questions this confirmation recorded: 0 on a re-confirmation."""
+    counted = 0
+    if status == "confirmed":
+        from services.practice import evidence
+        counted = await evidence.count_quiz(db, student_name, record_id, assessment)
+    return {**_view(record_id, status, assessment), "counted": counted}
 
 
 @router.post("/{student_name}/assessments/{record_id}/plan", status_code=201)

@@ -234,8 +234,17 @@ def build_summary_view(
     }
 
 
-async def process_evidence(db, student_name: str, domain: str, outcome: str) -> Optional[MasteryVector]:
+async def process_evidence(
+    db, student_name: str, domain: str, outcome: str, weight: float = 1.0,
+) -> Optional[MasteryVector]:
     """
+    `weight` (0 < weight <= 1) scales how far this one observation moves the
+    estimate. A live check-in is 1.0; evidence Bede did not watch being
+    produced, such as a teacher's mark on a paper quiz, passes less
+    (services/practice/evidence.py). Anything outside that range is refused
+    rather than clamped, since a malformed weight must not become a
+    full-strength observation.
+
     Persistence-backed entry point — mirrors phonics.process_evidence and
     language_exposure.process_evidence's load/update/store shape exactly,
     against MasteryProfile(subject_area="literacy"). Called from
@@ -281,10 +290,13 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
         vector = new_vector()
         vector_is_cold_start = True
 
+    if isinstance(weight, bool) or not isinstance(weight, (int, float)) or not 0.0 < weight <= 1.0:
+        await db.rollback()
+        return None
     evidence_count_before = 0 if vector_is_cold_start else row.evidence_count
     updated_vector, updates = apply_evidence(
         vector, domain, outcome,
-        calibration_weight=calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
+        calibration_weight=weight * calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
     )
 
     if not updates:

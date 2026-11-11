@@ -52,6 +52,13 @@ enough — two assessed narrations for writing, three for reading and
 phonics, five for maths — and until then the card says it is still
 getting to know your learner.
 
+**Marked quizzes count too.** A graded quiz you upload to the Practice
+Coach and confirm adds to both: correct answers become completed work in the
+ledger, and every marked answer moves the estimate, at about half the weight
+of the same answer in a lesson with Bede, since Bede didn't see how it was
+reached. Mathematics counts at every grade, and spelling and reading count
+for grades 3–8. See [Parent Setup](PARENT_SETUP.md#turn-a-graded-quiz-into-practice).
+
 **In your first weeks, trust the ledger.** Look at what was finished and
 how much help it took. That is real information from day one. The mastery
 picture will fill in, and it is worth waiting for rather than believing

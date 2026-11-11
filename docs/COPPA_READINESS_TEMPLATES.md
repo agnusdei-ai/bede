@@ -169,6 +169,7 @@ below, and `services/student_deletion.py` must cascade to it.
 | 23 | `student_collection_state` | Per-child collection pause timestamp | Collection pause | `[COUNSEL]` | none | until student deleted | Delete all data | No (timestamp only; student name key) |
 | 24 | `child_learner_bindings` | Device-to-student authorization binding and revocation nonce | Child sign-in authorization and revocation | `[COUNSEL]` | none | until student deleted or device unbound | Delete all student data / binding revocation | No (student name and opaque identifiers are plain columns) |
 | 25 | `child_pins` | A learner's own sign-in PIN as a one-way PBKDF2 hash and salt, a session nonce, failed-attempt count and lockout time | Child sign-in authentication and per-child lockout | `[COUNSEL]` | none | until student deleted or PIN cleared by a parent | Delete all student data / clear the PIN in Parent Setup | No (the PIN is hashed one-way, never stored or exported; student name is a plain key) |
+| 26 | `practice_evidence_marks` | Which confirmed quiz has been counted toward progress, and when (no content) | Count a quiz once | `[COUNSEL]` | none | until student deleted | Delete all data | No (assessment id, student name and a timestamp only) |
 
 Rows marked `[OPEN]` are not complete and must not be read as controlled.
 A row is complete only when every cell is filled by the operator and each

@@ -870,6 +870,26 @@ class PracticeAssessment(Base):
     )
 
 
+class PracticeEvidenceMark(Base):
+    """One row per confirmed quiz whose marks have been counted toward the
+    mastery estimate and the work record (services/practice/evidence.py).
+
+    Its only job is to make counting happen once: a parent may confirm,
+    edit and confirm a reading again, and the same quiz must not move the
+    estimate twice. Holds no content, just the assessment's id and when it
+    was counted. Deleted with the student like every other per-student row.
+    """
+    __tablename__ = "practice_evidence_marks"
+
+    assessment_id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer(), "sqlite"), primary_key=True, autoincrement=False
+    )
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    counted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+
+
 class PracticeSetRecord(Base):
     """A practice set drafted from a confirmed assessment.
 

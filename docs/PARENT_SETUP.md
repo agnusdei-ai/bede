@@ -1290,6 +1290,33 @@ graded quiz**. Choose the subject that matches the quiz:
 
    Nothing reaches your child unless you approve it.
 
+**A confirmed quiz counts toward your child's progress.** When you confirm
+the reading, the teacher's marks also go into the mastery picture and the
+work record on the Progress page, once. Confirming the same quiz again after
+an edit does not count it twice. What counts:
+
+- **Mathematics**: each marked problem whose skill Bede can tell from the
+  problem itself (for example "7 × 8" is multiplication facts, "3/4 − 1/8"
+  is adding and subtracting fractions, a clock picture is telling time).
+  Word problems, problems with a letter in them, and very large sums are
+  not counted, because Bede can't be sure which skill they test.
+- **Spelling and reading, grades 3–8**: spelling words count toward
+  spelling, and reading questions toward vocabulary, finding details, or
+  working things out (the "why" questions). For K–2, Bede's reading picture
+  measures sounding words out, which a marked quiz doesn't show, so these
+  quizzes don't count yet.
+- **History, science, geography, grammar and Latin quizzes** don't count:
+  Bede has no progress picture for them yet.
+
+Only questions the teacher marked count, and questions you left out never
+do. A marked quiz moves the mastery picture about half as much as the same
+answer given in a lesson with Bede, because Bede didn't see how it was
+worked out. Only questions marked correct appear in the work record, as
+work your child completed. A wrong or partly right answer still adjusts
+the mastery picture but is never listed as work done. If your install is
+set not to keep mastery estimates between sessions, only the work record
+changes.
+
 A circle left white for *alba* (white) on a colour question is a correct
 answer, and Bede treats it as one.
 

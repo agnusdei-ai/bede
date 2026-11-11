@@ -671,10 +671,61 @@ repository: they show a child's handwriting and a school's own worksheet.
 3. **Delivery to the child, inside an ordinary Bede session:** re-checks at
    +3/+7 days, mixed review of mastered items, pattern history recorded as
    events about the work, never labels about the child.
-4. **Done:** Mathematics, Spelling and Short-answer packs. **Not yet:** feeding
-   their results into the phonics (K-2) and reading-and-spelling (3-8)
-   mastery engines, and the optional game wrapper. Rewards count **days
-   practised**, never streaks, and never speed.
+4. **Done:** Mathematics, Spelling and Short-answer packs, and **a confirmed
+   quiz counts toward progress** (see below). **Not yet:** the optional game
+   wrapper. Rewards count **days practised**, never streaks, and never speed.
+
+## Quizzes count toward progress
+
+Owner ruling 2026-11-11: a confirmed quiz feeds both the mastery estimate and
+the work record. `services/practice/evidence.py` does it, called from
+`routers/practice.py` whenever a reading becomes `confirmed` (typed in, or
+confirmed after review). The rules:
+
+- **Teacher's marks only.** Correct, incorrect and partial become one
+  observation each; unmarked questions and questions the parent left out
+  record nothing. Bede never marks a question itself for this.
+- **Once per quiz.** `practice_evidence_marks` holds the assessment id; the
+  claim is a primary-key insert committed before anything is written, so two
+  confirmations racing each other cannot both count it. Editing a reading
+  after it was counted does not count it again.
+- **Only where the skill is clear.** Maths: `packs.math.skill_for` maps a
+  problem to one `skill_map` id from the problem's own shape (operation, size,
+  fractions, decimals, negatives, several operations, or the picture kind),
+  and answers `None` for a word problem, a variable or a sum past 100. Spelling
+  goes to `spelling_patterns` (`spelling_homophones` for a miss the pack
+  classes as a homophone); reading goes to `inference`, `vocabulary` or
+  `literal_comprehension` by the question's wording, using the reading pack's
+  own patterns. Both only for grades 3-8: the K-2 engine measures decoding,
+  which a marked quiz does not show. Latin, history, science, geography and
+  grammar have no engine and record nothing.
+- **Half weight.** `QUIZ_EVIDENCE_WEIGHT` (0.5) is passed as the maths
+  engine's `confidence` and the literacy engine's new `weight`, because Bede
+  did not see how the answer was reached. During an engine's calibration
+  phase (fewer than its threshold of observations) the first observations
+  push hard enough to reach the ends of the scale whatever their weight;
+  that is each engine's existing cold-start rule and applies to live work too.
+- **The work record keeps only completed work.** A correct question is one
+  `SkillActivityLog` row with `source: "marked_quiz"` in its encrypted detail;
+  a wrong or partly right answer writes no row (a partial would otherwise read
+  as "after a nudge", which is not what happened on paper).
+- **Privacy setting.** With `RETAIN_MASTERY_PROFILES` off, only the work
+  record is written, as in a session.
+- **Best-effort.** A failure is logged and swallowed; it never undoes the
+  parent's confirmation. The route returns `counted`, the number of
+  observations recorded (0 on a re-confirmation).
+- The parent screen says so before confirming
+  (`practiceCoach.countsTowardProgress`).
+
+Not counted: teacher quizzes on the educator desk (no learner is named) and
+the demo (it stores nothing). Practice-set outcomes the child records during
+delivery do not feed the estimate either; that is a separate decision.
+
+Tests: `tests/test_practice_quiz_evidence.py`, over the real route functions
+and a real database. Every guard was verified by breaking it: no hook, no
+once-only mark, full weight for maths, the literacy weight ignored, no grade
+gate, the privacy setting ignored, a wrong or partial answer recorded as
+work, a left-out question counted, and an unmarked question counted.
 
 **Not yet:** pages are not straightened or cropped before reading. That
 needs an image library this backend doesn't carry, and the reader copes with

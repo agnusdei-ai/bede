@@ -491,7 +491,21 @@ request. Nothing is stored.
   local model the teacher is told so. No learner is named, read or written.
 - **In the demo**, an approved quiz is delivered into the chat, questions
   only. Each draft counts twice against the demo's message quota, since it
-  is two model calls.
+  is two model calls. The demo can also print the quiz, its answer key and a
+  practice worksheet, the same way the app does.
+
+### Printing
+
+Quizzes, answer keys and worksheets print the same way in the app and the
+demo, from a phone or a computer (`utils/printDocument.ts`, mirrored in
+`demo/src/printDocument.ts`). The page is built in a hidden frame on the same
+page, not a pop-up, so a phone browser cannot block it. Printing waits up to
+four seconds for pictures to load. The student copy has name and date lines,
+lettered choices and lines to write on; no question is split across two
+pages; the answer key prints on its own. Every word is escaped before it goes
+on the page. It works under both Content Security Policies unchanged. Tests:
+`printDocument.test.ts` in both apps; `demo/src/printDocument.test.ts` keeps
+the two copies identical.
 
 Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
 verified by breaking it.
@@ -523,8 +537,8 @@ key, and then score a student's completed work against it. This is the card
    computed answer, Bede flags it and leaves the teacher's key in place.
    **Check and approve the key** asks the server, which refuses while
    anything is unsettled and says what.
-3. **Print and give the quiz.** The blank quiz has a name line for the
-   student to fill in by hand. The answer key prints separately, with
+3. **Print and give the quiz.** The blank quiz has name and date lines for
+   the student to fill in by hand. The answer key prints separately, with
    accepted answers and rubrics.
 4. **Upload one student's work.** Photos or a scan of the completed quiz,
    with a tick for that upload, or the answers typed in.

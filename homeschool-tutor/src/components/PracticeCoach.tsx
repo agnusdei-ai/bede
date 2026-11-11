@@ -5,6 +5,7 @@ import { splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import { withProgress, type ProgressState } from '../utils/readingProgress'
 import ReadingProgressBar from './ReadingProgressBar'
 import Diagram, { pictureWords, diagramMarkup } from './Diagram'
+import { printSheet } from '../utils/printDocument'
 import { Camera, Check, Printer, Sparkles, X } from 'lucide-react'
 import {
   approvePracticeSet, confirmPracticeReading, discardPracticeSet, fetchPracticePacks,
@@ -61,10 +62,6 @@ function readFile(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
   })
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
 
 export default function PracticeCoach({ token, studentName }: { token: string; studentName: string }) {
@@ -199,18 +196,21 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
     }
   }
 
-  const printWorksheet = () => {
+  const printWorksheet = async () => {
     const set = chosenSet()
-    if (!set) return
-    const win = window.open('', '_blank')
-    if (!win) return
-    const rows = set.items.map((item) =>
-      `<li><p>${escapeHtml(item.prompt)}</p>${diagramMarkup(item.diagram, t)}<div class="line"></div></li>`).join('')
-    win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(t('practiceCoach.worksheetTitle'))}</title>
-<style>body{font-family:Georgia,serif;margin:2rem;color:#1d2433}li{margin:0 0 1.4rem}.line{border-bottom:1px solid #999;height:2rem}</style>
-<h1>${escapeHtml(t('practiceCoach.worksheetTitle'))}</h1><ol>${rows}</ol>`)
-    win.document.close()
-    win.print()
+    if (!set || !set.items.length) return
+    const title = t('practiceCoach.worksheetTitle')
+    const started = await printSheet({
+      title,
+      items: set.items.map((item) => ({
+        prompt: item.prompt,
+        diagramHtml: diagramMarkup(item.diagram, t),
+        answer: item.expected_answer,
+      })),
+      labels: { name: t('printSheet.name'), date: t('printSheet.date'), keyTitle: title },
+      copies: ['student'],
+    })
+    if (!started) setMessage(t('printSheet.failed'))
   }
 
   const reset = () => {
@@ -415,8 +415,8 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                       className="inline-flex items-center gap-1.5 rounded-lg bg-sage-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
                       <Check size={15} /> {t('practiceCoach.approve')}
                     </button>
-                    <button type="button" onClick={printWorksheet} disabled={!keep.some(Boolean)}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-navy-50 px-3 py-2 text-sm font-medium text-navy-800 disabled:opacity-40">
+                    <button type="button" onClick={() => void printWorksheet()} disabled={!keep.some(Boolean)}
+                      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-navy-50 px-3 py-2 text-sm font-medium text-navy-800 disabled:opacity-40">
                       <Printer size={15} /> {t('practiceCoach.print')}
                     </button>
                     <button type="button" onClick={discard}

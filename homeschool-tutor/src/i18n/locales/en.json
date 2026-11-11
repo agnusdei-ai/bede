@@ -1183,7 +1183,6 @@
     "printQuiz": "Print quiz",
     "printKey": "Print answer key",
     "answerKey": "answer key",
-    "nameLine": "Name:",
     "export": "Save as a file",
     "scoreWork": "Score a student's work",
     "discard": "Discard",
@@ -1220,5 +1219,10 @@
     "nextStudent": "Next student",
     "fileTooLarge": "A file is larger than 25 MB. Scan it at a lower resolution or split it, then add it again.",
     "uploadTooLarge": "These files are more than 24 MB together, which is more than one upload can carry. Use smaller scans, or paste the quiz's text instead."
+  },
+  "printSheet": {
+    "name": "Name",
+    "date": "Date",
+    "failed": "Printing did not start. Try again."
   }
 }

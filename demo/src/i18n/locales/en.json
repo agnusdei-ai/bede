@@ -116,7 +116,9 @@
     "tabPractice": "Practice from a quiz",
     "tabQuiz": "Make a quiz or exam",
     "uploadTooLarge": "These files add up to more than 1 GB. Choose fewer pages.",
-    "fileTooLarge": "One file is larger than 25 MB. Split it, or scan it at a lower resolution."
+    "fileTooLarge": "One file is larger than 25 MB. Split it, or scan it at a lower resolution.",
+    "print": "Print worksheet",
+    "worksheetTitle": "Practice"
   },
   "demoQuiz": {
     "loading": "Loading…",
@@ -167,7 +169,10 @@
     "noPhotos": "Photos need Bede's own AI model, on a family or school install. A typed topic or pasted quiz works here.",
     "uploadTooLarge": "These files add up to more than 1 GB. Choose fewer pages.",
     "fileTooLarge": "One file is larger than 25 MB. Split it, or scan it at a lower resolution.",
-    "sourceTrimmed": "This source is very long, so Bede drafted the quiz from its first pages."
+    "sourceTrimmed": "This source is very long, so Bede drafted the quiz from its first pages.",
+    "printQuiz": "Print quiz",
+    "printKey": "Print answer key",
+    "answerKey": "answer key"
   },
   "canvas": {
     "cancel": "Cancel",
@@ -591,5 +596,10 @@
     "read": "Read {{done}} of {{total}} pages",
     "drafting": "Writing the quiz…",
     "part": "(part {{part}} of {{parts}})"
+  },
+  "printSheet": {
+    "name": "Name",
+    "date": "Date",
+    "failed": "Printing did not start. Try again."
   }
 }

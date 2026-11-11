@@ -15,6 +15,7 @@ import {
   type QuizProblem,
   type TeacherQuiz,
 } from '../services/api'
+import { printSheet } from '../utils/printDocument'
 import {
   addQuestion,
   allSettled,
@@ -61,10 +62,6 @@ function readText(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error)
     reader.readAsText(file)
   })
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
 
 const lines = (text: string) => text.split('\n').map((s) => s.trim()).filter(Boolean)
@@ -214,44 +211,46 @@ export default function TeacherQuizStudio({ token, incoming }: {
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
-  const printDoc = (heading: string, body: string) => {
-    const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(heading)}</title>
-<style>body{font-family:Georgia,serif;margin:2rem;color:#1d2433}ol{list-style:none;padding:0}li{margin:0 0 1.2rem}ul{list-style:none;padding-left:1rem}.line{border-bottom:1px solid #999;height:2rem}.ans{font-weight:bold}.small{font-size:.85rem;color:#444}</style>
-<h1>${escapeHtml(heading)}</h1>${body}`)
-    win.document.close()
-    win.print()
-  }
+  const printLabels = (keyTitle: string) => ({ name: t('printSheet.name'), date: t('printSheet.date'), keyTitle })
 
-  const printQuiz = (withKey: boolean) => {
+  const printQuiz = async (withKey: boolean) => {
     if (!quiz) return
-    const rows = quiz.questions.map((q) => {
-      const stim = q.stimulus ? `<p class="small">${escapeHtml(q.stimulus)}</p>` : ''
-      const opts = q.options.length
-        ? `<ul>${q.options.map((o, i) => `<li>${String.fromCharCode(65 + i)}) ${escapeHtml(o)}</li>`).join('')}</ul>` : ''
-      let tail = '<div class="line"></div>'
-      if (withKey) {
-        tail = `<p class="ans">${escapeHtml(q.answer || '—')}</p>`
-        if (q.accepted_answers.length) tail += `<p class="small">${escapeHtml(t('teacherQuiz.alsoAccept'))}: ${escapeHtml(q.accepted_answers.join('; '))}</p>`
-        if (q.rubric) tail += `<p class="small">${escapeHtml(t('teacherQuiz.rubric'))}: ${escapeHtml(q.rubric)}</p>`
-        if (q.scoring_guidance) tail += `<p class="small">${escapeHtml(q.scoring_guidance)}</p>`
-      }
-      const pts = t('teacherQuiz.pointsN', { count: q.points })
-      return `<li><p>${q.number}. ${escapeHtml(q.prompt)} <span class="small">(${escapeHtml(pts)})</span></p>${stim}${opts}${tail}</li>`
-    }).join('')
-    const nameLine = withKey ? '' : `<p>${escapeHtml(t('teacherQuiz.nameLine'))} ____________________</p>`
-    printDoc(withKey ? `${quiz.title}: ${t('teacherQuiz.answerKey')}` : quiz.title, `${nameLine}<ol>${rows}</ol>`)
+    const started = await printSheet({
+      title: quiz.title,
+      items: quiz.questions.map((q) => {
+        const answerDetails: string[] = []
+        if (q.accepted_answers.length) answerDetails.push(`${t('teacherQuiz.alsoAccept')}: ${q.accepted_answers.join('; ')}`)
+        if (q.rubric) answerDetails.push(`${t('teacherQuiz.rubric')}: ${q.rubric}`)
+        if (q.scoring_guidance) answerDetails.push(q.scoring_guidance)
+        return {
+          prompt: q.prompt,
+          details: [q.stimulus ?? '', `(${t('teacherQuiz.pointsN', { count: q.points })})`],
+          options: q.options,
+          answer: q.answer,
+          answerDetails,
+        }
+      }),
+      labels: printLabels(`${quiz.title}: ${t('teacherQuiz.answerKey')}`),
+      copies: [withKey ? 'key' : 'student'],
+    })
+    if (!started) setMessage(t('printSheet.failed'))
   }
 
-  const printResults = () => {
+  const printResults = async () => {
     if (!quiz || !results || !final) return
-    const rows = results.map((r) => {
-      const q = quiz.questions.find((x) => x.number === r.number)
-      return `<li>${r.number}. ${escapeHtml(q?.prompt ?? '')}<br><span class="small">${escapeHtml(r.response ?? '—')}</span> · <b>${settled[r.number]} / ${r.max_points}</b></li>`
-    }).join('')
-    printDoc(`${quiz.title}: ${t('teacherQuiz.results')}`,
-      `<p>${escapeHtml(t('teacherQuiz.nameLine'))} ____________________</p><ol>${rows}</ol><p><b>${escapeHtml(t('teacherQuiz.total', { total: final.total, possible: final.possible }))}</b></p>`)
+    const started = await printSheet({
+      title: `${quiz.title}: ${t('teacherQuiz.results')}`,
+      items: results.map((r) => ({
+        prompt: quiz.questions.find((x) => x.number === r.number)?.prompt ?? '',
+        details: [r.response ?? '—'],
+        answer: `${settled[r.number]} / ${r.max_points}`,
+      })),
+      labels: printLabels(`${quiz.title}: ${t('teacherQuiz.results')}`),
+      copies: ['key'],
+      nameOnKey: true,
+      footer: t('teacherQuiz.total', { total: final.total, possible: final.possible }),
+    })
+    if (!started) setMessage(t('printSheet.failed'))
   }
 
   const score = async () => {
@@ -465,10 +464,10 @@ export default function TeacherQuizStudio({ token, incoming }: {
                   </button>
                 )}
                 {quiz.approved && <p role="status" className="self-center text-sage-800">{t('teacherQuiz.approved')}</p>}
-                <button type="button" onClick={() => printQuiz(false)} disabled={!quiz.approved} className={quiet}>
+                <button type="button" onClick={() => void printQuiz(false)} disabled={!quiz.approved} className={quiet}>
                   <Printer size={15} />{t('teacherQuiz.printQuiz')}
                 </button>
-                <button type="button" onClick={() => printQuiz(true)} disabled={!quiz.approved} className={quiet}>
+                <button type="button" onClick={() => void printQuiz(true)} disabled={!quiz.approved} className={quiet}>
                   <Printer size={15} />{t('teacherQuiz.printKey')}
                 </button>
                 <button type="button" onClick={download} className={quiet}><Download size={15} />{t('teacherQuiz.export')}</button>
@@ -571,7 +570,7 @@ export default function TeacherQuizStudio({ token, incoming }: {
                     <button type="button" onClick={() => void finalize()} disabled={busy || !allSettled(settled, results)}
                       className={`${button} bg-navy-700 text-white disabled:opacity-40`}>{t('teacherQuiz.approveResults')}</button>
                     {final && <p role="status" className="self-center font-semibold text-sage-800">{t('teacherQuiz.total', final)}</p>}
-                    <button type="button" onClick={printResults} disabled={!final} className={quiet}>
+                    <button type="button" onClick={() => void printResults()} disabled={!final} className={quiet}>
                       <Printer size={15} />{t('teacherQuiz.printResults')}
                     </button>
                     <button type="button" onClick={nextStudent} className={quiet}>{t('teacherQuiz.nextStudent')}</button>

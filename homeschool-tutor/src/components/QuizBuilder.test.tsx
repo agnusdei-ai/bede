@@ -11,6 +11,20 @@ vi.mock('../services/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('../services/api')>()
   return { ...original, ...mocks }
 })
+const printed = vi.hoisted(() => ({ sheets: [] as unknown[], html: [] as string[] }))
+vi.mock('../utils/printDocument', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../utils/printDocument')>()
+  return {
+    ...original,
+    // The real page builder, without opening a print dialog. What the button
+    // passes is what this records, so these tests check the call site.
+    printSheet: async (sheet: Parameters<typeof original.buildPrintHtml>[0]) => {
+      printed.sheets.push(sheet)
+      printed.html.push(original.buildPrintHtml(sheet))
+      return true
+    },
+  }
+})
 
 import i18n from '../i18n'
 import QuizBuilder from './QuizBuilder'
@@ -40,15 +54,15 @@ const quiz: GeneratedQuiz = {
 describe('QuizBuilder', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
+    printed.sheets.length = 0
+    printed.html.length = 0
     await i18n.changeLanguage('en')
     mocks.generateQuiz.mockResolvedValue({ quiz, report: { answers_recomputed: 0, dropped: 0, short_by: 0 } })
   })
 
   it('drafts for this student with the chosen grade and type, and prints the quiz without answers', async () => {
     mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
-    const written: string[] = []
-    const win = { document: { write: (h: string) => written.push(h), close: vi.fn() }, print: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window)
+    const written = printed.html
 
     render(<QuizBuilder token="t" studentName="Ava" />)
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
@@ -66,11 +80,19 @@ describe('QuizBuilder', () => {
     expect(screen.getByText('A second check said: light')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Print quiz' }))
+    await waitFor(() => expect(written).toHaveLength(1))
     expect(written[0]).toContain('What do leaves need to make food?')
+    expect(written[0]).toContain('Name')
     expect(written[0]).not.toContain('sunlight')
 
+    // Only the questions the parent kept are printed.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include question 3' }))
     fireEvent.click(screen.getByRole('button', { name: 'Print answer key' }))
+    await waitFor(() => expect(written).toHaveLength(2))
     expect(written[1]).toContain('sunlight')
+    expect(written[1]).toContain('Plants quiz: answer key')
+    expect(written[1]).not.toContain('What gas do plants take in?')
+    expect(printed.sheets[1]).toMatchObject({ copies: ['key'] })
   })
 
   it('draws a picture question on screen and in the printed quiz', async () => {
@@ -79,15 +101,14 @@ describe('QuizBuilder', () => {
       number: 1, type: 'short_answer', topic: 'fractions', prompt: 'What fraction of the bar is shaded?', options: [],
       answer: '3/4', answer_check: 'computed', diagram: { kind: 'fraction_bar', parts: 4, shaded: 3 },
     }] }, report: { answers_recomputed: 0, dropped: 0, short_by: 0 } })
-    const written: string[] = []
-    const win = { document: { write: (h: string) => written.push(h), close: vi.fn() }, print: vi.fn() }
-    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window)
+    const written = printed.html
     render(<QuizBuilder token="t" studentName="Ava" />)
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'fractions' } })
     fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
     expect(await screen.findByRole('img', { name: /A bar in 4 equal parts, 3 of them shaded/ })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Print quiz' }))
+    await waitFor(() => expect(written).toHaveLength(1))
     expect(written[0]).toContain('<svg')
     expect((written[0].match(/<rect/g) ?? []).length).toBe(4)
     expect(written[0]).not.toContain('3/4')

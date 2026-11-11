@@ -19,6 +19,21 @@ vi.mock('./api', async (importOriginal) => ({
   ...api,
 }))
 
+const printed = vi.hoisted(() => ({ sheets: [] as unknown[], html: [] as string[] }))
+vi.mock('./printDocument', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./printDocument')>()
+  return {
+    ...original,
+    // The real page builder, without opening a print dialog. What the button
+    // passes is what this records, so these tests check the call site.
+    printSheet: async (sheet: Parameters<typeof original.buildPrintHtml>[0]) => {
+      printed.sheets.push(sheet)
+      printed.html.push(original.buildPrintHtml(sheet))
+      return true
+    },
+  }
+})
+
 afterEach(cleanup)
 
 const assessment: DemoPracticeAssessment = {
@@ -178,6 +193,27 @@ describe('demo Practice Coach', () => {
     ])
     expect(onApproved.mock.calls[0][0][0]).not.toHaveProperty('expected_answer')
     expect(onApproved.mock.calls[0][0][0]).not.toHaveProperty('parent_script')
+  })
+
+  it('prints the kept practice items as a worksheet, without the answers', async () => {
+    printed.sheets.length = 0
+    printed.html.length = 0
+    render(<DemoPracticeCoach token="synthetic-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    await screen.findByRole('option', { name: 'Latin' })
+    fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files: [new File(['x'], 'page.jpg', { type: 'image/jpeg' })] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Looks right' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm review and plan practice' }))
+    const print = await screen.findByRole('button', { name: 'Print worksheet' })
+    expect(print.className).toContain('min-h-[44px]')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include practice question 1' }))
+    fireEvent.click(print)
+    await waitFor(() => expect(printed.html).toHaveLength(1))
+    expect(printed.sheets[0]).toMatchObject({ copies: ['student'], title: 'Practice' })
+    expect(printed.html[0]).toContain('Translate amo.')
+    expect(printed.html[0]).not.toContain('Translate aqua.')
+    expect(printed.html[0]).not.toContain('I love.')
+    expect(printed.html[0]).toContain('Date <span class="fill">')
   })
 
   it('requires per-upload consent before sending pages to the cloud reader', async () => {

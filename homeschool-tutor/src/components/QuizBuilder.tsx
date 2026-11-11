@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { FileQuestion, Loader2, Printer } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import Diagram, { diagramMarkup } from './Diagram'
+import { printSheet } from '../utils/printDocument'
 import ReadingProgressBar from './ReadingProgressBar'
 import { newProgressId, overallPercent, watchProgress, withProgress, type ProgressState } from '../utils/readingProgress'
 import {
@@ -35,10 +36,6 @@ function readFile(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error)
     reader.readAsDataURL(file)
   })
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 }
 
 export function optionLines(options: string[]): string[] {
@@ -166,22 +163,21 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
 
   const chosen = () => quiz ? quiz.questions.filter((_, i) => keep[i]) : []
 
-  const print = (withAnswers: boolean) => {
+  const print = async (withAnswers: boolean) => {
     const questions = chosen()
     if (!quiz || !questions.length) return
-    const win = window.open('', '_blank')
-    if (!win) return
-    const rows = questions.map((q, i) => {
-      const opts = q.options.length ? `<ul>${optionLines(q.options).map((o) => `<li>${escapeHtml(o)}</li>`).join('')}</ul>` : ''
-      const tail = withAnswers ? `<p class="ans">${escapeHtml(q.answer)}</p>` : '<div class="line"></div>'
-      return `<li><p>${i + 1}. ${escapeHtml(q.prompt)}</p>${diagramMarkup(q.diagram, t)}${opts}${tail}</li>`
-    }).join('')
-    const heading = withAnswers ? `${quiz.title}: ${t('quizBuilder.answerKey')}` : quiz.title
-    win.document.write(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(heading)}</title>
-<style>body{font-family:Georgia,serif;margin:2rem;color:#1d2433}ol{list-style:none;padding:0}li{margin:0 0 1.2rem}ul{list-style:none;padding-left:1rem}.line{border-bottom:1px solid #999;height:2rem}.ans{font-weight:bold}</style>
-<h1>${escapeHtml(heading)}</h1><ol>${rows}</ol>`)
-    win.document.close()
-    win.print()
+    const started = await printSheet({
+      title: quiz.title,
+      items: questions.map((q) => ({
+        prompt: q.prompt,
+        options: q.options,
+        diagramHtml: diagramMarkup(q.diagram, t),
+        answer: q.answer,
+      })),
+      labels: { name: t('printSheet.name'), date: t('printSheet.date'), keyTitle: `${quiz.title}: ${t('quizBuilder.answerKey')}` },
+      copies: [withAnswers ? 'key' : 'student'],
+    })
+    if (!started) setMessage(t('printSheet.failed'))
   }
 
   const field = 'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm'
@@ -311,11 +307,11 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                 ))}
               </ol>
               <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => print(false)} disabled={!keep.some(Boolean)}
+                <button type="button" onClick={() => void print(false)} disabled={!keep.some(Boolean)}
                   className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
                   <Printer size={15} />{t('quizBuilder.printQuiz')}
                 </button>
-                <button type="button" onClick={() => print(true)} disabled={!keep.some(Boolean)}
+                <button type="button" onClick={() => void print(true)} disabled={!keep.some(Boolean)}
                   className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
                   <Printer size={15} />{t('quizBuilder.printKey')}
                 </button>

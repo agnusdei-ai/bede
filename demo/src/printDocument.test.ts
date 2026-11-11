@@ -2,7 +2,7 @@
  * One way to print, in both apps.
  *
  * Quizzes, answer keys and practice worksheets print through the same page
- * builder and the same hidden iframe in the demo and in the product, so a
+ * builder and the same print step in the demo and in the product, so a
  * parent trying the demo on a phone prints what a family would. The behaviour
  * is tested in homeschool-tutor/src/utils/printDocument.test.ts; this checks
  * the two copies are the same file, byte for byte.

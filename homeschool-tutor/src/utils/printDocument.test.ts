@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   IMAGE_WAIT_MS,
   OPEN_ANSWER_LINES,
+  PRINT_ROOT_ID,
   buildPrintHtml,
+  clearPrintSheet,
   printHtml,
   waitForImages,
   type PrintSheet,
@@ -148,56 +150,83 @@ describe('waitForImages', () => {
 })
 
 describe('printHtml', () => {
-  afterEach(() => { vi.restoreAllMocks(); document.body.innerHTML = '' })
+  afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); clearPrintSheet(); document.body.innerHTML = '' })
 
-  /** Catch the iframe as it is added, and stand in for the browser's print(). */
-  function captureFrame(print: () => void) {
-    const frames: HTMLIFrameElement[] = []
-    const append = document.body.appendChild.bind(document.body)
-    vi.spyOn(document.body, 'appendChild').mockImplementation(<T extends Node>(node: T): T => {
-      const added = append(node)
-      if (node instanceof HTMLIFrameElement) {
-        frames.push(node)
-        node.contentWindow!.print = print
-        node.contentWindow!.focus = () => {}
-      }
-      return added
-    })
-    return frames
-  }
+  const page = (body: string) => `<!doctype html><html><head><style>.x { color: red; }</style></head><body>${body}</body></html>`
+  const sheetRoot = () => document.getElementById(PRINT_ROOT_ID)
 
-  it('prints from a hidden iframe on this page, never a popup', async () => {
+  it('prints from this page, never a popup or a frame', async () => {
     const open = vi.spyOn(window, 'open')
-    const print = vi.fn()
-    const frames = captureFrame(print)
-    const result = printHtml('<p>Hello</p>', 50)
-    expect(frames).toHaveLength(1)
-    expect(frames[0].srcdoc).toBe('<p>Hello</p>')
-    expect(frames[0].getAttribute('aria-hidden')).toBe('true')
-    await expect(result).resolves.toBe(true)
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    await expect(printHtml(page('<p>Hello</p>'), 50)).resolves.toBe(true)
     expect(print).toHaveBeenCalledTimes(1)
     expect(open).not.toHaveBeenCalled()
+    expect(document.querySelector('iframe')).toBeNull()
+    expect(sheetRoot()!.shadowRoot!.innerHTML).toContain('<p>Hello</p>')
+    expect(sheetRoot()!.shadowRoot!.innerHTML).toContain('.x { color: red; }')
+    expect(sheetRoot()!.getAttribute('aria-hidden')).toBe('true')
   })
 
-  it('removes the iframe once printing is done', async () => {
-    const frames = captureFrame(vi.fn())
-    await printHtml('<p>x</p>', 50)
-    expect(document.body.contains(frames[0])).toBe(true)
-    frames[0].contentWindow!.dispatchEvent(new Event('afterprint'))
-    await vi.waitFor(() => expect(document.body.contains(frames[0])).toBe(false))
+  it('calls print() during the tap when there is no picture to wait for', () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    void printHtml(page('<p>No pictures</p>'), 50)
+    // Synchronously: Safari only opens the print sheet while the tap is live.
+    expect(print).toHaveBeenCalledTimes(1)
   })
 
-  it('replaces an earlier print iframe rather than piling them up', async () => {
-    const frames = captureFrame(vi.fn())
-    await printHtml('<p>one</p>', 50)
-    await printHtml('<p>two</p>', 50)
-    expect(document.body.contains(frames[0])).toBe(false)
-    expect(document.querySelectorAll('iframe')).toHaveLength(1)
+  it('waits for a picture before printing, then prints', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    const result = printHtml(page('<img src="/a.png">'), 10_000)
+    expect(print).not.toHaveBeenCalled()
+    sheetRoot()!.shadowRoot!.querySelector('img')!.dispatchEvent(new Event('load'))
+    await expect(result).resolves.toBe(true)
+    expect(print).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides everything but the sheet in print, and the sheet on screen', async () => {
+    let rulesWhilePrinting = ''
+    vi.spyOn(window, 'print').mockImplementation(() => {
+      rulesWhilePrinting = document.getElementById('bede-print-rules')!.textContent!
+    })
+    await printHtml(page('<p>x</p>'), 50)
+    expect(rulesWhilePrinting).toContain(`@media print`)
+    expect(rulesWhilePrinting).toContain(`body > *:not(#${PRINT_ROOT_ID}) { display: none !important; }`)
+    expect(rulesWhilePrinting).toContain(`@media screen { #${PRINT_ROOT_ID} { display: none !important; } }`)
+  })
+
+  it('takes the sheet off the page once printing is done', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    await printHtml(page('<p>x</p>'), 50)
+    expect(sheetRoot()).not.toBeNull()
+    window.dispatchEvent(new Event('afterprint'))
+    await vi.waitFor(() => expect(sheetRoot()).toBeNull())
+    expect(document.getElementById('bede-print-rules')).toBeNull()
+  })
+
+  it('never removes the sheet on a timer, so a long-open iOS print sheet keeps its pages', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    void printHtml(page('<p>x</p>'), 50)
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    expect(sheetRoot()).not.toBeNull()
+    // The reader's next touch on the page means the print sheet has closed.
+    window.dispatchEvent(new Event('pointerdown'))
+    expect(sheetRoot()).toBeNull()
+  })
+
+  it('replaces an earlier sheet rather than piling them up', async () => {
+    vi.spyOn(window, 'print').mockImplementation(() => {})
+    await printHtml(page('<p>one</p>'), 50)
+    await printHtml(page('<p>two</p>'), 50)
+    expect(document.querySelectorAll(`#${PRINT_ROOT_ID}`)).toHaveLength(1)
+    expect(sheetRoot()!.shadowRoot!.innerHTML).toContain('two')
+    expect(document.querySelectorAll('#bede-print-rules')).toHaveLength(1)
   })
 
   it('reports failure, and cleans up, when the browser refuses to print', async () => {
-    const frames = captureFrame(() => { throw new Error('blocked') })
-    await expect(printHtml('<p>x</p>', 50)).resolves.toBe(false)
-    expect(document.body.contains(frames[0])).toBe(false)
+    vi.spyOn(window, 'print').mockImplementation(() => { throw new Error('blocked') })
+    await expect(printHtml(page('<p>x</p>'), 50)).resolves.toBe(false)
+    expect(sheetRoot()).toBeNull()
+    expect(document.getElementById('bede-print-rules')).toBeNull()
   })
 })

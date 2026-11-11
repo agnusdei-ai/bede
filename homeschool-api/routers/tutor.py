@@ -163,10 +163,11 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
 
 
 async def _screen_lesson_picture(image_b64: str, auth: dict, student_name: str,
-                                 request: Request) -> tuple[str | None, bool]:
-    """(None, False) when the picture may reach the tutor; otherwise what to
-    tell the child, and whether it is a safeguarding signal (self-harm, in
-    any style), which the caller answers with the crisis path."""
+                                 request: Request) -> tuple[str | None, str | None]:
+    """(None, None) when the picture may reach the tutor; otherwise what to
+    tell the child, and, for a safeguarding signal (self-harm or sexual
+    content, in any style), its label, which the caller answers with the
+    crisis path."""
     from services import ai_service
 
     locale = auth.get("locale", "en")
@@ -177,11 +178,11 @@ async def _screen_lesson_picture(image_b64: str, auth: dict, student_name: str,
         content_screen.record_refusal(
             exc, audit=audit_from_request(request), role=auth.get("role"), student_name=student_name)
         if exc.crisis:
-            return safeguarding_response(locale), True
-        return content_screen.refusal_message(exc.category, "lesson", locale), False
+            return safeguarding_response(locale), content_screen.CRISIS_LABELS[exc.category]
+        return content_screen.refusal_message(exc.category, "lesson", locale), None
     except content_screen.ScreeningUnavailable:
-        return content_screen.unavailable_message("lesson", locale), False
-    return None, False
+        return content_screen.unavailable_message("lesson", locale), None
+    return None, None
 
 
 @router.post("/chat")
@@ -275,7 +276,8 @@ async def chat(
         **audit_from_request(request),
     ))
 
-    async def _trigger_safeguarding(trigger_excerpt: str, detail_prefix: str = "trigger") -> None:
+    async def _trigger_safeguarding(trigger_excerpt: str, detail_prefix: str = "trigger",
+                                    picture: str | None = None) -> None:
         await log_event(
             AuditEvent.SAFEGUARDING,
             role=auth.get("role"),
@@ -293,6 +295,7 @@ async def chat(
             req.session_config.student_name,
             datetime.now(timezone.utc).isoformat(),
             trigger_excerpt,
+            picture=picture,
         ))
 
     async def event_generator():
@@ -384,13 +387,15 @@ async def chat(
         # the tutor (services/content_screen.py), with the same client the
         # tutor uses, so the picture goes nowhere it was not already going.
         # It fails closed: a check that cannot run refuses the picture.
-        # A picture showing self-harm (in any style, a cartoon included) takes
-        # the same crisis path as a child writing about it.
+        # A picture showing self-harm or sexual content (in any style, a
+        # cartoon included) takes the same crisis path as a child writing
+        # about self-harm: the parent is emailed straight away.
         if req.drawing_image:
             refusal, crisis = await _screen_lesson_picture(
                 req.drawing_image, auth, req.session_config.student_name, request)
             if crisis:
-                await _trigger_safeguarding("[picture: self-harm]", detail_prefix="trigger(picture)")
+                await _trigger_safeguarding(f"[picture: {crisis}]", detail_prefix="trigger(picture)",
+                                            picture=crisis)
             if refusal is not None:
                 yield json.dumps({'type': 'text', 'content': refusal})
                 yield json.dumps({'type': 'done'})

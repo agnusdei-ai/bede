@@ -19,10 +19,13 @@ a science diagram of the body's organs, a famous painting in an art lesson.
 Every rule applies in any style: a photo, a drawing, a cartoon, an animation
 frame or a sticker is judged by what it shows.
 
-**Self-harm is a safeguarding signal, not only an unsafe picture.** A lesson
-picture showing it takes the chat's crisis path (routers/tutor.py: the
-safeguarding response, `AuditEvent.SAFEGUARDING` and an immediate email to the
-parent), the same as a child writing about it.
+**Self-harm and sexual content are safeguarding signals, not only unsafe
+pictures** (owner rulings 2026-11-11). A lesson picture showing either takes
+the chat's crisis path (routers/tutor.py: the safeguarding response,
+`AuditEvent.SAFEGUARDING` and an immediate email to the parent), the same as a
+child writing about self-harm. A child sending a sexual picture can be a sign
+of harm being done to them, so it is not left to the three-in-ten-minutes
+anomaly rule the other categories use.
 
 **It fails closed.** A check that errors, times out, or answers anything but
 the expected verdict refuses the picture (`ScreeningUnavailable`). A safety
@@ -60,8 +63,10 @@ SCREEN_TIMEOUT_SECONDS = 45
 # The unsafe categories. "not_schoolwork" is separate: it is refused for a
 # worksheet upload but is not a safety matter, so it is not audited as one.
 UNSAFE_CATEGORIES = ("self_harm", "sexual_content", "graphic_violence", "illicit", "mature")
-# Refused AND treated as a safeguarding signal in a child's lesson.
-CRISIS_CATEGORIES = ("self_harm",)
+# Refused AND treated as a safeguarding signal in a child's lesson. The label
+# is what the parent's alert email and the safeguarding audit entry say.
+CRISIS_LABELS = {"self_harm": "self-harm", "sexual_content": "sexual content"}
+CRISIS_CATEGORIES = tuple(CRISIS_LABELS)
 REFUSAL_CATEGORIES = UNSAFE_CATEGORIES + ("not_schoolwork",)
 
 Context = Literal["worksheet", "lesson"]
@@ -140,8 +145,8 @@ _LESSON_MESSAGES_ES = {
 
 
 def refusal_message(category: str, context: Context, locale: str = "en") -> str:
-    """For a lesson, a self-harm refusal is answered with the safeguarding
-    response instead (routers/tutor.py), never with this text."""
+    """For a lesson, a crisis-category refusal is answered with the
+    safeguarding response instead (routers/tutor.py), never with this text."""
     if context == "worksheet" and category == "self_harm":
         return _MESSAGES["worksheet"]["self_harm"]
     kind = "not_schoolwork" if category == "not_schoolwork" else "unsafe"

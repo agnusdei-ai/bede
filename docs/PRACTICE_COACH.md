@@ -202,7 +202,8 @@ page about a war, a labelled diagram of the body's organs, a famous painting.
 A self-harm refusal tells the parent or teacher plainly and suggests talking
 with the child and contacting a professional. A child's lesson photo or
 drawing in the chat is checked the same way before it reaches the tutor, and
-one showing self-harm takes the same crisis path as a child writing about it:
+one showing self-harm or sexual content takes the same crisis path as a child
+writing about self-harm:
 the safeguarding reply, a safeguarding audit entry and an immediate email to
 the parent; see `docs/SECURITY.md`. This is a model's judgment, not
 a guarantee: it can be wrong in either direction, which is why the file checks

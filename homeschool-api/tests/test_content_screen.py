@@ -121,7 +121,8 @@ def test_the_unsafe_categories_are_the_ones_the_owner_named():
     # not-schoolwork, which is refused for a worksheet but is not a safety matter.
     assert set(content_screen.UNSAFE_CATEGORIES) == {
         "self_harm", "sexual_content", "graphic_violence", "illicit", "mature"}
-    assert content_screen.CRISIS_CATEGORIES == ("self_harm",)
+    # Both are safeguarding signals from a child (owner rulings 2026-11-11).
+    assert set(content_screen.CRISIS_CATEGORIES) == {"self_harm", "sexual_content"}
     assert set(content_screen.REFUSAL_CATEGORIES) - set(content_screen.UNSAFE_CATEGORIES) == {"not_schoolwork"}
 
 
@@ -457,8 +458,8 @@ def safeguarding(monkeypatch):
         if event == AuditEvent.SAFEGUARDING:
             raised["audit"].append(kw)
 
-    async def alert(student, when, excerpt):
-        raised["alerts"].append((student, excerpt))
+    async def alert(student, when, excerpt, picture=None):
+        raised["alerts"].append((student, excerpt, picture))
         return True
 
     monkeypatch.setattr(tutor_router, "log_event", log_event)
@@ -468,12 +469,15 @@ def safeguarding(monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("locale", ["en", "es"])
-async def test_a_self_harm_picture_takes_the_crisis_path(tutor, audited, safeguarding, locale):
-    """Even a cartoon: a child's picture showing self-harm is a safeguarding
-    signal, answered exactly as a child writing about it is."""
+@pytest.mark.parametrize("category,label", [("self_harm", "self-harm"), ("sexual_content", "sexual content")])
+async def test_a_crisis_picture_alerts_the_parent_straight_away(tutor, audited, safeguarding, locale,
+                                                                category, label):
+    """Even a cartoon: a child's picture showing self-harm or sexual content
+    is a safeguarding signal, answered exactly as a child writing about
+    self-harm is, with the parent emailed at once."""
     import asyncio
 
-    reached = tutor(ScreenClient(refuse("self_harm")))
+    reached = tutor(ScreenClient(refuse(category)))
     response = await tutor_router.chat(
         _turn(b64(PNG)), _request(), auth={"role": "parent", "locale": locale}, db=None)
     chunks = await _chunks(response)
@@ -481,18 +485,30 @@ async def test_a_self_harm_picture_takes_the_crisis_path(tutor, audited, safegua
     assert reached == []
     assert chunks == [{"type": "text", "content": tutor_router.safeguarding_response(locale)}, {"type": "done"}]
     assert [(a["student_name"], a["detail"]) for a in safeguarding["audit"]] == [
-        ("Sam", "trigger(picture):[picture: self-harm]")]
-    assert safeguarding["alerts"] == [("Sam", "[picture: self-harm]")]
+        ("Sam", f"trigger(picture):[picture: {label}]")]
+    assert safeguarding["alerts"] == [("Sam", f"[picture: {label}]", label)]
     assert [kw["detail"] for event, kw in audited if event == AuditEvent.UPLOAD_REFUSED] == [
-        "category=self_harm surface=lesson"]
+        f"category={category} surface=lesson"]
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("category", [c for c in content_screen.REFUSAL_CATEGORIES if c != "self_harm"])
+@pytest.mark.parametrize("category", [c for c in content_screen.REFUSAL_CATEGORIES
+                                      if c not in content_screen.CRISIS_CATEGORIES])
 async def test_other_refused_pictures_do_not_raise_a_safeguarding_alert(tutor, audited, safeguarding, category):
     tutor(ScreenClient(refuse(category)))
     await _chunks(await tutor_router.chat(_turn(b64(PNG)), _request(), auth={"role": "parent"}, db=None))
     assert safeguarding == {"audit": [], "alerts": []}
+
+
+def test_the_parents_email_says_a_picture_was_sent_and_not_kept():
+    from services.email_service import build_distress_alert_html
+
+    body = build_distress_alert_html("Sam", "2026-11-11T21:00:00Z", "[picture: sexual content]",
+                                     picture="sexual content")
+    assert "sent Bede a picture that appeared to show sexual content" in body
+    assert "The picture was not kept." in body and "What Sam said" not in body
+    said = build_distress_alert_html("Sam", "2026-11-11T21:00:00Z", "I want to hurt myself")
+    assert "What Sam said" in said and "picture" not in said  # a message alert is unchanged
 
 
 def test_a_self_harm_worksheet_says_so_and_points_to_help():

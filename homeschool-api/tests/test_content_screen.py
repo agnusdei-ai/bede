@@ -116,10 +116,12 @@ def test_anything_unclear_fails_closed(reply):
         content_screen.parse_verdict(reply)
 
 
-def test_the_unsafe_categories_are_the_four_the_owner_named():
-    # illicit, pornographic, violent, mature-rated; plus not-schoolwork, which
-    # is refused for a worksheet but is not a safety matter.
-    assert set(content_screen.UNSAFE_CATEGORIES) == {"sexual_content", "graphic_violence", "illicit", "mature"}
+def test_the_unsafe_categories_are_the_ones_the_owner_named():
+    # illicit, pornographic, violent, mature-rated, and self-harm; plus
+    # not-schoolwork, which is refused for a worksheet but is not a safety matter.
+    assert set(content_screen.UNSAFE_CATEGORIES) == {
+        "self_harm", "sexual_content", "graphic_violence", "illicit", "mature"}
+    assert content_screen.CRISIS_CATEGORIES == ("self_harm",)
     assert set(content_screen.REFUSAL_CATEGORIES) - set(content_screen.UNSAFE_CATEGORIES) == {"not_schoolwork"}
 
 
@@ -129,6 +131,9 @@ def test_the_rules_name_every_category_and_keep_ordinary_school_material():
         for category in content_screen.REFUSAL_CATEGORIES:
             assert f"- {category}:" in rules
         assert "history page" in rules and "science lesson" in rules  # hard subjects are school material
+        # a cartoon or an animation is judged by what it shows, like a photo
+        assert "cartoon" in rules and "animation" in rules
+        assert rules.index("- self_harm:") < rules.index("- sexual_content:")  # the most serious first
     assert "selfies" in content_screen._rules("worksheet")
     assert "pet" in content_screen._rules("lesson")  # a nature-study photo is a lesson
 
@@ -400,8 +405,9 @@ async def test_a_refused_lesson_picture_never_reaches_the_tutor(tutor, audited, 
     response = await tutor_router.chat(_turn(b64(JPEG)), _request(), auth={"role": "parent"}, db=None)
     chunks = await _chunks(response)
     assert reached == []
-    assert chunks == [{"type": "text", "content": content_screen.refusal_message(category, "lesson")},
-                      {"type": "done"}]
+    expected = (tutor_router.safeguarding_response("en") if category in content_screen.CRISIS_CATEGORIES
+                else content_screen.refusal_message(category, "lesson"))
+    assert chunks == [{"type": "text", "content": expected}, {"type": "done"}]
     (call,) = client.calls
     image = call["messages"][0]["content"][0]
     assert image["source"]["media_type"] == "image/jpeg" and SCREEN_MARK in call["system"]
@@ -441,6 +447,57 @@ async def test_a_clean_lesson_picture_reaches_the_tutor_and_a_turn_without_one_i
     client.calls.clear()
     await _chunks(await tutor_router.chat(_turn(None), _request(), auth={"role": "parent"}, db=None))
     assert client.calls == [] and reached == [image, None]
+
+
+@pytest.fixture
+def safeguarding(monkeypatch):
+    raised = {"audit": [], "alerts": []}
+
+    async def log_event(event, **kw):
+        if event == AuditEvent.SAFEGUARDING:
+            raised["audit"].append(kw)
+
+    async def alert(student, when, excerpt):
+        raised["alerts"].append((student, excerpt))
+        return True
+
+    monkeypatch.setattr(tutor_router, "log_event", log_event)
+    monkeypatch.setattr(tutor_router, "send_distress_alert", alert)
+    return raised
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("locale", ["en", "es"])
+async def test_a_self_harm_picture_takes_the_crisis_path(tutor, audited, safeguarding, locale):
+    """Even a cartoon: a child's picture showing self-harm is a safeguarding
+    signal, answered exactly as a child writing about it is."""
+    import asyncio
+
+    reached = tutor(ScreenClient(refuse("self_harm")))
+    response = await tutor_router.chat(
+        _turn(b64(PNG)), _request(), auth={"role": "parent", "locale": locale}, db=None)
+    chunks = await _chunks(response)
+    await asyncio.sleep(0)  # the parent alert is sent without holding up the reply
+    assert reached == []
+    assert chunks == [{"type": "text", "content": tutor_router.safeguarding_response(locale)}, {"type": "done"}]
+    assert [(a["student_name"], a["detail"]) for a in safeguarding["audit"]] == [
+        ("Sam", "trigger(picture):[picture: self-harm]")]
+    assert safeguarding["alerts"] == [("Sam", "[picture: self-harm]")]
+    assert [kw["detail"] for event, kw in audited if event == AuditEvent.UPLOAD_REFUSED] == [
+        "category=self_harm surface=lesson"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("category", [c for c in content_screen.REFUSAL_CATEGORIES if c != "self_harm"])
+async def test_other_refused_pictures_do_not_raise_a_safeguarding_alert(tutor, audited, safeguarding, category):
+    tutor(ScreenClient(refuse(category)))
+    await _chunks(await tutor_router.chat(_turn(b64(PNG)), _request(), auth={"role": "parent"}, db=None))
+    assert safeguarding == {"audit": [], "alerts": []}
+
+
+def test_a_self_harm_worksheet_says_so_and_points_to_help():
+    message = content_screen.refusal_message("self_harm", "worksheet")
+    assert "self-harm" in message and "talk with them" in message
 
 
 def test_refusals_alert_a_parent_on_the_same_terms_as_flagged_text():

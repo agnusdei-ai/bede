@@ -162,20 +162,26 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     )
 
 
-async def _screen_lesson_picture(image_b64: str, auth: dict, student_name: str, request: Request) -> str | None:
-    """None when the picture may reach the tutor, else what to tell the child."""
+async def _screen_lesson_picture(image_b64: str, auth: dict, student_name: str,
+                                 request: Request) -> tuple[str | None, bool]:
+    """(None, False) when the picture may reach the tutor; otherwise what to
+    tell the child, and whether it is a safeguarding signal (self-harm, in
+    any style), which the caller answers with the crisis path."""
     from services import ai_service
 
     locale = auth.get("locale", "en")
     try:
-        await content_screen.screen_images(ai_service._client, [(content_screen.media_type_of(image_b64), image_b64)], "lesson")
+        await content_screen.screen_images(
+            ai_service._client, [(content_screen.media_type_of(image_b64), image_b64)], "lesson")
     except content_screen.ContentRefused as exc:
         content_screen.record_refusal(
             exc, audit=audit_from_request(request), role=auth.get("role"), student_name=student_name)
-        return content_screen.refusal_message(exc.category, "lesson", locale)
+        if exc.crisis:
+            return safeguarding_response(locale), True
+        return content_screen.refusal_message(exc.category, "lesson", locale), False
     except content_screen.ScreeningUnavailable:
-        return content_screen.unavailable_message("lesson", locale)
-    return None
+        return content_screen.unavailable_message("lesson", locale), False
+    return None, False
 
 
 @router.post("/chat")
@@ -378,8 +384,13 @@ async def chat(
         # the tutor (services/content_screen.py), with the same client the
         # tutor uses, so the picture goes nowhere it was not already going.
         # It fails closed: a check that cannot run refuses the picture.
+        # A picture showing self-harm (in any style, a cartoon included) takes
+        # the same crisis path as a child writing about it.
         if req.drawing_image:
-            refusal = await _screen_lesson_picture(req.drawing_image, auth, req.session_config.student_name, request)
+            refusal, crisis = await _screen_lesson_picture(
+                req.drawing_image, auth, req.session_config.student_name, request)
+            if crisis:
+                await _trigger_safeguarding("[picture: self-harm]", detail_prefix="trigger(picture)")
             if refusal is not None:
                 yield json.dumps({'type': 'text', 'content': refusal})
                 yield json.dumps({'type': 'done'})

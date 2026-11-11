@@ -233,7 +233,8 @@ list as items are closed.
   with only file-level hardening (`upload_safety.py`: type, size, rebuild,
   optional virus scan), which says nothing about what a picture shows. Now
   `services/content_screen.py` checks every picture before it is read or
-  reaches the tutor and refuses sexual content or nudity, graphic violence,
+  reaches the tutor and refuses, in any style including cartoons and
+animation, self-harm or suicide, sexual content or nudity, graphic violence,
   illicit material and anything else rated for adults, and, for a worksheet
   upload, anything that is not school material. It fails closed (an unclear
   or failed check refuses), uses the same client that would read the picture
@@ -242,9 +243,12 @@ list as items are closed.
   minutes, as `MODERATION_FLAGGED`). **Limits:** it is a model's judgment and
   can misjudge in either direction; each check is one more model call (on the
   demo, one more message); and the narration PDF path is text-only and is
-  moderated when the text is sent rather than at upload. A sexual image from
-  a child is redirected and audited like flagged text, not routed to the
-  safeguarding crisis path; whether it should be is an open owner question.
+  moderated when the text is sent rather than at upload. A lesson picture
+  showing self-harm takes the chat's crisis path (`safeguarding_response`,
+  `AuditEvent.SAFEGUARDING` with detail `trigger(picture):[picture: self-harm]`,
+  and an immediate `send_distress_alert`), owner request 2026-11-11. A sexual
+  image from a child is still redirected and audited like flagged text, not
+  routed to the crisis path; whether it should be is an open owner question.
   `tests/test_content_screen.py`; each guard verified by breaking it.
 
 - **Teacher enrollment required a third-party mail secret — closed

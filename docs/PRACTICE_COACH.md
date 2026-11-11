@@ -164,8 +164,11 @@ with nothing stored.
 Every page is checked before it is read, so only school material is used.
 `services/content_screen.py` looks at each group of pages first
 (`extract.screened_page_groups`, the only way an upload's pages reach a model)
-and refuses the whole upload if any page shows:
+and refuses the whole upload if any page shows, in any style (a photo, a
+drawing, a cartoon, an animation frame or a sticker is judged by what it
+shows):
 
+- self-harm or suicide, shown or encouraged;
 - sexual content or nudity;
 - graphic violence or gore;
 - illicit material (drugs, weapons, crime);
@@ -196,8 +199,12 @@ page about a war, a labelled diagram of the body's organs, a famous painting.
   work. `tests/test_content_screen.py` drives each one, and fails if anything
   but the checked wrapper hands pages to a model.
 
-A child's lesson photo or drawing in the chat is checked the same way before
-it reaches the tutor; see `docs/SECURITY.md`. This is a model's judgment, not
+A self-harm refusal tells the parent or teacher plainly and suggests talking
+with the child and contacting a professional. A child's lesson photo or
+drawing in the chat is checked the same way before it reaches the tutor, and
+one showing self-harm takes the same crisis path as a child writing about it:
+the safeguarding reply, a safeguarding audit entry and an immediate email to
+the parent; see `docs/SECURITY.md`. This is a model's judgment, not
 a guarantee: it can be wrong in either direction, which is why the file checks
 below still run and Bede still answers under its constitution.
 

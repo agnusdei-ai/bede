@@ -1379,12 +1379,15 @@ never scores a child's faith.
 
 Bede checks every uploaded page before reading it, and only accepts school
 material: quizzes, worksheets, tests, homework, book pages and notes. An
-upload that includes anything sexual, violent, illegal or rated for adults,
-or something that isn't schoolwork, is refused whole and nothing from it is
+upload that includes self-harm, or anything sexual, violent, illegal or rated
+for adults (a cartoon or animation counts the same as a photo), or something
+that isn't schoolwork, is refused whole and nothing from it is
 read or kept. If the check can't run, the upload is refused too, so try
 again. A school page on a hard subject, such as a history page about a war,
 is fine. The same check covers a photo or drawing your child sends in a
-lesson.
+lesson. If that picture shows self-harm, Bede answers as it does when a child
+writes about it: it asks your child to find you or another trusted adult, and
+emails you straight away.
 
 If your install has no AI model of its own, a quiz drafted from a typed topic
 or pasted text can still go to your AI provider, after you tick the box

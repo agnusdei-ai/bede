@@ -10,12 +10,19 @@ Two places take a picture from a person and hand it to a model:
   drawing from the canvas, or a photo attached to a lesson. Checked before the
   turn reaches the tutor.
 
-What is refused (the categories below): sexual content or nudity, graphic
-violence or gore, illicit material (drugs, weapons, crime), anything else rated
+What is refused (the categories below): self-harm or suicide, sexual content
+or nudity, graphic violence or gore, illicit material (drugs, weapons, crime), anything else rated
 for adults (profanity, hate symbols, alcohol, tobacco, gambling), and, for a
 worksheet upload, a picture that is not school material at all. Ordinary school
 material is allowed even when its subject is hard: a history page about a war,
 a science diagram of the body's organs, a famous painting in an art lesson.
+Every rule applies in any style: a photo, a drawing, a cartoon, an animation
+frame or a sticker is judged by what it shows.
+
+**Self-harm is a safeguarding signal, not only an unsafe picture.** A lesson
+picture showing it takes the chat's crisis path (routers/tutor.py: the
+safeguarding response, `AuditEvent.SAFEGUARDING` and an immediate email to the
+parent), the same as a child writing about it.
 
 **It fails closed.** A check that errors, times out, or answers anything but
 the expected verdict refuses the picture (`ScreeningUnavailable`). A safety
@@ -52,7 +59,9 @@ SCREEN_TIMEOUT_SECONDS = 45
 
 # The unsafe categories. "not_schoolwork" is separate: it is refused for a
 # worksheet upload but is not a safety matter, so it is not audited as one.
-UNSAFE_CATEGORIES = ("sexual_content", "graphic_violence", "illicit", "mature")
+UNSAFE_CATEGORIES = ("self_harm", "sexual_content", "graphic_violence", "illicit", "mature")
+# Refused AND treated as a safeguarding signal in a child's lesson.
+CRISIS_CATEGORIES = ("self_harm",)
 REFUSAL_CATEGORIES = UNSAFE_CATEGORIES + ("not_schoolwork",)
 
 Context = Literal["worksheet", "lesson"]
@@ -70,13 +79,21 @@ class ContentRefused(ValueError):
     def unsafe(self) -> bool:
         return self.category in UNSAFE_CATEGORIES
 
+    @property
+    def crisis(self) -> bool:
+        return self.category in CRISIS_CATEGORIES
+
 
 class ScreeningUnavailable(Exception):
     """The check could not run, so the picture is refused, never read."""
 
 
 _SHARED_RULES = """You check pictures before a K-8 school app uses them. Look at every picture.
+Judge what a picture shows in any style: a photo, a drawing, a cartoon, an animation frame,
+a sticker or a meme is refused for the same things a photo would be.
 Refuse if ANY picture shows:
+- self_harm: self-harm or suicide, shown or encouraged: cutting, hanging, overdosing, jumping,
+  starving or hurting oneself, or a person (or cartoon character) planning or doing it
 - sexual_content: sexual content, nudity, or sexualised poses (a labelled diagram of organs or bones in a science lesson is fine)
 - graphic_violence: gore, blood, injury, torture, or a weapon used against a person, shown graphically (a history page that tells of a battle, or a famous painting of one, is fine)
 - illicit: drugs or drug use, weapons for sale, instructions for a crime, or other illegal activity
@@ -106,6 +123,8 @@ _MESSAGES = {
     "worksheet": {
         "not_schoolwork": "This upload doesn't look like schoolwork. Upload quizzes, worksheets, tests or book pages.",
         "unsafe": "This upload can't be used: it contains content that isn't appropriate for school. Nothing was read or kept.",
+        "self_harm": ("This upload can't be used: it shows self-harm. Nothing was read or kept. "
+                      "If a child may be at risk, please talk with them and contact a professional."),
     },
     "lesson": {
         "not_schoolwork": "Bede can only look at pictures that are part of your lesson.",
@@ -121,6 +140,10 @@ _LESSON_MESSAGES_ES = {
 
 
 def refusal_message(category: str, context: Context, locale: str = "en") -> str:
+    """For a lesson, a self-harm refusal is answered with the safeguarding
+    response instead (routers/tutor.py), never with this text."""
+    if context == "worksheet" and category == "self_harm":
+        return _MESSAGES["worksheet"]["self_harm"]
     kind = "not_schoolwork" if category == "not_schoolwork" else "unsafe"
     if context == "lesson" and locale == "es":
         return _LESSON_MESSAGES_ES[kind]

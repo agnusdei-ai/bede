@@ -47,7 +47,7 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
-from services import pilot_authz
+from services import content_screen, pilot_authz
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
@@ -160,6 +160,22 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         character_virtues=parent_config.get("character_virtues") or [],
         learning_support=parent_config.get("learning_support") or [],
     )
+
+
+async def _screen_lesson_picture(image_b64: str, auth: dict, student_name: str, request: Request) -> str | None:
+    """None when the picture may reach the tutor, else what to tell the child."""
+    from services import ai_service
+
+    locale = auth.get("locale", "en")
+    try:
+        await content_screen.screen_images(ai_service._client, [(content_screen.media_type_of(image_b64), image_b64)], "lesson")
+    except content_screen.ContentRefused as exc:
+        content_screen.record_refusal(
+            exc, audit=audit_from_request(request), role=auth.get("role"), student_name=student_name)
+        return content_screen.refusal_message(exc.category, "lesson", locale)
+    except content_screen.ScreeningUnavailable:
+        return content_screen.unavailable_message("lesson", locale)
+    return None
 
 
 @router.post("/chat")
@@ -357,6 +373,17 @@ async def chat(
             yield json.dumps({'type': 'text', 'content': moderation_redirect_response(auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
             return
+
+        # A lesson photo or canvas drawing is checked before the turn reaches
+        # the tutor (services/content_screen.py), with the same client the
+        # tutor uses, so the picture goes nowhere it was not already going.
+        # It fails closed: a check that cannot run refuses the picture.
+        if req.drawing_image:
+            refusal = await _screen_lesson_picture(req.drawing_image, auth, req.session_config.student_name, request)
+            if refusal is not None:
+                yield json.dumps({'type': 'text', 'content': refusal})
+                yield json.dumps({'type': 'done'})
+                return
 
         # Wrapped in with_stall_timeout + try/except so this generator is
         # GUARANTEED to terminate with a real {"type": "done"} the child's

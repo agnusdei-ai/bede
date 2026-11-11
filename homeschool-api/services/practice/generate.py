@@ -396,7 +396,7 @@ async def transcribe_source(req, local_only: bool = False, before_call=None, rep
 
     if report:
         report("checking", 0, None)
-    async for group in extract.page_groups([p.data for p in req.pages], on_total=on_total):
+    async for group in extract.screened_page_groups(client, [p.data for p in req.pages], on_total, before_call):
         parts.append(await _transcribe(client, group, page, before_call))
         page += len(group)
         if report:
@@ -432,7 +432,7 @@ async def generate(req: GenerateQuizRequest, local_only: bool = False,
     if req.pages:
         if report:
             report("checking", 0, None)
-        groups = extract.page_groups([p.data for p in req.pages], on_total=on_total)
+        groups = extract.screened_page_groups(client, [p.data for p in req.pages], on_total, before_call)
         first = await groups.__anext__()
         second = await anext(groups, None)
         if second is None:

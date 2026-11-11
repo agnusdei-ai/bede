@@ -33,8 +33,9 @@ is the **teacher's** count, read off the page and labelled as such.
    42 MB for `/api/practice/`; each
    part continues the same saved reading (`continues_record`; the demo, which
    stores nothing, sends back what the earlier parts read as `continues`). On
-   the public demo each group of pages is one model call and counts as one
-   message against the visitor's allowance.
+   the public demo each group of pages is two model calls, the content check
+   (below) and the reading, and each counts as one message against the
+   visitor's allowance.
 
    **A progress bar shows how far a reading has got.** Each request carries a
    random `progress_id`; `services/practice/progress.py` records, in memory
@@ -157,6 +158,48 @@ student's own key and are removed when the student is deleted.
 
 On the public demo the same routes exist as previews under `/practice/demo/`,
 with nothing stored.
+
+## Checking what is uploaded
+
+Every page is checked before it is read, so only school material is used.
+`services/content_screen.py` looks at each group of pages first
+(`extract.screened_page_groups`, the only way an upload's pages reach a model)
+and refuses the whole upload if any page shows:
+
+- sexual content or nudity;
+- graphic violence or gore;
+- illicit material (drugs, weapons, crime);
+- anything else rated for adults (profanity, hate symbols, alcohol, tobacco,
+  gambling);
+- something that is not school material at all, such as a selfie, a meme or a
+  screenshot of a game.
+
+Ordinary school material is allowed even when its subject is hard: a history
+page about a war, a labelled diagram of the body's organs, a famous painting.
+
+- **Nothing from a refused upload is read or kept.** The check comes before
+  the reading of each group, and nothing is stored until every group has been
+  read, so a refusal in a later group refuses the pages before it too. The
+  parent or teacher sees a plain message (422).
+- **It fails closed.** A check that errors, times out, or gives an unclear
+  answer refuses the upload with "couldn't be checked just now" (503), and
+  nothing is read.
+- **It sends the pages nowhere new.** The check uses the same model that would
+  read the pages: the household's or school's own model, or the cloud provider
+  the parent ticked. Nothing about the check is stored.
+- **A refusal is audited, without the picture.** An unsafe refusal records
+  `AuditEvent.UPLOAD_REFUSED` with the category only; three in ten minutes
+  from one address emails the parent, the same rule as flagged chat messages.
+  A "not school material" refusal is not a safety event and is not audited.
+- **It covers every upload path**: a parent's worksheet, a quiz draft or
+  quiz source, the demo's, and a teacher's draft, source, quiz and student
+  work. `tests/test_content_screen.py` drives each one, and fails if anything
+  but the checked wrapper hands pages to a model.
+
+A child's lesson photo or drawing in the chat is checked the same way before
+it reaches the tutor; see `docs/SECURITY.md`. This is a model's judgment, not
+a guarantee: it can be wrong in either direction, which is why the file checks
+below still run and Bede still answers under its constitution.
 
 ## File validation and hardening
 

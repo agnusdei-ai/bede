@@ -171,7 +171,9 @@ async def test_the_second_look_is_charged_on_the_demo(monkeypatch):
         charged.append(1)
 
     await extract.read_pages(_req(), before_call=charge)
-    assert len(charged) == 2 == len(local.calls)
+    # the content check (stubbed here, so not in local.calls), the first
+    # reading and the second look
+    assert len(charged) == 3 and len(local.calls) == 2
 
 
 @pytest.mark.asyncio

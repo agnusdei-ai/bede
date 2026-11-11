@@ -39,6 +39,7 @@ from models.practice import (
     TeacherQuizRequest,
     teacher_mark_count,
 )
+from services import content_screen
 from services.practice import extract, generate, pipeline, progress, store, teacher_quiz
 from services.practice.packs import available_packs
 
@@ -47,7 +48,9 @@ from services.practice.packs import available_packs
 # dependency so a route added later cannot forget it.
 router = APIRouter(
     prefix="/practice", tags=["practice"],
-    dependencies=[Depends(require_practice_coach_enabled)],
+    # bind_request: a refused upload is audited with who sent it
+    # (services/content_screen.py), though pages are read far from the route.
+    dependencies=[Depends(require_practice_coach_enabled), Depends(content_screen.bind_request)],
 )
 
 # The one practice route outside that gate: the app asks it whether to show

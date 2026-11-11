@@ -116,7 +116,9 @@
     "tabPractice": "Practicar con un examen",
     "tabQuiz": "Crear un examen",
     "uploadTooLarge": "Estos archivos suman más de 1 GB. Elige menos páginas.",
-    "fileTooLarge": "Un archivo pesa más de 25 MB. Divídelo o escanéalo con menor resolución."
+    "fileTooLarge": "Un archivo pesa más de 25 MB. Divídelo o escanéalo con menor resolución.",
+    "print": "Imprimir hoja",
+    "worksheetTitle": "Práctica"
   },
   "demoQuiz": {
     "loading": "Cargando…",
@@ -167,7 +169,10 @@
     "noPhotos": "Las fotos requieren el propio modelo de IA de Bede, en una instalación familiar o escolar. Aquí funciona con un tema escrito o un examen pegado.",
     "uploadTooLarge": "Estos archivos suman más de 1 GB. Elige menos páginas.",
     "fileTooLarge": "Un archivo pesa más de 25 MB. Divídelo o escanéalo con menor resolución.",
-    "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas."
+    "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas.",
+    "printQuiz": "Imprimir examen",
+    "printKey": "Imprimir respuestas",
+    "answerKey": "respuestas"
   },
   "canvas": {
     "cancel": "Cancelar",
@@ -591,5 +596,10 @@
     "read": "Leídas {{done}} de {{total}} páginas",
     "drafting": "Preparando la prueba…",
     "part": "(parte {{part}} de {{parts}})"
+  },
+  "printSheet": {
+    "name": "Nombre",
+    "date": "Fecha",
+    "failed": "No se pudo imprimir. Inténtalo de nuevo."
   }
 }

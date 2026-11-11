@@ -1183,7 +1183,6 @@
     "printQuiz": "Imprimir examen",
     "printKey": "Imprimir clave de respuestas",
     "answerKey": "clave de respuestas",
-    "nameLine": "Nombre:",
     "export": "Guardar como archivo",
     "scoreWork": "Calificar el trabajo de un alumno",
     "discard": "Descartar",
@@ -1220,5 +1219,10 @@
     "nextStudent": "Siguiente alumno",
     "fileTooLarge": "Un archivo pesa más de 25 MB. Escanéelo con menor resolución o divídalo y vuelva a añadirlo.",
     "uploadTooLarge": "Estos archivos suman más de 24 MB, más de lo que cabe en un envío. Use escaneos más pequeños o pegue el texto de la prueba."
+  },
+  "printSheet": {
+    "name": "Nombre",
+    "date": "Fecha",
+    "failed": "No se pudo imprimir. Inténtalo de nuevo."
   }
 }

@@ -13,6 +13,20 @@ vi.mock('../services/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('../services/api')>()
   return { ...original, ...mocks }
 })
+const printed = vi.hoisted(() => ({ sheets: [] as unknown[], html: [] as string[] }))
+vi.mock('../utils/printDocument', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../utils/printDocument')>()
+  return {
+    ...original,
+    // The real page builder, without opening a print dialog. What the button
+    // passes is what this records, so these tests check the call site.
+    printSheet: async (sheet: Parameters<typeof original.buildPrintHtml>[0]) => {
+      printed.sheets.push(sheet)
+      printed.html.push(original.buildPrintHtml(sheet))
+      return true
+    },
+  }
+})
 
 import i18n from '../i18n'
 import TeacherQuizStudio, { teacherUploadProblem } from './TeacherQuizStudio'
@@ -36,10 +50,9 @@ const approvedQuiz: TeacherQuiz = {
 }
 
 function printSpy() {
-  const written: string[] = []
-  const win = { document: { write: (h: string) => written.push(h), close: vi.fn() }, print: vi.fn() }
-  vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window)
-  return written
+  printed.sheets.length = 0
+  printed.html.length = 0
+  return printed.html
 }
 
 describe('TeacherQuizStudio', () => {
@@ -67,11 +80,14 @@ describe('TeacherQuizStudio', () => {
     expect(sent.questions[0]).toMatchObject({ prompt: '3/4 + 1/4 =', answer: '1', key_source: 'teacher', key_approved: true })
 
     fireEvent.click(screen.getByRole('button', { name: 'Print quiz' }))
+    await waitFor(() => expect(written).toHaveLength(1))
     expect(written[0]).toContain('3/4 + 1/4 =')
-    expect(written[0]).toContain('Name:')
+    expect(written[0]).toContain('Name <span class="fill">')
     expect(written[0]).not.toContain('class="ans"')
     fireEvent.click(screen.getByRole('button', { name: 'Print answer key' }))
+    await waitFor(() => expect(written).toHaveLength(2))
     expect(written[1]).toContain('class="ans">1<')
+    expect(written[1]).not.toContain('class="fill"')
   })
 
   it('an uploaded quiz needs the tick first, and shows where each answer came from', async () => {
@@ -160,7 +176,9 @@ describe('TeacherQuizStudio', () => {
     expect(mocks.finalizeTeacherQuiz.mock.calls[0][1].results).toEqual([{ number: 1, points: 1 }, { number: 2, points: 1 }])
 
     fireEvent.click(screen.getByRole('button', { name: 'Print results' }))
-    expect(written[0]).toContain('Name:')
+    await waitFor(() => expect(written).toHaveLength(1))
+    expect(written[0]).toContain('Name <span class="fill">')
+    expect(written[0]).toContain('class="ans">1 / 1<')
     expect(written[0]).toContain('Total: 2 of 2')
   })
 

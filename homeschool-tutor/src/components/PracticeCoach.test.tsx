@@ -15,6 +15,21 @@ vi.mock('../services/api', async (importOriginal) => {
   return { ...original, ...mocks }
 })
 
+const printed = vi.hoisted(() => ({ sheets: [] as unknown[], html: [] as string[] }))
+vi.mock('../utils/printDocument', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../utils/printDocument')>()
+  return {
+    ...original,
+    // The real page builder, without opening a print dialog. What the button
+    // passes is what this records, so these tests check the call site.
+    printSheet: async (sheet: Parameters<typeof original.buildPrintHtml>[0]) => {
+      printed.sheets.push(sheet)
+      printed.html.push(original.buildPrintHtml(sheet))
+      return true
+    },
+  }
+})
+
 import i18n from '../i18n'
 import PracticeCoach, { PRACTICE_ACCEPT, flaggedCount, teacherCount, toBase64Payload } from './PracticeCoach'
 import type { GradedAssessment } from '../services/api'
@@ -224,6 +239,21 @@ describe('approving', () => {
     const [, , setId, sent] = mocks.approvePracticeSet.mock.calls[0]
     expect(setId).toBe(11)
     expect(sent.items.map((i: { prompt: string }) => i.prompt)).toEqual(['A duck flying. Quid est? Quid agit?'])
+  })
+
+  it('prints only the items the parent kept, with name and date lines and no answers', async () => {
+    await toPlan()
+    printed.sheets.length = 0
+    printed.html.length = 0
+    fireEvent.click(screen.getByLabelText('Include item 2'))
+    fireEvent.click(screen.getByRole('button', { name: 'Print worksheet' }))
+    await waitFor(() => expect(printed.html).toHaveLength(1))
+    expect(printed.sheets[0]).toMatchObject({ copies: ['student'], title: 'Practice' })
+    expect(printed.html[0]).toContain('A duck flying. Quid est? Quid agit?')
+    expect(printed.html[0]).not.toContain('A bird drinking')
+    expect(printed.html[0]).toContain('Name <span class="fill">')
+    expect(printed.html[0]).toContain('Date <span class="fill">')
+    expect(printed.html[0]).not.toContain('Anas est. Anas volat.')
   })
 
   it('discards without saving anything for the child', async () => {

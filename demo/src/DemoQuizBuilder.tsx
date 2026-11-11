@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { providerName } from './providerName'
 import { useTranslation } from 'react-i18next'
-import { Check, Loader2 } from 'lucide-react'
+import { Check, Loader2, Printer } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from './uploadParts'
-import Diagram from './Diagram'
+import Diagram, { diagramMarkup } from './Diagram'
+import { printSheet } from './printDocument'
 import ReadingProgressBar from './ReadingProgressBar'
 import { newProgressId, overallPercent, watchProgress, withProgress, type ProgressState } from './readingProgress'
 import type { DiagramSpec } from './Diagram'
@@ -163,6 +164,24 @@ export default function DemoQuizBuilder({
     if (items.length) onApproved(items)
   }
 
+  const print = async (withAnswers: boolean) => {
+    if (!quiz) return
+    const questions = quiz.questions.filter((_, i) => keep[i])
+    if (!questions.length) return
+    const started = await printSheet({
+      title: quiz.title,
+      items: questions.map((q) => ({
+        prompt: q.prompt,
+        options: q.options,
+        diagramHtml: diagramMarkup(q.diagram, t),
+        answer: q.answer,
+      })),
+      labels: { name: t('printSheet.name'), date: t('printSheet.date'), keyTitle: `${quiz.title}: ${t('demoQuiz.answerKey')}` },
+      copies: [withAnswers ? 'key' : 'student'],
+    })
+    if (!started) setError(t('printSheet.failed'))
+  }
+
   const label = 'block text-xs font-medium text-gray-600'
   const field = 'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2'
   const button = 'min-h-[44px] rounded-lg px-4 py-2 text-sm font-medium'
@@ -215,6 +234,12 @@ export default function DemoQuizBuilder({
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={approve} disabled={!keep.some(Boolean)} className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
             <Check size={15} className="mr-1 inline" />{t('demoQuiz.approve')}
+          </button>
+          <button type="button" onClick={() => void print(false)} disabled={!keep.some(Boolean)} className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
+            <Printer size={15} className="mr-1 inline" />{t('demoQuiz.printQuiz')}
+          </button>
+          <button type="button" onClick={() => void print(true)} disabled={!keep.some(Boolean)} className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
+            <Printer size={15} className="mr-1 inline" />{t('demoQuiz.printKey')}
           </button>
           <button type="button" onClick={() => setQuiz(null)} className={`${button} border border-gray-200 text-gray-700`}>
             {t('demoQuiz.again')}

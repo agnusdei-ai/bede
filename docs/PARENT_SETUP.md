@@ -1342,7 +1342,10 @@ Before you print:
   Bede wasn't sure. Read these over.
 - Untick any question you don't want.
 
-Then print the quiz and the answer key. Nothing is saved.
+Then print the quiz and the answer key. Nothing is saved. Printing works from
+a phone or tablet as well as a computer: tap **Print quiz** and your device's
+print screen opens. The quiz has lines for your child's name and the date,
+and the answer key prints on its own.
 
 Scripture, Saints & Catechism and Morning Time are not offered, because Bede
 never scores a child's faith.

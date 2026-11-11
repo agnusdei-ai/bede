@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { providerName } from './providerName'
 import { useTranslation } from 'react-i18next'
-import { Check, Loader2, X } from 'lucide-react'
+import { Check, Loader2, Printer, X } from 'lucide-react'
 import {
   approveDemoPractice,
   fetchDemoPracticePacks,
@@ -16,7 +16,8 @@ import DemoQuizBuilder from './DemoQuizBuilder'
 import { splitIntoParts, uploadProblem } from './uploadParts'
 import { withProgress, type ProgressState } from './readingProgress'
 import ReadingProgressBar from './ReadingProgressBar'
-import Diagram, { pictureWords } from './Diagram'
+import Diagram, { diagramMarkup, pictureWords } from './Diagram'
+import { printSheet } from './printDocument'
 
 // HEIC is left out on purpose: iPhones then send a JPEG copy, and the server's
 // HEIC decoder is held back until its security fix ships.
@@ -180,6 +181,24 @@ export default function DemoPracticeCoach({
     } finally {
       setSaving(false)
     }
+  }
+
+  const printWorksheet = async () => {
+    if (!practice) return
+    const items = practice.items.filter((_, index) => keep[index])
+    if (!items.length) return
+    const title = t('demoPractice.worksheetTitle')
+    const started = await printSheet({
+      title,
+      items: items.map((item) => ({
+        prompt: item.prompt,
+        diagramHtml: diagramMarkup(item.diagram, t),
+        answer: item.expected_answer,
+      })),
+      labels: { name: t('printSheet.name'), date: t('printSheet.date'), keyTitle: title },
+      copies: ['student'],
+    })
+    if (!started) setError(t('printSheet.failed'))
   }
 
   const label = 'block text-xs font-medium text-gray-600'
@@ -377,6 +396,9 @@ export default function DemoPracticeCoach({
                   <button type="button" onClick={() => void approve()} disabled={saving || !keep.some(Boolean)} className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
                     {saving ? <Loader2 size={15} className="mr-1 inline animate-spin" /> : <Check size={15} className="mr-1 inline" />}
                     {t('demoPractice.approve')}
+                  </button>
+                  <button type="button" onClick={() => void printWorksheet()} disabled={!keep.some(Boolean)} className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
+                    <Printer size={15} className="mr-1 inline" />{t('demoPractice.print')}
                   </button>
                   <button type="button" onClick={onClose} disabled={saving} className={`${button} border border-gray-200 text-gray-700`}>
                     {t('demoPractice.discard')}

@@ -15,6 +15,21 @@ vi.mock('./api', async (importOriginal) => ({
   ...api,
 }))
 
+const printed = vi.hoisted(() => ({ sheets: [] as unknown[], html: [] as string[] }))
+vi.mock('./printDocument', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./printDocument')>()
+  return {
+    ...original,
+    // The real page builder, without opening a print dialog. What the button
+    // passes is what this records, so these tests check the call site.
+    printSheet: async (sheet: Parameters<typeof original.buildPrintHtml>[0]) => {
+      printed.sheets.push(sheet)
+      printed.html.push(original.buildPrintHtml(sheet))
+      return true
+    },
+  }
+})
+
 afterEach(cleanup)
 
 const options = (route: QuizOptions['route']): QuizOptions => ({
@@ -58,6 +73,35 @@ describe('demo quiz builder', () => {
     await waitFor(() => expect(api.generateDemoQuiz).toHaveBeenCalledWith('t', expect.objectContaining({
       focus: 'Multiplication', cloud_consent: true, pages: [],
     })))
+  })
+
+  it('prints the kept questions, and a separate answer key, with buttons a thumb can hit', async () => {
+    api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null, draft_provider: null }))
+    printed.sheets.length = 0
+    printed.html.length = 0
+    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'Addition' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    const printQuiz = await screen.findByRole('button', { name: 'Print quiz' })
+    const printKey = screen.getByRole('button', { name: 'Print answer key' })
+    expect(printQuiz.className).toContain('min-h-[44px]')
+    expect(printKey.className).toContain('min-h-[44px]')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Include question 1' }))
+    fireEvent.click(printQuiz)
+    await waitFor(() => expect(printed.html).toHaveLength(1))
+    expect(printed.sheets[0]).toMatchObject({ copies: ['student'], title: 'Addition quiz' })
+    expect(printed.html[0]).not.toContain('27 + 15 =')
+    expect(printed.html[0]).toContain('Which is 10 more than 35?')
+    expect(printed.html[0]).toContain('<li>A) 25</li><li>B) 45</li><li>C) 36</li>')
+    expect(printed.html[0]).toContain('Name <span class="fill">')
+    expect(printed.html[0]).not.toContain('class="ans"')
+
+    fireEvent.click(printKey)
+    await waitFor(() => expect(printed.html).toHaveLength(2))
+    expect(printed.sheets[1]).toMatchObject({ copies: ['key'] })
+    expect(printed.html[1]).toContain('<h1>Addition quiz: answer key</h1>')
+    expect(printed.html[1]).toContain('<p class="ans">45</p>')
   })
 
   it('a long source is copied out a part at a time, then drafted from the text', async () => {

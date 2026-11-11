@@ -75,6 +75,10 @@ const INK = '#1f2a44'
 const FILL = '#8fa37a'
 const PAPER = '#ffffff'
 const FONT = { fontFamily: 'system-ui, sans-serif', fontSize: 13, fill: INK } as const
+/** The smallest label a picture uses: 11px, about 8pt when printed. */
+export const SMALL_LABEL = 11
+/** Room a coordinate-plane number needs, in picture units. */
+const PLANE_LABEL_ROOM = 22
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(Number(n) || 0)))
 
@@ -257,19 +261,23 @@ function BarGraph({ title, bars }: { title?: string; bars: { label: string; valu
 function Plane({ size, four_quadrants: four, points }: { size: number; four_quadrants: boolean; points: { label: string; x: number; y: number }[] }) {
   const n = clamp(size, 2, 10)
   const lo = four ? -n : 0
-  const cell = (four ? 120 : 220) / n
+  // A cell narrower than PLANE_LABEL_ROOM cannot hold its own number, so
+  // every other number is printed: on a 10-by-10 grid "-10 -9 -8" ran together.
+  const cell = (four ? 180 : 220) / n
+  const every = cell < PLANE_LABEL_ROOM ? 2 : 1
   const span = (n - lo) * cell
-  const px = (v: number) => 24 + (v - lo) * cell
+  const px = (v: number) => 28 + (v - lo) * cell
   const py = (v: number) => 12 + (n - v) * cell
   const grid: ReactElement[] = []
   for (let v = lo; v <= n; v++) {
     grid.push(<line key={`v${v}`} x1={px(v)} y1={py(n)} x2={px(v)} y2={py(lo)} stroke={v === 0 ? INK : '#d0d4dc'} strokeWidth={v === 0 ? 2 : 1} />)
     grid.push(<line key={`h${v}`} x1={px(lo)} y1={py(v)} x2={px(n)} y2={py(v)} stroke={v === 0 ? INK : '#d0d4dc'} strokeWidth={v === 0 ? 2 : 1} />)
-    grid.push(<text key={`xl${v}`} x={px(v)} y={py(four ? 0 : lo) + 16} textAnchor="middle" {...FONT} fontSize={10}>{v}</text>)
-    if (v !== 0) grid.push(<text key={`yl${v}`} x={px(four ? 0 : lo) - 6} y={py(v) + 4} textAnchor="end" {...FONT} fontSize={10}>{v}</text>)
+    if (v % every) continue
+    grid.push(<text key={`xl${v}`} x={px(v)} y={py(four ? 0 : lo) + 16} textAnchor="middle" {...FONT} fontSize={SMALL_LABEL}>{v}</text>)
+    if (v !== 0) grid.push(<text key={`yl${v}`} x={px(four ? 0 : lo) - 6} y={py(v) + 4} textAnchor="end" {...FONT} fontSize={SMALL_LABEL}>{v}</text>)
   }
   return (
-    <svg viewBox={`0 0 ${span + 48} ${span + 40}`} width={span + 48} height={span + 40}>
+    <svg viewBox={`0 0 ${span + 56} ${span + 40}`} width={span + 56} height={span + 40}>
       {grid}
       {(points ?? []).slice(0, 6).map((p, i) => (
         <g key={i}>
@@ -320,6 +328,14 @@ function Scene({ icon, action }: { icon: string; action?: string | null }) {
   )
 }
 
+/**
+ * A label centred on the first or last event ran off the picture ("me
+ * founded", "Fall of Rom"), so labels near either end grow inward instead.
+ */
+export function timelineAnchor(x: number): 'start' | 'middle' | 'end' {
+  return x < 150 ? 'start' : x > 370 ? 'end' : 'middle'
+}
+
 function Timeline({ events, show_years: years }: { events: { label: string; year: number }[]; show_years: boolean }) {
   const list = [...(events ?? [])].slice(0, 8).sort((a, b) => a.year - b.year)
   const lo = list[0]?.year ?? 0, hi = list[list.length - 1]?.year ?? 1
@@ -331,8 +347,8 @@ function Timeline({ events, show_years: years }: { events: { label: string; year
       {list.map((e, i) => (
         <g key={i}>
           <circle cx={x(e.year)} cy={60} r={6} fill={FILL} stroke={INK} strokeWidth={2} />
-          <text x={x(e.year)} y={i % 2 ? 96 : 38} textAnchor="middle" {...FONT}>{e.label.slice(0, 30)}</text>
-          {years && <text x={x(e.year)} y={i % 2 ? 114 : 20} textAnchor="middle" {...FONT} fontSize={11}>{year(e.year)}</text>}
+          <text x={x(e.year)} y={i % 2 ? 96 : 38} textAnchor={timelineAnchor(x(e.year))} {...FONT}>{e.label.slice(0, 30)}</text>
+          {years && <text x={x(e.year)} y={i % 2 ? 114 : 20} textAnchor={timelineAnchor(x(e.year))} {...FONT} fontSize={SMALL_LABEL}>{year(e.year)}</text>}
         </g>
       ))}
     </svg>
@@ -422,7 +438,7 @@ function Ruler({ unit, length, objects }: { unit: 'cm' | 'in'; length: number; o
   for (let k = 0; k <= n * sub; k++) {
     const whole = k % sub === 0
     ticks.push(<line key={k} x1={x(k / sub)} y1={top} x2={x(k / sub)} y2={top + (whole ? 16 : 9)} stroke={INK} strokeWidth={whole ? 1.5 : 1} />)
-    if (whole) ticks.push(<text key={`n${k}`} x={x(k / sub)} y={top + 30} textAnchor="middle" {...FONT} fontSize={11}>{k / sub}</text>)
+    if (whole) ticks.push(<text key={`n${k}`} x={x(k / sub)} y={top + 30} textAnchor="middle" {...FONT} fontSize={SMALL_LABEL}>{k / sub}</text>)
   }
   return (
     <svg viewBox={`0 0 ${n * per + 50} ${top + 44}`} width={n * per + 50} height={top + 44}>
@@ -438,7 +454,7 @@ function Ruler({ unit, length, objects }: { unit: 'cm' | 'in'; length: number; o
       ))}
       <rect x={14} y={top} width={n * per + 12} height={36} fill="#f4e7b8" stroke={INK} strokeWidth={1.5} />
       {ticks}
-      <text x={n * per + 22} y={top + 30} {...FONT} fontSize={11}>{unit}</text>
+      <text x={n * per + 22} y={top + 30} {...FONT} fontSize={SMALL_LABEL}>{unit}</text>
     </svg>
   )
 }
@@ -461,7 +477,7 @@ function Money({ pieces }: { pieces: { coin: string; count: number }[] }) {
     }
     const r = c.r ?? 20
     const g = <g key={i}><circle cx={x + r} cy={36} r={r} fill={it.coin === 'penny' ? '#d9a066' : '#d7d9dd'} stroke={INK} strokeWidth={1.5} />
-      <text x={x + r} y={40} textAnchor="middle" {...FONT} fontSize={11} fontWeight="bold">{label}</text></g>
+      <text x={x + r} y={40} textAnchor="middle" {...FONT} fontSize={SMALL_LABEL} fontWeight="bold">{label}</text></g>
     x += r * 2 + 8
     return g
   })
@@ -474,7 +490,7 @@ function Thermometer({ unit, low, high, step, reading }: { unit: 'F' | 'C'; low:
   const marks: ReactElement[] = []
   for (let v = lo; v <= hi && marks.length < 60; v += st) {
     marks.push(<g key={v}><line x1={62} y1={y(v)} x2={74} y2={y(v)} stroke={INK} strokeWidth={1.5} />
-      <text x={80} y={y(v) + 4} {...FONT} fontSize={11}>{v}°{unit}</text></g>)
+      <text x={80} y={y(v) + 4} {...FONT} fontSize={SMALL_LABEL}>{v}°{unit}</text></g>)
   }
   return (
     <svg viewBox="0 0 140 250" width="140" height="250">

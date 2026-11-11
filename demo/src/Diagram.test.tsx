@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import './i18n'
-import Diagram, { ACTIONS, COINS, ICONS, WIKI_SUMMARY, diagramMarkup, lookupImage, type DiagramSpec } from './Diagram'
+import Diagram, { ACTIONS, COINS, ICONS, SMALL_LABEL, WIKI_SUMMARY, diagramMarkup, lookupImage, type DiagramSpec } from './Diagram'
 
 afterEach(cleanup)
 
@@ -87,6 +87,38 @@ describe('drawn diagrams', () => {
     const texts = [...line.container.querySelectorAll('text')].map((t) => t.textContent)
     expect(texts.indexOf('earlier')).toBeLessThan(texts.indexOf('later'))
     expect(texts).toContain('50 BC')
+  })
+
+  it('keeps the first and last timeline labels inside the picture', () => {
+    // Centred labels ran off both ends when printed: "me founded", "Fall of Rom".
+    const { container } = render(<Diagram d={{ kind: 'timeline', events: [{ label: 'Rome founded', year: -753 }, { label: 'Augustus', year: -27 }, { label: 'Fall of Rome', year: 476 }], show_years: true }} />)
+    const label = (text: string) => [...container.querySelectorAll('text')].find((t) => t.textContent === text)!
+    expect(label('Rome founded').getAttribute('text-anchor')).toBe('start')
+    expect(label('753 BC').getAttribute('text-anchor')).toBe('start')
+    expect(label('Augustus').getAttribute('text-anchor')).toBe('middle')
+    expect(label('Fall of Rome').getAttribute('text-anchor')).toBe('end')
+    expect(label('476').getAttribute('text-anchor')).toBe('end')
+  })
+
+  it('leaves room between the numbers on a crowded coordinate plane', () => {
+    const { container } = render(<Diagram d={{ kind: 'coordinate_plane', size: 10, four_quadrants: true, points: [] }} />)
+    const xs = [...container.querySelectorAll('text')].filter((t) => t.getAttribute('text-anchor') === 'middle')
+    expect(xs.map((t) => t.textContent)).toEqual(['-10', '-8', '-6', '-4', '-2', '0', '2', '4', '6', '8', '10'])
+    const gaps = xs.slice(1).map((t, i) => Number(t.getAttribute('x')) - Number(xs[i].getAttribute('x')))
+    expect(Math.min(...gaps)).toBeGreaterThanOrEqual(30)
+  })
+
+  it('prints no word or number smaller than about 8pt', () => {
+    for (const d of every) {
+      const { container } = render(<Diagram d={d} />)
+      for (const t of container.querySelectorAll('text')) {
+        if (/\p{Extended_Pictographic}/u.test(t.textContent ?? '')) continue
+        expect(Number(t.getAttribute('font-size')), `${d.kind}: ${t.textContent}`).toBeGreaterThanOrEqual(SMALL_LABEL)
+      }
+      cleanup()
+    }
+    // 11px is 8.25pt on paper.
+    expect(SMALL_LABEL * 0.75).toBeGreaterThanOrEqual(8)
   })
 
   it('lays each thing along the ruler from its start to its end', () => {

@@ -498,14 +498,33 @@ request. Nothing is stored.
 
 Quizzes, answer keys and worksheets print the same way in the app and the
 demo, from a phone or a computer (`utils/printDocument.ts`, mirrored in
-`demo/src/printDocument.ts`). The page is built in a hidden frame on the same
-page, not a pop-up, so a phone browser cannot block it. Printing waits up to
-four seconds for pictures to load. The student copy has name and date lines,
-lettered choices and lines to write on; no question is split across two
-pages; the answer key prints on its own. Every word is escaped before it goes
-on the page. It works under both Content Security Policies unchanged. Tests:
-`printDocument.test.ts` in both apps; `demo/src/printDocument.test.ts` keeps
-the two copies identical.
+`demo/src/printDocument.ts`). The sheet is put on the page itself, hidden on
+screen and kept apart from the app's styles, and everything else is hidden for
+print. It is not a pop-up, which a phone browser can block, or a hidden frame,
+which some iOS versions print as the page behind it. When there is no picture
+to wait for, printing starts during the tap itself, which Safari needs before
+it will open its print sheet; otherwise it waits up to four seconds for
+pictures. The sheet stays on the page, hidden, until the print sheet closes,
+so a print preview left open on an iPhone keeps its pages. Save as PDF works
+from the same print sheet (on iPhone: Share, then Save to Files).
+
+The student copy has name and date lines, lettered choices and lines to
+write on; no question is split across two pages; the answer key prints on its
+own. Question text is 12 pt and the smallest label in a picture is about 8 pt
+(`SMALL_LABEL`). Every word is escaped before it goes on the page. It works
+under both Content Security Policies unchanged.
+
+**Checked in a real browser (Chromium), 2026-11-11**, on US Letter and A4, at
+desktop and iPhone size, with the app's own styles on the page and its text
+size at 175%: nothing from the app's screen prints, no question splits, and
+the sheet is removed once printing ends. That pass found two picture problems,
+both fixed: timeline labels at either end were cut off, and the numbers on a
+10-by-10 coordinate plane ran together (now every other number, at 8 pt). It
+cannot stand in for Safari on an iPhone, which has to be checked on a phone.
+
+Tests: `printDocument.test.ts` in both apps; `demo/src/printDocument.test.ts`
+keeps the two copies identical; `demo/src/Diagram.test.tsx` covers the label
+sizes and the timeline and plane fixes.
 
 Tests are in `tests/test_practice_quiz_generation.py`. Each guard was
 verified by breaking it.

@@ -324,6 +324,79 @@ def _family(prompt: str) -> Optional[str]:
     return {"+": "addition", "-": "subtraction", "*": "multiplication", "/": "division"}[problem.op]
 
 
+# ── Which tracked skill a problem exercises ─────────────────────────────────
+#
+# services/practice/evidence.py turns a teacher's marks into mastery evidence
+# and needs one skill id per problem from services/diagnostic/skill_map.py.
+# Only problems whose skill can be read off the problem itself get one: a
+# word problem, an expression with a variable, or a picture whose question
+# the pack cannot settle answers None, and None records nothing. A wrong
+# skill would move the wrong estimate, so silence is the safe answer.
+
+_PICTURE_SKILL = {
+    "array": "oa.arrays_equal_groups",
+    "clock": "md.tell_time",
+    "rectangle": "md.area_perimeter",
+    "right_triangle": "geo.area_of_polygons",
+    "coordinate_plane": "geo.coordinate_plane",
+    "ruler": "md.measure_length",
+    "money": "md.money",
+    "pictures": "cc.count_objects_20",
+}
+
+
+def _whole_skill(problem: Problem) -> Optional[str]:
+    a, b = problem.av, problem.bv
+    if problem.op == "+":
+        if a + b <= 20:
+            return "oa.add_within_20"
+        return "nbt.add_within_100" if a + b <= 100 else None
+    if problem.op == "-":
+        if a <= 20:
+            return "oa.subtract_within_20"
+        return "nbt.subtract_within_100" if a <= 100 else None
+    if problem.op == "*":
+        return "oa.multiplication_facts" if a <= 12 and b <= 12 else "nbt.standard_multiplication"
+    if b == 0:
+        return None
+    quotient = a / b
+    if quotient.denominator == 1 and b <= 12 and quotient <= 12:
+        return "oa.division_facts"
+    return "nbt.long_division"
+
+
+def skill_for(item) -> Optional[str]:
+    """The skill_map id this problem exercises, or None when it is not clear."""
+    diagram = getattr(item, "diagram", None)
+    if diagram is not None:
+        kind = diagram.kind
+        if kind in ("fraction_bar", "fraction_circle"):
+            return "fr.halves_fourths" if diagram.parts in (2, 4) else "fr.unit_fractions"
+        if kind == "base_ten":
+            return "nbt.place_value_hundreds" if diagram.hundreds else "nbt.place_value_tens"
+        if kind == "bar_graph":
+            return "md.read_bar_graphs"
+        if kind in _PICTURE_SKILL and diagrams.answer(diagram, item.prompt) is not None:
+            return _PICTURE_SKILL[kind]
+        return None
+    family = _family(item.prompt)
+    if family is None:
+        return None
+    if family == "order_of_operations":
+        return "oa.order_of_operations"
+    problem = binary(item.prompt)
+    if problem is None:
+        return None
+    if family == "fractions":
+        return {"+": "fr.add_subtract_fractions", "-": "fr.add_subtract_fractions",
+                "*": "fr.multiply_fractions", "/": "fr.divide_fractions"}[problem.op]
+    if family == "decimals":
+        return "nbt.decimal_operations"
+    if family == "integers":
+        return "ns.integers"
+    return _whole_skill(problem)
+
+
 def _explain(prompt: str, given: Fraction, right: Fraction) -> tuple[str, str]:
     """(category, evidence) for a wrong answer to a computable problem."""
     shown = prompt.strip().rstrip("=?_ ").strip()

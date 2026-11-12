@@ -47,7 +47,7 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
-from services import pilot_authz
+from services import content_screen, pilot_authz
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_distress_alert, send_email
@@ -162,6 +162,29 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     )
 
 
+async def _screen_lesson_picture(image_b64: str, auth: dict, student_name: str,
+                                 request: Request) -> tuple[str | None, str | None]:
+    """(None, None) when the picture may reach the tutor; otherwise what to
+    tell the child, and, for a safeguarding signal (self-harm or sexual
+    content, in any style), its label, which the caller answers with the
+    crisis path."""
+    from services import ai_service
+
+    locale = auth.get("locale", "en")
+    try:
+        await content_screen.screen_images(
+            ai_service._client, [(content_screen.media_type_of(image_b64), image_b64)], "lesson")
+    except content_screen.ContentRefused as exc:
+        content_screen.record_refusal(
+            exc, audit=audit_from_request(request), role=auth.get("role"), student_name=student_name)
+        if exc.crisis:
+            return safeguarding_response(locale), content_screen.CRISIS_LABELS[exc.category]
+        return content_screen.refusal_message(exc.category, "lesson", locale), None
+    except content_screen.ScreeningUnavailable:
+        return content_screen.unavailable_message("lesson", locale), None
+    return None, None
+
+
 @router.post("/chat")
 async def chat(
     req: TutorRequest,
@@ -253,7 +276,8 @@ async def chat(
         **audit_from_request(request),
     ))
 
-    async def _trigger_safeguarding(trigger_excerpt: str, detail_prefix: str = "trigger") -> None:
+    async def _trigger_safeguarding(trigger_excerpt: str, detail_prefix: str = "trigger",
+                                    picture: str | None = None) -> None:
         await log_event(
             AuditEvent.SAFEGUARDING,
             role=auth.get("role"),
@@ -271,6 +295,7 @@ async def chat(
             req.session_config.student_name,
             datetime.now(timezone.utc).isoformat(),
             trigger_excerpt,
+            picture=picture,
         ))
 
     async def event_generator():
@@ -357,6 +382,24 @@ async def chat(
             yield json.dumps({'type': 'text', 'content': moderation_redirect_response(auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
             return
+
+        # A lesson photo or canvas drawing is checked before the turn reaches
+        # the tutor (services/content_screen.py), with the same client the
+        # tutor uses, so the picture goes nowhere it was not already going.
+        # It fails closed: a check that cannot run refuses the picture.
+        # A picture showing self-harm or sexual content (in any style, a
+        # cartoon included) takes the same crisis path as a child writing
+        # about self-harm: the parent is emailed straight away.
+        if req.drawing_image:
+            refusal, crisis = await _screen_lesson_picture(
+                req.drawing_image, auth, req.session_config.student_name, request)
+            if crisis:
+                await _trigger_safeguarding(f"[picture: {crisis}]", detail_prefix="trigger(picture)",
+                                            picture=crisis)
+            if refusal is not None:
+                yield json.dumps({'type': 'text', 'content': refusal})
+                yield json.dumps({'type': 'done'})
+                return
 
         # Wrapped in with_stall_timeout + try/except so this generator is
         # GUARANTEED to terminate with a real {"type": "done"} the child's

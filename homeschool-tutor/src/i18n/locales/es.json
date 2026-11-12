@@ -784,6 +784,7 @@
       "partial": "Parcial",
       "unmarked": "Sin marcar"
     },
+    "countsTowardProgress": "Al confirmar, las marcas del maestro también cuentan, una sola vez, para el progreso de su hijo. Un examen calificado cuenta menos que el trabajo hecho con Bede.",
     "confirm": "Confirmar y planear la práctica",
     "planning": "Planeando…",
     "planError": "Ese paso no funcionó. Inténtelo de nuevo.",

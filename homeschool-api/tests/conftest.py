@@ -157,6 +157,34 @@ def pytest_configure(config):
         "markers",
         "real_consent: run the real parental-consent gate (core/consent.py) instead of the test stub",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_content_screen: run the real upload content check (services/content_screen.py) instead of the test stub",
+    )
+
+
+@pytest.fixture(autouse=True)
+def _uploaded_pictures_pass_the_content_check_unless_a_test_asks_otherwise(request, monkeypatch):
+    """Every uploaded picture is checked by a model before it is read
+    (services/content_screen.py). Most upload tests use a fake model that
+    answers with a reading, not a verdict, so the check is stubbed to pass for
+    them. It is stubbed at `screen_images`, so the wiring around it (who calls
+    it, what is charged, what is refused) still runs for real.
+
+    Tests that are ABOUT the check carry `@pytest.mark.real_content_screen`;
+    tests/test_content_screen.py proves through the real routes that every
+    upload path calls it, so this stub cannot hide a missing call.
+    """
+    if request.node.get_closest_marker("real_content_screen"):
+        yield
+        return
+    from services import content_screen
+
+    async def passes(client, images, context):
+        return None
+
+    monkeypatch.setattr(content_screen, "screen_images", passes)
+    yield
 
 
 @pytest.fixture(autouse=True)

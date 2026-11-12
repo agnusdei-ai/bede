@@ -278,7 +278,7 @@ def _image_blocks(group: list[tuple[str, str]]) -> list[dict]:
     return [{"type": "image", "source": {"type": "base64", "media_type": m, "data": d}} for m, d in group]
 
 
-async def _groups(pages):
+async def _groups(client, pages):
     """The upload as groups of rebuilt pages, with each group's first page
     number and the upload's page total. There is no page-count limit: every
     file is checked first, then pages are read `READ_GROUP_SIZE` at a time,
@@ -289,7 +289,7 @@ async def _groups(pages):
         total["pages"] = n
 
     first = 1
-    async for group in extract.page_groups([p.data for p in pages], on_total=on_total):
+    async for group in extract.screened_page_groups(client, [p.data for p in pages], on_total):
         yield group, first, total["pages"]
         first += len(group)
 
@@ -313,7 +313,7 @@ async def extract_quiz(req: ExtractQuizRequest) -> TeacherQuiz:
     # numbered again by finish_extracted.
     questions: list = []
     title = None
-    async for group, first, total in _groups(req.pages):
+    async for group, first, total in _groups(client, req.pages):
         last = first + len(group) - 1
         text = head + (typed if first == 1 else "")
         text += (f"\n\nThe attached page(s) are pages {first} to {last} of {total} of the quiz, in order. "
@@ -401,7 +401,7 @@ def _conf(item: dict) -> float:
 async def read_submission(quiz: TeacherQuiz, pages) -> list[StudentResponse]:
     client = _client()
     readings = []
-    async for group, first, total in _groups(pages):
+    async for group, first, total in _groups(client, pages):
         last = first + len(group) - 1
         text = (_question_lines(quiz) + f"\n\nThe attached page(s) are pages {first} to {last} of {total} "
                 "of the student's work. Give a response only for questions answered on these pages; "

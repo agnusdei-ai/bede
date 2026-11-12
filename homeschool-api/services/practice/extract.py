@@ -38,6 +38,7 @@ from models.practice import (
     GradedAssessment,
     ReadPhotosRequest,
 )
+from services import content_screen
 from services.practice import diagrams
 from services.practice.packs import get_pack, subject_name
 from services.practice.upload_safety import (  # noqa: F401  re-exported for the router
@@ -66,6 +67,43 @@ class ReadingUnavailable(Exception):
 
 class ReadingFailed(Exception):
     pass
+
+
+class ContentRefused(PhotoRejected):
+    """A page is not fit for a school (services/content_screen.py). A 422,
+    like any other refused photo; nothing from the upload is read or kept."""
+
+    def __init__(self, refused: content_screen.ContentRefused):
+        self.category = refused.category
+        super().__init__(str(refused))
+
+
+class ScreeningUnavailable(ScannerUnavailable):
+    """The content check could not run, so nothing was read (a 503, like an
+    unreachable virus scanner: both fail closed)."""
+
+
+async def screened_page_groups(client, datas, on_total=None, before_call=None):
+    """`page_groups`, with every group checked by `content_screen` before it
+    is yielded. The ONLY way an upload's pages reach a model: a test fails if
+    anything else calls `page_groups`.
+
+    `client` is the one that will read the pages, so the check goes to the
+    same provider. `before_call` runs before the check (the demo charges each
+    model call). A refused group refuses the whole upload: the caller stores
+    nothing until every group has been read.
+    """
+    async for group in page_groups(datas, on_total=on_total):
+        if before_call is not None:
+            await before_call()
+        try:
+            await content_screen.screen_images(client, group, "worksheet")
+        except content_screen.ContentRefused as exc:
+            content_screen.record_refusal(exc)
+            raise ContentRefused(exc) from None
+        except content_screen.ScreeningUnavailable:
+            raise ScreeningUnavailable(content_screen.unavailable_message("worksheet")) from None
+        yield group
 
 
 def _cloud_name(configured: list[str] | None = None) -> str | None:
@@ -472,7 +510,7 @@ async def read_pages_counted(req: ReadPhotosRequest, before_call=None,
 
     if report:
         report("checking", 0, None)
-    async for pages in page_groups([p.data for p in req.pages], on_total=on_total):
+    async for pages in screened_page_groups(client, [p.data for p in req.pages], on_total, before_call):
         if before_call is not None:
             await before_call()
         part = await _read_group(client, req.subject, pages, next_page, before_call)

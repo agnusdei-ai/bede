@@ -333,11 +333,14 @@ async def test_a_continued_upload_numbers_its_pages_after_the_first_part(monkeyp
 
 @pytest.mark.asyncio
 async def test_the_demo_charges_one_message_per_group_and_stops_at_the_limit(monkeypatch):
+    """Two messages a group: the content check (services/content_screen.py)
+    and the reading are each a model call. The check is stubbed here, so
+    `local.calls` counts readings only."""
     import core.demo_code_session as demo_session
 
     local = StubClient(json.dumps(GOLDEN["assessment"]))
     _routing(monkeypatch, local=True, cloud=None, local_client=local)
-    left = {"n": 2}
+    left = {"n": 4}
 
     async def has_quota(code):
         return left["n"] > 0

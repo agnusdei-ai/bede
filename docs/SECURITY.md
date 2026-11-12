@@ -227,6 +227,33 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Uploaded pictures were not checked for content — closed 2026-11-11
+  (owner request).** Practice Coach and quiz uploads, a teacher's quiz and
+  student work, and a child's lesson photo or drawing all went to a model
+  with only file-level hardening (`upload_safety.py`: type, size, rebuild,
+  optional virus scan), which says nothing about what a picture shows. Now
+  `services/content_screen.py` checks every picture before it is read or
+  reaches the tutor and refuses, in any style including cartoons and
+animation, self-harm or suicide, sexual content or nudity, graphic violence,
+  illicit material and anything else rated for adults, and, for a worksheet
+  upload, anything that is not school material. It fails closed (an unclear
+  or failed check refuses), uses the same client that would read the picture
+  so no new provider sees it, stores nothing, and audits an unsafe refusal as
+  `AuditEvent.UPLOAD_REFUSED` with the category only (anomaly rule 3 in 10
+  minutes, as `MODERATION_FLAGGED`). **Limits:** it is a model's judgment and
+  can misjudge in either direction; each check is one more model call (on the
+  demo, one more message); and the narration PDF path is text-only and is
+  moderated when the text is sent rather than at upload. A lesson picture
+  showing self-harm or sexual content takes the chat's crisis path
+  (`safeguarding_response`, `AuditEvent.SAFEGUARDING` with detail
+  `trigger(picture):[picture: <label>]`, and an immediate
+  `send_distress_alert` whose email says a picture was sent, what it appeared
+  to show, and that it was not kept), owner rulings 2026-11-11. A child
+  sending a sexual picture can be a sign of harm being done to them, so it is
+  not left to the three-in-ten-minutes anomaly rule. Uploads by a parent or
+  teacher are refused and audited but do not raise this alert.
+  `tests/test_content_screen.py`; each guard verified by breaking it.
+
 - **Teacher enrollment required a third-party mail secret — closed
   2026-11-08 (owner decision).** `POST /auth/educator-passkey/invite`
   answered 503 whenever outbound mail was not configured, and the setup

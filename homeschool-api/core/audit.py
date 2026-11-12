@@ -129,6 +129,11 @@ class AuditEvent:
     # PIN, its hash, or the learner's name.
     CHILD_PIN_SET              = "child_pin.set"
     CHILD_PIN_CLEARED          = "child_pin.cleared"
+    # services/content_screen.py: an uploaded picture (a worksheet, quiz or
+    # source page, or a lesson photo or drawing in the chat) was refused as
+    # unfit for a school. Detail carries the category and surface only, never
+    # the picture or the model's reply.
+    UPLOAD_REFUSED             = "upload.refused"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -158,6 +163,10 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # turn already redirects the child in the moment); a repeated pattern
     # from one address is the part worth a parent's attention.
     AuditEvent.MODERATION_FLAGGED: (3, 600),
+    # Same threshold and reasoning as MODERATION_FLAGGED, its picture
+    # counterpart: one refused picture already stops in the moment (and a
+    # history page can be misjudged); a repeated pattern is worth an email.
+    AuditEvent.UPLOAD_REFUSED: (3, 600),
     # A generous ceiling on ordinary tool use — a busy, multi-subject
     # session can legitimately rack up dozens of request_narration/
     # celebrate_discovery/etc. calls over a couple of hours — sized to

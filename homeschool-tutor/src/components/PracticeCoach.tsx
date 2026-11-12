@@ -359,6 +359,7 @@ export default function PracticeCoach({ token, studentName }: { token: string; s
                   </ul>
                 </fieldset>
               ))}
+              <p className="text-xs text-gray-600">{t('practiceCoach.countsTowardProgress')}</p>
               <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={confirmAndPlan} disabled={remaining > 0 || stage === 'planning'}
                   className="rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">

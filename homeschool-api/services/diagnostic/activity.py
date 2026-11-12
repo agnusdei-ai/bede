@@ -53,6 +53,9 @@ log = logging.getLogger(__name__)
 # child is — "with_help" is a description of an event, not a deficiency.
 ASSISTANCE_LEVELS = ("unaided", "with_a_hint", "with_help")
 
+# Where work was seen, when it was not in a session with Bede.
+ACTIVITY_SOURCES = ("marked_quiz",)
+
 # Maps the outcome vocabulary every diagnostic in this package already uses
 # onto that factual scale. `incorrect` is deliberately absent: a task that
 # was attempted and missed is not a COMPLETED activity, and recording it
@@ -80,9 +83,15 @@ async def record_activity(
     quality: Optional[str] = None,
     distinction: Optional[str] = None,
     speed: Optional[str] = None,
+    source: Optional[str] = None,
 ) -> bool:
     """
     Append one completed-activity row. Returns True if a row was written.
+
+    `source` says where the work was seen when it was not in a session with
+    Bede: "marked_quiz" for a question a teacher marked correct on a quiz the
+    parent uploaded (services/practice/evidence.py). Omitted for session work,
+    so those rows are written exactly as before.
 
     Best-effort in exactly the way every other diagnostic write in this
     package is: a failure here is logged and swallowed, never raised, so a
@@ -119,6 +128,7 @@ async def record_activity(
                     "quality": quality if quality in WORK_QUALITY_LEVELS else None,
                     "distinction": distinction if distinction in WORK_DISTINCTION_LEVELS else None,
                     "speed": speed if speed in WORK_SPEED_LEVELS else None,
+                    **({"source": source} if source in ACTIVITY_SOURCES else {}),
                 },
                 student_aad("skill_activity_log", "detail_enc", student_name,
                             subject_area, skill_id),

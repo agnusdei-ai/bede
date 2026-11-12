@@ -33,8 +33,9 @@ is the **teacher's** count, read off the page and labelled as such.
    42 MB for `/api/practice/`; each
    part continues the same saved reading (`continues_record`; the demo, which
    stores nothing, sends back what the earlier parts read as `continues`). On
-   the public demo each group of pages is one model call and counts as one
-   message against the visitor's allowance.
+   the public demo each group of pages is two model calls, the content check
+   (below) and the reading, and each counts as one message against the
+   visitor's allowance.
 
    **A progress bar shows how far a reading has got.** Each request carries a
    random `progress_id`; `services/practice/progress.py` records, in memory
@@ -157,6 +158,56 @@ student's own key and are removed when the student is deleted.
 
 On the public demo the same routes exist as previews under `/practice/demo/`,
 with nothing stored.
+
+## Checking what is uploaded
+
+Every page is checked before it is read, so only school material is used.
+`services/content_screen.py` looks at each group of pages first
+(`extract.screened_page_groups`, the only way an upload's pages reach a model)
+and refuses the whole upload if any page shows, in any style (a photo, a
+drawing, a cartoon, an animation frame or a sticker is judged by what it
+shows):
+
+- self-harm or suicide, shown or encouraged;
+- sexual content or nudity;
+- graphic violence or gore;
+- illicit material (drugs, weapons, crime);
+- anything else rated for adults (profanity, hate symbols, alcohol, tobacco,
+  gambling);
+- something that is not school material at all, such as a selfie, a meme or a
+  screenshot of a game.
+
+Ordinary school material is allowed even when its subject is hard: a history
+page about a war, a labelled diagram of the body's organs, a famous painting.
+
+- **Nothing from a refused upload is read or kept.** The check comes before
+  the reading of each group, and nothing is stored until every group has been
+  read, so a refusal in a later group refuses the pages before it too. The
+  parent or teacher sees a plain message (422).
+- **It fails closed.** A check that errors, times out, or gives an unclear
+  answer refuses the upload with "couldn't be checked just now" (503), and
+  nothing is read.
+- **It sends the pages nowhere new.** The check uses the same model that would
+  read the pages: the household's or school's own model, or the cloud provider
+  the parent ticked. Nothing about the check is stored.
+- **A refusal is audited, without the picture.** An unsafe refusal records
+  `AuditEvent.UPLOAD_REFUSED` with the category only; three in ten minutes
+  from one address emails the parent, the same rule as flagged chat messages.
+  A "not school material" refusal is not a safety event and is not audited.
+- **It covers every upload path**: a parent's worksheet, a quiz draft or
+  quiz source, the demo's, and a teacher's draft, source, quiz and student
+  work. `tests/test_content_screen.py` drives each one, and fails if anything
+  but the checked wrapper hands pages to a model.
+
+A self-harm refusal tells the parent or teacher plainly and suggests talking
+with the child and contacting a professional. A child's lesson photo or
+drawing in the chat is checked the same way before it reaches the tutor, and
+one showing self-harm or sexual content takes the same crisis path as a child
+writing about self-harm:
+the safeguarding reply, a safeguarding audit entry and an immediate email to
+the parent; see `docs/SECURITY.md`. This is a model's judgment, not
+a guarantee: it can be wrong in either direction, which is why the file checks
+below still run and Bede still answers under its constitution.
 
 ## File validation and hardening
 
@@ -671,10 +722,61 @@ repository: they show a child's handwriting and a school's own worksheet.
 3. **Delivery to the child, inside an ordinary Bede session:** re-checks at
    +3/+7 days, mixed review of mastered items, pattern history recorded as
    events about the work, never labels about the child.
-4. **Done:** Mathematics, Spelling and Short-answer packs. **Not yet:** feeding
-   their results into the phonics (K-2) and reading-and-spelling (3-8)
-   mastery engines, and the optional game wrapper. Rewards count **days
-   practised**, never streaks, and never speed.
+4. **Done:** Mathematics, Spelling and Short-answer packs, and **a confirmed
+   quiz counts toward progress** (see below). **Not yet:** the optional game
+   wrapper. Rewards count **days practised**, never streaks, and never speed.
+
+## Quizzes count toward progress
+
+Owner ruling 2026-11-11: a confirmed quiz feeds both the mastery estimate and
+the work record. `services/practice/evidence.py` does it, called from
+`routers/practice.py` whenever a reading becomes `confirmed` (typed in, or
+confirmed after review). The rules:
+
+- **Teacher's marks only.** Correct, incorrect and partial become one
+  observation each; unmarked questions and questions the parent left out
+  record nothing. Bede never marks a question itself for this.
+- **Once per quiz.** `practice_evidence_marks` holds the assessment id; the
+  claim is a primary-key insert committed before anything is written, so two
+  confirmations racing each other cannot both count it. Editing a reading
+  after it was counted does not count it again.
+- **Only where the skill is clear.** Maths: `packs.math.skill_for` maps a
+  problem to one `skill_map` id from the problem's own shape (operation, size,
+  fractions, decimals, negatives, several operations, or the picture kind),
+  and answers `None` for a word problem, a variable or a sum past 100. Spelling
+  goes to `spelling_patterns` (`spelling_homophones` for a miss the pack
+  classes as a homophone); reading goes to `inference`, `vocabulary` or
+  `literal_comprehension` by the question's wording, using the reading pack's
+  own patterns. Both only for grades 3-8: the K-2 engine measures decoding,
+  which a marked quiz does not show. Latin, history, science, geography and
+  grammar have no engine and record nothing.
+- **Half weight.** `QUIZ_EVIDENCE_WEIGHT` (0.5) is passed as the maths
+  engine's `confidence` and the literacy engine's new `weight`, because Bede
+  did not see how the answer was reached. During an engine's calibration
+  phase (fewer than its threshold of observations) the first observations
+  push hard enough to reach the ends of the scale whatever their weight;
+  that is each engine's existing cold-start rule and applies to live work too.
+- **The work record keeps only completed work.** A correct question is one
+  `SkillActivityLog` row with `source: "marked_quiz"` in its encrypted detail;
+  a wrong or partly right answer writes no row (a partial would otherwise read
+  as "after a nudge", which is not what happened on paper).
+- **Privacy setting.** With `RETAIN_MASTERY_PROFILES` off, only the work
+  record is written, as in a session.
+- **Best-effort.** A failure is logged and swallowed; it never undoes the
+  parent's confirmation. The route returns `counted`, the number of
+  observations recorded (0 on a re-confirmation).
+- The parent screen says so before confirming
+  (`practiceCoach.countsTowardProgress`).
+
+Not counted: teacher quizzes on the educator desk (no learner is named) and
+the demo (it stores nothing). Practice-set outcomes the child records during
+delivery do not feed the estimate either; that is a separate decision.
+
+Tests: `tests/test_practice_quiz_evidence.py`, over the real route functions
+and a real database. Every guard was verified by breaking it: no hook, no
+once-only mark, full weight for maths, the literacy weight ignored, no grade
+gate, the privacy setting ignored, a wrong or partial answer recorded as
+work, a left-out question counted, and an unmarked question counted.
 
 **Not yet:** pages are not straightened or cropped before reading. That
 needs an image library this backend doesn't carry, and the reader copes with

@@ -784,6 +784,7 @@
       "partial": "Partial",
       "unmarked": "Not marked"
     },
+    "countsTowardProgress": "Confirming also counts the teacher's marks toward your child's progress, once. A marked quiz counts for less than work done with Bede.",
     "confirm": "Confirm and plan practice",
     "planning": "Planning…",
     "planError": "That step did not work. Please try again.",

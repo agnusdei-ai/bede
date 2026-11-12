@@ -106,7 +106,8 @@ def build_summary_email_html(student_name: str, summary_text: str) -> str:
 </html>"""
 
 
-def build_distress_alert_html(student_name: str, timestamp_iso: str, trigger_excerpt: str) -> str:
+def build_distress_alert_html(student_name: str, timestamp_iso: str, trigger_excerpt: str,
+                              picture: str | None = None) -> str:
     """
     Urgent parent notification when check_safeguarding() (ai_service.py)
     matches a crisis signal in the child's message. Includes a short excerpt
@@ -119,19 +120,34 @@ def build_distress_alert_html(student_name: str, timestamp_iso: str, trigger_exc
     safe_name = html.escape(student_name)
     safe_excerpt = html.escape(trigger_excerpt)
     safe_ts = html.escape(timestamp_iso)
+    if picture is not None:
+        # A picture the content check refused (services/content_screen.py).
+        # The picture itself was not kept, so the email names what it showed.
+        reason = f"""\
+    {safe_name} sent Bede a picture that appeared to show {html.escape(picture)}, so Bede did not look at it
+    further, stopped tutoring, and told them to find a trusted adult right now. The picture was not kept.
+    Please check in with {safe_name} as soon as you can."""
+        detail = f"""\
+    <p style="margin: 0 0 8px 0; font-weight: bold;">What the picture appeared to show:</p>
+    <p style="margin: 0;">{html.escape(picture)}</p>"""
+    else:
+        reason = f"""\
+    Something {safe_name} said matched a safety pattern (distress, danger, or a request for help),
+    so Bede stopped tutoring immediately and told them to find a trusted adult right now.
+    Please check in with {safe_name} as soon as you can."""
+        detail = f"""\
+    <p style="margin: 0 0 8px 0; font-weight: bold;">What {safe_name} said:</p>
+    <p style="margin: 0; font-style: italic;">&ldquo;{safe_excerpt}&rdquo;</p>"""
     return f"""\
 <!DOCTYPE html>
 <html>
 <body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
   <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">Bede paused {safe_name}'s session</h1>
   <p style="font-size: 13px; color: #6b7280; margin: 0 0 24px 0;">
-    Something {safe_name} said matched a safety pattern (distress, danger, or a request for help),
-    so Bede stopped tutoring immediately and told them to find a trusted adult right now.
-    Please check in with {safe_name} as soon as you can.
+{reason}
   </p>
   <div style="font-size: 15px; line-height: 1.6; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px;">
-    <p style="margin: 0 0 8px 0; font-weight: bold;">What {safe_name} said:</p>
-    <p style="margin: 0; font-style: italic;">&ldquo;{safe_excerpt}&rdquo;</p>
+{detail}
   </div>
   <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">Detected at {safe_ts}.</p>
   <p style="font-size: 12px; color: #9ca3af; margin-top: 8px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
@@ -291,7 +307,8 @@ def distress_alert_configured() -> bool:
     return email_configured() and bool(settings.parent_email)
 
 
-async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_excerpt: str) -> bool:
+async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_excerpt: str,
+                              picture: str | None = None) -> bool:
     """
     Best-effort urgent notification to the configured PARENT_EMAIL when
     check_safeguarding() (ai_service.py) fires. Returns False silently (never
@@ -301,7 +318,7 @@ async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_exc
     """
     if not distress_alert_configured():
         return False
-    html_body = build_distress_alert_html(student_name, timestamp_iso, trigger_excerpt)
+    html_body = build_distress_alert_html(student_name, timestamp_iso, trigger_excerpt, picture=picture)
     return await send_email(
         settings.parent_email,
         subject=f"Bede paused {student_name}'s session — please check in",

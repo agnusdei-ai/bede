@@ -175,6 +175,12 @@ describe('where the photos go', () => {
 })
 
 describe('reviewing the reading', () => {
+  it('tells the parent before confirming that the marks count toward progress', async () => {
+    await readQuiz()
+    const note = screen.getByText(/counts the teacher's marks toward your child's progress, once/)
+    expect(note.textContent).toContain('counts for less than work done with Bede')
+  })
+
   it('blocks planning until every unsure reading is confirmed, then sends the settled reading', async () => {
     await readQuiz()
     expect(screen.getByText('The macron on the i is unclear')).toBeTruthy()

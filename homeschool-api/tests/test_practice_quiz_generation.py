@@ -136,7 +136,9 @@ async def test_a_long_source_is_copied_out_a_group_at_a_time_and_each_group_is_c
     assert images[:3] == [6, 2, 0]  # two groups copied out, then a text-only draft
     draft_text = stub.calls[2]["messages"][0]["content"][-1]["text"]
     assert "[Pages 1-6]" in draft_text and "[Pages 7-8]" in draft_text
-    assert quota["recorded"] == 4  # writing + checking, plus one per group copied out
+    # writing + checking, plus two per group copied out: the content check
+    # (services/content_screen.py) and the copying
+    assert quota["recorded"] == 6
 
 
 @pytest.mark.parametrize("subject", ["scripture", "saints", "morning_time", "free_study"])
@@ -465,7 +467,7 @@ async def test_a_source_part_is_copied_out_a_group_at_a_time_and_charged_per_gro
     out = await practice_router.demo_copy_quiz_source(_source(8, first_page=13), auth=DEMO)
     assert out["pages_read"] == 8
     assert "[Pages 13-18]" in out["text"] and "[Pages 19-20]" in out["text"]
-    assert quota["recorded"] == 2
+    assert quota["recorded"] == 4  # per group: the content check, then the copying
     quota["allowed"] = False
     with pytest.raises(HTTPException) as exc:
         await practice_router.demo_copy_quiz_source(_source(1), auth=DEMO)

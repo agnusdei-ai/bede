@@ -1,0 +1,43 @@
+{
+  "source_id": "G8-SUBJECT-000",
+  "title": "",
+  "author": "",
+  "translator_editor": "",
+  "edition_version": "",
+  "publisher": "",
+  "source_url": "",
+  "subject": [],
+  "intended_use": "",
+  "license": "",
+  "rights_evidence": {
+    "url": "",
+    "checked_date": "",
+    "jurisdiction": "",
+    "verification_level": "",
+    "asset_hash": null
+  },
+  "exceptions": "",
+  "attribution": "",
+  "permissions": {
+    "copy_distribute": "",
+    "adapt": "",
+    "tts": "",
+    "store_offline": "",
+    "index_retrieve": "",
+    "model_provider_processing": "",
+    "train": "NOT AUTHORIZED BY THIS PROJECT"
+  },
+  "prohibited_unclear": "",
+  "accessibility": "",
+  "reading_demand": "",
+  "currency_cultural_concerns": "",
+  "equipment": "",
+  "cost_category": "",
+  "reviewer": {
+    "research": "",
+    "human_review": "PENDING",
+    "required_roles": []
+  },
+  "decision": "HOLD",
+  "rationale": ""
+}

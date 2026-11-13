@@ -1,0 +1,787 @@
+{
+  "scope": "Local source only; no remote fetch or deployed verification",
+  "head": "597057406489880a1abe3fb57ac1beaafc48e776",
+  "cached_origin_main": "ca05646d6fddf70ca1096ed2974ccfaa338ea74f",
+  "origin": "https://github.replit.internal/agnusdei-ai/bede.git",
+  "remote_freshness": "UNVERIFIED",
+  "deployed_behavior": "UNVERIFIED",
+  "files": [
+    {
+      "path": "homeschool-api/services/catalog_service.py",
+      "sha256": "d49ff15ccd5f0e286f4278ef514855c87ceca5f10e4762dc8c2a22cd9a148753",
+      "line_count": 366,
+      "definitions": [
+        {
+          "name": "_load_catalog",
+          "line": 49
+        },
+        {
+          "name": "_load_visual_aids",
+          "line": 76
+        },
+        {
+          "name": "_load_catechism",
+          "line": 91
+        },
+        {
+          "name": "_load_composer_works",
+          "line": 108
+        },
+        {
+          "name": "_load_bible_permissions",
+          "line": 129
+        },
+        {
+          "name": "get_years",
+          "line": 159
+        },
+        {
+          "name": "get_books",
+          "line": 164
+        },
+        {
+          "name": "get_book",
+          "line": 185
+        },
+        {
+          "name": "search_books",
+          "line": 190
+        },
+        {
+          "name": "get_catalog_note",
+          "line": 223
+        },
+        {
+          "name": "get_visual_aids",
+          "line": 273
+        },
+        {
+          "name": "get_visual_aid",
+          "line": 283
+        },
+        {
+          "name": "get_composer_works",
+          "line": 292
+        },
+        {
+          "name": "get_readings",
+          "line": 305
+        },
+        {
+          "name": "get_subject_plan",
+          "line": 316
+        },
+        {
+          "name": "get_catechism_note",
+          "line": 331
+        },
+        {
+          "name": "get_bible_translation_permission",
+          "line": 354
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/content_curation.py",
+      "sha256": "581d3c918d2bc424e5d6536601cdf4a4f2180e946599d2fce74b232890489aef",
+      "line_count": 391,
+      "definitions": [
+        {
+          "name": "known_skill_ids",
+          "line": 67
+        },
+        {
+          "name": "ContentCandidate",
+          "line": 152
+        },
+        {
+          "name": "Finding",
+          "line": 183
+        },
+        {
+          "name": "CurationVerdict",
+          "line": 192
+        },
+        {
+          "name": "_scan",
+          "line": 207
+        },
+        {
+          "name": "curate",
+          "line": 221
+        },
+        {
+          "name": "_check_mastery_linkage",
+          "line": 323
+        },
+        {
+          "name": "curate_all",
+          "line": 364
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/models.py",
+      "sha256": "a02258fcac377e865ccacc3a0979030714c61fd41aa76fc42dde47f00d85c8d6",
+      "line_count": 247,
+      "definitions": [
+        {
+          "name": "CurriculumModelError",
+          "line": 20
+        },
+        {
+          "name": "RightsStatus",
+          "line": 24
+        },
+        {
+          "name": "ItemStatus",
+          "line": 32
+        },
+        {
+          "name": "Visibility",
+          "line": 39
+        },
+        {
+          "name": "ReviewDecision",
+          "line": 44
+        },
+        {
+          "name": "is_human_reviewer",
+          "line": 54
+        },
+        {
+          "name": "_require",
+          "line": 60
+        },
+        {
+          "name": "SourceRecord",
+          "line": 66
+        },
+        {
+          "name": "ReviewRecord",
+          "line": 80
+        },
+        {
+          "name": "require_approvable",
+          "line": 96
+        },
+        {
+          "name": "ContentChunk",
+          "line": 119
+        },
+        {
+          "name": "Lesson",
+          "line": 158
+        },
+        {
+          "name": "LessonVariant",
+          "line": 189
+        },
+        {
+          "name": "validate_variant_parent",
+          "line": 229
+        },
+        {
+          "name": "validate_skill_ids",
+          "line": 239
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/flag.py",
+      "sha256": "d6210ead7bd4d107b97a3fc76871d731a4759f8fd8dc23de383aa1eafdde7138",
+      "line_count": 12,
+      "definitions": [
+        {
+          "name": "curriculum_engine_enabled",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/rights_gate.py",
+      "sha256": "ebe70efc6afed5db988a1b2d208844ded39991978a02c74d0a3431d9677b1949",
+      "line_count": 131,
+      "definitions": [
+        {
+          "name": "StagingSubmission",
+          "line": 26
+        },
+        {
+          "name": "_provenance_findings",
+          "line": 41
+        },
+        {
+          "name": "assess_staging_batch",
+          "line": 110
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/persistence.py",
+      "sha256": "cad49612c013e783b4476dbae3aac8e10d50f6646a429f556bc1457f9b27e05e",
+      "line_count": 108,
+      "definitions": [
+        {
+          "name": "create_curriculum_tables",
+          "line": 102
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/workflow.py",
+      "sha256": "cea4361e23ad674940adbc1c23c49ffc2109fc74d3fb9a3293e92125c2523ce6",
+      "line_count": 311,
+      "definitions": [
+        {
+          "name": "CurriculumWorkflowDenied",
+          "line": 32
+        },
+        {
+          "name": "_deny",
+          "line": 36
+        },
+        {
+          "name": "_aad",
+          "line": 40
+        },
+        {
+          "name": "_actor",
+          "line": 45
+        },
+        {
+          "name": "_as_utc",
+          "line": 92
+        },
+        {
+          "name": "_candidate_snapshot",
+          "line": 98
+        },
+        {
+          "name": "_submission_snapshot",
+          "line": 109
+        },
+        {
+          "name": "_restore_submission",
+          "line": 125
+        },
+        {
+          "name": "_latest",
+          "line": 150
+        },
+        {
+          "name": "stage_lesson",
+          "line": 158
+        },
+        {
+          "name": "review_staged_lesson",
+          "line": 222
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/local_hybrid_index.py",
+      "sha256": "2850882e479f857dcec29198318aa92e24530da4eeef951e28a84d5819b0c596",
+      "line_count": 200,
+      "definitions": [
+        {
+          "name": "LocalIndexDenied",
+          "line": 31
+        },
+        {
+          "name": "SearchScope",
+          "line": 36
+        },
+        {
+          "name": "IndexedChunk",
+          "line": 52
+        },
+        {
+          "name": "ChunkHit",
+          "line": 60
+        },
+        {
+          "name": "_tokens",
+          "line": 74
+        },
+        {
+          "name": "_vector",
+          "line": 78
+        },
+        {
+          "name": "_cosine",
+          "line": 90
+        },
+        {
+          "name": "_eligible",
+          "line": 95
+        },
+        {
+          "name": "search_chunks",
+          "line": 128
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/citation_retriever.py",
+      "sha256": "c4b9cc155b77c429ae8993d2c668efe5d8e71ead134d0a3f5e3a187bb1cfedc6",
+      "line_count": 197,
+      "definitions": [
+        {
+          "name": "CitationRetrievalDenied",
+          "line": 24
+        },
+        {
+          "name": "ReviewedAnnotation",
+          "line": 29
+        },
+        {
+          "name": "RankedCitation",
+          "line": 59
+        },
+        {
+          "name": "ExactPassage",
+          "line": 76
+        },
+        {
+          "name": "_require_enabled",
+          "line": 85
+        },
+        {
+          "name": "rank_citations",
+          "line": 90
+        },
+        {
+          "name": "project_exact_passages",
+          "line": 161
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/curriculum/learner_evolution.py",
+      "sha256": "757fc7f476ca89f4789054b296078063a844780f6c8ca3af65a0d7078bb072b3",
+      "line_count": 90,
+      "definitions": [
+        {
+          "name": "LearningEvidence",
+          "line": 19
+        },
+        {
+          "name": "SkillEstimate",
+          "line": 41
+        },
+        {
+          "name": "LearnerEvolutionProfile",
+          "line": 58
+        },
+        {
+          "name": "summarize_skill",
+          "line": 75
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/lesson_planner.py",
+      "sha256": "d68a21723657e6e39fb637278dd4881b99e63f104714f46337fd7948b052f8f4",
+      "line_count": 267,
+      "definitions": [
+        {
+          "name": "PlanningSignals",
+          "line": 102
+        },
+        {
+          "name": "PlannedSubject",
+          "line": 125
+        },
+        {
+          "name": "SessionPlan",
+          "line": 133
+        },
+        {
+          "name": "_band",
+          "line": 151
+        },
+        {
+          "name": "_place_anchor",
+          "line": 174
+        },
+        {
+          "name": "plan_session",
+          "line": 190
+        },
+        {
+          "name": "stale_subjects_from_bookmarks",
+          "line": 250
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/pilot_authz.py",
+      "sha256": "3fa28be4b3bd38d7bc806a575aff6e850923d83a69a56bfdd40940c22d5f9520",
+      "line_count": 359,
+      "definitions": [
+        {
+          "name": "AuthzRevoked",
+          "line": 76
+        },
+        {
+          "name": "PilotAuthzContext",
+          "line": 81
+        },
+        {
+          "name": "not_found",
+          "line": 120
+        },
+        {
+          "name": "canonical_uuid",
+          "line": 124
+        },
+        {
+          "name": "_pilot_enabled",
+          "line": 135
+        },
+        {
+          "name": "campus_mode_active",
+          "line": 139
+        },
+        {
+          "name": "legacy_name_routes_allowed",
+          "line": 149
+        },
+        {
+          "name": "_grant_query",
+          "line": 156
+        },
+        {
+          "name": "resolve_campus_learner",
+          "line": 178
+        },
+        {
+          "name": "resolve_legacy_learner",
+          "line": 205
+        },
+        {
+          "name": "_still_valid",
+          "line": 219
+        },
+        {
+          "name": "revalidate",
+          "line": 243
+        },
+        {
+          "name": "audit_revoked",
+          "line": 255
+        },
+        {
+          "name": "require_valid",
+          "line": 267
+        },
+        {
+          "name": "guarded_stream",
+          "line": 273
+        },
+        {
+          "name": "RevocationGatedSession",
+          "line": 321
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/student_deletion.py",
+      "sha256": "abeb790828ffd6f40305d2a52ebae6d182e38142b3b52cff657e4375e8fc675e",
+      "line_count": 98,
+      "definitions": [
+        {
+          "name": "delete_all_student_data",
+          "line": 30
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/pilot_learner_deletion.py",
+      "sha256": "f4ba9fed433955f254f57cda067e41787989d87aa9a177fecd73d0091e1beb22",
+      "line_count": 233,
+      "definitions": [
+        {
+          "name": "LearnerNotFound",
+          "line": 81
+        },
+        {
+          "name": "DeletionIncomplete",
+          "line": 86
+        },
+        {
+          "name": "storage_subject_tables",
+          "line": 94
+        },
+        {
+          "name": "pilot_cascade",
+          "line": 104
+        },
+        {
+          "name": "_learner_col",
+          "line": 110
+        },
+        {
+          "name": "DeletionResult",
+          "line": 115
+        },
+        {
+          "name": "_counts",
+          "line": 133
+        },
+        {
+          "name": "delete_pilot_learner",
+          "line": 150
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/routers/practice.py",
+      "sha256": "5e07b47b87be3ced61fec614d3a1908da7dcbfe929408738845318cd288d91df",
+      "line_count": 184,
+      "definitions": [
+        {
+          "name": "_view",
+          "line": 27
+        },
+        {
+          "name": "list_packs",
+          "line": 38
+        },
+        {
+          "name": "get_reading_route",
+          "line": 43
+        },
+        {
+          "name": "read_assessment",
+          "line": 49
+        },
+        {
+          "name": "enter_assessment",
+          "line": 77
+        },
+        {
+          "name": "confirm_assessment",
+          "line": 95
+        },
+        {
+          "name": "plan_practice",
+          "line": 114
+        },
+        {
+          "name": "get_sets",
+          "line": 143
+        },
+        {
+          "name": "_draft",
+          "line": 152
+        },
+        {
+          "name": "approve_set",
+          "line": 163
+        },
+        {
+          "name": "discard_set",
+          "line": 176
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/practice/store.py",
+      "sha256": "ee953aaa373d26aa87736bd95837fecafa3ee0d3ec89d08618e8c829fef244a5",
+      "line_count": 155,
+      "definitions": [
+        {
+          "name": "_aad",
+          "line": 18
+        },
+        {
+          "name": "_require_student",
+          "line": 23
+        },
+        {
+          "name": "save_assessment",
+          "line": 32
+        },
+        {
+          "name": "load_assessment",
+          "line": 49
+        },
+        {
+          "name": "replace_assessment",
+          "line": 69
+        },
+        {
+          "name": "save_set",
+          "line": 80
+        },
+        {
+          "name": "load_set",
+          "line": 100
+        },
+        {
+          "name": "decide_set",
+          "line": 121
+        },
+        {
+          "name": "list_sets",
+          "line": 136
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/services/practice/extract.py",
+      "sha256": "a8f453dc68aa6aebfdd7a6e4e2ca57415813cc79b0705c8d2af4bc7457fdc85e",
+      "line_count": 174,
+      "definitions": [
+        {
+          "name": "PhotoRejected",
+          "line": 46
+        },
+        {
+          "name": "ConsentRequired",
+          "line": 50
+        },
+        {
+          "name": "ReadingUnavailable",
+          "line": 56
+        },
+        {
+          "name": "ReadingFailed",
+          "line": 60
+        },
+        {
+          "name": "media_type_of",
+          "line": 64
+        },
+        {
+          "name": "reading_route",
+          "line": 77
+        },
+        {
+          "name": "_choose_client",
+          "line": 88
+        },
+        {
+          "name": "_prompt",
+          "line": 121
+        },
+        {
+          "name": "_text_of",
+          "line": 127
+        },
+        {
+          "name": "parse_reading",
+          "line": 135
+        },
+        {
+          "name": "read_pages",
+          "line": 149
+        }
+      ]
+    },
+    {
+      "path": "homeschool-api/core/deps.py",
+      "sha256": "af3b40fde7d04a071d1aaa829fb0907f1f39a749a85c916c8b107ab1b5328ae0",
+      "line_count": 354,
+      "definitions": [
+        {
+          "name": "_validate_token",
+          "line": 46
+        },
+        {
+          "name": "_authorize",
+          "line": 120
+        },
+        {
+          "name": "_require_live_session",
+          "line": 142
+        },
+        {
+          "name": "require_auth",
+          "line": 178
+        },
+        {
+          "name": "require_educator",
+          "line": 199
+        },
+        {
+          "name": "require_mfa_pending",
+          "line": 212
+        },
+        {
+          "name": "require_parent_recovery",
+          "line": 226
+        },
+        {
+          "name": "require_real_user",
+          "line": 241
+        },
+        {
+          "name": "require_parent",
+          "line": 257
+        },
+        {
+          "name": "require_elevated_parent",
+          "line": 267
+        },
+        {
+          "name": "require_email_summary",
+          "line": 318
+        },
+        {
+          "name": "require_demo_parent_config",
+          "line": 330
+        },
+        {
+          "name": "require_demo_preview",
+          "line": 344
+        }
+      ]
+    },
+    {
+      "path": "homeschool-tutor/src/hooks/useReadingPresentation.ts",
+      "sha256": "45f382e78d87b52dbc15b9237531b6c1927f81281e3150bb3e883eb76b23e69b",
+      "line_count": 201
+    }
+  ],
+  "upstream_curriculum_tests": {
+    "files_located": [
+      "test_curriculum_citation_retriever.py",
+      "test_curriculum_learner_evolution.py",
+      "test_curriculum_local_hybrid_index.py",
+      "test_curriculum_models.py",
+      "test_curriculum_persistence.py",
+      "test_curriculum_resources_note.py",
+      "test_curriculum_rights_gate.py",
+      "test_curriculum_workflow.py"
+    ],
+    "function_definitions": 78,
+    "executed": false,
+    "reason": "pytest, Pydantic, SQLAlchemy, aiosqlite and cryptography unavailable in this interpreter; no installation or DB access performed"
+  },
+  "synthetic_checks_executed": [
+    "flag defaults disabled",
+    "flag-off local search denied",
+    "local test flag only",
+    "licensed verbatim rejected",
+    "approval without review rejected",
+    "obvious bot review rejected",
+    "campus/staging/licensed prefilters",
+    "review-annotated objective match",
+    "effectiveness score fixed zero",
+    "unmatched objective excluded",
+    "missing annotation denied",
+    "literal passage projected",
+    "invented passage omitted",
+    "no-evidence estimate denied",
+    "synthetic estimate not certainty"
+  ],
+  "limits": [
+    "Not upstream pytest execution, real reviewer authentication or deployment evidence",
+    "No PostgreSQL, retention/deletion, actual corpus, accessibility, learner or efficacy test",
+    "String reviewer heuristics do not authenticate humans"
+  ],
+  "checkout_worktree_preserved": true
+}

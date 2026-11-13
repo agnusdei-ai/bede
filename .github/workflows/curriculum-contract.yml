@@ -1,0 +1,62 @@
+name: Curriculum production contract
+
+on:
+  pull_request:
+    paths:
+      - 'curriculum/production-spec/**'
+      - 'homeschool-api/services/curriculum/models.py'
+      - 'homeschool-api/services/curriculum/flag.py'
+      - 'homeschool-api/services/diagnostic/**'
+      - '.github/workflows/curriculum-contract.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'curriculum/production-spec/**'
+      - 'homeschool-api/services/curriculum/models.py'
+      - 'homeschool-api/services/curriculum/flag.py'
+      - 'homeschool-api/services/diagnostic/**'
+      - '.github/workflows/curriculum-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Specification tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Validate bounded synthetic contract
+        working-directory: curriculum/production-spec
+        run: |
+          timeout 35s python -B verify.py
+          timeout 35s python -B contract.py check
+      - name: Verify schema and deterministic export entry points
+        working-directory: curriculum/production-spec
+        run: |
+          python -B - <<'PY'
+          import hashlib
+          import json
+          import subprocess
+          import sys
+          for action in ("schema", "export"):
+              first = subprocess.check_output(
+                  [sys.executable, "-B", "contract.py", action], timeout=35)
+              second = subprocess.check_output(
+                  [sys.executable, "-B", "contract.py", action], timeout=35)
+              assert first == second, f"Nondeterministic {action}"
+              json.loads(first)
+              print(action, hashlib.sha256(first).hexdigest())
+          PY

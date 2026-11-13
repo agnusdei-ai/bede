@@ -71,3 +71,6 @@ bede-license-ledger.csv
 node_modules/
 .vite/
 .vitest-cache/
+
+# Development-only curriculum evidence, private SQLite ledger and build outputs
+/generated-artifacts/

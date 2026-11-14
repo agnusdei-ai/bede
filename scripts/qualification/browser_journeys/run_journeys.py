@@ -31,6 +31,7 @@ a check that never ran is not a pass.
 from __future__ import annotations
 
 import argparse
+import atexit
 import hashlib
 import json
 import os
@@ -63,6 +64,43 @@ MOBILE_DEVICES = {
 # none a published example (checked when they were chosen).
 SAMPLE_PINS = ["582916", "694217", "815372", "927481", "361948", "472915", "538164", "619382"]
 EVENTS: list[dict] = []
+
+
+def own_group() -> dict:
+    """Popen options putting a child in its own process group, so stopping it
+    stops what it started too. `npx vite preview` is npx starting node: a
+    signal to npx alone left node holding the port, and the next run failed
+    with 'Port 18400 is already in use'."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def stop_all(procs) -> None:
+    """Stop every process started with own_group(), and its children.
+    Idempotent: a process that already exited is skipped."""
+    live = [p for p in procs if p and p.poll() is None]
+    for p in live:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+        else:
+            try:
+                os.killpg(p.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+    # Windows cannot delete a file another process still has open, so wait
+    # for the processes to exit before the database is removed.
+    for p in live:
+        try:
+            p.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            if os.name != "nt":
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            p.kill()
+            p.wait()
 
 
 def ev(**k):
@@ -178,17 +216,20 @@ def main() -> int:
         CORS_ORIGINS=f"http://127.0.0.1:{UI_PORT}", PYTHONUTF8="1",
     )
     procs: list[subprocess.Popen] = []
-    stub = subprocess.Popen([sys.executable, str(HERE / "model_stub.py"), str(STUB_PORT), str(out)],
-                            stdout=(out / "stub.log").open("ab"), stderr=subprocess.STDOUT)
-    procs.append(stub)
     api_state = {"proc": None, "starts": 0}
+    # Registered before anything starts, so a failure while seeding (before
+    # the try below) still stops every server.
+    atexit.register(lambda: stop_all([api_state["proc"], *procs]))
+    stub = subprocess.Popen([sys.executable, str(HERE / "model_stub.py"), str(STUB_PORT), str(out)],
+                            stdout=(out / "stub.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
+    procs.append(stub)
 
     def start_api():
         api_state["starts"] += 1
         api_state["proc"] = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(API_PORT),
              "--workers", "1", "--no-access-log"], cwd=API_DIR, env=env,
-            stdout=(out / "api.log").open("ab"), stderr=subprocess.STDOUT)
+            stdout=(out / "api.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
         wait_http(f"http://127.0.0.1:{API_PORT}/health", api_state["proc"], "uvicorn main:app")
 
     t0 = time.time()
@@ -217,7 +258,7 @@ def main() -> int:
                     "rewrite: (p) => p.replace(/^\\/api/, '')}}}}\n"
                     % (json.dumps(UI_DIR.as_posix()), UI_PORT, json.dumps(f"http://127.0.0.1:{API_PORT}")))
     preview = subprocess.Popen([npx(), "vite", "preview", "--config", str(conf)], cwd=UI_DIR,
-                               stdout=(out / "preview.log").open("ab"), stderr=subprocess.STDOUT)
+                               stdout=(out / "preview.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
     procs.append(preview)
     wait_http(f"http://127.0.0.1:{UI_PORT}/", preview, "vite preview", timeout=90)
 
@@ -229,7 +270,8 @@ def main() -> int:
     (out / "fixture.json").write_text(json.dumps(fixture))
     load_env = dict(env, FIX=str(out / "fixture.json"))
     load = subprocess.Popen(["node", str(HERE / "journeys.cjs")], env=load_env,
-                            stdout=(out / "journeys.log").open("ab"), stderr=subprocess.STDOUT)
+                            stdout=(out / "journeys.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
+    procs.append(load)
     rc = None
     try:
         while rc is None:
@@ -250,16 +292,7 @@ def main() -> int:
     finally:
         ev(e="journeys_exit", rc=rc)
         (out / "events.json").write_text(json.dumps(EVENTS, indent=1))
-        live = [p for p in [api_state["proc"], *procs] if p and p.poll() is None]
-        for p in live:
-            p.send_signal(signal.SIGTERM) if os.name != "nt" else p.terminate()
-        # Windows cannot delete a file another process still has open, so
-        # wait for the processes to exit before removing the database.
-        for p in live:
-            try:
-                p.wait(timeout=20)
-            except subprocess.TimeoutExpired:
-                p.kill()
+        stop_all([api_state["proc"], *procs])
         try:
             (out / "journeys.db").unlink(missing_ok=True)
         except PermissionError as exc:

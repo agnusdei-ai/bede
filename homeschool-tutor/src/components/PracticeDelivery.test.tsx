@@ -123,3 +123,22 @@ describe('an answer while Bede is still replying', () => {
     expect(chat).toMatch(/<PracticeDelivery[\s\S]*?busy=\{isStreaming\}/)
   })
 })
+
+
+describe('the practice card leaves room for the conversation', () => {
+  beforeEach(() => {
+    i18n.changeLanguage('en')
+    mocks.fetchPracticeDelivery.mockResolvedValue([{ id: 21, items: [{ index: 0, prompt: 'Quid agit?', hint: 'verb' }], completed_indices: [] }])
+  })
+  afterEach(() => { cleanup(); vi.resetAllMocks() })
+
+  // jsdom has no layout, so this pins the classes; the measured guarantee is
+  // the browser journey's conversation_visible_at_175 check.
+  it('is height-capped and scrolls on its own', async () => {
+    render(<PracticeDelivery token="t" studentName="Sample Learner" onAnswer={vi.fn()} />)
+    const card = await screen.findByRole('region', { name: /practice question/i })
+    expect(card.className).toMatch(/max-h-\[30dvh\]/)
+    expect(card.className).toMatch(/overflow-y-auto/)
+    expect(card.className).toMatch(/shrink-0/)
+  })
+})

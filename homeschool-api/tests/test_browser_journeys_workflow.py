@@ -12,6 +12,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import signal
+import subprocess
+import time
 import re
 from pathlib import Path
 
@@ -251,6 +255,7 @@ BOUNDARY_CHECKS = [
     "back_after_logout_shows_no_household", "oversize_upload_refused_before_send",
     "unsupported_upload_refused_without_reading", "double_approve_single_set", "blank_message_not_sent",
     "overlong_message_handled_plainly", "child_cannot_open_parent_pages", "text_scale_175_no_horizontal_scroll",
+    "conversation_visible_at_175",
     "parent_locked_after_repeated_failures", "locked_parent_refused_even_with_right_password",
     "recovery_reachable_while_locked",
 ]
@@ -278,3 +283,44 @@ def test_the_boundary_fixtures_straddle_the_real_limit():
     assert "f.truncate(25 * 1024 * 1024 + 1024)" in src
     ui = (REPO / "homeschool-tutor/src/utils/uploadParts.ts").read_text()
     assert "FILE_MAX_BYTES = 25 * 1024 * 1024" in ui
+
+
+# ── the runner stops what it started ────────────────────────────────────────
+
+@pytest.mark.skipif(os.name == "nt", reason="process groups are POSIX; Windows uses taskkill /T")
+def test_stop_all_stops_a_servers_children_too(tmp_path):
+    """`npx vite preview` is npx starting node. Signalling npx alone left node
+    holding the port, and the next run failed with 'Port 18400 is already in
+    use'. Stopping the group must reach the child the launcher started."""
+    run = _runner()
+    pidfile = tmp_path / "child.pid"
+    launcher = subprocess.Popen(["sh", "-c", f"sleep 60 & echo $! > {pidfile}; wait"], **run.own_group())
+    for _ in range(50):
+        if pidfile.exists() and pidfile.read_text().strip():
+            break
+        time.sleep(0.05)
+    child = int(pidfile.read_text())
+    run.stop_all([launcher, None])
+    assert launcher.poll() is not None
+    for _ in range(50):
+        try:
+            os.kill(child, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        os.kill(child, signal.SIGKILL)
+        pytest.fail("the launcher's child outlived stop_all")
+    run.stop_all([launcher])  # a second call is harmless
+
+
+def test_cleanup_is_registered_before_the_first_server_starts():
+    """A failure while seeding happens before the run's try/finally, so the
+    stop has to be registered before the first Popen, not after."""
+    src = (HARNESS / "run_journeys.py").read_text()
+    body = src[src.index("procs: list[subprocess.Popen] = []"):]
+    assert body.index("atexit.register(") < body.index("subprocess.Popen(")
+    for name in ("model_stub.py", '"uvicorn"', '"vite", "preview"', "journeys.cjs"):
+        start = body.index(name)
+        call = body[start:body.index(")\n", start)]
+        assert "own_group()" in call, f"{name} is not started in its own process group"

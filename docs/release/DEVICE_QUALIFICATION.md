@@ -59,13 +59,18 @@ parent account.
 | Blank message | Not sent |
 | Message over 2,000 characters | Not sent; the words stay in the box; the child is told it is too long, never that the connection failed |
 | A child on parent pages | `/pod/configs` and a sibling's practice refused; no parent content or sibling on screen |
-| Text at 175% on a phone-width screen | No sideways page scroll |
+| Text at 175% on a phone-width screen | No sideways page scroll, and the conversation keeps at least a quarter of the screen |
 | Repeated wrong passwords | The parent is locked even with the right password, and account recovery still answers |
 
 The over-long message row found a real defect: the chat sent the message, the
 server refused it, and the child was told "we lost the connection". The chat
 now keeps the words and says the message is too long
 (`SocraticChat.messageLength.test.tsx`).
+
+The 175% row found another: an approved practice question squeezed the
+conversation to a 56 px strip, so Bede's replies arrived but could not be
+read. The practice card is now capped at 30% of the screen height and scrolls
+on its own; the check reports each element's height when it fails.
 
 ## 2. Physical layer: the support matrix
 

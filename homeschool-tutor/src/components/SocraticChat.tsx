@@ -876,7 +876,7 @@ export default function SocraticChat({
         />
       )}
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
+      <div data-chat-messages className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} />
         ))}

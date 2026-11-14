@@ -82,9 +82,12 @@ export default function PracticeDelivery({
   if (sets === null && loading) return null
 
   return (
+    // Capped and scrollable on its own: at large text on a phone, an uncapped
+    // card pushed the conversation down to a 56 px strip, so Bede's replies
+    // arrived but could not be read.
     <section
       aria-label={t('practiceDelivery.title')}
-      className="mx-4 mt-3 rounded-xl border border-sage-200 bg-sage-50 p-3 text-sm"
+      className="mx-4 mt-3 max-h-[30dvh] shrink-0 overflow-y-auto rounded-xl border border-sage-200 bg-sage-50 p-3 text-sm"
     >
       {current ? (
         <>

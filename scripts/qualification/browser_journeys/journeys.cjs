@@ -472,6 +472,25 @@ async function boundaryChild(br, bname, i) {
     }
     const scale = await c2.evaluate(() => getComputedStyle(document.documentElement).fontSize);
     check(who, 'text_scale_175_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);
+    // The conversation must stay readable: at 175% on a phone, the practice
+    // card once squeezed the message area to 56 px, so Bede's replies were in
+    // the page but not in view (WebKit's innerText exposed it; Chrome's did not).
+    // The detail names every sibling's height so a failure says what took the room.
+    const layout = await c2.evaluate(() => {
+      const el = document.querySelector('[data-chat-messages]');
+      if (!el) return { area: -1, vh: innerHeight, parts: 'no message area' };
+      const parts = [];
+      for (let node = el; node && node !== document.body; node = node.parentElement) {
+        for (const sib of node.parentElement ? node.parentElement.children : []) {
+          if (sib === node) continue;
+          const h = Math.round(sib.getBoundingClientRect().height);
+          if (h > 0) parts.push(`${sib.tagName.toLowerCase()}${sib.getAttribute('aria-label') ? `[${sib.getAttribute('aria-label')}]` : ''}=${h}`);
+        }
+      }
+      return { area: Math.round(el.getBoundingClientRect().height), vh: innerHeight, parts: parts.join(' ') };
+    });
+    check(who, 'conversation_visible_at_175', layout.area >= layout.vh * 0.25,
+      `message area ${layout.area}px of ${layout.vh}px; beside it: ${layout.parts}`);
     await ctx2.close();
   } catch (e) {
     if (!c.isClosed()) {
@@ -512,7 +531,8 @@ function expectedChecks() {
     F.browsers.forEach((b, i) => {
       for (const c of ['open_redirect_refused', 'wrong_password_plain_error', 'invalid_token_logs_out_with_notice', 'back_after_logout_shows_no_household',
         'oversize_upload_refused_before_send', 'unsupported_upload_refused_without_reading', 'double_approve_single_set']) out.push([`parent${i + 1}_${b}`, c]);
-      for (const c of ['blank_message_not_sent', 'overlong_message_handled_plainly', 'child_cannot_open_parent_pages', 'text_scale_175_no_horizontal_scroll']) out.push([`child${i + 1}_${b}`, c]);
+      for (const c of ['blank_message_not_sent', 'overlong_message_handled_plainly', 'child_cannot_open_parent_pages', 'text_scale_175_no_horizontal_scroll',
+        'conversation_visible_at_175']) out.push([`child${i + 1}_${b}`, c]);
     });
     for (const c of ['parent_locked_after_repeated_failures', 'locked_parent_refused_even_with_right_password', 'recovery_reachable_while_locked']) out.push(['lockout', c]);
     return out;

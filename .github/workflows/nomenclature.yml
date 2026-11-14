@@ -1,0 +1,22 @@
+name: Nomenclature
+
+# Owner rule 2026-11-14: no tracked file may use the banned nomenclature
+# (scripts/check_nomenclature.sh). Runs on every push and pull request with
+# no path filter, so no change can skip it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  nomenclature:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Check every tracked file
+        run: scripts/check_nomenclature.sh

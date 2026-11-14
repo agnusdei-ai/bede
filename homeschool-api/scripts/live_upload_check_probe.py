@@ -6,7 +6,7 @@ Run by hand from `.github/workflows/live-upload-check.yml` (workflow_dispatch
 only). It spends a few model calls on the public demo, so it never runs on a
 schedule.
 
-**Synthetic pictures only.** It draws four harmless pictures with Pillow:
+**Sample pictures only.** It draws four harmless pictures with Pillow:
 
 * a marked arithmetic worksheet       -> expected to pass and be read
 * a video-game "GAME OVER" screen     -> expected: refused as not schoolwork
@@ -137,7 +137,7 @@ def chat_body(image: str) -> dict:
     """One lesson turn carrying a picture. tests/test_live_upload_probe.py
     checks it against the API's own TutorRequest, so it cannot drift."""
     return {
-        "session_config": {"student_name": "Synthetic", "grade": "3", "grade_stage": "3-5"},
+        "session_config": {"student_name": "Sample", "grade": "3", "grade_stage": "3-5"},
         "current_subject": "nature_study",
         "conversation_history": [],
         "child_message": "Look at my picture!",
@@ -161,7 +161,7 @@ def main() -> int:
         report["checks"].append({"name": name, "ok": ok, "observed": observed[:400]})
         report["ok"] = report["ok"] and ok
 
-    status, text = _call(args.api, "/auth/demo-code", {"student_name": "Synthetic", "grade": "3"})
+    status, text = _call(args.api, "/auth/demo-code", {"student_name": "Sample", "grade": "3"})
     if status != 200:
         record("demo session", False, f"{status} {text[:200]}")
         print(json.dumps(report, indent=2))

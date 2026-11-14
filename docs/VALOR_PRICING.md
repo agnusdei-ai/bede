@@ -1,6 +1,6 @@
 # Valor Education — Bede institutional pricing decisions
 
-Status: Owner-approved public organizational pricing schedule; subject to signed agreement and engineering release qualification. The current invite-only Valor pilot is free and synthetic-data-only, separate from the paid evaluation below.
+Status: Owner-approved public organizational pricing schedule; subject to signed agreement and engineering release qualification. The current invite-only Valor pilot is free and sample-data-only, separate from the paid evaluation below.
 Decision date: 2026-10-15.
 Owner: Agnus Dei Technologies, LLC.
 
@@ -16,7 +16,7 @@ At **104** licensed learners, 104 × $25 = **$2,600/month**, equal to the foundi
 
 The **$2,600/month** founding-school membership is an approved promotional offer for eligible campus agreements entered during Fall 2026 through Spring 2027. Billing is monthly under a signed 12-month commitment. The agreed price applies throughout each signed 12-month subscription term, even when that term extends beyond Spring 2027. Eligibility after the promotional enrollment window and subsequent renewal rates require their own approved offer terms; the founding price is not automatically indefinite. 
 
-All prices are USD; campus-specific taxes, hardware, and separately scoped professional services are excluded unless explicitly agreed. Do not present pilot pricing as a recurring monthly charge. Published pricing is for budgeting and inquiry, not a signed contract or a promise that institutional production deployment is already qualified. Each additional physical campus needs a separate license; hardware and separately scoped services are extra. The current invite-only Valor pilot stays free, manually approved and synthetic-data-only, without self-service purchasing, Stripe, or automatic paid conversion.
+All prices are USD; campus-specific taxes, hardware, and separately scoped professional services are excluded unless explicitly agreed. Do not present pilot pricing as a recurring monthly charge. Published pricing is for budgeting and inquiry, not a signed contract or a promise that institutional production deployment is already qualified. Each additional physical campus needs a separate license; hardware and separately scoped services are extra. The current invite-only Valor pilot stays free, manually approved and sample-data-only, without self-service purchasing, Stripe, or automatic paid conversion.
 
 ## Flexible licensing within a 12-month term
 

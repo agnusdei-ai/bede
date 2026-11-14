@@ -918,7 +918,7 @@ class SessionTranscript(Base):
     __tablename__ = "session_transcripts"
 
     # PostgreSQL keeps BIGINT; SQLite needs the exact INTEGER PRIMARY KEY
-    # affinity for auto-generated IDs in synthetic pilot HTTP/integration tests.
+    # affinity for auto-generated IDs in sample pilot HTTP/integration tests.
     id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer(), "sqlite"),
         primary_key=True, autoincrement=True,
@@ -999,6 +999,27 @@ class ParentSecurityKey(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class ParentProfile(Base):
+    """
+    Single row (key="profile") holding the adult's optional first name, used
+    only to greet them on their own screens ("Welcome back, Kristian"). A
+    display value: never an identity, a credential or an authorization input,
+    and never sent to a model, a log or an email. Encrypted with a constant
+    row key like the other single-row parent settings, so the stored name is
+    not readable from a database dump. Absent row = no name set.
+    """
+    __tablename__ = "parent_profile"
+
+    key: Mapped[str] = mapped_column(String(20), primary_key=True)
+    name_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
 

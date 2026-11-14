@@ -1,6 +1,6 @@
 """Real HTTP and DB checks for the read-only source-backed pilot diagnostic.
 
-Reuses canonical assessment's synthetic two-campus real-app fixture.
+Reuses canonical assessment's sample two-campus real-app fixture.
 Every test is run on SQLite and (when configured) non-superuser Postgres;
 an unavailable required Postgres backend fails via BEDE_REQUIRE_PG=1.
 """

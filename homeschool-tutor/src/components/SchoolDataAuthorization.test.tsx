@@ -20,7 +20,7 @@ vi.mock('../services/api', async (original) => ({
 const C = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const status = (over: Record<string, unknown> = {}) => ({
   authorized: false, stale: false, notice_hash: 'hash-1', notice_version: '2026-10-v1',
-  notice_text: '1. Purpose\nSynthetic notice text.\n2. Scope', authorized_at: null,
+  notice_text: '1. Purpose\nSample notice text.\n2. Scope', authorized_at: null,
   authorized_by: null, ...over,
 })
 const authorizedStatus = status({
@@ -46,7 +46,7 @@ describe('SchoolDataAuthorization', () => {
     render(<SchoolDataAuthorization token="t" campusId={C} role="teacher"/>)
     expect(await screen.findByRole('heading', { name: HEADING })).toBeTruthy()
     const region = screen.getByRole('region', { name: 'School Authorization Notice' })
-    expect(region.textContent).toContain('1. Purpose\nSynthetic notice text.')
+    expect(region.textContent).toContain('1. Purpose\nSample notice text.')
     expect(screen.getByText(/Notice version 2026-10-v1/)).toBeTruthy()
     expect(screen.getByText(en.schoolDataAuth.teacherWaitAdmin)).toBeTruthy()
     expect(api.fetchSchoolDataAuthorization).toHaveBeenCalledWith('t', C)

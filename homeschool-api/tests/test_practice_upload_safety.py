@@ -168,7 +168,7 @@ def test_unreadable_pdf_indirect_object_fails_closed(monkeypatch):
     reader = PdfReader(io.BytesIO(raw))
 
     def unreadable(_self):
-        raise ValueError("synthetic unreadable indirect object")
+        raise ValueError("sample unreadable indirect object")
 
     monkeypatch.setattr(IndirectObject, "get_object", unreadable)
     with pytest.raises(PhotoRejected, match="unreadable object"):
@@ -176,7 +176,7 @@ def test_unreadable_pdf_indirect_object_fails_closed(monkeypatch):
 
 
 def _flate_scan(writer, data: bytes) -> None:
-    """Encode the existing synthetic 16x16 RGB scan as Flate in a real PDF."""
+    """Encode the existing sample 16x16 RGB scan as Flate in a real PDF."""
     image = writer.pages[0]["/Resources"]["/XObject"]["/Im0"].get_object()
     image[NameObject("/Filter")] = NameObject("/FlateDecode")
     image._data = zlib.compress(data)

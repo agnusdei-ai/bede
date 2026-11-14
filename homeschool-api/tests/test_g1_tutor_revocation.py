@@ -157,7 +157,7 @@ def _revocation_stages(w):
 
 def _remove_learner_one(w):
     r = w.client.put(f"/educators/accounts/{w.teacher_one}/roster", headers=w.admin(),
-                     json={"configs": [legacy_config("Synthetic Learner Three")]})
+                     json={"configs": [legacy_config("Sample Learner Three")]})
     assert r.status_code == 200
 
 
@@ -165,12 +165,12 @@ def _remove_learner_one(w):
 
 def test_authorized_turn_streams_and_writes(legacy_world, monkeypatch):
     w = legacy_world
-    Script(w, [_text("Synthetic reply."), _skill_evidence("tool-1", 1)]).install(monkeypatch)
+    Script(w, [_text("Sample reply."), _skill_evidence("tool-1", 1)]).install(monkeypatch)
     with w.client.stream("POST", "/tutor/chat", json=_body(w.extra["name_one"]),
                          headers=w.teacher(w.teacher_one)) as r:
         assert r.status_code == 200
         items = _items(r)
-    assert {"type": "text", "content": "Synthetic reply."} in items
+    assert {"type": "text", "content": "Sample reply."} in items
     assert items[-1] == {"type": "done"}
     assert _ledger_rows(w) == 1
     assert _revocation_stages(w) == []
@@ -178,13 +178,13 @@ def test_authorized_turn_streams_and_writes(legacy_world, monkeypatch):
 
 def test_revocation_mid_generation_stops_output_and_later_writes(legacy_world, monkeypatch):
     w = legacy_world
-    script = Script(w, [_text("Synthetic first part."), _skill_evidence("tool-1", 1), GATE,
-                        _skill_evidence("tool-2", 2), _text("Synthetic second part.", 3)])
+    script = Script(w, [_text("Sample first part."), _skill_evidence("tool-1", 1), GATE,
+                        _skill_evidence("tool-2", 2), _text("Sample second part.", 3)])
     script.install(monkeypatch)
     with w.client.stream("POST", "/tutor/chat", json=_body(w.extra["name_one"]),
                          headers=w.teacher(w.teacher_one)) as r:
-        first = _items(r, until=lambda i: i.get("content") == "Synthetic first part.")
-        assert first[-1]["content"] == "Synthetic first part."
+        first = _items(r, until=lambda i: i.get("content") == "Sample first part.")
+        assert first[-1]["content"] == "Sample first part."
         # Revoke only once the write that precedes the gate is durable. The
         # scripted model emits the text BEFORE the tool, so the client can
         # read it and revoke before that write's commit gate has run; under
@@ -211,12 +211,12 @@ def test_a_write_attempted_after_revocation_is_refused(legacy_world, monkeypatch
     text that follows it."""
     w = legacy_world
     monkeypatch.setattr(pilot_authz, "REVALIDATE_INTERVAL_SECONDS", 60.0)
-    script = Script(w, [_text("Synthetic first part."), GATE,
-                        _skill_evidence("tool-2", 1), _text("Synthetic second part.", 2)])
+    script = Script(w, [_text("Sample first part."), GATE,
+                        _skill_evidence("tool-2", 1), _text("Sample second part.", 2)])
     script.install(monkeypatch)
     with w.client.stream("POST", "/tutor/chat", json=_body(w.extra["name_one"]),
                          headers=w.teacher(w.teacher_one)) as r:
-        _items(r, until=lambda i: i.get("content") == "Synthetic first part.")
+        _items(r, until=lambda i: i.get("content") == "Sample first part.")
         _remove_learner_one(w)
         script.open_gate()
         rest = _items(r)
@@ -252,7 +252,7 @@ def test_revocation_before_context_retrieval_prevents_the_model_call(legacy_worl
 
 def test_retry_after_revocation_is_refused(legacy_world, monkeypatch):
     w = legacy_world
-    Script(w, [_text("Synthetic reply.")]).install(monkeypatch)
+    Script(w, [_text("Sample reply.")]).install(monkeypatch)
     old = w.teacher(w.teacher_one)
     _remove_learner_one(w)
     # The frontend's TUTOR_MAX_ATTEMPTS retry is a new POST: it re-resolves.

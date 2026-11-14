@@ -3,14 +3,14 @@ Phase 5.2 — measuring the engine against GROUND TRUTH.
 
 WHY THIS EXISTS, GIVEN test_mastery.py ALREADY HAS AN ACCEPTANCE TEST.
 
-Phase 1's acceptance test (`test_synthetic_stream_converges_and_never_leaves_
+Phase 1's acceptance test (`test_sample_stream_converges_and_never_leaves_
 prerequisites_behind`) feeds all-correct evidence up a prerequisite chain and
 asserts the vector rises. That proves DIRECTION. It cannot prove ACCURACY,
 because every answer in it is correct — so it can never catch the engine
 calling a skill "secure" for a child who does not have it. That is the error
 that actually reaches a family, and until this file nothing measured it.
 
-Here the truth is known because we generate it: a synthetic student with a
+Here the truth is known because we generate it: a sample student with a
 real knowledge state, prerequisite-closed so it is coherent (knowing a skill
 implies knowing what it is built on). Answers are then sampled from the DINA
 response model — mastered → correct with P(1-slip), not mastered → correct

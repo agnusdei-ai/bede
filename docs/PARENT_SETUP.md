@@ -360,6 +360,12 @@ Bede only asks for a first name. It never needs a surname or full legal name, an
 
 Bede sends a child's name to its AI provider only where the lesson or your notes need it. The summary Bede writes for you is addressed by name. The learner profile it builds from past work is not, because it does not need one. Email subject lines never contain a child's name, so it does not appear in a lock-screen preview.
 
+### What Bede calls you (optional)
+
+Near the top of Parent Setup there is a small card, **What should Bede call you?**. Type a first name, or just a nickname, and your screens will say "Welcome back, Kristian." Leave it empty and nothing changes: Bede never needs it.
+
+It is used only to greet you on your own screens. It is not your account name, it does not identify you to Bede or log you in, Bede never sends it to the AI, and it never appears in an email subject, a log or anything your child sees. It is kept encrypted on your own server. Use **Remove my name** (or save the box empty) to delete it. Do not enter a surname or legal name; Bede does not need one.
+
 ### Give a child their own PIN
 
 By default every child signs in with the one shared child PIN, and the

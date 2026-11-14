@@ -11,7 +11,7 @@ file in `demo/src/printDocument.ts`). See `docs/PRACTICE_COACH.md`, "Printing".
 ## What to compare against
 
 A reference copy, rendered by Chromium from the real `buildPrintHtml` with a
-fixed synthetic quiz of eight questions (four with pictures: a fraction bar, a
+fixed sample quiz of eight questions (four with pictures: a fraction bar, a
 clock, a number line, a dot array), US Letter:
 
 - page 1: title, Name and Date lines, questions 1-3

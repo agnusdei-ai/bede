@@ -64,6 +64,10 @@ irreversible.
 - `audit_logs` — a security record kept independent of any single student
   (login attempts, rate limiting, safeguarding alerts). Deleting a student
   doesn't rewrite the history of what happened on this deployment.
+- `parent_profile` — the adult's own optional greeting first name. It has no
+  student column, so it is outside every child's export and deletion. The adult
+  sets, changes or removes it from Parent Setup (or `PUT`/`DELETE
+  /household/profile`); an empty value clears it.
 - `parent_security_keys` / `parent_totp_config` — the *parent's* own MFA
   enrollment, unrelated to any child; manage these from the Parent Setup
   page's security section (or `DELETE /mfa/webauthn/{id}` / `DELETE

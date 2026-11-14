@@ -888,6 +888,34 @@ export interface ConsentGrantResult {
   refreshed: string[]
 }
 
+export interface ParentProfile {
+  parent_display_name: string | null
+}
+
+/** The adult's optional greeting name (parent-only). null = none set. */
+export async function fetchParentProfile(token: string): Promise<ParentProfile> {
+  const res = await fetch(`${BASE}/household/profile`, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to load your name')
+  return res.json()
+}
+
+/** An empty value clears it. The server cleans the name and returns what it kept. */
+export async function saveParentName(token: string, name: string): Promise<ParentProfile> {
+  const res = await fetch(`${BASE}/household/profile`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parent_display_name: name }),
+  })
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to save your name')
+  return res.json()
+}
+
+export async function clearParentName(token: string): Promise<ParentProfile> {
+  const res = await fetch(`${BASE}/household/profile`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) throw new ApiRequestError(res.status, 'Failed to clear your name')
+  return res.json()
+}
+
 export async function fetchHouseholdConsent(token: string): Promise<HouseholdConsent> {
   const res = await fetch(`${BASE}/household/consent`, {
     headers: { Authorization: `Bearer ${token}` },

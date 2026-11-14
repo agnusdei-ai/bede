@@ -1,14 +1,14 @@
 # Demo watchdog — repair prompt
 
 This is the instruction given to the agent invoked by
-`.github/workflows/demo-watchdog.yml` when `scripts/synthetic_journey.mjs`
+`.github/workflows/demo-watchdog.yml` when `scripts/sample_journey.mjs`
 reports the public demo is broken. It is a file in the repository, not a
 string buried in YAML, because it is the part of an unattended loop most
 worth reviewing in a diff.
 
 ---
 
-You are repairing the public Bede demo, unattended. A synthetic check has
+You are repairing the public Bede demo, unattended. A sample check has
 just driven a real browser through the demo's first user journey and it
 failed. The full JSON reports are in the working directory, one per device
 profile — `journey-report-desktop.json`,
@@ -89,7 +89,7 @@ not open a PR for it. Report it only if you were opening one anyway.
 **You may modify only:**
 - `site/_headers`
 - `homeschool-tutor/nginx.conf`
-- `scripts/synthetic_journey.mjs` (only to fix a false alarm in the check
+- `scripts/sample_journey.mjs` (only to fix a false alarm in the check
   itself, never to make a real failure stop reporting)
 
 **You must never modify, under any circumstances:**

@@ -1,4 +1,4 @@
-"""Synthetic regression tests, not physical capacity certification."""
+"""Sample regression tests, not physical capacity certification."""
 from copy import deepcopy
 
 import pytest
@@ -46,7 +46,7 @@ def test_both_apple_silicon_skus_are_consistent_with_current_specs(sku):
 
 
 @pytest.mark.parametrize("mutate", [
-    lambda r: r.update(origin="ci_synthetic"),
+    lambda r: r.update(origin="ci_sample"),
     lambda r: r["hardware"].update(chip="Apple M4 Pro"),
     lambda r: r["hardware"].update(architecture="x86_64"),
     lambda r: r["hardware"].update(memory_gb=32),
@@ -86,9 +86,9 @@ def test_memory_cannot_claim_physically_unavailable_configuration():
     assert not evaluate("classroom", data)["qualifies_for_tested_concurrency"]
 
 
-def test_a_synthetic_ci_test_even_if_technically_good_does_not_prove_deployment():
+def test_a_sample_ci_test_even_if_technically_good_does_not_prove_deployment():
     data = report()
-    data["origin"] = "synthetic_ci_data"
+    data["origin"] = "sample_ci_data"
     output = evaluate("campus", data)
     assert not output["qualifies_for_tested_concurrency"]
     assert output["campuswide_capacity_proven"] is False

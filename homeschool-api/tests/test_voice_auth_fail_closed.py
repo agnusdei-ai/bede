@@ -1,4 +1,4 @@
-"""Fail-closed synthetic regression for issue #726 (no real voice data).
+"""Fail-closed sample regression for issue #726 (no real voice data).
 
 These tests deliberately stub model inference. They do NOT qualify the
 actual Resemblyzer model, clean Python 3.12, or a physical Mac.
@@ -31,7 +31,7 @@ def test_enrollment_refuses_unavailable_encoder_before_decoding(monkeypatch):
         lambda *_a, **_kw: pytest.fail("audio should not be decoded"),
     )
     with pytest.raises(ValueError, match="unavailable"):
-        voice._embed_samples_sync([b"synthetic", b"synthetic"])
+        voice._embed_samples_sync([b"sample", b"sample"])
 
 
 @pytest.mark.asyncio
@@ -43,7 +43,7 @@ async def test_legacy_mfcc_profile_cannot_verify(monkeypatch):
         voice, "_get_encoder",
         lambda: pytest.fail("legacy profile must be rejected before inference"),
     )
-    result = await voice.verify_student("synthetic", b"not-real-audio", object())
+    result = await voice.verify_student("sample", b"not-real-audio", object())
     assert result["verified"] is False
     assert result["level"] == voice.ConfidenceLevel.LOW
     assert result["score"] == 0.0
@@ -56,7 +56,7 @@ async def test_legacy_mfcc_profile_cannot_verify(monkeypatch):
 ])
 def test_invalid_or_degenerate_stored_embeddings_are_rejected(stored):
     with pytest.raises(ValueError, match="Invalid|Degenerate"):
-        voice._score_against_profile_sync(b"synthetic", stored)
+        voice._score_against_profile_sync(b"sample", stored)
 
 
 def test_trained_model_path_still_scores_valid_embeddings(monkeypatch):
@@ -66,7 +66,7 @@ def test_trained_model_path_still_scores_valid_embeddings(monkeypatch):
     monkeypatch.setattr(voice, "_get_encoder", lambda: FakeEncoder())
     monkeypatch.setattr(voice, "_load_wav", lambda *_a: np.zeros(16000, dtype=np.float32))
     stored = np.eye(1, 256, dtype=np.float32)[0]
-    assert voice._score_against_profile_sync(b"synthetic", stored) == pytest.approx(1.0)
+    assert voice._score_against_profile_sync(b"sample", stored) == pytest.approx(1.0)
 
 
 def test_bad_trained_model_output_denied(monkeypatch):
@@ -77,7 +77,7 @@ def test_bad_trained_model_output_denied(monkeypatch):
     monkeypatch.setattr(voice, "_load_wav", lambda *_a: np.zeros(16000, dtype=np.float32))
     stored = np.eye(1, 256, dtype=np.float32)[0]
     with pytest.raises(ValueError, match="Invalid"):
-        voice._score_against_profile_sync(b"synthetic", stored)
+        voice._score_against_profile_sync(b"sample", stored)
 
 @pytest.mark.asyncio
 async def test_invalid_model_embedding_never_creates_profile(monkeypatch):
@@ -90,7 +90,7 @@ async def test_invalid_model_embedding_never_creates_profile(monkeypatch):
         pytest.fail("invalid profile must never be persisted")
     monkeypatch.setattr(voice, "_save_profile", forbid_save)
     with pytest.raises(ValueError, match="No samples could be processed"):
-        await voice.enroll_student("synthetic", [b"sample-1", b"sample-2"], object())
+        await voice.enroll_student("sample", [b"sample-1", b"sample-2"], object())
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_opposing_model_samples_cannot_save_zero_mean(monkeypatch):
         pytest.fail("degenerate mean must never be persisted")
     monkeypatch.setattr(voice, "_save_profile", forbid_save)
     with pytest.raises(ValueError, match="Degenerate"):
-        await voice.enroll_student("synthetic", [b"sample-1", b"sample-2"], object())
+        await voice.enroll_student("sample", [b"sample-1", b"sample-2"], object())
 
 
 @pytest.mark.asyncio
@@ -112,7 +112,7 @@ async def test_enrollment_requires_two_valid_samples(monkeypatch):
         pytest.fail("one valid sample must not create a biometric profile")
     monkeypatch.setattr(voice, "_save_profile", forbid_save)
     with pytest.raises(ValueError, match="two valid"):
-        await voice.enroll_student("synthetic", [b"sample-1", b"bad-sample"], object())
+        await voice.enroll_student("sample", [b"sample-1", b"bad-sample"], object())
 
 
 @pytest.mark.asyncio
@@ -127,7 +127,7 @@ async def test_malformed_profile_denied_without_server_error(monkeypatch, profil
     async def malformed(_db, _student):
         return profile
     monkeypatch.setattr(voice, "_get_profile", malformed)
-    result = await voice.verify_student("synthetic", b"not-real-audio", object())
+    result = await voice.verify_student("sample", b"not-real-audio", object())
     assert result["verified"] is False
     assert result["level"] == voice.ConfidenceLevel.LOW
     assert result["score"] == 0.0
@@ -136,21 +136,21 @@ async def test_malformed_profile_denied_without_server_error(monkeypatch, profil
 @pytest.mark.asyncio
 async def test_corrupt_encrypted_profile_denied_without_leaking_error(monkeypatch):
     async def unreadable_profile(_db, _student):
-        raise ValueError("synthetic authentication tag mismatch")
+        raise ValueError("sample authentication tag mismatch")
 
     monkeypatch.setattr(voice, "_get_profile", unreadable_profile)
     monkeypatch.setattr(
         voice, "_get_encoder",
         lambda: pytest.fail("profile read failure must not invoke biometric inference"),
     )
-    result = await voice.verify_student("synthetic", b"not-real-audio", object())
+    result = await voice.verify_student("sample", b"not-real-audio", object())
     assert result["verified"] is False
     assert result["level"] == voice.ConfidenceLevel.LOW
     assert result["score"] == 0.0
     assert "authentication tag" not in result["message"]
 
 
-def test_packaged_resemblyzer_encoder_cpu_inference_on_synthetic_waveform(monkeypatch):
+def test_packaged_resemblyzer_encoder_cpu_inference_on_sample_waveform(monkeypatch):
     """Exercise real packaged weights on Linux CI, without learner voice data.
 
     This is a model-import/inference smoke test, NOT speaker-discrimination,
@@ -163,11 +163,11 @@ def test_packaged_resemblyzer_encoder_cpu_inference_on_synthetic_waveform(monkey
 
     sample_rate = 16000
     t = np.arange(2 * sample_rate, dtype=np.float32) / sample_rate
-    synthetic = (
+    sample = (
         0.06 * np.sin(2 * np.pi * 180 * t)
         + 0.025 * np.sin(2 * np.pi * 360 * t)
     ).astype(np.float32)
-    embedding = np.asarray(voice._extract_embedding(synthetic))
+    embedding = np.asarray(voice._extract_embedding(sample))
     assert embedding.shape == (256,)
     assert np.all(np.isfinite(embedding))
     assert np.linalg.norm(embedding) > 1e-6

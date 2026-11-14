@@ -53,7 +53,7 @@ _MAX_ACTIVE_CODES = 500
 
 # Hard ceiling on chat messages a single code may send before being asked to
 # start a fresh demo. The base demo is deliberately generous with DURATION
-# and BREADTH (every subject, no artificial preview crippling — see this
+# and BREADTH (every subject, no preview crippling — see this
 # module's own docstring and diagnostic_preview_quota.py's), but nothing
 # previously stopped a single scripted session from running indefinitely at
 # the per-IP rate limit's own ceiling for the code's whole token lifetime —

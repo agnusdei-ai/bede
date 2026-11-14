@@ -28,9 +28,9 @@ specification without comparing exact bytes first.
 | `contract.py` | Offline validator and JSON export; no delivery or approval authority |
 | `schema.py` | Structured contract and bounded fail-closed schema subset |
 | `vocabulary.py` | Existing public diagnostic vocabulary adapter; no learner data |
-| `example.py` | Clearly labeled synthetic software fixture with trivial coordinate expectations; not an authored lesson or restricted assessment bank |
-| `fixtures/pairs.txt` | Bede-original synthetic coordinate test bytes, no external source asset |
-| `test_contract.py` | Synthetic positive/negative assertions, including denial of student-key leakage; no real lesson answers or credentials |
+| `example.py` | Clearly labeled sample software fixture with trivial coordinate expectations; not an authored lesson or restricted assessment bank |
+| `fixtures/pairs.txt` | Bede-original sample coordinate test bytes, no external source asset |
+| `test_contract.py` | Sample positive/negative assertions, including denial of student-key leakage; no real lesson answers or credentials |
 | `verify.py` | Bounded offline test runner |
 | `PR-VERIFICATION.md` | This provenance, screening and current test record |
 | `.github/workflows/curriculum-contract.yml` | Read-only, immutable action pins, no secrets or deployment commands; runs the contract at exact PR head |
@@ -39,7 +39,7 @@ All Bede-owned material remains proprietary. No license file or third-party
 notice is changed. Real Grade 8/9 lesson authoring sources, teacher packets,
 assessment keys, the private commercial draft and generated artifacts remain
 excluded. No paid model, external asset download, database or learner data is
-used. Publication of synthetic software-test expectations does not publish the
+used. Publication of sample software-test expectations does not publish the
 withheld instructional answer keys.
 
 ## Current checks and limits
@@ -82,4 +82,4 @@ authorization, legal clearance or real learner readiness is claimed here.
 - After merge, validate the integrated specification and inspect exact-merge CI.
 
 The owner's acceptance of the earlier baseline is not approval of this unseen
-specification diff. No auto-merge, self-approval or simulated human review.
+specification diff. No auto-merge, self-approval or mock human review.

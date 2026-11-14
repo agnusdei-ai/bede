@@ -9,7 +9,7 @@
 3. **#576** — immutable institution/campus/learner identities; campus and educator-to-learner authorization; tenant-scoped database, inference, SSE, exports, background jobs and encryption; positive and negative tests **on the deployed build**.
 4. **#578** — final installer rebuilt against qualified commit, install/upgrade/rollback tests on applicable Linux, macOS, Windows, AMD64 and ARM64 including Raspberry Pi 5.
 
-Parallel Bede unified UI, orchestration and learning-memory development may use **synthetic data only** until #576 deployed isolation is accepted. No real Valor student records in institutional deployment before that gate. Completion of #576 permits **integrated pilot acceptance**, not launch.
+Parallel Bede unified UI, orchestration and learning-memory development may use **sample data only** until #576 deployed isolation is accepted. No real Valor student records in institutional deployment before that gate. Completion of #576 permits **integrated pilot acceptance**, not launch.
 
 ## Seven integrated sprint capabilities
 
@@ -41,11 +41,11 @@ The owner may supply actual evidence from the following devices; local runs supp
 | **Raspberry Pi 5** | ARM64 OS/kernel, storage/RAM/power profile, actual packaged installer and launcher, service startup/reboot persistence, smoke and failure tests, measured inference feasibility/latency or documented remote inference dependency, backup/restore |
 | **Linux AMD64** | Required separate CI/host/VM evidence for x86_64 Linux installation and runtime if not covered by one of the three physical devices |
 
-Use **synthetic learner fixtures** with multiple campuses, same-named learners, revoked guardians, stale educator sessions, forged scopes, cross-tenant assessment/export/SSE attempts, concurrent teacher approvals, restart and backup during load. Negative tests must deny access and leave no leaked records.
+Use **sample learner fixtures** with multiple campuses, same-named learners, revoked guardians, stale educator sessions, forged scopes, cross-tenant assessment/export/SSE attempts, concurrent teacher approvals, restart and backup during load. Negative tests must deny access and leave no leaked records.
 
 ## Capacity and scale proof — not implied by seats
 
-Existing family-oriented single-node Compose/PostgreSQL and Render demo are **not** many-learner throughput proof; licensing tiers and roster bounds are not concurrency guarantees. Benchmark synthetic 25, 100, 250, 500+ enrolled learners at varied concurrent tutoring streams (1, 5, 10, 25, 50, 100 as hardware permits) plus teacher/assessment/report workloads. Capture p50/p95/p99 first-token latency, token throughput, timeout/error rates, queue depth, DB contention, CPU/GPU/RAM, cost, security isolation, soak/restart and restore results. Approve numerical SLOs and maximum supported simultaneous sessions **before** testing. Scale only to the measured hardware/environment envelope; unlimited licensed seats never means unlimited simultaneous inference. If replicas are needed, resolve shared rate limits, throttling, audit windows, session state and authorization before horizontal scaling.
+Existing family-oriented single-node Compose/PostgreSQL and Render demo are **not** many-learner throughput proof; licensing tiers and roster bounds are not concurrency guarantees. Benchmark sample 25, 100, 250, 500+ enrolled learners at varied concurrent tutoring streams (1, 5, 10, 25, 50, 100 as hardware permits) plus teacher/assessment/report workloads. Capture p50/p95/p99 first-token latency, token throughput, timeout/error rates, queue depth, DB contention, CPU/GPU/RAM, cost, security isolation, soak/restart and restore results. Approve numerical SLOs and maximum supported simultaneous sessions **before** testing. Scale only to the measured hardware/environment envelope; unlimited licensed seats never means unlimited simultaneous inference. If replicas are needed, resolve shared rate limits, throttling, audit windows, session state and authorization before horizontal scaling.
 
 ## Evidence record (one row per gate/device)
 

@@ -140,7 +140,7 @@ keyed by display name.
 | Path | Before | After this lane |
 | --- | --- | --- |
 | Request schemas | No `learner_id` or `campus_id` in any request model except pilot path params. | `StreamStartRequest` gains an optional `learner_id`, `campus_id` and `student_name`. A client-supplied campus is only ever compared, never trusted. |
-| Fixtures | `tests/valor_synthetic_fixture.py`: deliberate same-name collision. | Reused. New tests seed through the real admin HTTP routes. |
+| Fixtures | `tests/valor_sample_fixture.py`: deliberate same-name collision. | Reused. New tests seed through the real admin HTTP routes. |
 
 ## Shared authorization context (`services/pilot_authz.py`)
 

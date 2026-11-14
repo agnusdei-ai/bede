@@ -1,6 +1,6 @@
 """Grade 2 mathematics: real diagnostic persistence and cross-session recheck.
 
-This is deliberately a *bounded* synthetic qualification slice, not a claim
+This is deliberately a *bounded* sample qualification slice, not a claim
 that Bede's complete adult-approved tutoring or delayed-retention journey is
 integrated. The story (27 + 15, regrouping) supplies the human-readable
 scenario; observations enter through Bede's actual 1:1 Q-matrix, Bayesian
@@ -25,8 +25,8 @@ from services.diagnostic import get_mastery_summary, process_evidence
 from services.diagnostic.skill_map import prerequisites_of
 
 GRADE_BAND = "K-2"
-LEARNER = "SYNTHETIC_GRADE2_MATH_001"
-OTHER_LEARNER = "SYNTHETIC_GRADE2_MATH_002"
+LEARNER = "SAMPLE_GRADE2_MATH_001"
+OTHER_LEARNER = "SAMPLE_GRADE2_MATH_002"
 PLACE_VALUE = "nbt.place_value_tens"
 ADDITION = "nbt.add_within_100"
 
@@ -56,7 +56,7 @@ async def test_grade2_regrouping_gap_to_independent_recheck_persists_across_sess
     Later independent observations on tens/ones and addition are submitted
     in a new DB session. This verifies persistence and the existing mastery
     engine's response to evidence, NOT real tutor delivery or elapsed-time
-    retention. The words 'independent' and 'hint' describe synthetic
+    retention. The words 'independent' and 'hint' describe sample
     observations; no LLM is asked to judge an answer in this test.
     """
     monkeypatch.setattr(settings, "diagnostic_evidence_log_enabled", True)
@@ -138,7 +138,7 @@ async def test_grade2_regrouping_gap_to_independent_recheck_persists_across_sess
 async def test_grade2_unknown_probe_cannot_forge_a_mastery_profile(db_factory):
     async with db_factory() as db:
         await process_evidence(
-            db, LEARNER, "probe.synthetic_invented_grade2_skill",
+            db, LEARNER, "probe.sample_invented_grade2_skill",
             "correct", 1.0, GRADE_BAND,
         )
         assert await get_mastery_summary(db, LEARNER) is None
@@ -151,7 +151,7 @@ async def test_grade2_unknown_probe_cannot_forge_a_mastery_profile(db_factory):
 async def test_grade2_unknown_probe_preserves_unrelated_pending_transaction(db_factory):
     """An invented probe must not undo a different learner's pending write.
 
-    The synthetic evidence_count increment is a transaction sentinel, not a
+    The sample evidence_count increment is a transaction sentinel, not a
     mastery claim. The real process_evidence path previously called
     db.rollback() on an unknown probe, silently discarding this write.
     """
@@ -166,7 +166,7 @@ async def test_grade2_unknown_probe_preserves_unrelated_pending_transaction(db_f
         row.evidence_count += 1
         await db.flush()
         await process_evidence(
-            db, LEARNER, "probe.synthetic_invented_grade2_skill",
+            db, LEARNER, "probe.sample_invented_grade2_skill",
             "correct", 1.0, GRADE_BAND,
         )
         await db.commit()

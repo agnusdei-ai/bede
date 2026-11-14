@@ -83,7 +83,7 @@ describe('real HTTP path deadlines and voice cancellation', () => {
     vi.useFakeTimers()
     let stream!: ReadableStreamDefaultController<Uint8Array>
     fetchMock.mockResolvedValue(new Response(new ReadableStream({ start: (controller) => { stream = controller } })))
-    const events = streamVoiceEvents('tok', 'synthetic')
+    const events = streamVoiceEvents('tok', 'sample')
     const first = events.next()
     const encoder = new TextEncoder()
     // The server pings every 3 seconds (routers/voice.py); the client now
@@ -93,8 +93,8 @@ describe('real HTTP path deadlines and voice cancellation', () => {
       stream.enqueue(encoder.encode(': ping\n\n'))
       await vi.advanceTimersByTimeAsync(0)
     }
-    stream.enqueue(encoder.encode('data: {"type":"final","text":"Synthetic narration"}\n'))
-    await expect(first).resolves.toEqual({ done: false, value: { type: 'final', text: 'Synthetic narration' } })
+    stream.enqueue(encoder.encode('data: {"type":"final","text":"Sample narration"}\n'))
+    await expect(first).resolves.toEqual({ done: false, value: { type: 'final', text: 'Sample narration' } })
     await events.return(undefined)
   })
   it('bounds chat before headers without replaying a potentially accepted turn', async () => {
@@ -114,9 +114,9 @@ describe('real HTTP path deadlines and voice cancellation', () => {
     vi.useFakeTimers()
     fetchMock.mockImplementation(() => new Promise<Response>(() => {}))
     const pending = stage === 'start' ? startVoiceStream('tok')
-      : stage === 'chunk' ? pushVoiceStreamChunk('tok', 'synthetic', new Blob(['pcm']))
-      : stage === 'finish' ? finishVoiceStream('tok', 'synthetic')
-      : streamVoiceEvents('tok', 'synthetic').next()
+      : stage === 'chunk' ? pushVoiceStreamChunk('tok', 'sample', new Blob(['pcm']))
+      : stage === 'finish' ? finishVoiceStream('tok', 'sample')
+      : streamVoiceEvents('tok', 'sample').next()
     const rejected = expect(pending).rejects.toThrow('Request timed out')
     await vi.advanceTimersByTimeAsync(30_000)
     await rejected
@@ -136,7 +136,7 @@ describe('real HTTP path deadlines and voice cancellation', () => {
 
   it.each([401, 403, 404, 423])('does not replay a voice chunk refused with %s', async (status) => {
     fetchMock.mockResolvedValue(new Response('', { status }))
-    await expect(pushVoiceStreamChunk('tok', 'synthetic', new Blob(['pcm']))).rejects.toThrow()
+    await expect(pushVoiceStreamChunk('tok', 'sample', new Blob(['pcm']))).rejects.toThrow()
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
@@ -144,7 +144,7 @@ describe('real HTTP path deadlines and voice cancellation', () => {
     const canceled = vi.fn()
     fetchMock.mockResolvedValue(new Response(new ReadableStream({ cancel: canceled })))
     const controller = new AbortController()
-    const events = streamVoiceEvents('tok', 'synthetic', controller.signal)
+    const events = streamVoiceEvents('tok', 'sample', controller.signal)
     const next = events.next()
     const rejected = expect(next).rejects.toThrow('Aborted')
     await Promise.resolve()
@@ -154,11 +154,11 @@ describe('real HTTP path deadlines and voice cancellation', () => {
     expect(canceled).toHaveBeenCalledTimes(1)
   })
 
-  it('runs synthetic start, chunk, finish, and events through the authenticated real helpers', async () => {
+  it('runs sample start, chunk, finish, and events through the authenticated real helpers', async () => {
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.endsWith('/start')) return new Response('{"session_id":"synthetic"}')
+      if (url.endsWith('/start')) return new Response('{"session_id":"sample"}')
       if (url.endsWith('/events')) return sseResponse([
-        'data: {"type":"final","text":"Synthetic words"}\n',
+        'data: {"type":"final","text":"Sample words"}\n',
         'data: {"type":"done"}\n',
       ])
       return new Response('{}')
@@ -168,7 +168,7 @@ describe('real HTTP path deadlines and voice cancellation', () => {
     await finishVoiceStream('tok', session)
     const out = []
     for await (const event of streamVoiceEvents('tok', session)) out.push(event)
-    expect(out).toEqual([{ type: 'final', text: 'Synthetic words' }, { type: 'done' }])
+    expect(out).toEqual([{ type: 'final', text: 'Sample words' }, { type: 'done' }])
     expect(fetchMock.mock.calls.map((call) => (call[0] as string).split('/').pop())).toEqual(['start', 'chunk', 'finish', 'events'])
     for (const call of fetchMock.mock.calls) expect(call[1].headers.Authorization.split(' ')).toEqual(['Bearer', 'tok'])
   })
@@ -416,7 +416,7 @@ describe('a stream cut off before it finished (demo)', () => {
 
   it('a voice events stream that ends without `done` is a truncation, not a finished turn', async () => {
     fetchMock.mockResolvedValue(sseResponse(['data: {"type":"partial","text":"I was"}\n']))
-    const events = streamVoiceEvents('tok', 'synthetic')
+    const events = streamVoiceEvents('tok', 'sample')
     await expect(events.next()).resolves.toMatchObject({ value: { type: 'partial' } })
     await expect(events.next()).rejects.toBeInstanceOf(StreamTruncatedError)
   })
@@ -426,7 +426,7 @@ describe('the voice events stream gives up on a silent connection quickly (demo)
   it('after ten seconds with no byte at all, not sixty', async () => {
     vi.useFakeTimers()
     fetchMock.mockResolvedValue(new Response(new ReadableStream({ start: () => {} })))
-    const events = streamVoiceEvents('tok', 'synthetic')
+    const events = streamVoiceEvents('tok', 'sample')
     const next = events.next()
     let rejected: unknown = null
     next.catch((e) => { rejected = e })

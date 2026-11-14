@@ -109,7 +109,7 @@ jobs:
           set -euo pipefail
           python3 homeschool-api/scripts/ministral_latency_probe.py
 
-      - name: Preserve synthetic-only evidence and model logs
+      - name: Preserve sample-only evidence and model logs
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

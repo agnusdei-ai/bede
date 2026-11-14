@@ -2,7 +2,7 @@
 
 > **Bede returns time to teaching.** Turn assessment results into cited Data Day evidence, teacher-approved plans, and measurable instructional follow-up—without automatic learner delivery or a new paid AI ingestion dependency.
 
-**Status:** Illustrative economics; not actual Valor costs or validated savings. Synthetic-only pilot. No student-facing tutoring, billing activation, or Pilot GO.
+**Status:** Illustrative economics; not actual Valor costs or validated savings. Sample-only pilot. No student-facing tutoring, billing activation, or Pilot GO.
 
 ## Outbound-material standard
 
@@ -19,7 +19,7 @@ Accompany any financial figure with its period, inputs, evidence status, and **c
 | KPI | Definition and source | Baseline and measurement | Proposed acceptance target (not a claim) |
 | --- | --- | --- | --- |
 | Teacher prep minutes per completed Data Day case | Timed teacher effort: gather assessment → evidence packet → recommendation review → decision/plan | Pre-pilot manual sample vs Bede sample; equal case mix | At least 30% less median hands-on time |
-| Teacher decision fidelity | % of Bede recommendations explicitly approved/edited/rejected, with citation, decision, reason and plan recorded | Audit-backed synthetic pilot; later authorized evaluation | 100% recorded; zero automatic approvals |
+| Teacher decision fidelity | % of Bede recommendations explicitly approved/edited/rejected, with citation, decision, reason and plan recorded | Audit-backed sample pilot; later authorized evaluation | 100% recorded; zero automatic approvals |
 | Evidence integrity | % cases with complete instrument, form, purpose, status, grade/window and source provenance | Record validation + teacher review | 100% required fields or explicit not-applicable status |
 | Operational corrections | Correction/re-entry events per 100 reviewed cases | Compare existing teacher workflow and pilot; exclude instrument content | Decreasing trend; zero silent composite from missing measures |
 | Recovered teaching capacity | Verified time saved × loaded labor rate | Sampled minutes and district-approved rate | Report hours first; monetize as opportunity value |
@@ -29,7 +29,7 @@ Accompany any financial figure with its period, inputs, evidence status, and **c
 | Campus total cost of ownership | Bede license + hardware depreciation/amortization + power + operations + support + training + integration | Finance ledger / procurement contract | Under quantified cash savings + budgeted capacity value, with categories separately disclosed |
 | Teacher satisfaction and clarity | Post-task questionnaire and observed independent task completion | Same teachers complete standard scenarios | ≥80% complete without developer help; no unresolved critical accessibility issue |
 
-**Data collection:** capture 10–20 representative synthetic assessment/teacher cases per participating teacher when feasible. Record elapsed wall-clock and actual hands-on minutes separately, benchmark vs progress monitoring and case complexity, then repeat after familiarization. Do not treat sample estimates as statistically proven impact.
+**Data collection:** capture 10–20 representative sample assessment/teacher cases per participating teacher when feasible. Record elapsed wall-clock and actual hands-on minutes separately, benchmark vs progress monitoring and case complexity, then repeat after familiarization. Do not treat sample estimates as statistically proven impact.
 
 ## Example annual campus economics (ILLUSTRATIVE, USD)
 
@@ -78,7 +78,7 @@ Example: median Data Day preparation **60 → 36 minutes**, a **24-minute / 40%*
 
 ### Pilot decision gates
 1. Complete teacher-only assessment/Data Day/approve-edit-reject/plan/observation workflow, delivery state `NOT_REQUESTED`, and persistence/revocation evidence.
-2. Physical Mac G3 install, restart, passkey and recovery with synthetic data.
+2. Physical Mac G3 install, restart, passkey and recovery with sample data.
 3. Demonstrate time study using comparable tasks and show effective local AI/egress isolation.
 4. Finance approves budget inputs and savings classifications.
 5. Owner issues separate Pilot GO. Commercial ROI figures remain illustrative until measured.

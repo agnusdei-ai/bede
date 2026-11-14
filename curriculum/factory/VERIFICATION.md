@@ -42,7 +42,7 @@ prior handoff patch; this implementation has its own acceptance suite and guide.
    * existing authenticated SQLite staging/review, independent reviewer,
      bad/missing receipt, campus/credential/UV/grant denial and grant revocation;
    * refusal to resolve approval after rubric/tool/source/output changes.
-2. From `homeschool-api`, synthetic configuration as in README:
+2. From `homeschool-api`, sample configuration as in README:
    `timeout 60 python -m pytest --noconftest -o asyncio_default_fixture_loop_scope=function tests/test_curriculum*.py tests/test_content_curation.py -q`
    — **133 tests passed**, 2.89 seconds, one existing Pydantic class-config
    deprecation warning. These are all nine existing curriculum test files plus
@@ -61,7 +61,7 @@ prior handoff patch; this implementation has its own acceptance suite and guide.
    Original dirty site files and `demo/src/audienceDiscovery.test.ts` still
    appeared unchanged in the original checkout's dirty-file list.
 
-Canonical synthetic factory build:
+Canonical sample factory build:
 
 * Key: `9d4303ca0d43e62a696cca9069eb701dd4405ee2ce7970ed008bc9d36068dec9`
 * Review ZIP SHA-256:
@@ -98,7 +98,7 @@ license grants for original Bede work.
 The first broader collection attempt lacked the existing Anthropic SDK; adding
 that existing test dependency resolved it. A bootstrap attempt using an
 in-memory global SQLite URL conflicted with the upstream global engine's pool
-settings; the final tests use the same synthetic, never-connected PostgreSQL
+settings; the final tests use the same sample, never-connected PostgreSQL
 bootstrap pattern as the existing test setup and actual isolated SQLite test
 engines. No real connection credentials were used or accessed.
 
@@ -131,3 +131,11 @@ engines. No real connection credentials were used or accessed.
 * `curriculum/factory/test_factory.py`, `test_review.py`
 * `curriculum/production-spec/RESTORED.md`, `schema.py`, `contract.py`,
   `vocabulary.py`, `example.py`, `fixtures/pairs.txt`
+
+**2026-11-14 note.** The fixture's wording was renamed under the banned
+nomenclature rule (CLAUDE.md, "Banned Nomenclature"), which changes the
+fixture text and so the digests above. `pairs.txt` is now 52 bytes,
+SHA-256 `a8c7a3c347ef3bacd41d9e93948b5d58eaf6742306f2416fd92f7f8e15ff9819`, and
+`contract.py check` reports review export SHA-256
+`7967cf5399867ff57d262cbf9b968028c4aea2cac5af7aeb8d6b8520bc24fee7`. The
+records above stay as they were observed at the time.

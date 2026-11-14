@@ -127,11 +127,11 @@ Each unit is one iteration. Status tracked in `DIAGNOSTIC_BUILD_PROGRESS.md`.
 |---|---|---|
 | 1.1 | `services/diagnostic/skill_map.py` — K-8 math DAG (domains→skills→sub-skills, prerequisites, bands) | DAG acyclic; prereqs resolve; every skill has a band |
 | 1.2 | `qmatrix.py` — probe archetypes, `q_row`, `EvidenceObservation` | every probe maps to ≥1 attribute; unknown id → `None` |
-| 1.3 | `irt.py` — 1PL/2PL/3PL P(correct), Fisher info, θ MLE/EAP update | known P values; Fisher monotonicity; θ converges on synthetic stream |
+| 1.3 | `irt.py` — 1PL/2PL/3PL P(correct), Fisher info, θ MLE/EAP update | known P values; Fisher monotonicity; θ converges on sample stream |
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posterior update | slip/guess sanity; posterior moves correctly on correct/incorrect |
 | 1.5 | `kst.py` — surmise closure, knowledge states, `fringe`, `propagate_prerequisites` | fringe correct on small map; prereqs enforced |
 | 1.6 | `cat.py` — `select_next_probes` (max Fisher/entropy), `should_stop_probing` | selects highest-uncertainty fringe skill; respects `resolved` |
-| 1.7 | `mastery.py` — `MasteryVector`, `new_vector`, `bayesian_update`, `aggregate_for_parent` | **acceptance**: synthetic evidence stream converges vector sensibly + respects prereqs |
+| 1.7 | `mastery.py` — `MasteryVector`, `new_vector`, `bayesian_update`, `aggregate_for_parent` | **acceptance**: sample evidence stream converges vector sensibly + respects prereqs |
 | 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | end-to-end in-memory round trip green |
 
 **Phase 1 gate:** all 8 units green; the pure core works with no DB/LLM. → pause for sign-off.
@@ -166,7 +166,7 @@ Each unit is one iteration. Status tracked in `DIAGNOSTIC_BUILD_PROGRESS.md`.
 | Unit | Deliverable | Real check |
 |---|---|---|
 | 5.1 | End-to-end real math tutoring session | evidence flows; vector moves; parent renders; child sees nothing |
-| 5.2 | Tune slip/guess, calibration N, mastery thresholds | vector converges sensibly across a multi-session synthetic + real corpus |
+| 5.2 | Tune slip/guess, calibration N, mastery thresholds | vector converges sensibly across a multi-session sample + real corpus |
 
 **Phase 5 gate:** engine live. Loop terminates.
 
@@ -175,7 +175,7 @@ Each unit is one iteration. Status tracked in `DIAGNOSTIC_BUILD_PROGRESS.md`.
 ## 5. Real-Check Definitions (the B3 gate)
 
 A "real check" is concrete and runnable — never "looks right."
-- **Pure-core units (1.x):** `pytest` unit tests in `homeschool-api/tests/diagnostic/`. The Phase 1 acceptance test (1.7) is the spine: a synthetic evidence stream that proves the vector converges and respects prerequisites.
+- **Pure-core units (1.x):** `pytest` unit tests in `homeschool-api/tests/diagnostic/`. The Phase 1 acceptance test (1.7) is the spine: a sample evidence stream that proves the vector converges and respects prerequisites.
 - **Persistence units (2.x):** a round-trip test against a real (containerized) Postgres, asserting decrypt(in-memory) == encrypt(store(load)).
 - **Integration units (3.x):** a streamed tutoring-turn fixture asserting (a) the child SSE output is byte-identical with and without the tool, (b) `db=None` writes nothing.
 - **Frontend units (4.x):** `npx tsc --noEmit` clean + a render snapshot of the dashboard with no export/print affordances.

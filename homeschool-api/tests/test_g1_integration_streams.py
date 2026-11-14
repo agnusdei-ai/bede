@@ -12,7 +12,7 @@ These combine four lanes that were built and tested separately:
 Real uvicorn + real httpx + real SSE (tests/g1_harness.py), read
 incrementally while revocations and deletions are sent on the same live
 loop. SQLite by default; Postgres when G1_TEST_DATABASE_URL is set.
-Synthetic data only.
+Sample data only.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ from g1_harness import SAME_NAME, world  # noqa: F401 (fixture)
 from test_g1_voice_binding import UNKNOWN, _audio, _data_items, _revocations, _start
 
 NOT_FOUND = {"detail": "Record not found"}
-SENTINEL = ("SYNTHETIC-CACHED", 1e18)
+SENTINEL = ("SAMPLE-CACHED", 1e18)
 
 
 @pytest.fixture(autouse=True)
@@ -120,7 +120,7 @@ def _delete(w, campus, learner):
 def _tutor_body(student_name: str) -> dict:
     from g1_harness import legacy_config
     return {"session_config": legacy_config(student_name), "current_subject": "mathematics",
-            "conversation_history": [], "child_message": "Synthetic question"}
+            "conversation_history": [], "child_message": "Sample question"}
 
 
 def _no_model(monkeypatch) -> list:

@@ -37,7 +37,7 @@ vi.mock('../services/voiceApi', () => ({ listVoiceProfiles: vi.fn().mockResolved
 
 import ParentSetup from './ParentSetup'
 
-const NAME = 'Synthetic Learner One'
+const NAME = 'Sample Learner One'
 
 beforeEach(() => {
   i18n.changeLanguage('en')

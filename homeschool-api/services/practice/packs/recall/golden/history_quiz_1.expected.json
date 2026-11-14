@@ -1,6 +1,6 @@
 {
   "_fixture": "history_quiz_1",
-  "_note": "A synthetic quiz, written for this repository. Not a real child's work.",
+  "_note": "A sample quiz, written for this repository. Not a real child's work.",
   "assessment": {
     "subject": "recall",
     "sections": [

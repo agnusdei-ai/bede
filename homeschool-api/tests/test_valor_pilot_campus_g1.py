@@ -20,7 +20,7 @@ from routers.pilot_campuses import (
 from services.educator_access import (
     provision_educator, require_assignment, roster_configs, assign_class_roster,
 )
-from valor_synthetic_fixture import assert_synthetic_fixture, two_campus_fixture
+from valor_sample_fixture import assert_sample_fixture, two_campus_fixture
 
 ADMIN = {"role": "parent", "auth_method": "webauthn_uv"}
 
@@ -50,10 +50,10 @@ def token(account):
 async def fixture_two_campuses(db):
     # Reuse #598's PII-free fixture as the named input to REAL Bede service
     # creation; the service still mints its own random canonical UUIDv4 IDs.
-    assert_synthetic_fixture()
+    assert_sample_fixture()
     alpha, beta = two_campus_fixture()
-    teacher_a = await provision_educator(db, "valor.teacher.a", "synthetic-passphrase-a-strong")
-    teacher_b = await provision_educator(db, "valor.teacher.b", "synthetic-passphrase-b-strong")
+    teacher_a = await provision_educator(db, "valor.teacher.a", "sample-passphrase-a-strong")
+    teacher_b = await provision_educator(db, "valor.teacher.b", "sample-passphrase-b-strong")
     a = (await create_campus(CampusInput(title=alpha.label), auth=ADMIN, db=db))["campus_id"]
     b = (await create_campus(CampusInput(title=beta.label), auth=ADMIN, db=db))["campus_id"]
     await authorize_campus(db, a)
@@ -68,7 +68,7 @@ async def fixture_two_campuses(db):
 
 
 @pytest.mark.asyncio
-async def test_duplicate_names_cannot_cross_synthetic_campus(db):
+async def test_duplicate_names_cannot_cross_sample_campus(db):
     ea, eb, a, b, la, lb = await fixture_two_campuses(db)
     assert a != b and la != lb
     assert await list_my_learners(auth=token(ea), db=db) == [

@@ -1,4 +1,4 @@
-"""Real HTTP tests for the teacher-governed synthetic tutoring route.
+"""Real HTTP tests for the teacher-governed sample tutoring route.
 
 No real model or student data: fake local adapter emits deterministic text.
 A missing teacher decision never invokes it. G1 campus grants are required
@@ -44,7 +44,7 @@ def _approve(world):
     path = f"/pilot/me/learners/{world.learner_one}"
     body = {
         "framework": "dibels8", "measure": "ORF_WC",
-        "assessed_on": "2026-01-15", "source_name": "Synthetic classroom evidence",
+        "assessed_on": "2026-01-15", "source_name": "Sample classroom evidence",
         "score": 12, "score_unit": "correct_per_minute",
         "reported_band": "intensive_at_risk",
         "assessed_grade": "2", "assessment_window": "middle_of_year",
@@ -85,7 +85,7 @@ def test_other_campus_never_discovers_learner_or_approved_instruction(world):
     assert bad.content == missing.content
 
 
-def test_approved_synthetic_local_stream_persists_authorized_encrypted_history(world, monkeypatch):
+def test_approved_sample_local_stream_persists_authorized_encrypted_history(world, monkeypatch):
     _approve(world)
     fake = _LocalModel()
     monkeypatch.setattr(settings, "local_llm_base_url", "http://127.0.0.1:8766/v1")

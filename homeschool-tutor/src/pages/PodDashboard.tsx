@@ -11,11 +11,13 @@ import { subjectLabel } from '../utils/subjectLabel'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import ConsentBanner from '../components/ConsentBanner'
 import { displayNameOf } from '../utils/displayName'
+import { useParentName } from '../hooks/useParentName'
 
 export default function PodDashboard() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { podStudents, setPodStudents, setSessionConfig, startSession, logout, token } = useSessionStore()
+  const [parentName] = useParentName(token)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [capacity, setCapacity] = useState<RosterCapacity | null>(null)
 
@@ -102,6 +104,7 @@ export default function PodDashboard() {
             <img src="/bede-icon.webp" alt="Bede" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
             <div>
               <h1 className="text-2xl font-display font-bold text-gray-800">{t('podDashboard.title')}</h1>
+              {parentName && <p className="text-sm font-medium text-gray-700">{t('parentGreeting.welcomeBack', { name: parentName })}</p>}
               <p className="text-sm text-gray-500">
                 {t('podDashboard.studentCount', { count: podStudents.length })}
               </p>

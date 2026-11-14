@@ -1,6 +1,6 @@
 # Bede | G3 physical-Mac certification record
 
-**Classification:** Controlled engineering acceptance / synthetic institutional pilot  
+**Classification:** Controlled engineering acceptance / sample institutional pilot  
 **Owner:** Agnus Dei Technologies, LLC  
 **Companion procedure:** [MAC_G3_CERTIFICATION_RUNBOOK.md](MAC_G3_CERTIFICATION_RUNBOOK.md)  
 **Template status:** All rows deliberately NOT RUN until actual physical-device evidence exists. **This form is not an issued certificate.**
@@ -13,7 +13,7 @@
 | Test operator / independent reviewer | NOT RECORDED |
 | Bede repository and source code SHA | `agnusdei-ai/bede` / NOT RECORDED |
 | Reference integrated application SHA | `d3eb645c2de1058bb8056005a09c7d40446cea20` (#616 to main) |
-| 146/146 synthetic matrix evidence source | Candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e`; independently link artifact |
+| 146/146 sample matrix evidence source | Candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e`; independently link artifact |
 | Operator package workflow run / artifact ID | NOT RECORDED |
 | Operator archive name and SHA-256 | NOT RECORDED |
 | Embedded `RELEASE` / `ARCH` / image digests | NOT RECORDED |
@@ -28,7 +28,7 @@
 | Operator-controlled recovery host / backup trust domain | NOT RECORDED |
 | Evidence storage URI or restricted folder and retention | NOT RECORDED |
 
-Do not place secrets, tokens, actual passkey responses, enrollment links, `.env`, private keys, raw student content or plaintext backups in this record or attached evidence. Mask synthetic test accounts where publicly circulated.
+Do not place secrets, tokens, actual passkey responses, enrollment links, `.env`, private keys, raw student content or plaintext backups in this record or attached evidence. Mask sample test accounts where publicly circulated.
 
 ## B. Mandatory acceptance matrix
 
@@ -38,8 +38,8 @@ Allowed outcomes: **PASS**, **FAIL**, **BLOCKED**, **NOT RUN**. Record exact UTC
 | --- | --- | --- | --- |
 | G3-01 | Approved source SHA matches sealed package, image arch and native Mac Docker architecture; clean source-free install, trusted HTTPS, health and private listener verified | NOT RUN | — |
 | G3-02 | Actual educator WebAuthn passkey enrollment/sign-in, replay denial, prompt cancel/retry and no insecure fallback | NOT RUN | — |
-| G3-03 | Two same-named synthetic learners on different campus UUIDs: valid roster access and uniform cross-campus/unknown/revoked denial | NOT RUN | — |
-| G3-04 | Synthetic G2 evidence -> recommendation/abstention -> approve/edit/reject -> hash-chained ledger -> approved-only instruction | NOT RUN | — |
+| G3-03 | Two same-named sample learners on different campus UUIDs: valid roster access and uniform cross-campus/unknown/revoked denial | NOT RUN | — |
+| G3-04 | Sample G2 evidence -> recommendation/abstention -> approve/edit/reject -> hash-chained ledger -> approved-only instruction | NOT RUN | — |
 | G3-05 | Teacher-approved plan remains `NOT_REQUESTED`; no learner session, credential, launch or delivery; revoked teacher cannot read or write after restart | NOT RUN | — |
 | G3-06 | Administrator-authorized lost-device recovery: separate real passkey, verified prior mailbox, old key/session invalid, new key works | NOT RUN | — |
 | G3-07 | Roster revoke, campus membership disable and whole-educator account disable: old tokens/API/voice/tutor streams refused; other campus unaffected | NOT RUN | — |
@@ -54,7 +54,7 @@ For a **Mac mini appliance capacity claim**, attach a separate **G3-CAP** record
 
 | Evidence source | Value from actual run | Scope limit |
 | --- | --- | --- |
-| Synthetic qualification matrix artifact (exact code SHA) | 146/146 on original integrated candidate; artifact/run URI: **TO ATTACH** | Virtual WebAuthn; stubbed local model and mail |
+| Sample qualification matrix artifact (exact code SHA) | 146/146 on original integrated candidate; artifact/run URI: **TO ATTACH** | Virtual WebAuthn; stubbed local model and mail |
 | `mac-check-out/mac-check-result.json` | **NOT RUN** | Real teacher browser passkey and six checks; virtual administrator; source checkout, not package |
 | `mac-check-out/mac-check-calls.json` | **NOT RUN** | Route templates, status codes, hashes and counts only |
 | `bede-evidence/<UTC>/summary.txt` and `health.json` | **NOT RUN** | Source-free installed package / verified HTTPS health only |
@@ -73,9 +73,9 @@ The release owner may provide real-Mac observations incrementally. For each scen
 
 1. **Install and trust (G3-01):** verify downloaded SHA-256, RELEASE/ARCH and image digests; run source-free installer and `Verify-Bede.command`. Record HTTPS certificate validation, private listener and restart health.
 2. **Teacher identity (G3-02):** use a real physical passkey to enroll and sign in. Record replay/invalid-origin denial; do not share passkey secrets.
-3. **Campus boundaries (G3-03):** on two synthetic campuses, verify assigned learner access and uniform unknown UUID, other-campus and revoked denial.
-4. **Instructional workflow (G3-04 and G3-05):** synthetic DIBELS assessment → Data Day → cited recommendation → approve/edit/reject → durable plan and audit → teacher observation/checkpoint; verify `delivery_state = NOT_REQUESTED` and no learner launch.
-5. **Offboarding and recovery (G3-06 through G3-09):** recover a synthetic educator, invalidate old credentials, revoke roster grants, verify after restart and preserve unrelated campus access.
+3. **Campus boundaries (G3-03):** on two sample campuses, verify assigned learner access and uniform unknown UUID, other-campus and revoked denial.
+4. **Instructional workflow (G3-04 and G3-05):** sample DIBELS assessment → Data Day → cited recommendation → approve/edit/reject → durable plan and audit → teacher observation/checkpoint; verify `delivery_state = NOT_REQUESTED` and no learner launch.
+5. **Offboarding and recovery (G3-06 through G3-09):** recover a sample educator, invalidate old credentials, revoke roster grants, verify after restart and preserve unrelated campus access.
 6. **Backup and operator closeout (G3-10 through G3-11):** encrypted backup/recovery in an isolated disposable environment, safe-failure observation, redacted evidence packet.
 
 Only genuine physical-device, credential-custody, and owner-approval boundaries need operator input. A blocked environmental step is reported as BLOCKED, not a failed implementation or a PASS. The physical sequence does not authorize learner delivery or Pilot GO.
@@ -103,7 +103,7 @@ Only genuine physical-device, credential-custody, and owner-approval boundaries 
 
 - Pilot GO verdict: **DECLARED BY THE OWNER, 2026-11-04** (owner declaration below; this record's evidence rows are unchanged)
 - Authorized sites and participant counts: **NOT RECORDED**
-- Synthetic-only vs separately approved real-data scope: **SYNTHETIC ONLY**
+- Sample-only vs separately approved real-data scope: **SAMPLE ONLY**
 - Deployment topology, inference model and support contacts: **NOT RECORDED**
 - Owner identity / explicit approval timestamp: **NOT SIGNED**
 - Pilot rollback, stop, deletion, retention and escalation owner: **NOT RECORDED**

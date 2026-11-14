@@ -151,7 +151,7 @@ def test_no_educator_text_reaches_the_prompt_at_all():
 
 
 def test_no_pilot_module_builds_a_tutoring_config():
-    """The supervised synthetic-only turn must never go through the legacy
+    """The supervised sample-only turn must never go through the legacy
     name-keyed tutor or borrow household/parent SessionConfig fields."""
     for path in _pilot_backend_modules():
         src = path.read_text(encoding="utf-8")
@@ -232,7 +232,7 @@ async def test_every_decision_path_leaves_delivery_not_requested(db):
         rec = await request_recommendation(la, auth=tok, db=db)
         assert rec["delivery_state"] == "NOT_REQUESTED", rec
         body = DecisionInput(action=action, expected_version=1,
-                             **({"edited_text": "Synthetic edited plan."} if action == "edit" else {}))
+                             **({"edited_text": "Sample edited plan."} if action == "edit" else {}))
         out = await decide(la, rec["recommendation_id"], body, auth=tok, db=db)
         assert out["status"] in ("approved", "edited", "rejected")
         assert out["delivery_state"] == "NOT_REQUESTED", out

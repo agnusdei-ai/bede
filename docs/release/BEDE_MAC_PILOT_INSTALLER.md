@@ -2,7 +2,7 @@
 
 ## Pilot scope
 
-One approved Mac installation, one manually issued campus license, and the G1, G2, G3 acceptance record. Only synthetic learner data is allowed. Commercial payment integration, Cloudflare licensing deployment, and production key custody are separate work.
+One approved Mac installation, one manually issued campus license, and the G1, G2, G3 acceptance record. Only sample learner data is allowed. Commercial payment integration, Cloudflare licensing deployment, and production key custody are separate work.
 
 ## 1. Issue a dedicated pilot entitlement
 
@@ -25,7 +25,7 @@ git push
 
 Only the public half of the keypair is committed. The license is saved under the owner's `~/Library/Application Support/Bede Pilot/pilot-license.txt`, **not** in the repository. Keep that file private, and do not paste the license or private material into agent sessions. The replacement public key is baked into the exact next signed installer build. A source update alone does not alter an already downloaded bundle.
 
-**Limitation:** As the private key is intentionally discarded, the pilot entitlement can be reobtained from the saved file, but a fresh differently scoped or renewed license cannot be signed with that identity. A new issuer and installer rebuild would be needed. This is suitable only for one authorized synthetic pilot and does not establish commercial signing custody.
+**Limitation:** As the private key is intentionally discarded, the pilot entitlement can be reobtained from the saved file, but a fresh differently scoped or renewed license cannot be signed with that identity. A new issuer and installer rebuild would be needed. This is suitable only for one authorized sample pilot and does not establish commercial signing custody.
 
 The wizard must use `bede-mac-pilot-2026` as its Pilot campus ID, matching the signed entitlement.
 
@@ -63,15 +63,15 @@ Store a private redacted evidence packet for the *exact artifact digest* and can
 
 | Gate | Required action | Evidence | Acceptance |
 | --- | --- | --- | --- |
-| G1 Campus isolation | Set up two synthetic campuses with the same learner name, distinct campus identifiers and teacher permissions. Attempt authorized and cross campus access, role changes and revocation. | Request / response outcomes, identity roles, and denied cross campus attempts with fake IDs only. | No cross campus access, data leakage or unauthorized roster changes. |
-| G2 Human teaching workflow | Load independently administered synthetic DIBELS evidence, review source corrections, then record teacher approve, edit and reject decisions plus the authorized follow up. | Assessment provenance, teacher decisions, immutable audit event references, and next teaching action. | Bede supports but never silently replaces the educator's decision. |
+| G1 Campus isolation | Set up two sample campuses with the same learner name, distinct campus identifiers and teacher permissions. Attempt authorized and cross campus access, role changes and revocation. | Request / response outcomes, identity roles, and denied cross campus attempts with fake IDs only. | No cross campus access, data leakage or unauthorized roster changes. |
+| G2 Human teaching workflow | Load independently administered sample DIBELS evidence, review source corrections, then record teacher approve, edit and reject decisions plus the authorized follow up. | Assessment provenance, teacher decisions, immutable audit event references, and next teaching action. | Bede supports but never silently replaces the educator's decision. |
 | G3 Native Mac and recovery | Open the exact DMG, complete guided install and passkey enrollment, validate trusted local HTTPS, stop/restart, revoke/re enroll an approved teacher, and prove installation can recover without deleting existing settings. | Archive SHA256, device and OS details, boot and HTTPS check, administrator passkey, revoke and restart trace, support report. | Real installation and recovery pass without bypasses. |
 
 Each gate needs a human reviewer and an explicit **PASS**. CI tests alone are not sufficient. A STOP or NOT RUN remains a blocking result.
 
 ## 4. Pilot GO decision
 
-Review all three evidence packets for the **same candidate**. Owner signs the explicit pilot decision only when G1, G2, and G3 have passed. Approve a separate limited synthetic evaluation before any real learner data is introduced. No automated test or model may declare Pilot GO.
+Review all three evidence packets for the **same candidate**. Owner signs the explicit pilot decision only when G1, G2, and G3 have passed. Approve a separate limited sample evaluation before any real learner data is introduced. No automated test or model may declare Pilot GO.
 
 ## Mac user experience
 

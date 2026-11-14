@@ -2,7 +2,7 @@
 Regression: "next steps" used to be structurally incapable of naming a
 student's own grade band.
 
-FOUND BY RUNNING A REAL SESSION, not by reading code. A simulated 4th-grade
+FOUND BY RUNNING A REAL SESSION, not by reading code. A mock 4th-grade
 math block (10 observations through the real process_evidence path) produced
 this list of recommended next steps:
 

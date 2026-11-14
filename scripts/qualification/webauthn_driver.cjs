@@ -12,7 +12,7 @@
  * assertion and checks challenge, origin, RP ID, signature and counter.
  *
  * One browser CONTEXT per principal, each with its own authenticator, so
- * Synthetic Teacher One's credential can never be offered for Teacher Two.
+ * Sample Teacher One's credential can never be offered for Teacher Two.
  *
  * Ops:  {op:"context", ctx}                         -> {ok, userAgent}
  *       {op:"create",  ctx, publicKey}              -> {ok, credential}

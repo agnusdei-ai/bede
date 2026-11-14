@@ -13,6 +13,8 @@ import ChildPinSettings from '../components/ChildPinSettings'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
 import LicenseSettings from '../components/LicenseSettings'
+import ParentGreetingSettings from '../components/ParentGreetingSettings'
+import { useParentName } from '../hooks/useParentName'
 import AIProviderSettings from '../components/AIProviderSettings'
 import PilotOwnerPanel from '../components/PilotOwnerPanel'
 import AgenticLoopInsights from '../components/AgenticLoopInsights'
@@ -287,6 +289,7 @@ export default function ParentSetup() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { setSessionConfig, startSession, podStudents, setPodStudents, logout, token } = useSessionStore()
+  const [parentName, setParentName] = useParentName(token)
 
   const [students, setStudents] = useState<StudentForm[]>([blankStudent()])
   const [enrolledProfiles, setEnrolledProfiles] = useState<string[]>([])
@@ -485,6 +488,7 @@ export default function ParentSetup() {
               <img src="/bede-icon.webp" alt="Bede" className="w-9 h-9 rounded-full object-cover" />
               <h1 className="text-2xl font-display font-bold text-gray-800">{t('parentSetup.title')}</h1>
             </div>
+            {parentName && <p className="text-sm font-medium text-gray-700 mt-1">{t('parentGreeting.welcomeBack', { name: parentName })}</p>}
             <p className="text-sm text-gray-500 mt-1">{t('parentSetup.subtitle')}</p>
           </div>
           <button onClick={logout} className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 rounded">
@@ -557,6 +561,7 @@ export default function ParentSetup() {
           )}
         </div>
 
+        <ParentGreetingSettings token={token!} name={parentName} onChange={setParentName} />
         <ParentSecuritySettings token={token!} />
         <DeviceSettings token={token!} />
         <LicenseSettings token={token!} />

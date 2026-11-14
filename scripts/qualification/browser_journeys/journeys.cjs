@@ -440,10 +440,21 @@ async function boundaryChild(br, bname, i) {
     c2.on('pageerror', err => console.log(`PAGEERROR ${who}@175%: ${String(err).slice(0, 300)}`));
     c2.on('crash', () => console.log(`CRASH ${who}@175% at ${c2.url()}`));
     c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@175% error: ${m.text().slice(0, 300)}`); });
+    const chat175 = [];
+    c2.on('response', r => { if (r.url().includes('/api/tutor/chat')) chat175.push(r.status()); });
+    c2.on('requestfailed', r => { if (r.url().includes('/api/tutor/chat')) chat175.push(`failed:${r.failure()?.errorText || ''}`); });
     // What the page itself showed, not the first context's (already closed) screen.
     const describe = async (pg, label) => {
-      const d = await pg.evaluate(() => ({ text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300), root: document.getElementById('root')?.innerHTML.length ?? -1, fontSize: getComputedStyle(document.documentElement).fontSize })).catch(e => ({ error: String(e).slice(0, 200) }));
-      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)}`);
+      // innerText is what is rendered; textContent includes what is clipped or
+      // hidden. Bede's reply in textContent but not innerText means it arrived
+      // and is not visible; in neither means it never arrived.
+      const d = await pg.evaluate(() => {
+        const list = [...document.querySelectorAll('.overflow-y-auto')].map(e => Math.round(e.getBoundingClientRect().height));
+        return { text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300), root: document.getElementById('root')?.innerHTML.length ?? -1,
+          fontSize: getComputedStyle(document.documentElement).fontSize, replyRendered: /STUB-TUTOR/.test(document.body.innerText),
+          replyInDom: /STUB-TUTOR/.test(document.body.textContent || ''), scrollAreaHeights: list, viewport: [innerWidth, innerHeight] };
+      }).catch(e => ({ error: String(e).slice(0, 200) }));
+      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)} chatResponses=${JSON.stringify(label === '@175%' ? chat175 : 'n/a')}`);
     };
     try {
       await step(who, 'sign_in_at_175_percent', () => childLogin(c2, name));

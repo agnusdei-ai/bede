@@ -294,6 +294,7 @@ async def chat(
         asyncio.create_task(safeguarding_alerts.deliver(
             role=auth.get("role"),
             student_name=req.session_config.student_name,
+            display_name=req.session_config.display_name,
             trigger_excerpt=trigger_excerpt,
             dedupe_source=dedupe_source if dedupe_source is not None else req.child_message,
             picture=picture,
@@ -607,10 +608,10 @@ async def email_summary(
     summary = await generate_session_summary(
         req, locale=auth.get("locale", "en"), db=db if role == "parent" else None,
     )
-    html_body = build_summary_email_html(req.session_config.student_name, summary)
+    html_body = build_summary_email_html(req.session_config.display_name, summary)
     sent = await send_email(
         to_address=req.email,
-        subject=f"Bede's notes from {req.session_config.student_name}'s session",
+        subject="Bede's notes from today's session",
         html_body=html_body,
     )
 

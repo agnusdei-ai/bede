@@ -227,7 +227,8 @@ def test_the_stub_passes_the_real_upload_check(tmp_path, monkeypatch, context):
     from services import content_screen
     monkeypatch.setattr("sys.argv", ["model_stub", "0", str(tmp_path)])
     reply = _post_to_stub(content_screen._rules(context), with_image=True, monkeypatch=monkeypatch)
-    assert content_screen.parse_verdict(reply) is None, reply
+    # One picture is sent, so the reply must name exactly one kind (#825).
+    assert content_screen.parse_verdict(reply, context, 1) is None, reply
 
 
 def test_the_stub_still_reads_a_quiz(tmp_path, monkeypatch):

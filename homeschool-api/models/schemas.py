@@ -1,4 +1,4 @@
-from pydantic import model_validator, BaseModel, EmailStr, Field
+from pydantic import model_validator, field_validator, BaseModel, EmailStr, Field
 from typing import Dict, List, Optional, Literal
 from enum import Enum
 from datetime import date
@@ -356,8 +356,33 @@ SUBJECT_CORE_AREAS.update({
 })
 
 
+def clean_display_name(value: str) -> str:
+    """A first name or nickname for display, never a key. Clean, never reject:
+    markup and prompt-structure characters and control characters are dropped,
+    whitespace is collapsed, and anything left past the cap is cut."""
+    spaced = "".join(" " if ch.isspace() else ch for ch in str(value or ""))  # a newline separates words
+    kept = "".join(ch for ch in spaced if ch.isprintable() and ch not in '<>{}[]`\\')
+    return " ".join(kept.split())[:50]
+
+
 class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
+    # What an adult wants the learner called: a corrected spelling or a
+    # nickname. Optional and never required. It is a DISPLAY value only:
+    # student_name stays the stable handle every stored record, route and
+    # cache is keyed by, so setting or changing this moves no data.
+    preferred_name: str = Field(default="", max_length=50)
+
+    @field_validator("preferred_name", mode="before")
+    @classmethod
+    def _clean_preferred_name(cls, v):
+        return clean_display_name(v)
+
+    @property
+    def display_name(self) -> str:
+        """How the learner is addressed in greetings, lessons, feedback and
+        summaries: the preferred name when an adult set one, else student_name."""
+        return self.preferred_name or self.student_name
     grade: str = Field(..., description="e.g. '3' or 'K'")
     grade_stage: GradeStage
     # Biological sex, not a separate "gender identity" concept — consistent

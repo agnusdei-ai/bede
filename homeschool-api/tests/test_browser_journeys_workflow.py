@@ -189,7 +189,7 @@ def test_the_device_checklist_exists_and_keeps_native_ios_on_hold():
 
 # ── the stub must answer the product's real upload check ────────────────────
 
-def _post_to_stub(system: str, with_image: bool) -> str:
+def _post_to_stub(system: str, with_image: bool, monkeypatch) -> str:
     """Send one non-streaming request to the real model_stub handler and
     return the reply text, the way the API's OpenAI-compatible client does."""
     import threading
@@ -199,7 +199,10 @@ def _post_to_stub(system: str, with_image: bool) -> str:
     spec = importlib.util.spec_from_file_location("model_stub", HARNESS / "model_stub.py")
     stub = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(stub)
-    stub.time.sleep = lambda *_: None  # skip the stub's added model latency
+    # Skip the stub's added model latency. Through monkeypatch, so it is
+    # restored: `stub.time` IS the global time module, and assigning to it
+    # directly once disabled time.sleep for every later test in the process.
+    monkeypatch.setattr(stub.time, "sleep", lambda *_: None)
     server = ThreadingHTTPServer(("127.0.0.1", 0), stub.H)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -223,13 +226,13 @@ def test_the_stub_passes_the_real_upload_check(tmp_path, monkeypatch, context):
     branch. Uses the product's own prompt and its own parser."""
     from services import content_screen
     monkeypatch.setattr("sys.argv", ["model_stub", "0", str(tmp_path)])
-    reply = _post_to_stub(content_screen._rules(context), with_image=True)
+    reply = _post_to_stub(content_screen._rules(context), with_image=True, monkeypatch=monkeypatch)
     assert content_screen.parse_verdict(reply) is None, reply
 
 
 def test_the_stub_still_reads_a_quiz(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.argv", ["model_stub", "0", str(tmp_path)])
-    reply = json.loads(_post_to_stub("Read this graded quiz. Subject: history", with_image=True))
+    reply = json.loads(_post_to_stub("Read this graded quiz. Subject: history", with_image=True, monkeypatch=monkeypatch))
     assert reply.get("sections"), "the reading branch no longer answers a quiz reading"
 
 

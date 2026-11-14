@@ -25,19 +25,32 @@ def _matrix() -> list[dict]:
     return data["jobs"]["journeys"]["strategy"]["matrix"]["include"]
 
 
+def _desktop_by_os() -> dict[str, set[str]]:
+    """The desktop rows only, keyed by runner. Since #826 one runner can carry
+    several rows (macos-15 has a desktop row and an emulated mobile row), so
+    folding every row into one entry per OS would let the last row silently
+    overwrite the desktop one."""
+    rows = [r for r in _matrix() if r.get("profile", "desktop") == "desktop"]
+    by_os = {r["os"]: set(r["browsers"].split(",")) for r in rows}
+    assert len(by_os) == len(rows), "two desktop rows on one runner would hide each other"
+    return by_os
+
+
 def test_chrome_and_edge_run_on_both_windows_and_mac():
-    by_os = {row["os"]: set(row["browsers"].split(",")) for row in _matrix()}
-    assert set(by_os) == {"windows-2022", "macos-15"}, by_os
-    for os_name, browsers in by_os.items():
-        assert {"chrome", "msedge"} <= browsers, f"{os_name} lacks Chrome or Edge: {browsers}"
+    by_os = _desktop_by_os()
+    # Windows and Mac are required; Ubuntu was added deliberately (owner
+    # decision, #826). Any other desktop runner would need the same decision.
+    assert {"windows-2022", "macos-15"} <= set(by_os) <= {"windows-2022", "macos-15", "ubuntu-24.04"}, by_os
+    for os_name in ("windows-2022", "macos-15"):
+        assert {"chrome", "msedge"} <= by_os[os_name], f"{os_name} lacks Chrome or Edge: {by_os[os_name]}"
 
 
 def test_the_safari_engine_runs_only_on_mac_and_is_not_called_safari():
-    by_os = {row["os"]: set(row["browsers"].split(",")) for row in _matrix()}
+    by_os = _desktop_by_os()
     assert "webkit" in by_os["macos-15"]
     assert "webkit" not in by_os["windows-2022"]
     # Playwright's WebKit is the Safari engine, not Safari; nothing may claim otherwise.
-    assert all("safari" not in b for bs in by_os.values() for b in bs)
+    assert all("safari" not in b for r in _matrix() for b in r["browsers"].split(","))
     assert "NOT Safari itself" in WF.read_text(encoding="utf-8")
 
 

@@ -422,6 +422,17 @@
     "frequentBreaksTooltip": "Normalmente solo se ofrece de K a 3.º; esto ofrece la misma pausa a cualquier edad, y su hijo siempre puede rechazarla. No cambia ni omite el descanso obligatorio de cada hora. Quita un límite de edad sobre una decisión que le corresponde a usted; no afirma que más descansos mejoren la atención.",
     "trialLicense": "Prueba"
   },
+  "parentGreeting": {
+    "title": "¿Cómo quiere que Bede lo llame? (opcional)",
+    "hint": "Solo se usa para saludarlo en sus propias pantallas. Bede nunca lo envía a la IA, nunca se lo muestra a su hijo y nunca necesita un apellido ni su nombre legal.",
+    "placeholder": "p. ej. Kristian",
+    "save": "Guardar",
+    "clear": "Quitar mi nombre",
+    "saved": "Guardado.",
+    "cleared": "No hay un nombre guardado.",
+    "error": "No se guardó. Inténtelo de nuevo.",
+    "welcomeBack": "Le damos la bienvenida de nuevo, {{name}}."
+  },
   "progress": {
     "advance": "Avanzar",
     "repeat": "Repetir",

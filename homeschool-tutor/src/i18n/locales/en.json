@@ -422,6 +422,17 @@
     "frequentBreaksTooltip": "Normally offered only to K-3; this offers the same pause at any age, and your child can always wave it off. It cannot change or skip the required hourly break. Removing an age limit on a choice that is yours to make, not a claim that more breaks improve attention.",
     "trialLicense": "Trial"
   },
+  "parentGreeting": {
+    "title": "What should Bede call you? (optional)",
+    "hint": "Only used to greet you on your own screens. Bede never sends it to the AI, never shows it to your child, and never needs a surname or your legal name.",
+    "placeholder": "e.g. Kristian",
+    "save": "Save",
+    "clear": "Remove my name",
+    "saved": "Saved.",
+    "cleared": "Your name is not set.",
+    "error": "That did not save. Please try again.",
+    "welcomeBack": "Welcome back, {{name}}."
+  },
   "progress": {
     "advance": "Advance",
     "repeat": "Repeat",

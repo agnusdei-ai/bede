@@ -360,6 +360,7 @@ compared to transcripts.
 | `encryption_config.data_key` | KEK-wrapped `DATA_KEY` | **T0** | Wrapped by KEK from `MASTER_SECRET` ✅ | Unchanged — already correct |
 | `encryption_config.device_salt` | PBKDF2 salt | **T0** | Plaintext (correct — a salt is not secret) ✅ | Unchanged |
 | `voice_profiles.profile_enc` | Speaker embedding | **T1** | Per-student key + AAD ✅ | Reached, with one deviation: **per-student**, not per-record — see note below |
+| `parent_profile.name_enc` | The adult's optional greeting first name (a display value; never an identity or authorization input, never sent to a model, log or email) | **T3** (PII) | Shared key + AAD (constant row key) ✅ | Reached; deleted by the adult via `DELETE /household/profile` |
 | `parent_totp_config.secret_enc` | TOTP shared secret | **T2** | Shared key + AAD ✅ | Reached (stays reversible — needed to compute codes) |
 | `parent_webauthn_credentials.credential_enc` | WebAuthn credential | **T2** | Shared key + AAD ✅ | Reached |
 | `parent_credential_override` | Password hash + salt | **T2** | PBKDF2 one-way ✅ | Unchanged — one-way is strictly stronger than this app's reversible default |

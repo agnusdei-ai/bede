@@ -3,14 +3,21 @@
 // against ONE service: per browser, one parent device and one child device.
 // Browsers are the real installed ones on the runner: Google Chrome
 // (channel "chrome"), Microsoft Edge (channel "msedge"), and on macOS
-// Playwright's WebKit build (the Safari engine, NOT Safari itself).
+// Playwright's WebKit build (the Safari engine, NOT Safari itself), and
+// Playwright's Firefox build (the Gecko engine, NOT branded Firefox).
+//
+// F.profile 'mobile' instead runs a smaller set of journeys in Playwright
+// DEVICE EMULATION (viewport, user agent, touch). Emulation is not a phone:
+// results are labelled 'emulated' and never stand in for a physical device
+// (see docs/release/DEVICE_QUALIFICATION.md).
 const pw = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const F = JSON.parse(fs.readFileSync(process.env.FIX));
 const OUT = F.out, CTL = F.ctl, T0 = Date.now(), now = () => Date.now();
 const steps = [], checks = [];
-const N = F.browsers.length, LEARNERS = Object.keys(F.learners);
+const PROFILE = F.profile || 'desktop';
+const N = PROFILE === 'mobile' ? F.devices.length : F.browsers.length, LEARNERS = Object.keys(F.learners);
 
 function check(user, name, ok, note = '') { checks.push({ user, check: name, ok: !!ok, note: String(note).slice(0, 300) }); console.log(`${ok ? 'PASS' : 'FAIL'} ${user} ${name} ${String(note).slice(0, 200)}`); }
 async function step(user, name, fn) {
@@ -216,6 +223,100 @@ async function child(br, bname, i) {
   await ctx.close().catch(() => {});
 }
 
+
+// No horizontal page scroll: a layout that only works at desktop width is a
+// usability failure on a phone even when every button still technically works.
+const noHorizontalScroll = pg => pg.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
+
+async function mobileParent(br, dev, i) {
+  const who = `parent${i + 1}_${dev.replace(/\s+/g, '_')}`, learner = LEARNERS[i];
+  const ctx = await br.newContext({ ...pw.devices[dev] }); const p = await ctx.newPage(); p.on('dialog', d => d.accept());
+  try {
+    await step(who, 'sign_in', () => parentLogin(p));
+    check(who, 'setup_no_horizontal_scroll', await noHorizontalScroll(p));
+    const { card, status } = await step(who, 'open_practice_coach', () => openCoach(p, learner, true));
+    check(who, 'overlapping_pod_save_ok', [200, 201, 204].includes(status), `POST /pod/configs -> ${status}`);
+    check(who, 'progress_no_horizontal_scroll', await noHorizontalScroll(p));
+    await card.locator('select').first().selectOption('history');
+    await card.getByLabel('Photos or a PDF of the graded pages').setInputFiles(path.join(F.fixtures, ['quiz.jpg', 'quiz.png', 'quiz.pdf'][i % 3]));
+    await step(who, 'upload_and_read', async () => { await card.getByRole('button', { name: 'Read the quiz' }).click(); await card.getByRole('button', { name: 'Confirm and plan practice' }).waitFor({ timeout: 120000 }); });
+    const confirm = card.getByRole('button', { name: 'Confirm and plan practice' });
+    check(who, 'planning_blocked_while_flagged', await confirm.isDisabled());
+    await card.getByLabel("Teacher's correction for Ancient Egypt #2").fill('pharaoh');
+    await card.getByRole('button', { name: 'Looks right' }).click();
+    await card.getByLabel("Teacher's correction for Ancient Egypt #3").fill('papyrus');
+    await step(who, 'review_and_plan', async () => { await confirm.click(); await card.getByRole('button', { name: 'Approve' }).waitFor({ timeout: 60000 }); });
+    await step(who, 'approve', async () => { await card.getByRole('button', { name: 'Approve' }).click(); await card.getByText('Approved.').waitFor({ timeout: 60000 }); });
+    const s = JSON.parse((await apiCall(p, `/practice/${encodeURIComponent(learner)}/sets?status=approved`)).body);
+    check(who, 'approved_set_saved_for_the_right_learner', s.length === 1, `${learner}: approved sets=${s.length}`);
+    await step(who, 'log_out', async () => {
+      await p.goto(F.ui + '/setup'); await p.getByRole('button', { name: 'Log out' }).first().click();
+      await p.getByPlaceholder(/password/i).waitFor({ timeout: 30000 });
+    });
+    // After logging out, going back to the parent pages must not show any
+    // learner in the household, and nothing must remain that could
+    // authenticate a request. The pages are opened WITHOUT a ?student= in the
+    // URL: the login page legitimately echoes a name the visitor typed into
+    // the link itself, which is not stored data.
+    let shown = [];
+    for (const page of ['/setup', '/pod', '/progress']) {
+      await p.goto(F.ui + page); await p.waitForLoadState('networkidle').catch(() => {});
+      const body = await p.locator('body').innerText();
+      shown.push(...LEARNERS.filter(n => body.includes(n)).map(n => `${page}:${n}`));
+    }
+    const token = await p.evaluate(() => Object.keys(sessionStorage).some(k => { try { return !!JSON.parse(sessionStorage.getItem(k))?.state?.token } catch { return false } }));
+    // A roster left in browser storage is stale data even when no page shows it.
+    const stored = await p.evaluate(names => { const all = Object.keys(sessionStorage).map(k => sessionStorage.getItem(k)).join(' ') + ' ' + Object.keys(localStorage).map(k => localStorage.getItem(k)).join(' '); return names.filter(n => all.includes(n)); }, LEARNERS);
+    check(who, 'logged_out_no_stale_content', !shown.length && !token && !stored.length,
+      `learners shown=${JSON.stringify(shown)} stored=${JSON.stringify(stored)} token=${token}`);
+  } catch (e) { check(who, 'journey_completed', false, e.message); await p.screenshot({ path: path.join(OUT, `fail-${who}.png`), fullPage: true }).catch(() => {}); }
+  await ctx.close();
+}
+
+async function mobileChild(br, dev, i) {
+  const who = `child${i + 1}_${dev.replace(/\s+/g, '_')}`, name = LEARNERS[i];
+  const ctx = await br.newContext({ ...pw.devices[dev] }); const c = await ctx.newPage(); c.on('dialog', d => d.accept());
+  c.on('pageerror', err => console.log(`PAGEERROR ${who}: ${String(err).slice(0, 300)}`));
+  try {
+    await step(who, 'sign_in_and_session_start', () => childLogin(c, name));
+    await step(who, 'lesson_turn', () => sendChat(c, 'The river was the Nile.'));
+    check(who, 'session_no_horizontal_scroll', await noHorizontalScroll(c));
+    const inView = await c.evaluate(() => { const t = [...document.querySelectorAll('textarea')].pop(); if (!t) return false; const r = t.getBoundingClientRect(); return r.bottom <= window.innerHeight + 1 && r.top >= 0; });
+    check(who, 'answer_box_visible_after_reply', inView);
+  } catch (e) {
+    const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+    console.log(`SCREEN ${who} at ${c.url()}: ${screen}`);
+    check(who, 'journey_completed', false, e.message); await c.screenshot({ path: path.join(OUT, `fail-${who}.png`), fullPage: true }).catch(() => {}); }
+  await ctx.close().catch(() => {});
+}
+
+// Every check a complete run must produce. A journey that stops early writes
+// fewer checks than it should, and a check that never ran is not a pass: the
+// run fails if any of these is missing, not only if one recorded ok=false.
+function expectedChecks() {
+  const out = [];
+  if (PROFILE === 'mobile') {
+    F.devices.forEach((dev, i) => {
+      const d = dev.replace(/\s+/g, '_');
+      for (const c of ['setup_no_horizontal_scroll', 'overlapping_pod_save_ok', 'progress_no_horizontal_scroll', 'planning_blocked_while_flagged',
+        'approved_set_saved_for_the_right_learner', 'logged_out_no_stale_content']) out.push([`parent${i + 1}_${d}`, c]);
+      for (const c of ['session_no_horizontal_scroll', 'answer_box_visible_after_reply']) out.push([`child${i + 1}_${d}`, c]);
+    });
+    return out;
+  }
+  F.browsers.forEach((b, i) => {
+    for (const c of ['overlapping_pod_save_ok', 'planning_blocked_while_flagged', 'approved_set_saved_for_the_right_learner',
+      'approved_set_persisted_after_restart', 'child_answer_visible_to_parent_after_restart']) out.push([`parent${i + 1}_${b}`, c]);
+    const child = [];
+    if (i === 0) child.push('client_retry_recovers_dropped_connection', 'midstream_restart_shows_plain_message');
+    if (i === 1) child.push('service_worker_in_control', 'turn_survives_network_blip_with_service_worker');
+    if (N > 1) child.push('sibling_data_refused');
+    child.push('answer_persisted_after_restart', 'answer_retry_is_idempotent');
+    for (const c of child) out.push([`child${i + 1}_${b}`, c]);
+  });
+  return out;
+}
+
 function pct(a, q) { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)] : null; }
 
 (async () => {
@@ -224,15 +325,29 @@ function pct(a, q) { const s = [...a].sort((x, y) => x - y); return s.length ? s
     const br = await launch(b); browsers.push(br);
     console.log(`browser ${b}: ${br.browserType().name()} ${br.version()}`);
   }
-  await Promise.all(F.browsers.flatMap((b, i) => [parent(browsers[i], b, i), child(browsers[i], b, i)]));
+  if (PROFILE === 'mobile') {
+    // Each emulated device runs on the engine its descriptor names (WebKit
+    // for iPhone/iPad, Chromium for Android), never on a substitute.
+    const engineOf = dev => pw.devices[dev].defaultBrowserType;
+    const brFor = dev => { const k = F.browsers.indexOf(engineOf(dev)); if (k < 0) throw new Error(`no ${engineOf(dev)} browser launched for ${dev}`); return browsers[k]; };
+    await Promise.all(F.devices.flatMap((dev, i) => [mobileParent(brFor(dev), dev, i), mobileChild(brFor(dev), dev, i)]));
+  } else {
+    await Promise.all(F.browsers.flatMap((b, i) => [parent(browsers[i], b, i), child(browsers[i], b, i)]));
+  }
   const versions = Object.fromEntries(F.browsers.map((b, i) => [b, `${browsers[i].browserType().name()} ${browsers[i].version()}`]));
   for (const br of browsers) await br.close();
+  const have = new Set(checks.map(c => `${c.user}|${c.check}`));
+  const missing = expectedChecks().filter(([u, c]) => !have.has(`${u}|${c}`)).map(([u, c]) => `${u}/${c}`);
+  for (const m of missing) console.log(`MISSING ${m}`);
   const byStep = {};
   for (const s of steps.filter(s => s.ok)) (byStep[s.step] ||= []).push(s.ms);
   const latency = Object.fromEntries(Object.entries(byStep).map(([k, v]) => [k, { n: v.length, p50: pct(v, 0.5), p95: pct(v, 0.95), max: Math.max(...v) }]));
-  const summary = { sha: F.sha, os: F.os, browsers: versions, users: 2 * N, checks: checks.length, failed_checks: checks.filter(c => !c.ok).length,
+  const summary = { sha: F.sha, os: F.os, os_detail: F.os_detail, profile: PROFILE, evidence: PROFILE === 'mobile' ? 'emulated' : 'desktop-browser',
+    devices: PROFILE === 'mobile' ? F.devices : undefined, playwright: require('playwright/package.json').version,
+    browsers: versions, users: 2 * N, checks: checks.length, failed_checks: checks.filter(c => !c.ok).length,
+    expected_checks: expectedChecks().length, missing_checks: missing,
     steps: steps.length, failed_steps: steps.filter(s => !s.ok).length, latency_ms: latency };
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ summary, checks, steps }, null, 1));
   console.log('SUMMARY ' + JSON.stringify(summary));
-  process.exit(summary.failed_checks || summary.failed_steps ? 1 : 0);
+  process.exit(summary.failed_checks || summary.failed_steps || missing.length ? 1 : 0);
 })();

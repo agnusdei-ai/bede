@@ -1,10 +1,17 @@
 name: Cross-platform browser journeys
 
-# Real Windows and macOS browsers driving the real Bede app against one local
-# service per runner: Google Chrome and Microsoft Edge on windows-2022 and
-# macos-15, plus Playwright's WebKit build on macos-15 (the Safari engine,
-# NOT Safari itself). All browsers on a runner run at the same time against
-# the same service. Synthetic data and a loopback model stub only.
+# Real Windows, macOS and Linux browsers driving the real Bede app against one
+# local service per runner: Google Chrome and Microsoft Edge on windows-2022
+# and macos-15, Google Chrome on ubuntu-24.04, plus Playwright's Firefox build
+# (the Gecko engine, NOT branded Firefox) on all three and Playwright's WebKit
+# build on macos-15 (the Safari engine, NOT Safari itself). All browsers on a
+# runner run at the same time against the same service. Synthetic data and a
+# loopback model stub only.
+#
+# The `mobile` row is Playwright DEVICE EMULATION (iPhone and iPad on WebKit,
+# an Android phone on Chromium, portrait and landscape). Emulation changes
+# viewport, user agent and touch; it is not a phone. Its results are labelled
+# `emulated` and never count as physical-device evidence.
 #
 # What this does NOT prove, stated so a green run is not over-read:
 # - Mixed Windows + Mac clients against ONE service. The two runners cannot
@@ -13,6 +20,11 @@ name: Cross-platform browser journeys
 #   SQLite, not in the Mac candidate's containers with Postgres.
 # - Real Safari, real passkeys (Windows Hello / Touch ID), or the Windows
 #   installer. See docs/SYNTHETIC_QUALIFICATION.md.
+# - Any physical iPhone, iPad or Android device, or Debian 12. The
+#   physical-device checklist is docs/release/DEVICE_QUALIFICATION.md.
+#
+# A run fails if any expected check is missing, not only if one fails: a check
+# that never ran is not a pass (run_journeys.py's completeness gate).
 #
 # Evidence is about one fixed candidate SHA, never a branch.
 on:
@@ -21,8 +33,28 @@ on:
       candidate_sha:
         description: 'Full 40-character commit SHA to test'
         required: true
+  # Relevant changes, not only edits to the journeys: the app UI, its build
+  # and dependencies, and the API routes and middleware the journeys drive.
+  # A final candidate is still qualified by a workflow_dispatch with its SHA.
   pull_request:
     paths:
+      - 'homeschool-tutor/src/**'
+      - 'homeschool-tutor/public/**'
+      - 'homeschool-tutor/index.html'
+      - 'homeschool-tutor/package.json'
+      - 'homeschool-tutor/package-lock.json'
+      - 'homeschool-tutor/vite.config.*'
+      - 'homeschool-api/main.py'
+      - 'homeschool-api/routers/auth.py'
+      - 'homeschool-api/routers/mfa.py'
+      - 'homeschool-api/routers/tutor.py'
+      - 'homeschool-api/routers/practice.py'
+      - 'homeschool-api/routers/pod.py'
+      - 'homeschool-api/routers/voice.py'
+      - 'homeschool-api/core/deps.py'
+      - 'homeschool-api/core/middleware.py'
+      - 'homeschool-api/core/security.py'
+      - 'homeschool-api/requirements-dev.lock.txt'
       - 'scripts/qualification/browser_journeys/**'
       - '.github/workflows/cross-platform-browser-journeys.yml'
 
@@ -35,7 +67,7 @@ concurrency:
 
 jobs:
   journeys:
-    name: Browser journeys (${{ matrix.os }}; ${{ matrix.browsers }})
+    name: Browser journeys (${{ matrix.os }}; ${{ matrix.profile }}; ${{ matrix.browsers }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -43,12 +75,23 @@ jobs:
       matrix:
         include:
           - os: windows-2022
-            browsers: chrome,msedge
+            profile: desktop
+            browsers: chrome,msedge,firefox
           - os: macos-15
-            browsers: chrome,msedge,webkit
+            profile: desktop
+            browsers: chrome,msedge,webkit,firefox
+          - os: ubuntu-24.04
+            profile: desktop
+            browsers: chrome,firefox
+          # Emulated iPhone/iPad (WebKit) and Android phone (Chromium). On
+          # macOS so the WebKit build is the closest available to iOS Safari.
+          - os: macos-15
+            profile: mobile
+            browsers: webkit,chromium
     env:
       CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
       BROWSERS: ${{ matrix.browsers }}
+      PROFILE: ${{ matrix.profile }}
       PLAYWRIGHT_VERSION: '1.56.0'
     steps:
       - name: Validate candidate SHA
@@ -91,20 +134,27 @@ jobs:
         run: |
           npm init -y >/dev/null
           npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
-          if [[ ",$BROWSERS," == *",webkit,"* ]]; then npx playwright install webkit; fi
+          # Engine builds Playwright downloads; branded Chrome and Edge are the
+          # runner's installed browsers. Linux also needs their system libraries.
+          deps=""; [[ "$RUNNER_OS" == "Linux" ]] && deps="--with-deps"
+          for engine in webkit firefox chromium; do
+            if [[ ",$BROWSERS," == *",$engine,"* ]]; then npx playwright install $deps "$engine"; fi
+          done
       - name: Run concurrent journeys
         shell: bash
         # runner.temp is not available in job-level env, so the evidence
         # directory is built from the RUNNER_TEMP variable here instead.
-        run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --browsers "$BROWSERS" --out "$RUNNER_TEMP/bede-browser-journeys"
+        run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --profile "$PROFILE" --browsers "$BROWSERS" --out "$RUNNER_TEMP/bede-browser-journeys"
       - name: Preserve journey evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bede-browser-journeys-${{ matrix.os }}-${{ env.CANDIDATE_SHA }}
+          name: bede-browser-journeys-${{ matrix.os }}-${{ matrix.profile }}-${{ env.CANDIDATE_SHA }}
           path: |
             ${{ runner.temp }}/bede-browser-journeys/*.json
             ${{ runner.temp }}/bede-browser-journeys/*.log
             ${{ runner.temp }}/bede-browser-journeys/*.png
           if-no-files-found: warn
-          retention-days: 14
+          # A dispatched candidate run is release evidence and is kept longer
+          # than a pull request's routine run.
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 90 || 14 }}

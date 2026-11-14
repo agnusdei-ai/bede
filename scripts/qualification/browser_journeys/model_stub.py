@@ -68,7 +68,13 @@ class H(BaseHTTPRequestHandler):
             self.close_connection = True
             log({"t0": t0, "t1": time.time(), "kind": kind, "images": imgs}); return
         time.sleep(random.uniform(0.5, 3.0))
-        if "Subject:" in sysmsg or imgs:
+        # The upload content check (services/content_screen.py, since #814)
+        # also sends the pictures, so it must be recognised BEFORE the
+        # reading branch. Answered with any other shape it fails closed and
+        # the upload is refused: this branch is what lets a quiz be read at all.
+        if '"verdict"' in sysmsg:
+            kind, content = "screen", json.dumps({"verdict": "ok"})
+        elif "Subject:" in sysmsg or imgs:
             kind, content = "reading", json.dumps(READING)
         elif '{"safe":true}' in sysmsg:
             kind, content = "safety", json.dumps({"safe": True})

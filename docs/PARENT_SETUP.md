@@ -350,6 +350,12 @@ said there is ever saved: no transcript, no student record. Leave
    at all. You can still remove it, but no preset will ever leave it out
    for you.
 
+### What Bede calls you (optional)
+
+Near the top of Parent Setup there is a small card, **What should Bede call you?**. Type a first name, or just a nickname, and your screens will say "Welcome back, Kristian." Leave it empty and nothing changes: Bede never needs it.
+
+It is used only to greet you on your own screens. It is not your account name, it does not identify you to Bede or log you in, Bede never sends it to the AI, and it never appears in an email subject, a log or anything your child sees. It is kept encrypted on your own server. Use **Remove my name** (or save the box empty) to delete it. Do not enter a surname or legal name; Bede does not need one.
+
 ### Give a child their own PIN
 
 By default every child signs in with the one shared child PIN, and the

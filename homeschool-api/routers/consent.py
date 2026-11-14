@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core import consent
+from core import consent, parent_profile
 from core.audit import AuditEvent, audit_from_request, log_event
 from core.database import get_db
 from core.deps import require_parent
@@ -101,6 +101,50 @@ async def grant_household_consent(
         raise _refuse(exc)
     await audit_consent_result(request, result)
     return result
+
+
+class ParentProfileRequest(BaseModel):
+    # Cleaned and capped on the server, never rejected for its content.
+    parent_display_name: str = Field("", max_length=200)
+
+
+@router.get("/household/profile")
+async def get_parent_profile(
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """The adult's optional greeting name, or null. Parent-only; the name is
+    served from here and from nowhere else (not the JWT, not /auth/login)."""
+    return {"parent_display_name": await parent_profile.get_name(db)}
+
+
+@router.put("/household/profile")
+async def set_parent_profile(
+    req: ParentProfileRequest,
+    request: Request,
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    name = await parent_profile.set_name(db, req.parent_display_name)
+    # The audit entry says THAT the name changed, never what it is.
+    await log_event(
+        AuditEvent.PARENT_PROFILE_CHANGED, role="parent",
+        detail="name set" if name else "name cleared", **audit_from_request(request),
+    )
+    return {"parent_display_name": name}
+
+
+@router.delete("/household/profile")
+async def clear_parent_profile(
+    request: Request,
+    _: dict = Depends(require_parent),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await parent_profile.clear_name(db)
+    await log_event(
+        AuditEvent.PARENT_PROFILE_CHANGED, role="parent", detail="name cleared", **audit_from_request(request),
+    )
+    return {"parent_display_name": None}
 
 
 @router.get("/consent/notice")

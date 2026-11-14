@@ -292,7 +292,7 @@ async def chat(
         # distress_alert_configured() short-circuits instantly when
         # PARENT_EMAIL/Resend aren't set up.
         asyncio.create_task(send_distress_alert(
-            req.session_config.student_name,
+            req.session_config.display_name,
             datetime.now(timezone.utc).isoformat(),
             trigger_excerpt,
             picture=picture,
@@ -605,10 +605,10 @@ async def email_summary(
     summary = await generate_session_summary(
         req, locale=auth.get("locale", "en"), db=db if role == "parent" else None,
     )
-    html_body = build_summary_email_html(req.session_config.student_name, summary)
+    html_body = build_summary_email_html(req.session_config.display_name, summary)
     sent = await send_email(
         to_address=req.email,
-        subject=f"Bede's notes from {req.session_config.student_name}'s session",
+        subject="Bede's notes from today's session",
         html_body=html_body,
     )
 

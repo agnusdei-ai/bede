@@ -10,6 +10,7 @@ import type { SessionConfig, Subject } from '../types'
 import { subjectLabel } from '../utils/subjectLabel'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import ConsentBanner from '../components/ConsentBanner'
+import { displayNameOf } from '../utils/displayName'
 
 export default function PodDashboard() {
   const { t } = useTranslation()
@@ -345,7 +346,7 @@ function StudentPodCard({
       {/* Header */}
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-start justify-between mb-1">
-          <h2 className="text-lg font-display font-bold text-gray-800">{student.student_name}</h2>
+          <h2 className="text-lg font-display font-bold text-gray-800">{displayNameOf(student)}</h2>
           {!student.voice_required && (
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full ml-2 flex-shrink-0">
               {t('podDashboard.pinOnly')}

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { SessionConfig, Subject, ChatMessage, VisualAidData } from '../types'
 import { SUBJECTS } from '../types'
+import { displayNameOf } from '../utils/displayName'
 
 interface DisplayMessage {
   id: string
@@ -236,7 +237,7 @@ export const useSessionStore = create<SessionState>()(
     const welcomeMsg: DisplayMessage = {
       id: nextId(),
       role: 'system',
-      content: `Welcome, ${config.student_name}! Today we begin with ${
+      content: `Welcome, ${displayNameOf(config)}! Today we begin with ${
         SUBJECTS.find((s) => s.id === firstSubject)?.label ?? firstSubject
       }. Bede is ready to learn with you. 🌿`,
       timestamp: new Date(),

@@ -21,6 +21,9 @@ export type Subject =
 
 export interface SessionConfig {
   student_name: string
+  // Optional display name (a corrected spelling or nickname). Never a key:
+  // student_name stays the stable handle. See utils/displayName.ts.
+  preferred_name?: string
   grade: string
   grade_stage: GradeStage
   // Biological sex, not "gender identity" — see models/schemas.py's

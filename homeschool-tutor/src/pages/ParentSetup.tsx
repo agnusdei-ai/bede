@@ -137,6 +137,7 @@ const COMPANION_MODES: Array<{
 
 interface StudentForm {
   student_name: string
+  preferred_name: string
   grade: string
   grade_stage: GradeStage
   // Biological sex, not "gender identity" — see types/index.ts's
@@ -192,6 +193,7 @@ interface StudentForm {
 
 const blankStudent = (): StudentForm => ({
   student_name: '',
+  preferred_name: '',
   grade: '',
   grade_stage: '3-5',
   sex: '',
@@ -239,6 +241,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
   return {
     ...blank,
     student_name: c.student_name,
+    preferred_name: c.preferred_name ?? '',
     grade: c.grade,
     grade_stage: c.grade_stage,
     sex: c.sex ?? '',
@@ -381,6 +384,7 @@ export default function ParentSetup() {
     setSaveError('')
     const configs: SessionConfig[] = students.map((s) => ({
       student_name: s.student_name.trim(),
+      preferred_name: s.preferred_name.trim() || undefined,
       grade: s.grade.trim(),
       grade_stage: s.grade_stage,
       sex: s.sex || undefined,
@@ -757,6 +761,17 @@ function StudentCard({
               placeholder={t('parentSetup.namePlaceholder')}
               className="input"
             />
+            <label className="label mt-3" htmlFor={`preferred-name-${index}`}>{t('parentSetup.preferredName')}</label>
+            <input
+              id={`preferred-name-${index}`}
+              type="text"
+              value={student.preferred_name}
+              onChange={(e) => onUpdate({ preferred_name: e.target.value })}
+              maxLength={50}
+              placeholder={t('parentSetup.preferredNamePlaceholder')}
+              className="input"
+            />
+            <p className="text-xs text-gray-500 mt-1">{t('parentSetup.preferredNameHint')}</p>
           </div>
           <div>
             <label className="label">{t('parentSetup.grade')}</label>

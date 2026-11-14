@@ -192,7 +192,8 @@ async def test_the_email_is_a_possible_concern_and_carries_no_image(mail, audits
     )
     [message] = mail
     flat = " ".join(message["html"].split())
-    assert message["subject"].startswith("Possible safety concern in Sam's Bede session")
+    assert message["subject"].startswith("Possible safety concern in a Bede session")
+    assert "Sam" not in message["subject"]  # a subject line shows on a lock screen
     assert "possible concern, not a confirmed fact about Sam" in flat
     assert "The picture is not attached and was not kept." in flat
     assert picture[:40] not in message["html"] and "base64" not in message["html"]

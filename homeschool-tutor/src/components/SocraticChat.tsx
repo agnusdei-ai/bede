@@ -18,6 +18,7 @@ import { usePracticeCoachEnabled } from '../hooks/usePracticeCoachEnabled'
 import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
+import { displayNameOf } from '../utils/displayName'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -860,7 +861,7 @@ export default function SocraticChat({
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={sessionConfig?.student_name ?? t('chat.youFallback')} bubbleClass={bubble.className} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (

@@ -74,12 +74,15 @@ def _forget(key: str) -> None:
 
 
 async def deliver(*, role: str | None, student_name: str, trigger_excerpt: str,
-                  dedupe_source: str, picture: str | None = None, audit: dict | None = None) -> str:
+                  dedupe_source: str, picture: str | None = None, audit: dict | None = None,
+                  display_name: str | None = None) -> str:
     """Email the concern to its route once, then audit the outcome.
 
     `dedupe_source` is what identifies the same concern on a retry (the
     picture's base64, or the message). Only its digest is remembered.
-    Returns the outcome. Never raises.
+    `display_name` is how the email body addresses the learner (a preferred
+    name, when an adult set one); the dedupe key and the audit entry stay on
+    `student_name`, the stable handle. Returns the outcome. Never raises.
     """
     from core.audit import AuditEvent, log_event
     from services.email_service import email_configured, send_distress_alert
@@ -95,7 +98,7 @@ async def deliver(*, role: str | None, student_name: str, trigger_excerpt: str,
     else:
         try:
             sent = await send_distress_alert(
-                student_name, datetime.now(timezone.utc).isoformat(), trigger_excerpt,
+                display_name or student_name, datetime.now(timezone.utc).isoformat(), trigger_excerpt,
                 picture=picture, to_address=recipient,
             )
         except Exception:  # an alert must never break the child's turn

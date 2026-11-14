@@ -390,10 +390,13 @@ async function boundaryParent(br, bname, i) {
     await card.getByRole('button', { name: 'Looks right' }).click();
     await card.getByLabel("Teacher's correction for Ancient Egypt #3").fill('papyrus');
     await step(who, 'review_and_plan', async () => { await card.getByRole('button', { name: 'Confirm and plan practice' }).click(); await card.getByRole('button', { name: 'Approve' }).waitFor({ timeout: 60000 }); });
-    await step(who, 'double_tap_approve', async () => { await card.getByRole('button', { name: 'Approve' }).dblclick(); await card.getByText('Approved.').waitFor({ timeout: 60000 }); });
+    // The card may say "Approved." more than once after a double tap; the
+    // assertion that matters is what the server holds, so wait for the first.
+    await step(who, 'double_tap_approve', async () => { await card.getByRole('button', { name: 'Approve' }).dblclick(); await card.getByText('Approved.').first().waitFor({ timeout: 60000 }); });
     await p.waitForTimeout(1500);
+    const shown = await card.getByText('Approved.').count();
     const sets = JSON.parse((await apiCall(p, `/practice/${encodeURIComponent(learner)}/sets?status=approved`)).body);
-    check(who, 'double_approve_single_set', sets.length === 1, `approved sets=${sets.length}`);
+    check(who, 'double_approve_single_set', sets.length === 1, `approved sets=${sets.length} "Approved." shown ${shown}x`);
     await ctx.close();
   } catch (e) { check(who, 'journey_completed', false, e.message); }
 }
@@ -434,6 +437,9 @@ async function boundaryChild(br, bname, i) {
     const ctx2 = await br.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
     await ctx2.addInitScript(() => { try { localStorage.setItem('bede-text-scale', '175') } catch {} });
     const c2 = await ctx2.newPage(); c2.on('dialog', d => d.accept());
+    c2.on('pageerror', err => console.log(`PAGEERROR ${who}@175%: ${String(err).slice(0, 300)}`));
+    c2.on('crash', () => console.log(`CRASH ${who}@175% at ${c2.url()}`));
+    c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@175% error: ${m.text().slice(0, 300)}`); });
     await step(who, 'sign_in_at_175_percent', () => childLogin(c2, name));
     const scale = await c2.evaluate(() => getComputedStyle(document.documentElement).fontSize);
     check(who, 'text_scale_175_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);

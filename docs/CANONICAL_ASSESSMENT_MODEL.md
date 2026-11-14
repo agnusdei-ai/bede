@@ -288,7 +288,8 @@ transaction it:
    `pilot_assessment_evidence`, `pilot_assessment_proposals`,
    `pilot_assessment_decisions`, `pilot_assessment_plans`,
    `pilot_progress_monitoring_schedules`, `pilot_assessment_follow_ups`, **G2** `pilot_evidence`,
-   `pilot_recommendations`, `pilot_decisions`, `pilot_idempotency_keys` (the
+   `pilot_recommendations`, `pilot_decisions`, `pilot_quiz_results` (teacher-confirmed
+   classroom quiz results), `pilot_idempotency_keys` (the
    administrator's create-learner submission record, which holds no name),
    `pilot_roster_grants`, and last
    `pilot_learners` (the encrypted display name);

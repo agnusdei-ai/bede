@@ -66,6 +66,12 @@ GUARDS = {
     ('GET', '/pilot/me/learners/{learner_id}/tutoring/history'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
+    # Teacher-confirmed quiz results: the educator's grant (resolved inside the
+    # route through _assigned) plus the Practice Coach switch, since they are
+    # the teacher-quiz feature's own records.
+    ('POST', '/pilot/me/learners/{learner_id}/quiz-results'): 'require_educator+require_practice_coach_enabled',
+    ('GET', '/pilot/me/learners/{learner_id}/quiz-results'): 'require_educator+require_practice_coach_enabled',
+    ('GET', '/pilot/me/learners/{learner_id}/quiz-mastery'): 'require_educator+require_practice_coach_enabled',
     ('POST', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/recommendations'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/recommendations/{recommendation_id}/decision'): 'require_educator',

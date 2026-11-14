@@ -120,8 +120,8 @@ You can answer me in whichever way feels easiest:
     onto your own tablet or computer, like a photo, so you can keep it or show
     somebody later. (Tap **Print** instead if you want it on real paper.)
   - When you send me a drawing or a photo, I check it's something for our
-    lesson first. If it isn't something for school, I won't look at it, and
-    we'll just keep going with the lesson.
+    lesson first. If it isn't something for school, I won't use it in our
+    lesson, and we'll just keep going.
   - Once in a while a page gets so big and full that I can't hold onto it any
     more. If that happens I'll tell you right away, while your drawing is
     still on the screen, so you can save it first and then start a fresh page.

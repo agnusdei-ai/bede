@@ -121,7 +121,7 @@ address plus generated HTML to `https://api.resend.com/emails`
 | Trigger | Recipient setting | Content |
 |---|---|---|
 | Post-session diagnostic notes | typed in by the parent at send time, never stored | Bede's end-of-session notes |
-| Distress/danger safeguarding alert | `PARENT_EMAIL` | A short excerpt of what triggered it |
+| Distress/danger safeguarding alert | `PARENT_EMAIL`; in school mode `SCHOOL_SAFEGUARDING_EMAIL` only | A short excerpt of what triggered it, or for a picture the flagged category. The picture is never attached |
 | Security anomaly alert (AIUC-1 E009) | `PARENT_EMAIL` | Event type, IP, occurrence count — no message content |
 | Beta feedback | `FEEDBACK_EMAIL` (operator's own inbox) | Whatever the submitter wrote |
 

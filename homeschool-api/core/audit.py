@@ -58,6 +58,10 @@ class AuditEvent:
     RATE_LIMITED             = "rate_limited"
     SUSPICIOUS_REQUEST       = "suspicious_request"
     SAFEGUARDING             = "safeguarding.alert"
+    # services/safeguarding_alerts.py: where the real-time email for a
+    # SAFEGUARDING concern was routed (parent or school) and what happened
+    # (sent, duplicate, no_route, not_configured, failed). Never the address.
+    SAFEGUARDING_ALERT       = "safeguarding.alert_delivery"
     SUMMARY_EMAILED          = "summary.emailed"
     DIAGNOSTIC_VIEW          = "diagnostic.view"
     FEEDBACK_SUBMITTED       = "feedback.submitted"

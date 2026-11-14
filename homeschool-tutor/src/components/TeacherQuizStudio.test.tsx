@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   reviewTeacherQuiz: vi.fn(),
   scoreTeacherQuiz: vi.fn(),
   finalizeTeacherQuiz: vi.fn(),
+  fetchPilotLearners: vi.fn(),
+  savePilotQuizResult: vi.fn(),
 }))
 vi.mock('../services/api', async (importOriginal) => {
   const original = await importOriginal<typeof import('../services/api')>()
@@ -60,6 +62,7 @@ describe('TeacherQuizStudio', () => {
     vi.clearAllMocks()
     await i18n.changeLanguage('en')
     mocks.fetchEducatorQuizOptions.mockResolvedValue(options(true))
+    mocks.fetchPilotLearners.mockResolvedValue([])
   })
 
   it('a quiz the teacher writes is approved by the server, then prints without its key', async () => {
@@ -180,6 +183,81 @@ describe('TeacherQuizStudio', () => {
     expect(written[0]).toContain('Name <span class="fill">')
     expect(written[0]).toContain('class="ans">1 / 1<')
     expect(written[0]).toContain('Total: 2 of 2')
+  })
+
+  it('a confirmed result is saved only to the student the teacher picks, and a change is a correction', async () => {
+    mocks.fetchPilotLearners.mockResolvedValue([
+      { learner_id: 'uuid-a', campus_id: 'c', display_name: 'Synthetic Learner One' },
+      { learner_id: 'uuid-b', campus_id: 'c', display_name: 'Synthetic Learner Two' },
+    ])
+    mocks.scoreTeacherQuiz.mockResolvedValue({
+      possible: 2, read_by: null,
+      results: [
+        { number: 1, response: '42', max_points: 1, proposed_points: 1, method: 'numeric', needs_teacher: false, reasons: [] },
+        { number: 2, response: 'Paris', max_points: 1, proposed_points: 1, method: 'key_match', needs_teacher: false, reasons: [] },
+      ],
+    })
+    mocks.finalizeTeacherQuiz.mockResolvedValue({ results: [], total: 2, possible: 2 })
+    mocks.savePilotQuizResult
+      .mockRejectedValueOnce(new TypeError('Load failed'))
+      .mockImplementation(async (_t: string, _l: string, body: { supersedes?: string | null }) => ({
+        result_id: body.supersedes ? 'r2' : 'r1', supersedes: body.supersedes ?? null,
+      }))
+    render(<TeacherQuizStudio token="t" incoming={approvedQuiz} />)
+    fireEvent.click(await screen.findByRole('button', { name: "Score a student's work" }))
+    fireEvent.click(screen.getByText("Or type the student's answers"))
+    fireEvent.change(screen.getByLabelText("Student's answer to question 1"), { target: { value: '42' } })
+    fireEvent.change(screen.getByLabelText("Student's answer to question 2"), { target: { value: 'Paris' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Propose scores' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve these results' }))
+    await screen.findByText('Total: 2 of 2')
+
+    // Unassigned until the teacher chooses: nothing is saved by default.
+    const save = await screen.findByRole('button', { name: 'Save result' }) as HTMLButtonElement
+    const picker = screen.getByLabelText("Save to a student's record") as HTMLSelectElement
+    expect(picker.value).toBe('')
+    expect(save.disabled).toBe(true)
+    fireEvent.change(picker, { target: { value: 'uuid-b' } })
+
+    // A dropped connection, then a retry with the SAME save id.
+    fireEvent.click(save)
+    await waitFor(() => expect(mocks.savePilotQuizResult).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(save.disabled).toBe(false))
+    fireEvent.click(save)
+    await screen.findByText("Saved to Synthetic Learner Two's record.")
+    const [first, second] = mocks.savePilotQuizResult.mock.calls
+    expect(first[1]).toBe('uuid-b')
+    expect(second[2].submission_id).toBe(first[2].submission_id)
+    expect(second[2]).toMatchObject({ confirmed: true, supersedes: null,
+      results: [{ number: 1, points: 1 }, { number: 2, points: 1 }] })
+
+    // The teacher changes a score and confirms again: a new save, a correction.
+    fireEvent.change(screen.getByLabelText('Score for question 2'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Approve these results' }))
+    await waitFor(() => expect(mocks.finalizeTeacherQuiz).toHaveBeenCalledTimes(2))
+    fireEvent.click(await screen.findByRole('button', { name: 'Save result' }))
+    await screen.findByText("Saved as a correction to Synthetic Learner Two's earlier result.")
+    const third = mocks.savePilotQuizResult.mock.calls[2][2]
+    expect(third.supersedes).toBe('r1')
+    expect(third.submission_id).not.toBe(first[2].submission_id)
+  })
+
+  it('with no class roster there is nowhere to save, so the save step is not shown', async () => {
+    mocks.scoreTeacherQuiz.mockResolvedValue({
+      possible: 1, read_by: null,
+      results: [{ number: 1, response: '42', max_points: 1, proposed_points: 1, method: 'numeric', needs_teacher: false, reasons: [] },
+        { number: 2, response: 'Paris', max_points: 1, proposed_points: 1, method: 'key_match', needs_teacher: false, reasons: [] }],
+    })
+    mocks.finalizeTeacherQuiz.mockResolvedValue({ results: [], total: 2, possible: 2 })
+    render(<TeacherQuizStudio token="t" incoming={approvedQuiz} />)
+    fireEvent.click(await screen.findByRole('button', { name: "Score a student's work" }))
+    fireEvent.click(screen.getByText("Or type the student's answers"))
+    fireEvent.change(screen.getByLabelText("Student's answer to question 1"), { target: { value: '42' } })
+    fireEvent.change(screen.getByLabelText("Student's answer to question 2"), { target: { value: 'Paris' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Propose scores' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve these results' }))
+    await screen.findByText('Total: 2 of 2')
+    expect(screen.queryByRole('button', { name: 'Save result' })).toBeNull()
   })
 
   it('a student’s pages need the tick, and the next student starts clean', async () => {

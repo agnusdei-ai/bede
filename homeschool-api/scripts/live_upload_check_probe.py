@@ -133,6 +133,23 @@ def _chat_text(sse: str) -> str:
     return "".join(parts).strip()
 
 
+def chat_body(image: str) -> dict:
+    """One lesson turn carrying a picture. tests/test_live_upload_probe.py
+    checks it against the API's own TutorRequest, so it cannot drift."""
+    return {
+        "session_config": {"student_name": "Synthetic", "grade": "3", "grade_stage": "3-5"},
+        "current_subject": "nature_study",
+        "conversation_history": [],
+        "child_message": "Look at my picture!",
+        "drawing_image": image,
+    }
+
+
+def upload_body(image: str) -> dict:
+    """One demo upload, checked against ReadPhotosRequest the same way."""
+    return {"subject": "mathematics", "pages": [{"data": image}], "route": "cloud", "cloud_consent": True}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--api", required=True, help="the deployment's API origin")
@@ -158,8 +175,7 @@ def main() -> int:
     token = json.loads(text)["access_token"]
 
     def read(image: str):
-        body = {"subject": "mathematics", "pages": [{"data": image}], "route": "cloud", "cloud_consent": True}
-        return _call(args.api, "/practice/demo/read", body, token)
+        return _call(args.api, "/practice/demo/read", upload_body(image), token)
 
     status, text = read(worksheet())
     sections = len(json.loads(text).get("assessment", {}).get("sections", [])) if status in (200, 201) else 0
@@ -172,23 +188,21 @@ def main() -> int:
            f"{status} {detail}")
 
     def chat(image: str):
-        body = {
-            "session_config": {"student_name": "Synthetic", "grade": "3", "grade_stage": "core_mastery"},
-            "current_subject": "nature_study",
-            "conversation_history": [],
-            "child_message": "Look at my picture!",
-            "drawing_image": image,
-        }
-        return _call(args.api, "/tutor/chat", body, token)
+        return _call(args.api, "/tutor/chat", chat_body(image), token)
+
+    def heard(status: int, sse: str) -> str:
+        # A refused request has no stream: report the API's own reason.
+        return _chat_text(sse) if status == 200 else _detail(sse)
 
     status, sse = chat(tree_drawing())
-    said = _chat_text(sse)
-    refused = "part of your lesson" in said or "can't look at that picture" in said or "couldn't check" in said
+    said = heard(status, sse)
+    refused = any(m in said for m in ("part of your lesson", "can't look at that picture",
+                                      "can't use that picture", "couldn't check"))
     record("lesson drawing reaches the tutor", status == 200 and bool(said) and not refused, f"{status} {said}")
 
     time.sleep(2)
     status, sse = chat(game_screen())
-    said = _chat_text(sse)
+    said = heard(status, sse)
     record("off-topic lesson picture gets the gentle refusal", status == 200 and "part of your lesson" in said,
            f"{status} {said}")
 

@@ -164,6 +164,18 @@ def pytest_configure(config):
 
 
 @pytest.fixture(autouse=True)
+def _safeguarding_alert_memory_starts_empty():
+    """services/safeguarding_alerts.py remembers a concern's digest for half
+    an hour so a retried turn emails once. Each test starts with none, so one
+    test's concern is never a later test's "duplicate"."""
+    from services import safeguarding_alerts
+
+    safeguarding_alerts._recent.clear()
+    yield
+    safeguarding_alerts._recent.clear()
+
+
+@pytest.fixture(autouse=True)
 def _uploaded_pictures_pass_the_content_check_unless_a_test_asks_otherwise(request, monkeypatch):
     """Every uploaded picture is checked by a model before it is read
     (services/content_screen.py). Most upload tests use a fake model that

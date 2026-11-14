@@ -33,9 +33,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import school_authorization as school_auth
 from core.database import PilotLearner, get_db
-from core.deps import require_educator
+from core.deps import require_educator, require_practice_coach_enabled
 from core.encryption import aad_for, decrypt_json, encrypt_json
-from core.pilot_journey_models import PilotDecision, PilotEvidence, PilotRecommendation
+from core.pilot_journey_models import (
+    QUIZ_RESULT_CURRENT, QUIZ_RESULT_SUPERSEDED,
+    PilotDecision, PilotEvidence, PilotQuizResult, PilotRecommendation,
+)
+from models.practice import FinalizeResultsRequest, SettledScore, TeacherQuiz
 from routers.pilot_campuses import _assigned, _id
 from services.assessment_interop import EducatorAssessmentSubmission
 from services.educator_access import live_educator
@@ -43,7 +47,7 @@ from services.governed_orchestrator import (
     Decision, Evidence, Recommendation, Scope, review_recommendation,
 )
 from services.pilot_recommender import EvidenceRecord, recommend
-from services import pilot_authz
+from services import pilot_authz, teacher_quiz_records
 
 router = APIRouter(prefix="/pilot/me/learners", tags=["valor-pilot"])
 
@@ -439,3 +443,138 @@ async def authorized_instruction(
             "delivery_state": row.delivery_state,
             "source_evidence_ids": rendered["source_evidence_ids"],
             "decided_at": rendered["decided_at"]}
+
+
+# ── Classroom quiz results ──────────────────────────────────────────────────
+#
+# A teacher-confirmed quiz, saved against the learner the teacher selected
+# (services/teacher_quiz_records.py). Classroom evidence only: nothing here
+# writes to the canonical assessment records or any export.
+
+class QuizResultSave(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    submission_id: str = Field(..., pattern=r"^[A-Za-z0-9._:-]{8,64}$")
+    # The teacher's own confirmation; a save without it is refused.
+    confirmed: Literal[True]
+    quiz: TeacherQuiz
+    results: list[SettledScore] = Field(..., min_length=1)
+    # A correction names the current result it replaces.
+    supersedes: str | None = Field(default=None, max_length=36)
+
+    def finalize_request(self) -> FinalizeResultsRequest:
+        return FinalizeResultsRequest(quiz=self.quiz, results=self.results)
+
+
+def _quiz_errors(exc: Exception) -> HTTPException:
+    from routers.practice import _teacher_quiz_errors
+
+    return _teacher_quiz_errors(exc)
+
+
+def _render_quiz_result(row: PilotQuizResult, learner: PilotLearner, replayed: bool = False) -> dict:
+    detail = decrypt_json(row.detail_enc, _aad("pilot_quiz_results", "detail_enc", learner, row.id))
+    return {"result_id": row.id, "submission_id": row.submission_id,
+            "recorded_at": row.created_at.isoformat(), "status": row.status,
+            "supersedes": row.supersedes, "superseded_by": row.superseded_by,
+            "replayed": replayed, **detail}
+
+
+async def _quiz_row(db: AsyncSession, learner: PilotLearner, **where) -> PilotQuizResult | None:
+    query = select(PilotQuizResult).where(
+        PilotQuizResult.campus_id == learner.campus_id, PilotQuizResult.learner_id == learner.id)
+    for column, value in where.items():
+        query = query.where(getattr(PilotQuizResult, column) == value)
+    return (await db.execute(query)).scalar_one_or_none()
+
+
+def _replay(existing: PilotQuizResult, digest: str, learner: PilotLearner) -> dict:
+    if existing.body_sha256 != digest:
+        raise HTTPException(status_code=422, detail="This save id was already used for a different result.")
+    return _render_quiz_result(existing, learner, replayed=True)
+
+
+@router.post("/{learner_id}/quiz-results", status_code=201,
+             dependencies=[Depends(require_practice_coach_enabled)])
+async def save_quiz_result(
+    learner_id: str, payload: QuizResultSave,
+    auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> dict:
+    learner = await _assigned(db, auth, learner_id)
+    ctx = await _write_context(db, auth, learner)
+    final_req = payload.finalize_request()
+    digest = teacher_quiz_records.body_digest(final_req) + ":" + (payload.supersedes or "")
+    digest = _sha(digest)
+    existing = await _quiz_row(db, learner, submission_id=payload.submission_id)
+    if existing is not None:
+        return _replay(existing, digest, learner)
+    try:
+        snap = teacher_quiz_records.snapshot(final_req)
+    except Exception as exc:
+        from routers.practice import _TEACHER_QUIZ_ERRORS
+
+        if isinstance(exc, _TEACHER_QUIZ_ERRORS):
+            raise _quiz_errors(exc)
+        raise
+    teacher = await live_educator(db, auth)
+    row_id = str(uuid.uuid4())
+    if payload.supersedes is not None:
+        target = await _quiz_row(db, learner, id=payload.supersedes)
+        if target is None:
+            raise _NOT_FOUND
+        moved = await db.execute(
+            update(PilotQuizResult)
+            .where(PilotQuizResult.id == target.id, PilotQuizResult.status == QUIZ_RESULT_CURRENT)
+            .values(status=QUIZ_RESULT_SUPERSEDED, superseded_by=row_id)
+        )
+        if moved.rowcount != 1:
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="That result was already corrected.")
+    row = PilotQuizResult(
+        id=row_id, campus_id=learner.campus_id, learner_id=learner.id,
+        submission_id=payload.submission_id, body_sha256=digest, recorded_by=teacher.id,
+        status=QUIZ_RESULT_CURRENT, supersedes=payload.supersedes,
+        detail_enc=encrypt_json(snap, _aad("pilot_quiz_results", "detail_enc", learner, row_id)),
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(row)
+    try:
+        await _commit_if_still_assigned(db, ctx)
+    except IntegrityError:
+        # A concurrent retry of the same save won the insert.
+        await db.rollback()
+        existing = await _quiz_row(db, learner, submission_id=payload.submission_id)
+        if existing is None:
+            raise HTTPException(status_code=409, detail="The result could not be saved. Try again.")
+        return _replay(existing, digest, learner)
+    return _render_quiz_result(row, learner)
+
+
+async def _quiz_rows(db: AsyncSession, learner: PilotLearner) -> list[PilotQuizResult]:
+    return list((await db.execute(
+        select(PilotQuizResult)
+        .where(PilotQuizResult.campus_id == learner.campus_id,
+               PilotQuizResult.learner_id == learner.id)
+        .order_by(PilotQuizResult.created_at, PilotQuizResult.id)
+    )).scalars().all())
+
+
+@router.get("/{learner_id}/quiz-results", dependencies=[Depends(require_practice_coach_enabled)])
+async def list_quiz_results(
+    learner_id: str, auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """The learner's quiz history, newest first, corrections included."""
+    learner = await _assigned(db, auth, learner_id)
+    return [_render_quiz_result(r, learner) for r in reversed(await _quiz_rows(db, learner))]
+
+
+@router.get("/{learner_id}/quiz-mastery", dependencies=[Depends(require_practice_coach_enabled)])
+async def quiz_mastery(
+    learner_id: str, auth: dict = Depends(require_educator), db: AsyncSession = Depends(get_db),
+) -> dict:
+    """The estimate from current quiz results, computed now and not stored."""
+    learner = await _assigned(db, auth, learner_id)
+    current = [(r.id, _render_quiz_result(r, learner)) for r in await _quiz_rows(db, learner)
+               if r.status == QUIZ_RESULT_CURRENT]
+    grade = current[-1][1]["grade"] if current else "3"
+    return await teacher_quiz_records.estimate(current, grade)

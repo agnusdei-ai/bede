@@ -72,7 +72,7 @@ async def _run(monkeypatch, moderation_result: dict, stream_called: list, create
 async def test_self_harm_flag_reuses_the_safeguarding_crisis_path(monkeypatch, created_tasks):
     alert_calls = []
     monkeypatch.setattr(
-        "routers.tutor.send_distress_alert",
+        "routers.tutor.safeguarding_alerts.deliver",
         AsyncMock(side_effect=lambda *a, **kw: alert_calls.append(a)),
     )
     stream_called = []
@@ -91,7 +91,7 @@ async def test_self_harm_flag_reuses_the_safeguarding_crisis_path(monkeypatch, c
 async def test_violence_flag_redirects_without_a_distress_alert(monkeypatch, created_tasks):
     alert_calls = []
     monkeypatch.setattr(
-        "routers.tutor.send_distress_alert",
+        "routers.tutor.safeguarding_alerts.deliver",
         AsyncMock(side_effect=lambda *a, **kw: alert_calls.append(a)),
     )
     stream_called = []

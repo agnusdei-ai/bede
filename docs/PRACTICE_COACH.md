@@ -161,7 +161,9 @@ with nothing stored.
 
 ## Checking what is uploaded
 
-Every page is checked before it is read, so only school material is used.
+Every page is checked before Bede reads it for teaching, so only school
+material is used. Checked before reading does not mean never processed: the
+safety check itself is a model call that sees the picture.
 `services/content_screen.py` looks at each group of pages first
 (`extract.screened_page_groups`, the only way an upload's pages reach a model)
 and refuses the whole upload if any page shows, in any style (a photo, a
@@ -187,9 +189,15 @@ page about a war, a labelled diagram of the body's organs, a famous painting.
 - **It fails closed.** A check that errors, times out, or gives an unclear
   answer refuses the upload with "couldn't be checked just now" (503), and
   nothing is read.
+- **It asks for a repeatable verdict** (`temperature=0`). A live run on the
+  demo passed a game screen once and refused the same picture the next time;
+  see `docs/release/UPLOAD_CHECK_VERIFICATION.md`.
 - **It sends the pages nowhere new.** The check uses the same model that would
-  read the pages: the household's or school's own model, or the cloud provider
-  the parent ticked. Nothing about the check is stored.
+  read the pages: the household's or school's own model, or the one cloud
+  provider the parent ticked, with no backup. On the public demo that is
+  OpenAI. A lesson picture in the chat is checked by the tutor's own model,
+  which may be its configured backup if the main provider is down. Nothing
+  about the check is stored.
 - **A refusal is audited, without the picture.** An unsafe refusal records
   `AuditEvent.UPLOAD_REFUSED` with the category only; three in ten minutes
   from one address emails the parent, the same rule as flagged chat messages.
@@ -202,10 +210,22 @@ page about a war, a labelled diagram of the body's organs, a famous painting.
 A self-harm refusal tells the parent or teacher plainly and suggests talking
 with the child and contacting a professional. A child's lesson photo or
 drawing in the chat is checked the same way before it reaches the tutor, and
-one showing self-harm or sexual content takes the same crisis path as a child
-writing about self-harm:
-the safeguarding reply, a safeguarding audit entry and an immediate email to
-the parent; see `docs/SECURITY.md`. This is a model's judgment, not
+one flagged as possibly showing self-harm or sexual content takes the same
+crisis path as a child writing about self-harm: the safeguarding reply, a
+safeguarding audit entry and an immediate email (`services/safeguarding_alerts.py`).
+An off-topic picture is not treated as harmful: the child is told gently that
+Bede can only use pictures that are part of the lesson, and nobody is alerted.
+
+The email describes a **possible** concern, not a confirmed fact about the
+child, and never attaches the picture. It goes to the parent (`PARENT_EMAIL`)
+in a family's session. In school mode (a teacher-led session, or any
+deployment with `BEDE_LOCATION_ID` set) it goes only to the school's
+safeguarding address, `SCHOOL_SAFEGUARDING_EMAIL`, and never to
+`PARENT_EMAIL`; with no school address set, no email is sent. A retry of the
+same picture within 30 minutes is emailed once. Each concern ends in one
+`AuditEvent.SAFEGUARDING_ALERT` entry recording the route and the outcome
+(`sent`, `duplicate`, `no_route`, `not_configured` or `failed`), never the
+address; see `docs/SECURITY.md`. This is a model's judgment, not
 a guarantee: it can be wrong in either direction, which is why the file checks
 below still run and Bede still answers under its constitution.
 
@@ -653,17 +673,59 @@ Why nothing is stored:
   add a retention category and a deletion obligation for something a file
   does as well. The cost is that a saved quiz lives on the teacher's device,
   not in their account.
-- **A student's results are not kept on the server.** The pilot's evidence
-  record (`routers/pilot_journey.py`) is campus-mode and UUID-scoped through
-  `_assigned`, and takes externally administered assessment reports
-  (`EducatorAssessmentSubmission`), not a classroom quiz score. The classroom
-  page's quiz tools name no learner at all. Recording quiz results against a
-  learner would need a new evidence type, school data authorization and an
-  owner decision on what a quiz score may mean in a learner's record. Until
-  then, results are review and print only.
+- **A student's results are kept only when the teacher saves them** (owner
+  direction 2026-11-14). After approving the results, the teacher may pick a
+  student from their own class roster and press **Save result**. Until then
+  the result is unassigned and nothing is stored. The student is the roster
+  entry the teacher chose, by its id, never a name read off the page. See
+  "Saving a result to a student" below.
 
 The quiz never names a learner and has no field for one; neither does a
-reading. Faith subjects are refused here as everywhere (never scored), and
+reading.
+
+### Saving a result to a student
+
+`POST /pilot/me/learners/{learner_id}/quiz-results` (`routers/pilot_journey.py`,
+`services/teacher_quiz_records.py`, table `pilot_quiz_results`). Campus mode
+only: on an install with no class roster the save step is not shown.
+
+- **Only a confirmed result.** The request must carry `confirmed: true`, and
+  the server re-runs the same check as **Approve these results**: the key
+  approved and every question settled by the teacher. Otherwise nothing is
+  stored.
+- **Same rules as every other pilot record.** The teacher must hold a live
+  grant for that student on that campus (`_assigned`), the school must have
+  authorized storage (`school_authorization`), and the grant is checked again
+  just before the save commits. A student the teacher was not granted, on any
+  campus, answers the same 404.
+- **A retry counts once.** Each confirmed result gets one save id; sending it
+  again returns the first save. The same id with different marks is refused.
+- **A correction replaces.** Change a score, approve again and save to the
+  same student: the new result names the old one, which is marked superseded
+  and stops counting. A result can be corrected once; correct the newer one
+  after that.
+- **Progress.** The student's quiz history lists every result, corrections
+  included (`GET .../quiz-results`). Maths questions Bede can read as a plain
+  problem (`7 + 5`, `36 - 19`, `3/4 + 1/4`) also count toward the maths
+  estimate at the marked-quiz weight, with each estimate listing the result
+  and question it came from (`GET .../quiz-mastery`). Word problems and
+  other subjects stay in the history and move nothing.
+- **The estimate is worked out when it is asked for and never stored.** It
+  is rebuilt from the current results each time, so a correction or deletion
+  changes it with nothing left behind.
+- **Not an official assessment.** A saved quiz is classroom evidence. It is
+  not written to the DIBELS and canonical assessment records, any gradebook,
+  or any export.
+- **Stored encrypted, deleted with the learner.** The quiz snapshot and
+  settled points are encrypted and bound to the learner, and the table is in
+  the pilot learner deletion cascade.
+
+**Authorization.** The school notice already covers this storage under §4(b):
+assessment records and the teacher's evidence about the student's work.
+Reading stays on the school's own model, and nothing goes to an outside
+service. A stored mastery estimate would be a further category, which is why
+the estimate is not stored. These rulings do not by themselves authorize real
+learner data; the pilot's existing gates still apply. Faith subjects are refused here as everywhere (never scored), and
 Logic starts in grade 3.
 
 **Pages and size.** There is no page-count limit. Every PDF page is drawn as

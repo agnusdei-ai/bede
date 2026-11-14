@@ -26,6 +26,7 @@ journeys drive also run it.
 | `windows-2022` | desktop | Google Chrome, Microsoft Edge, Playwright Firefox | The journeys complete in those browsers on Windows |
 | `macos-15` | desktop | Google Chrome, Microsoft Edge, Playwright WebKit, Playwright Firefox | The same on macOS. WebKit is the Safari engine, **not Safari** |
 | `ubuntu-24.04` | desktop | Google Chrome, Playwright Firefox | The same on Ubuntu 24.04 |
+| `ubuntu-24.04` | boundary | Google Chrome, Playwright Firefox, Playwright WebKit | The boundaries in section 1a hold in those engines |
 | `macos-15` | mobile (**emulated**) | iPhone 15 and iPad Pro 11 on WebKit, Pixel 7 on Chromium; each portrait and landscape | The layout and core journeys work at those viewports with touch and a mobile user agent. **Not** evidence about a physical device |
 
 "Playwright Firefox" and "Playwright WebKit" are the engine builds Playwright
@@ -39,6 +40,32 @@ one fails, and if `results.json` was never written. Each run records the OS
 image, the Playwright version and every browser's exact version in its
 `results.json`. Candidate (dispatched) evidence is kept 90 days; download it
 into the release record before then.
+
+## 1a. Boundaries checked on every run of the `boundary` row
+
+Each is a failure class this codebase has already got wrong or guards on
+purpose. The row runs on its own service, because the last check locks the
+parent account.
+
+| Boundary | Required outcome |
+|---|---|
+| Open redirect after login | A `returnTo` of `https://…`, `//…`, `/\…` or `javascript:` lands inside the app (`utils/safeRedirect.ts`) |
+| Wrong password | A plain error, still on the login page, no token, and never "your session ended" |
+| A token the server rejects | Logged out with "Your session ended", not silently (`utils/logoutNotice.ts`) |
+| Back after logout | No learner from the household on screen, no token |
+| Upload over 25 MB | Refused in the browser before anything is sent |
+| Text named `.png` | Refused by the server on its real bytes (422), never read |
+| Double-tapped Approve | Exactly one approved practice set |
+| Blank message | Not sent |
+| Message over 2,000 characters | Not sent; the words stay in the box; the child is told it is too long, never that the connection failed |
+| A child on parent pages | `/pod/configs` and a sibling's practice refused; no parent content or sibling on screen |
+| Text at 175% on a phone-width screen | No sideways page scroll |
+| Repeated wrong passwords | The parent is locked even with the right password, and account recovery still answers |
+
+The over-long message row found a real defect: the chat sent the message, the
+server refused it, and the child was told "we lost the connection". The chat
+now keeps the words and says the message is too long
+(`SocraticChat.messageLength.test.tsx`).
 
 ## 2. Physical layer: the support matrix
 

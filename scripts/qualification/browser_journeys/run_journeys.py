@@ -15,6 +15,11 @@ Exits non-zero if any journey check fails.
     python run_journeys.py --sha <40-hex> --browsers chrome,msedge --out <dir>
     python run_journeys.py --sha <40-hex> --profile mobile --browsers webkit,chromium --out <dir>
 
+The boundary profile drives known failure classes at their edge (open
+redirect, wrong password, rejected token, back after logout, oversized and
+non-image uploads, double-tapped approval, blank and over-long messages, a
+child on parent pages, 175% text, lockout with recovery still reachable).
+
 The mobile profile runs Playwright DEVICE EMULATION (iPhone and iPad on
 WebKit, an Android phone on Chromium, each portrait and landscape). It is
 labelled 'emulated' in the results and is never evidence about a physical
@@ -47,7 +52,7 @@ API_DIR = REPO / "homeschool-api"
 UI_DIR = REPO / "homeschool-tutor"
 API_PORT, UI_PORT, STUB_PORT = 18402, 18400, 18401
 BROWSERS = {"chrome", "msedge", "webkit", "chromium", "firefox"}
-PROFILES = {"desktop", "mobile"}
+PROFILES = {"desktop", "mobile", "boundary"}
 # Playwright device descriptors per engine. Each runs on the engine its
 # descriptor names: iPhone/iPad on WebKit, the Android phone on Chromium.
 MOBILE_DEVICES = {
@@ -107,6 +112,13 @@ def make_fixtures(out: Path) -> Path:
     img.save(fx / "quiz.png")
     img.save(fx / "quiz.pdf", "PDF", resolution=150)
     img.convert("RGB").save(fx / "quiz.jpg", "JPEG", quality=85)
+    # Boundary fixtures: just over the 25 MB per-file limit (refused in the
+    # browser before anything is sent), and text named .png (refused by the
+    # server's content check on the real bytes, never read).
+    with (fx / "oversize.jpg").open("wb") as f:
+        f.write(b"\xff\xd8\xff\xe0")
+        f.truncate(25 * 1024 * 1024 + 1024)
+    (fx / "not-an-image.png").write_text("This is plain text with an image file name.\n" * 50)
     return fx
 
 
@@ -138,6 +150,8 @@ def main() -> int:
             raise SystemExit(f"the mobile profile runs on {sorted(MOBILE_DEVICES)} only, got {browsers}")
         devices = [d for b in browsers for d in MOBILE_DEVICES[b]]
     slots = len(devices) if devices else len(browsers)
+    if a.profile == "boundary":
+        slots = max(slots, 2)  # a child needs a sibling to be refused
     if slots > len(SYNTHETIC_PINS):
         raise SystemExit(f"{slots} learners requested, {len(SYNTHETIC_PINS)} synthetic PINs available")
     out = Path(a.out).resolve()

@@ -53,6 +53,7 @@ REQUIRED_ROWS = {
     ("macos-15", "desktop"): {"chrome", "msedge", "webkit", "firefox"},
     ("ubuntu-24.04", "desktop"): {"chrome", "firefox"},
     ("macos-15", "mobile"): {"webkit", "chromium"},
+    ("ubuntu-24.04", "boundary"): {"chrome", "firefox", "webkit"},
 }
 
 
@@ -239,3 +240,37 @@ def test_the_checklist_is_in_the_ci_change_filter():
     line = next(l for l in wf.splitlines() if "grep -qE" in l and "homeschool-api/" in l)
     alternatives = line.split("'")[1].strip("^()").split("|")
     assert r"docs/release/DEVICE_QUALIFICATION\.md" in alternatives
+
+
+BOUNDARY_CHECKS = [
+    "open_redirect_refused", "wrong_password_plain_error", "invalid_token_logs_out_with_notice",
+    "back_after_logout_shows_no_household", "oversize_upload_refused_before_send",
+    "unsupported_upload_refused_without_reading", "double_approve_single_set", "blank_message_not_sent",
+    "overlong_message_handled_plainly", "child_cannot_open_parent_pages", "text_scale_175_no_horizontal_scroll",
+    "parent_locked_after_repeated_failures", "locked_parent_refused_even_with_right_password",
+    "recovery_reachable_while_locked",
+]
+
+
+@pytest.mark.parametrize("name", BOUNDARY_CHECKS)
+def test_every_boundary_is_an_expected_check(name):
+    """A boundary dropped from the expected list would stop failing the run
+    when it silently stops running."""
+    src = JOURNEYS.read_text()
+    block = src[src.index("if (PROFILE === 'boundary') {"):src.index("if (PROFILE === 'mobile') {", src.index("if (PROFILE === 'boundary') {"))]
+    assert f"'{name}'" in block
+
+
+def test_the_lockout_runs_last_and_once():
+    """It locks the shared parent account, so anything after it would fail
+    for that reason alone."""
+    src = JOURNEYS.read_text()
+    run = src[src.index("} else if (PROFILE === 'boundary') {"):]
+    assert run.index("boundaryParent") < run.index("await boundaryLockout(browsers[0])")
+
+
+def test_the_boundary_fixtures_straddle_the_real_limit():
+    src = (HARNESS / "run_journeys.py").read_text()
+    assert "f.truncate(25 * 1024 * 1024 + 1024)" in src
+    ui = (REPO / "homeschool-tutor/src/utils/uploadParts.ts").read_text()
+    assert "FILE_MAX_BYTES = 25 * 1024 * 1024" in ui

@@ -13,6 +13,9 @@ name: Cross-platform browser journeys
 # viewport, user agent and touch; it is not a phone. Its results are labelled
 # `emulated` and never count as physical-device evidence.
 #
+# The `boundary` row drives known failure classes at their edge; see the
+# boundary section of docs/release/DEVICE_QUALIFICATION.md.
+#
 # What this does NOT prove, stated so a green run is not over-read:
 # - Mixed Windows + Mac clients against ONE service. The two runners cannot
 #   reach each other; that check belongs to the physical Mac session.
@@ -83,6 +86,15 @@ jobs:
           - os: ubuntu-24.04
             profile: desktop
             browsers: chrome,firefox
+          # Known failure classes at their edge: open redirect, wrong
+          # password, rejected token, back after logout, oversized and
+          # non-image uploads, double-tapped approval, blank and over-long
+          # messages, a child on parent pages, 175% text, and lockout with
+          # account recovery still reachable. Its own service, because the
+          # lockout locks the parent account.
+          - os: ubuntu-24.04
+            profile: boundary
+            browsers: chrome,firefox,webkit
           # Emulated iPhone/iPad (WebKit) and Android phone (Chromium). On
           # macOS so the WebKit build is the closest available to iOS Safari.
           - os: macos-15

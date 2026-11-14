@@ -1,10 +1,10 @@
-name: Synthetic qualification
+name: Sample qualification
 
 # Produces evidence about ONE fixed commit: does the real application stack
 # (real uvicorn main:app and lifespan, Postgres as a non-superuser role,
 # real routes, real browser passkey ceremonies, real SSE) enforce the G1
 # isolation, DIBELS/Data Day, G2 decision and deletion guarantees on
-# synthetic data? See docs/SYNTHETIC_QUALIFICATION.md.
+# sample data? See docs/SAMPLE_QUALIFICATION.md.
 #
 # It decides nothing. It never merges, deploys, releases, dispatches another
 # workflow, or touches billing, enrollment or real data. Its output is an
@@ -65,7 +65,7 @@ on:
     paths:
       - 'scripts/qualification/**'
       - '.github/workflows/qualification.yml'
-      - 'docs/SYNTHETIC_QUALIFICATION.md'
+      - 'docs/SAMPLE_QUALIFICATION.md'
       - '.github/workflows/build-bede-operator.yml'
       - 'homeschool-api/services/canonical_assessment.py'
       - 'homeschool-api/routers/pilot_assessments.py'
@@ -83,7 +83,7 @@ concurrency:
 
 jobs:
   qualify:
-    name: Synthetic qualification
+    name: Sample qualification
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     services:
@@ -91,7 +91,7 @@ jobs:
         image: ${{ inputs.postgres_image || 'postgres:16' }}
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: synthetic-bootstrap-only
+          POSTGRES_PASSWORD: sample-bootstrap-only
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -108,8 +108,8 @@ jobs:
       QUAL_BUILD_IMAGES: ${{ inputs.build_images && 'true' || 'false' }}
       QUAL_OUT_DIR: ${{ github.workspace }}/qualification-out
       QUAL_RUN_ID: ${{ github.run_id }}
-      QUAL_DB_ADMIN_URL: postgresql://postgres:synthetic-bootstrap-only@127.0.0.1:5432/postgres
-      # The application's environment: synthetic, loopback-only, production off.
+      QUAL_DB_ADMIN_URL: postgresql://postgres:sample-bootstrap-only@127.0.0.1:5432/postgres
+      # The application's environment: sample, loopback-only, production off.
       PRODUCTION: 'false'
       DISABLE_API_DOCS: 'true'
       EDUCATOR_PILOT_ENABLED: 'true'
@@ -124,11 +124,11 @@ jobs:
       CORS_ORIGINS: https://localhost:8765
       # The ONLY mail destination: the loopback sink (scripts/qualification/mail_sink.py).
       # core/config.py refuses a non-loopback value and any value in production;
-      # the synthetic RESEND_API_KEY is generated below and accepted only by the sink.
+      # the sample RESEND_API_KEY is generated below and accepted only by the sink.
       RESEND_API_BASE_URL: http://127.0.0.1:8767
       RESEND_FROM_ADDRESS: bede@qualification.agnusdei.ai
       LOCAL_LLM_BASE_URL: http://127.0.0.1:8766/v1
-      LOCAL_LLM_MODEL: synthetic-stub
+      LOCAL_LLM_MODEL: sample-stub
       BEDE_FORCE_ADAPTER: local
       RATE_LIMIT_AUTH_PER_MINUTE: '120'
       RATE_LIMIT_API_PER_MINUTE: '1200'
@@ -174,12 +174,12 @@ jobs:
           PLAYWRIGHT_VERSION: ${{ inputs.playwright_version || '1.56.0' }}
         run: npm install --no-save "playwright@${PLAYWRIGHT_VERSION}" && npx playwright install chromium
 
-      - name: Generate synthetic secrets and the non-superuser application role
+      - name: Generate sample secrets and the non-superuser application role
         run: |
           set -euo pipefail
           gen() { openssl rand -hex "$1"; }
-          db_pw="synthetic-$(gen 16)"; secret="$(gen 32)"; master="$(gen 32)"; parent="synthetic-$(gen 16)"
-          sink_key="synthetic-$(gen 16)"
+          db_pw="sample-$(gen 16)"; secret="$(gen 32)"; master="$(gen 32)"; parent="sample-$(gen 16)"
+          sink_key="sample-$(gen 16)"
           for v in "$db_pw" "$secret" "$master" "$parent" "$sink_key"; do echo "::add-mask::$v"; done
           {
             echo "QUAL_APP_DB_PASSWORD=$db_pw"

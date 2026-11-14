@@ -21,7 +21,7 @@ vi.mock('../services/api', async (original) => ({
   ...api,
 }))
 
-// Synthetic, canonical UUIDv4-shaped ids. Two learners share a display name
+// Sample, canonical UUIDv4-shaped ids. Two learners share a display name
 // on purpose: the component must key on the id, never the name.
 const A = '11111111-1111-4111-8111-111111111111'
 const B = '22222222-2222-4222-8222-222222222222'
@@ -30,7 +30,7 @@ const REC = '44444444-4444-4444-8444-444444444444'
 
 const evidence = [{
   evidence_id: EV, recorded_at: '2026-10-10T00:00:00Z', framework: 'dibels8',
-  measure: 'PSF', assessed_on: '2026-10-09', source_name: 'Synthetic report',
+  measure: 'PSF', assessed_on: '2026-10-09', source_name: 'Sample report',
   reported_band: 'strategic_some_risk',
 }]
 const pendingRec = {

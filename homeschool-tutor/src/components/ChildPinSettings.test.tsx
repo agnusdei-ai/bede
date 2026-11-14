@@ -21,7 +21,7 @@ vi.mock('../services/api', async (importOriginal) => {
 import i18n from '../i18n'
 import ChildPinSettings from './ChildPinSettings'
 
-const NAME = 'Synthetic Learner One'
+const NAME = 'Sample Learner One'
 
 beforeEach(() => {
   fetchChildPins.mockReset()

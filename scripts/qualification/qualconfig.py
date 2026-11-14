@@ -1,4 +1,4 @@
-"""Every knob the synthetic qualification harness turns, in one place.
+"""Every knob the sample qualification harness turns, in one place.
 
 Each value has a default and an environment override named ``QUAL_<NAME>``,
 so the workflow (and a person running it by hand) changes inputs and never
@@ -6,7 +6,7 @@ code. Nothing here changes what the application does: these are the
 harness's own settings and the lists the fail-closed preflight checks the
 application's environment against.
 
-See docs/SYNTHETIC_QUALIFICATION.md.
+See docs/SAMPLE_QUALIFICATION.md.
 """
 from __future__ import annotations
 
@@ -73,18 +73,18 @@ REQUIRE_EMPTY_DATABASE = _env("REQUIRE_EMPTY_DATABASE", "true") == "true"
 TEACHER_AUTH_MODE = _env("TEACHER_AUTH_MODE", "virtual_authenticator")
 TEACHER_AUTH_MODES = ("virtual_authenticator", "minted_token")
 
-# ── Synthetic identities (the allowlist) ─────────────────────────────────────
+# ── Sample identities (the allowlist) ─────────────────────────────────────
 CAMPUS_TITLES = {
-    "campus_one": _env("CAMPUS_ONE_TITLE", "Synthetic Campus One"),
-    "campus_two": _env("CAMPUS_TWO_TITLE", "Synthetic Campus Two"),
+    "campus_one": _env("CAMPUS_ONE_TITLE", "Sample Campus One"),
+    "campus_two": _env("CAMPUS_TWO_TITLE", "Sample Campus Two"),
 }
 TEACHER_USERNAMES = {
-    "teacher_one": _env("TEACHER_ONE_USERNAME", "synthetic-teacher-one"),
-    "teacher_two": _env("TEACHER_TWO_USERNAME", "synthetic-teacher-two"),
+    "teacher_one": _env("TEACHER_ONE_USERNAME", "sample-teacher-one"),
+    "teacher_two": _env("TEACHER_TWO_USERNAME", "sample-teacher-two"),
 }
 # Deliberately ONE display name for both learners: cross-campus residue must
 # not be able to hide behind distinct names.
-SHARED_LEARNER_DISPLAY_NAME = _env("SHARED_LEARNER_DISPLAY_NAME", "Synthetic Learner")
+SHARED_LEARNER_DISPLAY_NAME = _env("SHARED_LEARNER_DISPLAY_NAME", "Sample Learner")
 LEARNER_FIXTURES = {"learner_one": "campus_one", "learner_two": "campus_two"}
 TEACHER_HOME = {"teacher_one": "campus_one", "teacher_two": "campus_two"}
 INSTITUTION_EMAIL_DOMAIN = _env("INSTITUTION_EMAIL_DOMAIN", "qualification.agnusdei.ai")
@@ -102,7 +102,7 @@ FORBIDDEN_NONEMPTY_ENV = _csv(
     # commercial AI
     "ANTHROPIC_API_KEY,OPENAI_API_KEY,MISTRAL_API_KEY,"
     # outbound notification addresses (RESEND_* is checked separately: only
-    # a synthetic key aimed at the loopback mail sink is allowed)
+    # a sample key aimed at the loopback mail sink is allowed)
     "PARENT_EMAIL,FEEDBACK_EMAIL,SALES_EMAIL,"
     # license server / billing
     "LICENSE_SERVER_URL,LICENSE_KEY,STRIPE_SECRET_KEY,STRIPE_WEBHOOK_SECRET,"
@@ -114,7 +114,7 @@ FORBIDDEN_NONEMPTY_ENV = _csv(
 FORBIDDEN_ENV_PREFIXES = _csv("FORBIDDEN_ENV_PREFIXES", "STRIPE_")
 # The only RESEND_* variables a run may set, and only toward the sink.
 ALLOWED_RESEND_ENV = ("RESEND_API_KEY", "RESEND_FROM_ADDRESS", "RESEND_API_BASE_URL")
-SYNTHETIC_KEY_PREFIX = "synthetic-"
+SAMPLE_KEY_PREFIX = "sample-"
 # Any env var whose NAME contains one of these markers and is truthy fails.
 FORBIDDEN_TRUTHY_MARKERS = _csv(
     "FORBIDDEN_TRUTHY_MARKERS",
@@ -140,7 +140,7 @@ DELIVERY_SOURCE_MARKERS = _csv("DELIVERY_SOURCE_MARKERS", "authorized_instructio
 DELIVERY_SOURCE_FILES = _csv("DELIVERY_SOURCE_FILES", "routers/tutor.py,services/ai_service.py")
 
 # ── Credential scan ──────────────────────────────────────────────────────────
-# Values the harness itself generated (synthetic secrets) are scanned for
+# Values the harness itself generated (sample secrets) are scanned for
 # verbatim in every collected log, in addition to these shapes.
 CREDENTIAL_PATTERNS = [
     r"sk-[A-Za-z0-9_-]{20,}",

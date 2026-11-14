@@ -69,7 +69,7 @@ footer{max-width:1100px;margin:auto;padding:0 20px 28px;font-size:12px;color:#63
 <label>Valor review cycle<select id="cycle"><option value="valor_q1">Quarter 1</option><option value="valor_q2" selected>Quarter 2</option><option value="valor_q3">Quarter 3</option><option value="valor_q4">Quarter 4</option></select></label>
 <label>Assessment date<input id="assessed" type="date" required></label>
 <label>Measure / subject<input id="measure" maxlength="64" value="ORF words correct" required placeholder="As shown on the official report"></label>
-<label>Official form / report identifier<input id="formid" maxlength="64" placeholder="Enter the approved identifier" value="SYNTHETIC-EXAMPLE" required></label>
+<label>Official form / report identifier<input id="formid" maxlength="64" placeholder="Enter the approved identifier" value="SAMPLE-EXAMPLE" required></label>
 <label class="full">Report source<input id="source" maxlength="120" value="Illustrative official-report entry" required></label>
 <label>Measure status<select id="measureStatus"><option value="scored">Scored</option><option value="skipped">Skipped</option><option value="not_administered">Not administered</option><option value="interrupted">Interrupted</option><option value="invalid">Invalid</option><option value="voided">Voided</option><option value="not_applicable">Not applicable</option></select></label>
 <label id="scoreWrap">Reported raw score<input id="rawScore" inputmode="decimal" type="number" step="any" min="0" value="58" required></label>
@@ -109,7 +109,7 @@ footer{max-width:1100px;margin:auto;padding:0 20px 28px;font-size:12px;color:#63
 </section>
 <section class="surface hidden" id="panel-audit">
 <p class="eyebrow">Step 4 · traceable review</p><h2>One record for the review meeting.</h2>
-<p class="muted">Download a local JSON record of this simulated walkthrough. Its chronological activity trail is illustrative, not a cryptographically verified server audit. The real pilot has separate authorized database controls.</p>
+<p class="muted">Download a local JSON record of this sample walkthrough. Its chronological activity trail is illustrative, not a cryptographically verified server audit. The real pilot has separate authorized database controls.</p>
 <div id="reviewSummary" aria-live="polite"></div>
 <h3>Activity history</h3><ol id="history" class="audit"></ol>
 <div class="bar"><button class="primary" type="button" id="export">Download review record</button><button class="secondary" type="button" id="reset">Restart the example</button></div>
@@ -130,12 +130,12 @@ footer{max-width:1100px;margin:auto;padding:0 20px 28px;font-size:12px;color:#63
 <script>
 (function(){
 "use strict";
-var KEY="bede_valor_prepilot_synthetic_v1";
+var KEY="bede_valor_prepilot_sample_v1";
 var state={official:[],observations:[],decisions:[],events:[]};
 try{var saved=sessionStorage.getItem(KEY);if(saved){var candidate=JSON.parse(saved);if(candidate&&Array.isArray(candidate.events)&&Array.isArray(candidate.official)&&Array.isArray(candidate.observations)&&Array.isArray(candidate.decisions))state=candidate;}}catch(_){}
 var $=function(id){return document.getElementById(id);};
 var now=function(){return new Date().toISOString();};
-var uid=function(){return "synthetic-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);};
+var uid=function(){return "sample-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);};
 var latest=function(arr){return arr.length?arr[arr.length-1]:null;};
 var lastFor=function(arr,recordId){for(var n=arr.length-1;n>=0;n--){if(arr[n].official_record_id===recordId)return arr[n];}return null;};
 function persist(){try{sessionStorage.setItem(KEY,JSON.stringify(state));}catch(_){}}
@@ -197,7 +197,7 @@ if(scored&&(!score||!Number.isFinite(Number(score))||Number(score)<0)){text($("o
 if(!scored&&!reason){text($("official-error"),"Enter why the measure has no score. Bede never converts this to zero.");return;}
 if($("purpose").value!=="benchmark"&&$("period").value!=="none"){text($("official-error"),"Only benchmark records may have a benchmark period.");return;}
 var prior=latest(state.official);
-var item={id:uid(),created_at:now(),supersedes_id:prior&&prior.id||null,learner_id:"SYNTHETIC-001",campus_id:"SYNTHETIC-CAMPUS",instrument:$("instrument").value,edition:$("instrument").value==="DIBELS 8"?"8":"as supplied",grade:$("grade").value,purpose:$("purpose").value,period:$("period").value,cycle:$("cycle").value,assessed_on:$("assessed").value,measure:$("measure").value.trim(),form_identifier:$("formid").value.trim(),source:$("source").value.trim(),measure_status:status,raw_score:scored?Number(score):null,unit:scored?$("scoreUnit").value.trim():null,reason:scored?null:reason,reported_band:scored?$("band").value.trim()||"Not reported":null,composite_eligibility:scored?$("composite").value:"not_applicable",reported_composite:scored&&$("composite").value==="reported_official"&&$("compositeScore").value!==""?Number($("compositeScore").value):null,reviewed:true,status:status==="scored"?"finalized":status};
+var item={id:uid(),created_at:now(),supersedes_id:prior&&prior.id||null,learner_id:"SAMPLE-001",campus_id:"SAMPLE-CAMPUS",instrument:$("instrument").value,edition:$("instrument").value==="DIBELS 8"?"8":"as supplied",grade:$("grade").value,purpose:$("purpose").value,period:$("period").value,cycle:$("cycle").value,assessed_on:$("assessed").value,measure:$("measure").value.trim(),form_identifier:$("formid").value.trim(),source:$("source").value.trim(),measure_status:status,raw_score:scored?Number(score):null,unit:scored?$("scoreUnit").value.trim():null,reason:scored?null:reason,reported_band:scored?$("band").value.trim()||"Not reported":null,composite_eligibility:scored?$("composite").value:"not_applicable",reported_composite:scored&&$("composite").value==="reported_official"&&$("compositeScore").value!==""?Number($("compositeScore").value):null,reviewed:true,status:status==="scored"?"finalized":status};
 if(item.reported_composite!==null&&(!Number.isFinite(item.reported_composite)||item.reported_composite<0)){text($("official-error"),"Copy a valid official composite, or leave it blank.");return;}
 state.official.push(item);log(prior?"Official record correction linked":"Official assessment recorded and reviewed",item.id);
 refresh();showStep("observation");
@@ -227,7 +227,7 @@ var o=latest(state.official),ob=lastFor(state.observations,o&&o.id),action=butto
 if(!o||!ob){text($("review-error"),"Record the official result and an observation before a teacher decision.");return;}
 var proposed=$("proposedStep").value.trim();
 if(action!=="reject"&&proposed.length<8){text($("review-error"),"Enter a specific teaching step before approving.");return;}
-var d={id:uid(),at:now(),official_record_id:o.id,observation_id:ob.id,action:action,plan:action==="reject"?null:proposed,confirmed_review_on:action==="reject"?null:($("reviewDate").value||null),teacher_note:$("decisionNote").value.trim(),delivery_state:"NOT_REQUESTED",simulated:true};
+var d={id:uid(),at:now(),official_record_id:o.id,observation_id:ob.id,action:action,plan:action==="reject"?null:proposed,confirmed_review_on:action==="reject"?null:($("reviewDate").value||null),teacher_note:$("decisionNote").value.trim(),delivery_state:"NOT_REQUESTED",sample:true};
 state.decisions.push(d);log("Teacher "+action+" decision recorded",d.id);refresh();showStep("audit");
 });
 });
@@ -240,9 +240,9 @@ var history=$("history");history.replaceChildren();state.events.forEach(function
 }
 $("export").addEventListener("click",function(){
 log("Local review record exported",null);renderAudit();
-var content=JSON.stringify({kind:"BEDE_VALOR_SYNTHETIC_PREPILOT",version:1,generated_at:now(),real_student_data:false,server_audited:false,official_instrument_generated:false,learner_delivery:"NOT_REQUESTED",source_note:"Illustrative evidence only; not an official assessment, no AI inference or immutable proof.",...state},null,2);
+var content=JSON.stringify({kind:"BEDE_VALOR_SAMPLE_PREPILOT",version:1,generated_at:now(),real_student_data:false,server_audited:false,official_instrument_generated:false,learner_delivery:"NOT_REQUESTED",source_note:"Illustrative evidence only; not an official assessment, no AI inference or immutable proof.",...state},null,2);
 var blob=new Blob([content],{type:"application/json"});
-var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="bede-valor-synthetic-review.json";document.body.append(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
+var url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="bede-valor-sample-review.json";document.body.append(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
 });
 $("reset").addEventListener("click",function(){if(!confirm("Restart the fictional demonstration and clear the browser-tab record?"))return;state={official:[],observations:[],decisions:[],events:[]};persist();location.reload();});
 scoreVisibility();refresh();showStep("official");

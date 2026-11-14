@@ -13,7 +13,7 @@ VOICE_TRANSCRIPTION_MAX_CONCURRENCY, default 1) — but states plainly: "This
 sandbox has no access to the deployed instance's real CPU tier or live
 request concurrency, so this could not be measured directly — only reasoned
 about from the architecture." This script is what closes that gap, at least
-for whatever CPU it's run on: it drives N concurrent simulated voice calls
+for whatever CPU it's run on: it drives N concurrent mock voice calls
 against a live local instance, exactly matching the real client's own wire
 behavior (services/api.ts / voiceApi.ts / useHybridVoiceInput.ts) — raw
 16kHz mono int16 PCM deltas uploaded every CHUNK_UPLOAD_INTERVAL_MS (4000ms,
@@ -66,7 +66,7 @@ _PCM_BYTES_PER_SAMPLE = 2
 _CHUNK_UPLOAD_INTERVAL_S = 4.0  # matches CHUNK_UPLOAD_INTERVAL_MS in useHybridVoiceInput.ts
 
 
-def _synthetic_pcm_delta(seconds: float) -> bytes:
+def _sample_pcm_delta(seconds: float) -> bytes:
     """A short burst of real int16 PCM audio — a quiet tone, not silence
     (some STT backends short-circuit true silence differently than real
     signal, and this probe measures the ordinary-speech code path). Content
@@ -154,7 +154,7 @@ async def _simulate_one_call(
     # every CHUNK_UPLOAD_INTERVAL_S while the "hold" is active.
     elapsed = 0.0
     while elapsed < hold_seconds:
-        chunk = _synthetic_pcm_delta(min(_CHUNK_UPLOAD_INTERVAL_S, hold_seconds - elapsed))
+        chunk = _sample_pcm_delta(min(_CHUNK_UPLOAD_INTERVAL_S, hold_seconds - elapsed))
         try:
             r = await client.post(
                 f"{base_url}/voice/stream/{session_id}/chunk",

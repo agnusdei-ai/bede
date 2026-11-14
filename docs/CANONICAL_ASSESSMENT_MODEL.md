@@ -20,7 +20,7 @@ Tests:
   SQLite and on Postgres.
 - `tests/test_canonical_assessment_adapter.py`
 
-Synthetic fixtures live in `tests/canonical_assessment_fixtures.py`.
+Sample fixtures live in `tests/canonical_assessment_fixtures.py`.
 
 ## What this is, and what it is not
 

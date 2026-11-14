@@ -46,7 +46,7 @@ def main():
     evidence = json.loads((ROOT / "source-evidence.json").read_text())
     require(evidence["head"] == "597057406489880a1abe3fb57ac1beaafc48e776",
             "Historical evidence must not be silently relabeled current")
-    require(len(evidence["synthetic_checks_executed"]) == 15,
+    require(len(evidence["sample_checks_executed"]) == 15,
             "Historical checks changed")
     require(not evidence["upstream_curriculum_tests"]["executed"],
             "Do not fabricate upstream execution")

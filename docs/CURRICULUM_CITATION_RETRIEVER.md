@@ -38,7 +38,7 @@ required human review and merge. It is not independently deployable.
   rights and source-to-review bindings. Forged in-memory hits or annotations
   must never be accepted from an untrusted client.
 - Local vectors in PR #714 are signed feature hashes, not semantic
-  embeddings. Citation correctness on the small synthetic test set is not
+  embeddings. Citation correctness on the small sample test set is not
   a production-quality retrieval/lesson evaluation.
 - Tests cover deterministic rank fusion, score terms, authorized-objective
   filtering, missing/duplicate annotations, quote exactness, cross-campus

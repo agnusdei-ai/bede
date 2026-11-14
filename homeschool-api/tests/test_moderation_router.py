@@ -138,7 +138,7 @@ async def test_classifier_exception_fails_open_at_the_router_level(monkeypatch):
     deliberate belt-and-suspenders in case classify_child_message somehow
     still raised despite its own contract not to."""
     async def raising_classify(*args, **kwargs):
-        raise RuntimeError("simulated moderation outage")
+        raise RuntimeError("mock moderation outage")
 
     async def fake_stream(*args, **kwargs):
         yield '{"type": "text", "content": "Cells."}'

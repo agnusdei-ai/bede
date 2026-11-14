@@ -31,7 +31,7 @@
 | 1.4 | `cdm.py` — DINA/DINO/G-DINA posteriors | S6 | slip/guess sanity; posterior moves correctly | `[x]` |
 | 1.5 | `kst.py` — surmise closure, `fringe`, `propagate_prerequisites` | S1/S7 | fringe correct on small map; prereqs enforced | `[x]` |
 | 1.6 | `cat.py` — `select_next_probes`, `should_stop_probing` | S2/S9 | selects highest-uncertainty fringe skill; respects resolved | `[x]` |
-| 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: synthetic stream converges + respects prereqs | `[x]` |
+| 1.7 | `mastery.py` — vector, `bayesian_update`, `aggregate_for_parent` | S7 | **acceptance**: sample stream converges + respects prereqs | `[x]` |
 | 1.8 | `__init__.py` façade — `process_evidence`, `get_next_probe_hint` (in-memory) | S6–S8 | end-to-end in-memory round trip | `[x]` |
 
 ## Phase 2 — Persistence
@@ -323,11 +323,11 @@ Verified anchors: `q_row`/`probes_for_skill` follow `skill_map.py`'s established
 
 Check output (`pytest tests/diagnostic/ -v`): 32/32 passed (19 from 1.1+1.2 + 13 new for `irt.py`).
 
-A real bug surfaced and was fixed during B3 verification, not after: the first implementation computed `math.exp(-a*(theta-b))` directly, which raises `OverflowError` for large-magnitude theta (e.g. theta=-1000, a=5). Rewrote `p_1pl`/`p_2pl`/`p_3pl` to share a numerically-stable `_sigmoid()` helper (branches on the sign of the exponent so it never exponentiates a large positive number) instead of patching the one call site that happened to be tested — `estimate_theta_mle`'s own internal logistic computation had the identical unguarded pattern and would have hit the same failure under an extreme synthetic stream.
+A real bug surfaced and was fixed during B3 verification, not after: the first implementation computed `math.exp(-a*(theta-b))` directly, which raises `OverflowError` for large-magnitude theta (e.g. theta=-1000, a=5). Rewrote `p_1pl`/`p_2pl`/`p_3pl` to share a numerically-stable `_sigmoid()` helper (branches on the sign of the exponent so it never exponentiates a large positive number) instead of patching the one call site that happened to be tested — `estimate_theta_mle`'s own internal logistic computation had the identical unguarded pattern and would have hit the same failure under an extreme sample stream.
 
 Deliverable: `p_1pl`/`p_2pl`/`p_3pl` (Rasch/2PL/3PL logistic item response functions), `fisher_information`, and `estimate_theta_mle` (Fisher-scoring MAP ability estimate + standard error). Stdlib `math` only.
 
-Verified anchors: known-value checks confirm P=0.5 exactly at theta==b for 1PL/2PL regardless of discrimination; P=(1+c)/2 at theta==b for 3PL; Fisher information strictly increases with discrimination `a` at matched difficulty and peaks near theta==b; theta estimation demonstrably moves in the correct direction on synthetic all-correct/all-incorrect/mixed streams, and standard error shrinks with more evidence.
+Verified anchors: known-value checks confirm P=0.5 exactly at theta==b for 1PL/2PL regardless of discrimination; P=(1+c)/2 at theta==b for 3PL; Fisher information strictly increases with discrimination `a` at matched difficulty and peaks near theta==b; theta estimation demonstrably moves in the correct direction on sample all-correct/all-incorrect/mixed streams, and standard error shrinks with more evidence.
 
 **1.4** · branch `diagnostic/1.4` · PR: https://github.com/agnusdei-ai/bede/pull/35 (squash-merged to main)
 
@@ -363,7 +363,7 @@ Check output (`pytest tests/diagnostic/ -v`): 100/100 passed (84 prior + 16 new)
 
 Deliverable: `MasteryVector` type alias, `MasteryUpdate` dataclass, `new_vector` (band-relative cold-start priors: 0.5 on-band, lower above, higher below — an unrecognized band degrades to flat 0.5 everywhere rather than raising), `bayesian_update` (composes qmatrix -> cdm -> kst.propagate_prerequisites into one cycle, returns a new vector plus a `MasteryUpdate` per touched skill — the only thing meant to ever be optionally persisted, design doc §5.3), and `aggregate_for_parent` (domain rollup + level classification + gaps + `kst.fringe()`-derived next steps).
 
-**The Phase 1 acceptance test** (`test_synthetic_stream_converges_and_never_leaves_prerequisites_behind`): walks a real 5-skill prerequisite chain (`cc.rote_count_20 -> cc.count_objects_20 -> oa.add_within_20 -> oa.multiplication_facts -> oa.division_facts`) with repeated correct evidence, checking the core invariant — no skill is ever "secure" (>=0.8) while a direct prerequisite sits below "developing" (0.4) — after *every single update*, not just at the end. All five skills converge to secure; the invariant never breaks once across the whole stream.
+**The Phase 1 acceptance test** (`test_sample_stream_converges_and_never_leaves_prerequisites_behind`): walks a real 5-skill prerequisite chain (`cc.rote_count_20 -> cc.count_objects_20 -> oa.add_within_20 -> oa.multiplication_facts -> oa.division_facts`) with repeated correct evidence, checking the core invariant — no skill is ever "secure" (>=0.8) while a direct prerequisite sits below "developing" (0.4) — after *every single update*, not just at the end. All five skills converge to secure; the invariant never breaks once across the whole stream.
 
 Verified anchors: `new_vector`'s below/above/on-band priors confirmed directly against `skills_in_band()`; `bayesian_update` never mutates its input, stays within [0,1] even under repeated calibration-boosted updates, and demonstrably raises a skill's prerequisites once it crosses the secure threshold; `aggregate_for_parent`'s gaps list and next_steps are cross-checked directly against `_classify()`'s own thresholds and `kst.fringe()` respectively, not re-derived independently in the test.
 

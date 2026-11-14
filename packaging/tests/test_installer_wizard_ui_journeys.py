@@ -1,4 +1,4 @@
-"""Synthetic browser journeys for Bede installer wizard.
+"""Sample browser journeys for Bede installer wizard.
 
 Only fake data and temporary directories. No live learners, service accounts,
 real licenses, Docker volume changes, or production credentials.
@@ -74,10 +74,10 @@ def run():
                 outcomes.append("cancel is visible and leaves no config")
                 # Agent-style deterministic state exploration: exercise each
                 # combination through the real browser and server boundary.
-                def synthetic_license(kind, context):
+                def sample_license(kind, context):
                     payload = {
-                        "id": "synthetic-only",
-                        "licensee": "Synthetic UI Test",
+                        "id": "sample-only",
+                        "licensee": "Sample UI Test",
                         "tier": "campus_location" if context == "campus" else "trial",
                         "expires": "2025-01-01" if kind == "expired" else "2099-12-31",
                     }
@@ -86,7 +86,7 @@ def run():
                     encoded = base64.urlsafe_b64encode(
                         json.dumps(payload).encode("utf-8")
                     ).decode("ascii").rstrip("=")
-                    return encoded + ".unsigned-synthetic-test"
+                    return encoded + ".unsigned-sample-test"
 
                 test_matrix = [
                     (context, credential, problem)
@@ -103,11 +103,11 @@ def run():
                     wizard.APPROVED_CAMPUS_ID = "pilot-campus" if context == "campus" else ""
                     page.goto(base)
                     page.get_by_role("heading", name="Welcome to Bede").wait_for()
-                    page.locator('[name="anthropic_key"]').fill("synthetic-provider-credential")
+                    page.locator('[name="anthropic_key"]').fill("sample-provider-credential")
                     page.locator('[name="parent_password"]').fill(credential)
                     if context == "homeschool":
                         page.locator('[name="child_pin"]').fill(wizard.SUGGESTED_CHILD_PIN)
-                    code = "malformed" if problem == "malformed" else synthetic_license(problem, context)
+                    code = "malformed" if problem == "malformed" else sample_license(problem, context)
                     page.locator('[name="license_key"]').fill(code)
                     page.get_by_role("button", name="Set up Bede").click()
                     page.locator(".error").first.wait_for()
@@ -127,9 +127,9 @@ def run():
                 page.goto(base)
                 page.locator('input[name="provider"][value="local"]').check()
                 page.locator('[name="local_base_url"]').fill("http://127.0.0.1:8999/v1")
-                page.locator('[name="parent_password"]').fill("synthetic-recovery-credential-4619")
+                page.locator('[name="parent_password"]').fill("sample-recovery-credential-4619")
                 page.locator('[name="child_pin"]').fill(wizard.SUGGESTED_CHILD_PIN)
-                page.locator('[name="license_key"]').fill(synthetic_license("valid", "homeschool"))
+                page.locator('[name="license_key"]').fill(sample_license("valid", "homeschool"))
                 page.get_by_role("button", name="Set up Bede").click()
                 page.get_by_role("heading", name="Starting Bede").wait_for()
                 body = Path(wizard.ENV_PATH).read_text(encoding="utf-8")
@@ -137,12 +137,12 @@ def run():
                 assert "LOCAL_LLM_BASE_URL=http://127.0.0.1:8999/v1" in body
                 assert "WEBAUTHN_ORIGIN=https://localhost" in body
                 assert 'href="https://localhost"' not in page.content()
-                outcomes.append("synthetic local-model setup and safe native handoff")
+                outcomes.append("sample local-model setup and safe native handoff")
 
                 assert not errors, errors
                 browser.close()
         except Exception as error:
-            # All fixture inputs are synthetic, so a screenshot is safe for CI.
+            # All fixture inputs are sample, so a screenshot is safe for CI.
             if "page" in locals():
                 try:
                     page.screenshot(path=str(evidence_dir / "failed-journey.png"), full_page=True)
@@ -158,7 +158,7 @@ def run():
             server.server_close()
             worker.join(timeout=5)
     (evidence_dir / "scenarios.json").write_text(json.dumps({"result": "pass", "scenarios": outcomes}, indent=2) + "\\n", encoding="utf-8")
-    print("Synthetic browser journeys passed:", ", ".join(outcomes))
+    print("Sample browser journeys passed:", ", ".join(outcomes))
 
 
 if __name__ == "__main__":

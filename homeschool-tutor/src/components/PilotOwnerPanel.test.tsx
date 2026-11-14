@@ -19,7 +19,7 @@ vi.mock('../services/api', async (original) => ({
   ...api,
 }))
 
-// Synthetic, canonical UUIDv4-shaped ids only.
+// Sample, canonical UUIDv4-shaped ids only.
 const C = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const L = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 const SHA = 'f'.repeat(64)
@@ -34,7 +34,7 @@ const receipt = (over: Record<string, unknown> = {}) => ({
 beforeEach(() => {
   vi.clearAllMocks()
   api.fetchEducatorPilotMode.mockResolvedValue({ enabled: true, shared_child_pin_disabled: true })
-  api.fetchPilotOwnerCampuses.mockResolvedValue([{ campus_id: C, title: 'Synthetic Campus One', enabled: true }])
+  api.fetchPilotOwnerCampuses.mockResolvedValue([{ campus_id: C, title: 'Sample Campus One', enabled: true }])
   api.fetchPilotDeletionReceipts.mockResolvedValue([])
   api.fetchSchoolDataAuthorization.mockResolvedValue({
     authorized: true, stale: false, notice_hash: 'h', notice_version: 'v1', notice_text: 'N',
@@ -62,8 +62,8 @@ describe('PilotOwnerPanel', () => {
     const otherCampus = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
     const otherLearner = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
     api.fetchPilotOwnerCampuses.mockResolvedValue([
-      { campus_id: C, title: 'Synthetic Campus One', enabled: true },
-      { campus_id: otherCampus, title: 'Synthetic Campus Two', enabled: true },
+      { campus_id: C, title: 'Sample Campus One', enabled: true },
+      { campus_id: otherCampus, title: 'Sample Campus Two', enabled: true },
     ])
     type LearnerRow = { learner_id: string; campus_id: string; display_name: string; enabled: boolean }
     let resolveOld: (rows: LearnerRow[]) => void = () => {}
@@ -122,13 +122,13 @@ describe('PilotOwnerPanel', () => {
     const stop = screen.getByRole('button', { name: 'Disable campus access' }) as HTMLButtonElement
     expect(stop.disabled).toBe(true)
     const typed = screen.getByLabelText(/Type the campus name/)
-    fireEvent.change(typed, { target: { value: 'Synthetic Campus' } })
+    fireEvent.change(typed, { target: { value: 'Sample Campus' } })
     expect(stop.disabled).toBe(true)
-    fireEvent.change(typed, { target: { value: 'Synthetic Campus One' } })
+    fireEvent.change(typed, { target: { value: 'Sample Campus One' } })
     expect(stop.disabled).toBe(false)
     fireEvent.click(stop)
     await waitFor(() => expect(api.disablePilotOwnerCampus).toHaveBeenCalledWith(
-      't', C, 'Synthetic Campus One'))
+      't', C, 'Sample Campus One'))
     expect(await screen.findByText(/learner records are retained and educator access is stopped/i)).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Disable campus access' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Delete these records' })).toBeNull()
@@ -140,7 +140,7 @@ describe('PilotOwnerPanel', () => {
     render(<PilotOwnerPanel token="t"/>)
     await openPanel()
     fireEvent.change(screen.getByLabelText(/Type the campus name/),
-      { target: { value: 'Synthetic Campus One' } })
+      { target: { value: 'Sample Campus One' } })
     fireEvent.click(screen.getByRole('button', { name: 'Disable campus access' }))
     await waitFor(() => expect(api.disablePilotOwnerCampus).toHaveBeenCalledTimes(1))
     expect((await screen.findByRole('alert')).textContent).toMatch(/administrator passkey/)

@@ -87,7 +87,7 @@ async def test_strips_markdown_fences_around_json(monkeypatch):
 async def test_fails_open_on_api_error(monkeypatch):
     monkeypatch.setattr(
         ai_service._client.messages, "create",
-        AsyncMock(side_effect=RuntimeError("simulated Anthropic API failure")),
+        AsyncMock(side_effect=RuntimeError("mock Anthropic API failure")),
     )
     result = await classify_child_message("some message")
     assert result == {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
@@ -124,7 +124,7 @@ async def test_usage_recording_failure_does_not_break_classification(monkeypatch
         AsyncMock(return_value=_fake_response({"flagged": False, "categories": [], "confidence": "low"})),
     )
     monkeypatch.setattr(
-        "core.api_usage.record_usage", AsyncMock(side_effect=RuntimeError("simulated DB failure")),
+        "core.api_usage.record_usage", AsyncMock(side_effect=RuntimeError("mock DB failure")),
     )
     result = await classify_child_message("some message", student_name="Sam")
     assert result["flagged"] is False

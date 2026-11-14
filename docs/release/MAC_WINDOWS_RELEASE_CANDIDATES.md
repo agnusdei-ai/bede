@@ -108,7 +108,7 @@ non-destructive cross-version migration has been qualified.
 5. For any platform being advertised, require verified final artifact
    integrity and appropriate signature/notarization or repository trust,
    plus actual OS installation/launch, data-preserving rollback and the
-   applicable synthetic G1–G3 tests. The Linux DEB/RPM publishing trust and
+   applicable sample G1–G3 tests. The Linux DEB/RPM publishing trust and
    signed repository/package verification path is **not yet implemented**.
    The existing two Mac/Windows trusted distribution workflows do not sign
    the Linux outputs. Public distribution requires the owner's separate
@@ -123,7 +123,7 @@ workflow is the qualifying Windows candidate path.
 
 For each candidate record source SHA, GitHub run ID, artifact name and SHA-256,
 OS/architecture, installer type, signing/notarization status, local health,
-manual device test, synthetic G1/G2/G3, independent reviewer and dated
+manual device test, sample G1/G2/G3, independent reviewer and dated
 owner release decision. Keep `NOT RUN` where hardware or operational
 checks were not performed.
 

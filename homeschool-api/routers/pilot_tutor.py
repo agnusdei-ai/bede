@@ -1,4 +1,4 @@
-"""Synthetic-pilot-only, G1-scoped tutoring SSE with governed G2 instruction.
+"""Sample-pilot-only, G1-scoped tutoring SSE with governed G2 instruction.
 
 No learner delivery, self-enrollment, external provider fallback, arbitrary
 tools or model-selected operations. Educator passkey and active roster grant
@@ -66,7 +66,7 @@ class PilotTutorInput(BaseModel):
 
 
 def _local_model():
-    # This synthetic feature must never accept a configured commercial
+    # This sample feature must never accept a configured commercial
     # model URL, even if operator/provider settings change at runtime.
     # Local adapter resolver bypasses normal provider failover ordering.
     url = settings.local_llm_base_url
@@ -83,7 +83,7 @@ async def _classify_local(client, message: str, *, request: Optional[Request] = 
                           subject: str = "reading") -> None:
     """Fail closed if the *local-only* classifier cannot give a valid answer.
 
-    A deterministic synthetic [START] instruction contains no learner content
+    A deterministic sample [START] instruction contains no learner content
     and may skip classification; genuine text cannot. No external moderation
     service or fail-open fallback is permitted in this pilot route.
     """
@@ -124,7 +124,7 @@ async def pilot_tutor_turn(
     # qualification. Pilot GO, production use and student login remain gated.
     if str(settings.production).lower() == "true" or settings.is_demo_deployment:
         raise HTTPException(status_code=403,
-                            detail="Synthetic institutional tutoring only")
+                            detail="Sample institutional tutoring only")
     ctx = await pilot_authz.resolve_campus_learner(
         db, auth, learner_id, pilot_authz.ACTION_TUTOR,
     )
@@ -173,7 +173,7 @@ async def pilot_tutor_turn(
 
     prompt = (
         "You are Bede, a gentle Socratic tutor used only in a supervised "
-        "synthetic classroom qualification. Keep replies concise and "
+        "sample classroom qualification. Keep replies concise and "
         "age-appropriate, ask one question at a time, and state uncertainty. "
         "You have no tools or external calls. Never claim to approve, "
         "change, or deliver a lesson on a teacher's behalf. "

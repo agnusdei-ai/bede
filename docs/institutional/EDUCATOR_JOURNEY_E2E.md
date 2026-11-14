@@ -8,7 +8,7 @@ Status: approved implementation target; not evidence of completed runtime. This 
 - School-affiliated email invites, notifies, and initiates supervised recovery only. No email-only sessions, password fallbacks, SMS/TOTP downgrade, or administrator impersonation.
 - Teacher sees only expressly assigned learners. Campus authorization is verified on every server request and before model invocation. No implicit permission from campus membership or email domain.
 - Educational evidence is dated, sourced, contextual and explicitly distinguishes independent work from assisted work. No learner rankings, character scores, fake benchmark precision or causal learning-efficacy claims.
-- One to five owner-only simulated live usability sessions constitute the usability acceptance gate; outside participants are optional. Institutional/customer pilots are separately contracted engagements and never required to release a software build.
+- One to five owner-only mock live usability sessions constitute the usability acceptance gate; outside participants are optional. Institutional/customer pilots are separately contracted engagements and never required to release a software build.
 - Campus commercial offer is defined in VALOR_PRICING.md. Do not include pricing in credential or classroom API contracts.
 
 ## Journey 1: campus invites teacher
@@ -34,7 +34,7 @@ Alternative: canceled prompt => retry; missing credential => alternate authentic
 2. Load only server-authorized learner roster and approved lesson resources; do not trust learner ID or settings provided by browser.
 3. Review source-grounded draft questions, edit and approve before assignment. 'AI draft' is labeled until teacher approval; don't allow background publication.
 4. Open student lesson with approved SessionConfig reloaded server-side; verify roster + campus at model boundary.
-5. Review dated work evidence with assistance and source. Show incomplete or insufficient evidence without synthetic scores.
+5. Review dated work evidence with assistance and source. Show incomplete or insufficient evidence without sample scores.
 6. Export or share only with role-authorized educational contacts under institutional consent/data policy; log access and purpose.
 Alternative: unauthorized learner => indistinguishable 404; weak evidence => explicit 'not enough evidence'; inference offline => non-destructive failure and retry.
 
@@ -70,7 +70,7 @@ E / integration owner: sole owner of App.tsx, core/deps.py, main.py, shared sche
 - API integration: invite -> register -> assert -> scoped roster -> lesson -> evidence -> logout; independent admin approved recovery -> new key -> old key revoked; offboarding revocation.
 - Negative authorization: all educator routes tested against parent/child/demo/recovery tokens and unassigned students; no widening of parent privileges or leaking learner existence.
 - Browser E2E: Safari/macOS, Windows Chromium/Hello, Linux Chromium with FIDO2 or cross-device and one mobile profile. Test feature unavailable and cancellation without lockout.
-- Accessibility/usability: keyboard and screen reader labels, clear state and progress, reversible navigation, no ambiguous success; owner runs 1-5 synthetic sessions and signs off with scenario, platform, outcome and friction.
+- Accessibility/usability: keyboard and screen reader labels, clear state and progress, reversible navigation, no ambiguous success; owner runs 1-5 sample sessions and signs off with scenario, platform, outcome and friction.
 - Quality: full backend/frontend tests and typecheck/build, CodeQL offline SARIF gate, dependency audits, real hardware qualification and rollback. A successful unit test or storyboard does not certify throughput, hardware or institution deployment.
 - Gate verdict is binary: all relevant checks on current integrated commit green AND owner usability approval AND no unresolved critical security issue, otherwise blocked.
 
@@ -128,7 +128,7 @@ Limits, stated with the result:
   These are model-stub integration results; no real provider was called.
 - "Later" means a later-dated record. No real time passes, so this is not
   evidence of retention over time.
-- Hinted and independent attempts are synthetic observations; no model
+- Hinted and independent attempts are sample observations; no model
   grades a learner's answer.
 - Each skill is checked through its first prerequisite only. Skills with
   several prerequisites are not checked against each one.

@@ -51,7 +51,7 @@ false. The pilot and real learner data remain separately gated.
 
 ## Verification and exit criteria
 
-Synthetic SQLite tests cover fail-closed feature flag, staging-only writes,
+Sample SQLite tests cover fail-closed feature flag, staging-only writes,
 independent approval of human/generated drafts, rejection/request-changes,
 append-only approved version history, double-review refusal, passkey/version,
 campus and reviewer grant denial, encryption and source tampering. PostgreSQL

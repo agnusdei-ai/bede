@@ -48,7 +48,7 @@ def main():
             page.locator("#export").click()
         download = download_info.value
         payload = json.loads(Path(download.path()).read_text())
-        assert payload["kind"] == "BEDE_VALOR_SYNTHETIC_PREPILOT"
+        assert payload["kind"] == "BEDE_VALOR_SAMPLE_PREPILOT"
         assert payload["server_audited"] is False
         assert payload["real_student_data"] is False
         assert payload["official"][-1]["raw_score"] is None
@@ -84,7 +84,7 @@ def main():
         assert not errors, f"Uncaught browser errors: {errors}"
         context.close()
         browser.close()
-    print("PASS: simulated official result, skip-null, observation, decision, correction, export, offline")
+    print("PASS: sample official result, skip-null, observation, decision, correction, export, offline")
 
 
 if __name__ == "__main__":

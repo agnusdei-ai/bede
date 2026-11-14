@@ -1,7 +1,7 @@
-"""Synthetic canonical-assessment fixtures, driven through the REAL app over HTTP.
+"""Sample canonical-assessment fixtures, driven through the REAL app over HTTP.
 
-Entirely fabricated: Synthetic Campus One / Two, Synthetic Teacher One /
-Two, Synthetic Learner One / Two. The two learners deliberately share one
+Entirely fabricated: Sample Campus One / Two, Sample Teacher One /
+Two, Sample Learner One / Two. The two learners deliberately share one
 display name. Form ids, scores, cut points and dates are invented and
 correspond to no real report. Never replace these with exported records.
 
@@ -22,7 +22,7 @@ from core.middleware import compute_fingerprint
 from core.security import create_access_token
 from services.educator_access import provision_educator
 
-SHARED_DISPLAY_NAME = "Synthetic Learner"
+SHARED_DISPLAY_NAME = "Sample Learner"
 FIRST_DATA_DAY = date(2031, 8, 25)  # fabricated, far from any real school year
 FORM = "SYN-FORM-1"
 PM_FORM = "SYN-PM-FORM-1"
@@ -67,15 +67,15 @@ class World:
 
         async def _teachers():
             async with factory() as s:
-                a = await provision_educator(s, "synthetic.teacher.one", "synthetic-passphrase-one-x")
-                b = await provision_educator(s, "synthetic.teacher.two", "synthetic-passphrase-two-x")
+                a = await provision_educator(s, "sample.teacher.one", "sample-passphrase-one-x")
+                b = await provision_educator(s, "sample.teacher.two", "sample-passphrase-two-x")
                 return a["id"], b["id"]
 
         one, two = c.portal.call(_teachers)
         self.teacher_one, self.teacher_two = Teacher(one), Teacher(two)
-        self.campus_one = self._ok(c.post("/pilot/campuses", json={"title": "Synthetic Campus One"},
+        self.campus_one = self._ok(c.post("/pilot/campuses", json={"title": "Sample Campus One"},
                                           headers=ADMIN), 201)["campus_id"]
-        self.campus_two = self._ok(c.post("/pilot/campuses", json={"title": "Synthetic Campus Two"},
+        self.campus_two = self._ok(c.post("/pilot/campuses", json={"title": "Sample Campus Two"},
                                           headers=ADMIN), 201)["campus_id"]
         for campus in (self.campus_one, self.campus_two):
             self.authorize_campus(campus)
@@ -97,9 +97,9 @@ class World:
             if benchmark_auth:
                 self._ok(c.post(f"/pilot/campuses/{campus}/benchmark-authorizations", json={
                     "instrument": "dibels8",
-                    "licensed_program_ref": "Synthetic licensed program reference",
+                    "licensed_program_ref": "Sample licensed program reference",
                     "approved_forms": [FORM],
-                    "local_policy_ref": "Synthetic local assessment policy reference",
+                    "local_policy_ref": "Sample local assessment policy reference",
                     "attestation": "licensed program, approved forms and local policy permit benchmark administration",
                 }, headers=ADMIN), 201)
         return self
@@ -110,7 +110,7 @@ class World:
                                          headers=ADMIN), 200)
         self.client.post(
             f"/pilot/campuses/{campus}/data-authorization",
-            json={"notice_hash": shown["notice_hash"], "authorizer_name": "Synthetic Administrator",
+            json={"notice_hash": shown["notice_hash"], "authorizer_name": "Sample Administrator",
                   "authorizer_role": "administrator"}, headers=ADMIN,
         )
         assert self._ok(self.client.get(f"/pilot/campuses/{campus}/data-authorization",
@@ -170,7 +170,7 @@ class World:
         self.step(aid, "submit", "IN_PROGRESS")
         return self.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
 
-    def evidence(self, aid, summary="Synthetic evidence summary"):
+    def evidence(self, aid, summary="Sample evidence summary"):
         r = self.client.post(f"{self.base()}/assessments/{aid}/evidence",
                              json={"summary": summary}, headers=self.teacher_one.headers)
         assert r.status_code == 201, r.text
@@ -232,5 +232,5 @@ def responses_with_errors() -> list[dict]:
         {"measure": "PSF", "item_index": 1, "mark": "segment", "correct": False,
          "error_type": "onset_rime_only"},
         {"measure": "PSF", "item_index": 2, "mark": "segment", "correct": False,
-         "error_type": "onset_rime_only", "annotation": "Synthetic teacher annotation"},
+         "error_type": "onset_rime_only", "annotation": "Sample teacher annotation"},
     ]

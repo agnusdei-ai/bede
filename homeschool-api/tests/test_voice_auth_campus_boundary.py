@@ -1,4 +1,4 @@
-"""Fail-closed boundary for legacy name-keyed voice profiles (synthetic only).
+"""Fail-closed boundary for legacy name-keyed voice profiles (sample only).
 
 Institutional learners use immutable campus/learner UUIDs; the legacy
 voice_profiles table does not. Every name-keyed biometric endpoint must
@@ -45,7 +45,7 @@ async def test_existing_campus_denies_even_a_parent_token(monkeypatch):
 @pytest.mark.asyncio
 async def test_campus_lookup_failure_denies(monkeypatch):
     async def unavailable(_db):
-        raise RuntimeError("synthetic database outage")
+        raise RuntimeError("sample database outage")
 
     monkeypatch.setattr(voice_router.pilot_authz, "campus_mode_active", unavailable)
     with pytest.raises(HTTPException) as exc:
@@ -65,7 +65,7 @@ async def test_single_household_without_campus_remains_supported(monkeypatch):
 
 # The route-level institutional boundary above does not replace the
 # household child's device-to-learner binding (#761). Use the actual
-# authorization guard with synthetic bindings; only voice inference is stubbed.
+# authorization guard with sample bindings; only voice inference is stubbed.
 @pytest.mark.asyncio
 @pytest.mark.parametrize("auth,name,revoked,expected_status", [
     ({"role": "child", "device_id": "tablet-1", "learner_nonce": "v1"}, "Bob", False, 404),
@@ -88,7 +88,7 @@ async def test_voice_verify_checks_child_learner_before_audio_or_profile(
     async def forbidden_inference(*_args, **_kwargs):
         pytest.fail("unauthorized voice profile must never be queried")
     monkeypatch.setattr(voice_router, "verify_student", forbidden_inference)
-    audio = UploadFile(filename="synthetic.wav", file=BytesIO(b"RIFFsynthetic"))
+    audio = UploadFile(filename="sample.wav", file=BytesIO(b"RIFFsample"))
     with patch("core.deps.settings") as settings, patch("core.deps.device_registry") as devices:
         settings.hosted_profile = False
         devices.is_revoked.return_value = revoked
@@ -114,10 +114,10 @@ async def test_voice_verify_preserves_authorized_household_access(monkeypatch, r
     # Only the binding table answers; no learner here has a per-child PIN.
     db.get.side_effect = lambda model, _key: _binding if model is ChildLearnerBinding else None
     calls = []
-    async def synthetic_inference(student_name, audio, _db):
+    async def sample_inference(student_name, audio, _db):
         calls.append((student_name, audio))
         return {"verified": False, "score": 0.0, "level": "low", "message": "Try again"}
-    monkeypatch.setattr(voice_router, "verify_student", synthetic_inference)
+    monkeypatch.setattr(voice_router, "verify_student", sample_inference)
     monkeypatch.setattr(voice_router, "log_event_nowait", lambda *_a, **_kw: None)
     auth = {"role": role}
     if role == "child":
@@ -128,11 +128,11 @@ async def test_voice_verify_preserves_authorized_household_access(monkeypatch, r
         result = await voice_router.verify(
             Request({"type": "http", "headers": []}),
             student_name="Alice",
-            audio=UploadFile(filename="synthetic.wav", file=BytesIO(b"RIFFsynthetic")),
+            audio=UploadFile(filename="sample.wav", file=BytesIO(b"RIFFsample")),
             db=db, auth=auth,
         )
     assert result["verified"] is False
     assert result["score"] == 0.0
-    assert calls == [("Alice", b"RIFFsynthetic")]
+    assert calls == [("Alice", b"RIFFsample")]
     if role == "parent":
         db.get.assert_not_called()

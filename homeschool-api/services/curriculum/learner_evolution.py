@@ -73,7 +73,7 @@ class LearnerEvolutionProfile:
 
 
 def summarize_skill(skill_id: str, evidence: tuple[LearningEvidence, ...]) -> SkillEstimate:
-    """Conservative deterministic synthetic baseline, not a diagnostic model.
+    """Conservative deterministic sample baseline, not a diagnostic model.
 
     Equal-weight observations, with confidence capped below 1.0; no evidence
     produces no estimate. Later versions can calibrate against held-out outcomes.

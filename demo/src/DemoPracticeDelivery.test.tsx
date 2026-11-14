@@ -8,7 +8,7 @@ afterEach(async () => {
   await i18n.changeLanguage('en')
 })
 
-const item = { index: 0, prompt: 'Synthetic question: what is 3 + 4?', hint: 'Count on from 3.' }
+const item = { index: 0, prompt: 'Sample question: what is 3 + 4?', hint: 'Count on from 3.' }
 
 describe('DemoPracticeDelivery', () => {
   it('shows the hint text, not just the label (en)', () => {

@@ -1,6 +1,6 @@
 # Proprietary curriculum production contract
 
-Status: **specification and synthetic fixtures only**, November 12, 2026.
+Status: **specification and sample fixtures only**, November 12, 2026.
 No lesson, source, grade, pilot, or instruction is approved by this package.
 Bede-owned content and tooling remain subject to the repository's proprietary
 LICENSE. Existing third-party notices and the separately licensed
@@ -31,7 +31,7 @@ Combine explicit teaching and worked examples with classical seminar/studio,
 substantial reading, revision, and practical STEM/AI. Approved supports count as
 competent independence; record prompting rather than treating access as cheating.
 Do not assert measured efficacy, time savings, credit, charter qualification, or
-complete-year availability from a schema, catalog, synthetic check, or agent review.
+complete-year availability from a schema, catalog, sample check, or agent review.
 
 ## Executable contract
 
@@ -61,7 +61,7 @@ invariants, **not educational validity or authentic approval**. See tests for
 negative cases. `example.py` computes exact-version child references and emits
 the full JSON bundle. An optional JSON input path to `check`/`export` validates a
 stored bundle with assets confined to that input's directory. The fixture's
-bytes are original synthetic pairs, not a teaching
+bytes are original sample pairs, not a teaching
 sequence, licensed corpus, or learner evidence. Export writes canonical JSON to
 stdout; redirect only to a dedicated ignored generated-output directory.
 

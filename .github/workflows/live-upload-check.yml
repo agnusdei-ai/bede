@@ -1,11 +1,11 @@
-name: Live upload check (synthetic)
+name: Live upload check (sample)
 
 # Checks the DEPLOYED demo, not this repository: that an uploaded picture is
 # checked before Bede reads it (services/content_screen.py). A merge and a
 # green deploy are not evidence that live behaviour works; this is.
 #
 # Manual only. Each run spends a few model calls on the public demo, so it
-# never runs on a schedule. It sends four synthetic, harmless pictures drawn
+# never runs on a schedule. It sends four sample, harmless pictures drawn
 # by the script itself (a marked worksheet, a game screen, a tree drawing)
 # and must never be changed to send harmful imagery: the self-harm and
 # sexual-content paths are tested with mocked safety responses in

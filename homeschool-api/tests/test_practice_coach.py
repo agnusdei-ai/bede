@@ -350,7 +350,7 @@ async def test_the_demo_charges_one_message_per_group_and_stops_at_the_limit(mon
 
     monkeypatch.setattr(demo_session, "has_message_quota", has_quota)
     monkeypatch.setattr(demo_session, "record_message", record)
-    demo = {"role": "demo_code", "code": "synthetic-demo"}
+    demo = {"role": "demo_code", "code": "sample-demo"}
     await practice_router.demo_read_assessment(_many(12), auth=demo)
     assert len(local.calls) == 2 and left["n"] == 0
     with pytest.raises(HTTPException) as exc:
@@ -662,7 +662,7 @@ async def test_approved_practice_delivery_records_only_scoped_responses(db):
 
     for student in ("Alice", "Bob"):
         await consent.grant(
-            db, student, parent_label="Synthetic parent",
+            db, student, parent_label="Sample parent",
             method="parent_attested_checkbox", presented_notice_hash=consent.notice_hash(),
         )
     made = await practice_router.enter_assessment(
@@ -683,7 +683,7 @@ async def test_approved_practice_delivery_records_only_scoped_responses(db):
     assert "parent_script" not in json.dumps(delivered)
     assert delivered[0]["completed_indices"] == []
 
-    response = "Synthetic learner response"
+    response = "Sample learner response"
     recorded = await practice_router.record_practice_outcome(
         "Alice", set_id, PracticeOutcomeRequest(item_index=0, response=response),
         auth=PARENT, db=db,
@@ -702,9 +702,9 @@ async def test_approved_practice_delivery_records_only_scoped_responses(db):
     assert exc.value.status_code == 409
 
     # The child's device binding is checked before any approved-set read.
-    db.add(ChildLearnerBinding(device_id="synthetic-device", student_name="Alice", nonce="synthetic-nonce"))
+    db.add(ChildLearnerBinding(device_id="sample-device", student_name="Alice", nonce="sample-nonce"))
     await db.commit()
-    child = {"role": "child", "device_id": "synthetic-device", "learner_nonce": "synthetic-nonce"}
+    child = {"role": "child", "device_id": "sample-device", "learner_nonce": "sample-nonce"}
     with pytest.raises(HTTPException) as exc:
         await practice_router.get_delivery_sets("Bob", auth=child, db=db)
     assert exc.value.status_code == 404
@@ -727,7 +727,7 @@ async def test_consent_withdrawal_blocks_practice_delivery_and_outcomes(db):
     from core import consent
 
     await consent.grant(
-        db, "Alice", parent_label="Synthetic parent",
+        db, "Alice", parent_label="Sample parent",
         method="parent_attested_checkbox", presented_notice_hash=consent.notice_hash(),
     )
     made = await practice_router.enter_assessment(
@@ -735,7 +735,7 @@ async def test_consent_withdrawal_blocks_practice_delivery_and_outcomes(db):
     planned = await practice_router.plan_practice("Alice", made["id"], auth=PARENT, db=db)
     await practice_router.approve_set(
         "Alice", planned["set_id"], ApproveSetRequest(), auth=PARENT, db=db)
-    revoked = await consent.revoke(db, "Alice", reason="synthetic test")
+    revoked = await consent.revoke(db, "Alice", reason="sample test")
     assert revoked is not None
     assert await consent.active_record(db, "Alice") is None
     with pytest.raises(HTTPException) as exc:
@@ -743,7 +743,7 @@ async def test_consent_withdrawal_blocks_practice_delivery_and_outcomes(db):
     assert exc.value.status_code == 403
     with pytest.raises(HTTPException) as exc:
         await practice_router.record_practice_outcome(
-            "Alice", planned["set_id"], PracticeOutcomeRequest(item_index=0, response="synthetic"),
+            "Alice", planned["set_id"], PracticeOutcomeRequest(item_index=0, response="sample"),
             auth=PARENT, db=db,
         )
     assert exc.value.status_code == 403
@@ -764,8 +764,8 @@ async def test_photo_read_requires_consent_before_model_processing_or_storage(db
     monkeypatch.setattr(extract, "read_pages_counted", read_pages)
     with pytest.raises(HTTPException) as exc:
         await practice_router.read_assessment(
-            "Synthetic Learner",
-            ReadPhotosRequest(subject="latin", pages=[PhotoPage(data="syntheticbase64")]),
+            "Sample Learner",
+            ReadPhotosRequest(subject="latin", pages=[PhotoPage(data="samplebase64")]),
             auth=PARENT,
             db=db,
         )
@@ -788,7 +788,7 @@ async def test_demo_practice_flow_is_transient_and_approval_is_explicit(db, monk
 
     monkeypatch.setattr(demo_session, "has_message_quota", has_quota)
     monkeypatch.setattr(demo_session, "record_message", record)
-    demo = {"role": "demo_code", "code": "synthetic-demo"}
+    demo = {"role": "demo_code", "code": "sample-demo"}
     _routing(monkeypatch, local=True, cloud=None, local_client=StubClient(json.dumps(GOLDEN["assessment"])))
     read = await practice_router.demo_read_assessment(_req(), auth=demo)
     assert read["status"] == "needs_review"

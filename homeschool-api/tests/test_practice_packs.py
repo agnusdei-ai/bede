@@ -1,7 +1,7 @@
 """Practice Coach subject packs beyond Latin: mathematics, spelling, and
 short-answer recall (docs/PRACTICE_COACH.md, "Subject packs").
 
-Each pack has a synthetic golden quiz in its own golden/ folder, written for
+Each pack has a sample golden quiz in its own golden/ folder, written for
 this repository. The properties pinned here are the ones a careless pack gets
 wrong: a maths answer the pack computed wrongly, a practice problem that is
 just the missed one again, a spelling word or a fact the page never gave, and

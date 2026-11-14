@@ -6,4 +6,4 @@ For Mac: install/start Docker Desktop, open Terminal, run `bash packaging/simula
 
 First run pulls the small Python Alpine base image from Docker Hub if not cached. The exact bandwidth and image size must be measured, not assumed. Cleanup: `docker compose -f packaging/simulation/compose.yaml -p bede-installer-sim down`.
 
-This proves only Docker prerequisites, image build, ARM64/AMD64 execution, loopback port binding and synthetic health. It does **not** prove production image delivery, application startup, TLS/CA, passkeys/WebAuthn, recovery, offboarding, SBOM or G3 certification. Do not use it to clear those gates. The permanent school distribution channel is a later decision.
+This proves only Docker prerequisites, image build, ARM64/AMD64 execution, loopback port binding and sample health. It does **not** prove production image delivery, application startup, TLS/CA, passkeys/WebAuthn, recovery, offboarding, SBOM or G3 certification. Do not use it to clear those gates. The permanent school distribution channel is a later decision.

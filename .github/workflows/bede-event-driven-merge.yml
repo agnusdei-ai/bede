@@ -148,5 +148,5 @@ jobs:
             if (!summary.length) summary.push('No opt-in PRs; no changes made.');
             await core.summary.addHeading('Bede event-driven release gate')
               .addList(summary).addRaw(
-                'Green CI is not G1/G2/G3 qualification or pilot GO. Synthetic-data-only HOLD persists.'
+                'Green CI is not G1/G2/G3 qualification or pilot GO. Sample-data-only HOLD persists.'
               ).write();

@@ -3,7 +3,7 @@
 What was observed on the deployed public demo for the picture check added in
 #814 (`services/content_screen.py`). A merge and a green deploy are not
 evidence that live behaviour works; these runs are. Each run is
-`.github/workflows/live-upload-check.yml`, sending four synthetic pictures
+`.github/workflows/live-upload-check.yml`, sending four sample pictures
 drawn by `homeschool-api/scripts/live_upload_check_probe.py`. No harmful
 imagery is ever sent; the self-harm and sexual-content paths are tested with
 mocked verdicts only (`tests/test_content_screen.py`,

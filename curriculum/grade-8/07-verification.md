@@ -2,7 +2,7 @@
 
 ## Historical baseline versus current document checks
 
-The original authoring-workspace research verifier recorded15 synthetic pure-contract checks against the historical HEAD in `source-evidence.json`. It forbade sockets, imported no application/database startup, processed no learner records and preserved that checkout. That immutable record is included as provenance, **not current-main runtime evidence, rights approval or a deployment attestation**.
+The original authoring-workspace research verifier recorded15 sample pure-contract checks against the historical HEAD in `source-evidence.json`. It forbade sockets, imported no application/database startup, processed no learner records and preserved that checkout. That immutable record is included as provenance, **not current-main runtime evidence, rights approval or a deployment attestation**.
 
 The original verifier/export tools depend on the author's separate workspace layout. They remain with that baseline review package, not this canonical repository commit. No parallel curriculum factory is introduced.
 

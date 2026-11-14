@@ -1,6 +1,6 @@
 # Valor institutional code-and-journey release qualification
 
-Status: **Pilot HOLD.** This is a qualification ledger, not a deployed or approved customer pilot. The current Valor pilot is teacher-only and synthetic-data-only. Broader learner-facing institutional features require a separate future release decision.
+Status: **Pilot HOLD.** This is a qualification ledger, not a deployed or approved customer pilot. The current Valor pilot is teacher-only and sample-data-only. Broader learner-facing institutional features require a separate future release decision.
 
 ## Authorized journey matrix
 
@@ -21,7 +21,7 @@ Status: **Pilot HOLD.** This is a qualification ledger, not a deployed or approv
 
 Valor Education's official site publicly describes **SchoolAxis** for family enrollment and links **Jupiter Ed** under parent resources. Neither confirms an available Bede-compatible API or a contractual right to access information. Request a school-approved integration owner, exact API/export documentation, sandbox data agreement and data dictionary **before** writing a connector.
 
-**Current pilot:** teacher passkey -> authorized synthetic campus/learner -> DIBELS assessment -> Data Day evidence -> cited recommendation -> approve/edit/reject -> durable plan/audit -> teacher-led instruction -> teacher observation -> next checkpoint. No student-facing Bede sessions, delivery, billing, or real learner data. Optional roster imports and school integrations are outside this pilot acceptance path.
+**Current pilot:** teacher passkey -> authorized sample campus/learner -> DIBELS assessment -> Data Day evidence -> cited recommendation -> approve/edit/reject -> durable plan/audit -> teacher-led instruction -> teacher observation -> next checkpoint. No student-facing Bede sessions, delivery, billing, or real learner data. Optional roster imports and school integrations are outside this pilot acceptance path.
 
 **Optional connectors:** SchoolAxis, Jupiter Ed or the actual operational SIS, staff IdP (if confirmed), MDM, campus LMS, curriculum source catalog and gradebook exports. Only implement a named vendor adapter after procurement/technical access is verified. Prefer an explicit bulk import/export contract over screen scraping or personal parent portal logins. Never transmit student information to a connector by default.
 
@@ -32,9 +32,9 @@ Valor Education's official site publicly describes **SchoolAxis** for family enr
 ## Release gates
 
 1. Source-defined PR checks: pure policy tests, UI tests, full API/frontend suites, dependency audits, CodeQL and complete migration/recovery tests.
-2. API-scope integration tests with synthetic campus IDs, distinct households and hostile cross-campus callers.
-3. Physical Mac source-free package install, real passkey, isolation/revocation, teacher-only journey, deletion, restart and backup/restore on disposable synthetic data. Do not require student tutoring concurrency for this pilot.
-4. Owner-run synthetic teacher journey on the qualified physical Mac. No outside participants are release gates.
+2. API-scope integration tests with sample campus IDs, distinct households and hostile cross-campus callers.
+3. Physical Mac source-free package install, real passkey, isolation/revocation, teacher-only journey, deletion, restart and backup/restore on disposable sample data. Do not require student tutoring concurrency for this pilot.
+4. Owner-run sample teacher journey on the qualified physical Mac. No outside participants are release gates.
 5. Signed go/no-go artifact listing qualified environment, test logs, remaining limitations and authorized customer pilot scope.
 
 Do not equate a code-complete component, UI storyboard or green CI with a complete school production release. Institutional customer pilots are purchased engagements, not prerequisites for product release.

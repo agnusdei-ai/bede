@@ -1,7 +1,7 @@
 """Owner-led pilot flows: campus/learner selection and learner deletion.
 
-These tests prove the mechanics on synthetic campuses (#598 fixtures:
-Synthetic Campus/Teacher/Learner One and Two, "Example Learner"). They are
+These tests prove the mechanics on sample campuses (#598 fixtures:
+Sample Campus/Teacher/Learner One and Two, "Example Learner"). They are
 not pilot evidence; the owner performs deletion on the real build and keeps
 the receipt.
 
@@ -150,7 +150,7 @@ async def test_ordinary_audit_views_show_no_readable_learner_content(db, monkeyp
     detail = logged[0][1]["detail"]
     assert re.fullmatch(rf"pilot_learner_deleted campus={_UUID} learner={_UUID} rows=\d+ tables=\d+", detail), detail
     listing = json.dumps(await list_receipts(auth=ADMIN, db=db))
-    for text in ("Example Learner", "Synthetic DIBELS 8 report", "phoneme", "segmentation"):
+    for text in ("Example Learner", "Sample DIBELS 8 report", "phoneme", "segmentation"):
         assert text not in detail and text not in listing and text not in json.dumps(receipt), text
     # The teacher journey writes no general audit entries at all; its own
     # decision ledger holds hashes and ciphertext, and is removed above.

@@ -29,7 +29,7 @@ A same-host backup cannot survive building loss, flood or ransomware that compro
 Optional future transport boundary: copy already-encrypted artifacts with native AWS CLI to S3 Object Lock, gcloud CLI to retention-locked GCS buckets, or Azure CLI to immutable blobs. Select **one provider per campus only if the school chooses to enable it**, independently authenticate the upload-only workload, prohibit delete/bypass-retention, enforce TLS and lifecycle retention. Never add a mandatory dependency or credential to the application API; never place student data or backup private keys in GitHub Actions.
 
 ## CI/CD boundaries
-GitHub CI runs synthetic crypto round trips, corruption/incorrect-key rejection, no-overwrite, and mandatory restore acknowledgement. CI may simulate immutable retention configuration but cannot truthfully assert a real cloud immutability policy or disaster survival. Never put real child data, DB backups, backup passphrases, or MASTER_SECRET in CI.
+GitHub CI runs sample crypto round trips, corruption/incorrect-key rejection, no-overwrite, and mandatory restore acknowledgement. CI may simulate immutable retention configuration but cannot truthfully assert a real cloud immutability policy or disaster survival. Never put real child data, DB backups, backup passphrases, or MASTER_SECRET in CI.
 
 Before production: run scheduled daily backups, continuously verify integrity, alert on missed execution, enforce geographic and administrative separation, test full restored service from a fresh appliance, measure recovery point/recovery time objectives, verify school enrollment and teacher credentials after recovery, and provide signed owner acceptance.
 

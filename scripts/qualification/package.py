@@ -91,7 +91,7 @@ def build_manifest(out: Path, env: dict, images: dict) -> dict:
         p = cfg.REPO / rel
         lockfiles[rel] = sha256(p) if p.exists() else None
     return {
-        "schema": "bede-synthetic-qualification/1",
+        "schema": "bede-sample-qualification/1",
         "candidate_sha": env.get("QUAL_CANDIDATE_SHA", ""),
         "run_id": env.get("GITHUB_RUN_ID", env.get("QUAL_RUN_ID", "local")),
         "run_attempt": env.get("GITHUB_RUN_ATTEMPT", ""),

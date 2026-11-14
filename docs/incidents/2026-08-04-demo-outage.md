@@ -108,7 +108,7 @@ drift existed. Nothing surfaced this; it was found by reading the file.
 
 Worth separating, because it is the most generalisable part.
 
-PR #375 shipped with a test harness that simulated the hosting platform's
+PR #375 shipped with a test harness that mock the hosting platform's
 `_headers` handling. **That harness initially emitted duplicate headers —
 the exact real-world risk — and was then "fixed" to merge them**, encoding
 an assumption about platform precedence rather than testing the danger. The
@@ -131,7 +131,7 @@ It passed for a real reason and proved nothing about the failure mode.
 |---|---|
 | #381 | `/health` verifies the database (`SELECT 1`, 3s timeout) and returns 503 when it cannot; both `render.yaml` plans corrected together; startup DB failures now log a greppable `FATAL:` line instead of escaping the handler written for them |
 | #382 | `site/_headers` collapsed to a single policy; `test_site_headers.py` fails if any path is ever matched by two blocks setting the same security header |
-| #383 | Always-on diagnostics in both front-ends: CSP-violation listener, fetch wrapper, raw-error preservation; a synthetic browser check driving the real journey across desktop and Android viewports; a watchdog that runs it every 30 minutes |
+| #383 | Always-on diagnostics in both front-ends: CSP-violation listener, fetch wrapper, raw-error preservation; a sample browser check driving the real journey across desktop and Android viewports; a watchdog that runs it every 30 minutes |
 
 **#381's plan fix had a trap worth recording:** the database plan failed
 *loudly* (Render refuses a downgrade) while the web-service plan `free`

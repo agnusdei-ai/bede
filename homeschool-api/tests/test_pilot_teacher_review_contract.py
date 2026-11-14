@@ -1,4 +1,4 @@
-"""Synthetic agent-state combinations for the bounded teacher-review contract."""
+"""Sample agent-state combinations for the bounded teacher-review contract."""
 from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import UUID
@@ -33,7 +33,7 @@ def sample():
             "finalized_by": TEACHER, "finalized_at": NOW,
             "official_score_fields": {"raw_score": 28, "score_unit": "correct_per_minute"},
         },
-        "evidence_review": {"evidence_ids": [], "source_refs": ["synthetic-official-snapshot"]},
+        "evidence_review": {"evidence_ids": [], "source_refs": ["sample-official-snapshot"]},
         "proposed_actions": [{"action_id": ACTION, "action_type": "generate_printable_practice",
                               "approval_required": True, "status": "proposed"}],
         "teacher_decision": {"decision_id": DECISION, "decision_status": "pending_teacher_review"},
@@ -56,7 +56,7 @@ def approved(data):
         "artifact_id": "44444444-4444-4444-8444-444444444444",
         "action_id": ACTION, "decision_id": DECISION,
         "artifact_type": "tiered_practice_pack", "paper_format": "US_LETTER_BW",
-        "local_file_path": "synthetic/teacher-only.pdf", "approval_version": 2,
+        "local_file_path": "sample/teacher-only.pdf", "approval_version": 2,
     }]
     return data
 

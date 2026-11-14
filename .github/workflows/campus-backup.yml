@@ -19,7 +19,7 @@ jobs:
       - name: Install existing locked backend dependencies
         working-directory: homeschool-api
         run: pip install --require-hashes -r requirements-dev.lock.txt
-      - name: Synthetic encrypted backup qualification
+      - name: Sample encrypted backup qualification
         run: PYTHONPATH=homeschool-api:. python -m pytest -q homeschool-api/tests/test_campus_encrypted_backup.py
 
 
@@ -52,21 +52,21 @@ jobs:
             sleep 2
           done
           exit 1
-      - name: Prove encrypted backup and destructive recovery with synthetic rows
+      - name: Prove encrypted backup and destructive recovery with sample rows
         run: |
           set -euo pipefail
           docker compose exec -T db psql -U sage -d bede -v ON_ERROR_STOP=1 -c \
             "CREATE TABLE ci_recovery_proof (id INTEGER PRIMARY KEY, marker TEXT NOT NULL);"
           docker compose exec -T db psql -U sage -d bede -v ON_ERROR_STOP=1 -c \
             "INSERT INTO ci_recovery_proof VALUES (1, 'first'), (2, 'second');"
-          python scripts/campus_backup.py backup backups/synthetic-ci.enc
-          python scripts/campus_backup.py verify backups/synthetic-ci.enc
-          if grep -a -q 'first' backups/synthetic-ci.enc; then
-            echo "Synthetic SQL was visible in encrypted archive"; exit 1
+          python scripts/campus_backup.py backup backups/sample-ci.enc
+          python scripts/campus_backup.py verify backups/sample-ci.enc
+          if grep -a -q 'first' backups/sample-ci.enc; then
+            echo "Sample SQL was visible in encrypted archive"; exit 1
           fi
           docker compose exec -T db psql -U sage -d bede -v ON_ERROR_STOP=1 -c \
             "DELETE FROM ci_recovery_proof;"
-          python scripts/campus_backup.py restore backups/synthetic-ci.enc --ack-replace-local-db
+          python scripts/campus_backup.py restore backups/sample-ci.enc --ack-replace-local-db
           count=$(docker compose exec -T db psql -U sage -d bede -At -c \
             'SELECT COUNT(*) FROM ci_recovery_proof')
           test "$count" = "2"

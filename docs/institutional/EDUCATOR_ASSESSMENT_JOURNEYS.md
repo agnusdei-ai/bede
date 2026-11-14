@@ -72,6 +72,6 @@ campus and assigned learner always visible:
 - Browser E2E: invited teacher WebAuthn sign-in → assigned learner →
   external score entry → teacher-approved lesson → real session → evidence
   review → revoked access.
-- Instructor acceptance: one to five owner-led synthetic sessions across
+- Instructor acceptance: one to five owner-led sample sessions across
   supported browsers. Capture friction and task completion without genuine
   student data. Do not call the workflow qualified from static mockups.

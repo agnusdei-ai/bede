@@ -1,4 +1,4 @@
-"""Synthetic-only tests for COPPA provider routing and audio guards."""
+"""Sample-only tests for COPPA provider routing and audio guards."""
 import os
 import sys
 import unittest
@@ -32,16 +32,16 @@ class CoppaProviderPolicyTests(unittest.TestCase):
               patch.object(settings, "educator_pilot_enabled", False),
               patch("anthropic.AsyncAnthropic") as sdk_factory):
             with self.assertRaises(PermissionError):
-                build_anthropic_client("synthetic-only")
+                build_anthropic_client("sample-only")
             sdk_factory.assert_not_called()
 
         # The institutional pilot wins over a concurrently enabled demo flag.
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
               patch.object(settings, "educator_pilot_enabled", True),
-              patch.object(settings, "demo_pin", "synthetic-demo"),
+              patch.object(settings, "demo_pin", "sample-demo"),
               patch("anthropic.AsyncAnthropic") as sdk_factory):
             with self.assertRaises(PermissionError):
-                build_anthropic_client("synthetic-only")
+                build_anthropic_client("sample-only")
             sdk_factory.assert_not_called()
 
     def test_direct_anthropic_factory_preserves_nonpilot_behavior(self):
@@ -51,9 +51,9 @@ class CoppaProviderPolicyTests(unittest.TestCase):
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
               patch.object(settings, "educator_pilot_enabled", False),
               patch("anthropic.AsyncAnthropic") as sdk_factory):
-            client = build_anthropic_client("synthetic-only")
+            client = build_anthropic_client("sample-only")
             self.assertIs(client, sdk_factory.return_value)
-            sdk_factory.assert_called_once_with(api_key="synthetic-only")
+            sdk_factory.assert_called_once_with(api_key="sample-only")
 
     def test_external_audio_is_denied(self):
         with patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true"}):
@@ -69,7 +69,7 @@ class CoppaProviderPolicyTests(unittest.TestCase):
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
               patch.object(settings, "educator_pilot_enabled", True),
               patch.object(settings, "demo_pin", "demo-enabled"),
-              patch.object(settings, "anthropic_api_key", "synthetic-not-real"),
+              patch.object(settings, "anthropic_api_key", "sample-not-real"),
               patch.object(settings, "bede_force_adapter", "anthropic")):
             self.assertTrue(enforcement_enabled())
             self.assertFalse(approved_provider("anthropic"))
@@ -94,7 +94,7 @@ class CoppaProviderPolicyTests(unittest.TestCase):
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
               patch.object(settings, "educator_pilot_enabled", True),
               patch.object(settings, "demo_pin", ""),
-              patch.object(settings, "anthropic_api_key", "synthetic-not-real"),
+              patch.object(settings, "anthropic_api_key", "sample-not-real"),
               patch.object(settings, "bede_force_adapter", "anthropic")):
             self.assertFalse(approved_provider("anthropic"))
             self.assertFalse(approved_provider("openai"))
@@ -177,12 +177,12 @@ class CoppaProviderPolicyTests(unittest.TestCase):
         from core.config import settings
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "false"}),
               patch.object(settings, "educator_pilot_enabled", True),
-              patch.object(settings, "demo_pin", "synthetic-demo-only")):
+              patch.object(settings, "demo_pin", "sample-demo-only")):
             self.assertFalse(approved_provider("anthropic"))
             self.assertTrue(approved_provider("local"))
         with (patch.dict(os.environ, {"BEDE_COPPA_ENFORCE": "true"}),
               patch.object(settings, "educator_pilot_enabled", True),
-              patch.object(settings, "demo_pin", "synthetic-demo-only")):
+              patch.object(settings, "demo_pin", "sample-demo-only")):
             self.assertFalse(approved_provider("anthropic"))
 
 

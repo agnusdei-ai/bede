@@ -13,10 +13,10 @@ def fields(**kwargs):
     f = {
         "db_choice": "local",
         "provider": "openai",
-        "openai_key": "synthetic-do-not-send",
-        "parent_password": "synthetic-strong-test-passphrase",
+        "openai_key": "sample-do-not-send",
+        "parent_password": "sample-strong-test-passphrase",
         "child_pin": "805274199",
-        "license_key": "synthetic-license-not-valid",
+        "license_key": "sample-license-not-valid",
     }
     return {**f, **kwargs}
 

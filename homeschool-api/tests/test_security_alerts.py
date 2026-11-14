@@ -1,4 +1,4 @@
-"""Synthetic regression coverage for privacy-safe blocked-access notifications."""
+"""Sample regression coverage for privacy-safe blocked-access notifications."""
 import asyncio
 import hashlib
 import hmac
@@ -31,7 +31,7 @@ class SecurityAlertTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_fingerprint_uses_secret_key_not_reversible_plain_ip_hash(self):
         ip = "192.0.2.10"
-        key = b"bede-synthetic-test-key-only-1234"
+        key = b"bede-sample-test-key-only-1234"
         sender = AsyncMock(return_value=True)
         with patch.object(security_alerts, "_FINGERPRINT_KEY", key), patch(
             "core.security_alerts._send_alert_email", sender

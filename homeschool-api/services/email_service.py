@@ -25,7 +25,7 @@ _REQUEST_TIMEOUT_SECONDS = 15.0
 
 def _resend_url() -> str:
     """Resend, unless RESEND_API_BASE_URL names a loopback mail sink for a
-    synthetic qualification run. core/config.py refuses any non-loopback
+    sample qualification run. core/config.py refuses any non-loopback
     value and any value at all in production, so this can never send a
     family's mail anywhere but Resend."""
     base = settings.resend_api_base_url.strip()

@@ -4,7 +4,7 @@
 
 1. Extract this archive and open **Open-Bede-Prepilot.html** in any modern browser.
 2. Follow the four steps with the fictional learner: official result → teacher observation → Data Day decision → downloadable review record.
-3. This experience is **synthetic and self-contained**. It does not ask for passwords, API keys, a learner PIN, Docker, school-system access or personal information. It never sends data to a server and does not claim to run official assessment scoring or Bede inference.
+3. This experience is **sample and self-contained**. It does not ask for passwords, API keys, a learner PIN, Docker, school-system access or personal information. It never sends data to a server and does not claim to run official assessment scoring or Bede inference.
 
 **Do not enter real learner information.** This is the low-friction review of what a school administrator will see, not the authenticated pilot or a production record. Data remains in the browser tab until closed; a local JSON review can be downloaded. The trace is illustrative, not the server's immutable audit.
 
@@ -66,7 +66,7 @@ The server cannot directly see a client Mac's Touch ID; Bede's frontend uses
 the client browser's platform authenticator probe. A security key or phone
 may work if supported by the browser. The educator never enters their local
 biometric or PIN in Bede. The two-Mac setup needs actual device qualification
-and cross-campus synthetic tests before live learners.
+and cross-campus sample tests before live learners.
 
 `Verify-Bede.command` creates a private, non-destructive smoke evidence folder,
 not a G1/G2/G3 sign-off. The operator installer includes built application
@@ -75,4 +75,4 @@ qualification artifact until Mac hardware tests complete.
 
 ## Valor executive case and practice support
 
-Open `Valor-Executive-Business-Case.html` for the branded, editable annual expense, avoided-cash-cost and teacher-capacity model. Use `Valor-Prepilot-Walkthrough.html` for the separate synthetic teacher journey. Test preparation and original practice materials belong to Bede's broader teacher-guided product vision; learner-facing delivery and official proprietary assessment forms are not part of the Valor pilot.
+Open `Valor-Executive-Business-Case.html` for the branded, editable annual expense, avoided-cash-cost and teacher-capacity model. Use `Valor-Prepilot-Walkthrough.html` for the separate sample teacher journey. Test preparation and original practice materials belong to Bede's broader teacher-guided product vision; learner-facing delivery and official proprietary assessment forms are not part of the Valor pilot.

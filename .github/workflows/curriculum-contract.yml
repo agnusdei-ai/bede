@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python }}
-      - name: Validate bounded synthetic contract
+      - name: Validate bounded sample contract
         working-directory: curriculum/production-spec
         run: |
           timeout 35s python -B verify.py
@@ -79,11 +79,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      # Synthetic configuration only; no GitHub environment or secret access.
-      SECRET_KEY: synthetic-test-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-      MASTER_SECRET: synthetic-test-master-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
-      ANTHROPIC_API_KEY: synthetic-no-network
-      DATABASE_URL: postgresql+asyncpg://synthetic:synthetic@127.0.0.1/never_connect
+      # Sample configuration only; no GitHub environment or secret access.
+      SECRET_KEY: sample-test-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+      MASTER_SECRET: sample-test-master-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+      ANTHROPIC_API_KEY: sample-no-network
+      DATABASE_URL: postgresql+asyncpg://sample:sample@127.0.0.1/never_connect
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

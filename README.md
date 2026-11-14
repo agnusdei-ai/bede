@@ -25,7 +25,7 @@ wizard, and confirms the application health check. A failed check is
 loopback while configuring secrets.
 
 For controlled Valor owner enrollment, use a **dedicated test host** with
-synthetic learner data. Do not enroll real school learners before
+sample learner data. Do not enroll real school learners before
 institutional tenant isolation and educator WebAuthn qualification pass.
 See [production setup](docs/PRODUCTION_SETUP.md) for operating guidance.
 

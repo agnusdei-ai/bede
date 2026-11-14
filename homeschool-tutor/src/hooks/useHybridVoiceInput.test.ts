@@ -175,13 +175,13 @@ describe('voice turn cancellation and ordered deltas', () => {
     })
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
     await act(async () => { result.current.startHold(); await flush(); result.current.release(); await flush() })
-    await act(async () => { oldEvents.push({ type: 'final', text: 'Synthetic first answer' }); oldEvents.push({ type: 'done' }); await flush() })
+    await act(async () => { oldEvents.push({ type: 'final', text: 'Sample first answer' }); oldEvents.push({ type: 'done' }); await flush() })
     expect(onFinal).toHaveBeenCalledTimes(1)
     expect(retiredBeforeDelivery).toBe(true)
     expect(result.current.isListening).toBe(true)
     const nextSignal = streamVoiceEvents.mock.calls[1][2] as AbortSignal
     expect(nextSignal.aborted).toBe(false)
-    await act(async () => { result.current.release(); await flush(); newEvents.push({ type: 'error', message: 'Synthetic loss' }); await flush() })
+    await act(async () => { result.current.release(); await flush(); newEvents.push({ type: 'error', message: 'Sample loss' }); await flush() })
     expect(nextSignal.aborted).toBe(true)
     expect(result.current.micError).toBe('network')
     expect(onFinal).toHaveBeenCalledTimes(1)
@@ -239,7 +239,7 @@ describe('voice turn cancellation and ordered deltas', () => {
     streamVoiceEvents.mockImplementationOnce(() => eq.stream())
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal }))
     await act(async () => { result.current.startHold(); await flush(); result.current.release(); await flush() })
-    await act(async () => { eq.push({ type: 'final', text: 'Synthetic answer' }); eq.push({ type: 'done' }); await flush() })
+    await act(async () => { eq.push({ type: 'final', text: 'Sample answer' }); eq.push({ type: 'done' }); await flush() })
     expect(onFinal).toHaveBeenCalledTimes(1)
     expect((streamVoiceEvents.mock.calls[0][2] as AbortSignal).aborted).toBe(true)
     await act(async () => { result.current.startHold(); await flush(); failed(new Error('404')); await flush() })
@@ -345,7 +345,7 @@ describe('voice turn cancellation and ordered deltas', () => {
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok' }))
     await act(async () => { result.current.startHold(); await flush() })
     await act(async () => { result.current.stop(); result.current.startHold(); await flush() })
-    await act(async () => { failed(new Error('Synthetic old initialization failure')); await flush() })
+    await act(async () => { failed(new Error('Sample old initialization failure')); await flush() })
     expect(result.current.isListening).toBe(true)
     expect(result.current.micError).toBeNull()
     expect(startRecording).toHaveBeenCalledTimes(2)
@@ -382,21 +382,21 @@ describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
     useSessionStore.setState({
       role: 'educator',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sessionConfig: { student_name: 'Synthetic Learner One' } as any,
+      sessionConfig: { student_name: 'Sample Learner One' } as any,
     })
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal: vi.fn() }))
     await act(async () => {
       result.current.startHold()
       await flush()
     })
-    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', { student_name: 'Synthetic Learner One' }, expect.any(AbortSignal))
+    expect(startVoiceStream).toHaveBeenCalledWith('tok', 'en', { student_name: 'Sample Learner One' }, expect.any(AbortSignal))
   })
 
   it('a parent session sends no learner scope', async () => {
     useSessionStore.setState({
       role: 'parent',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      sessionConfig: { student_name: 'Synthetic Learner One' } as any,
+      sessionConfig: { student_name: 'Sample Learner One' } as any,
     })
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal: vi.fn() }))
     await act(async () => {
@@ -1574,7 +1574,7 @@ describe('a lost voice stream falls back to sending the whole answer', () => {
   it('an educator turn keeps the old behaviour: no unscoped upload of a learner\'s voice', async () => {
     // Educator voice is bound to one learner's grant (G1); the one-shot
     // endpoint carries no learner scope, so it must not be used for them.
-    useSessionStore.setState({ role: 'educator', sessionConfig: { student_name: 'Synthetic Learner' } as never })
+    useSessionStore.setState({ role: 'educator', sessionConfig: { student_name: 'Sample Learner' } as never })
     try {
       const eq = makeEventStream()
       streamVoiceEvents.mockImplementation(() => eq.stream())

@@ -95,7 +95,7 @@ Evidence records bind exact target ID/version/hash, author run, distinct reviewe
 run/identity/version (explicit `unavailable` if not exposed), UTC date, role,
 scope/method, source and assessment artifacts, findings/disagreements/conditions,
 decision and validation command/result. Store evidence under role-authorized
-access, with retention/deletion and revocation references. Synthetic and actual
+access, with retention/deletion and revocation references. Sample and actual
 learner evidence must never be conflated; no real learner use is allowed here.
 `contract.py` rejects self-review, stale review targets and unchecked claims.
 

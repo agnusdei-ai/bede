@@ -84,7 +84,7 @@ async def _seed_all_tables(db, student_name: str):
 
     now = datetime.now(timezone.utc)
     db.add(StudentConfig(student_name=student_name, config_enc=encrypt_json({"a": 1})))
-    # Synthetic binding is intentionally populated so the deletion and isolation
+    # Sample binding is intentionally populated so the deletion and isolation
     # assertions exercise the new table, not an empty-row false positive.
     db.add(ChildLearnerBinding(
         device_id=f"test-device-{student_name}",
@@ -92,7 +92,7 @@ async def _seed_all_tables(db, student_name: str):
         nonce=f"test-nonce-{student_name}",
     ))
     db.add(ChildPin(
-        student_name=student_name, pin_hash=b"synthetic-hash", pin_salt=b"synthetic-salt",
+        student_name=student_name, pin_hash=b"sample-hash", pin_salt=b"sample-salt",
         nonce=f"pin-nonce-{student_name}", failure_count=0,
     ))
     db.add(VoiceProfile(student_name=student_name, profile_enc=encrypt_json({"a": 1})))
@@ -238,7 +238,7 @@ async def test_student_export_lists_a_child_pin_but_never_its_credential(db_sess
     assert row["student_name"] == "Emma"
     for column in ("pin_hash", "pin_salt", "nonce"):
         assert row[column] == "withheld: sign-in credential, not exported"
-    assert "synthetic-hash" not in repr(row) and "pin-nonce-Emma" not in repr(row)
+    assert "sample-hash" not in repr(row) and "pin-nonce-Emma" not in repr(row)
 
 
 @pytest.mark.asyncio

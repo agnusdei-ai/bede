@@ -58,10 +58,10 @@ def _wizard_fields(**overrides) -> dict:
         "child_pin": suggest_pin(),
         "license_key": (
             base64.urlsafe_b64encode(json.dumps({
-                "id": "synthetic-test", "licensee": "Synthetic test",
+                "id": "sample-test", "licensee": "Sample test",
                 "tier": "trial", "expires": "2099-12-31",
             }).encode("utf-8")).decode("ascii").rstrip("=")
-            + ".synthetic-only"
+            + ".sample-only"
         ),
     }
     fields.update(overrides)

@@ -55,8 +55,8 @@ describe('single guided website survey', () => {
   })
   it('sends the complete answers through the existing API without saving browser storage', async () => {
     const local = vi.spyOn(Storage.prototype, 'setItem')
-    const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ code: 'SYNTHETIC' }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'synthetic-test-token' }) })
+    const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ code: 'SAMPLE' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'sample-test-token' }) })
       .mockResolvedValueOnce({ ok: true })
     vi.stubGlobal('fetch', fetch)
     const form = mount('https://example.onrender.com')
@@ -114,7 +114,7 @@ describe('single guided website survey', () => {
     expect((document.querySelector('#form-overflow textarea') as HTMLTextAreaElement)?.value).toContain('x'.repeat(2100))
   })
   it('preserves answers after a delivery failure and offers a copyable handoff', async () => {
-    const fetch = vi.fn().mockRejectedValue(new TypeError('synthetic network failure'))
+    const fetch = vi.fn().mockRejectedValue(new TypeError('sample network failure'))
     vi.stubGlobal('fetch', fetch)
     const form = mount('https://example.onrender.com')
     reachReview()

@@ -487,7 +487,7 @@ is not automatically retried because the server may already be working;
 the existing limited retries remain for eligible transport failures before
 any reply reaches the caller.
 
-Synthetic regressions exercise the real router functions and session
+Sample regressions exercise the real router functions and session
 reader, with fake transcription and shortened test deadlines. They do not
 establish the cause of the reported production 404s, validate live routing,
 or verify microphone behavior on a physical tablet.
@@ -938,13 +938,13 @@ directly measured" gap.** `tests/test_transcription.py` proves the
 semaphore serializes calls; it never measures WHAT that serialization
 actually costs a real child waiting on the "Transcribing…" spinner, over
 the real HTTP/SSE wire the client actually uses. `scripts/
-voice_latency_probe.py` does: it drives N concurrent simulated voice calls
+voice_latency_probe.py` does: it drives N concurrent mock voice calls
 against a real running instance, using the exact same wire behavior as
 `useHybridVoiceInput.ts` (raw 16kHz PCM deltas every
 `CHUNK_UPLOAD_INTERVAL_MS`, not the legacy RIFF path), and measures
 release→final latency — the same number `useHybridVoiceInput.ts`'s own
 `processingMs` reports client-side. Run with `services/transcription.py`'s
-`_transcribe_sync` swapped for a controllable artificial delay (real
+`_transcribe_sync` swapped for a controllable injected delay (real
 faster-whisper/torch isn't installable in every dev sandbox — see that
 script's own docstring), so real inference *quality* isn't exercised, but
 the actual code path under test — `transcribe_audio()`'s semaphore
@@ -2067,7 +2067,7 @@ The mic button simply never got the same treatment.
 Three details worth keeping:
 
 - **`onPointerLeave` is retained, but only as a fallback for when capture
-  could not be established at all** (a very old WebView, a synthetic pointer
+  could not be established at all** (a very old WebView, a sample pointer
   with no usable id). When capture succeeded, a leave event is ignored,
   because leaving the box is not the end of the gesture. Degrading to the
   old lossy behavior is still better than a hold that can only end at the

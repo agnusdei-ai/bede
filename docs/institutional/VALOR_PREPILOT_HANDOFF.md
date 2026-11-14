@@ -10,9 +10,9 @@
 2. In **Official result**, transcribe an *illustrative* DIBELS 8, NWEA MAP or STAAR report: campus, learner, grade, date, source and form/report identifier, benchmark/progress purpose, period, Valor quarter, measure, scored or unscored status, and optional official composite copied verbatim.
 3. In **Teacher observation**, enter classroom evidence separate from the standardized result.
 4. In **Data Day**, examine both records and approve, edit or reject an illustrative instructional next step. No instruction is delivered.
-5. **Review record** presents a chronological simulated action trail and local export for discussion.
+5. **Review record** presents a chronological mock action trail and local export for discussion.
 
-**Guardrails:** Proprietary assessment passages, items, prompts and scoring tables are never recreated. Skipped, not administered, invalid and other non-scored statuses remain nonnumeric (\`raw_score: null\`), never zero. No composite is inferred. The sample teaching prompt is static and explicitly not inference. A correction appends a linked replacement record; the previous simulated record is retained in the exported trail.
+**Guardrails:** Proprietary assessment passages, items, prompts and scoring tables are never recreated. Skipped, not administered, invalid and other non-scored statuses remain nonnumeric (\`raw_score: null\`), never zero. No composite is inferred. The sample teaching prompt is static and explicitly not inference. A correction appends a linked replacement record; the previous mock record is retained in the exported trail.
 
 ## What Valor's 2025–26 District Improvement Plan actually establishes
 
@@ -30,7 +30,7 @@ The DIP **does not** identify Valor's currently approved DIBELS edition, individ
 | Experience | Assessment data | Credentials | Real services | Evidence |
 | --- | --- | --- | --- | --- |
 | **Prepilot walkthrough** | Fixed fictional learner, locally entered illustrations only | None | None; file opened offline | Exported JSON and browser-tab simulation trail. Not cryptographically verified |
-| **Installed G3 candidate** | Synthetic only | Real authorized WebAuthn/passkey + operator configuration | Local Docker application and database | Real G1/G2 lifecycle, restart/revocation/deletion tests and redacted evidence |
+| **Installed G3 candidate** | Sample only | Real authorized WebAuthn/passkey + operator configuration | Local Docker application and database | Real G1/G2 lifecycle, restart/revocation/deletion tests and redacted evidence |
 | **Future live Valor pilot** | Not authorized in this iteration | Institution-owned identities | Requires separate GO | Separate acceptance and data/privacy authorization |
 
 The authenticated pilot is **teacher-only**: assessment → Data Day → recommendation → teacher approve/edit/reject → recorded plan → teacher personally instructs → observation/checkpoint. **delivery_state = NOT_REQUESTED**. The prepilot does not infer or certify its operational security.

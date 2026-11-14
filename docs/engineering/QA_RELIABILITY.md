@@ -38,7 +38,7 @@ uses read-only tokens and never edits code, commits, merges or deploys.
 * CodeQL, pip-audit, npm audit (moderate and above), dependency evidence,
   identity isolation, passkeys, authorization, deletion, backups and licensing
   gates remain enforced.
-* Synthetic qualification is for frozen-SHA engineering evidence; authentic
+* Sample qualification is for frozen-SHA engineering evidence; authentic
   Mac installation and supervised human pilot acceptance remain distinct.
 * Full regression is reserved for main, releases, critical/security/shared
   boundary changes and uncertain test mappings. Nothing can downgrade the
@@ -83,7 +83,7 @@ Root causes directly confirmed from sampled job logs:
    accessible-name query; preserve the component's accessible behavior.
 4. CI action configuration — Node 24 verifier caught unreviewed upload-artifact
    SHAs. Use the reviewed SHA; do not modify the verifier to pass.
-5. Demo watchdog repeatedly failed synthetic find-button on device profiles.
+5. Demo watchdog repeatedly failed sample find-button on device profiles.
    A Cloudflare beacon CSP warning is present but is not itself proof of
    cause. Inspect captured browser/selector/JS evidence, not rerun blindly.
 6. Other production, G1 and CodeQL failures lacked sufficient accessible

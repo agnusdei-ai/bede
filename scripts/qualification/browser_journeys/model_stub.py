@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Loopback OpenAI-compatible model stub with injected latency (synthetic only).
+"""Loopback OpenAI-compatible model stub with injected latency (sample only).
 
 Used by run_journeys.py (cross-platform browser journeys, #599/#755). Binds
-127.0.0.1 only. Returns one fixed synthetic worksheet reading, a safety
+127.0.0.1 only. Returns one fixed sample worksheet reading, a safety
 verdict, a moderation verdict, or streamed tutor text. Every completion waits a random
 0.5-3.0 s (non-stream: whole delay before reply; stream: 0.4-1.2 s to first
 token, then chunks) so concurrent requests genuinely overlap.
@@ -21,7 +21,7 @@ READING = {"subject": "history", "sections": [{
      "teacher_correction": "pharoh", "confidence": 0.4, "ask_parent": "Is the teacher's correction spelled pharoh or pharaoh?"},
     {"number": 3, "prompt": "What did Egyptians make paper from?", "student_response": "reeds", "teacher_mark": "incorrect"},
     {"number": 4, "prompt": "On which continent is Egypt?", "student_response": "Africa", "teacher_mark": "correct"}]}]}
-REPLY = "STUB-TUTOR synthetic reply. Good thinking. What clue in the question helped you decide?"
+REPLY = "STUB-TUTOR sample reply. Good thinking. What clue in the question helped you decide?"
 
 
 def log(entry):
@@ -40,7 +40,7 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.rstrip("/").endswith("/models"):
-            return self._send(200, {"object": "list", "data": [{"id": "synthetic-stub", "object": "model"}]})
+            return self._send(200, {"object": "list", "data": [{"id": "sample-stub", "object": "model"}]})
         self._send(404, {})
 
     def do_POST(self):
@@ -57,11 +57,11 @@ class H(BaseHTTPRequestHandler):
                 time.sleep(random.uniform(0.4, 1.2))
                 words = REPLY.split(" ")
                 for i in range(0, len(words), 2):
-                    ch = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "synthetic-stub",
+                    ch = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "sample-stub",
                           "choices": [{"index": 0, "delta": {"role": "assistant", "content": " ".join(words[i:i+2]) + " "}, "finish_reason": None}]}
                     self.wfile.write(b"data: " + json.dumps(ch).encode() + b"\n\n"); self.wfile.flush()
                     time.sleep(random.uniform(0.05, 0.2))
-                end = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "synthetic-stub", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
+                end = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "sample-stub", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
                 self.wfile.write(b"data: " + json.dumps(end).encode() + b"\n\ndata: [DONE]\n\n"); self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError):
                 kind = "stream-cancelled"
@@ -75,9 +75,9 @@ class H(BaseHTTPRequestHandler):
         elif '"flagged"' in sysmsg:
             kind, content = "moderation", json.dumps({"flagged": False, "categories": [], "confidence": "low"})
         else:
-            kind, content = "other", "STUB-SUMMARY synthetic."
+            kind, content = "other", "STUB-SUMMARY sample."
         try:
-            self._send(200, {"id": "x", "object": "chat.completion", "created": int(time.time()), "model": "synthetic-stub",
+            self._send(200, {"id": "x", "object": "chat.completion", "created": int(time.time()), "model": "sample-stub",
                 "choices": [{"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}}],
                 "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}})
         except (BrokenPipeError, ConnectionResetError):

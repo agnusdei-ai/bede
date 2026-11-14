@@ -1,4 +1,4 @@
-"""Seed synthetic fixtures through the REAL application API, and sign in.
+"""Seed sample fixtures through the REAL application API, and sign in.
 
 Order, every step an HTTP call to the running server:
 
@@ -7,10 +7,10 @@ Order, every step an HTTP call to the running server:
      password login again (now parent_pending) -> passkey assertion
      (POST /mfa/webauthn/authenticate/*) -> a ``webauthn_uv`` admin session
      -> elevate. That is the only session the /pilot admin routes accept.
-  2. Synthetic Campus One and Two (POST /pilot/campuses).
-  3. Synthetic Learner One and Two — the SAME display name, one per campus
+  2. Sample Campus One and Two (POST /pilot/campuses).
+  3. Sample Learner One and Two — the SAME display name, one per campus
      (POST /pilot/campuses/{id}/learners).
-  4. Synthetic Teacher One and Two:
+  4. Sample Teacher One and Two:
        virtual_authenticator (default): POST /auth/educator-passkey/invite,
          then the invitation ticket -> register/options -> create() ->
          register/verify -> login/options -> get() -> login/verify.
@@ -18,7 +18,7 @@ Order, every step an HTTP call to the running server:
   5. Memberships and roster grants, each teacher to their own campus and
      learner only (POST /pilot/campuses/{c}/educators/{t}[/learners/{l}]).
 
-Every name sent is checked against the synthetic allowlist first. The
+Every name sent is checked against the sample allowlist first. The
 transcript written to <out>/seed.json holds ids, routes and status codes only.
 """
 from __future__ import annotations
@@ -41,14 +41,14 @@ import httpx  # noqa: E402
 CREATE_ATTEMPTS = 3
 
 
-class NotSynthetic(ValueError):
+class NotSample(ValueError):
     pass
 
 
-def assert_synthetic(name: str) -> str:
-    """Refuse any identity outside the synthetic allowlist."""
+def assert_sample(name: str) -> str:
+    """Refuse any identity outside the sample allowlist."""
     if name not in cfg.ALLOWED_NAMES:
-        raise NotSynthetic(f"refusing to seed non-allowlisted identity {name!r}")
+        raise NotSample(f"refusing to seed non-allowlisted identity {name!r}")
     return name
 
 
@@ -123,7 +123,7 @@ class Seeder:
                              "/mfa/webauthn/register/options", tok)
         cred = self.driver.create("admin", options)
         self._step("admin_passkey_register_verify", "POST", "/mfa/webauthn/register/verify",
-                   tok, {"credential": cred, "nickname": "Synthetic admin key"})
+                   tok, {"credential": cred, "nickname": "Sample admin key"})
         login = self._step("admin_password_login_mfa", "POST", "/auth/login", None,
                            {"role": "parent", "credential": pw})
         if not login.get("mfa_required"):
@@ -140,14 +140,14 @@ class Seeder:
     # ── 2-3. campuses and learners ───────────────────────────────────────────
     def seed_campuses_and_learners(self) -> None:
         for key, title in cfg.CAMPUS_TITLES.items():
-            body = {"title": assert_synthetic(title)}
+            body = {"title": assert_sample(title)}
             self.fx.campus[key] = self._step(f"create_{key}", "POST", "/pilot/campuses",
                                              self.fx.admin_token, body,
                                              idempotent=True)["campus_id"]
         for campus_key in cfg.CAMPUS_TITLES:
             self.authorize_campus(campus_key)
         for learner, campus in cfg.LEARNER_FIXTURES.items():
-            body = {"display_name": assert_synthetic(cfg.SHARED_LEARNER_DISPLAY_NAME)}
+            body = {"display_name": assert_sample(cfg.SHARED_LEARNER_DISPLAY_NAME)}
             self.fx.learner[learner] = self._step(
                 f"create_{learner}", "POST", f"/pilot/campuses/{self.fx.campus[campus]}/learners",
                 self.fx.admin_token, body, idempotent=True)["learner_id"]
@@ -159,7 +159,7 @@ class Seeder:
         shown = self._step(f"data_authorization_notice_{key}", "GET", path, self.fx.admin_token)
         self._step(f"data_authorization_grant_{key}", "POST", path, self.fx.admin_token,
                    {"notice_hash": shown["notice_hash"],
-                    "authorizer_name": "Synthetic Administrator",
+                    "authorizer_name": "Sample Administrator",
                     "authorizer_role": "administrator"})
 
     # ── 4. teachers ──────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ class Seeder:
             self._mint_teachers()
             return
         for key, username in cfg.TEACHER_USERNAMES.items():
-            body = {"username": assert_synthetic(username),
+            body = {"username": assert_sample(username),
                     "institutional_email": f"{username}@{cfg.INSTITUTION_EMAIL_DOMAIN}"}
             r = self.api.call("POST", "/auth/educator-passkey/invite", self.fx.admin_token, body)
             self.fx.steps.append({"step": f"invite_{key}", "method": "POST",
@@ -202,7 +202,7 @@ class Seeder:
         """The full real passkey enrollment + sign-in for one teacher, once a
         ticket exists. Kept here so the ceremony is ready the moment an
         approved delivery channel exists; exercised by local verification."""
-        username = assert_synthetic(cfg.TEACHER_USERNAMES[key])
+        username = assert_sample(cfg.TEACHER_USERNAMES[key])
         ticket = {"ticket_id": ticket_id, "ticket_token": ticket_token}
         options = self._step(f"{key}_register_options", "POST",
                              "/auth/educator-passkey/register/options", None, ticket)
@@ -224,7 +224,7 @@ class Seeder:
 
     def _mint_teachers(self) -> None:
         ids = asyncio.run(_provision_and_mint(
-            {k: assert_synthetic(v) for k, v in cfg.TEACHER_USERNAMES.items()}, self.api.ua))
+            {k: assert_sample(v) for k, v in cfg.TEACHER_USERNAMES.items()}, self.api.ua))
         for key, (ident, token) in ids.items():
             self.fx.teacher_id[key] = ident
             self.fx.teacher_token[key] = token

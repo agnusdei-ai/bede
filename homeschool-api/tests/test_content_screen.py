@@ -31,7 +31,7 @@ from tests.test_teacher_quiz import APPROVED
 
 pytestmark = pytest.mark.real_content_screen
 
-DEMO = {"role": "demo_code", "code": "synthetic-demo"}
+DEMO = {"role": "demo_code", "code": "sample-demo"}
 SCREEN_MARK = "You check pictures before a K-8 school app"
 READING = json.dumps(GOLDEN["assessment"])
 
@@ -319,12 +319,12 @@ def test_a_teachers_quiz_and_student_work_are_checked_over_http(monkeypatch, tea
     else:
         body = {"quiz": APPROVED, "pages": pages, "upload_consent": True}
     out = teacher_http.post(f"/practice/educator/teacher-quiz/{call}", json=body,
-                            headers={"user-agent": "synthetic-teacher-browser"})
+                            headers={"user-agent": "sample-teacher-browser"})
     assert out.status_code == 422, out.text
     assert client.readings() == []
     (refusal,) = [kw for event, kw in audited if event == AuditEvent.UPLOAD_REFUSED]
     assert refusal["detail"] == "category=sexual_content surface=worksheet"
-    assert refusal["user_agent"] == "synthetic-teacher-browser"  # who sent it, bound by the router
+    assert refusal["user_agent"] == "sample-teacher-browser"  # who sent it, bound by the router
 
 
 def test_only_the_screened_wrapper_hands_pages_to_a_model():
@@ -529,7 +529,7 @@ def test_refusals_alert_a_parent_on_the_same_terms_as_flagged_text():
 
 @pytest.mark.asyncio
 async def test_the_check_asks_for_a_repeatable_verdict():
-    """The live probe sent one synthetic game screen twice: passed at the
+    """The live probe sent one sample game screen twice: passed at the
     default temperature, refused the next run. The verdict must not vary."""
     client = ScreenClient(OK)
     await content_screen.screen_images(client, [("image/png", "iVBORw0KGgo=")], "worksheet")

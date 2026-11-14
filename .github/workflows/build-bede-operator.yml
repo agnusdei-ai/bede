@@ -110,7 +110,7 @@ jobs:
               "architecture": "${{ matrix.arch }}",
               "build_run_url": f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}',
               "contents": "source-free operator images and launchers",
-              "scope": "teacher-directed, synthetic-only Valor pilot evaluation",
+              "scope": "teacher-directed, sample-only Valor pilot evaluation",
               "learner_delivery": "NOT_REQUESTED",
               "physical_mac": "NOT_RUN",
               "engineering_acceptance": "NOT_SIGNED",
@@ -520,7 +520,7 @@ jobs:
           deb="dist/linux-native/Bede-Engineering-Linux-$arch.deb"
           fixture="$RUNNER_TEMP/bede-private-data/Homeschool/local"
           mkdir -p "$fixture"
-          printf '%s\n' 'synthetic-data-keep' > "$fixture/learner-fixture.txt"
+          printf '%s\n' 'sample-data-keep' > "$fixture/learner-fixture.txt"
           sudo dpkg --install "$deb"
           dpkg-query -W -f='${Status}\n' bede-installer | grep -qx 'install ok installed'
           test -x /usr/bin/bede-installer
@@ -533,8 +533,8 @@ jobs:
           sudo dpkg --remove bede-installer
           test ! -e /usr/bin/bede-installer
           test -f "$fixture/learner-fixture.txt"
-          test "$(cat "$fixture/learner-fixture.txt")" = synthetic-data-keep
-          echo 'Native DEB install/uninstall is data-preserving and does not start Bede (synthetic runner only)'
+          test "$(cat "$fixture/learner-fixture.txt")" = sample-data-keep
+          echo 'Native DEB install/uninstall is data-preserving and does not start Bede (sample runner only)'
 
       - name: Exercise RPM installation and removal in an isolated root
         shell: bash

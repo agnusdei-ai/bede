@@ -61,17 +61,17 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
-      blob: async () => new Blob(['synthetic-audio'], { type: 'audio/wav' }),
+      blob: async () => new Blob(['sample-audio'], { type: 'audio/wav' }),
     }))
     const { result } = renderHook(() => useTextToSpeech('fake-token'))
-    act(() => { void result.current.speak('Synthetic first utterance.') })
+    act(() => { void result.current.speak('Sample first utterance.') })
     await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1))
     expect(result.current.isSpeaking).toBe(true)
     act(() => result.current.stop())
     expect(window.HTMLMediaElement.prototype.pause).toHaveBeenCalledTimes(1)
     expect(window.speechSynthesis.cancel).toHaveBeenCalled()
     expect(result.current.isSpeaking).toBe(false)
-    act(() => { void result.current.speak('Synthetic next utterance.') })
+    act(() => { void result.current.speak('Sample next utterance.') })
     await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2))
     expect(result.current.isSpeaking).toBe(true)
     await act(async () => { audio.onended?.(new Event('ended')) })
@@ -86,7 +86,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     const response = {
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
-      blob: async () => new Blob(['synthetic-audio'], { type: 'audio/wav' }),
+      blob: async () => new Blob(['sample-audio'], { type: 'audio/wav' }),
     }
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => new Promise((resolve) => { finishOldFetch = resolve }))
@@ -97,9 +97,9 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
       return Promise.resolve()
     })
     const { result } = renderHook(() => useTextToSpeech('fake-token'))
-    act(() => { void result.current.speak('Synthetic slow utterance.') })
+    act(() => { void result.current.speak('Sample slow utterance.') })
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
-    act(() => { result.current.stop(); void result.current.speak('Synthetic current utterance.') })
+    act(() => { result.current.stop(); void result.current.speak('Sample current utterance.') })
     await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1))
     await act(async () => { finishOldFetch(response); await new Promise((resolve) => setTimeout(resolve, 0)) })
     expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1)

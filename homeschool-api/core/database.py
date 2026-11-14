@@ -918,7 +918,7 @@ class SessionTranscript(Base):
     __tablename__ = "session_transcripts"
 
     # PostgreSQL keeps BIGINT; SQLite needs the exact INTEGER PRIMARY KEY
-    # affinity for auto-generated IDs in synthetic pilot HTTP/integration tests.
+    # affinity for auto-generated IDs in sample pilot HTTP/integration tests.
     id: Mapped[int] = mapped_column(
         BigInteger().with_variant(Integer(), "sqlite"),
         primary_key=True, autoincrement=True,

@@ -409,7 +409,7 @@ applied measurement:
   watch (3 detections in 10 minutes from one IP alerts a parent).
 - **Diagnostic-engine accuracy against ground truth**:
   `docs/diagnostic/DIAGNOSTIC_ENGINE_DESIGN.md`'s "Phase 5 tuning" work
-  (described in full in `CLAUDE.md`) generated simulated students with a
+  (described in full in `CLAUDE.md`) generated mock students with a
   *known* knowledge state, sampled answers from the DINA response model,
   and scored the engine's own verdicts against that known truth — a real
   measured accuracy result (a struggling child drew a false-secure

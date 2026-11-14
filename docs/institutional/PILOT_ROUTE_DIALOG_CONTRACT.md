@@ -1,6 +1,6 @@
 # Bede pilot mission routes and human dialogue contract
 
-Status: **proposed API + experience acceptance contract**. This document does not claim the routes have been implemented. One Bede interface for teachers and learners; no autonomous teacher approvals. Synthetic-only Valor pilot; source candidates #613 (G1), #604 (G2), #609 (owner/deletion), authoritative gates #588. The Claude HITL automation is separate. Avoid competing edits to those branches.
+Status: **proposed API + experience acceptance contract**. This document does not claim the routes have been implemented. One Bede interface for teachers and learners; no autonomous teacher approvals. Sample-only Valor pilot; source candidates #613 (G1), #604 (G2), #609 (owner/deletion), authoritative gates #588. The Claude HITL automation is separate. Avoid competing edits to those branches.
 
 ## 1. Exact missing-route inventory and owners
 
@@ -59,7 +59,7 @@ Never render trusted action buttons from LLM-generated Markdown. Server response
 1. Complete human review of #613 integrated G1. Preserve absent cells and the pilot HOLD; audit revocation, campus isolation, voice SSE, assessment and cache evidence.
 2. Restack #604 against accepted G1 and retest educator approve/edit/reject, abstention, stale/replayed decision, revoked mid-save, tampered hash chain, actual browser focus and errors. No automatic learner delivery.
 3. Integrate #609 owner deletion with ALL current G1 and G2 tables. Resolve matrix method mismatch honestly with new negative tests, verified receipt, rollback, backup disclosure and one canonical owner operation.
-4. Isolated follow-up: build GET history and GET diagnostic from real stored UUID-keyed records; return empty/no evidence when appropriate. Test missing/other-campus/revoked access and retention; no synthetic responses disguised as production.
+4. Isolated follow-up: build GET history and GET diagnostic from real stored UUID-keyed records; return empty/no evidence when appropriate. Test missing/other-campus/revoked access and retention; no sample responses disguised as production.
 5. Build POST tutor/SSE ONLY after explicit scope enables learner delivery, using local-only model and authorized teacher plan; test cancellation, concurrent revocation, moderation unavailable, tool boundaries, full 16k+ prompt and Mac performance. Otherwise retain the 25 tutoring-related ABSENT cells and a teacher-use-only product claim.
 6. Run one exact-SHA two-campus qualification matrix plus keyboard/screen-reader functional checks and physical Mac/device HITL evidence. Release decisions are separate, dated owner actions.
 

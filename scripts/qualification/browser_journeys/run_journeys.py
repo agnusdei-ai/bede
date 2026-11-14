@@ -5,11 +5,11 @@ Runs on a real Windows or macOS runner (see
 .github/workflows/cross-platform-browser-journeys.yml). Starts the real
 `uvicorn main:app` with its real lifespan on a file-backed SQLite database,
 the real homeschool-tutor build under `vite preview`, and a loopback model
-stub. Seeds one synthetic household through the real API, then runs
+stub. Seeds one sample household through the real API, then runs
 journeys.cjs, which drives every requested browser at the same time against
 this one service. Restarts the API mid-run when journeys.cjs asks.
 
-Synthetic data only. No commercial model, no mail, no real learner.
+Sample data only. No commercial model, no mail, no real learner.
 Exits non-zero if any journey check fails.
 
     python run_journeys.py --sha <40-hex> --browsers chrome,msedge --out <dir>
@@ -49,7 +49,7 @@ def ev(**k):
 def print_log_tails(out: Path) -> None:
     """Artifacts are not always reachable by whoever reads the run, so a
     failing run also prints the end of the service logs it depended on.
-    Synthetic data only; these logs carry no credentials."""
+    Sample data only; these logs carry no credentials."""
     for name in ("api.log", "stub.log", "preview.log"):
         f = out / name
         if f.exists():
@@ -73,13 +73,13 @@ def wait_http(url: str, proc: subprocess.Popen | None, what: str, timeout: float
 
 
 def make_fixtures(out: Path) -> Path:
-    """A synthetic graded quiz page as PNG and as an image PDF (Pillow only)."""
+    """A sample graded quiz page as PNG and as an image PDF (Pillow only)."""
     from PIL import Image, ImageDraw
     fx = out / "fixtures"
     fx.mkdir(parents=True, exist_ok=True)
     img = Image.new("RGB", (1240, 1754), "white")
     d = ImageDraw.Draw(img)
-    lines = ["Synthetic quiz - Ancient Egypt", "1. Which river flooded every year?  Nile   (correct)",
+    lines = ["Sample quiz - Ancient Egypt", "1. Which river flooded every year?  Nile   (correct)",
              "2. What was the ruler called?  king   (x)  pharoh", "3. What did they make paper from?  reeds  (x)",
              "4. On which continent is Egypt?  Africa  (correct)"]
     for i, line in enumerate(lines):
@@ -117,9 +117,9 @@ def main() -> int:
     fixtures = make_fixtures(out)
 
     # One learner per browser; the household parent and every child sign in at once.
-    learners = {f"Synthetic Learner {chr(65 + i)}": pin for i, pin in
+    learners = {f"Sample Learner {chr(65 + i)}": pin for i, pin in
                 enumerate(["582916", "694217", "815372", "927481", "361948"][:len(browsers)])}
-    parent_password = "synthetic-" + secrets.token_hex(12)
+    parent_password = "sample-" + secrets.token_hex(12)
     env = {k: v for k, v in os.environ.items()
            if not k.endswith("_API_KEY") and not k.startswith(("STRIPE_", "AZURE_"))}
     env.update(
@@ -127,7 +127,7 @@ def main() -> int:
         DATABASE_URL="sqlite+aiosqlite:///" + (out / "journeys.db").as_posix(),
         SECRET_KEY=secrets.token_hex(32), MASTER_SECRET=secrets.token_hex(32),
         PARENT_PASSWORD=parent_password, CHILD_PIN="739184",
-        LOCAL_LLM_BASE_URL=f"http://127.0.0.1:{STUB_PORT}/v1", LOCAL_LLM_MODEL="synthetic-stub",
+        LOCAL_LLM_BASE_URL=f"http://127.0.0.1:{STUB_PORT}/v1", LOCAL_LLM_MODEL="sample-stub",
         BEDE_FORCE_ADAPTER="local", TRANSCRIPTION_PROVIDER="local",
         MCP_EXTERNAL_ENABLED="false", LOCUTO_IPC_ENABLED="false",
         # Every browser here shares the runner's loopback address; a real LAN gives each device its own.
@@ -220,7 +220,11 @@ def main() -> int:
             (out / "journeys.db").unlink(missing_ok=True)
         except PermissionError as exc:
             print(f"could not remove journeys.db: {exc}", flush=True)
-    sys.stdout.write((out / "journeys.log").read_text(encoding="utf-8", errors="replace"))
+    # The log holds emoji; a Windows console's cp1252 cannot print them, and a
+    # crash here hid the real result. Write bytes, replacing what won't encode.
+    text = (out / "journeys.log").read_text(encoding="utf-8", errors="replace")
+    sys.stdout.buffer.write(text.encode(sys.stdout.encoding or "utf-8", errors="replace"))
+    sys.stdout.flush()
     if rc:
         print_log_tails(out)
     return rc or 0

@@ -10,7 +10,7 @@ Before full-year authoring, require the proprietary production specification, de
 
 ## Freshness and checkout handling
 
-The earlier baseline inspected feature HEAD `597057406489880a1abe3fb57ac1beaafc48e776`. Its source hashes and15 synthetic check names are preserved in `source-evidence.json`; they are not reinterpreted as current-main tests.
+The earlier baseline inspected feature HEAD `597057406489880a1abe3fb57ac1beaafc48e776`. Its source hashes and15 sample check names are preserved in `source-evidence.json`; they are not reinterpreted as current-main tests.
 
 For this integration, a **read-only** remote heads query resolved `agnusdei-ai/bede` main to `e0e57d1bd45d83c0b422410c58395d9a9b0b3f7b`. That exact object was fetched without writing FETCH_HEAD or branch refs, and a separate detached local worktree was created from it:
 

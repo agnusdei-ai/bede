@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
 
 @pytest.fixture(autouse=True)
 def authorized_install_ack(monkeypatch):
-    """Locale validation runs under an authorized synthetic installation."""
+    """Locale validation runs under an authorized sample installation."""
     monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
     monkeypatch.setattr(settings, "consent_install_ack_at", datetime.now(timezone.utc).isoformat())
 

@@ -3,12 +3,12 @@
 
 Everything else in a qualification run is the real application: real
 uvicorn, real lifespan, real Postgres, real routes. The model vendor is the
-one thing replaced, because a synthetic run must never reach a commercial
+one thing replaced, because a sample run must never reach a commercial
 API and must be deterministic.
 
 Speaks just enough of /v1 for services/adapters/openai_compatible_adapter.py:
   GET  /v1/models            — the health check the lifespan task pings
-  POST /v1/chat/completions  — streamed (SSE) or not; returns fixed synthetic
+  POST /v1/chat/completions  — streamed (SSE) or not; returns fixed sample
                                text in small chunks, slowly enough that a
                                revocation can land mid-stream.
 
@@ -27,7 +27,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-SYNTHETIC_REPLY = ("This is a synthetic qualification reply. "
+SAMPLE_REPLY = ("This is a sample qualification reply. "
                    "What do you notice about the example? ") * 3
 CHUNK_DELAY_S = 0.25
 
@@ -61,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
         self._record(None)
         if self.path.rstrip("/").endswith("/models"):
             self._json(200, {"object": "list", "data": [
-                {"id": "synthetic-stub", "object": "model", "owned_by": "qualification"}]})
+                {"id": "sample-stub", "object": "model", "owned_by": "qualification"}]})
         else:
             self._json(404, {"error": "not found"})
 
@@ -75,14 +75,14 @@ class Handler(BaseHTTPRequestHandler):
         if not self.path.rstrip("/").endswith("/chat/completions"):
             self._json(404, {"error": "not found"})
             return
-        model = body.get("model") or "synthetic-stub"
+        model = body.get("model") or "sample-stub"
         created = int(time.time())
         if not body.get("stream"):
             self._json(200, {
-                "id": "chatcmpl-synthetic", "object": "chat.completion", "created": created,
+                "id": "chatcmpl-sample", "object": "chat.completion", "created": created,
                 "model": model,
                 "choices": [{"index": 0, "finish_reason": "stop",
-                             "message": {"role": "assistant", "content": SYNTHETIC_REPLY}}],
+                             "message": {"role": "assistant", "content": SAMPLE_REPLY}}],
                 "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
             })
             return
@@ -97,16 +97,16 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
 
         try:
-            words = SYNTHETIC_REPLY.split(" ")
+            words = SAMPLE_REPLY.split(" ")
             for i in range(0, len(words), 3):
-                emit({"id": "chatcmpl-synthetic", "object": "chat.completion.chunk",
+                emit({"id": "chatcmpl-sample", "object": "chat.completion.chunk",
                       "created": created, "model": model,
                       "choices": [{"index": 0, "delta": {"content": " ".join(words[i:i + 3]) + " "},
                                    "finish_reason": None}]})
                 time.sleep(CHUNK_DELAY_S)
-            emit({"id": "chatcmpl-synthetic", "object": "chat.completion.chunk", "created": created,
+            emit({"id": "chatcmpl-sample", "object": "chat.completion.chunk", "created": created,
                   "model": model, "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
-            emit({"id": "chatcmpl-synthetic", "object": "chat.completion.chunk", "created": created,
+            emit({"id": "chatcmpl-sample", "object": "chat.completion.chunk", "created": created,
                   "model": model, "choices": [],
                   "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}})
             self.wfile.write(b"data: [DONE]\n\n")

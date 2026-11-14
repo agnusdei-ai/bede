@@ -65,7 +65,7 @@ def start(path, identifier, payload, port):
     with (logs / "native-service.log").open("ab") as output:
         proc = subprocess.Popen([str(executable)], stdin=subprocess.DEVNULL,
                                 stdout=output, stderr=output, start_new_session=True,
-                                env={**os.environ, "BEDE_SYNTHETIC_ONLY": "1",
+                                env={**os.environ, "BEDE_SAMPLE_ONLY": "1",
                                      "BEDE_NATIVE_PORT": str(port)})
     started_at = subprocess.run(["/bin/ps", "-p", str(proc.pid), "-o", "lstart="],
                                 capture_output=True, text=True, check=False).stdout.strip()
@@ -84,7 +84,7 @@ def start(path, identifier, payload, port):
             try:
                 with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=0.5) as response:
                     health = json.load(response)
-                if health.get("status") == "synthetic-only":
+                if health.get("status") == "sample-only":
                     return {"running": True, "pid": proc.pid, "health": health}
             except (OSError, ValueError):
                 time.sleep(0.2)

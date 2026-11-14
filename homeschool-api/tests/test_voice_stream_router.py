@@ -91,10 +91,10 @@ async def test_stream_finish_succeeds_for_a_known_session():
 @pytest.mark.asyncio
 async def test_repeated_start_events_chunk_finish_lifecycle(monkeypatch):
     async def fake_transcribe(audio_bytes, language="en"):
-        return {"text": "synthetic answer", "language": language}
+        return {"text": "sample answer", "language": language}
 
     monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
-    owner = {"role": "demo_code", "code": "synthetic-owner"}
+    owner = {"role": "demo_code", "code": "sample-owner"}
     for _ in range(3):
         start = await stream_start(StreamStartRequest(language="en"), auth=owner)
         sid = start["session_id"]
@@ -108,7 +108,7 @@ async def test_repeated_start_events_chunk_finish_lifecycle(monkeypatch):
         seen = [json.loads(await asyncio.wait_for(first, timeout=1))]
         seen.extend([json.loads(item) async for item in reader])
         assert seen[-2:] == [
-            {"type": "final", "text": "synthetic answer"},
+            {"type": "final", "text": "sample answer"},
             {"type": "done"},
         ]
         assert sid not in st._sessions
@@ -120,10 +120,10 @@ async def test_metered_recording_silence_outlives_final_timeout(monkeypatch):
     monkeypatch.setattr(st, "STREAM_STALL_TIMEOUT_SECONDS", 0.02)
 
     async def fake_transcribe(*args, **kwargs):
-        return {"text": "synthetic answer"}
+        return {"text": "sample answer"}
 
     monkeypatch.setattr(st, "transcribe_audio", fake_transcribe)
-    owner = {"role": "demo_code", "code": "synthetic-owner"}
+    owner = {"role": "demo_code", "code": "sample-owner"}
     start = await stream_start(StreamStartRequest(language="en"), auth=owner)
     sid = start["session_id"]
     response = await stream_events_endpoint(sid, auth=owner)
@@ -134,7 +134,7 @@ async def test_metered_recording_silence_outlives_final_timeout(monkeypatch):
     assert not first.done(), "Intentional recording silence is not a final-processing stall"
     assert await stream_finish(sid, auth=owner) == {"accepted": True}
     assert json.loads(await asyncio.wait_for(first, timeout=1)) == {
-        "type": "final", "text": "synthetic answer",
+        "type": "final", "text": "sample answer",
     }
     assert [json.loads(item) async for item in reader] == [{"type": "done"}]
     assert sid not in st._sessions
@@ -151,7 +151,7 @@ async def test_final_processing_timeout_wakes_reader_and_cancels_worker(monkeypa
     monkeypatch.setattr(st, "transcribe_audio", hung_transcribe)
     monkeypatch.setattr(st, "partial_passes_are_affordable", lambda: False)
     monkeypatch.setattr(st, "STREAM_STALL_TIMEOUT_SECONDS", 0.02)
-    owner = {"role": "demo_code", "code": "synthetic-owner"}
+    owner = {"role": "demo_code", "code": "sample-owner"}
     start = await stream_start(StreamStartRequest(language="en"), auth=owner)
     sid = start["session_id"]
     session = st._sessions[sid]
@@ -188,7 +188,7 @@ async def test_stream_events_endpoint_yields_plain_json_sse_chunks(monkeypatch):
     await stream_chunk(session_id, audio=_wav_upload(), auth={"role": "parent"})
     # A real gap, like an actual hold (upload, then keep talking, then
     # release) — calling finish immediately with zero elapsed time is a
-    # synthetic race the worker correctly coalesces into a single final
+    # sample race the worker correctly coalesces into a single final
     # pass (proven separately by test_streaming_transcription.py's own
     # coalescing test); this test wants to see partial and final as two
     # distinct events, so it needs to give the worker a chance to process

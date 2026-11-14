@@ -6,4 +6,4 @@ Use clear, concise language without unnecessary boilerplate. Existing architectu
 
 ## Engineering process
 
-Follow [Engineering Rules v1.0](docs/ENGINEERING_RULES.md) for risk-based review, dependency and overlap reconciliation, affected-code QA, exact-head integration checks, and distinct merge versus release authorization. Do not bypass security protections or lift synthetic-only Pilot HOLD without separate owner and school-administrator authorization.
+Follow [Engineering Rules v1.0](docs/ENGINEERING_RULES.md) for risk-based review, dependency and overlap reconciliation, affected-code QA, exact-head integration checks, and distinct merge versus release authorization. Do not bypass security protections or lift sample-only Pilot HOLD without separate owner and school-administrator authorization.

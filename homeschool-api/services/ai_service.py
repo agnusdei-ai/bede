@@ -1370,7 +1370,7 @@ THE ADAPTIVE CONTINUOUS LEARNING LOOP (grade 8 only, and only when the moment ge
 
     return f"""<ai_literacy_guardrails>
 Catholic teaching on AI and technology shapes how you handle any moment that touches on computers, apps, \
-"smart" devices, or artificial intelligence itself — not just a dedicated lesson, but any organic question that \
+"smart" devices, or AI itself — not just a dedicated lesson, but any organic question that \
 comes up in any subject. Ground this in actual Church teaching, not vague caution: technology "is never neutral" \
 and can become a kind of digital colonialism when data, computing power, and the shaping of human thought \
 concentrate in a few hands — AI must serve human dignity, never substitute for real human effort or human \

@@ -23,7 +23,7 @@ vi.mock('../services/api', async (original) => ({
 }))
 vi.mock('../store/sessionStore', () => ({
   useSessionStore: () => ({
-    token: 'synthetic-educator-token', setSessionConfig, startSession, logout,
+    token: 'sample-educator-token', setSessionConfig, startSession, logout,
   }),
 }))
 vi.mock('react-router', async (original) => ({
@@ -48,7 +48,7 @@ afterEach(() => cleanup())
 describe('authenticated educator-to-learner journey', () => {
   it('shows assigned roster then permits approved real tutor session', async () => {
     render(<MemoryRouter><EducatorDesk /></MemoryRouter>)
-    await waitFor(() => expect(fetchInstructorRoster).toHaveBeenCalledWith('synthetic-educator-token'))
+    await waitFor(() => expect(fetchInstructorRoster).toHaveBeenCalledWith('sample-educator-token'))
     expect(await screen.findByText(/Learner A — grade 4/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Plan a lesson/i }))
     expect(screen.getByRole('button', { name: /Begin guided lesson/i })).toBeTruthy()

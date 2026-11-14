@@ -1,4 +1,4 @@
-"""Synthetic, offline tests for the curriculum rights/provenance staging gate."""
+"""Sample, offline tests for the curriculum rights/provenance staging gate."""
 from dataclasses import replace
 from datetime import datetime, timezone
 

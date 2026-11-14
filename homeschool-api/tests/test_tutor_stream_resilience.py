@@ -96,7 +96,7 @@ async def test_a_stalled_upstream_stream_still_ends_with_a_recoverable_done(monk
 async def test_an_exception_mid_stream_still_ends_with_a_recoverable_done(monkeypatch, audit_events):
     async def erroring_stream(*args, **kwargs):
         yield '{"type": "text", "content": "So the tree"}'
-        raise RuntimeError("simulated upstream failure")
+        raise RuntimeError("mock upstream failure")
 
     monkeypatch.setattr("routers.tutor.stream_tutor_response", erroring_stream)
 

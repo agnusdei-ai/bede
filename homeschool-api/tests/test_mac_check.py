@@ -6,7 +6,7 @@ learner). It runs in a subprocess because the script sets process environment
 at import, which must not leak into other tests.
 
 Not covered here, by design: the Touch ID ceremony itself. That is the part
-only a person on a real Mac can show; see docs/SYNTHETIC_QUALIFICATION.md.
+only a person on a real Mac can show; see docs/SAMPLE_QUALIFICATION.md.
 """
 import json
 import subprocess
@@ -36,7 +36,7 @@ GOOD = [
     dict(route=R + "login/verify", status=200, phase="enroll"),
     dict(route="/pilot/me/learners", status=200, phase="before_grant", method="GET", count=0, names=[]),
     dict(route="/pilot/me/learners", status=200, phase="after_grant", method="GET", count=1,
-         names=["Synthetic Learner"]),
+         names=["Sample Learner"]),
     dict(route="/pilot/me/learners/{id}", status=200, phase="after_grant", method="GET", body="own"),
     dict(route="/pilot/me/learners/{id}", status=404, phase="after_grant", method="GET", body="nf"),
     dict(route="/pilot/me/learners/{id}", status=404, phase="after_grant", method="GET", body="nf"),
@@ -59,7 +59,7 @@ def test_a_correct_run_passes_every_item():
 
 def test_a_read_that_still_works_after_revocation_fails():
     calls = GOOD + [dict(route="/pilot/me/learners", status=200, phase="after_revoke",
-                         method="GET", count=1, names=["Synthetic Learner"])]
+                         method="GET", count=1, names=["Sample Learner"])]
     assert verdicts(calls)["revoked"] == "FAIL"
 
 

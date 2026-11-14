@@ -1,6 +1,6 @@
 """Concurrent identical educator invites (routers/educator_passkeys.py).
 
-Synthetic release testing sent three identical ``POST
+Sample release testing sent three identical ``POST
 /auth/educator-passkey/invite`` requests at once and got [202, 500, 500]: the
 losers hit the unique index on ``classical_educators.username`` and the
 ``IntegrityError`` escaped as a 500. They must get the same 422 a sequential
@@ -10,7 +10,7 @@ Driven over real HTTP against a real uvicorn server (tests/g1_harness.py), so
 the requests genuinely overlap; the email transport is replaced by a counting
 stub that holds the winner's transaction open long enough for the others to
 reach the index. SQLite by default; Postgres via G1_TEST_DATABASE_URL.
-Synthetic identities only.
+Sample identities only.
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ from core.database import ClassicalEducator, EducatorPasskeyInvitation
 from g1_harness import world  # noqa: F401 (fixture)
 
 CONCURRENCY = 3
-BODY = {"username": "synthetic.teacher.three",
-        "institutional_email": "synthetic.teacher.three@qualification.agnusdei.ai"}
+BODY = {"username": "sample.teacher.three",
+        "institutional_email": "sample.teacher.three@qualification.agnusdei.ai"}
 
 
 def _wire_mail(monkeypatch) -> list[str]:
@@ -91,7 +91,7 @@ def test_a_sequential_duplicate_still_gets_the_same_422(world, monkeypatch):
     sent = _wire_mail(monkeypatch)
     first = w.client.post("/auth/educator-passkey/invite", json=BODY, headers=w.admin())
     again = w.client.post("/auth/educator-passkey/invite",
-                          json={**BODY, "institutional_email": "synthetic.other@qualification.agnusdei.ai"},
+                          json={**BODY, "institutional_email": "sample.other@qualification.agnusdei.ai"},
                           headers=w.admin())
     assert first.status_code == 202, first.text
     assert (again.status_code, again.json()) == (

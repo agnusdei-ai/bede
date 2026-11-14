@@ -9,8 +9,8 @@ this process instead of api.resend.com. The harness then reads the ticket
 from the captured message and runs the real register and login ceremony.
 
   POST /emails   Resend's request shape. Requires ``Authorization: Bearer``
-                 equal to the run's synthetic key (QUAL_MAIL_SINK_KEY) and a
-                 recipient in the synthetic institution domain; anything
+                 equal to the run's sample key (QUAL_MAIL_SINK_KEY) and a
+                 recipient in the sample institution domain; anything
                  else is refused with 4xx, exactly as a real provider would
                  refuse it, so a misdirected send fails visibly.
 
@@ -81,7 +81,7 @@ class Sink(BaseHTTPRequestHandler):
             self._reply(422, {"error": "malformed"})
             return
         if not to[0].lower().endswith("@" + self.domain):
-            self._reply(422, {"error": "recipient outside the synthetic domain"})
+            self._reply(422, {"error": "recipient outside the sample domain"})
             return
         ident = str(uuid.uuid4())
         with self.lock:
@@ -108,8 +108,8 @@ def main() -> int:
         print("mail_sink: refusing to bind anything but loopback", file=sys.stderr)
         return 2
     key = os.environ.get("QUAL_MAIL_SINK_KEY", "")
-    if not key.startswith("synthetic-"):
-        print("mail_sink: QUAL_MAIL_SINK_KEY must be a synthetic- key", file=sys.stderr)
+    if not key.startswith("sample-"):
+        print("mail_sink: QUAL_MAIL_SINK_KEY must be a sample- key", file=sys.stderr)
         return 2
     store = Path(a.store)
     store.mkdir(parents=True, exist_ok=True)

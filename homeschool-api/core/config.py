@@ -223,10 +223,10 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     # Must be a verified sending address/domain in your Resend account.
     resend_from_address: str = DEFAULT_RESEND_FROM_ADDRESS
-    # Synthetic qualification ONLY (docs/SYNTHETIC_QUALIFICATION.md): send the
+    # Sample qualification ONLY (docs/SAMPLE_QUALIFICATION.md): send the
     # same Resend-shaped request to a mail sink on THIS machine instead of
     # api.resend.com, so the real invite route's email can be captured on
-    # synthetic data. Empty (the default) is Resend, byte for byte. Only a
+    # sample data. Empty (the default) is Resend, byte for byte. Only a
     # loopback http(s) URL is accepted, and any value is refused when
     # PRODUCTION=true — see reject_mail_endpoint_outside_loopback below.
     resend_api_base_url: str = ""
@@ -318,7 +318,7 @@ class Settings(BaseSettings):
     educator_pilot_enabled: bool = False
     # School-owned domain. Blank disables educator passkey invitation delivery.
     educator_institution_email_domain: str = ""
-    # Exact owner-approved organizational addresses for synthetic pilot setup.
+    # Exact owner-approved organizational addresses for sample pilot setup.
     # Comma-separated; empty by default. Not a campus entitlement or login grant.
     educator_bootstrap_emails: str = ""
     # Signed campus entitlement binds this instance to its physical location.
@@ -938,7 +938,7 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def reject_mail_endpoint_outside_loopback(self) -> "Settings":
-        """RESEND_API_BASE_URL exists so a synthetic qualification run can
+        """RESEND_API_BASE_URL exists so a sample qualification run can
         capture a real outbound email on a loopback sink. It must never be a
         way to redirect a family's mail (a distress alert, an invitation) to
         another host, and it must never be live in production at all."""
@@ -947,7 +947,7 @@ class Settings(BaseSettings):
             return self
         if self.is_production:
             raise ValueError(
-                "RESEND_API_BASE_URL is a synthetic-qualification setting and must be "
+                "RESEND_API_BASE_URL is a sample-qualification setting and must be "
                 "empty when PRODUCTION=true"
             )
         from urllib.parse import urlparse

@@ -1,6 +1,6 @@
 # Capability inventory — local source, not deployment certification
 
-**Historical inventory:** source statements and synthetic checks below refer to the baseline HEAD stated here, not the later integration base. Seven referenced files changed upstream before integration. See [INTEGRATION.md](INTEGRATION.md); no fresh runtime/authorization review or deployment certification is claimed.
+**Historical inventory:** source statements and sample checks below refer to the baseline HEAD stated here, not the later integration base. Seven referenced files changed upstream before integration. See [INTEGRATION.md](INTEGRATION.md); no fresh runtime/authorization review or deployment certification is claimed.
 
 ## Evidence ladder and repository identity
 
@@ -28,13 +28,13 @@ Line references identify this inspected snapshot; `source-evidence.json` records
 
 `services/curriculum/models.py:123–189` stores objective IDs and skill IDs. `services/content_curation.py:67` derives known skill IDs; `:323–364` blocks unknown tracked skills. `models.py:224–247` validates variant parent/skills. A free-form objective tuple is not a reviewed Grade 8 outcome taxonomy or prerequisites graph.
 
-Reuse current skill identifiers after reconciliation; propose new identifiers through review rather than silently rewriting mastery history. Future factory must preserve objective/version mappings and assessment constructs. Synthetic checks exercise model invariants, not real mastery calibration.
+Reuse current skill identifiers after reconciliation; propose new identifiers through review rather than silently rewriting mastery history. Future factory must preserve objective/version mappings and assessment constructs. Sample checks exercise model invariants, not real mastery calibration.
 
 ### C03 — Source/rights/provenance gates [S, T, X model restriction]
 
 `services/curriculum/models.py:21–33,64–80,123–154`: rights statuses, SourceRecord, edition/hash metadata and verbatim restriction. `rights_gate.py:22–131`: staging submissions, SHA-256 shape, source/URL/time/campus assertions and curation integration. A verifier name or evidence reference is **an assertion**, not authenticated identity or a legal opinion.
 
-`tests/test_curriculum_rights_gate.py` covers synthetic staging acceptance/denials; not run here because pytest/Pydantic are unavailable. `licensed` is distinct from `public_domain_verified`; no gate weakening. Original Bede authorship does not permit quoting unlicensed third-party text.
+`tests/test_curriculum_rights_gate.py` covers sample staging acceptance/denials; not run here because pytest/Pydantic are unavailable. `licensed` is distinct from `public_domain_verified`; no gate weakening. Original Bede authorship does not permit quoting unlicensed third-party text.
 
 ### C04 — Persistence and staging [S, T inspected]
 
@@ -46,13 +46,13 @@ No migrations or table creation run here. Encryption columns do not prove operat
 
 `workflow.py:45–89`: current educator, credential version, WebAuthn UV, enabled campus/member and administrator-issued reviewer-grant checks; signature-verified token is an upstream prerequisite. `:222–311`: author cannot approve own work, stored evidence/digest revalidated, review encrypted, approval creates a new version and authorization rechecked before commit.
 
-`tests/test_curriculum_workflow.py` contains synthetic SQLite/auth/tamper/independent-review cases; no DB tests executed. `docs/CURRICULUM_ORIGINAL_LESSON_REVIEW.md:8–35` states original/revised lessons need independent review. No public grant issuance/approval UI is established by this module. String heuristics in models reject obvious bot prefixes but **do not authenticate a human**; trusted workflow remains necessary.
+`tests/test_curriculum_workflow.py` contains sample SQLite/auth/tamper/independent-review cases; no DB tests executed. `docs/CURRICULUM_ORIGINAL_LESSON_REVIEW.md:8–35` states original/revised lessons need independent review. No public grant issuance/approval UI is established by this module. String heuristics in models reject obvious bot prefixes but **do not authenticate a human**; trusted workflow remains necessary.
 
 ### C06 — Local retrieval [S, T, X]
 
 `local_hybrid_index.py:30–123`: trusted `SearchScope`, campus/private-owner/approval/rights filtering before tokenization. `:73–89`: deterministic128-dimensional signed lexical hashing, **not learned semantic embeddings**. `:126–200`: BM25/local-vector ranking with size limits.
 
-`licensed` rights are excluded in current retrieval; original, verified-PD and appropriately private records may qualify. It has no authenticated endpoint or grant/revocation lookup. Source code and synthetic checks demonstrate selected isolation/flag behavior, not genuine campus authorization or safe production ingestion.
+`licensed` rights are excluded in current retrieval; original, verified-PD and appropriately private records may qualify. It has no authenticated endpoint or grant/revocation lookup. Source code and sample checks demonstrate selected isolation/flag behavior, not genuine campus authorization or safe production ingestion.
 
 ### C07 — Objective-gated citations [S, T, X partial]
 
@@ -62,7 +62,7 @@ Caller must authenticate scope, annotations and source/review binding and disclo
 
 ### C08 — Learner adaptation [S, T, X partial]
 
-`models.py:190–247`: learner-scoped variants refer to approved parent/version, opaque learner ref, evidence refs and expiry. `learner_evolution.py:14–90`: evidence kinds include practice/retention/observations; `summarize_skill` is an equal-weight synthetic estimate with confidence cap0.8, **not a calibrated diagnostic**.
+`models.py:190–247`: learner-scoped variants refer to approved parent/version, opaque learner ref, evidence refs and expiry. `learner_evolution.py:14–90`: evidence kinds include practice/retention/observations; `summarize_skill` is an equal-weight sample estimate with confidence cap0.8, **not a calibrated diagnostic**.
 
 Useful foundations for bounded variants; not proof of accessible adaptation rules, delayed-transfer scheduling or independent performance. Never convert this score into AI-only placement or a disability diagnosis.
 
@@ -92,7 +92,7 @@ No evidence inspected establishes goal-linked coach allocation, qualifications, 
 
 Practice upload consent is per-provider/per-upload, not blanket permission for curriculum corpus indexing, model training or new deployments. Family routes using `student_name` and per-deployment parent roles require a deployment/tenant-boundary review before claiming pooled-family isolation. Existence checks alone are not tenant authorization; this limited review neither proves an exploit nor certifies isolation.
 
-Keep public demo, family installation and teacher-only synthetic school pilot separate. No real learner or production database was read.
+Keep public demo, family installation and teacher-only sample school pilot separate. No real learner or production database was read.
 
 ### C13 — Deletion/retention [S, T located]
 

@@ -1,6 +1,6 @@
 {
   "_fixture": "spelling_test_1",
-  "_note": "A synthetic spelling test, written for this repository to cover each detected pattern. Not a real child's work.",
+  "_note": "A sample spelling test, written for this repository to cover each detected pattern. Not a real child's work.",
   "assessment": {
     "subject": "spelling",
     "sections": [

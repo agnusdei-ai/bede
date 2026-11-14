@@ -3,7 +3,7 @@
 authorized evidence -> source-linked recommendation -> approve/edit/reject
 -> durable, hash-chained decision -> authorized instruction for follow-up.
 
-Synthetic campuses and learners only (#598 fixtures). Every negative case
+Sample campuses and learners only (#598 fixtures). Every negative case
 #588 names for G2 is here: unauthorized learner, cross-campus same-name
 learner, revoked grant, replayed decision, stale version, and a grant
 revoked between request start and the decision itself.
@@ -44,7 +44,7 @@ from routers.pilot_journey import (
 from services.assessment_interop import EducatorAssessmentSubmission
 from services.educator_access import provision_educator
 from services.pilot_recommender import EvidenceRecord, recommend
-from valor_synthetic_fixture import assert_synthetic_fixture, two_campus_fixture
+from valor_sample_fixture import assert_sample_fixture, two_campus_fixture
 
 ADMIN = {"role": "parent", "auth_method": "webauthn_uv"}
 ASSESSED = date.today() - timedelta(days=3)
@@ -86,10 +86,10 @@ async def token(db, account):
 
 
 async def two_campuses(db):
-    assert_synthetic_fixture()
+    assert_sample_fixture()
     alpha, beta = two_campus_fixture()
-    ta = await provision_educator(db, "valor.g2.teacher.a", "synthetic-passphrase-a-strong")
-    tb = await provision_educator(db, "valor.g2.teacher.b", "synthetic-passphrase-b-strong")
+    ta = await provision_educator(db, "valor.g2.teacher.a", "sample-passphrase-a-strong")
+    tb = await provision_educator(db, "valor.g2.teacher.b", "sample-passphrase-b-strong")
     a = (await create_campus(CampusInput(title=alpha.label), auth=ADMIN, db=db))["campus_id"]
     b = (await create_campus(CampusInput(title=beta.label), auth=ADMIN, db=db))["campus_id"]
     await authorize_campus(db, a)
@@ -107,7 +107,7 @@ async def two_campuses(db):
 def dibels(measure="PSF", band="strategic_some_risk", score=22.0, unit="correct_per_minute"):
     return EducatorAssessmentSubmission(
         framework="dibels8", measure=measure, assessed_on=ASSESSED,
-        source_name="Synthetic DIBELS 8 report", score=score, score_unit=unit,
+        source_name="Sample DIBELS 8 report", score=score, score_unit=unit,
         reported_band=band, assessed_grade="1", assessment_window="middle_of_year",
     )
 
@@ -372,7 +372,7 @@ async def test_abstains_on_uninterpretable_external_scores(db):
     tok = await token(db, ta)
     await record_evidence(la, EducatorAssessmentSubmission(
         framework="external_other", measure="District screener", assessed_on=ASSESSED,
-        source_name="Synthetic screener", score=71.0, score_unit="points",
+        source_name="Sample screener", score=71.0, score_unit="points",
     ), auth=tok, db=db)
     out = await request_recommendation(la, auth=tok, db=db)
     assert out["abstained"] is True
@@ -559,7 +559,7 @@ async def test_revoked_before_decision_commit_rolls_back_ledger(db, monkeypatch)
 async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
     """Grade 2 regrouping: real G1/G2 authorization and a later educator recheck.
 
-    The teacher records a synthetic 27 + 15 applied-work observation without
+    The teacher records a sample 27 + 15 applied-work observation without
     storing a child's raw answer. A hint-dependent attempt may only produce
     a DRAFT recommendation until explicitly approved. A later independent
     observation supersedes the earlier evidence for the next proposal, but
@@ -579,7 +579,7 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
             framework="classical",
             measure="applied_work",
             assessed_on=ASSESSED,
-            source_name="Synthetic Grade 2 regrouping observation (27 + 15)",
+            source_name="Sample Grade 2 regrouping observation (27 + 15)",
             assistance="with_a_hint",
         ),
         auth=educator, db=db,
@@ -612,7 +612,7 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
             framework="classical",
             measure="applied_work",
             assessed_on=ASSESSED + timedelta(days=1),
-            source_name="Synthetic Grade 2 independent regrouping recheck",
+            source_name="Sample Grade 2 independent regrouping recheck",
             assistance="unaided",
         ),
         auth=educator, db=db,
@@ -661,29 +661,29 @@ async def test_grade2_math_classical_observation_approval_and_later_recheck(db):
 MATH_LIFECYCLE_GRADES = [
     # grade, prerequisite gap, target skill, observation, stub tutor line
     ("K", "cc.rote_count_20", "cc.count_objects_20",
-     "Synthetic Kindergarten counting 9 blocks", "Can you touch each block once as you count?"),
+     "Sample Kindergarten counting 9 blocks", "Can you touch each block once as you count?"),
     ("1", "cc.count_objects_20", "cc.number_bonds",
-     "Synthetic Grade 1 number bonds for 7", "Seven can be five and what?"),
+     "Sample Grade 1 number bonds for 7", "Seven can be five and what?"),
     ("2", "nbt.place_value_tens", "nbt.add_within_100",
-     "Synthetic Grade 2 regrouping 27 + 15",
+     "Sample Grade 2 regrouping 27 + 15",
      "When you add 7 ones and 5 ones, what do you notice?"),
     ("3", "oa.multiplication_facts", "oa.order_of_operations",
-     "Synthetic Grade 3 order of operations 2 + 3 x 4",
+     "Sample Grade 3 order of operations 2 + 3 x 4",
      "Which part of 2 + 3 x 4 would you work first, and why?"),
     ("4", "fr.add_subtract_fractions", "fr.mixed_numbers",
-     "Synthetic Grade 4 mixed number 2 1/3 as thirds",
+     "Sample Grade 4 mixed number 2 1/3 as thirds",
      "How many thirds are hiding in the whole number 2?"),
     ("5", "fr.multiply_fractions", "fr.divide_fractions",
-     "Synthetic Grade 5 dividing 3 by 1/4",
+     "Sample Grade 5 dividing 3 by 1/4",
      "How many quarters fit inside one whole?"),
     ("6", "ns.integers", "ns.absolute_value",
-     "Synthetic Grade 6 absolute value of -7",
+     "Sample Grade 6 absolute value of -7",
      "How far is -7 from zero on the number line?"),
     ("7", "ee.multi_step_equations", "ee.variables_both_sides",
-     "Synthetic Grade 7 solving 3x + 4 = x + 10",
+     "Sample Grade 7 solving 3x + 4 = x + 10",
      "What could you do to both sides so x appears only once?"),
     ("8", "fn.linear_functions", "ee.systems_of_equations",
-     "Synthetic Grade 8 system x + y = 5 and x - y = 1",
+     "Sample Grade 8 system x + y = 5 and x - y = 1",
      "What happens if you add the two equations together?"),
 ]
 K2_SENTINEL = "geo.compose_shapes"
@@ -740,7 +740,7 @@ def _every_math_skill_row():
             grade,
             prerequisites[0] if prerequisites else None,
             skill_id,
-            f"Synthetic Grade {grade} applied work: {skill.label}",
+            f"Sample Grade {grade} applied work: {skill.label}",
             f"What do you notice first about {skill.label.lower()}?",
         ))
     return rows
@@ -784,7 +784,7 @@ async def _run_math_lifecycle(
 ):
     """Real G1/G2 approval -> pilot tutor SSE -> encrypted institutional record.
 
-    Only the local model's text stream is deterministic synthetic test data.
+    Only the local model's text stream is deterministic sample test data.
     This does not prove a physical model, diagnostic integration, or elapsed
     delayed retention. No external model or real learner data is used.
     """
@@ -805,7 +805,7 @@ async def _run_math_lifecycle(
     request = tutor.PilotTutorInput(child_message="[START]", subject="mathematics")
 
     # Probe the real prerequisite graph and persist the baseline BEFORE
-    # proposing a teacher-governed lesson. These are synthetic
+    # proposing a teacher-governed lesson. These are sample
     # observations, not a model-inferred learning diagnosis.
     from services.diagnostic import get_mastery_summary, process_evidence
     from services.diagnostic.qmatrix import Q_MATRIX
@@ -880,7 +880,7 @@ async def _run_math_lifecycle(
 
     captured_prompts = []
 
-    class SyntheticLocalStream:
+    class SampleLocalStream:
         async def __aenter__(self):
             return self
 
@@ -898,15 +898,15 @@ async def _run_math_lifecycle(
                 )
             return one_chunk()
 
-    class SyntheticMessages:
+    class SampleMessages:
         def stream(self, **kwargs):
             captured_prompts.append(kwargs["system"])
             assert kwargs["model"] == settings.local_llm_model
-            return SyntheticLocalStream()
+            return SampleLocalStream()
 
     monkeypatch.setattr(
         tutor, "_local_model",
-        lambda: SimpleNamespace(messages=SyntheticMessages()),
+        lambda: SimpleNamespace(messages=SampleMessages()),
     )
     response = await tutor.pilot_tutor_turn(learner, request, auth=educator, db=db)
     events = [json.loads(item) async for item in response.body_iterator]
@@ -949,7 +949,7 @@ async def _run_math_lifecycle(
     assert other_transcripts == []
 
 
-    # A later-dated, independent synthetic attempt enters the REAL educator
+    # A later-dated, independent sample attempt enters the REAL educator
     # evidence and decision path. This simulates a recheck; it does NOT
     # establish elapsed-time retention or model-graded learner responses.
     recheck = await record_evidence(
@@ -1028,7 +1028,7 @@ async def _run_math_lifecycle(
         EducatorAssessmentSubmission(
             framework="classical", measure="applied_work",
             assessed_on=ASSESSED,
-            source_name="Synthetic other-campus applied-work observation",
+            source_name="Sample other-campus applied-work observation",
             assistance="unaided",
         ),
         auth=other_educator, db=db,

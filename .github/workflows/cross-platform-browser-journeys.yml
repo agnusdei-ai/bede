@@ -4,7 +4,7 @@ name: Cross-platform browser journeys
 # service per runner: Google Chrome and Microsoft Edge on windows-2022 and
 # macos-15, plus Playwright's WebKit build on macos-15 (the Safari engine,
 # NOT Safari itself). All browsers on a runner run at the same time against
-# the same service. Synthetic data and a loopback model stub only.
+# the same service. Sample data and a loopback model stub only.
 #
 # What this does NOT prove, stated so a green run is not over-read:
 # - Mixed Windows + Mac clients against ONE service. The two runners cannot
@@ -12,7 +12,7 @@ name: Cross-platform browser journeys
 # - The production server shape. The API runs natively on the runner with
 #   SQLite, not in the Mac candidate's containers with Postgres.
 # - Real Safari, real passkeys (Windows Hello / Touch ID), or the Windows
-#   installer. See docs/SYNTHETIC_QUALIFICATION.md.
+#   installer. See docs/SAMPLE_QUALIFICATION.md.
 #
 # Evidence is about one fixed candidate SHA, never a branch.
 on:

@@ -1,4 +1,4 @@
-// Cross-platform browser journeys (#599/#755). Synthetic data only.
+// Cross-platform browser journeys (#599/#755). Sample data only.
 // Started by run_journeys.py. Every browser in F.browsers runs at once
 // against ONE service: per browser, one parent device and one child device.
 // Browsers are the real installed ones on the runner: Google Chrome

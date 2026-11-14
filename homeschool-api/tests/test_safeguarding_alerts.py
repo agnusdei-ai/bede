@@ -89,7 +89,7 @@ async def test_school_mode_with_no_school_route_sends_nothing(mail, audits):
 
 @pytest.mark.asyncio
 async def test_a_campus_licensed_deployment_is_school_mode_for_every_role(mail, audits, monkeypatch):
-    monkeypatch.setattr(safeguarding_alerts.settings, "bede_location_id", "synthetic-campus-1")
+    monkeypatch.setattr(safeguarding_alerts.settings, "bede_location_id", "sample-campus-1")
     assert safeguarding_alerts.route_for("child")[0] == "school"
     assert await _deliver(role="child") == "no_route"
     assert mail == []
@@ -263,7 +263,7 @@ async def test_off_topic_or_other_unsafe_pictures_raise_no_safeguarding_email(mo
 
 @pytest.mark.asyncio
 async def test_a_crisis_picture_on_a_campus_deployment_follows_the_school_route(monkeypatch, mail, audits):
-    monkeypatch.setattr(safeguarding_alerts.settings, "bede_location_id", "synthetic-campus-1")
+    monkeypatch.setattr(safeguarding_alerts.settings, "bede_location_id", "sample-campus-1")
     monkeypatch.setattr(safeguarding_alerts.settings, "school_safeguarding_email", "safeguarding@school.test")
     await _chat(monkeypatch, b64(PNG), refuse("self_harm"))
     assert [m["to"] for m in mail] == ["safeguarding@school.test"]

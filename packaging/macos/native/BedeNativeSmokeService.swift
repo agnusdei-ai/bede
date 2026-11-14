@@ -2,14 +2,14 @@ import Foundation
 import Network
 import Darwin
 
-// Local-only synthetic service for native installer qualification.
+// Local-only sample service for native installer qualification.
 // NOT the production Bede tutor API, identity provider, or inference engine.
 @main
 struct NativeSmokeService {
     static func main() throws {
         let env = ProcessInfo.processInfo.environment
-        guard env["BEDE_SYNTHETIC_ONLY"] == "1" else {
-            fputs("BEDE_NATIVE_ERROR: synthetic mode is required; real learner data is prohibited\n", stderr)
+        guard env["BEDE_SAMPLE_ONLY"] == "1" else {
+            fputs("BEDE_NATIVE_ERROR: sample mode is required; real learner data is prohibited\n", stderr)
             exit(2)
         }
         let port = UInt16(env["BEDE_NATIVE_PORT"] ?? "0") ?? 0
@@ -31,10 +31,10 @@ struct NativeSmokeService {
                 switch (firstLine.hasPrefix("GET "), path) {
                 case (true, "/health"):
                     status = "200 OK"; type = "application/json"
-                    body = #"{"status":"synthetic-only","pilotGO":"HOLD","native":true}"#
+                    body = #"{"status":"sample-only","pilotGO":"HOLD","native":true}"#
                 case (true, "/"):
                     status = "200 OK"; type = "text/html; charset=utf-8"
-                    body = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Bede native qualification</title></head><body><main><h1>Bede native qualification</h1><p>Local synthetic diagnostic only. Teacher login and inference are not enabled.</p></main></body></html>"
+                    body = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Bede native qualification</title></head><body><main><h1>Bede native qualification</h1><p>Local sample diagnostic only. Teacher login and inference are not enabled.</p></main></body></html>"
                 default:
                     status = "404 Not Found"; type = "application/json"
                     body = #"{"error":"not_available","pilotGO":"HOLD"}"#

@@ -1,7 +1,7 @@
 name: G1 staged security qualification
 
 # A standalone, fail-closed G1 acceptance lane. Deliberately does NOT edit,
-# replace, waive or turn green the full Synthetic qualification workflow.
+# replace, waive or turn green the full Sample qualification workflow.
 # G2 and missing owner/tutor routes remain unresolved pilot-release blockers.
 on:
   pull_request:
@@ -20,7 +20,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: synthetic-g1-admin-only
+          POSTGRES_PASSWORD: sample-g1-admin-only
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -31,14 +31,14 @@ jobs:
           --health-retries 15
     env:
       BEDE_REQUIRE_PG: '1'
-      G1_TEST_DATABASE_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_streams
-      G1_CACHE_TEST_DATABASE_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_cache
-      BEDE_CANON_PG_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_canonical
-      BEDE_DELETE_PG_URL: postgresql+asyncpg://g1_ci:synthetic-g1-app-only@127.0.0.1:5432/g1_deletion
+      G1_TEST_DATABASE_URL: postgresql+asyncpg://g1_ci:sample-g1-app-only@127.0.0.1:5432/g1_streams
+      G1_CACHE_TEST_DATABASE_URL: postgresql+asyncpg://g1_ci:sample-g1-app-only@127.0.0.1:5432/g1_cache
+      BEDE_CANON_PG_URL: postgresql+asyncpg://g1_ci:sample-g1-app-only@127.0.0.1:5432/g1_canonical
+      BEDE_DELETE_PG_URL: postgresql+asyncpg://g1_ci:sample-g1-app-only@127.0.0.1:5432/g1_deletion
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # Pin the PR *head*, not GitHub's synthetic test-merge commit.
+          # Pin the PR *head*, not GitHub's sample test-merge commit.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Verify the tested commit is the PR head
@@ -55,18 +55,18 @@ jobs:
       - name: Install hash-locked dependencies
         working-directory: homeschool-api
         run: pip install --require-hashes -r requirements-dev.lock.txt
-      - name: Provision synthetic non-superuser PostgreSQL databases
+      - name: Provision sample non-superuser PostgreSQL databases
         run: |
           python - <<'PY'
           import asyncio
           import asyncpg
           async def main():
               conn = await asyncpg.connect(host="127.0.0.1", port=5432,
-                                           user="postgres", password="synthetic-g1-admin-only",
+                                           user="postgres", password="sample-g1-admin-only",
                                            database="postgres")
               try:
                   await conn.execute(
-                      "CREATE ROLE g1_ci LOGIN PASSWORD 'synthetic-g1-app-only' "
+                      "CREATE ROLE g1_ci LOGIN PASSWORD 'sample-g1-app-only' "
                       "NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS")
                   for database in ("g1_streams", "g1_cache", "g1_canonical", "g1_deletion"):
                       await conn.execute(f"CREATE DATABASE {database} OWNER g1_ci")
@@ -77,7 +77,7 @@ jobs:
                   await conn.close()
           asyncio.run(main())
           PY
-      - name: Assert PostgreSQL and synthetic-only inputs
+      - name: Assert PostgreSQL and sample-only inputs
         run: |
           python - <<'PY'
           import asyncio, asyncpg, os
@@ -104,4 +104,4 @@ jobs:
         run: |
           echo "G1 targeted gate PASS on $(git rev-parse HEAD)"
           echo "NO G2, owner-route, campus tutoring, Mac hardware or pilot GO assertion."
-          echo "Full Synthetic qualification still separately reports its own absent cells."
+          echo "Full Sample qualification still separately reports its own absent cells."

@@ -1,4 +1,4 @@
-"""Synthetic offline and isolation qualification for the local hybrid index."""
+"""Sample offline and isolation qualification for the local hybrid index."""
 from datetime import datetime, timezone
 from pathlib import Path
 import socket

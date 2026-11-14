@@ -35,7 +35,7 @@ citation-grounded lesson-generation guarantee**.
 
 ## Qualification and limitations
 
-Synthetic tests cover cross-campus and unapproved prefiltering before
+Sample tests cover cross-campus and unapproved prefiltering before
 tokenization, teacher-private ownership, excluded licensed rights, disabled
 flag, no-network execution, deterministic citation metadata, duplicate
 versions and malformed input. The primitive does not cache or persist data.

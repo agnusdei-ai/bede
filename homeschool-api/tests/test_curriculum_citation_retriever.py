@@ -1,4 +1,4 @@
-"""Synthetic PR 6 qualification: objective-gated fusion and literal citations."""
+"""Sample PR 6 qualification: objective-gated fusion and literal citations."""
 from datetime import datetime, timezone
 import socket
 

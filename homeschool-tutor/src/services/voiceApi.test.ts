@@ -19,13 +19,13 @@ function captureFetch() {
 
 describe('voiceScopeFor', () => {
   it('scopes an educator session to its loaded learner', () => {
-    expect(voiceScopeFor('educator', { student_name: 'Synthetic Learner One' }))
-      .toEqual({ student_name: 'Synthetic Learner One' })
+    expect(voiceScopeFor('educator', { student_name: 'Sample Learner One' }))
+      .toEqual({ student_name: 'Sample Learner One' })
   })
 
   it('sends nothing for every other role, or with no learner loaded', () => {
-    expect(voiceScopeFor('parent', { student_name: 'Synthetic Learner One' })).toBeUndefined()
-    expect(voiceScopeFor('child', { student_name: 'Synthetic Learner One' })).toBeUndefined()
+    expect(voiceScopeFor('parent', { student_name: 'Sample Learner One' })).toBeUndefined()
+    expect(voiceScopeFor('child', { student_name: 'Sample Learner One' })).toBeUndefined()
     expect(voiceScopeFor(null, null)).toBeUndefined()
     expect(voiceScopeFor('educator', null)).toBeUndefined()
   })

@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.asyncio, pytest.mark.usefixtures("demo_db")]
 
 @pytest.fixture(autouse=True)
 def authorized_install_ack(monkeypatch):
-    """Seat-cap tests use an authorized synthetic install, not an API bypass."""
+    """Seat-cap tests use an authorized sample install, not an API bypass."""
     monkeypatch.setattr(settings, "consent_install_ack_hash", consent.notice_hash())
     monkeypatch.setattr(settings, "consent_install_ack_at", datetime.now(timezone.utc).isoformat())
 

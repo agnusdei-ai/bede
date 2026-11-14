@@ -1,4 +1,4 @@
-"""Synthetic-only tests for tenant-safe learner-evidence assembly."""
+"""Sample-only tests for tenant-safe learner-evidence assembly."""
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -9,11 +9,11 @@ from services.curriculum.scoped_profile import (
 )
 
 NOW = datetime(2026, 10, 27, tzinfo=timezone.utc)
-CAMPUS = "synthetic-campus-a"
-LEARNER = "synthetic_learner_001"
+CAMPUS = "sample-campus-a"
+LEARNER = "sample_learner_001"
 
 
-def item(ref="evidence:synthetic-001", *, campus=CAMPUS, learner=LEARNER,
+def item(ref="evidence:sample-001", *, campus=CAMPUS, learner=LEARNER,
          skill="math.addition", kind="diagnostic", signal=0.6,
          when=NOW):
     return ScopedLearningEvidence(
@@ -38,10 +38,10 @@ def test_mixed_evidence_retention_and_observations_preserve_provenance(monkeypat
     monkeypatch.setenv("CURRICULUM_ENGINE_ENABLED", "true")
     profile = build(
         item(),
-        item("evidence:synthetic-002", kind="practice", signal=0.8),
-        item("evidence:synthetic-003", kind="retention", signal=0.4),
-        item("evidence:synthetic-004", kind="educator_observation", signal=0.7),
-        item("evidence:synthetic-005", kind="parent_observation", signal=0.5),
+        item("evidence:sample-002", kind="practice", signal=0.8),
+        item("evidence:sample-003", kind="retention", signal=0.4),
+        item("evidence:sample-004", kind="educator_observation", signal=0.7),
+        item("evidence:sample-005", kind="parent_observation", signal=0.5),
     )
     assert profile.campus_id == CAMPUS and profile.learner_ref == LEARNER
     assert profile.skills[0].mastery == pytest.approx(0.6)
@@ -51,13 +51,13 @@ def test_mixed_evidence_retention_and_observations_preserve_provenance(monkeypat
 
 
 @pytest.mark.parametrize("bad", [
-    {"campus": "synthetic-campus-b"},
-    {"learner": "synthetic_learner_002"},
+    {"campus": "sample-campus-b"},
+    {"learner": "sample_learner_002"},
 ])
 def test_cross_scope_evidence_denies_whole_profile(monkeypatch, bad):
     monkeypatch.setenv("CURRICULUM_ENGINE_ENABLED", "1")
     with pytest.raises(ScopedProfileDenied, match="Out-of-scope"):
-        build(item(), item("evidence:synthetic-002", **bad))
+        build(item(), item("evidence:sample-002", **bad))
 
 
 def test_duplicate_reference_even_across_skills_denied(monkeypatch):
@@ -82,6 +82,6 @@ def test_empty_evidence_and_invalid_version_denied(monkeypatch):
 
 def test_deterministic_skill_order_and_no_automatic_action(monkeypatch):
     monkeypatch.setenv("CURRICULUM_ENGINE_ENABLED", "1")
-    profile = build(item(skill="zeta"), item("evidence:synthetic-002", skill="alpha"))
+    profile = build(item(skill="zeta"), item("evidence:sample-002", skill="alpha"))
     assert [skill.skill_id for skill in profile.skills] == ["alpha", "zeta"]
     assert not hasattr(profile, "placement")

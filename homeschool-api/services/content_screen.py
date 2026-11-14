@@ -1,4 +1,10 @@
-"""Check every uploaded picture is fit for a school before Bede reads it.
+"""Check every uploaded picture is fit for a school before Bede uses it for teaching.
+
+**Checked before instructional analysis is not "never processed".** The check
+is itself a model call: to judge a picture, the checker has to see it. What
+this guarantees is order and outcome: a refused picture never reaches the
+reading, drafting, scoring or tutoring call that would use it for teaching,
+and nothing from it is kept. Where the check runs is stated below.
 
 Two places take a picture from a person and hand it to a model:
 
@@ -32,11 +38,26 @@ the expected verdict refuses the picture (`ScreeningUnavailable`). A safety
 check that lets a picture through because it could not ask is
 indistinguishable from one that looked and found nothing wrong.
 
-**It sends the picture nowhere new.** The check uses the same client, so the
-same provider, that would read the picture next: the household's local model,
-or the cloud provider the parent agreed to by name. Nothing is stored. The
-picture is never logged, and neither is the model's reply; only the refusal
-category is recorded (`AuditEvent.UPLOAD_REFUSED`).
+**Where the check runs.** It uses the same client that would use the picture
+next, so it adds no new provider:
+
+* an upload (worksheet, quiz source, teacher quiz or student work): the
+  household's or school's own local model, or the one cloud provider the
+  parent ticked by name, with no failover (teacher uploads are local only);
+* a lesson photo or drawing: the tutor's own client, which is the provider
+  that answers the lesson, including its configured backup if the first
+  provider errors, exactly as the lesson turn itself would be routed. On the
+  public demo that is OpenAI, with Mistral or Claude as backup.
+
+Nothing is stored. The picture is never logged, and neither is the model's
+reply; only the refusal category is recorded (`AuditEvent.UPLOAD_REFUSED`).
+
+**Off-topic is not harmful.** `not_schoolwork` (a game screenshot, a selfie,
+a meme) is refused with a plain message and is not audited or alerted. The
+unsafe categories are audited. Only `CRISIS_CATEGORIES` (possible self-harm
+or sexual content in a child's lesson) raise a safeguarding concern, routed by
+services/safeguarding_alerts.py, and worded as a possible concern, never as a
+fact about the child.
 
 **It is a model's judgment, not a guarantee.** A classifier can be wrong in
 either direction. It is one layer: the file is still validated and rebuilt
@@ -126,21 +147,24 @@ def _rules(context: Context) -> str:
 
 _MESSAGES = {
     "worksheet": {
-        "not_schoolwork": "This upload doesn't look like schoolwork. Upload quizzes, worksheets, tests or book pages.",
-        "unsafe": "This upload can't be used: it contains content that isn't appropriate for school. Nothing was read or kept.",
-        "self_harm": ("This upload can't be used: it shows self-harm. Nothing was read or kept. "
-                      "If a child may be at risk, please talk with them and contact a professional."),
+        "not_schoolwork": ("This upload doesn't look like schoolwork, so it was not used. "
+                           "Upload quizzes, worksheets, tests or book pages."),
+        "unsafe": ("This upload can't be used. Bede's safety check flagged content that isn't "
+                   "appropriate for school, so the pages were not used and were not kept."),
+        "self_harm": ("This upload can't be used. Bede's safety check flagged it as possibly showing "
+                      "self-harm, so the pages were not used and were not kept. If you think a child "
+                      "may be at risk, please talk with them and get help from a professional."),
     },
     "lesson": {
-        "not_schoolwork": "Bede can only look at pictures that are part of your lesson.",
-        "unsafe": "Bede can't look at that picture. Let's keep going with the lesson.",
+        "not_schoolwork": "Bede can only use pictures that are part of your lesson.",
+        "unsafe": "Bede can't use that picture in the lesson. Let's keep going.",
     },
 }
 
 _LESSON_MESSAGES_ES = {
-    "not_schoolwork": "Bede solo puede ver imágenes que sean parte de tu lección.",
-    "unsafe": "Bede no puede ver esa imagen. Sigamos con la lección.",
-    "unavailable": "Bede no pudo revisar esa imagen ahora. Inténtalo de nuevo.",
+    "not_schoolwork": "Bede solo puede usar imágenes que sean parte de tu lección.",
+    "unsafe": "Bede no puede usar esa imagen en la lección. Sigamos.",
+    "unavailable": "Bede no pudo revisar esa imagen ahora, así que no se usó. Inténtalo de nuevo.",
 }
 
 
@@ -159,8 +183,8 @@ def unavailable_message(context: Context, locale: str = "en") -> str:
     if context == "lesson":
         if locale == "es":
             return _LESSON_MESSAGES_ES["unavailable"]
-        return "Bede couldn't check that picture just now. Please try sending it again."
-    return "The pages couldn't be checked just now, so nothing was read. Please try again."
+        return "Bede couldn't check that picture just now, so it wasn't used. Please try sending it again."
+    return "The pages couldn't be checked just now, so they weren't used. Please try again."
 
 
 _SNIFF = (("/9j/", "image/jpeg"), ("iVBOR", "image/png"), ("UklGR", "image/webp"))
@@ -227,6 +251,10 @@ async def screen_images(client, images: list[tuple[str, str]], context: Context)
             client.messages.create(
                 model=settings.tutor_model,
                 max_tokens=60,
+                # A safety verdict must not change between two sends of the
+                # same picture: at the default temperature the live demo
+                # passed a game screen once and refused it the next run.
+                temperature=0,
                 system=_rules(context),
                 messages=[{"role": "user", "content": blocks}],
             ),

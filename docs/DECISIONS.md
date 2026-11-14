@@ -2340,6 +2340,18 @@ an anonymous visitor's spend.
   and results are review and print only. Recording quiz results in a
   learner's record would need a new evidence type and its own decision; it
   is not part of this amendment.
+- **Amended 2026-11-14 (owner direction): a confirmed result may be saved to
+  a student.** After the teacher confirms, the result is saved against the
+  roster learner the teacher selects (UUID, campus mode, existing grant and
+  school authorization), unassigned until then. Confirmed results appear in
+  the learner's quiz history and, where a question maps to a supported skill
+  (mathematics), in a mastery estimate with per-question provenance,
+  computed on read and not stored. A retry counts once; a correction
+  supersedes the earlier result. Results are kept apart from the canonical
+  assessment and any gradebook or export. The existing school notice §4(b)
+  covers the storage; no new consent is required, and these rulings do not
+  by themselves authorize real learner data. Built in
+  `services/teacher_quiz_records.py`; see `docs/PRACTICE_COACH.md`.
 
 ---
 

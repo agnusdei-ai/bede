@@ -62,7 +62,9 @@ from core.database import (
 )
 from core.learner_scope import LearnerScope, evict_learner
 from core.pilot_assessment_models import LEARNER_SCOPED_TABLES
-from core.pilot_journey_models import PilotDecision, PilotEvidence, PilotRecommendation
+from core.pilot_journey_models import (
+    PilotDecision, PilotEvidence, PilotQuizResult, PilotRecommendation,
+)
 
 log = logging.getLogger(__name__)
 
@@ -106,7 +108,7 @@ def storage_subject_tables() -> tuple[Table, ...]:
 def pilot_cascade() -> tuple[Table, ...]:
     """The UUID-keyed pilot tables, children first, the learner row last."""
     return (*LEARNER_SCOPED_TABLES, PilotEvidence.__table__, PilotRecommendation.__table__,
-            PilotDecision.__table__, PilotIdempotencyKey.__table__,
+            PilotDecision.__table__, PilotQuizResult.__table__, PilotIdempotencyKey.__table__,
             PilotRosterGrant.__table__, PilotLearner.__table__)
 
 

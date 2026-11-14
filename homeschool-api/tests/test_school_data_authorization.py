@@ -293,6 +293,7 @@ GATED = {
     ("POST", "/pilot/me/learners/{learner_id}/recommendations"),
     ("POST", "/pilot/me/learners/{learner_id}/recommendations/{recommendation_id}/decision"),
     ("POST", "/pilot/me/learners/{learner_id}/tutoring/chat"),
+    ("POST", "/pilot/me/learners/{learner_id}/quiz-results"),
 }
 
 # Write routes that store NO learner data, each with the reason.
@@ -398,6 +399,13 @@ def _cases(w):
              {"action": "approve", "expected_version": 1}, teacher),
         ("POST", "/pilot/me/learners/{learner_id}/tutoring/chat"):
             ("POST", f"/pilot/me/learners/{l}/tutoring/chat", {"child_message": "[START]"}, teacher),
+        ("POST", "/pilot/me/learners/{learner_id}/quiz-results"):
+            ("POST", f"/pilot/me/learners/{l}/quiz-results", {
+                "submission_id": "gate-check-0001", "confirmed": True,
+                "quiz": {"title": "Week 3", "subject": "mathematics", "grade": "3", "approved": True,
+                         "questions": [{"number": 1, "type": "short_answer", "prompt": "7 + 5",
+                                        "answer": "12", "points": 1, "key_approved": True}]},
+                "results": [{"number": 1, "points": 1}]}, teacher),
     }
 
 

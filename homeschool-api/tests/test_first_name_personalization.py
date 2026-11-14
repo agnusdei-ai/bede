@@ -69,7 +69,7 @@ def test_two_learners_with_the_same_first_name_keep_separate_stable_handles():
 def test_no_email_subject_carries_a_learner_name():
     """Subject lines show in lock screens and notification previews."""
     src = inspect.getsource(email_service) + inspect.getsource(__import__("routers.tutor", fromlist=["x"]))
-    for m in re.finditer(r"subject\s*=\s*(f?)(\"[^\"]*\"|'[^']*')", src):
+    for m in re.finditer(r"subject\s*=\s*\(?\s*(f?)(\"[^\"]*\"|'[^']*')", src):
         is_f, literal = m.groups()
         if is_f:
             assert not re.search(r"\{[^}]*(student|learner|child|name)[^}]*\}", literal, re.I), literal
@@ -78,19 +78,38 @@ def test_no_email_subject_carries_a_learner_name():
 
 
 @pytest.mark.asyncio
-async def test_the_distress_alert_subject_has_no_name_but_the_body_still_names_the_child(monkeypatch):
-    sent = {}
+@pytest.mark.parametrize("picture", [None, "sexual content"])
+async def test_a_safeguarding_alert_subject_has_no_name_but_the_body_uses_the_display_name(monkeypatch, picture):
+    """The subject shows on a lock screen. The body addresses the child by the
+    preferred name; the dedupe key and the audit entry stay on the stable handle."""
+    from services import safeguarding_alerts
+    import core.audit as audit
 
-    async def fake_send(to_address, subject, html_body, **kw):
-        sent.update(subject=subject, body=html_body)
+    sent, audited = [], []
+
+    async def fake_send(to, subject, html_body, reply_to=None):
+        sent.append({"subject": subject, "html": html_body})
         return True
 
-    monkeypatch.setattr(email_service, "distress_alert_configured", lambda: True)
+    async def fake_log(event, **kw):
+        audited.append(kw)
+
+    monkeypatch.setattr(email_service, "email_configured", lambda: True)
     monkeypatch.setattr(email_service, "send_email", fake_send)
-    monkeypatch.setattr(email_service.settings, "parent_email", "parent@example.invalid")
-    await email_service.send_distress_alert("Sofi", "2026-11-14T00:00:00Z", "excerpt")
-    assert "Sofi" not in sent["subject"]
-    assert "Sofi" in sent["body"]
+    monkeypatch.setattr(audit, "log_event", fake_log)
+    monkeypatch.setattr(safeguarding_alerts.settings, "parent_email", "parent@example.test")
+    monkeypatch.setattr(safeguarding_alerts.settings, "school_safeguarding_email", "")
+    monkeypatch.setattr(safeguarding_alerts.settings, "bede_location_id", "")
+    safeguarding_alerts._recent.clear() if hasattr(safeguarding_alerts, "_recent") else None
+
+    await safeguarding_alerts.deliver(
+        role="child", student_name="sofia-handle", display_name="Sofi",
+        trigger_excerpt="excerpt", dedupe_source="first-name-test-" + str(picture), picture=picture,
+    )
+    [message] = sent
+    assert "Sofi" not in message["subject"] and "sofia-handle" not in message["subject"]
+    assert "Sofi" in message["html"]
+    assert any(kw.get("student_name") == "sofia-handle" for kw in audited)  # the key, never the nickname
 
 
 @pytest.mark.asyncio

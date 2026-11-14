@@ -146,7 +146,10 @@ async def test_the_pictures_go_to_the_client_it_was_given_and_nothing_else():
     (call,) = client.calls
     images = [b for b in call["messages"][0]["content"] if b["type"] == "image"]
     assert [b["source"]["data"] for b in images] == ["iVBORdata", "iVBORmore"]
-    assert "temperature" not in call  # the Anthropic SDK refuses it client-side
+    # temperature=0 is safe on every client this receives: the tutor's
+    # FailoverClient and resolve_named both pass it through _kwargs_for (into
+    # extra_body for Anthropic), and the local client takes it directly.
+    assert call["temperature"] == 0
 
 
 @pytest.mark.asyncio
@@ -458,12 +461,14 @@ def safeguarding(monkeypatch):
         if event == AuditEvent.SAFEGUARDING:
             raised["audit"].append(kw)
 
-    async def alert(student, when, excerpt, picture=None):
-        raised["alerts"].append((student, excerpt, picture))
-        return True
+    async def alert(**kw):
+        raised["alerts"].append((kw["student_name"], kw["trigger_excerpt"], kw["picture"]))
+        raised["dedupe"].append(kw["dedupe_source"])
+        return "sent"
 
+    raised["dedupe"] = []
     monkeypatch.setattr(tutor_router, "log_event", log_event)
-    monkeypatch.setattr(tutor_router, "send_distress_alert", alert)
+    monkeypatch.setattr(tutor_router.safeguarding_alerts, "deliver", alert)
     return raised
 
 
@@ -497,7 +502,7 @@ async def test_a_crisis_picture_alerts_the_parent_straight_away(tutor, audited, 
 async def test_other_refused_pictures_do_not_raise_a_safeguarding_alert(tutor, audited, safeguarding, category):
     tutor(ScreenClient(refuse(category)))
     await _chunks(await tutor_router.chat(_turn(b64(PNG)), _request(), auth={"role": "parent"}, db=None))
-    assert safeguarding == {"audit": [], "alerts": []}
+    assert safeguarding["audit"] == [] and safeguarding["alerts"] == []
 
 
 def test_the_parents_email_says_a_picture_was_sent_and_not_kept():
@@ -505,16 +510,37 @@ def test_the_parents_email_says_a_picture_was_sent_and_not_kept():
 
     body = build_distress_alert_html("Sam", "2026-11-11T21:00:00Z", "[picture: sexual content]",
                                      picture="sexual content")
-    assert "sent Bede a picture that appeared to show sexual content" in body
-    assert "The picture was not kept." in body and "What Sam said" not in body
+    flat = " ".join(body.split())
+    assert "possibly showing sexual content" in flat
+    assert "not a confirmed fact about Sam" in flat
+    assert "The picture is not attached and was not kept." in body and "What Sam said" not in body
     said = build_distress_alert_html("Sam", "2026-11-11T21:00:00Z", "I want to hurt myself")
     assert "What Sam said" in said and "picture" not in said  # a message alert is unchanged
 
 
 def test_a_self_harm_worksheet_says_so_and_points_to_help():
     message = content_screen.refusal_message("self_harm", "worksheet")
-    assert "self-harm" in message and "talk with them" in message
+    assert "possibly showing self-harm" in message and "talk with them" in message
 
 
 def test_refusals_alert_a_parent_on_the_same_terms_as_flagged_text():
     assert _ANOMALY_RULES[AuditEvent.UPLOAD_REFUSED] == _ANOMALY_RULES[AuditEvent.MODERATION_FLAGGED]
+
+
+@pytest.mark.asyncio
+async def test_the_check_asks_for_a_repeatable_verdict():
+    """The live probe sent one synthetic game screen twice: passed at the
+    default temperature, refused the next run. The verdict must not vary."""
+    client = ScreenClient(OK)
+    await content_screen.screen_images(client, [("image/png", "iVBORw0KGgo=")], "worksheet")
+    assert client.screens()[0]["temperature"] == 0
+
+
+def test_the_anthropic_path_keeps_temperature_working():
+    """Anthropic's SDK rejects temperature as a keyword; services/adapters'
+    _kwargs_for moves it into extra_body there. Check that still holds for
+    the call shape this module sends."""
+    from services.adapters import router
+
+    adapted = router._kwargs_for("anthropic", {"model": "m", "max_tokens": 60, "temperature": 0, "system": "s", "messages": []})
+    assert "temperature" not in adapted and adapted["extra_body"]["temperature"] == 0

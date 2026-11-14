@@ -47,10 +47,10 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
-from services import content_screen, pilot_authz
+from services import content_screen, pilot_authz, safeguarding_alerts
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
-from services.email_service import build_summary_email_html, send_distress_alert, send_email
+from services.email_service import build_summary_email_html, send_email
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
 from services.voice_synthesis import AUDIO_MEDIA_TYPE, synthesis_configured, synthesize_speech
@@ -277,7 +277,7 @@ async def chat(
     ))
 
     async def _trigger_safeguarding(trigger_excerpt: str, detail_prefix: str = "trigger",
-                                    picture: str | None = None) -> None:
+                                    picture: str | None = None, dedupe_source: str | None = None) -> None:
         await log_event(
             AuditEvent.SAFEGUARDING,
             role=auth.get("role"),
@@ -286,16 +286,19 @@ async def chat(
             detail=f"{detail_prefix}:{trigger_excerpt}",
             **audit_from_request(request),
         )
-        # Fire-and-forget — the child's safety response must not wait on a
-        # network round-trip to Resend. The audit log entry above is the
-        # durable record regardless of whether this send succeeds;
-        # distress_alert_configured() short-circuits instantly when
-        # PARENT_EMAIL/Resend aren't set up.
-        asyncio.create_task(send_distress_alert(
-            req.session_config.display_name,
-            datetime.now(timezone.utc).isoformat(),
-            trigger_excerpt,
+        # Fire-and-forget: the child's safety response must not wait on a
+        # network round-trip to Resend. The audit entry above is the durable
+        # record whatever happens to the email. safeguarding_alerts routes it
+        # (the parent, or the school's own route in school mode), sends it
+        # once even if the client retries the turn, and audits the outcome.
+        asyncio.create_task(safeguarding_alerts.deliver(
+            role=auth.get("role"),
+            student_name=req.session_config.student_name,
+            display_name=req.session_config.display_name,
+            trigger_excerpt=trigger_excerpt,
+            dedupe_source=dedupe_source if dedupe_source is not None else req.child_message,
             picture=picture,
+            audit=audit_from_request(request),
         ))
 
     async def event_generator():
@@ -395,7 +398,7 @@ async def chat(
                 req.drawing_image, auth, req.session_config.student_name, request)
             if crisis:
                 await _trigger_safeguarding(f"[picture: {crisis}]", detail_prefix="trigger(picture)",
-                                            picture=crisis)
+                                            picture=crisis, dedupe_source=req.drawing_image)
             if refusal is not None:
                 yield json.dumps({'type': 'text', 'content': refusal})
                 yield json.dumps({'type': 'done'})

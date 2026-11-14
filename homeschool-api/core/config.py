@@ -242,6 +242,14 @@ class Settings(BaseSettings):
     # security-alert address for core/audit.py's anomaly watch (AuditEvent.
     # ANOMALY_ALERT) — see docs/SECURITY.md.
     parent_email: str = ""
+    # Where a possible safety concern goes in SCHOOL MODE: a teacher-led
+    # session (the educator role) or any session on a campus-licensed
+    # deployment (BEDE_LOCATION_ID set). The school designates this address
+    # for its own safeguarding route. Empty (the default) sends no email in
+    # school mode; it never falls back to PARENT_EMAIL, which on a school
+    # deployment is the operator's address. The concern is always in the
+    # audit log either way. See services/safeguarding_alerts.py.
+    school_safeguarding_email: str = ""
 
     # ── Beta feedback (optional) ────────────────────────────────────────────────
     # Where CX/UX/content-quality feedback submitted via POST /feedback (any

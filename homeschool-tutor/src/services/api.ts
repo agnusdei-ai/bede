@@ -1674,6 +1674,33 @@ export const decidePilotRecommendation = (
 export const fetchPilotLedger = (token: string, learnerId: string) =>
   educatorApi<PilotLedger>(`${pilot(learnerId)}/decisions`, token)
 
+// A teacher-confirmed classroom quiz, saved against one roster learner.
+// Classroom evidence only: never an official assessment or an export.
+export interface PilotQuizResult {
+  result_id: string
+  submission_id: string
+  recorded_at: string
+  status: 'current' | 'superseded'
+  supersedes: string | null
+  superseded_by: string | null
+  replayed: boolean
+  title: string
+  subject: string
+  total: number
+  possible: number
+}
+
+export const savePilotQuizResult = (
+  token: string, learnerId: string,
+  body: {
+    submission_id: string
+    confirmed: true
+    quiz: TeacherQuiz
+    results: { number: number; points: number | null }[]
+    supersedes?: string | null
+  },
+) => educatorApi<PilotQuizResult>(`${pilot(learnerId)}/quiz-results`, token, 'POST', body)
+
 // ── Canonical DIBELS record + separate teacher observation ────────────────
 // Uses the existing campus UUID/learner UUID G1-gated routes. Official forms
 // stay at the University of Oregon / authorized provider, not in this app.

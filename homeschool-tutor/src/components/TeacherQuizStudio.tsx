@@ -5,10 +5,13 @@ import {
   approveTeacherQuiz,
   extractTeacherQuiz,
   fetchEducatorQuizOptions,
+  fetchPilotLearners,
   finalizeTeacherQuiz,
   reviewTeacherQuiz,
+  savePilotQuizResult,
   scoreTeacherQuiz,
   TeacherQuizProblems,
+  type PilotLearner,
   type ProposedScore,
   type QuestionType,
   type QuizOptions,
@@ -99,6 +102,21 @@ export default function TeacherQuizStudio({ token, incoming }: {
   const [results, setResults] = useState<ProposedScore[] | null>(null)
   const [settled, setSettled] = useState<Record<number, number | null>>({})
   const [final, setFinal] = useState<{ total: number; possible: number } | null>(null)
+  // Saving a confirmed result: unassigned until the teacher picks a student
+  // from their own roster (never a name read off the page).
+  const [roster, setRoster] = useState<PilotLearner[] | null>(null)
+  const [saveTo, setSaveTo] = useState('')
+  const [submissionId, setSubmissionId] = useState('')
+  const [saved, setSaved] = useState<{ resultId: string; learnerId: string } | null>(null)
+  const [savedNote, setSavedNote] = useState('')
+
+  useEffect(() => {
+    if (!open || roster) return
+    let active = true
+    // No campus roster (a single-household install) means nothing to save to.
+    fetchPilotLearners(token).then((rows) => { if (active) setRoster(rows) }).catch(() => { if (active) setRoster([]) })
+    return () => { active = false }
+  }, [open, roster, token])
 
   useEffect(() => {
     if (!open || options) return
@@ -128,6 +146,7 @@ export default function TeacherQuizStudio({ token, incoming }: {
   function resetScoring() {
     setScoring(false); setWorkFiles([]); setWorkConsent(false); setTyped({})
     setResults(null); setSettled({}); setFinal(null)
+    setSaveTo(''); setSubmissionId(''); setSaved(null); setSavedNote('')
   }
 
   const fail = (err: unknown, fallback: string) => {
@@ -281,6 +300,9 @@ export default function TeacherQuizStudio({ token, incoming }: {
         quiz, results: results.map((r) => ({ number: r.number, points: settled[r.number] ?? null })),
       })
       setFinal({ total: out.total, possible: out.possible })
+      // One id per confirmed result, reused on that save's own retries.
+      setSubmissionId(crypto.randomUUID())
+      setSavedNote('')
     } catch (err) {
       fail(err, 'teacherQuiz.finalizeError')
     } finally {
@@ -288,7 +310,30 @@ export default function TeacherQuizStudio({ token, incoming }: {
     }
   }
 
-  const nextStudent = () => { setResults(null); setSettled({}); setFinal(null); setTyped({}) }
+  const nextStudent = () => {
+    setResults(null); setSettled({}); setFinal(null); setTyped({})
+    setSaveTo(''); setSubmissionId(''); setSaved(null); setSavedNote('')
+  }
+
+  const saveResult = async () => {
+    if (!quiz || !results || !final || !saveTo || !submissionId) return
+    setBusy(true); setMessage('')
+    try {
+      const out = await savePilotQuizResult(token, saveTo, {
+        submission_id: submissionId, confirmed: true, quiz,
+        results: results.map((r) => ({ number: r.number, points: settled[r.number] ?? null })),
+        // Saving again for the same student after a change is a correction.
+        supersedes: saved && saved.learnerId === saveTo ? saved.resultId : null,
+      })
+      setSaved({ resultId: out.result_id, learnerId: saveTo })
+      const name = roster?.find((l) => l.learner_id === saveTo)?.display_name ?? ''
+      setSavedNote(t(out.supersedes ? 'teacherQuiz.savedCorrection' : 'teacherQuiz.saved', { name }))
+    } catch (err) {
+      fail(err, 'teacherQuiz.saveError')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const field = 'mt-1 block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm'
   const label = 'block text-xs font-medium text-gray-600'
@@ -576,6 +621,21 @@ export default function TeacherQuizStudio({ token, incoming }: {
                     <button type="button" onClick={nextStudent} className={quiet}>{t('teacherQuiz.nextStudent')}</button>
                     <button type="button" onClick={resetScoring} className={quiet}>{t('teacherQuiz.backToQuiz')}</button>
                   </div>
+                  {final && roster && roster.length > 0 && (
+                    <div className="flex flex-wrap items-end gap-2 rounded-xl border border-gray-200 p-3">
+                      <label className="min-w-[12rem] flex-1 text-xs font-medium text-gray-600">
+                        {t('teacherQuiz.saveTo')}
+                        <select value={saveTo} onChange={(e) => { setSaveTo(e.target.value); setSavedNote('') }} className={field}>
+                          <option value="">{t('teacherQuiz.chooseStudent')}</option>
+                          {roster.map((l) => <option key={l.learner_id} value={l.learner_id}>{l.display_name}</option>)}
+                        </select>
+                      </label>
+                      <button type="button" onClick={() => void saveResult()} disabled={busy || !saveTo || !!savedNote}
+                        className={`${button} bg-sage-700 text-white disabled:opacity-40`}>{t('teacherQuiz.saveResult')}</button>
+                      <p className="w-full text-xs text-gray-500">{t('teacherQuiz.saveHint')}</p>
+                      {savedNote && <p role="status" className="w-full text-sm font-medium text-sage-800">{savedNote}</p>}
+                    </div>
+                  )}
                 </>
               )}
             </div>

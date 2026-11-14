@@ -440,13 +440,33 @@ async function boundaryChild(br, bname, i) {
     c2.on('pageerror', err => console.log(`PAGEERROR ${who}@175%: ${String(err).slice(0, 300)}`));
     c2.on('crash', () => console.log(`CRASH ${who}@175% at ${c2.url()}`));
     c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@175% error: ${m.text().slice(0, 300)}`); });
-    await step(who, 'sign_in_at_175_percent', () => childLogin(c2, name));
+    // What the page itself showed, not the first context's (already closed) screen.
+    const describe = async (pg, label) => {
+      const d = await pg.evaluate(() => ({ text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 300), root: document.getElementById('root')?.innerHTML.length ?? -1, fontSize: getComputedStyle(document.documentElement).fontSize })).catch(e => ({ error: String(e).slice(0, 200) }));
+      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)}`);
+    };
+    try {
+      await step(who, 'sign_in_at_175_percent', () => childLogin(c2, name));
+    } catch (e) {
+      await describe(c2, '@175%');
+      // Diagnosis only (not a check): the same phone-sized, touch context
+      // without the 175% setting, to tell a text-scale fault from an engine one.
+      const ctl = await br.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const cp = await ctl.newPage();
+      const ok = await childLogin(cp, name).then(() => true).catch(() => false);
+      console.log(`CONTROL ${who} phone-size without 175%: sign-in ${ok ? 'succeeded' : 'failed'}`);
+      if (!ok) await describe(cp, '@control');
+      await ctl.close().catch(() => {});
+      await ctx2.close().catch(() => {});
+      throw e;
+    }
     const scale = await c2.evaluate(() => getComputedStyle(document.documentElement).fontSize);
     check(who, 'text_scale_175_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);
     await ctx2.close();
   } catch (e) {
-    const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
-    console.log(`SCREEN ${who} at ${c.url()}: ${screen}`);
+    if (!c.isClosed()) {
+      const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 300);
+      console.log(`SCREEN ${who} at ${c.url()}: ${screen}`);
+    }
     check(who, 'journey_completed', false, e.message); await ctx.close().catch(() => {});
   }
 }

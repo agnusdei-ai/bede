@@ -220,7 +220,11 @@ def main() -> int:
             (out / "journeys.db").unlink(missing_ok=True)
         except PermissionError as exc:
             print(f"could not remove journeys.db: {exc}", flush=True)
-    sys.stdout.write((out / "journeys.log").read_text(encoding="utf-8", errors="replace"))
+    # The log holds emoji; a Windows console's cp1252 cannot print them, and a
+    # crash here hid the real result. Write bytes, replacing what won't encode.
+    text = (out / "journeys.log").read_text(encoding="utf-8", errors="replace")
+    sys.stdout.buffer.write(text.encode(sys.stdout.encoding or "utf-8", errors="replace"))
+    sys.stdout.flush()
     if rc:
         print_log_tails(out)
     return rc or 0

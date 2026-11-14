@@ -3,7 +3,7 @@
 
 Used by run_journeys.py (cross-platform browser journeys, #599/#755). Binds
 127.0.0.1 only. Returns one fixed sample worksheet reading, a safety
-verdict, a moderation verdict, or streamed tutor text. Every completion waits a random
+verdict, a picture-check verdict, a moderation verdict, or streamed tutor text. Every completion waits a random
 0.5-3.0 s (non-stream: whole delay before reply; stream: 0.4-1.2 s to first
 token, then chunks) so concurrent requests genuinely overlap.
 Logs t_start/t_end/kind per request (never content) to <dir>/stub.jsonl.
@@ -21,6 +21,9 @@ READING = {"subject": "history", "sections": [{
      "teacher_correction": "pharoh", "confidence": 0.4, "ask_parent": "Is the teacher's correction spelled pharoh or pharaoh?"},
     {"number": 3, "prompt": "What did Egyptians make paper from?", "student_response": "reeds", "teacher_mark": "incorrect"},
     {"number": 4, "prompt": "On which continent is Egypt?", "student_response": "Africa", "teacher_mark": "correct"}]}]}
+# The opening words of content_screen's rules; tests/test_qualification_workflow.py
+# checks they still match the real prompt.
+SCREEN_MARK = "You check pictures before a K-8 school app"
 REPLY = "STUB-TUTOR sample reply. Good thinking. What clue in the question helped you decide?"
 
 
@@ -68,7 +71,13 @@ class H(BaseHTTPRequestHandler):
             self.close_connection = True
             log({"t0": t0, "t1": time.time(), "kind": kind, "images": imgs}); return
         time.sleep(random.uniform(0.5, 3.0))
-        if "Subject:" in sysmsg or imgs:
+        if SCREEN_MARK in sysmsg:
+            # The upload/lesson picture check (services/content_screen.py)
+            # also carries images, so it must be recognised before the
+            # reading branch: answered with a reading, the real parser
+            # refuses it as unclear and every upload fails closed.
+            kind, content = "screen", json.dumps({"verdict": "ok"})
+        elif "Subject:" in sysmsg or imgs:
             kind, content = "reading", json.dumps(READING)
         elif '{"safe":true}' in sysmsg:
             kind, content = "safety", json.dumps({"safe": True})

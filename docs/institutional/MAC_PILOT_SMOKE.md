@@ -1,13 +1,13 @@
 # Bede | Mac pilot smoke and G3 certification entry point
 
-**Current integrated code:** main `d3eb645c2de1058bb8056005a09c7d40446cea20`, with G1/G2/owner deletion and scoped tutoring integrated. The qualified underlying pilot candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e` passed **146/146 synthetic checks**. This does **not** constitute a physical Mac test.
+**Current integrated code:** main `d3eb645c2de1058bb8056005a09c7d40446cea20`, with G1/G2/owner deletion and scoped tutoring integrated. The qualified underlying pilot candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e` passed **146/146 sample checks**. This does **not** constitute a physical Mac test.
 
 For the **complete mandatory physical-Mac certification**, use:
 
 - [G3 physical-Mac certification runbook](MAC_G3_CERTIFICATION_RUNBOOK.md)
 - [G3 evidence and owner release decision record](MAC_G3_CERTIFICATION_RECORD.md)
 
-This page describes only the quick, non-destructive installation/health checks that prepare for G3. Never mark G3 PASS solely because a smoke test passed. Use synthetic records and identities until a separate owner release explicitly authorizes another scope.
+This page describes only the quick, non-destructive installation/health checks that prepare for G3. Never mark G3 PASS solely because a smoke test passed. Use sample records and identities until a separate owner release explicitly authorizes another scope.
 
 ## Option A — source-free operator archive (preferred installation evidence)
 
@@ -26,18 +26,18 @@ For a teacher's **second Mac**, deliberately enable a private LAN listener durin
 
 ## Option B — source checkout Docker smoke (developer-only)
 
-With the exact candidate source checked out, Docker Desktop running and a verified disposable synthetic-only database:
+With the exact candidate source checked out, Docker Desktop running and a verified disposable sample-only database:
 
 ```bash
-BEDE_SYNTHETIC_ONLY=1 bash scripts/pilot-smoke.sh start
+BEDE_SAMPLE_ONLY=1 bash scripts/pilot-smoke.sh start
 bash scripts/pilot-smoke.sh check
 ```
 
-The environment flag is an **operator assertion**, not a protective synthetic-data detector. This helper checks Docker/Compose, local configuration and trusted HTTPS health and saves `pilot-evidence/`. It does not create educators, perform WebAuthn, exercise G2 or test recovery. It must not be confused with the source-free operator artifact.
+The environment flag is an **operator assertion**, not a protective sample-data detector. This helper checks Docker/Compose, local configuration and trusted HTTPS health and saves `pilot-evidence/`. It does not create educators, perform WebAuthn, exercise G2 or test recovery. It must not be confused with the source-free operator artifact.
 
 ## Option C — real teacher passkey browser check (separate from package)
 
-The installed code also has `scripts/qualification/mac_check.py`, an interactive source-checkout harness that uses a real Safari/Chrome teacher authenticator **but a virtual Chromium administrator**, local synthetic mail and inference stubs. It tests six passkey and roster outcomes, and creates `mac-check-out/mac-check-result.json`. It **recreates and later drops** its `bede_mac_check` Postgres test database, so run it only on an isolated sacrificial Postgres host. Follow the exact setup in [SYNTHETIC_QUALIFICATION.md](../SYNTHETIC_QUALIFICATION.md#real-device-check-on-a-mac-10-20-minutes-owner-run).
+The installed code also has `scripts/qualification/mac_check.py`, an interactive source-checkout harness that uses a real Safari/Chrome teacher authenticator **but a virtual Chromium administrator**, local sample mail and inference stubs. It tests six passkey and roster outcomes, and creates `mac-check-out/mac-check-result.json`. It **recreates and later drops** its `bede_mac_check` Postgres test database, so run it only on an isolated sacrificial Postgres host. Follow the exact setup in [SAMPLE_QUALIFICATION.md](../SAMPLE_QUALIFICATION.md#real-device-check-on-a-mac-10-20-minutes-owner-run).
 
 It cannot substitute for the packaged Mac installation, administrator lost-device recovery, whole-account educator offboarding, independent recovery-plane isolation, G2 classroom runtime or service restart/restore acceptance.
 

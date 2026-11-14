@@ -1,4 +1,4 @@
-"""The synthetic qualification workflow, guarded against its PARSED YAML.
+"""The sample qualification workflow, guarded against its PARSED YAML.
 
 .github/workflows/qualification.yml produces evidence about one fixed commit
 and must never be able to do anything else. Every property it depends on is
@@ -18,9 +18,9 @@ scripts/qualification/ is exercised directly:
   * G3/Mac is a placeholder input only and nothing claims a Mac check ran;
   * the preflight fails closed on each forbidden category, a missing route
     becomes an ABSENT cell rather than a skipped one, and seeding refuses a
-    non-synthetic name.
+    non-sample name.
 
-See docs/SYNTHETIC_QUALIFICATION.md. Each assertion was verified by breaking
+See docs/SAMPLE_QUALIFICATION.md. Each assertion was verified by breaking
 the property it guards (recorded in the PR).
 """
 from __future__ import annotations
@@ -146,7 +146,7 @@ def _cancel_for(event_name: str) -> bool:
 def test_a_dispatched_run_is_never_cancelled_by_a_newer_run():
     """An IN-PROGRESS dispatched run. GitHub still replaces a *pending* run
     in the same group with a newer pending one; the exact block cannot close
-    that, and docs/SYNTHETIC_QUALIFICATION.md says so."""
+    that, and docs/SAMPLE_QUALIFICATION.md says so."""
     assert _cancel_for("workflow_dispatch") is False
     assert _cancel_for("pull_request") is True
     # Nothing else can cancel it either: no job- or step-level concurrency,
@@ -165,7 +165,7 @@ def test_preflight_runs_before_the_stack_and_cannot_be_skipped():
     assert _index("Fail-closed preflight") < _index("Run the stack")
 
 
-def test_application_environment_is_synthetic():
+def test_application_environment_is_sample():
     env = _wf()["jobs"]["qualify"]["env"]
     assert env["PRODUCTION"] == "false"
     assert env["EDUCATOR_PILOT_ENABLED"] == "true"
@@ -248,8 +248,8 @@ def test_preflight_baseline_only_fails_on_sha_and_database():
     ({"ANTHROPIC_API_KEY": "x"}, "env_unset:ANTHROPIC_API_KEY"),
     ({"RESEND_API_KEY": "re_live_realkey"}, "mail_requires_sink"),
     ({"RESEND_API_KEY": "re_live_realkey", "RESEND_API_BASE_URL": "http://127.0.0.1:8767"},
-     "mail_key_is_synthetic"),
-    ({"RESEND_API_KEY": "synthetic-x", "RESEND_API_BASE_URL": "https://api.resend.com"},
+     "mail_key_is_sample"),
+    ({"RESEND_API_KEY": "sample-x", "RESEND_API_BASE_URL": "https://api.resend.com"},
      "mail_endpoint_is_loopback_sink"),
     ({"RESEND_API_BASE_URL": "http://127.0.0.1:9999"}, "mail_endpoint_is_loopback_sink"),
     ({"RESEND_API_BASE_URL": "http://10.1.2.3:8767"}, "mail_endpoint_is_loopback_sink"),
@@ -257,10 +257,10 @@ def test_preflight_baseline_only_fails_on_sha_and_database():
     ({"RESEND_API_BASE_URL": "http://localhost:8767"}, "mail_endpoint_is_loopback_sink"),
     ({"RESEND_FROM_ADDRESS": "bede@qualification.agnusdei.ai"}, "mail_requires_sink"),
     ({"RESEND_FROM_ADDRESS": "x@real-school.org", "RESEND_API_BASE_URL": "http://127.0.0.1:8767"},
-     "mail_sender_is_synthetic_domain"),
+     "mail_sender_is_sample_domain"),
     ({"RESEND_WEBHOOK_SECRET": "x"}, "mail_env_unknown:RESEND_WEBHOOK_SECRET"),
     ({"EDUCATOR_BOOTSTRAP_EMAILS": "someone@real-school.org"}, "no_bootstrap_email_addresses"),
-    ({"EDUCATOR_INSTITUTION_EMAIL_DOMAIN": "real-school.org"}, "institution_domain_is_synthetic"),
+    ({"EDUCATOR_INSTITUTION_EMAIL_DOMAIN": "real-school.org"}, "institution_domain_is_sample"),
     ({"STRIPE_SECRET_KEY": "x"}, "env_unset:STRIPE_SECRET_KEY"),
     ({"STRIPE_ANYTHING": "x"}, "env_prefix_forbidden:STRIPE_ANYTHING"),
     ({"LICENSE_SERVER_URL": "https://x"}, "env_unset:LICENSE_SERVER_URL"),
@@ -281,7 +281,7 @@ def test_preflight_fails_closed(override, expected):
 
 
 def test_the_sink_configuration_passes_preflight():
-    ok = _base_env(RESEND_API_BASE_URL="http://127.0.0.1:8767", RESEND_API_KEY="synthetic-abc",
+    ok = _base_env(RESEND_API_BASE_URL="http://127.0.0.1:8767", RESEND_API_KEY="sample-abc",
                    RESEND_FROM_ADDRESS="bede@qualification.agnusdei.ai",
                    EDUCATOR_INSTITUTION_EMAIL_DOMAIN="qualification.agnusdei.ai")
     assert not {c for c in _failed(ok) if c.startswith(("mail_", "institution_", "no_bootstrap"))}
@@ -291,8 +291,8 @@ def test_workflow_mail_points_only_at_the_loopback_sink():
     env = _wf()["jobs"]["qualify"]["env"]
     assert env["RESEND_API_BASE_URL"] == "http://127.0.0.1:8767"
     assert env["WEBAUTHN_ORIGIN"].startswith("https://localhost:")
-    gen = _step("Generate synthetic secrets")["run"]
-    assert 'sink_key="synthetic-$(gen 16)"' in gen and 'echo "RESEND_API_KEY=$sink_key"' in gen
+    gen = _step("Generate sample secrets")["run"]
+    assert 'sink_key="sample-$(gen 16)"' in gen and 'echo "RESEND_API_KEY=$sink_key"' in gen
     assert '::add-mask::$v' in gen and '"$sink_key"; do' in gen
 
 
@@ -301,7 +301,7 @@ def _sink(tmp_path, port):
     import subprocess
     import time
     import httpx
-    env = dict(os.environ, QUAL_MAIL_SINK_KEY="synthetic-sinkkey")
+    env = dict(os.environ, QUAL_MAIL_SINK_KEY="sample-sinkkey")
     proc = subprocess.Popen([sys.executable, str(QUAL / "mail_sink.py"), "--port", str(port),
                              "--store", str(tmp_path / "store"), "--log", str(tmp_path / "log.jsonl"),
                              "--domain", "qualification.agnusdei.ai"], env=env)
@@ -315,7 +315,7 @@ def _sink(tmp_path, port):
     raise RuntimeError("sink did not start")
 
 
-def test_mail_sink_accepts_only_the_synthetic_key_and_domain(tmp_path):
+def test_mail_sink_accepts_only_the_sample_key_and_domain(tmp_path):
     import socket
     import httpx
     with socket.socket() as s:
@@ -328,8 +328,8 @@ def test_mail_sink_accepts_only_the_synthetic_key_and_domain(tmp_path):
               "subject": "s", "html": "<a href='https://localhost/x#ticket=" + "1" * 36 + "&amp;token=" + "a" * 40 + "'>x</a>"}
         assert httpx.post(url, json=ok, headers={"Authorization": "Bearer wrong"}).status_code == 401
         foreign = dict(ok, to=["someone@real-school.org"])
-        assert httpx.post(url, json=foreign, headers={"Authorization": "Bearer synthetic-sinkkey"}).status_code == 422
-        assert httpx.post(url, json=ok, headers={"Authorization": "Bearer synthetic-sinkkey"}).status_code == 200
+        assert httpx.post(url, json=foreign, headers={"Authorization": "Bearer sample-sinkkey"}).status_code == 422
+        assert httpx.post(url, json=ok, headers={"Authorization": "Bearer sample-sinkkey"}).status_code == 200
     finally:
         proc.terminate()
         proc.wait(timeout=5)
@@ -345,7 +345,7 @@ def test_mail_sink_refuses_a_non_loopback_bind(tmp_path):
     import subprocess
     r = subprocess.run([sys.executable, str(QUAL / "mail_sink.py"), "--host", "0.0.0.0",
                         "--store", str(tmp_path), "--log", str(tmp_path / "l"), "--domain", "x"],
-                       env=dict(os.environ, QUAL_MAIL_SINK_KEY="synthetic-k"), capture_output=True, timeout=20)
+                       env=dict(os.environ, QUAL_MAIL_SINK_KEY="sample-k"), capture_output=True, timeout=20)
     assert r.returncode == 2
 
 
@@ -481,19 +481,19 @@ def test_only_the_exact_session_ended_notice_is_exempt_after_revocation():
     import matrix
     notice = {"type": "error", "message": "unknown or expired session"}
     assert matrix._is_session_ended_notice(json.dumps(notice))
-    for leak in ({"type": "partial", "text": "synthetic words"},
-                 {"type": "final", "text": "synthetic words"},
-                 {**notice, "text": "synthetic words"},
+    for leak in ({"type": "partial", "text": "sample words"},
+                 {"type": "final", "text": "sample words"},
+                 {**notice, "text": "sample words"},
                  {"type": "error", "message": "unknown or expired session."}):
         assert not matrix._is_session_ended_notice(json.dumps(leak))
     assert not matrix._is_session_ended_notice("not json")
 
 
-def test_seeding_refuses_a_non_synthetic_name():
+def test_seeding_refuses_a_non_sample_name():
     import seed
-    assert seed.assert_synthetic("Synthetic Campus One") == "Synthetic Campus One"
-    with pytest.raises(seed.NotSynthetic):
-        seed.assert_synthetic("Valor Academy")
+    assert seed.assert_sample("Sample Campus One") == "Sample Campus One"
+    with pytest.raises(seed.NotSample):
+        seed.assert_sample("Valor Academy")
 
 
 class _KeyedApi:
@@ -541,12 +541,12 @@ def test_seeding_reuses_one_idempotency_key_across_retries_of_the_same_create():
 def test_credential_scan_fails_closed(tmp_path):
     import package
     (tmp_path / "server.log").write_text("ok\nAuthorization: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4eHh4eHgifQ.c2lnbmF0dXJlc2ln\n")
-    (tmp_path / "other.log").write_text("synthetic-literal-secret-value")
-    findings = package.scan(tmp_path, {"SECRET_KEY": "synthetic-literal-secret-value"})
+    (tmp_path / "other.log").write_text("sample-literal-secret-value")
+    findings = package.scan(tmp_path, {"SECRET_KEY": "sample-literal-secret-value"})
     assert {f["file"] for f in findings} == {"server.log", "other.log"}
     (tmp_path / "server.log").write_text("clean")
     (tmp_path / "other.log").write_text("clean")
-    assert package.scan(tmp_path, {"SECRET_KEY": "synthetic-literal-secret-value"}) == []
+    assert package.scan(tmp_path, {"SECRET_KEY": "sample-literal-secret-value"}) == []
 
 
 # ── change filter ───────────────────────────────────────────────────────────
@@ -559,7 +559,7 @@ def test_this_guards_inputs_are_in_the_api_change_filter():
     alternatives = line.split("'", 2)[1].strip("^()").split("|")
     assert "scripts/qualification/" in alternatives
     assert "\\.github/workflows/" in alternatives
-    assert "docs/SYNTHETIC_QUALIFICATION\\.md" in alternatives
+    assert "docs/SAMPLE_QUALIFICATION\\.md" in alternatives
 
 
 def test_write_only_tutoring_preserves_reciprocal_isolation_matrix_cell():

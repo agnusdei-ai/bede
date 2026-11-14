@@ -70,7 +70,7 @@ analysis belongs to counsel.
   device pairing), session handling, encryption at rest, container hardening,
   TLS, rate limiting, the public demo and marketing site
 - Out of scope: `[LIST]`
-- Test accounts and synthetic data only; no real child data: `[CONFIRMED BY]`
+- Test accounts and sample data only; no real child data: `[CONFIRMED BY]`
 
 ### Engagement terms
 

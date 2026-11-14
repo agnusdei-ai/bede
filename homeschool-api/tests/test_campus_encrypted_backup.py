@@ -19,13 +19,13 @@ restore = _backup.restore
 
 SECRET = "owner-controlled-test-passphrase-not-a-real-secret"
 
-def encrypt(data=b"synthetic campus data"):
+def encrypt(data=b"sample campus data"):
     result = io.BytesIO()
     encrypt_stream(io.BytesIO(data), result, SECRET)
     return result.getvalue()
 
 def test_round_trip_and_non_deterministic_ciphertext():
-    source = b"synthetic educational records" * 300
+    source = b"sample educational records" * 300
     a, b = encrypt(source), encrypt(source)
     assert a != b
     assert source not in a

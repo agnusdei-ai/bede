@@ -14,13 +14,13 @@ The separate Grade 8 baseline worktree at `d8d9127` is retained unchanged.
 Current `AGENTS.md`, `docs/ENGINEERING_RULES.md`, LICENSE, constitutional guidance
 in `CLAUDE.md`, and the curriculum design/review docs were inspected. Newer
 governance remains intact: curriculum PRs require human review before merge,
-merge is not release, and synthetic-only Pilot HOLD is not lifted.
+merge is not release, and sample-only Pilot HOLD is not lifted.
 
 ## Existing implementation (source inspected, not deployed certification)
 
 | Reuse | Integration boundary / gap |
 | --- | --- |
-| `homeschool-api/services/curriculum/models.py` | Preserve source/objective/skill IDs and campus/version/visibility. No authoritative Grade 8 outcome taxonomy was found; fixture objective IDs are explicitly synthetic, not replacements. |
+| `homeschool-api/services/curriculum/models.py` | Preserve source/objective/skill IDs and campus/version/visibility. No authoritative Grade 8 outcome taxonomy was found; fixture objective IDs are explicitly sample, not replacements. |
 | `services/diagnostic/skill_map.py`, `services/content_curation.py` | Reuse `sp.scatter_plots` in the fixture. Reconcile every real objective to existing skills; new skills require separate reviewed change, never rewrite mastery history. |
 | `services/curriculum/rights_gate.py` | Bind exact edition/hash, retrieval time, citation and rights evidence. Verbatim requires verified public domain. `licensed` is not a way around that check. |
 | `services/curriculum/workflow.py`, `persistence.py` | Reuse staging, encrypted snapshots, campus/version keys, source fingerprint checks, independent review, precommit reauthorization and append-only approved versions. No migrations here. |
@@ -67,7 +67,7 @@ inputs**. Do not manufacture hashes from catalog pages. The fixture instead
 uses a visibly separate `fixture-source-pairs` ID.
 
 Outer `curriculum/grade-9/` and its audit contain a 36-week map, nine authored
-weeks, original replacement biology notes, synthetic project, independent agent
+weeks, original replacement biology notes, sample project, independent agent
 reviews and provisional source IDs including `M01`. Preserve those IDs and
 final appended dispositions; older required-human subject-review wording is
 historical. None establishes a full year, source ingestion, pilot, or publication.

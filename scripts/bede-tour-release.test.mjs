@@ -90,7 +90,7 @@ test("recorded lesson is added without replacing the overview, with accessible t
   assert.match(tour, /Read the overview transcript/);
   assert.match(tour, /data-testid="text-overview-transcript"/);
   assert.match(tour, /<LessonVideo publicDemoHref="\/bede\/" \/>/);
-  assert.doesNotMatch(tour, /The scripted interactive tour is simulated/);
+  assert.doesNotMatch(tour, /The scripted interactive tour is a sample/);
   assert.match(tour, /#lesson-title/);
   assert.match(lesson, /data-testid="section-recorded-lesson"/);
   assert.match(lesson, /src=\{asset\("generated\/lesson\.mp4"\)\}/);

@@ -52,7 +52,7 @@ def _sandbox_pin(monkeypatch):
 async def test_sandbox_chat_exception_logs_ai_backend_failure(monkeypatch, audit_events):
     async def erroring_stream(*args, **kwargs):
         yield '{"type": "text", "content": "So the tree"}'
-        raise RuntimeError("simulated upstream failure")
+        raise RuntimeError("mock upstream failure")
 
     monkeypatch.setattr("routers.sandbox.stream_sandbox_response", erroring_stream)
 
@@ -114,7 +114,7 @@ async def test_sandbox_chat_healthy_stream_never_logs_a_failure(monkeypatch, aud
 async def test_sandbox_demo_chat_exception_logs_ai_backend_failure(monkeypatch, audit_events):
     async def erroring_stream(*args, **kwargs):
         yield '{"type": "text", "content": "So the tree"}'
-        raise RuntimeError("simulated upstream failure")
+        raise RuntimeError("mock upstream failure")
 
     monkeypatch.setattr("routers.sandbox.stream_sandbox_response", erroring_stream)
 

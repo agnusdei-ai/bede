@@ -1,6 +1,6 @@
 """G1 items 3, 7, 8: no per-learner cache is keyed by display name.
 
-Two synthetic campuses each hold a learner with the SAME display name. Every
+Two sample campuses each hold a learner with the SAME display name. Every
 per-learner cache (the unwrapped data key and the four read-only prompt
 caches) must keep them apart, and revocation/deletion must evict through one
 entry point.
@@ -9,8 +9,8 @@ Runs on in-memory SQLite by default. Set G1_CACHE_TEST_DATABASE_URL to a
 dedicated, disposable Postgres database to run the same tests there; the
 fixture creates and drops every table in it.
 
-Synthetic identities only: Synthetic Campus One/Two, Synthetic Teacher
-One/Two, Synthetic Learner One/Two (who deliberately share a display name).
+Sample identities only: Sample Campus One/Two, Sample Teacher
+One/Two, Sample Learner One/Two (who deliberately share a display name).
 """
 import os
 from contextlib import asynccontextmanager
@@ -41,7 +41,7 @@ from services.diagnostic.music import SUBJECT_AREA as MUSIC_AREA
 from services.educator_access import provision_educator
 
 ADMIN = {"role": "parent", "auth_method": "webauthn_uv"}
-SAME_NAME = "Synthetic Learner"
+SAME_NAME = "Sample Learner"
 
 
 @pytest_asyncio.fixture
@@ -71,13 +71,13 @@ async def db(monkeypatch):
 
 
 async def two_campuses(db):
-    """Synthetic Campus One/Two, each with a same-named learner, each with
+    """Sample Campus One/Two, each with a same-named learner, each with
     its own teacher holding a grant — created through the real route
     handlers so the IDs are the service's own canonical UUIDv4s."""
-    t1 = await provision_educator(db, "synthetic.teacher.one", "synthetic-passphrase-one-strong")
-    t2 = await provision_educator(db, "synthetic.teacher.two", "synthetic-passphrase-two-strong")
-    c1 = (await create_campus(CampusInput(title="Synthetic Campus One"), auth=ADMIN, db=db))["campus_id"]
-    c2 = (await create_campus(CampusInput(title="Synthetic Campus Two"), auth=ADMIN, db=db))["campus_id"]
+    t1 = await provision_educator(db, "sample.teacher.one", "sample-passphrase-one-strong")
+    t2 = await provision_educator(db, "sample.teacher.two", "sample-passphrase-two-strong")
+    c1 = (await create_campus(CampusInput(title="Sample Campus One"), auth=ADMIN, db=db))["campus_id"]
+    c2 = (await create_campus(CampusInput(title="Sample Campus Two"), auth=ADMIN, db=db))["campus_id"]
     await authorize_campus(db, c1)
     await authorize_campus(db, c2)
     l1 = (await create_learner(c1, LearnerInput(display_name=SAME_NAME), auth=ADMIN, db=db))["learner_id"]
@@ -113,7 +113,7 @@ async def seed_learner_one(db, scope: LearnerScope):
     ))
     db.add(LessonBookmark(
         student_name=subj, subject="history", updated_at=datetime.now(timezone.utc),
-        bookmark_enc=encrypt_json({"note": "Synthetic resume point one."}, student_aad("lesson_bookmarks", "bookmark_enc", subj, "history"), key),
+        bookmark_enc=encrypt_json({"note": "Sample resume point one."}, student_aad("lesson_bookmarks", "bookmark_enc", subj, "history"), key),
     ))
     await db.commit()
 
@@ -224,7 +224,7 @@ async def test_prompt_caches_primed_for_one_campus_miss_for_the_same_name_on_the
     primed = await prime(db, w["one"])
     assert primed["mastery"] == ({"add_within_10": 0.9}, 7)
     assert primed["style"] == "visual"
-    assert primed["bookmark"]["note"] == "Synthetic resume point one."
+    assert primed["bookmark"]["note"] == "Sample resume point one."
     assert primed["music"] == ({"musical_elements": 0.8}, 4)
 
     other = await prime(db, w["two"])
@@ -259,8 +259,8 @@ async def test_stream_tutor_response_threads_the_learner_scope_to_the_caches(db)
                 pass
         return captured["system"][1]["text"]
 
-    assert "Synthetic resume point one." in await run(w["one"])
-    assert "Synthetic resume point one." not in await run(w["two"])
+    assert "Sample resume point one." in await run(w["one"])
+    assert "Sample resume point one." not in await run(w["two"])
     owned = [k for k in ai_service._lesson_bookmark_cache if w["one"].owns(k)]
     assert owned, "stream_tutor_response did not populate Learner One's scoped entry"
 

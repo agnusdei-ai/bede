@@ -13,13 +13,13 @@ provides one.
 
 Simulating "many distinct visitors behind one shared reverse-proxy peer"
 locally needs two independent things, easy to conflate:
-  1. Each simulated visitor sends a different X-Forwarded-For value (what
+  1. Each mock visitor sends a different X-Forwarded-For value (what
      Render's edge would forward for a real, distinct visitor).
   2. Every request's own TCP source address is the *same* one address, and
      that address must NOT be uvicorn's trusted-by-default "127.0.0.1" —
      otherwise the client's own loopback source gets trusted for free and
      the exact bug this test exists to catch never reproduces.
-(2) is done with httpx's `local_address`, binding every simulated visitor's
+(2) is done with httpx's `local_address`, binding every mock visitor's
 outgoing connection to 127.0.0.2 — a second loopback address that routes
 locally with no real network involved, but isn't uvicorn's default trusted
 peer, standing in for "the container's only visible peer is the hosting
@@ -40,7 +40,7 @@ import pytest
 
 API_DIR = Path(__file__).resolve().parent.parent
 
-# The single, shared source address every simulated visitor connects from —
+# The single, shared source address every mock visitor connects from —
 # standing in for "the only peer uvicorn ever actually sees, behind Render's
 # edge proxy." Deliberately not uvicorn's default trusted peer (127.0.0.1).
 _SHARED_PROXY_PEER = "127.0.0.2"
@@ -49,7 +49,7 @@ _ip_counter = itertools.count(1)
 
 
 def _next_visitor_ip() -> str:
-    """A fresh, never-reused simulated *real visitor* IP (the value carried
+    """A fresh, never-reused mock *real visitor* IP (the value carried
     in X-Forwarded-For) for each caller, so no two test cases in this module
     ever share a rate-limit bucket by accident."""
     n = next(_ip_counter)
@@ -170,7 +170,7 @@ def demo_api_base_url():
 @pytest.mark.parametrize("concurrency", [10, 20, 30, 40, 50])
 @pytest.mark.asyncio
 async def test_distinct_visitors_scale_without_false_rate_limiting(demo_api_base_url, concurrency):
-    """`concurrency` simulated visitors — each with its own X-Forwarded-For
+    """`concurrency` mock visitors — each with its own X-Forwarded-For
     IP, all arriving through the one shared proxy peer described at the top
     of this file — hit POST /auth/demo-code at the same instant. Every one
     must succeed with a unique code. Before the --forwarded-allow-ips fix,

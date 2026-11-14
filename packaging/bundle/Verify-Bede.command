@@ -8,7 +8,7 @@ mkdir -p "$out"
 chmod 700 bede-evidence "$out"
 exec > >(tee "$out/summary.txt") 2>&1
 echo "Bede operator verification — $stamp"
-echo "Only synthetic data may be entered in this pre-release environment."
+echo "Only sample data may be entered in this pre-release environment."
 echo "Release SHA: $(cat RELEASE 2>/dev/null || echo missing)"
 echo "Bundle CPU: $(cat ARCH 2>/dev/null || echo missing)"
 echo "Host: $(uname -srm)"
@@ -43,7 +43,7 @@ cat > "$out/manual-acceptance.txt" <<'CHECKS'
 NOT RUN: Browser recognizes trusted HTTPS certificate without bypass.
 NOT RUN: Bede admin signs in and completes administrator passkey.
 NOT RUN: Approved organizational instructor receives invite, enrolls a passkey and signs in again.
-NOT RUN: G1 two synthetic campuses and same-named learners — authorized access and cross-campus/unassigned/revoked denial.
+NOT RUN: G1 two sample campuses and same-named learners — authorized access and cross-campus/unassigned/revoked denial.
 NOT RUN: G2 evidence -> Bede recommendation -> educator approve, edit and reject -> durable audit and follow-up.
 NOT RUN: G3 invite-only manually approved grants and revocations, recovery, disable/shutdown and safe restart.
 NOT RUN: Pilot commercial exclusions (no Stripe, purchase, auto-conversion, retained trial access).

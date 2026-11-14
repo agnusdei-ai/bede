@@ -214,7 +214,7 @@ function TourHeader({
     <>
       <header className="tour-topbar">
         <a className="tour-brand" href="#tour-step" aria-label="Bede guided tour"><img src={asset("bede-icon.webp")} alt="" /><span>BEDE</span></a>
-        <span className="tour-topbar-note">{path === "parent" ? "Homeschooling parent" : "Classical educator"} · simulated</span>
+        <span className="tour-topbar-note">{path === "parent" ? "Homeschooling parent" : "Classical educator"} · sample</span>
       </header>
       <div className="tour-step-nav" aria-label="Tour progress">
         {steps.map((label, index) => (
@@ -474,7 +474,7 @@ export function Tour() {
     const newDescription = description ?? document.createElement("meta");
     document.title = "Bede Guided Tour | Human-led classical learning";
     newDescription.name = "description";
-    newDescription.content = "Explore a local, simulated Bede tour for homeschooling parents and classical educators. Adults lead; fictional examples only.";
+    newDescription.content = "Explore a local sample tour of Bede for homeschooling parents and classical educators. Adults lead; fictional examples only.";
     if (!description) document.head.appendChild(newDescription);
     return () => {
       document.title = previousTitle;
@@ -542,7 +542,7 @@ export function Tour() {
   if (screen === "choose") return <div className="bede-tour"><PathPicker onChoose={resetPath} onBack={() => setScreen("entry")} /></div>;
   if (screen === "complete") return (
     <div className="bede-tour">
-      <header className="tour-topbar"><a className="tour-brand" href="#tour-end"><img src={asset("bede-icon.webp")} alt="" /><span>BEDE</span></a><span className="tour-topbar-note">Local walkthrough · simulated</span></header>
+      <header className="tour-topbar"><a className="tour-brand" href="#tour-end"><img src={asset("bede-icon.webp")} alt="" /><span>BEDE</span></a><span className="tour-topbar-note">Local walkthrough · sample</span></header>
       <Completion path={path} skipped={skipped} onRestart={() => resetPath(path)} onSwitch={() => setScreen("choose")} />
     </div>
   );

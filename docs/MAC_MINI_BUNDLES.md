@@ -134,6 +134,6 @@ passes a qualified pedagogical fidelity rubric, including truthful
 DIBELS source handling. Review the raw benchmark traces independently.
 
 As of this initial hardware SKU change, there is **no physical Mac mini
-measurement evidence in the repository**. All unit tests are synthetic
+measurement evidence in the repository**. All unit tests are sample
 checks of the acceptance algorithm, and no schoolwide tutor-session
 concurrency has been established.

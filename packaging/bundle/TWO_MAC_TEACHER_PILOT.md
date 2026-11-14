@@ -1,8 +1,8 @@
 # Bede: Mac mini server + older Mac teacher workstation
 
-> **Certification update (October 16, 2026):** The integrated G1/G2 pilot routes, scoped local tutoring, verified diagnostic/history and canonical owner deletion are merged into `main` at `d3eb645c2de1058bb8056005a09c7d40446cea20`. The 146/146 synthetic matrix and this operator package do **not** certify a physical Mac. The controlling G3 runbook and unissued certificate form are at `docs/institutional/MAC_G3_CERTIFICATION_RUNBOOK.md` and `docs/institutional/MAC_G3_CERTIFICATION_RECORD.md` in the Bede source repository. Complete them on the exact installed package SHA before Pilot GO.
+> **Certification update (October 16, 2026):** The integrated G1/G2 pilot routes, scoped local tutoring, verified diagnostic/history and canonical owner deletion are merged into `main` at `d3eb645c2de1058bb8056005a09c7d40446cea20`. The 146/146 sample matrix and this operator package do **not** certify a physical Mac. The controlling G3 runbook and unissued certificate form are at `docs/institutional/MAC_G3_CERTIFICATION_RUNBOOK.md` and `docs/institutional/MAC_G3_CERTIFICATION_RECORD.md` in the Bede source repository. Complete them on the exact installed package SHA before Pilot GO.
 
-**Pilot engineering qualification only. Use synthetic learner records. No real Valor data.**
+**Pilot engineering qualification only. Use sample learner records. No real Valor data.**
 
 ## Before installation
 
@@ -69,13 +69,13 @@ this pilot setup until an authorized migration/reconfiguration route exists.
 6. Do not use `localhost` on the older Mac: that would point to the older
    Mac itself, not the Mac mini. Do not sign in through a raw IP address.
 
-## Synthetic teacher passkey smoke
+## Sample teacher passkey smoke
 
 1. Sign in on the Mac mini with an independently established and freshly
    verified authorized **administrator** passkey. Ensure Bede institutional
    pilot mode and verified invitation delivery are configured securely;
    the basic wizard does not yet provision institution/educator identities.
-2. Invite an authorized synthetic instructor to a verified test mailbox.
+2. Invite an authorized sample instructor to a verified test mailbox.
    Complete Bede's single-use invitation on the older Mac. If email isn't
    set up on the Mac mini, the invite screen shows the link once instead;
    open it on the older Mac within ten minutes.
@@ -99,21 +99,21 @@ evidence folder, intended HTTPS name, certificate trust, and results.
 G1 campus UUID and two-campus negative tests, G2 durable approved teaching
 decisions, and G3 manual grant/revoke/recovery/shutdown remain separate,
 explicit acceptance gates. All should be tested on a qualified pilot build
-with **synthetic** records before any release approval.
+with **sample** records before any release approval.
 
 If the pilot uses a **hosted** deployment instead, Mac mini LAN installation
 is optional delivery qualification and not a hidden universal pilot blocker.
 
 ## G3 physical-Mac certification — current API flows
 
-The six-item `scripts/qualification/mac_check.py` real-teacher browser procedure uses a synthetic **virtual admin** and is **not** the G3 package acceptance; likewise this archive's `Verify-Bede.command` certifies only package/health prerequisites. After the installed package starts, the G3 operator must separately exercise these implemented routes on real Mac browser hardware, synthetic identities and a distinctly administered Bede recovery environment:
+The six-item `scripts/qualification/mac_check.py` real-teacher browser procedure uses a sample **virtual admin** and is **not** the G3 package acceptance; likewise this archive's `Verify-Bede.command` certifies only package/health prerequisites. After the installed package starts, the G3 operator must separately exercise these implemented routes on real Mac browser hardware, sample identities and a distinctly administered Bede recovery environment:
 
 | Scenario | Current code/API boundary | Evidence required |
 | --- | --- | --- |
 | Real educator passkey | `/auth/educator-passkey/invite`, `register/options`, `register/verify`, `login/options`, `login/verify` | Actual WebAuthn UV ceremony and replay/cancel refusal, not just device capability detection |
 | Roster isolation | `/pilot/me/learners` plus UUID-scoped lookups and /pilot campus educator grant/revoke | Same-named learners on two campuses; granted/other-campus/unassigned/revoked outcomes |
-| Governed teacher workflow | `/pilot/me/learners/{learner_id}/evidence`, `recommendations`, `decisions`, `instruction`, `diagnostic` | Sourced synthetic evidence, approve/edit/reject, durable audit; no invented scores |
-| Synthetic local tutoring | `/pilot/me/learners/{learner_id}/tutoring/chat` (SSE), `tutoring/history` | Approved-only local model, safe moderation, no remote provider fallback, no post-revocation output |
+| Governed teacher workflow | `/pilot/me/learners/{learner_id}/evidence`, `recommendations`, `decisions`, `instruction`, `diagnostic` | Sourced sample evidence, approve/edit/reject, durable audit; no invented scores |
+| Sample local tutoring | `/pilot/me/learners/{learner_id}/tutoring/chat` (SSE), `tutoring/history` | Approved-only local model, safe moderation, no remote provider fallback, no post-revocation output |
 | Lost-device recovery | `POST /auth/educator-passkey/recovery/{educator_id}` | Separate admin passkey approval and verified school affiliation; replacement authenticator; old key/session rejected |
 | Educator offboarding | Campus grant `DELETE`, membership `/disable`, and `POST /educators/accounts/{educator_id}/disable` for global account | Session, roster, model stream and reconnect refusals; unaffected neighboring campus |
 | Recovery environment separation | Campus directory negative test against independent Bede recovery plane | Evidence that campus AD/Entra/SSO/admin cannot control backups or recovery keys |
@@ -121,4 +121,4 @@ The six-item `scripts/qualification/mac_check.py` real-teacher browser procedure
 
 **Limitations:** The package does **not** automatically administer a Bede backup recovery enclave, perform G3 certification, configure school-side DNS/firewalls, or carry out a physical Mac rehearsal. Missing independent recovery controls are **BLOCKED**, not assumed PASS. A physical Mac client needs functioning passkey hardware or a supported cross-device authenticator; Touch ID is not mandatory if an approved alternative works. Do not present classroom workload capacity as tested until real measured load is assessed for the exact server Mac and local model.
 
-Signed G3 device acceptance and the owner's separate invite-only Pilot GO authorization are required before any change of pilot scope. No real student records are authorized by an installer or synthetic qualification result.
+Signed G3 device acceptance and the owner's separate invite-only Pilot GO authorization are required before any change of pilot scope. No real student records are authorized by an installer or sample qualification result.

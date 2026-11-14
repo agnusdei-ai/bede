@@ -251,6 +251,17 @@ repository itself is public.
 
 ---
 
+## 11. Banned nomenclature
+
+*Source: `CLAUDE.md` → Standing Workflow: Banned Nomenclature*
+
+Three words are banned from every tracked file: code, tests, fixtures, docs,
+workflows, file names and visible copy. `scripts/check_nomenclature.sh` names
+them, built from pieces, and runs on every push and pull request. Test data
+and stand-ins are **sample**, **test**, **example** or **mock**. The one
+exemption is the full phrase for "AI" in the two legal notices, whose hashes
+bind every consent and authorization.
+
 ## The refusals
 
 Not loops, but the constraints every loop runs inside. These outrank

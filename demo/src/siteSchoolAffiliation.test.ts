@@ -24,8 +24,11 @@ describe('school marketing affiliation boundaries', () => {
     for (const text of [school, launch]) {
       expect(text).toContain('Taking part does not mean a school has signed on with us or endorses Bede.')
       expect(text).toContain('example records')
-      // The owner's rule: "synthetic" is implied and never shown.
-      expect(text).not.toMatch(/synthetic/i)
+      // The owner's rule: the banned nomenclature (scripts/check_nomenclature.sh)
+      // is implied and never shown. Spelled from pieces so this file passes it.
+      for (const word of ['synth' + 'etic', 'simul' + 'ated', 'artifi' + 'cial']) {
+        expect(text.toLowerCase()).not.toContain(word)
+      }
       expect(text).not.toMatch(/current.*?(?:customer|campus) pilot/i)
     }
     expect(school).toContain('school evaluation needs its own signed agreement')

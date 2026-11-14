@@ -23,7 +23,7 @@
 
 - Automated component and API tests for the above journeys, including denied campus access, revoked grants, stale recommendation versions, and no automatic delivery of pending decisions.
 - Passing frontend build, frontend tests, backend regression and G1 security checks for the candidate SHA.
-- End-to-end browser tests of actual teacher and administrator UI against running backend using synthetic learner records.
+- End-to-end browser tests of actual teacher and administrator UI against running backend using sample learner records.
 - Mac packaged-build rehearsal for the same candidate; retain the distinct pilot GO decision.
 - Explicit reviewer checklist with each journey marked PASS and linked to its evidence. Do not self-certify from documentation alone.
 

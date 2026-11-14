@@ -1,6 +1,6 @@
 """Signed roster capacity != Locuto membership capacity.
 
-Synthetic students/credentials only. No Locuto or OpenAI services contacted.
+Sample students/credentials only. No Locuto or OpenAI services contacted.
 """
 from types import SimpleNamespace
 
@@ -30,7 +30,7 @@ async def test_signed_classroom_capacity_can_exceed_ten_messaging_members(monkey
         async with factory() as db:
             for number in range(24):
                 db.add(StudentConfig(
-                    student_name=f"Synthetic-{number:03d}",
+                    student_name=f"Sample-{number:03d}",
                     config_enc=b"FAKE TEST FIXTURE NOT A REAL STUDENT CONFIG",
                 ))
             await db.commit()

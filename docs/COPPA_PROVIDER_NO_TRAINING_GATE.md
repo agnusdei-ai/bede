@@ -1,6 +1,6 @@
 # COPPA provider no-training gate — pre-release qualification
 
-Status: **HOLD for external child-data processing until independently evidenced.** This is a scoped compliance control record, not a COPPA certification or a change to the approved synthetic pilot.
+Status: **HOLD for external child-data processing until independently evidenced.** This is a scoped compliance control record, not a COPPA certification or a change to the approved sample pilot.
 
 ## Required invariant
 
@@ -76,10 +76,10 @@ data authorization remain HOLD.
 1. Introduce a deny-by-default provider-qualification registry keyed by provider **and feature/endpoint**, with a separately controlled approval artifact and expiry; never infer approval from API credentials.
 2. Gate all child-data egress at a shared outbound boundary. Reject unapproved primary and secondary/failover routes before request construction; no silent fallback. Protect runtime overrides and feature-specific direct calls.
 3. Verify no-training settings only where the provider API actually supports them; otherwise require independently reviewed contractual/account evidence. Do not claim an SDK flag can compel a provider's behavior.
-4. Add synthetic negative tests: primary denied, fallback denied, override denied, cloud speech denied, moderation denied, expired attestation denied, and local-only path allowed.
+4. Add sample negative tests: primary denied, fallback denied, override denied, cloud speech denied, moderation denied, expired attestation denied, and local-only path allowed.
 5. Capture redacted outbound request metadata and source SHA, never student content, to establish a reproducible evidence packet.
 6. Validate the public demo and school deployments separately. Do not process real children until legal/privacy review and operational consent/deletion tests pass.
 
 ## Governance
 
-The security officer signs the technical evidence packet. Qualified privacy/legal counsel reviews COPPA applicability, verifiable parental consent or valid school authorization, vendor agreements, retention and notice accuracy. No engineering CI pass alone constitutes legal certification. Preserve the synthetic-only Pilot HOLD and separate owner/school administrator GO.
+The security officer signs the technical evidence packet. Qualified privacy/legal counsel reviews COPPA applicability, verifiable parental consent or valid school authorization, vendor agreements, retention and notice accuracy. No engineering CI pass alone constitutes legal certification. Preserve the sample-only Pilot HOLD and separate owner/school administrator GO.

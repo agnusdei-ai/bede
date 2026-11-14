@@ -2,7 +2,7 @@
 learner data (core/school_authorization.py, routers/pilot_campuses.py).
 
 Drives the assembled app over real HTTP (tests/g1_harness.py). Runs on SQLite
-by default and on Postgres when G1_TEST_DATABASE_URL is set. Synthetic
+by default and on Postgres when G1_TEST_DATABASE_URL is set. Sample
 identities only. Readiness, not certification: nothing here asserts that the
 wording or the mechanism is legally sufficient.
 """
@@ -17,8 +17,8 @@ from core import school_authorization as sa
 from core.database import PilotCampusDataAuthorization as Row
 from g1_harness import world  # noqa: F401 (fixture)
 
-NAME = "Synthetic Official Name"
-FORBIDDEN_IN_AUDIT = (NAME, "Synthetic", "Learner")
+NAME = "Sample Official Name"
+FORBIDDEN_IN_AUDIT = (NAME, "Sample", "Learner")
 
 
 def _url(campus):
@@ -37,7 +37,7 @@ def _post(w, campus, headers, *, role="administrator", notice_hash=None, name=NA
 
 def _new_campus(w, *, member=None):
     """A fresh, UNAUTHORIZED campus, optionally with a teacher member."""
-    r = w.client.post("/pilot/campuses", json={"title": "Synthetic Campus Three"}, headers=w.admin())
+    r = w.client.post("/pilot/campuses", json={"title": "Sample Campus Three"}, headers=w.admin())
     assert r.status_code == 201, r.text
     campus = r.json()["campus_id"]
     if member:
@@ -62,7 +62,7 @@ def _learner_count(w, campus):
 
 def _create_learner(w, campus):
     return w.client.post(f"/pilot/campuses/{campus}/learners",
-                         json={"display_name": "Synthetic Learner"}, headers=w.admin())
+                         json={"display_name": "Sample Learner"}, headers=w.admin())
 
 
 def _expect_gate(resp, campus):
@@ -219,7 +219,7 @@ def test_revoke_blocks_writes_but_not_reads_or_deletion(world):
     r = w.client.post(f"{_url(campus)}/revoke", json={"reason": None}, headers=w.teacher(w.teacher_one))
     assert r.status_code in (401, 403)
     assert w.client.get(_url(campus), headers=w.admin()).json()["authorized"] is True
-    r = w.client.post(f"{_url(campus)}/revoke", json={"reason": "Synthetic reason"}, headers=w.admin())
+    r = w.client.post(f"{_url(campus)}/revoke", json={"reason": "Sample reason"}, headers=w.admin())
     assert r.status_code == 200 and r.json()["authorized"] is False and r.json()["stale"] is False
     _expect_gate(_create_learner(w, campus), campus)
     # Reads stay available.
@@ -227,7 +227,7 @@ def test_revoke_blocks_writes_but_not_reads_or_deletion(world):
     assert _learner_count(w, campus) == 1
     # Deletion stays available.
     r = w.client.post(f"/pilot/owner/campuses/{campus}/learners/{learner}/delete", headers=w.admin(),
-                      json={"confirm_learner_id": learner, "confirm_display_name": "Synthetic Learner"})
+                      json={"confirm_learner_id": learner, "confirm_display_name": "Sample Learner"})
     assert r.status_code == 200, r.text
     assert _learner_count(w, campus) == 0
     # Revoking again changes nothing; a re-grant records a new row.
@@ -262,12 +262,12 @@ def test_audit_events_carry_no_names_or_notice_text(world):
     w = world
     campus = _new_campus(w)
     _post(w, campus, w.admin())
-    w.client.post(f"{_url(campus)}/revoke", json={"reason": "Synthetic reason text"}, headers=w.admin())
+    w.client.post(f"{_url(campus)}/revoke", json={"reason": "Sample reason text"}, headers=w.admin())
     events = [e for e in w.audit_events() if "school_data" in str(e.get("event") or e.get("event_type") or e)]
     kinds = {str(e.get("event") or e.get("event_type")) for e in events}
     assert {"pilot.school_data_authorized", "pilot.school_data_authorization_revoked"} <= kinds
     blob = repr(events)
-    for needle in (NAME, "Synthetic reason text", "Notice version", sa.notice_hash()):
+    for needle in (NAME, "Sample reason text", "Notice version", sa.notice_hash()):
         assert needle not in blob, needle
     assert campus in blob
 
@@ -353,18 +353,18 @@ def _cases(w):
     b = f"/pilot/campuses/{c}/learners/{l}/assessments"
     admin, teacher = w.admin(), w.teacher(w.teacher_one)
     dibels = {"framework": "dibels8", "measure": "PSF", "assessed_on": "2026-01-05",
-              "source_name": "Synthetic DIBELS report", "score": 22.0,
+              "source_name": "Sample DIBELS report", "score": 22.0,
               "score_unit": "correct_per_minute", "reported_band": "strategic_some_risk",
               "assessed_grade": "1", "assessment_window": "middle_of_year"}
     return {
         ("POST", "/pilot/campuses/{campus_id}/learners"):
-            ("POST", f"/pilot/campuses/{c}/learners", {"display_name": "Synthetic Learner"}, admin),
+            ("POST", f"/pilot/campuses/{c}/learners", {"display_name": "Sample Learner"}, admin),
         ("POST", "/pilot/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}"):
             ("POST", f"/pilot/campuses/{c}/educators/{t}/learners/{l}", None, admin),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments"):
             ("POST", b, {
                 "instrument": "dibels8", "edition": "8th", "measure": "multiple", "grade": "1",
-                "form_id": "synthetic-form-a", "administration_purpose": "benchmark",
+                "form_id": "sample-form-a", "administration_purpose": "benchmark",
                 "instructional_cycle": "valor_q1", "administered_at": "2031-08-20T09:00:00+00:00",
                 "report_source": "vendor_report", "official_benchmark_window": "BOY",
                 "accommodations": [], "notes": None, "vendor_guidance": None}, teacher),
@@ -375,21 +375,21 @@ def _cases(w):
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/transitions"):
             ("POST", f"{b}/{a}/transitions", {"action": "mark_ready", "expected_state": "DRAFT"}, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/supersede"):
-            ("POST", f"{b}/{a}/supersede", {"reason": "synthetic reason"}, teacher),
+            ("POST", f"{b}/{a}/supersede", {"reason": "sample reason"}, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/evidence"):
-            ("POST", f"{b}/{a}/evidence", {"summary": "Synthetic evidence"}, teacher),
+            ("POST", f"{b}/{a}/evidence", {"summary": "Sample evidence"}, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/proposal"):
             ("POST", f"{b}/{a}/proposal", None, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/proposals/{proposal_id}/decision"):
             ("POST", f"{b}/{a}/proposals/{p}/decision", {"action": "approve", "expected_version": 1}, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plan"):
-            ("POST", f"{b}/{a}/plan", {"plan_text": "Synthetic plan"}, teacher),
+            ("POST", f"{b}/{a}/plan", {"plan_text": "Sample plan"}, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/progress-monitoring"):
             ("POST", f"{b}/{a}/progress-monitoring", {"measure": "PSF", "planned_dates": ["2031-09-01"]}, teacher),
         ("POST", "/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plans/{plan_id}/follow-ups"):
             ("POST", f"{b}/{a}/plans/{plan}/follow-ups", {
                 "observed_on": "2026-01-06", "teaching_mode": "in_person",
-                "observation": "Synthetic observation"}, teacher),
+                "observation": "Sample observation"}, teacher),
         ("POST", "/pilot/me/learners/{learner_id}/evidence"):
             ("POST", f"/pilot/me/learners/{l}/evidence", dibels, teacher),
         ("POST", "/pilot/me/learners/{learner_id}/recommendations"):

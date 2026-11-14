@@ -52,7 +52,7 @@ SYNTH_FIRST_DATA_DAY = "2031-08-25"  # fabricated, far from any real school year
 def canon_administration(measure: str = "PSF", purpose: str = "progress_monitoring",
                          window: str = "none", cycle: str = "valor_q1",
                          minute: int = 0) -> dict:
-    """A synthetic canonical administration body (teacher-administered
+    """A sample canonical administration body (teacher-administered
     progress monitoring: needs no licensed-benchmark authorization). Every
     value is invented."""
     return {
@@ -73,11 +73,11 @@ def _scored(measure: str, raw: float) -> dict:
 
 def _skipped(measure: str) -> dict:
     return {"measure": measure, "administration_status": "not_administered_by_rule",
-            "reason": "Synthetic: not administered at this grade per the report"}
+            "reason": "Sample: not administered at this grade per the report"}
 
 SYNTH_DIBELS = {
     "framework": "dibels8", "measure": "ORF_WC", "assessed_on": "2026-01-15",
-    "source_name": "Synthetic qualification report", "score": 12,
+    "source_name": "Sample qualification report", "score": 12,
     "score_unit": "correct_per_minute", "reported_band": "intensive_at_risk",
     "assessed_grade": "2", "assessment_window": "middle_of_year",
 }
@@ -411,13 +411,13 @@ class Matrix:
         aid = self._administer(cycle="valor_q1")
         steps = self._finalize(aid, [_scored("PSF", 17)])
         before = self._detail(aid)
-        ev = self._c("POST", f"/assessments/{aid}/evidence", {"summary": "Synthetic evidence summary"})
+        ev = self._c("POST", f"/assessments/{aid}/evidence", {"summary": "Sample evidence summary"})
         pr = self._c("POST", f"/assessments/{aid}/proposal")
         dec = None
         if pr.status_code == 200:
             dec = self._c("POST", f"/assessments/{aid}/proposals/{pr.json()['proposal_id']}/decision",
-                          {"action": "edit", "expected_version": 1, "edited_text": "Synthetic edited step",
-                           "rationale": "Synthetic teacher reading"}).status_code
+                          {"action": "edit", "expected_version": 1, "edited_text": "Sample edited step",
+                           "rationale": "Sample teacher reading"}).status_code
         rescore = self._scores(aid, [_scored("PSF", 99)])
         after = self._detail(aid)
         ok = (steps == [200] * 5 and ev.status_code == 201 and pr.status_code == 200 and dec == 200
@@ -462,9 +462,9 @@ class Matrix:
         codes = vcodes + [self._step(aid, "mark_ready", "DRAFT"),
                  self._step(aid, "start", "READY_FOR_ADMINISTRATION"),
                  self._scores(aid, [_scored("PSF", 10), _skipped("MAZE")]),
-                 self._step(aid, "invalidate", "IN_PROGRESS", resolution="Synthetic: wrong form used"),
+                 self._step(aid, "invalidate", "IN_PROGRESS", resolution="Sample: wrong form used"),
                  self._step(aid, "resolve_invalid", "INVALID_ADMINISTRATION",
-                            resolution="Synthetic: recorded for the file only"),
+                            resolution="Sample: recorded for the file only"),
                  self._step(aid, "finalize", "COMPLETED_PENDING_REVIEW")]
         pk = self._packet("valor_q2").json()
         not_valid = {a["assessment_id"] for a in pk.get("not_valid_administrations", [])}
@@ -645,7 +645,7 @@ class Matrix:
                 continue
             body = {"action": action, "expected_version": nr.json()["version"]}
             if action == "edit":
-                body["edited_text"] = "Synthetic edited instruction."
+                body["edited_text"] = "Sample edited instruction."
             d = self.call("teacher_one", "POST",
                           p(L + "/recommendations/{recommendation_id}/decision",
                             recommendation_id=nr.json()["recommendation_id"]), body)
@@ -683,7 +683,7 @@ class Matrix:
         self.put(row, "instruction_recorded_not_delivered", "PASS" if rec_ok else "FAIL",
                  f"-> {ins.status_code}; no delivery claim in payload: {rec_ok}")
         # A malicious client must never be given an audit-failure trigger.
-        # Exercise the real service's rollback with an isolated synthetic
+        # Exercise the real service's rollback with an isolated sample
         # database in a separate process instead. Qualification only reports
         # PASS if this executable test finishes successfully on this SAME SHA;
         # no HTTP control, mock response or status waiver is introduced.
@@ -703,7 +703,7 @@ class Matrix:
             proof_output = f"{type(exc).__name__}: {exc}"
         (cfg.OUT_DIR / "g2-audit-rollback-test.json").write_text(json.dumps({
             "test": "test_failed_audit_write_leaves_no_decision",
-            "database": "fresh synthetic SQLite; live PostgreSQL unchanged",
+            "database": "fresh sample SQLite; live PostgreSQL unchanged",
             "exit_code": proof_exit,
             "output_tail": proof_output,
         }, indent=2) + "\\n")
@@ -956,7 +956,7 @@ class Matrix:
         # Wrong-name confirmation must be rejected without deleting the
         # learner. A plain DELETE without a human confirmation is forbidden.
         denied = self.api.call(spec[0], target, self.fx.admin_token,
-                               {**confirm, "confirm_display_name": "Wrong synthetic name"})
+                               {**confirm, "confirm_display_name": "Wrong sample name"})
         prior = self.call("teacher_two", "GET", self.path(L, learner_id=l2))
         d = self.api.call(spec[0], target, self.fx.admin_token, confirm)
         body = d.json() if d.status_code == 200 else {}
@@ -1100,7 +1100,7 @@ def write_reports(cells: list[Cell], out: Path) -> dict:
 def _junit(cells: list[Cell], path: Path) -> None:
     from xml.sax.saxutils import escape, quoteattr
     fails = sum(1 for c in cells if c.status != "PASS")
-    parts = [f'<testsuite name="synthetic-qualification-matrix" tests="{len(cells)}" failures="{fails}">']
+    parts = [f'<testsuite name="sample-qualification-matrix" tests="{len(cells)}" failures="{fails}">']
     for c in cells:
         parts.append(f"<testcase classname={quoteattr(c.group + '.' + c.row)} name={quoteattr(c.cell)}>")
         if c.status != "PASS":

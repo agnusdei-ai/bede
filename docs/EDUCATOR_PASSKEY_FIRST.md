@@ -28,7 +28,7 @@ B. Implement register/options and register/verify (admin-invited); login/options
 
 C. UI: on the Classroom Setup page replace the password/TOTP secret exchange with 'Invite educator' and email verification; login page primary CTA 'Continue with passkey'; clear platform fallback to a **different already registered passkey** (security key), not password. Use progressive disclosure, clear browser compatibility errors, and accessible focus/error states. Never show an alleged passkey enrollment success until the server confirms credential registration.
 
-D. Security gates: challenge replay, wrong origin, RP ID mismatch, credential substitution, missing UV, revoked authenticator, duplicate email, invitation theft, recovery-link theft, admin self-approval, school offboarding, lateral classroom access, rate limits, fingerprint binding conflicts, cross-campus tenancy, multiple-device and real Safari/iOS/macOS browser tests. Test on synthetic identities only. Require CI and independent security review.
+D. Security gates: challenge replay, wrong origin, RP ID mismatch, credential substitution, missing UV, revoked authenticator, duplicate email, invitation theft, recovery-link theft, admin self-approval, school offboarding, lateral classroom access, rate limits, fingerprint binding conflicts, cross-campus tenancy, multiple-device and real Safari/iOS/macOS browser tests. Test on sample identities only. Require CI and independent security review.
 
 E. Operational requirement: enroll educator MFA-backed school admins before allowing any school recovery, and define a non-email emergency administrator process to prevent a single lost inbox or compromised domain from taking over the campus.
 

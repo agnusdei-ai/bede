@@ -10,8 +10,8 @@ Postgres runs as a NON-superuser role. Set ``BEDE_DELETE_PG_URL`` to point
 elsewhere; ``BEDE_REQUIRE_PG=1`` turns an unreachable Postgres into a
 failure instead of a skip.
 
-Synthetic data only (tests/canonical_assessment_fixtures.py): Synthetic
-Campus One / Two, Synthetic Teacher One / Two, and two learners who share
+Sample data only (tests/canonical_assessment_fixtures.py): Sample
+Campus One / Two, Sample Teacher One / Two, and two learners who share
 one display name.
 """
 from __future__ import annotations
@@ -51,7 +51,7 @@ from services.pilot_learner_deletion import (
 
 PG_URL = os.environ.get(
     "BEDE_DELETE_PG_URL",
-    "postgresql+asyncpg://bede_delete_app:synthetic-only@127.0.0.1:5433/deletion_lifecycle",
+    "postgresql+asyncpg://bede_delete_app:sample-only@127.0.0.1:5433/deletion_lifecycle",
 )
 API = Path(__file__).resolve().parents[1]
 UUID = r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
@@ -59,10 +59,10 @@ TOMBSTONE = re.compile(rf"pilot_learner_deleted campus={UUID} learner={UUID} row
 
 # Text that exists only inside learner one's content. None of it may survive
 # deletion anywhere a tombstone or audit view can show it.
-CONTENT = (SHARED_DISPLAY_NAME, "Synthetic evidence summary", "Synthetic teacher plan",
-           "Synthetic rationale", "Synthetic teacher annotation", "Below Benchmark",
-           "Some Support", "At Benchmark", "onset_rime_only", "Synthetic resume point",
-           "Synthetic teacher follow-up after offline instruction")
+CONTENT = (SHARED_DISPLAY_NAME, "Sample evidence summary", "Sample teacher plan",
+           "Sample rationale", "Sample teacher annotation", "Below Benchmark",
+           "Some Support", "At Benchmark", "onset_rime_only", "Sample resume point",
+           "Sample teacher follow-up after offline instruction")
 
 
 def _pg_available() -> bool:
@@ -156,16 +156,16 @@ def journey(w: World, campus: str, learner: str, teacher: Teacher) -> tuple[str,
     w.step(adm, "submit", "IN_PROGRESS", **kw)
     w.step(adm, "finalize", "COMPLETED_PENDING_REVIEW", **kw)
     base = w.base(campus, learner)
-    _post(w, f"{base}/assessments/{adm}/evidence", {"summary": "Synthetic evidence summary"}, teacher, 201)
+    _post(w, f"{base}/assessments/{adm}/evidence", {"summary": "Sample evidence summary"}, teacher, 201)
     prop = _post(w, f"{base}/assessments/{adm}/proposal", None, teacher, 200)
     w.decide(adm, prop["proposal_id"], {
         "action": "approve", "expected_version": 1,
-        "confirmed_review_on": prop["proposed_review_on"], "rationale": "Synthetic rationale"}, **kw)
-    plan = _post(w, f"{base}/assessments/{adm}/plan", {"plan_text": "Synthetic teacher plan"}, teacher, 201)
+        "confirmed_review_on": prop["proposed_review_on"], "rationale": "Sample rationale"}, **kw)
+    plan = _post(w, f"{base}/assessments/{adm}/plan", {"plan_text": "Sample teacher plan"}, teacher, 201)
     _post(w, f"{base}/assessments/{adm}/plans/{plan['plan_id']}/follow-ups", {
         "observed_on": date.today().isoformat(), "teaching_mode": "in_person",
-        "observation": "Synthetic teacher follow-up after offline instruction",
-        "next_step": "Continue synthetic classroom observation",
+        "observation": "Sample teacher follow-up after offline instruction",
+        "next_step": "Continue sample classroom observation",
     }, teacher, 201)
     _post(w, f"{base}/assessments/{adm}/progress-monitoring",
           {"measure": "PSF", "planned_dates": ["2031-09-08", "2031-09-22"]}, teacher, 201)
@@ -439,7 +439,7 @@ def test_wrong_campus_or_malformed_ids_delete_nothing(world):
 def test_the_tombstone_is_one_content_free_audit_event(world):
     before = len(_audit_entries(world.client))
     result = _delete(world.client, world.campus_one, world.learner_one,
-                     audit_context={"ip": "203.0.113.7", "user_agent": "synthetic-agent"})
+                     audit_context={"ip": "203.0.113.7", "user_agent": "sample-agent"})
     deleted = [e for e in _audit_entries(world.client) if e.get("event") == "student.data_deleted"]
     assert len(deleted) == 1
     entry = deleted[0]
@@ -561,7 +561,7 @@ def _third_teacher_with_membership(client, w: World) -> str:
 
     async def make():
         async with client.db_factory() as s:
-            return (await provision_educator(s, "synthetic.teacher.three", "synthetic-passphrase-three-x"))["id"]
+            return (await provision_educator(s, "sample.teacher.three", "sample-passphrase-three-x"))["id"]
     teacher = client.portal.call(make)
     r = client.post(f"/pilot/campuses/{w.campus_one}/educators/{teacher}", headers=ADMIN)
     assert r.status_code == 204, r.text

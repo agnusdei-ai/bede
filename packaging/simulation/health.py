@@ -1,4 +1,4 @@
-"""Local-only synthetic health service; NOT the Bede application."""
+"""Local-only sample health service; NOT the Bede application."""
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 

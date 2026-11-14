@@ -10,7 +10,7 @@ engine with separate sessions rather than one shared in-memory session:
 * atomicity: if the audit write fails after the status update, neither
   survives (checked from a fresh session, as production's get_db would).
 
-Synthetic campuses and learners only. Set G2_GAP_DB_URL to a
+Sample campuses and learners only. Set G2_GAP_DB_URL to a
 postgresql+asyncpg URL to run against Postgres; default is file SQLite.
 """
 import asyncio
@@ -121,7 +121,7 @@ async def test_failed_audit_write_leaves_no_decision(durable, monkeypatch):
     real = journey.entry_hash
 
     def boom(*a, **k):
-        raise RuntimeError("synthetic audit failure")
+        raise RuntimeError("sample audit failure")
 
     monkeypatch.setattr(journey, "entry_hash", boom)
     async with d["factory"]() as s:

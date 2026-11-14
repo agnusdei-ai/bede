@@ -1,4 +1,4 @@
-"""Synthetic SQLite qualification for curriculum staging and human promotion."""
+"""Sample SQLite qualification for curriculum staging and human promotion."""
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -61,13 +61,13 @@ async def setup(monkeypatch):
     async with Session() as db:
         for ident, username in ((author, "author"), (reviewer, "reviewer"), (outsider, "outsider")):
             db.add(ClassicalEducator(
-                id=ident, username=username, password_hash=b"synthetic",
-                password_salt=b"synthetic", totp_enc=b"synthetic",
+                id=ident, username=username, password_hash=b"sample",
+                password_salt=b"sample", totp_enc=b"sample",
                 enabled=True, credential_version=1,
             ))
         db.add_all([
-            PilotCampus(id="campus-a", title="Synthetic campus A", enabled=True),
-            PilotCampus(id="campus-b", title="Synthetic campus B", enabled=True),
+            PilotCampus(id="campus-a", title="Sample campus A", enabled=True),
+            PilotCampus(id="campus-b", title="Sample campus B", enabled=True),
             PilotEducatorCampus(educator_id=author, campus_id="campus-a", enabled=True),
             PilotEducatorCampus(educator_id=reviewer, campus_id="campus-a", enabled=True),
             PilotEducatorCampus(educator_id=outsider, campus_id="campus-b", enabled=True),
@@ -95,7 +95,7 @@ async def test_staging_and_independent_approval_create_two_versions(monkeypatch)
 
             review_id, promoted_version = await review_staged_lesson(
                 db, token(reviewer), "campus-a", "lesson-1",
-                decision=ReviewDecision.approve, notes="Synthetic review only",
+                decision=ReviewDecision.approve, notes="Sample review only",
             )
             assert promoted_version == 2
             rows = (await db.execute(
@@ -110,7 +110,7 @@ async def test_staging_and_independent_approval_create_two_versions(monkeypatch)
             assert audit["item_version"] == 2
             assert audit["decision"] == "approve"
             assert audit["notes_enc"].startswith(b"SAGE")
-            assert b"Synthetic review" not in audit["notes_enc"]
+            assert b"Sample review" not in audit["notes_enc"]
     finally:
         await engine.dispose()
 
@@ -319,15 +319,15 @@ async def test_original_lesson_and_revision_each_require_independent_approval(mo
             candidate=replace(
                 initial.candidate, source="original-source-1",
                 public_domain=False, verbatim_text=None,
-                body="An original, synthetic history explanation for review.",
+                body="An original, sample history explanation for review.",
             ),
             source=SourceRecord(
-                "original-source-1", "Synthetic teacher-authored draft",
-                "urn:bede:original:synthetic-lesson-1", NOW,
+                "original-source-1", "Sample teacher-authored draft",
+                "urn:bede:original:sample-lesson-1", NOW,
                 "b" * 64, RightsStatus.original,
             ),
-            rights_verified_by="Independent synthetic rights verifier",
-            rights_evidence_ref="rights:synthetic-original-1",
+            rights_verified_by="Independent sample rights verifier",
+            rights_evidence_ref="rights:sample-original-1",
         )
         async with Session() as db:
             assert await stage_lesson(db, token(author), initial) == 1
@@ -338,7 +338,7 @@ async def test_original_lesson_and_revision_each_require_independent_approval(mo
             assert first["rights_status"] == RightsStatus.original.value
             assert first["review_id"] is None
             assert first["body_enc"].startswith(b"SAGE")
-            assert b"synthetic history" not in first["body_enc"]
+            assert b"sample history" not in first["body_enc"]
 
             first_review, first_approved = await review_staged_lesson(
                 db, token(reviewer), "campus-a", "original-lesson",
@@ -354,10 +354,10 @@ async def test_original_lesson_and_revision_each_require_independent_approval(mo
                 ),
                 source=replace(
                     initial.source, source_id="original-source-2",
-                    source_url="urn:bede:original:synthetic-lesson-2",
+                    source_url="urn:bede:original:sample-lesson-2",
                     content_hash="c" * 64,
                 ),
-                rights_evidence_ref="rights:synthetic-original-2",
+                rights_evidence_ref="rights:sample-original-2",
             )
             assert await stage_lesson(db, token(author), revision) == 3
             before_second_review = (await db.execute(
@@ -406,7 +406,7 @@ async def test_original_rights_do_not_allow_verbatim_source_text(monkeypatch):
                 body="An original explanation.", source="original-source",
             ),
             source=SourceRecord(
-                "original-source", "Synthetic original work",
+                "original-source", "Sample original work",
                 "urn:bede:original:verbatim-rejection", NOW,
                 "d" * 64, RightsStatus.original,
             ),

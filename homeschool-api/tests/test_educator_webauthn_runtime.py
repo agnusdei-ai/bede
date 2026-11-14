@@ -1,4 +1,4 @@
-"""Persisted real-WebAuthn ceremony controls using synthetic educators.
+"""Persisted real-WebAuthn ceremony controls using sample educators.
 
 Cryptographic signature parsing is provided by pinned py_webauthn; hardware
 Safari/Windows/Linux journeys remain an owner-run release acceptance gate.
@@ -25,7 +25,7 @@ from services import educator_passkey_runtime as runtime
 from services import educator_invites as invites
 from services.educator_access import provision_educator
 
-PASSWORD = "temporary-synthetic-only-long-educator-secret"
+PASSWORD = "temporary-sample-only-long-educator-secret"
 
 
 @pytest_asyncio.fixture
@@ -130,7 +130,7 @@ async def test_failed_invitation_delivery_rolls_back_educator_and_allows_retry(d
 
     monkeypatch.setattr(invites, "send_email", fail_send)
     request = routes.InviteRequest(
-        username="synthetic.invite.teacher", institutional_email="teacher@example.edu"
+        username="sample.invite.teacher", institutional_email="teacher@example.edu"
     )
     admin = {"role": "parent", "auth_method": "webauthn_uv"}
     with pytest.raises(HTTPException) as exc:
@@ -168,7 +168,7 @@ async def test_invalid_invitation_configuration_rolls_back_uncommitted_educator(
     with pytest.raises(HTTPException) as exc:
         await routes.invite_educator(
             routes.InviteRequest(
-                username="synthetic.bad-origin", institutional_email="teacher@example.edu"
+                username="sample.bad-origin", institutional_email="teacher@example.edu"
             ),
             admin={"role": "parent", "auth_method": "webauthn_uv"},
             db=db,
@@ -194,8 +194,8 @@ async def test_school_mailbox_cannot_migrate_on_recovery(db, monkeypatch):
 async def test_key_revocation_invalidates_current_session_version(db):
     a = await provision_educator(db, "mentor.alpha", PASSWORD)
     row = EducatorWebAuthnCredential(
-        credential_id="synthetic-credential", educator_id=a["id"],
-        credential_enc=b"synthetic-non-secret", enabled=True,
+        credential_id="sample-credential", educator_id=a["id"],
+        credential_enc=b"sample-non-secret", enabled=True,
     )
     db.add(row)
     await db.commit()

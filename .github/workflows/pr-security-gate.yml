@@ -33,7 +33,7 @@ jobs:
                       raise SystemExit(f"Unpinned action in {p}: {action}")
           print("Workflow action SHA provenance: PASS")
           PY
-      - name: Run focused synthetic security-alert tests
+      - name: Run focused sample security-alert tests
         working-directory: homeschool-api
         run: python3 -m unittest discover -s tests -p test_security_alerts.py -v
       - name: Verify CodeQL enforcement remains configured

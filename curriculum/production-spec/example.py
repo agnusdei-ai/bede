@@ -7,8 +7,8 @@ from schema import GATES, USES
 NOW = "2026-11-12T12:00:00Z"
 ASSET = {
     "path": "pairs.txt",
-    "sha256": "3510bbfdd099d16bdf8dbe8ef166eaf58333fb4ae0f75f5eb404ff96743726da",
-    "bytes": 55,
+    "sha256": "a8c7a3c347ef3bacd41d9e93948b5d58eaf6742306f2416fd92f7f8e15ff9819",
+    "bytes": 52,
 }
 
 
@@ -16,17 +16,17 @@ def example():
     """Return fresh fixture records with computed exact-version child references."""
     source = {
         "id": "fixture-source-pairs", "version": 1,
-        "title": "Synthetic pairs", "creator_editor_translator": "Bede synthetic fixture",
+        "title": "Sample pairs", "creator_editor_translator": "Bede sample fixture",
         "edition": "fixture-1; text only; no external illustrations",
         "url": "fixture:pairs.txt", "retrieved_at": NOW, "asset": deepcopy(ASSET),
-        "rights": "original", "territory": "Synthetic offline testing only",
+        "rights": "original", "territory": "Sample offline testing only",
         "license": "Bede proprietary; fixture assertions are not human rights approval",
-        "attribution": "Bede synthetic contract fixture; not learner evidence",
+        "attribution": "Bede sample contract fixture; not learner evidence",
         "notices": ["Repository proprietary LICENSE; no open license granted"],
-        "rights_evidence_refs": ["fixture:original-synthetic-bytes"],
+        "rights_evidence_refs": ["fixture:original-sample-bytes"],
         "permissions": {
             use: {"decision": "allowed" if use in {"copy", "storage"} else "denied",
-                  "evidence_refs": ["fixture:synthetic-test-only"]} for use in USES
+                  "evidence_refs": ["fixture:sample-test-only"]} for use in USES
         },
         "licensed_pathway_ref": None,
     }
@@ -35,24 +35,24 @@ def example():
         "statement": "Illustrative mapping to an existing scatter-plot skill; not an approved outcome",
         "skill_ids": ["sp.scatter_plots"], "prerequisites": [],
         "exercises_no_tracked_skill": False,
-        "skill_mapping_rationale": "Reuse existing diagnostic skill; synthetic example only",
+        "skill_mapping_rationale": "Reuse existing diagnostic skill; sample example only",
         "success_criteria": "Fixture only: identify the three supplied pairs without interpreting causality",
     }
     assessment = {
         "id": "fixture-assessment-guided", "objective_id": objective["id"],
         "kind": "guided", "delay_days": 0,
-        "prompt": "Synthetic contract prompt: state the second coordinate of (2,4).",
+        "prompt": "Sample contract prompt: state the second coordinate of (2,4).",
         "key_rubric": "4; fixture checks structure, not learner validity",
         "supports": ["Read aloud or point; record the chosen support"],
         "prompt_rescue_record": "Record prompts and rescue separately; no real learner records here",
-        "assessor_role": "Responsible adult; synthetic test only",
+        "assessor_role": "Responsible adult; sample test only",
         "success_criteria": "Correct coordinate and an explanation; criterion is illustrative only",
     }
     assessments = [assessment]
     for kind, prompt in (
         ("independent", "Novel fixture pair (4,8): identify the second coordinate without hints."),
         ("delayed", "At proposed day 7, novel fixture pair (5,10): identify the second coordinate."),
-        ("transfer", "In a different synthetic measurement context, identify y in (6,12)."),
+        ("transfer", "In a different sample measurement context, identify y in (6,12)."),
     ):
         item = deepcopy(assessment)
         item.update(id=f"fixture-assessment-{kind}", kind=kind, prompt=prompt,
@@ -70,13 +70,13 @@ def example():
         "source_refs": [{"source": ref(source), "locator": "line 1",
                          "uses": ["copy", "storage"], "verbatim": False}],
         "steps": [
-            {"mode": mode, "minutes": 2, "materials": ["Paper; synthetic pairs"],
+            {"mode": mode, "minutes": 2, "materials": ["Paper; sample pairs"],
              "instruction": instruction}
             for mode, instruction in (
                 ("explicit_teaching", "Fixture slot: explain coordinate notation."),
                 ("worked_example", "Fixture slot: model locating the second coordinate."),
                 ("seminar", "Fixture slot: ask what a pattern does and does not establish."),
-                ("studio", "Fixture slot: represent supplied synthetic points on paper."),
+                ("studio", "Fixture slot: represent supplied sample points on paper."),
                 ("practice", "Fixture slot: distinguish hints from independent work."),
                 ("exit", "Fixture slot: collect a response and plan next steps."),
             )
@@ -86,14 +86,14 @@ def example():
             "construct": "Coordinate interpretation, not handwriting or speech fluency",
             "supports": ["Large-print pairs", "Pointing or oral response"],
             "alternative_response": "Adult records the pointed coordinate without supplying it",
-            "privacy": "Synthetic-only fixture; no names or student submissions",
+            "privacy": "Sample-only fixture; no names or student submissions",
             "retention_deletion": "Disposable test output; future evidence needs authorized retention",
         },
         "safety": {
             "hazards": ["No physical investigation authorized"],
             "supervision": "Responsible adult chooses appropriate paper task",
             "stop_escalation": "Stop unsafe suggestions; refer to responsible adult",
-            "safer_alternative": "Use supplied synthetic pairs, not live personal measurements",
+            "safer_alternative": "Use supplied sample pairs, not live personal measurements",
         },
         "outputs": [
             {"id": "fixture-student", "version": 1, "kind": "student",
@@ -116,7 +116,7 @@ def example():
     grade = {
         "id": "fixture-grade-8", "version": 1, "grade": 8,
         "unit_refs": [ref(unit)], "entry_evidence": "Pending baseline acceptance",
-        "domains": ["Synthetic mathematics example only"], "calendar_weeks": 1,
+        "domains": ["Sample mathematics example only"], "calendar_weeks": 1,
         "learner_minutes_week": 12, "adult_minutes_week": 10,
         "coverage_decisions": ["Not a complete grade; all actual domains and sequence pending"],
         "completion_criteria": ["Must meet GATES.md; this fixture never qualifies"],

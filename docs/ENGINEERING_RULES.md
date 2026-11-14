@@ -3,7 +3,7 @@
 Status: proposed repository engineering contract; changes to branch protection or CI are separate implementation work.
 
 ## Purpose
-Optimize for correct, maintainable, secure code with the fewest useful checks. Automate routine engineering; preserve explicit owner and school-administrator Pilot GO authorization and synthetic-only HOLD.
+Optimize for correct, maintainable, secure code with the fewest useful checks. Automate routine engineering; preserve explicit owner and school-administrator Pilot GO authorization and sample-only HOLD.
 
 1. **Dependency-aware PRs.** Declare stacked PR dependencies and review only the incremental changes against their parent. Merge parent before child, revalidate the final integrated head, and never merge a draft without meeting its acceptance criteria.
 2. **One dependency resolution.** Coordinate changes to the same lockfiles and dependency manifests. Resolve to a single compatible set on current main, retain hashes, and run one applicable dependency/security audit on the final resolution.

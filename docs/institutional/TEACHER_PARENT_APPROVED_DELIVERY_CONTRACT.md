@@ -36,7 +36,7 @@ Parent approval requires a verified guardian-to-learner association and campus-s
 - GET /pilot/.../delivery/{id} (scoped receipt; no cross-learner enumeration).
 Exact routes and migrations must be reviewed against current APIs before implementation.
 
-## Mandatory synthetic acceptance tests
+## Mandatory sample acceptance tests
 1. Teacher approve/edit/reject; parent approve/edit/reject; each produces correct immutable decision/audit records.
 2. Teacher-only, parent-only, and dual-approval policies; unauthorized role or missing second approval denied.
 3. No delivery before approval; edited version invalidates old approval; rejected/expired/revoked content never delivers.
@@ -57,9 +57,9 @@ The institutional product is not complete when an approved recommendation is mer
 
 | Journey | Required end-to-end experience | Acceptance evidence |
 | --- | --- | --- |
-| J1 Enrollment and assignment | Admin provisions campus, verified educator, learner UUID, guardian association when applicable, scoped assignments, disable/revoke and recovery; learner sees only own assignments | Synthetic admin→teacher→learner walkthrough; duplicate names; cross-campus/learner denials; restart |
+| J1 Enrollment and assignment | Admin provisions campus, verified educator, learner UUID, guardian association when applicable, scoped assignments, disable/revoke and recovery; learner sees only own assignments | Sample admin→teacher→learner walkthrough; duplicate names; cross-campus/learner denials; restart |
 | J2 Teacher-directed lesson delivery | Teacher creates/selects objective, lesson content and permitted resources, previews exact learner-facing version, explicitly approves and delivers; learner opens, resumes, completes | Working educator and learner UIs; approved-version receipt; offline/restart; no delivery on draft/reject |
-| J3 Supervised Socratic tutoring | Learner opens approved lesson and interacts with local model in bounded, age-appropriate questioning; teacher can supervise, pause, terminate, and revoke; no autonomous new lesson or external inference | Synthetic multi-turn sessions, stream interruption on revoke, prompt-injection containment, local-only provider proof |
+| J3 Supervised Socratic tutoring | Learner opens approved lesson and interacts with local model in bounded, age-appropriate questioning; teacher can supervise, pause, terminate, and revoke; no autonomous new lesson or external inference | Sample multi-turn sessions, stream interruption on revoke, prompt-injection containment, local-only provider proof |
 | J4 Practice and assessment | Learner submits responses and assignments; educator can distinguish learner evidence from AI suggestions; authorized progress updates and rubric results persist | Submit→feedback→review; persistence/restart; assessment provenance and no fabricated standardized scores |
 | J5 Educator review and progress | Educator views assigned learner evidence, reviews AI draft, approves/edits/rejects next steps and inspects audit trail | Full decision workflow, version conflict/replay and grant-revoke negative tests |
 | J6 Parent-approved home reinforcement | Verified guardian accesses linked child only, views school-approved home scope, authorizes where policy permits, supervises practice and sees permitted progress; campus can require teacher and parent jointly | Guardian-link verification, unlink/revoke, role/policy matrix, home UI, dual-approval tests, no schoolwide access |
@@ -71,7 +71,7 @@ These are **requirements to resolve**, not assumed working features. Implementer
 1. **Complete lesson delivery interface:** teacher lesson builder/selection, approved-content preview, versioned send action, learner inbox/lesson reader, start/resume/complete states, accessibility, error/empty/offline states, and delivery acknowledgment.
 2. **Interactive learner tutoring integration:** scoped session token bound to approved lesson/version, streaming Socratic conversation UI, allowed tool/content boundary, teacher supervision controls, revocation propagation, transcript/progress retention rules, and local-only inference proof.
 3. **Parent home-learning interface:** verified guardian identity and child link, campus policy display, home assignment/approval view, permitted learner activity, parent progress view, consent/revocation, and unlink handling.
-4. **End-to-end seven-journey certification:** executable synthetic journeys across admin, teacher, learner, parent, backend, storage and packaged Mac; unified evidence tied to one immutable candidate SHA.
+4. **End-to-end seven-journey certification:** executable sample journeys across admin, teacher, learner, parent, backend, storage and packaged Mac; unified evidence tied to one immutable candidate SHA.
 5. **Assignment lifecycle:** canonical ownership and durable lesson-to-learner assignment, due/completion states, reassignment semantics, and restart recovery.
 6. **Delivery transport and receipts:** approved-version outbox/inbox, exactly-once effect via idempotency, retry/expiry, delivery/ack states, network-loss handling and scoped read APIs.
 7. **Progress provenance:** source-of-truth assessment schema, learner work attribution, AI-suggestion separation, teacher overrides, retention/export and restart verification.
@@ -83,7 +83,7 @@ These are **requirements to resolve**, not assumed working features. Implementer
 ### Staged implementation and acceptance
 
 **Release R1 — teacher-directed supervised institutional learning (P0):**
-- Complete J1, J2, J3, J4, J5 and teacher-controlled J7 for one synthetic campus/learner journey, including the actual educator and learner interfaces.
+- Complete J1, J2, J3, J4, J5 and teacher-controlled J7 for one sample campus/learner journey, including the actual educator and learner interfaces.
 - Deliver only after a current teacher approval; record exact content/version, receipt and audit; support edit/reject, revoke and interruption of active sessions.
 - Local supervised Socratic inference, bounded approved lesson scope, learner response/progress capture and durable restart recovery.
 - Negative tests: cross-campus, cross-learner, stale versions, revoked educator grants, learner disabled, prompt injection, delivery replay, restart and Mac packaging.
@@ -95,7 +95,7 @@ These are **requirements to resolve**, not assumed working features. Implementer
 - Parent access must not implicitly authorize campus-wide information or override teacher/campus policy.
 
 **Release R3 — complete product certification (P0 before declaring all-journey completeness):**
-- Run a single reproducible synthetic J1→J7 walkthrough including R1 and R2 capabilities, persistence/recovery and real role separation.
+- Run a single reproducible sample J1→J7 walkthrough including R1 and R2 capabilities, persistence/recovery and real role separation.
 - Collect G1 isolation, G2 evidence→decision→delivery→progress, G3 Mac install/restart/recovery/uninstall, usability observations without engineering assistance, security tests, dependency/SBOM scans, and signed owner acceptance.
 - Evidence packet names immutable commit SHA, build digest, test commands, timestamps, observed results, known exceptions and explicit GO/NO-GO.
 - No real learner data, externally accessible pilot or unsupervised delivery before separate owner GO.
@@ -123,7 +123,7 @@ For every journey maintain: requirement ID, assigned implementation PR, UI route
 
 ### Installation-based visual and interaction acceptance
 
-The owner will validate the experience from the **installed, packaged build**. Implementation PRs must include route-by-route instructions and seeded synthetic identities for administrator, educator, learner and guardian; no real learner data. Provide a repeatable script to exercise J1–J7, including empty/loading/error states, role switching, approved vs rejected content, revoke mid-session, restart/resume, and guardian-link failure.
+The owner will validate the experience from the **installed, packaged build**. Implementation PRs must include route-by-route instructions and seeded sample identities for administrator, educator, learner and guardian; no real learner data. Provide a repeatable script to exercise J1–J7, including empty/loading/error states, role switching, approved vs rejected content, revoke mid-session, restart/resume, and guardian-link failure.
 
 Acceptance requires:
 1. Screenshots or recorded walkthroughs of each implemented journey from the packaged application, tied to the tested immutable SHA and build digest.

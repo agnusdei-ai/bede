@@ -70,7 +70,7 @@ jobs:
           git diff --check
 
   removal-matrix:
-    name: Synthetic removal (${{ matrix.os }})
+    name: Sample removal (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -90,7 +90,7 @@ jobs:
         run: python packaging/tests/test_g3_evidence_script.py -v
 
   wizard-ui-journeys:
-    name: Synthetic installer wizard UI (${{ matrix.os }})
+    name: Sample installer wizard UI (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -105,7 +105,7 @@ jobs:
         run: python -m pip install playwright==1.56.0
       - name: Install browser runtime
         run: python -m playwright install --with-deps chromium
-      - name: Exercise synthetic administrator UI journeys
+      - name: Exercise sample administrator UI journeys
         run: python packaging/tests/test_installer_wizard_ui_journeys.py
       - name: Preserve scoped browser journey evidence
         if: always()

@@ -1,7 +1,7 @@
 """Real-app HTTP/SSE harness for the G1 authorization, voice and tutoring tests.
 
-Everything here is synthetic: Synthetic Campus One / Two, Synthetic Teacher
-One / Two, and Synthetic Learner One / Two, whose display names are
+Everything here is sample: Sample Campus One / Two, Sample Teacher
+One / Two, and Sample Learner One / Two, whose display names are
 deliberately IDENTICAL so any display-name keying shows up as a leak.
 
 The assembled ``main.app`` is served by a REAL uvicorn server on a loopback
@@ -37,7 +37,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 PG_URL_ENV = "G1_TEST_DATABASE_URL"
-SAME_NAME = "Synthetic Learner"
+SAME_NAME = "Sample Learner"
 ADMIN_CLAIMS = {"role": "parent", "auth_method": "webauthn_uv"}
 
 
@@ -136,7 +136,7 @@ class World:
         )
         assert r.status_code == 204, r.text
 
-    def authorize_campus(self, campus: str, name: str = "Synthetic Administrator") -> None:
+    def authorize_campus(self, campus: str, name: str = "Sample Administrator") -> None:
         """Opt the campus in through the REAL data-authorization endpoint with
         the REAL current notice hash. Never a bypass of the gate."""
         shown = self.client.get(f"/pilot/campuses/{campus}/data-authorization",
@@ -271,14 +271,14 @@ def _seed(world: World) -> None:
 
     async def teachers():
         async with world.factory() as s:
-            one = await provision_educator(s, "synthetic.teacher.one", "synthetic-passphrase-one-strong")
+            one = await provision_educator(s, "sample.teacher.one", "sample-passphrase-one-strong")
         async with world.factory() as s:
-            two = await provision_educator(s, "synthetic.teacher.two", "synthetic-passphrase-two-strong")
+            two = await provision_educator(s, "sample.teacher.two", "sample-passphrase-two-strong")
         return one["id"], two["id"]
 
     world.teacher_one, world.teacher_two = world.run(teachers)
     c, admin = world.client, world.admin()
-    for attr, title in (("campus_one", "Synthetic Campus One"), ("campus_two", "Synthetic Campus Two")):
+    for attr, title in (("campus_one", "Sample Campus One"), ("campus_two", "Sample Campus Two")):
         r = c.post("/pilot/campuses", json={"title": title}, headers=admin)
         assert r.status_code == 201, r.text
         setattr(world, attr, r.json()["campus_id"])
@@ -310,13 +310,13 @@ def _seed_legacy(world: World) -> None:
 
     async def teachers():
         async with world.factory() as s:
-            one = await provision_educator(s, "synthetic.teacher.one", "synthetic-passphrase-one-strong")
+            one = await provision_educator(s, "sample.teacher.one", "sample-passphrase-one-strong")
         async with world.factory() as s:
-            two = await provision_educator(s, "synthetic.teacher.two", "synthetic-passphrase-two-strong")
+            two = await provision_educator(s, "sample.teacher.two", "sample-passphrase-two-strong")
         return one["id"], two["id"]
 
     world.teacher_one, world.teacher_two = world.run(teachers)
-    world.extra["name_one"], world.extra["name_two"] = "Synthetic Learner One", "Synthetic Learner Two"
+    world.extra["name_one"], world.extra["name_two"] = "Sample Learner One", "Sample Learner Two"
     for teacher, name in ((world.teacher_one, world.extra["name_one"]),
                           (world.teacher_two, world.extra["name_two"])):
         r = world.client.put(

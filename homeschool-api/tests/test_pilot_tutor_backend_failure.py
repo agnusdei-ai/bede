@@ -8,7 +8,7 @@ drive the REAL route over HTTP with a failing local model, let the real
 ``log_event_nowait`` write through the real ``log_event`` anomaly watch, and
 observe the alert at the email boundary.
 
-Synthetic identities only (tests/canonical_assessment_fixtures.py).
+Sample identities only (tests/canonical_assessment_fixtures.py).
 """
 from __future__ import annotations
 
@@ -23,12 +23,12 @@ from core.config import settings
 from test_canonical_assessment_api import _reset_rate_limiter, client, world  # noqa: F401
 from test_pilot_tutor_stream import _approve
 
-CHILD_WORDS = "Synthetic learner answer about the vowel sound"
+CHILD_WORDS = "Sample learner answer about the vowel sound"
 
 
 class _DeadStream:
     async def __aenter__(self):
-        raise ConnectionError("synthetic local model is down")
+        raise ConnectionError("sample local model is down")
 
     async def __aexit__(self, *_):
         return False
@@ -50,7 +50,7 @@ class _DeadModel:
 
 class _DeadClassifier(_DeadModel):
     async def create(self, **_):
-        raise ConnectionError("synthetic local model is down")
+        raise ConnectionError("sample local model is down")
 
 
 @pytest.fixture
@@ -106,7 +106,7 @@ def test_a_failing_local_stream_logs_an_ai_backend_failure(world, monkeypatch, a
     assert failures[0]["role"] == "educator"
     # No learner content, and no exception message, which can echo it.
     blob = repr(failures)
-    assert "Synthetic learner" not in blob and "vowel" not in blob
+    assert "Sample learner" not in blob and "vowel" not in blob
     assert "is down" not in blob
 
 

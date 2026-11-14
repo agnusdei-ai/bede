@@ -30,14 +30,14 @@ import wizard
 # well-shaped PIN can still be an unusable one.
 TEST_PIN = wizard.suggest_pin()
 
-def make_synthetic_entitlement(tier="trial", expiry="2099-12-31", location=None):
+def make_sample_entitlement(tier="trial", expiry="2099-12-31", location=None):
     obj = {"id": "unit-fixture", "licensee": "Mock", "tier": tier, "expires": expiry}
     if location:
         obj["location_id"] = location
     value = base64.urlsafe_b64encode(json.dumps(obj).encode()).decode().rstrip("=")
     return value + ".unsigned-test-only"
 
-MOCK_ENTITLEMENT = make_synthetic_entitlement()
+MOCK_ENTITLEMENT = make_sample_entitlement()
 
 
 
@@ -738,7 +738,7 @@ def test_campus_pilot_location_is_written_only_when_approved(monkeypatch):
     assert 'name="child_pin"' in rendered
     assert 'type="hidden" name="child_pin"' in rendered
     assert 'Student PIN</label>' not in rendered
-    fields["license_key"] = make_synthetic_entitlement(tier="campus_location", location="bede-mac-pilot-2026")
+    fields["license_key"] = make_sample_entitlement(tier="campus_location", location="bede-mac-pilot-2026")
     assert wizard.validate(fields) == ""
     generated = wizard.build_env_file(fields)
     assert "BEDE_LOCATION_ID=bede-mac-pilot-2026\n" in generated
@@ -782,13 +782,13 @@ def test_wizard_waits_for_native_certificate_approval(running_wizard):
 
 def test_expired_pilot_entitlement_has_actionable_error():
     error = wizard.license_preflight_error(
-        make_synthetic_entitlement(expiry="2025-01-01"), "homeschool", ""
+        make_sample_entitlement(expiry="2025-01-01"), "homeschool", ""
     )
     assert "expired on 2025-01-01" in error
 
 def test_wrong_campus_entitlement_is_rejected():
     error = wizard.license_preflight_error(
-        make_synthetic_entitlement(tier="campus_location", location="elsewhere"),
+        make_sample_entitlement(tier="campus_location", location="elsewhere"),
         "campus", "approved-campus"
     )
     assert "different campus" in error
@@ -801,14 +801,14 @@ def test_invalid_entitlement_is_rejected():
 
 def test_config_backup_keeps_secrets_private_and_no_temporary_file(running_wizard, tmp_path):
     fields = {
-        "anthropic_key": "sk-ant-synthetic-private",
+        "anthropic_key": "sk-ant-sample-private",
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
         "license_key": MOCK_ENTITLEMENT,
     }
     _post(running_wizard, fields).close()
-    _post(running_wizard, {**fields, "anthropic_key": "sk-ant-synthetic-new"}).close()
+    _post(running_wizard, {**fields, "anthropic_key": "sk-ant-sample-new"}).close()
     for path in (tmp_path / ".env", tmp_path / ".env.backup"):
         assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert list(tmp_path.glob(".env-tmp-*")) == []
@@ -820,7 +820,7 @@ def test_symlinked_env_does_not_overwrite_another_file(running_wizard, tmp_path)
     (tmp_path / ".env").symlink_to(outside)
     with pytest.raises(urllib.error.HTTPError) as exc:
         _post(running_wizard, {
-            "anthropic_key": "sk-ant-synthetic",
+            "anthropic_key": "sk-ant-sample",
             "db_choice": "local",
             "parent_password": "parentpass123",
             "child_pin": TEST_PIN,
@@ -835,7 +835,7 @@ def test_audio_symlink_outside_asset_directory_is_rejected(running_wizard, tmp_p
     audio_dir = tmp_path / "audio"
     audio_dir.mkdir()
     outside = tmp_path / "outside.wav"
-    outside.write_bytes(b"synthetic-private-data")
+    outside.write_bytes(b"sample-private-data")
     (audio_dir / "welcome.wav").symlink_to(outside)
     monkeypatch.setattr(wizard, "AUDIO_DIR", audio_dir)
     with pytest.raises(urllib.error.HTTPError) as exc:
@@ -844,7 +844,7 @@ def test_audio_symlink_outside_asset_directory_is_rejected(running_wizard, tmp_p
 
 
 @pytest.mark.parametrize("model,base_url", [
-    ("qwen3:8b\nSECRET_KEY=synthetic-injection", "http://host.docker.internal:11434/v1"),
+    ("qwen3:8b\nSECRET_KEY=sample-injection", "http://host.docker.internal:11434/v1"),
     ("../qwen3:8b", "http://host.docker.internal:11434/v1"),
     ("qwen3:8b", "https://untrusted.example/v1"),
 ])

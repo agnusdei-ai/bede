@@ -39,8 +39,8 @@ Immediate next decision: accept/correct this baseline and resolve the blocking s
 
 No year or lessons authored; no corpus downloaded/activated; no new application features; no real learner records; no model training; no public-site edits; no branch, PR, remote fetch, push, merge, deployment, purchase, billing or pilot action. Downloadable copies are review documents, not a curriculum offer or service activation.
 
-The public website remains K–8. The current institutional pilot remains teacher-only/synthetic-only unless separately qualified and authorized. The paid-service direction is an owner decision, not proof that every described capability is already available.
+The public website remains K–8. The current institutional pilot remains teacher-only/sample-only unless separately qualified and authorized. The paid-service direction is an owner decision, not proof that every described capability is already available.
 
 ## Evidence limits
 
-The original baseline's checkout was historical. Integration verified current GitHub main read-only and used a separate local worktree, preserving unrelated dirty work; deployed behavior remains **unverified**. The baseline's synthetic checks demonstrate selected historical source contracts only. They are not current-main runtime evidence. Upstream pytest/database tests were not executed. No learner, legal, accessibility or efficacy certification follows.
+The original baseline's checkout was historical. Integration verified current GitHub main read-only and used a separate local worktree, preserving unrelated dirty work; deployed behavior remains **unverified**. The baseline's sample checks demonstrate selected historical source contracts only. They are not current-main runtime evidence. Upstream pytest/database tests were not executed. No learner, legal, accessibility or efficacy certification follows.

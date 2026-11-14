@@ -77,7 +77,7 @@ def evaluate(sku: str, evidence: dict) -> dict:
     """Strict comparison of real-device evidence to one SKU and chosen load.
 
     This is an operator attestation, not cryptographic hardware attestation.
-    Synthetic CI inputs MUST fail real-world qualification. Never supply
+    Sample CI inputs MUST fail real-world qualification. Never supply
     student records, actual credential values, or prompts in this report.
     """
     if sku not in BUNDLES:
@@ -117,7 +117,7 @@ def evaluate(sku: str, evidence: dict) -> dict:
     )
     check("physical_test_origin",
           evidence.get("origin") == "real_target_device_test",
-          "CI or synthetic data cannot qualify production-pilot hardware")
+          "CI or sample data cannot qualify production-pilot hardware")
     check(
         "recorded_model_and_runtime",
         isinstance(evidence.get("model_id"), str)

@@ -1,4 +1,4 @@
-"""Real-HTTP denials for the synthetic-only learner tutoring route.
+"""Real-HTTP denials for the sample-only learner tutoring route.
 
 No mock external model invocation: rejected requests must be refused before
 the model client is resolved. Covers absent educator approval and two-campus

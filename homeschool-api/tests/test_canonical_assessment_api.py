@@ -6,7 +6,7 @@ elsewhere; set ``BEDE_REQUIRE_PG=1`` to turn an unreachable Postgres into a
 failure instead of a skip, so a CI run cannot report a pass for a backend
 that never ran.
 
-Synthetic data only (tests/canonical_assessment_fixtures.py).
+Sample data only (tests/canonical_assessment_fixtures.py).
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ from canonical_assessment_fixtures import (
 
 PG_URL = os.environ.get(
     "BEDE_CANON_PG_URL",
-    "postgresql+asyncpg://bede_canon_app:synthetic-only@127.0.0.1:5433/canon_assess",
+    "postgresql+asyncpg://bede_canon_app:sample-only@127.0.0.1:5433/canon_assess",
 )
 API = Path(__file__).resolve().parents[1]
 
@@ -142,10 +142,10 @@ def test_same_campus_teacher_can_run_the_whole_lifecycle(world):
     assert prop["status"] == "pending"
     d = world.decide(aid, prop["proposal_id"], {
         "action": "approve", "expected_version": 1,
-        "confirmed_review_on": prop["proposed_review_on"], "rationale": "Synthetic rationale"})
+        "confirmed_review_on": prop["proposed_review_on"], "rationale": "Sample rationale"})
     assert d["action"] == "approve" and d["teacher_id"] == world.teacher_one.id
     plan = world.client.post(f"{world.base()}/assessments/{aid}/plan",
-                             json={"plan_text": "Synthetic teacher plan"},
+                             json={"plan_text": "Sample teacher plan"},
                              headers=world.teacher_one.headers)
     assert plan.status_code == 201, plan.text
     assert plan.json()["status"] == "recorded"
@@ -395,8 +395,8 @@ def test_skipped_measure_is_never_zero_and_never_in_growth(world):
 
 def test_boy_vendor_report_shape_is_transcribed_as_printed(world):
     adm = world.administer(window="BOY", vendor_next="2031-12-08",
-                           guidance={"support_areas": ["Synthetic support area"],
-                                     "home_activities": ["Synthetic home activity"]})
+                           guidance={"support_areas": ["Sample support area"],
+                                     "home_activities": ["Sample home activity"]})
     assert adm["report_source"] == "vendor_report"
     assert adm["official_benchmark_window"] == "BOY"
     assert adm["vendor_next_assessment_date"] == "2031-12-08"
@@ -417,8 +417,8 @@ def test_boy_vendor_report_shape_is_transcribed_as_printed(world):
     # Vendor guidance never becomes Bede's proposal or an approved action.
     world.evidence(adm["assessment_id"])
     prop = world.proposal(adm["assessment_id"])
-    assert "Synthetic support area" not in prop["proposed_next_step"]
-    assert "Synthetic home activity" not in str(prop)
+    assert "Sample support area" not in prop["proposed_next_step"]
+    assert "Sample home activity" not in str(prop)
 
 
 def test_label_vocabularies_are_validated_against_allowed_sets(world):
@@ -444,7 +444,7 @@ def test_interpretation_never_overwrites_the_canonical_score(world):
     aid, prop = full_journey(world)
     before = world.client.get(f"{world.base()}/assessments/{aid}", headers=world.teacher_one.headers).json()
     world.decide(aid, prop["proposal_id"], {
-        "action": "edit", "expected_version": 1, "edited_text": "Synthetic edited step",
+        "action": "edit", "expected_version": 1, "edited_text": "Sample edited step",
         "rationale": "Teacher reads the composite differently"})
     after = world.client.get(f"{world.base()}/assessments/{aid}", headers=world.teacher_one.headers).json()
     assert after["scores"] == before["scores"]
@@ -635,8 +635,8 @@ def test_calendar_is_per_campus_with_a_valor_default(client):
     assert r.json()["cycles"][3]["label"] == "Valor Q4 / year-end Data Day"
     # Campus Two configures its own calendar; Campus One's is untouched.
     client.put(f"/pilot/campuses/{w.campus_two}/calendar", json={"cycles": [
-        {"cycle_key": "term_a", "label": "Synthetic Term A review"},
-        {"cycle_key": "term_b", "label": "Synthetic Term B review"}]}, headers=_admin())
+        {"cycle_key": "term_a", "label": "Sample Term A review"},
+        {"cycle_key": "term_b", "label": "Sample Term B review"}]}, headers=_admin())
     two = client.get(f"/pilot/campuses/{w.campus_two}/calendar", headers=_admin()).json()
     assert [c["cycle_key"] for c in two["cycles"]] == ["term_a", "term_b"]
     w.administer(cycle="valor_q1", teacher=w.teacher_two, campus=w.campus_two,
@@ -773,7 +773,7 @@ def test_official_marks_and_separate_teacher_observation_survive_finalization(wo
             "correct_marks": 28, "error_marks": 2,
             "self_corrections": 1,
             "discontinue_rule_result": "not_met",
-            "administration_fidelity_note": "Synthetic fidelity check",
+            "administration_fidelity_note": "Sample fidelity check",
             "teacher_reviewed": True,
         },
     }
@@ -793,7 +793,7 @@ def test_official_marks_and_separate_teacher_observation_survive_finalization(wo
     observation = {
         "teacher_observation": {
             "accuracy_fluency": "Fluency developing",
-            "error_patterns": "Two synthetic error marks",
+            "error_patterns": "Two sample error marks",
             "narration_comprehension": "Narration recorded in classroom",
             "curriculum_already_taught": "Phonemic segmentation",
             "teacher_interpretation": "Continue classroom observation",
@@ -822,7 +822,7 @@ def test_unadministered_measure_remains_missing_and_composite_ineligible(world):
     world.step(aid, "start", "READY_FOR_ADMINISTRATION")
     world.scores(aid, [{
         "measure": "PSF", "administration_status": "skipped",
-        "reason": "Synthetic absence from this session",
+        "reason": "Sample absence from this session",
     }])
     world.step(aid, "submit", "IN_PROGRESS")
     world.step(aid, "finalize", "COMPLETED_PENDING_REVIEW")
@@ -868,7 +868,7 @@ def test_teacher_artifact_and_post_lesson_observation_are_scoped_and_append_only
     assert world.client.get(f"{base}/plans/{invalid}/artifact",
                             headers=world.teacher_one.headers).status_code == 404
     world.decide(aid, prop["proposal_id"], {"action": "approve", "expected_version": 1})
-    planned = world.client.post(f"{base}/plan", json={"plan_text": "Teacher approved synthetic phonics activity"},
+    planned = world.client.post(f"{base}/plan", json={"plan_text": "Teacher approved sample phonics activity"},
                                 headers=world.teacher_one.headers)
     assert planned.status_code == 201, planned.text
     plan_id = planned.json()["plan_id"]
@@ -877,7 +877,7 @@ def test_teacher_artifact_and_post_lesson_observation_are_scoped_and_append_only
     art = world.client.get(f"{route}/artifact", headers=world.teacher_one.headers)
     assert art.status_code == 200, art.text
     body = art.json()
-    assert body["plan_text"] == "Teacher approved synthetic phonics activity"
+    assert body["plan_text"] == "Teacher approved sample phonics activity"
     assert body["assessment_snapshot_sha256"]
     assert body["status"] == "teacher_approved_for_offline_use"
     assert body["campus_id"] == world.campus_one
@@ -888,7 +888,7 @@ def test_teacher_artifact_and_post_lesson_observation_are_scoped_and_append_only
 
     follow = world.client.post(f"{route}/follow-ups", json={
         "observed_on": date.today().isoformat(), "teaching_mode": "in_person",
-        "observation": "Synthetic pupil read three original practice words aloud.",
+        "observation": "Sample pupil read three original practice words aloud.",
         "next_step": "Teacher will repeat the exercise next lesson.",
     }, headers=world.teacher_one.headers)
     assert follow.status_code == 201, follow.text
@@ -934,9 +934,9 @@ def test_teacher_artifact_and_follow_up_never_exist_for_rejected_or_unapproved_w
 def test_teacher_follow_up_validates_actual_observation_and_date(world):
     aid, prop = full_journey(world)
     world.decide(aid, prop["proposal_id"], {"action": "edit", "expected_version": 1,
-                                            "edited_text": "Teacher-selected synthetic activity"})
+                                            "edited_text": "Teacher-selected sample activity"})
     r = world.client.post(f"{world.base()}/assessments/{aid}/plan",
-                          json={"plan_text": "Teacher-selected synthetic activity"},
+                          json={"plan_text": "Teacher-selected sample activity"},
                           headers=world.teacher_one.headers)
     assert r.status_code == 201, r.text
     route = f"{world.base()}/assessments/{aid}/plans/{r.json()['plan_id']}/follow-ups"

@@ -123,7 +123,7 @@ becomes matched by two blocks setting the same header again.
 
 ## The watchdog loop (unattended)
 
-`.github/workflows/demo-watchdog.yml` runs `scripts/synthetic_journey.mjs`
+`.github/workflows/demo-watchdog.yml` runs `scripts/sample_journey.mjs`
 every 30 minutes against the live demo, across desktop and two emulated
 Android viewports — all three in one job, sequentially, because the
 journey takes seconds per device and the Playwright install dominates.

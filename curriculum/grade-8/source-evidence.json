@@ -761,7 +761,7 @@
     "executed": false,
     "reason": "pytest, Pydantic, SQLAlchemy, aiosqlite and cryptography unavailable in this interpreter; no installation or DB access performed"
   },
-  "synthetic_checks_executed": [
+  "sample_checks_executed": [
     "flag defaults disabled",
     "flag-off local search denied",
     "local test flag only",
@@ -776,7 +776,7 @@
     "literal passage projected",
     "invented passage omitted",
     "no-evidence estimate denied",
-    "synthetic estimate not certainty"
+    "sample estimate not certainty"
   ],
   "limits": [
     "Not upstream pytest execution, real reviewer authentication or deployment evidence",

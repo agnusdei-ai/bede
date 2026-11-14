@@ -163,7 +163,7 @@ RESULTS_FILE="$EVIDENCE/automated-results.txt"
 : > "$RESULTS_FILE"
 exec > >(tee -a "$PRIVATE/run.log") 2>&1
 say "Bede G3 evidence run $STAMP. Work folder: $WORK"
-say "Only synthetic data is used. Nothing here may be pointed at real student records."
+say "Only sample data is used. Nothing here may be pointed at real student records."
 
 for cmd in docker curl shasum tar openssl lsof base64 sed grep; do
   command -v "$cmd" >/dev/null 2>&1 || die "missing tool: $cmd"
@@ -262,7 +262,7 @@ fi
 
 # ── 3. Unattended install (G3-01) ─────────────────────────────────────────────
 
-step "3. Install a fresh synthetic campus instance"
+step "3. Install a fresh sample campus instance"
 [ ! -s "$APP/.env" ] || die "$APP/.env already exists; use a fresh --work folder"
 ADMIN_PASSWORD="g3-$(openssl rand -hex 16)"
 printf 'administrator_password=%s\ncampus_id=%s\nsource_sha=%s\n' "$ADMIN_PASSWORD" "$CAMPUS_ID" "$SHA" > "$PRIVATE/credentials.txt"
@@ -486,7 +486,7 @@ row() { # id requirement outcome note
   row G3-10 "Encrypted backup and isolated restore rehearsal" "NOT RUN" "operator step"
   row G3-11 "Operator observation: safe failure, secret-free evidence" "Secret scan: see below" "this run"
   printf '\n## Still yours\n\n'
-  printf -- '- Sign in as the administrator (password in the private credentials file) and run G3-04 to G3-08 and G3-10 on synthetic data, following docs/institutional/MAC_G3_CERTIFICATION_RUNBOOK.md.\n'
+  printf -- '- Sign in as the administrator (password in the private credentials file) and run G3-04 to G3-08 and G3-10 on sample data, following docs/institutional/MAC_G3_CERTIFICATION_RUNBOOK.md.\n'
   printf -- '- Enroll a real passkey on the installed instance for the installed-package half of G3-02.\n'
   printf -- '- Review and sign section F of the record.\n'
 } > "$EVIDENCE/G3-RECORD-DRAFT.md"

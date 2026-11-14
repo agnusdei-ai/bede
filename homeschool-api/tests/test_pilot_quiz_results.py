@@ -2,7 +2,7 @@
 (routers/pilot_journey.py's /quiz-results routes,
 services/teacher_quiz_records.py).
 
-Synthetic campuses, teachers and learners only. Every case drives the real
+Sample campuses, teachers and learners only. Every case drives the real
 route functions on a real database, the pattern
 tests/test_valor_pilot_g2_journey.py uses.
 """
@@ -32,7 +32,7 @@ PROMPTS = ["7 + 5", "36 - 19", "12 x 4", "Name a shape with four equal sides."]
 
 def quiz(subject="mathematics", grade="3", approved=True, prompts=PROMPTS) -> TeacherQuiz:
     return TeacherQuiz(
-        title="Synthetic week 3 check", subject=subject, grade=grade, approved=approved,
+        title="Sample week 3 check", subject=subject, grade=grade, approved=approved,
         questions=[TeacherQuestion(number=i + 1, type="short_answer", prompt=p, answer="x",
                                    points=1, key_approved=True)
                    for i, p in enumerate(prompts)],
@@ -228,16 +228,16 @@ async def test_a_revoked_grant_ends_access(db):
 async def test_a_campus_whose_authorization_was_withdrawn_stores_nothing(db):
     from services.educator_access import provision_educator
 
-    teacher = await provision_educator(db, "quiz.unauthorized.teacher", "synthetic-passphrase-strong")
+    teacher = await provision_educator(db, "quiz.unauthorized.teacher", "sample-passphrase-strong")
     from core import school_authorization
     from school_auth_helper import authorize_campus
 
-    campus = (await create_campus(CampusInput(title="Synthetic withdrawn campus"), auth=ADMIN, db=db))["campus_id"]
+    campus = (await create_campus(CampusInput(title="Sample withdrawn campus"), auth=ADMIN, db=db))["campus_id"]
     await authorize_campus(db, campus)
-    learner = (await create_learner(campus, LearnerInput(display_name="Synthetic Learner"), auth=ADMIN, db=db))["learner_id"]
+    learner = (await create_learner(campus, LearnerInput(display_name="Sample Learner"), auth=ADMIN, db=db))["learner_id"]
     await approve_educator_membership(campus, teacher["id"], auth=ADMIN, db=db)
     await approve_roster_grant(campus, teacher["id"], learner, auth=ADMIN, db=db)
-    await school_authorization.revoke(db, campus, reason="synthetic withdrawal")
+    await school_authorization.revoke(db, campus, reason="sample withdrawal")
     await db.commit()
     with pytest.raises(HTTPException) as err:
         await save_quiz_result(learner, save(), auth=await token(db, teacher), db=db)
@@ -265,7 +265,7 @@ async def test_the_stored_result_is_ciphertext_bound_to_its_learner(db):
     ta, _, a, _, la, _ = await two_campuses(db)
     out = await save_quiz_result(la, save(), auth=await token(db, ta), db=db)
     row = await db.get(PilotQuizResult, out["result_id"])
-    assert b"36 - 19" not in row.detail_enc and b"Synthetic week 3" not in row.detail_enc
+    assert b"36 - 19" not in row.detail_enc and b"Sample week 3" not in row.detail_enc
     with pytest.raises(Exception):
         decrypt_json(row.detail_enc, aad_for("pilot_quiz_results", "detail_enc", f"{a}:other:{row.id}"))
 

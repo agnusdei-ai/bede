@@ -139,7 +139,7 @@ def test_real_child_login_is_scoped_and_switch_rotates_context(ctx, monkeypatch)
     monkeypatch.setattr(settings, "educator_pilot_enabled", False)
     saved = _save(ctx, ["Emma", "Noah"], consent_notice_hash=consent.notice_hash())
     assert saved.status_code == 204, saved.text
-    device = "synthetic-household-tablet-1"
+    device = "sample-household-tablet-1"
     assignment_url = f"/auth/child-devices/{device}/learner"
 
     first_assignment = ctx.post(assignment_url, json={"student_name": "Emma"}, headers=_h())
@@ -429,7 +429,7 @@ def test_mixed_roster_without_new_child_consent_writes_no_configs(ctx):
 
 def test_consent_failure_happens_before_config_write(ctx, monkeypatch):
     async def refuse(*args, **kwargs):
-        raise consent.ConsentError(422, "method_not_available", "Synthetic refusal")
+        raise consent.ConsentError(422, "method_not_available", "Sample refusal")
 
     monkeypatch.setattr(consent, "ensure_consent", refuse)
     r = _save(ctx, ["Emma"], consent_notice_hash=consent.notice_hash())

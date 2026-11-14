@@ -18,7 +18,7 @@ def payload(audience="homeschool"):
         "timing": "Next school term", "deployment": "Need guidance", "consent": True,
     }
     if audience != "homeschool":
-        value.update(organization="Synthetic Learning Community", educators=4, sites=1)
+        value.update(organization="Sample Learning Community", educators=4, sites=1)
     if audience == "coop":
         value["families"] = 12
     return value
@@ -117,7 +117,7 @@ async def test_shared_provider_passes_validated_reply_to(monkeypatch):
     monkeypatch.setattr(email_service, "email_configured", lambda: True)
     monkeypatch.setattr(email_service, "_get_http_client", lambda: client)
     assert await email_service.send_email(
-        "info@agnusdei.ai", "Synthetic test", "<p>Test</p>", reply_to="owner@example.org"
+        "info@agnusdei.ai", "Sample test", "<p>Test</p>", reply_to="owner@example.org"
     )
     data = client.post.await_args.kwargs["json"]
     assert data["to"] == ["info@agnusdei.ai"]

@@ -54,7 +54,7 @@ The queued local-commit and three-lesson tasks already supply downstream work; n
 
 ## Future objective record — required fields, not adopted outcomes
 
-Use a reviewed identifier scheme compatible with current skill IDs; sample below is **synthetic/proposed**, not inserted into runtime models:
+Use a reviewed identifier scheme compatible with current skill IDs; sample below is **sample/proposed**, not inserted into runtime models:
 
 ```
 objective_id: proposed:G8.WRI.ARG.01

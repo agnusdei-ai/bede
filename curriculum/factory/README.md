@@ -52,36 +52,36 @@ export BEDE_FACTORY_MODE=development
 python -B curriculum/factory/run.py fixture
 python -B curriculum/factory/run.py build \
   --manifest generated-artifacts/curriculum-factory/local/input/bundle.json \
-  --task synthetic-draft
+  --task sample-draft
 # Same command verifies and reuses exact outputs; no duplicate events/artifacts.
 python -B curriculum/factory/run.py build \
   --manifest generated-artifacts/curriculum-factory/local/input/bundle.json \
-  --task synthetic-draft
+  --task sample-draft
 python -B curriculum/factory/run.py status --key BUILD_KEY
 python -B curriculum/factory/run.py cancel --key RUNNING_KEY \
-  --reason 'Stop synthetic development run'
+  --reason 'Stop sample development run'
 
 # Bounded acceptance suite. Network connection attempts are denied.
 timeout 35s python -B curriculum/factory/verify.py
 ```
 
-The last command temporarily uses synthetic test-only environment defaults
+The last command temporarily uses sample test-only environment defaults
 inside the test process, an in-memory SQLite database and test-only grants.
 It never reads workspace secrets or connects to the placeholder PostgreSQL URL.
 `test_review.py` reuses the existing workflow test setup; it does not mock
 reviewer authorization. A real signature-verified session and authorized rights
-review have **not** been established by these synthetic tests.
+review have **not** been established by these sample tests.
 
 Existing affected regressions (without app-wide fixtures importing unrelated
 voice/model services; no fixtures in these files depend on those fixtures):
 
 ```sh
 cd homeschool-api
-# Provide the same synthetic configuration as tests/conftest.py, never live keys.
-SECRET_KEY=synthetic-test-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
-MASTER_SECRET=synthetic-test-master-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy \
-ANTHROPIC_API_KEY=synthetic-no-network \
-DATABASE_URL=postgresql+asyncpg://synthetic:synthetic@127.0.0.1/never_connect \
+# Provide the same sample configuration as tests/conftest.py, never live keys.
+SECRET_KEY=sample-test-key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+MASTER_SECRET=sample-test-master-yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy \
+ANTHROPIC_API_KEY=sample-no-network \
+DATABASE_URL=postgresql+asyncpg://sample:sample@127.0.0.1/never_connect \
 timeout 60s python -m pytest --noconftest \
   -o asyncio_default_fixture_loop_scope=function \
   tests/test_curriculum*.py tests/test_content_curation.py -q
@@ -179,7 +179,7 @@ Existing `review_staged_lesson` remains the only human decision path. It checks
 live enabled educator/campus/membership, WebAuthn UV, current credential version,
 admin-issued grant, independent author, rights and source fingerprint, and
 reauthorizes before commit. Approval creates a distinct approved version in the
-synthetic development database, not a factory-success or runtime publication.
+sample development database, not a factory-success or runtime publication.
 
 `resolve_receipt` reads that existing record, checks current identity/grant,
 latest approved version, decision, independent author, encrypted exact content,

@@ -1,9 +1,9 @@
 """RESEND_API_BASE_URL can only ever point mail at THIS machine, and never in
 production.
 
-It exists so the synthetic qualification run (docs/SYNTHETIC_QUALIFICATION.md)
+It exists so the sample qualification run (docs/SAMPLE_QUALIFICATION.md)
 can capture the email the real /auth/educator-passkey/invite route sends, on a
-loopback mail sink, and so enroll a synthetic teacher through the real
+loopback mail sink, and so enroll a sample teacher through the real
 passkey ceremony instead of a minted token. The risk it carries is the
 obvious one: a setting that redirects outbound mail could redirect a
 family's distress alert or a teacher's enrollment link to someone else. So:
@@ -62,10 +62,10 @@ def test_send_email_posts_to_the_configured_sink(monkeypatch):
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(str(request.url))
-        return httpx.Response(200, json={"id": "synthetic"})
+        return httpx.Response(200, json={"id": "sample"})
 
     monkeypatch.setattr(email_service.settings, "resend_api_base_url", "http://127.0.0.1:8767")
-    monkeypatch.setattr(email_service.settings, "resend_api_key", "synthetic-sink-key")
+    monkeypatch.setattr(email_service.settings, "resend_api_key", "sample-sink-key")
     monkeypatch.setattr(email_service.settings, "resend_from_address", "bede@qualification.agnusdei.ai")
     monkeypatch.setattr(email_service, "_get_http_client",
                         lambda: httpx.AsyncClient(transport=httpx.MockTransport(handler)))

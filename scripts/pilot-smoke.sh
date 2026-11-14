@@ -33,10 +33,10 @@ if ! docker compose config --quiet >/dev/null 2>&1; then
   record config FAIL "Compose config invalid; secrets withheld from logs"; exit 1
 fi
 record config PASS "Compose config parses (values not printed)"
-# Never use a real-data deployment for the local synthetic qualification.
+# Never use a real-data deployment for the local sample qualification.
 # Explicit operator acknowledgement is required for service startup.
-if [[ "$MODE" == start && "${BEDE_SYNTHETIC_ONLY:-}" != "1" ]]; then
-  record synthetic-scope BLOCKED "Set BEDE_SYNTHETIC_ONLY=1 after verifying disposable local data"
+if [[ "$MODE" == start && "${BEDE_SAMPLE_ONLY:-}" != "1" ]]; then
+  record sample-scope BLOCKED "Set BEDE_SAMPLE_ONLY=1 after verifying disposable local data"
   exit 2
 fi
 if [[ "$MODE" == start ]]; then
@@ -58,7 +58,7 @@ fi
 echo
 echo "Manual checks (never auto-marked PASS):"
 cat <<'CHECKS' | tee "$OUT/manual-gates.txt"
-G1 NOT RUN: In disposable synthetic data, campus A teacher can open assigned learner A, but not campus B or unassigned learner. Revoke access and retry.
+G1 NOT RUN: In disposable sample data, campus A teacher can open assigned learner A, but not campus B or unassigned learner. Revoke access and retry.
 G2 NOT RUN: Open authorized learner, inspect cited evidence, generate recommendation, approve/edit/reject separately, refresh and confirm each saved decision.
 G3 NOT RUN: Check approved campus list, manual grant/revoke and disable access, support contact and baseline time/feedback. Run a separately reviewed destructive recovery drill ONLY on a disposable instance.
 PILOT BOUNDARY NOT RUN: Confirm no self-service purchasing, Stripe entitlement dependency, day-2 purchase notices, automatic conversion or retained_trial_access promise.

@@ -1,4 +1,4 @@
-"""Synthetic acceptance fixtures; these tests do not authorize or evaluate teaching."""
+"""Sample acceptance fixtures; these tests do not authorize or evaluate teaching."""
 from copy import deepcopy
 import hashlib
 import json
@@ -77,7 +77,7 @@ class ContractTests(unittest.TestCase):
 
     def test_source_content_is_hashed_as_bytes(self):
         self.assertEqual(checked_file(BASE, ASSET),
-                         b"Synthetic pairs: (1,2), (2,4), (3,6). No learner data.\n")
+                         b"Sample pairs: (1,2), (2,4), (3,6). No learner data.\n")
 
     def test_tampered_asset(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -218,10 +218,10 @@ class ContractTests(unittest.TestCase):
             "id": "fixture-evidence", "target": ref(self.bundle["lessons"][0]),
             "author_run": "fixture-author", "reviewer_run": "fixture-reviewer",
             "reviewer_identity": "fixture-agent", "reviewer_version": "unavailable",
-            "role": "agent_academic", "at": NOW, "scope": "Synthetic structure test only",
+            "role": "agent_academic", "at": NOW, "scope": "Sample structure test only",
             "methods": ["Fixture test"], "artifacts": [deepcopy(ASSET)], "findings": [],
             "disagreements": [], "conditions": [], "decision": "agent_reviewed",
-            "command": "fixture assertion; not a real academic review", "result": "synthetic only",
+            "command": "fixture assertion; not a real academic review", "result": "sample only",
         }
 
     def test_separate_agent_record_is_not_human_gate(self):

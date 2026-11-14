@@ -26,7 +26,7 @@ class SelectorTests(unittest.TestCase):
         (self.root / "homeschool-tutor/src/Widget.test.tsx").write_text(
             "import { Widget } from './Widget'\n")
         # All three workspace roots exist in the real monorepo. A missing
-        # workspace correctly fails closed, so the synthetic fixture must
+        # workspace correctly fails closed, so the sample fixture must
         # model the unaffected license-server root as present.
         (self.root / "license-server").mkdir()
         subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)

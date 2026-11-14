@@ -1,1 +1,1 @@
-Synthetic pairs: (1,2), (2,4), (3,6). No learner data.
+Sample pairs: (1,2), (2,4), (3,6). No learner data.

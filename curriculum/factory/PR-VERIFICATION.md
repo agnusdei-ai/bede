@@ -29,8 +29,8 @@ or assertions. Contract CI still tests Python 3.12 and 3.13.
 ## Public-repository screening
 
 The factory Python files, guides and workflow contain proprietary Bede software
-and deliberately synthetic test data, not a real authored lesson bank.
-The coordinate exercise, synthetic teacher-key sentinels, fictional campus
+and deliberately sample test data, not a real authored lesson bank.
+The coordinate exercise, sample teacher-key sentinels, fictional campus
 identifiers and test-only placeholder configuration are safe software fixtures.
 They are not credentials, learner records or restricted instructional answers.
 Original Bede work remains proprietary under the existing repository LICENSE;
@@ -56,7 +56,7 @@ At the parent main above, Python 3.13.4 with existing Nix test dependencies:
 | `timeout 35s python -B curriculum/factory/verify.py` | 32 passed, 10.638 s |
 | `timeout 35s python -B curriculum/production-spec/verify.py` | 56 passed, 0.289 s |
 | `timeout 35s python -B curriculum/production-spec/contract.py check` | Passed, original export hash reproduced |
-| From `homeschool-api`, synthetic configuration, `timeout 60s python -B -m pytest --noconftest -o asyncio_default_fixture_loop_scope=function tests/test_curriculum*.py tests/test_content_curation.py -q` | 133 passed, 3.11 s; one existing Pydantic deprecation warning |
+| From `homeschool-api`, sample configuration, `timeout 60s python -B -m pytest --noconftest -o asyncio_default_fixture_loop_scope=function tests/test_curriculum*.py tests/test_content_curation.py -q` | 133 passed, 3.11 s; one existing Pydantic deprecation warning |
 
 Original canonical specification export SHA-256 remains
 `8361af57048f0f41340317284830249363c5051712a07ac30e5a9d9f6a21de93`.

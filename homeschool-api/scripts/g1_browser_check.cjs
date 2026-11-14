@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * G1 browser half of the voice-binding check. Run by g1_browser_check.py,
- * never on its own: that script seeds Synthetic Campus One/Two, Teacher
+ * never on its own: that script seeds Sample Campus One/Two, Teacher
  * One/Two and the two same-name learners through the real admin routes,
  * serves the real API, starts the real Vite dev server, and passes the ids
  * and tokens in BEDE_G1_INPUT.
@@ -11,14 +11,14 @@
  * against the real API through the app's own /api proxy. Admin revocation is
  * sent from Node, mid-stream, while the page is still reading SSE.
  *
- * Output: one JSON object on stdout. Synthetic data only.
+ * Output: one JSON object on stdout. Sample data only.
  */
 const { chromium } = require('playwright')
 
 const input = JSON.parse(process.env.BEDE_G1_INPUT)
 const { app, api, admin, one, oneNext, two, learnerOne, campusOne, teacherOne } = input
 
-const PCM = 'AAEAAQABAAEAAQABAAEAAQABAAE=' // 24 bytes of synthetic int16 samples
+const PCM = 'AAEAAQABAAEAAQABAAEAAQABAAE=' // 24 bytes of sample int16 samples
 
 async function main() {
   const browser = await chromium.launch()

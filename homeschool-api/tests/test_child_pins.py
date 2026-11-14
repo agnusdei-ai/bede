@@ -9,7 +9,7 @@ another tablet's id could sign in as that tablet's child.
 Everything here runs over real HTTP through the assembled app (SQLite per
 test). Learners are saved by the real parent route, PINs are set by the real
 elevated parent route after a real /auth/elevate, and child tokens come from
-the real /auth/login. Synthetic names only. Every guard was verified by
+the real /auth/login. Sample names only. Every guard was verified by
 breaking it (see the PR description).
 """
 import asyncio
@@ -28,12 +28,12 @@ from core.student_keys import clear_cache
 
 pytestmark = pytest.mark.real_consent
 
-ONE = "Synthetic Learner One"
-TWO = "Synthetic Learner Two"
-THREE = "Synthetic Learner Three"  # never gets a PIN: the shared-PIN control
-TABLET_A = "synthetic-tablet-a"
-TABLET_B = "synthetic-tablet-b"
-TABLET_C = "synthetic-tablet-c"
+ONE = "Sample Learner One"
+TWO = "Sample Learner Two"
+THREE = "Sample Learner Three"  # never gets a PIN: the shared-PIN control
+TABLET_A = "sample-tablet-a"
+TABLET_B = "sample-tablet-b"
+TABLET_C = "sample-tablet-c"
 PIN_ONE = "481937"
 PIN_TWO = "730582"
 
@@ -294,7 +294,7 @@ def test_no_enumeration_difference_between_wrong_pin_unknown_child_and_locked(ct
         _login(c, "000123", name=TWO)
     responses = [
         _login(c, "000123", name=ONE),               # wrong pin
-        _login(c, "000123", name="Nobody Synthetic"),  # unknown child
+        _login(c, "000123", name="Nobody Sample"),  # unknown child
         _login(c, PIN_TWO, name=TWO),                # locked, right pin
         _login(c, settings.child_pin, name=ONE),     # shared pin, protected child
     ]
@@ -376,7 +376,7 @@ def test_pins_that_collide_with_another_credential_are_refused(ctx, monkeypatch)
 
 def test_setting_a_pin_for_an_unknown_student_is_refused(ctx):
     c, parent, rows = ctx
-    assert _set_pin(c, parent, "Nobody Synthetic", PIN_ONE).status_code == 404
+    assert _set_pin(c, parent, "Nobody Sample", PIN_ONE).status_code == 404
     assert not rows()
 
 

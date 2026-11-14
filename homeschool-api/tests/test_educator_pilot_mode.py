@@ -16,7 +16,7 @@ from core.security import create_access_token
 def request():
     return Request({
         "type": "http", "method": "GET", "path": "/test",
-        "headers": [(b"user-agent", b"synthetic-bede-test")],
+        "headers": [(b"user-agent", b"sample-bede-test")],
         "client": ("127.0.0.1", 12000), "scheme": "https",
     })
 
@@ -46,6 +46,6 @@ async def test_teacher_session_rejected_when_pilot_switched_off(monkeypatch):
     monkeypatch.setattr(settings, "educator_pilot_enabled", False)
     with pytest.raises(HTTPException) as exc:
         await _require_live_session(
-            request(), {"role": "educator", "sub": "synthetic", "ev": 1},
+            request(), {"role": "educator", "sub": "sample", "ev": 1},
         )
     assert exc.value.status_code == 403

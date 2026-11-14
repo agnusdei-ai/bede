@@ -187,8 +187,8 @@ describe('TeacherQuizStudio', () => {
 
   it('a confirmed result is saved only to the student the teacher picks, and a change is a correction', async () => {
     mocks.fetchPilotLearners.mockResolvedValue([
-      { learner_id: 'uuid-a', campus_id: 'c', display_name: 'Synthetic Learner One' },
-      { learner_id: 'uuid-b', campus_id: 'c', display_name: 'Synthetic Learner Two' },
+      { learner_id: 'uuid-a', campus_id: 'c', display_name: 'Sample Learner One' },
+      { learner_id: 'uuid-b', campus_id: 'c', display_name: 'Sample Learner Two' },
     ])
     mocks.scoreTeacherQuiz.mockResolvedValue({
       possible: 2, read_by: null,
@@ -224,7 +224,7 @@ describe('TeacherQuizStudio', () => {
     await waitFor(() => expect(mocks.savePilotQuizResult).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(save.disabled).toBe(false))
     fireEvent.click(save)
-    await screen.findByText("Saved to Synthetic Learner Two's record.")
+    await screen.findByText("Saved to Sample Learner Two's record.")
     const [first, second] = mocks.savePilotQuizResult.mock.calls
     expect(first[1]).toBe('uuid-b')
     expect(second[2].submission_id).toBe(first[2].submission_id)
@@ -236,7 +236,7 @@ describe('TeacherQuizStudio', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Approve these results' }))
     await waitFor(() => expect(mocks.finalizeTeacherQuiz).toHaveBeenCalledTimes(2))
     fireEvent.click(await screen.findByRole('button', { name: 'Save result' }))
-    await screen.findByText("Saved as a correction to Synthetic Learner Two's earlier result.")
+    await screen.findByText("Saved as a correction to Sample Learner Two's earlier result.")
     const third = mocks.savePilotQuizResult.mock.calls[2][2]
     expect(third.supersedes).toBe('r1')
     expect(third.submission_id).not.toBe(first[2].submission_id)
@@ -308,12 +308,14 @@ describe('teacher quiz copy', () => {
     for (const label of quoted) expect(doc, label).toContain(`**${label}**`)
   })
 
-  it('never says "synthetic" in either language', async () => {
+  it('never uses the banned nomenclature in either language', async () => {
     const en = (await import('../i18n/locales/en.json')).default as Record<string, unknown>
     const es = (await import('../i18n/locales/es.json')).default as Record<string, unknown>
     for (const locale of [en, es]) {
-      expect(JSON.stringify(locale.teacherQuiz).toLowerCase()).not.toContain('synthetic')
-      expect(JSON.stringify(locale.teacherQuiz).toLowerCase()).not.toContain('sintétic')
+      // scripts/check_nomenclature.sh's words, spelled from pieces, plus Spanish.
+      for (const word of ['synth' + 'etic', 'simul' + 'ated', 'artifi' + 'cial', 'sint' + 'étic', 'simul' + 'ad', 'artifi' + 'cial']) {
+        expect(JSON.stringify(locale.teacherQuiz).toLowerCase()).not.toContain(word)
+      }
     }
   })
 

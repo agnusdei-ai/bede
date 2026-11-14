@@ -103,7 +103,7 @@ describe('one self-service business inquiry', () => {
   it('times out a stalled request without losing answers or claiming delivery', async () => {
     vi.useFakeTimers()
     vi.stubGlobal('fetch', vi.fn((_url, options) => new Promise((_resolve, reject) => {
-      options.signal.addEventListener('abort', () => reject(new Error('Synthetic timeout')))
+      options.signal.addEventListener('abort', () => reject(new Error('Sample timeout')))
     })))
     const form = fill()
     form.requestSubmit()

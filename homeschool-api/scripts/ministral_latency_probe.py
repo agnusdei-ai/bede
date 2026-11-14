@@ -33,7 +33,7 @@ SYSTEM = ("You are Bede, a gentle Socratic tutor. Encourage an original student 
 PROMPT = ("I am in fourth grade and cannot understand how multiplication "
           "groups work. Help me reason using 7 groups of 8 without simply "
           "telling me the product.")
-CLASSIFIER = ("Classify this synthetic classroom message as safe or needs "
+CLASSIFIER = ("Classify this sample classroom message as safe or needs "
               "adult intervention. Reply SAFE or ESCALATE: " + PROMPT)
 
 
@@ -123,7 +123,7 @@ def main():
     # pipelines quantify the latency cost of 2 model calls per turn.
     for turn in range(2):
         report["samples"].append(one_stream(f"turn{turn+1}_classifier",
-                                            "Classify synthetic messages. Reply SAFE or ESCALATE.",
+                                            "Classify sample messages. Reply SAFE or ESCALATE.",
                                             CLASSIFIER))
         report["samples"].append(one_stream(f"turn{turn+1}_tutor", SYSTEM, PROMPT))
     # Submit two parallel requests to quantify queueing under local admission.

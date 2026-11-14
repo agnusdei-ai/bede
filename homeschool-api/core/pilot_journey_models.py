@@ -144,3 +144,43 @@ class PilotDeletionReceipt(Base):
     deleted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, nullable=False,
     )
+
+
+QUIZ_RESULT_CURRENT = "current"
+QUIZ_RESULT_SUPERSEDED = "superseded"
+
+
+class PilotQuizResult(Base):
+    """A teacher-confirmed classroom quiz result for one pilot learner.
+
+    Classroom evidence, deliberately NOT a canonical assessment record and
+    never copied into one (``routers/pilot_assessments.py`` holds those).
+    ``submission_id`` is the client's id for one save, so a retry returns the
+    original row instead of a second result. A correction is a new row that
+    names the row it replaces; the replaced row becomes ``superseded`` and no
+    longer counts anywhere. Only ``current`` rows feed the mastery estimate,
+    which is computed when read and never stored
+    (``services/teacher_quiz_records.py``). The detail (quiz snapshot and the
+    teacher's settled points) is ciphertext bound to ``campus:learner:row``.
+    """
+    __tablename__ = "pilot_quiz_results"
+    __table_args__ = (
+        UniqueConstraint("campus_id", "learner_id", "submission_id",
+                         name="uq_pilot_quiz_result_submission"),
+        CheckConstraint(f"status IN ('{QUIZ_RESULT_CURRENT}', '{QUIZ_RESULT_SUPERSEDED}')",
+                        name="ck_pilot_quiz_result_status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    campus_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    learner_id: Mapped[str] = mapped_column(String(36), index=True, nullable=False)
+    submission_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    body_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    recorded_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default=QUIZ_RESULT_CURRENT, nullable=False)
+    supersedes: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    superseded_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, nullable=False,
+    )

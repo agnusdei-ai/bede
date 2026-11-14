@@ -41,6 +41,20 @@ Both runs below hit `cd66cd58`, whose content check is #814's unchanged.
 | Lesson drawing reaches the tutor | pass | 200, Bede talked about the tree drawing |
 | Game screen in a lesson gets the gentle refusal | pass | 200 "Bede can only look at pictures that are part of your lesson." |
 
+### Runs 3-5: after `temperature=0` deployed (`770766ce`, Render deployment 7788443402, live 13:49 UTC)
+
+| Run | Started (UTC) | Worksheet read | Game screen upload refused | Drawing reaches tutor | Game screen in lesson refused |
+|---|---|---|---|---|---|
+| 43601741864 | 13:50 | pass | pass (422, "doesn't look like schoolwork") | pass | pass |
+| 43601847803 | 13:51 | pass | **fail** (200, read) | pass | pass |
+| 43601950596 | 13:52 | pass | **fail** (200, read) | pass | pass |
+
+`temperature=0` did not make the upload verdict consistent: the same game
+screen was accepted as schoolwork 2 times out of 3. The lesson check refused
+it all 3 times. So, on the demo, a plainly off-topic upload can still be read.
+None of these runs tests the safety categories (self-harm, sexual content),
+which are covered only by mocked tests.
+
 ## Findings
 
 1. **The same game screen was accepted once and refused once.** The check
@@ -48,13 +62,14 @@ Both runs below hit `cd66cd58`, whose content check is #814's unchanged.
    and its verdict could vary. The miss was in the "not schoolwork" category,
    not a safety category, but the same cause could affect any category. Fixed
    by sending `temperature=0` (safe on every client the check uses; Anthropic
-   gets it through `_kwargs_for`). This needs a re-run once deployed.
+   gets it through `_kwargs_for`). Runs 3-5 show this was not enough: the
+   upload verdict still varies. Open.
 2. **The probe's first chat request was invalid.** Fixed, and
    `tests/test_live_upload_probe.py` now checks both of its request bodies
    against the API's own models.
 
 ## Still to do
 
-- Re-run after the `temperature=0` fix deploys, and repeat the game-screen
-  check several times to see whether it is consistent.
+- Make the upload check reliable on off-topic pages (finding 1), then re-run
+  the probe at least five times.
 - The real-iPhone print check is separate: `docs/release/IPHONE_PRINT_CHECK.md`.

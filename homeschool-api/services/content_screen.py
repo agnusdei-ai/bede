@@ -251,6 +251,10 @@ async def screen_images(client, images: list[tuple[str, str]], context: Context)
             client.messages.create(
                 model=settings.tutor_model,
                 max_tokens=60,
+                # A safety verdict must not change between two sends of the
+                # same picture: at the default temperature the live demo
+                # passed a game screen once and refused it the next run.
+                temperature=0,
                 system=_rules(context),
                 messages=[{"role": "user", "content": blocks}],
             ),

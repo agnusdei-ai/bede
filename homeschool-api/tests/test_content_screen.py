@@ -146,7 +146,10 @@ async def test_the_pictures_go_to_the_client_it_was_given_and_nothing_else():
     (call,) = client.calls
     images = [b for b in call["messages"][0]["content"] if b["type"] == "image"]
     assert [b["source"]["data"] for b in images] == ["iVBORdata", "iVBORmore"]
-    assert "temperature" not in call  # the Anthropic SDK refuses it client-side
+    # temperature=0 is safe on every client this receives: the tutor's
+    # FailoverClient and resolve_named both pass it through _kwargs_for (into
+    # extra_body for Anthropic), and the local client takes it directly.
+    assert call["temperature"] == 0
 
 
 @pytest.mark.asyncio
@@ -522,3 +525,22 @@ def test_a_self_harm_worksheet_says_so_and_points_to_help():
 
 def test_refusals_alert_a_parent_on_the_same_terms_as_flagged_text():
     assert _ANOMALY_RULES[AuditEvent.UPLOAD_REFUSED] == _ANOMALY_RULES[AuditEvent.MODERATION_FLAGGED]
+
+
+@pytest.mark.asyncio
+async def test_the_check_asks_for_a_repeatable_verdict():
+    """The live probe sent one synthetic game screen twice: passed at the
+    default temperature, refused the next run. The verdict must not vary."""
+    client = ScreenClient(OK)
+    await content_screen.screen_images(client, [("image/png", "iVBORw0KGgo=")], "worksheet")
+    assert client.screens()[0]["temperature"] == 0
+
+
+def test_the_anthropic_path_keeps_temperature_working():
+    """Anthropic's SDK rejects temperature as a keyword; services/adapters'
+    _kwargs_for moves it into extra_body there. Check that still holds for
+    the call shape this module sends."""
+    from services.adapters import router
+
+    adapted = router._kwargs_for("anthropic", {"model": "m", "max_tokens": 60, "temperature": 0, "system": "s", "messages": []})
+    assert "temperature" not in adapted and adapted["extra_body"]["temperature"] == 0

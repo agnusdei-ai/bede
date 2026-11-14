@@ -189,6 +189,9 @@ page about a war, a labelled diagram of the body's organs, a famous painting.
 - **It fails closed.** A check that errors, times out, or gives an unclear
   answer refuses the upload with "couldn't be checked just now" (503), and
   nothing is read.
+- **It asks for a repeatable verdict** (`temperature=0`). A live run on the
+  demo passed a game screen once and refused the same picture the next time;
+  see `docs/release/UPLOAD_CHECK_VERIFICATION.md`.
 - **It sends the pages nowhere new.** The check uses the same model that would
   read the pages: the household's or school's own model, or the one cloud
   provider the parent ticked, with no backup. On the public demo that is

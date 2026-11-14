@@ -63,13 +63,17 @@ which are covered only by mocked tests.
    not a safety category, but the same cause could affect any category. Fixed
    by sending `temperature=0` (safe on every client the check uses; Anthropic
    gets it through `_kwargs_for`). Runs 3-5 show this was not enough: the
-   upload verdict still varies. Open.
+   upload verdict still varies. Second fix: the check now names what each
+   picture shows from a fixed list before its verdict, and Bede refuses an
+   off-topic kind in code whatever the verdict says
+   (`content_screen.KINDS`, `_ALLOWED_KINDS`). Open until the runs below
+   it are recorded.
 2. **The probe's first chat request was invalid.** Fixed, and
    `tests/test_live_upload_probe.py` now checks both of its request bodies
    against the API's own models.
 
 ## Still to do
 
-- Make the upload check reliable on off-topic pages (finding 1), then re-run
-  the probe at least five times.
+- Once the describe-first check is deployed, re-run the probe at least five
+  times and record the commit and each result here.
 - The real-iPhone print check is separate: `docs/release/IPHONE_PRINT_CHECK.md`.

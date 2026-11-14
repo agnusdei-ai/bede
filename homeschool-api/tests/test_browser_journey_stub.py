@@ -50,7 +50,7 @@ def test_the_stub_answers_the_real_picture_check_with_a_parseable_verdict(tmp_pa
                 time.sleep(0.1)
         for context in ("worksheet", "lesson"):
             reply = _ask(port, content_screen._rules(context))
-            assert content_screen.parse_verdict(reply) is None, reply
+            assert content_screen.parse_verdict(reply, context, 1) is None, reply
         # A reading prompt with images still gets the worksheet reading.
         assert "sections" in json.loads(_ask(port, "Subject: history. Read the pages."))
     finally:

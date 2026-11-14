@@ -5,14 +5,23 @@ import { fetchPracticeDelivery, recordPracticeOutcome } from '../services/api'
 import type { PracticeDeliverySet } from '../services/api'
 import Diagram from './Diagram'
 
+/** PracticeOutcomeRequest.response's max_length in models/practice.py; a test
+ *  holds the two equal. The box used to allow 4,000, so a longer answer was
+ *  typed and then refused on save. */
+export const MAX_PRACTICE_ANSWER_CHARS = 1000
+
 export default function PracticeDelivery({
   token,
   studentName,
   onAnswer,
+  busy = false,
 }: {
   token: string
   studentName: string
   onAnswer: (prompt: string, response: string) => void
+  /** Bede is still replying. The chat drops anything sent while it streams,
+   *  so an answer sent now would be recorded but never reach Bede: wait. */
+  busy?: boolean
 }) {
   const { t } = useTranslation()
   const [sets, setSets] = useState<PracticeDeliverySet[] | null>(null)
@@ -47,7 +56,7 @@ export default function PracticeDelivery({
   )[0] ?? null
 
   const submit = async () => {
-    if (!current || !response.trim()) return
+    if (!current || !response.trim() || busy) return
     const key = `${current.set.id}:${current.item.index}`
     setSavingKey(key)
     setError('')
@@ -90,14 +99,14 @@ export default function PracticeDelivery({
               onChange={(event) => setResponse(event.target.value)}
               aria-label={t('practiceDelivery.responseLabel')}
               rows={2}
-              maxLength={4000}
+              maxLength={MAX_PRACTICE_ANSWER_CHARS}
               className="w-full rounded-lg border border-sage-300 bg-white px-3 py-2"
             />
           </label>
           <button
             type="button"
             onClick={() => void submit()}
-            disabled={!response.trim() || savingKey !== null}
+            disabled={!response.trim() || savingKey !== null || busy}
             className="mt-2 inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-sage-700 px-4 py-2 font-medium text-white disabled:opacity-50"
           >
             {savingKey ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}

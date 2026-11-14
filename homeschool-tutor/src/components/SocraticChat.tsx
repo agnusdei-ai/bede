@@ -870,6 +870,7 @@ export default function SocraticChat({
         <PracticeDelivery
           token={token}
           studentName={sessionConfig.student_name}
+          busy={isStreaming}
           onAnswer={(prompt, response) => send(`${t('practiceDelivery.questionContext', { prompt })}\n${t('practiceDelivery.answerContext', { response })}`)}
         />
       )}

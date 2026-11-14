@@ -49,6 +49,7 @@ _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
     "pilot_diagnostic", "pilot_journey", "pilot_owner", "pilot_tutor_history", "pilot_tutor",
+    "consent",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -227,6 +228,23 @@ GUARDS = {
     ('POST', '/voice/stream/{session_id}/finish'): 'require_auth',
     ('POST', '/voice/transcribe'): 'require_auth',
     ('POST', '/voice/verify'): '_require_household_biometric_scope+require_real_user',
+    # routers/consent.py: every route is parent-only. These carry a child's
+    # consent ledger, pause state, full data export and the adult's own
+    # greeting name, so a downgrade to require_auth (which admits a child)
+    # must fail this table rather than pass silently. The router was not
+    # walked at all until it was added to _ROUTER_MODULES.
+    ('GET', '/household/consent'): 'require_parent',
+    ('POST', '/household/consent'): 'require_parent',
+    ('GET', '/household/profile'): 'require_parent',
+    ('PUT', '/household/profile'): 'require_parent',
+    ('DELETE', '/household/profile'): 'require_parent',
+    ('GET', '/consent/notice'): 'require_parent',
+    ('GET', '/consent/{student_name}'): 'require_parent',
+    ('POST', '/consent/{student_name}'): 'require_parent',
+    ('POST', '/consent/{student_name}/revoke'): 'require_parent',
+    ('POST', '/consent/{student_name}/pause'): 'require_parent',
+    ('POST', '/consent/{student_name}/resume'): 'require_parent',
+    ('GET', '/pod/students/{student_name}/review'): 'require_parent',
 }
 
 

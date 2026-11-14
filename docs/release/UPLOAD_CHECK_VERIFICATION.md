@@ -18,8 +18,10 @@ differ from run to run. Record every run, including failures.
 |---|---|---|
 | Render `bede-demo-api`, deployment 7728006692 | `b36daf78` (#814) | success, 2026-11-12 03:59 UTC |
 | Render `bede-demo-api`, deployment 7787856693 | `cd66cd58` (#818: the probe and a dnspython patch; no change to the check) | success, 2026-11-14 12:57 UTC |
+| Render `bede-demo-api`, deployment 7788443402 | `770766ce` (#819: `temperature=0`) | success, 2026-11-14 13:49 UTC |
+| Render `bede-demo-api`, deployment 7792475014 | `6e6fa3b2` (#825: the check names each picture's kind first) | success, 2026-11-14 19:11 UTC |
 
-Both runs below hit `cd66cd58`, whose content check is #814's unchanged.
+Runs 1 and 2 hit `cd66cd58`, whose content check is #814's unchanged.
 
 ## Runs
 
@@ -55,6 +57,23 @@ it all 3 times. So, on the demo, a plainly off-topic upload can still be read.
 None of these runs tests the safety categories (self-harm, sexual content),
 which are covered only by mocked tests.
 
+### Runs 6-10: after the describe-first check deployed (`6e6fa3b2`, live 19:11 UTC)
+
+| Run | Started (UTC) | Worksheet read | Game screen upload refused | Drawing reaches tutor | Game screen in lesson refused |
+|---|---|---|---|---|---|
+| 43630749951 | 19:11 | pass | pass (422) | pass | pass |
+| 43630823755 | 19:12 | pass | pass (422) | pass | pass |
+| 43630892194 | 19:13 | pass | pass (422) | pass | pass |
+| 43630958880 | 19:14 | pass | pass (422) | pass | pass |
+| 43631027677 | 19:14 | pass | pass (422) | pass | pass |
+
+Every run refused the game screen upload with "This upload doesn't look like
+schoolwork, so it was not used." and still read the worksheet and the lesson
+drawing. Five passes do not prove the check can never miss: it is still a
+model's judgement. They show the miss seen in 2 of 3 earlier runs did not
+recur. These runs still do not test the safety categories (self-harm, sexual
+content); those stay covered only by mocked tests.
+
 ## Findings
 
 1. **The same game screen was accepted once and refused once.** The check
@@ -66,14 +85,12 @@ which are covered only by mocked tests.
    upload verdict still varies. Second fix: the check now names what each
    picture shows from a fixed list before its verdict, and Bede refuses an
    off-topic kind in code whatever the verdict says
-   (`content_screen.KINDS`, `_ALLOWED_KINDS`). Open until the runs below
-   it are recorded.
+   (`content_screen.KINDS`, `_ALLOWED_KINDS`). Runs 6-10 passed 5 of 5.
+   Closed, with the limit stated above.
 2. **The probe's first chat request was invalid.** Fixed, and
    `tests/test_live_upload_probe.py` now checks both of its request bodies
    against the API's own models.
 
 ## Still to do
 
-- Once the describe-first check is deployed, re-run the probe at least five
-  times and record the commit and each result here.
 - The real-iPhone print check is separate: `docs/release/IPHONE_PRINT_CHECK.md`.

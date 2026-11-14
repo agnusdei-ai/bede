@@ -132,6 +132,7 @@ services:
       # Leave unset to disable this specific alert (the safeguarding event is
       # always recorded in the encrypted audit log regardless).
       - PARENT_EMAIL=${PARENT_EMAIL:-}
+      - SCHOOL_SAFEGUARDING_EMAIL=${SCHOOL_SAFEGUARDING_EMAIL:-}
       # Optional — where in-app feedback is routed. Unset means POST
       # /feedback returns 404 and the frontend hides the feedback UI
       # entirely (GET /feedback/enabled). Reuses RESEND_API_KEY above.

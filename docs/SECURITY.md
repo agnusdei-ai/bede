@@ -227,6 +227,30 @@ list as items are closed.
 
 ## Closed gaps
 
+- **A picture safety alert could repeat, go to the wrong place, or fail
+  unseen — closed 2026-11-14 (owner direction).** The chat's crisis email
+  was sent fire-and-forget straight to `PARENT_EMAIL`: a retried turn (the
+  tutor client retries a dropped connection) emailed again, a teacher-led
+  session alerted the operator's address rather than the school's
+  safeguarding route, a failed send left no record, and the email described
+  the check's verdict as what the picture "appeared to show". Now
+  `services/safeguarding_alerts.py` routes every concern: a family's session
+  to `PARENT_EMAIL`; school mode (the `educator` role, or `BEDE_LOCATION_ID`
+  set) to `SCHOOL_SAFEGUARDING_EMAIL` only, never falling back to
+  `PARENT_EMAIL`. The same concern for the same learner within 30 minutes
+  is emailed once, recognised by a SHA-256 digest held in memory, never the
+  picture or message. Every concern ends in one `AuditEvent.SAFEGUARDING_ALERT`
+  entry (`route=... outcome=sent|duplicate|no_route|not_configured|failed
+  kind=picture|message`, no address), and a failed send is forgotten so a
+  retry can try again. The picture email now says the check flagged a
+  *possible* concern that may be wrong, and never attaches the image.
+  Off-topic pictures are refused gently and alert no one. **Limits:** the
+  duplicate memory is per process and resets on restart; and a school with
+  no safeguarding address gets the audit entry and the in-session reply but
+  no email. `tests/test_safeguarding_alerts.py` (mocked safety verdicts and
+  mail transport only; no harmful imagery), each guard verified by breaking
+  it.
+
 - **Uploaded pictures were not checked for content — closed 2026-11-11
   (owner request).** Practice Coach and quiz uploads, a teacher's quiz and
   student work, and a child's lesson photo or drawing all went to a model
@@ -247,8 +271,9 @@ animation, self-harm or suicide, sexual content or nudity, graphic violence,
   showing self-harm or sexual content takes the chat's crisis path
   (`safeguarding_response`, `AuditEvent.SAFEGUARDING` with detail
   `trigger(picture):[picture: <label>]`, and an immediate
-  `send_distress_alert` whose email says a picture was sent, what it appeared
-  to show, and that it was not kept), owner rulings 2026-11-11. A child
+  `send_distress_alert` whose email says a picture was sent, what it was
+  flagged as possibly showing, and that it was not kept; routing, duplicate
+  suppression and delivery are now the entry above), owner rulings 2026-11-11. A child
   sending a sexual picture can be a sign of harm being done to them, so it is
   not left to the three-in-ten-minutes anomaly rule. Uploads by a parent or
   teacher are refused and audited but do not raise this alert.

@@ -183,7 +183,8 @@ def main() -> int:
 
     status, sse = chat(tree_drawing())
     said = _chat_text(sse)
-    refused = "part of your lesson" in said or "can't look at that picture" in said or "couldn't check" in said
+    refused = any(m in said for m in ("part of your lesson", "can't look at that picture",
+                                      "can't use that picture", "couldn't check"))
     record("lesson drawing reaches the tutor", status == 200 and bool(said) and not refused, f"{status} {said}")
 
     time.sleep(2)

@@ -122,15 +122,22 @@ def build_distress_alert_html(student_name: str, timestamp_iso: str, trigger_exc
     safe_ts = html.escape(timestamp_iso)
     if picture is not None:
         # A picture the content check refused (services/content_screen.py).
-        # The picture itself was not kept, so the email names what it showed.
+        # Worded as a POSSIBLE concern: an automated check flagged it, and
+        # nothing here is a finding about the child. The picture is never
+        # attached or described beyond the check's category, and it was not
+        # kept, so the email cannot carry it.
+        heading = f"Possible safety concern in {safe_name}'s session"
         reason = f"""\
-    {safe_name} sent Bede a picture that appeared to show {html.escape(picture)}, so Bede did not look at it
-    further, stopped tutoring, and told them to find a trusted adult right now. The picture was not kept.
-    Please check in with {safe_name} as soon as you can."""
+    Bede's automated safety check flagged a picture {safe_name} sent during a lesson as possibly
+    showing {html.escape(picture)}. This is a possible concern, not a confirmed fact about {safe_name}:
+    the check can be wrong. Bede did not use the picture in the lesson, paused tutoring, and asked
+    {safe_name} to find a trusted adult. Please check in with {safe_name} as soon as you can."""
         detail = f"""\
-    <p style="margin: 0 0 8px 0; font-weight: bold;">What the picture appeared to show:</p>
-    <p style="margin: 0;">{html.escape(picture)}</p>"""
+    <p style="margin: 0 0 8px 0; font-weight: bold;">What the check flagged:</p>
+    <p style="margin: 0;">possible {html.escape(picture)}</p>
+    <p style="margin: 8px 0 0 0;">The picture is not attached and was not kept.</p>"""
     else:
+        heading = f"Bede paused {safe_name}'s session"
         reason = f"""\
     Something {safe_name} said matched a safety pattern (distress, danger, or a request for help),
     so Bede stopped tutoring immediately and told them to find a trusted adult right now.
@@ -142,7 +149,7 @@ def build_distress_alert_html(student_name: str, timestamp_iso: str, trigger_exc
 <!DOCTYPE html>
 <html>
 <body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
-  <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">Bede paused {safe_name}'s session</h1>
+  <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">{heading}</h1>
   <p style="font-size: 13px; color: #6b7280; margin: 0 0 24px 0;">
 {reason}
   </p>
@@ -308,7 +315,7 @@ def distress_alert_configured() -> bool:
 
 
 async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_excerpt: str,
-                              picture: str | None = None) -> bool:
+                              picture: str | None = None, to_address: str | None = None) -> bool:
     """
     Best-effort urgent notification to the configured PARENT_EMAIL when
     check_safeguarding() (ai_service.py) fires. Returns False silently (never
@@ -316,14 +323,13 @@ async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_exc
     event is always recorded in the encrypted audit log regardless, this is
     just the active, real-time notification on top of that passive record.
     """
-    if not distress_alert_configured():
+    recipient = settings.parent_email if to_address is None else to_address
+    if not (email_configured() and recipient):
         return False
     html_body = build_distress_alert_html(student_name, timestamp_iso, trigger_excerpt, picture=picture)
-    return await send_email(
-        settings.parent_email,
-        subject=f"Bede paused {student_name}'s session — please check in",
-        html_body=html_body,
-    )
+    subject = (f"Possible safety concern in {student_name}'s Bede session — please check in"
+               if picture is not None else f"Bede paused {student_name}'s session — please check in")
+    return await send_email(recipient, subject=subject, html_body=html_body)
 
 
 def build_security_alert_html(event: str, ip: str, count: int, window_label: str) -> str:

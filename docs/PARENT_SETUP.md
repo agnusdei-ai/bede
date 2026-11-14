@@ -1388,7 +1388,15 @@ is fine. The same check covers a photo or drawing your child sends in a
 lesson. If that picture shows self-harm or anything sexual, Bede answers as it
 does when a child writes about hurting themselves: it asks your child to find
 you or another trusted adult, and emails you straight away. The email says
-what the picture appeared to show; the picture itself is not kept.
+what the check flagged the picture as possibly showing. It is a possible
+concern, not a confirmed fact, since the check can be wrong. The picture is
+not attached and is not kept. If the same picture is sent again within 30
+minutes (a dropped connection retries), you get one email, not several. A
+picture that just isn't schoolwork is not treated as harmful and sends no
+email.
+
+The check is itself an AI model looking at the picture: your own model if
+your install has one, otherwise your AI provider.
 
 If your install has no AI model of its own, a quiz drafted from a typed topic
 or pasted text can still go to your AI provider, after you tick the box

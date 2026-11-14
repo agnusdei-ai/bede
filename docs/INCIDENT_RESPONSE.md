@@ -29,7 +29,7 @@ trouble and (where configured) email `PARENT_EMAIL`:
 
 | Signal | Where it comes from | Real-time alert? |
 |---|---|---|
-| A child expresses distress/danger | `check_safeguarding()`, `AuditEvent.SAFEGUARDING` | Yes, if `PARENT_EMAIL` is set (`send_distress_alert`) |
+| A child expresses distress/danger, or sends a picture flagged as possibly showing self-harm or sexual content | `check_safeguarding()` / `content_screen`, `AuditEvent.SAFEGUARDING`, then `AuditEvent.SAFEGUARDING_ALERT` with the delivery outcome | Yes, once per concern (`services/safeguarding_alerts.py`): `PARENT_EMAIL`, or in school mode `SCHOOL_SAFEGUARDING_EMAIL` only |
 | Repeated failed logins, JWT fingerprint mismatches, access-denied hits, or a blocked exfiltration attempt from one address | `core/audit.py`'s anomaly watch, `AuditEvent.ANOMALY_ALERT` — see `docs/SECURITY.md`'s E009 entry for exact thresholds | Yes, if `PARENT_EMAIL` is set (`send_security_alert`) |
 | Rate limiting kicking in | `RateLimitMiddleware`, `AuditEvent.RATE_LIMITED` | No — audit log only |
 | A blocked endpoint or response containing key material | `ExfiltrationGuard`, `AuditEvent.SUSPICIOUS_REQUEST` | Yes — this alone crosses the anomaly threshold on its own |

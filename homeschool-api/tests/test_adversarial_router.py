@@ -178,7 +178,7 @@ async def test_self_harm_still_takes_priority_over_the_policy_engine(monkeypatch
     ever reached — self_harm must still hit the safeguarding crisis path
     exactly as before, unaffected by this new stage existing at all."""
     from unittest.mock import AsyncMock
-    monkeypatch.setattr("routers.tutor.send_distress_alert", AsyncMock())
+    monkeypatch.setattr("routers.tutor.safeguarding_alerts.deliver", AsyncMock())
     stream_called = []
     chunks = await _run(
         monkeypatch,

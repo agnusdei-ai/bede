@@ -43,7 +43,7 @@ async function sendChat(c, text) {
   await inputReady(c);
 }
 async function parentLogin(p) {
-  await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
+  await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(process.env.JOURNEY_PARENT_PASSWORD);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
 }
 // The one-time "Meet Bede" introduction can take several seconds to render

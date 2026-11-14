@@ -179,11 +179,11 @@ def main() -> int:
     wait_http(f"http://127.0.0.1:{UI_PORT}/", preview, "vite preview", timeout=90)
 
     fixture = {"ui": f"http://127.0.0.1:{UI_PORT}", "api": f"http://127.0.0.1:{API_PORT}",
-               "parent_password": parent_password, "learners": learners, "browsers": browsers,
-               "fixtures": str(fixtures), "out": str(out), "ctl": str(out / "ctl"),
+               "learners": learners, "browsers": browsers, "fixtures": str(fixtures),
+               "out": str(out), "ctl": str(out / "ctl"),
                "os": sys.platform, "sha": a.sha}
     (out / "fixture.json").write_text(json.dumps(fixture))
-    load_env = dict(env, FIX=str(out / "fixture.json"))
+    load_env = dict(env, FIX=str(out / "fixture.json"), JOURNEY_PARENT_PASSWORD=parent_password)
     load = subprocess.Popen(["node", str(HERE / "journeys.cjs")], env=load_env,
                             stdout=(out / "journeys.log").open("ab"), stderr=subprocess.STDOUT)
     rc = None

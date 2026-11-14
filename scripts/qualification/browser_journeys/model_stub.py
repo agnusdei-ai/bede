@@ -76,7 +76,8 @@ class H(BaseHTTPRequestHandler):
             # also carries images, so it must be recognised before the
             # reading branch: answered with a reading, the real parser
             # refuses it as unclear and every upload fails closed.
-            kind, content = "screen", json.dumps({"verdict": "ok"})
+            # It names one school-material kind for each picture it was sent.
+            kind, content = "screen", json.dumps({"shows": ["worksheet_or_test"] * max(imgs, 1), "verdict": "ok"})
         elif "Subject:" in sysmsg or imgs:
             kind, content = "reading", json.dumps(READING)
         elif '{"safe":true}' in sysmsg:

@@ -191,7 +191,18 @@ page about a war, a labelled diagram of the body's organs, a famous painting.
   nothing is read.
 - **It asks for a repeatable verdict** (`temperature=0`). A live run on the
   demo passed a game screen once and refused the same picture the next time;
-  see `docs/release/UPLOAD_CHECK_VERIFICATION.md`.
+  see `docs/release/UPLOAD_CHECK_VERIFICATION.md`. That was not enough, so
+- **it names what each page shows before it judges it.** The check first
+  says, for every page in order, which of a fixed list of kinds it is (a
+  worksheet or test, a book page, notes or a student's work, a diagram or
+  map; a game or app screen, a video or social-media screenshot, a meme; a
+  photo of people, an object, animal, plant or place, or something else).
+  Bede then applies the not-school-material rule itself from that list: an
+  upload is read only if every page is school material, and a lesson picture
+  is refused if it is a game screen, a video or social-media screenshot or a
+  meme, whatever the check's own verdict said. A reply that skips a page or
+  names a kind outside the list is unclear and refuses. A safety refusal
+  from the check is never softened by the kind it named.
 - **It sends the pages nowhere new.** The check uses the same model that would
   read the pages: the household's or school's own model, or the one cloud
   provider the parent ticked, with no backup. On the public demo that is

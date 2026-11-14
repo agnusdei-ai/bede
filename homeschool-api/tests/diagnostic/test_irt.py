@@ -3,7 +3,7 @@ Real check for Diagnostic build-loop unit 1.3 (irt.py) — see
 docs/diagnostic/DIAGNOSTIC_BUILD_PROGRESS.md. Asserts known P values at
 hand-computable points, Fisher information's monotonic relationship with
 discrimination, and that theta estimation actually converges in the
-expected direction on a synthetic response stream.
+expected direction on a sample response stream.
 """
 
 import math

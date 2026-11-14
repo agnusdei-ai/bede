@@ -54,7 +54,7 @@ response before reporting crawler access.
 Use the existing homeschool, school, and co-op pages rather than adding
 homepage sections. State the audience, purpose, K–8 learning levels and ages
 5–15 plainly. Preserve separate family/co-op terms and the current
-teacher-directed, synthetic-data-only school pilot scope. Age-specific search
+teacher-directed, sample-data-only school pilot scope. Age-specific search
 examples do not narrow the product's full range.
 
 ## Evidence and educator experience

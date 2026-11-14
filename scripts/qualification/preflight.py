@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed preflight for the synthetic qualification run.
+"""Fail-closed preflight for the sample qualification run.
 
 Exits non-zero, before any server starts, if the environment could make the
 run touch something real or pass for the wrong reason:
@@ -66,7 +66,7 @@ def check_candidate(r: Report, env: dict) -> None:
 def check_environment(r: Report, env: dict) -> None:
     for name in cfg.FORBIDDEN_NONEMPTY_ENV:
         r.add(f"env_unset:{name}", not env.get(name, "").strip(),
-              "must be empty in the synthetic qualification environment")
+              "must be empty in the sample qualification environment")
     for key, value in sorted(env.items()):
         if any(key.startswith(p) for p in cfg.FORBIDDEN_ENV_PREFIXES) and value.strip():
             r.add(f"env_prefix_forbidden:{key}", False, "billing/email credential present")
@@ -107,7 +107,7 @@ def check_mail(r: Report, env: dict) -> None:
 
     A run may set RESEND_API_KEY / RESEND_FROM_ADDRESS only together with a
     RESEND_API_BASE_URL that is exactly this run's sink. A key that is not a
-    synthetic- key (a real Resend key is re_...), a non-loopback or
+    sample- key (a real Resend key is re_...), a non-loopback or
     non-sink base URL, or any other RESEND_* variable fails closed."""
     base = env.get("RESEND_API_BASE_URL", "").strip()
     key = env.get("RESEND_API_KEY", "").strip()
@@ -124,17 +124,17 @@ def check_mail(r: Report, env: dict) -> None:
     if key or sender:
         r.add("mail_requires_sink", bool(base), "RESEND_API_KEY/FROM set without the loopback sink")
     if key:
-        r.add("mail_key_is_synthetic", key.startswith(cfg.SYNTHETIC_KEY_PREFIX) and not key.startswith("re_"),
-              f"RESEND_API_KEY must start with {cfg.SYNTHETIC_KEY_PREFIX!r}; a real Resend key fails closed")
+        r.add("mail_key_is_sample", key.startswith(cfg.SAMPLE_KEY_PREFIX) and not key.startswith("re_"),
+              f"RESEND_API_KEY must start with {cfg.SAMPLE_KEY_PREFIX!r}; a real Resend key fails closed")
     if sender:
-        r.add("mail_sender_is_synthetic_domain",
+        r.add("mail_sender_is_sample_domain",
               sender.lower().endswith("@" + cfg.INSTITUTION_EMAIL_DOMAIN), f"from={sender!r}")
     domain = env.get("EDUCATOR_INSTITUTION_EMAIL_DOMAIN", "").strip().lower()
     if domain:
-        r.add("institution_domain_is_synthetic", domain == cfg.INSTITUTION_EMAIL_DOMAIN,
+        r.add("institution_domain_is_sample", domain == cfg.INSTITUTION_EMAIL_DOMAIN,
               f"EDUCATOR_INSTITUTION_EMAIL_DOMAIN={domain!r}")
     r.add("no_bootstrap_email_addresses", not env.get("EDUCATOR_BOOTSTRAP_EMAILS", "").strip(),
-          "EDUCATOR_BOOTSTRAP_EMAILS must be empty: invites go only to the synthetic domain")
+          "EDUCATOR_BOOTSTRAP_EMAILS must be empty: invites go only to the sample domain")
 
 
 async def _db_facts(url: str) -> dict:
@@ -179,7 +179,7 @@ def check_database(r: Report, env: dict, phase: str) -> None:
     r.add("app_role_no_bypassrls", not facts["bypassrls"], f"rolbypassrls={facts['bypassrls']}")
     if phase == "pre-start" and cfg.REQUIRE_EMPTY_DATABASE:
         r.add("database_starts_empty", facts["public_tables"] == 0,
-              f"{facts['public_tables']} tables already present: not a fresh synthetic database")
+              f"{facts['public_tables']} tables already present: not a fresh sample database")
 
 
 def served_routes(routes, prefix: str = ""):
@@ -213,7 +213,7 @@ def delivery_offenders(table) -> list[str]:
         words = {w for s in segments for w in re.split(r"[-_]", s)}
         hit = sorted(words & set(cfg.DELIVERY_PATH_MARKERS))
         # The owner's 71-cell exception authorizes one educator-operated
-        # local-only synthetic tutoring turn; no public learner delivery,
+        # local-only sample tutoring turn; no public learner delivery,
         # extra session launch or other excluded /pilot route is authorized.
         if method == "POST" and path == "/pilot/me/learners/{learner_id}/tutoring/chat":
             continue
@@ -256,7 +256,7 @@ def check_delivery_disabled(r: Report) -> None:
               "missing obligated safety controls: " + ",".join(missing))
     else:
         r.add("pilot_tutoring_supervised_local_only_with_revocation", True,
-              "synthetic tutor route not mounted; matrix still reports ABSENT")
+              "sample tutor route not mounted; matrix still reports ABSENT")
     for rel in cfg.DELIVERY_SOURCE_FILES:
         src = (cfg.API_DIR / rel).read_text(encoding="utf-8")
         found = [m for m in cfg.DELIVERY_SOURCE_MARKERS if m in src]

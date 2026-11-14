@@ -19,8 +19,8 @@ def _search(w, teacher_headers, query):
 
 def test_search_returns_only_the_teachers_own_uuid_backed_learner(world):
     w = world
-    one = _search(w, w.teacher(w.teacher_one), "synthetic")
-    two = _search(w, w.teacher(w.teacher_two), "Synthetic Learner")
+    one = _search(w, w.teacher(w.teacher_one), "sample")
+    two = _search(w, w.teacher(w.teacher_two), "Sample Learner")
     assert one.status_code == two.status_code == 200
     assert one.json() == [{"learner_id": w.learner_one, "campus_id": w.campus_one, "display_name": SAME_NAME}]
     assert two.json() == [{"learner_id": w.learner_two, "campus_id": w.campus_two, "display_name": SAME_NAME}]
@@ -32,7 +32,7 @@ def test_search_never_reveals_another_campus_learner_or_a_revoked_one(world):
     w.revoke(w.campus_one, w.teacher_one, w.learner_one)
     assert _search(w, w.teacher(w.teacher_one), SAME_NAME).json() == []
     # Teacher Two's learner has the same name and is still never visible.
-    assert _search(w, w.teacher(w.teacher_one), "Synthetic").json() == []
+    assert _search(w, w.teacher(w.teacher_one), "Sample").json() == []
     # An empty query is a validation error, not a way to list everyone.
     assert _search(w, w.teacher(w.teacher_one), "").status_code == 422
 

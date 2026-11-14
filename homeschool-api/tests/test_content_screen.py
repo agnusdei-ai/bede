@@ -31,7 +31,7 @@ from tests.test_teacher_quiz import APPROVED
 
 pytestmark = pytest.mark.real_content_screen
 
-DEMO = {"role": "demo_code", "code": "synthetic-demo"}
+DEMO = {"role": "demo_code", "code": "sample-demo"}
 SCREEN_MARK = "You check pictures before a K-8 school app"
 READING = json.dumps(GOLDEN["assessment"])
 
@@ -56,8 +56,27 @@ class ScreenClient:
         if SCREEN_MARK in kwargs.get("system", ""):
             if isinstance(self.verdict, Exception):
                 raise self.verdict
-            return _Reply(self.verdict)
+            return _Reply(with_shows(self.verdict, _image_count(kwargs)))
         return _Reply(self.reading)
+
+
+def _image_count(kwargs) -> int:
+    return sum(1 for m in kwargs.get("messages", []) for b in m.get("content", [])
+               if isinstance(b, dict) and b.get("type") == "image")
+
+
+def with_shows(reply, count, kind="worksheet_or_test"):
+    """The checker names what each picture shows. A test that only cares
+    about the verdict gives OK or refuse(...) and gets one school-material
+    kind per picture filled in; a reply that already names kinds, or is
+    not a JSON object, is sent exactly as written."""
+    try:
+        data = json.loads(reply)
+    except (TypeError, ValueError):
+        return reply
+    if not isinstance(data, dict) or "shows" in data:
+        return reply
+    return json.dumps({"shows": [kind] * count, **data})
 
 
 OK = '{"verdict": "ok"}'
@@ -99,21 +118,91 @@ def _pages(n=2):
 
 # ── The verdict ──────────────────────────────────────────────────────────────
 
+def _parse(reply, context="worksheet", count=1):
+    return content_screen.parse_verdict(reply, context, count)
+
+
 def test_a_clear_ok_passes_and_each_category_refuses():
-    assert content_screen.parse_verdict('{"verdict": "ok"}') is None
-    assert content_screen.parse_verdict(' ```json\n{"verdict":"ok"}\n``` ') is None
+    assert _parse('{"shows": ["worksheet_or_test"], "verdict": "ok"}') is None
+    assert _parse(' ```json\n{"shows":["book_or_text_page"],"verdict":"ok"}\n``` ') is None
     for category in content_screen.REFUSAL_CATEGORIES:
-        assert content_screen.parse_verdict(refuse(category)) == category
+        assert _parse(with_shows(refuse(category), 1)) == category
+
+
+SHOWS = '"shows": ["worksheet_or_test"]'
 
 
 @pytest.mark.parametrize("reply", [
-    "", "Looks fine to me.", "ok", '{"verdict": "fine"}', '{"verdict": "refuse"}',
-    '{"verdict": "refuse", "category": "spooky"}', '{"verdict": "ok", "category": "sexual_content"}',
-    '{"verdict": "ok"} {"verdict": "refuse", "category": "illicit"}', '["ok"]', '{"verdict": ',
+    "", "Looks fine to me.", "ok", '{"verdict": "ok"}', '{%s, "verdict": "fine"}' % SHOWS,
+    '{%s, "verdict": "refuse"}' % SHOWS,
+    '{%s, "verdict": "refuse", "category": "spooky"}' % SHOWS,
+    '{%s, "verdict": "ok", "category": "sexual_content"}' % SHOWS,
+    '{%s, "verdict": "ok"} {%s, "verdict": "refuse", "category": "illicit"}' % (SHOWS, SHOWS),
+    '["ok"]', '{"verdict": ',
+    # a kind outside the closed list, or not a list of names
+    '{"shows": ["homework_probably"], "verdict": "ok"}', '{"shows": "worksheet_or_test", "verdict": "ok"}',
+    '{"shows": [], "verdict": "ok"}',
 ])
 def test_anything_unclear_fails_closed(reply):
     with pytest.raises(content_screen.ScreeningUnavailable):
-        content_screen.parse_verdict(reply)
+        _parse(reply)
+
+
+def test_every_picture_must_be_named():
+    """A reply that describes the first page and skips the rest is unclear:
+    the page it skipped is the one that may be a game screen."""
+    two = '{"shows": ["worksheet_or_test", "worksheet_or_test"], "verdict": "ok"}'
+    assert _parse(two, count=2) is None
+    for count in (1, 3):
+        with pytest.raises(content_screen.ScreeningUnavailable):
+            _parse(two, count=count)
+
+
+@pytest.mark.parametrize("kind", content_screen.OFF_TOPIC_KINDS)
+def test_an_off_topic_kind_is_refused_even_when_the_model_says_ok(kind):
+    """The live demo's failure: a game screen passed as schoolwork. Named as
+    what it is, it is refused in code whatever the verdict says."""
+    reply = '{"shows": ["worksheet_or_test", "%s"], "verdict": "ok"}' % kind
+    for context in ("worksheet", "lesson"):
+        assert _parse(reply, context, 2) == "not_schoolwork"
+
+
+@pytest.mark.parametrize("kind", content_screen.OTHER_KINDS)
+def test_a_photo_of_a_pet_or_place_is_a_lesson_picture_but_not_a_worksheet(kind):
+    reply = '{"shows": ["%s"], "verdict": "ok"}' % kind
+    assert _parse(reply, "lesson") is None
+    assert _parse(reply, "worksheet") == "not_schoolwork"
+
+
+@pytest.mark.parametrize("kind", content_screen.SCHOOL_KINDS)
+def test_school_material_passes_in_both_contexts(kind):
+    reply = '{"shows": ["%s"], "verdict": "ok"}' % kind
+    assert _parse(reply, "worksheet") is None and _parse(reply, "lesson") is None
+
+
+def test_the_models_own_refusal_is_never_softened_by_a_school_kind():
+    for category in content_screen.REFUSAL_CATEGORIES:
+        reply = json.dumps({"shows": ["worksheet_or_test"], "verdict": "refuse", "category": category})
+        assert _parse(reply, "lesson") == category
+
+
+def test_the_kinds_are_partitioned_and_every_one_is_named_in_the_prompt():
+    groups = (content_screen.SCHOOL_KINDS, content_screen.OFF_TOPIC_KINDS, content_screen.OTHER_KINDS)
+    assert sum(map(len, groups)) == len(set(content_screen.KINDS))
+    for context in ("worksheet", "lesson"):
+        rules = content_screen._rules(context)
+        assert all(kind in rules for kind in content_screen.KINDS)
+        assert '"shows"' in rules
+
+
+@pytest.mark.asyncio
+async def test_the_check_is_told_how_many_pictures_it_saw():
+    """The count the parser holds the reply to is the number of pictures
+    actually sent, not a fixed one."""
+    client = ScreenClient('{"shows": ["worksheet_or_test"], "verdict": "ok"}')
+    with pytest.raises(content_screen.ScreeningUnavailable):
+        await content_screen.screen_images(client, [("image/png", "a"), ("image/png", "b")], "worksheet")
+    await content_screen.screen_images(client, [("image/png", "a")], "worksheet")
 
 
 def test_the_unsafe_categories_are_the_ones_the_owner_named():
@@ -319,12 +408,12 @@ def test_a_teachers_quiz_and_student_work_are_checked_over_http(monkeypatch, tea
     else:
         body = {"quiz": APPROVED, "pages": pages, "upload_consent": True}
     out = teacher_http.post(f"/practice/educator/teacher-quiz/{call}", json=body,
-                            headers={"user-agent": "synthetic-teacher-browser"})
+                            headers={"user-agent": "sample-teacher-browser"})
     assert out.status_code == 422, out.text
     assert client.readings() == []
     (refusal,) = [kw for event, kw in audited if event == AuditEvent.UPLOAD_REFUSED]
     assert refusal["detail"] == "category=sexual_content surface=worksheet"
-    assert refusal["user_agent"] == "synthetic-teacher-browser"  # who sent it, bound by the router
+    assert refusal["user_agent"] == "sample-teacher-browser"  # who sent it, bound by the router
 
 
 def test_only_the_screened_wrapper_hands_pages_to_a_model():
@@ -529,7 +618,7 @@ def test_refusals_alert_a_parent_on_the_same_terms_as_flagged_text():
 
 @pytest.mark.asyncio
 async def test_the_check_asks_for_a_repeatable_verdict():
-    """The live probe sent one synthetic game screen twice: passed at the
+    """The live probe sent one sample game screen twice: passed at the
     default temperature, refused the next run. The verdict must not vary."""
     client = ScreenClient(OK)
     await content_screen.screen_images(client, [("image/png", "iVBORw0KGgo=")], "worksheet")

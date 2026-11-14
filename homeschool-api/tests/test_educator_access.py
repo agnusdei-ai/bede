@@ -168,7 +168,7 @@ async def test_periodic_dibels_read_guard_and_real_encrypted_reports(db):
     for day, score in [("2026-01-10", 70), ("2026-10-10", 95)]:
         await record_assessment(db, "Alice", EducatorAssessmentSubmission(
             framework="dibels8", measure="ORF_WC", assessed_on=day,
-            source_name="Synthetic independent report", score=score,
+            source_name="Sample independent report", score=score,
             score_unit="correct_per_minute", assessed_grade="4",
             assessment_window="middle_of_year", reported_band="not_reported",
         ))

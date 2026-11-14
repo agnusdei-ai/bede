@@ -1,13 +1,13 @@
-# Synthetic qualification
+# Sample qualification
 
-**Current integrated pilot reference (October 16, 2026):** #618 integrated into #616 and merged to `main` as `d3eb645c2de1058bb8056005a09c7d40446cea20`. The exact pre-merge integrated code candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e` produced **146 PASS, 0 FAIL, 0 ABSENT, 0 BLOCKED, 0 UNVERIFIED**. This synthetic result does **not** constitute a physical Mac or packaged-build G3 certificate. For G3 use [MAC_G3_CERTIFICATION_RUNBOOK.md](institutional/MAC_G3_CERTIFICATION_RUNBOOK.md) and [MAC_G3_CERTIFICATION_RECORD.md](institutional/MAC_G3_CERTIFICATION_RECORD.md). Avoid repeated code qualification when code has not changed; new code or packaging changes require impact-based testing.
+**Current integrated pilot reference (October 16, 2026):** #618 integrated into #616 and merged to `main` as `d3eb645c2de1058bb8056005a09c7d40446cea20`. The exact pre-merge integrated code candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e` produced **146 PASS, 0 FAIL, 0 ABSENT, 0 BLOCKED, 0 UNVERIFIED**. This sample result does **not** constitute a physical Mac or packaged-build G3 certificate. For G3 use [MAC_G3_CERTIFICATION_RUNBOOK.md](institutional/MAC_G3_CERTIFICATION_RUNBOOK.md) and [MAC_G3_CERTIFICATION_RECORD.md](institutional/MAC_G3_CERTIFICATION_RECORD.md). Avoid repeated code qualification when code has not changed; new code or packaging changes require impact-based testing.
 
 `.github/workflows/qualification.yml` and `scripts/qualification/` answer one
 question about one fixed commit:
 
 > At candidate SHA `X`, does the system as it would ship enforce G1 isolation,
 > the DIBELS/Data Day rules, the G2 decision guarantees and the deletion
-> lifecycle, on synthetic data, through the same roles, routes, connection
+> lifecycle, on sample data, through the same roles, routes, connection
 > path, pooling and SSE behaviour production uses?
 
 It produces evidence. It decides nothing: no gate, no Engineering Complete,
@@ -19,7 +19,7 @@ below against the parsed workflow YAML and the harness's own logic.
 
 ## What is real and what is not
 
-Synthetic qualification differs from a live pilot only in data, environment
+Sample qualification differs from a live pilot only in data, environment
 configuration and secrets. In this harness:
 
 | Concern | How it runs |
@@ -28,7 +28,7 @@ configuration and secrets. In this harness:
 | Database | A Postgres service container. The app connects as a **non-superuser** role (`QUAL_APP_DB_ROLE`, default `bede_qual_app`: `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`) through production's `_build_engine()`. The role owns its database, so startup `CREATE TABLE IF NOT EXISTS` works as on a self-hosted install. |
 | Admin login | Password, then a passkey enrolled and asserted through a **Chromium CDP virtual WebAuthn authenticator** (`webauthn_driver.cjs`), via the real `/mfa/webauthn/*` routes. Only that `webauthn_uv` session reaches the `/pilot` admin routes. |
 | Teacher login | The real invite route (`POST /auth/educator-passkey/invite`) sends its enrollment email to the loopback mail sink. The harness reads the ticket from that email, then enrolls and signs in through `/auth/educator-passkey/register/*` and `/login/*` on the same virtual authenticator. See "Teacher login" below. |
-| Seeding | Real HTTP routes only. Every name is checked against a synthetic allowlist. The two learners share one display name on purpose. |
+| Seeding | Real HTTP routes only. Every name is checked against a sample allowlist. The two learners share one display name on purpose. |
 | SSE | Real HTTP streams read in a background thread. Data events, keep-alive pings, a server-ended stream and a client-side error are recorded separately, so a client error is never read as the server closing a stream. |
 | Browser vs API | The same read is made through the browser page's `fetch` and through the API client, which presents the browser's User-Agent (tokens are IP+UA fingerprinted). |
 | AI vendor | `ai_stub.py`, a loopback OpenAI-compatible server, forced with `BEDE_FORCE_ADAPTER=local`. Its request log records route, model and message count, never content. |
@@ -59,10 +59,10 @@ production: route presence is read from the app object, not `/openapi.json`.
      - `RESEND_API_BASE_URL` must be exactly `http://127.0.0.1:8767`;
      - `RESEND_API_KEY` and `RESEND_FROM_ADDRESS` are only accepted together
        with that sink;
-     - the key must be a `synthetic-` key, so a real Resend `re_...` key
+     - the key must be a `sample-` key, so a real Resend `re_...` key
        fails;
      - the sender, and `EDUCATOR_INSTITUTION_EMAIL_DOMAIN`, must be the
-       synthetic domain;
+       sample domain;
      - `EDUCATOR_BOOTSTRAP_EMAILS` must be empty;
      - any other `RESEND_*` variable fails;
    - any variable named for real data, billing, auto-enrollment, an auth
@@ -74,7 +74,7 @@ production: route presence is read from the app object, not `/openapi.json`.
      superuser or can create roles or bypass RLS, or a database that already
      holds tables;
    - a learner session-launch or unauthorized delivery route under `/pilot`;
-     the separately implemented synthetic, educator-guarded `/pilot/me/learners/{learner_id}/tutoring/chat` is **allowed only with** scoped grant/version revalidation, revocable SSE, an authorized teacher instruction, a local-only model and nonproduction guard;
+     the separately implemented sample, educator-guarded `/pilot/me/learners/{learner_id}/tutoring/chat` is **allowed only with** scoped grant/version revalidation, revocable SSE, an authorized teacher instruction, a local-only model and nonproduction guard;
      `routers/tutor.py` or `services/ai_service.py` reading a pilot instructional-delivery handle, or a `TutorRequest` field naming `pilot`. No automatic learner delivery is authorized.
 3. **Image (optional, dispatch default on).** The API image is built at the
    candidate SHA with an `org.opencontainers.image.revision` label. Its digest
@@ -140,7 +140,7 @@ DIBELS/Data Day rows are bound to the canonical campus-scoped routes
 another campus's learner copies that learner's whole path. Before the DIBELS
 rows the harness sets each campus's Valor default calendar through the real
 elevated admin route (cell `campus_calendar_configured`). Each semantic cell
-is a real probe over HTTP on synthetic progress-monitoring records (no
+is a real probe over HTTP on sample progress-monitoring records (no
 licensed-benchmark authorization is needed):
 
 | Cell | What is observed |
@@ -184,8 +184,8 @@ breaking it. No product route, enrollment path or bypass was added.
 The sink (`mail_sink.py`):
 
 - binds loopback only;
-- requires the run's synthetic key as the bearer token;
-- refuses any recipient outside the synthetic domain;
+- requires the run's sample key as the bearer token;
+- refuses any recipient outside the sample domain;
 - writes raw messages only to the run's temp directory (`QUAL_MAIL_SINK_DIR`,
   default `<out>-tmp/mail`), never to the evidence directory, because they
   carry live enrollment tickets;
@@ -244,14 +244,14 @@ the block the brief fixes. That is an owner decision.
 | `mac_package` | `none` | **G3 placeholder only.** |
 
 Every harness setting also has a `QUAL_*` environment override in
-`scripts/qualification/qualconfig.py`, including the synthetic names, the
+`scripts/qualification/qualconfig.py`, including the sample names, the
 forbidden-variable lists, the delivery markers, ports and timeouts.
 
 ## Cross-platform browser journeys (Windows and Mac browsers)
 
 `.github/workflows/cross-platform-browser-journeys.yml` runs the family journeys in real browsers on real Windows and macOS runners: Google Chrome and Microsoft Edge on `windows-2022`, and Chrome, Edge and Playwright's WebKit on `macos-15`. WebKit is the engine Safari uses; it is not Safari, and results are labelled WebKit. Dispatch it with a full `candidate_sha`.
 
-`scripts/qualification/browser_journeys/run_journeys.py` starts the real `uvicorn main:app` on the runner (file-backed SQLite), the real app build under `vite preview`, and a loopback model stub that waits 0.5 to 3 seconds per call. It seeds one synthetic household through the API. `journeys.cjs` then runs every browser at once against that one service, with a parent device and a child device per browser: sign-in and session start, lesson turns, a Practice Coach upload, review, approval and delivery, the child's answer, a dropped connection on the first chat attempt (the client retry), a one-second network drop while a turn is sent with the app's service worker in control (D-1, fixed in #806), an API restart while a reply is streaming, and reopening afterwards to check what was saved. Uploads, approvals and answers start within the same few milliseconds. Each child also asks for a sibling's data and must be refused. Results, per-step timings (p50, p95, max) and screenshots of any failure are uploaded as an artifact.
+`scripts/qualification/browser_journeys/run_journeys.py` starts the real `uvicorn main:app` on the runner (file-backed SQLite), the real app build under `vite preview`, and a loopback model stub that waits 0.5 to 3 seconds per call. It seeds one sample household through the API. `journeys.cjs` then runs every browser at once against that one service, with a parent device and a child device per browser: sign-in and session start, lesson turns, a Practice Coach upload, review, approval and delivery, the child's answer, a dropped connection on the first chat attempt (the client retry), a one-second network drop while a turn is sent with the app's service worker in control (D-1, fixed in #806), an API restart while a reply is streaming, and reopening afterwards to check what was saved. Uploads, approvals and answers start within the same few milliseconds. Each child also asks for a sibling's data and must be refused. Results, per-step timings (p50, p95, max) and screenshots of any failure are uploaded as an artifact.
 
 What it does not cover:
 - Windows and Mac clients against one service at the same time. The two runners cannot reach each other. The physical Mac session covers that by adding a Windows laptop as a client.
@@ -267,10 +267,10 @@ This **qualification workflow** does not build or certify a physical Mac package
 ```bash
 export QUAL_CANDIDATE_SHA=$(git rev-parse HEAD)
 export QUAL_DB_ADMIN_URL=postgresql://postgres@127.0.0.1:5433/postgres   # bootstrap superuser
-export QUAL_APP_DB_PASSWORD=synthetic-$(openssl rand -hex 12)
+export QUAL_APP_DB_PASSWORD=sample-$(openssl rand -hex 12)
 export DATABASE_URL=$(python scripts/qualification/db_setup.py --db bede_qualification_local)
 export RESEND_API_BASE_URL=http://127.0.0.1:8767                         # the loopback sink
-export RESEND_API_KEY=synthetic-$(openssl rand -hex 16)                   # accepted only by the sink
+export RESEND_API_KEY=sample-$(openssl rand -hex 16)                   # accepted only by the sink
 # plus SECRET_KEY, MASTER_SECRET, PARENT_PASSWORD and the application
 # environment block from qualification.yml's job env
 python scripts/qualification/preflight.py --phase pre-start
@@ -283,7 +283,7 @@ python scripts/qualification/package.py
 
 ## Real-device check on a Mac (10-20 minutes, owner-run)
 
-`scripts/qualification/mac_check.py` is the interactive companion to the matrix. The matrix uses a Chromium *virtual* authenticator, so it cannot show that a real Mac, a real Safari or Chrome, and a real Touch ID prompt work against the same routes. This script starts the same stack on synthetic data, invites one synthetic teacher, and serves one small page on the stack's own origin (`https://localhost:8765`, this run's self-signed certificate, accepted once in the browser) so the person does the Touch ID enrollment and sign-in. A Chromium virtual authenticator still plays the synthetic *administrator*; only the teacher is a real device.
+`scripts/qualification/mac_check.py` is the interactive companion to the matrix. The matrix uses a Chromium *virtual* authenticator, so it cannot show that a real Mac, a real Safari or Chrome, and a real Touch ID prompt work against the same routes. This script starts the same stack on sample data, invites one sample teacher, and serves one small page on the stack's own origin (`https://localhost:8765`, this run's self-signed certificate, accepted once in the browser) so the person does the Touch ID enrollment and sign-in. A Chromium virtual authenticator still plays the sample *administrator*; only the teacher is a real device.
 
 ```
 export QUAL_DB_ADMIN_URL=postgresql://postgres@127.0.0.1:5432/postgres

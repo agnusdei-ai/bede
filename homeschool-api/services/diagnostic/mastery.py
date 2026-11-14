@@ -9,7 +9,7 @@ observation's CDM posterior gets blended into the vector, then
 kst.propagate_prerequisites enforces the surmise relation so a
 confidently-mastered skill's prerequisites are never left behind. This
 module is also Phase 1's acceptance unit — its own real check is a
-synthetic evidence stream proving the whole pipeline converges sensibly
+sample evidence stream proving the whole pipeline converges sensibly
 and never produces a vector where a mastered skill's prerequisites lag
 behind (see tests/diagnostic/test_mastery.py).
 """

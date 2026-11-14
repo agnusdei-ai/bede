@@ -1,4 +1,4 @@
-"""Pure, synthetic checks for the #726 voice dependency migration preflight."""
+"""Pure, sample checks for the #726 voice dependency migration preflight."""
 import unittest
 
 from scripts.qa.voice_dependency_preflight import (

@@ -1,7 +1,7 @@
 """
 Real check for Diagnostic build-loop unit 1.7 (mastery.py) — see
 docs/diagnostic/DIAGNOSTIC_BUILD_PROGRESS.md. This is Phase 1's
-**acceptance** unit: a synthetic evidence stream must demonstrably
+**acceptance** unit: a sample evidence stream must demonstrably
 converge the vector and never leave a "secure" skill's prerequisites
 behind — the whole pipeline (qmatrix -> cdm -> kst) composed together.
 """
@@ -176,10 +176,10 @@ def test_aggregate_for_parent_next_steps_matches_fringe():
     assert summary["next_steps"] == fringe(vector)
 
 
-# ── Phase 1 acceptance: synthetic evidence stream ───────────────────────────
+# ── Phase 1 acceptance: sample evidence stream ───────────────────────────
 
 
-def test_synthetic_stream_converges_and_never_leaves_prerequisites_behind():
+def test_sample_stream_converges_and_never_leaves_prerequisites_behind():
     """
     The Phase 1 acceptance test. Walks a real prerequisite chain
     (cc.rote_count_20 -> cc.count_objects_20 -> oa.add_within_20 ->

@@ -13,7 +13,7 @@ vi.mock('../services/api', async (original) => ({
 
 const expired = {
   tier: 'trial',
-  licensee: 'Synthetic Pilot',
+  licensee: 'Sample Pilot',
   seats: 25,
   unlimited_learners: false,
   location_id: null,
@@ -30,7 +30,7 @@ beforeEach(() => {
 afterEach(() => cleanup())
 
 async function openCard() {
-  render(<LicenseSettings token="synthetic-parent-token" />)
+  render(<LicenseSettings token="sample-parent-token" />)
   const header = await screen.findByRole('button', { name: /License/ })
   // Expired license cards automatically open via their urgency effect.
   // Wait for that effect instead of clicking (which would collapse it).
@@ -48,10 +48,10 @@ describe('pilot license error and recovery journeys', () => {
   it('renders a human-readable invalid activation error and preserves the input', async () => {
     api.applyLicenseKey.mockRejectedValue(new Error('That license key is not valid: signature verification failed'))
     await openCard()
-    fireEvent.change(screen.getByPlaceholderText('eyJ...'), { target: { value: 'invalid-synthetic-code' } })
+    fireEvent.change(screen.getByPlaceholderText('eyJ...'), { target: { value: 'invalid-sample-code' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await screen.findByText(/signature verification failed/)
-    expect(screen.getByPlaceholderText('eyJ...')).toHaveProperty('value', 'invalid-synthetic-code')
+    expect(screen.getByPlaceholderText('eyJ...')).toHaveProperty('value', 'invalid-sample-code')
     expect(screen.queryByText('[object Object]')).toBeNull()
   })
 
@@ -60,13 +60,13 @@ describe('pilot license error and recovery journeys', () => {
       .mockResolvedValueOnce({ ...expired, is_expired: false, days_remaining: 40, expires: '2026-12-01', problem: null })
     await openCard()
     const input = screen.getByPlaceholderText('eyJ...')
-    fireEvent.change(input, { target: { value: 'expired-synthetic' } })
+    fireEvent.change(input, { target: { value: 'expired-sample' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await screen.findByText('Activation code expired')
-    fireEvent.change(input, { target: { value: 'renewed-synthetic' } })
+    fireEvent.change(input, { target: { value: 'renewed-sample' } })
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await screen.findByText(/License applied/)
     await waitFor(() => expect(screen.queryByText('Activation code expired')).toBeNull())
-    expect(api.applyLicenseKey).toHaveBeenCalledWith('synthetic-parent-token', 'renewed-synthetic')
+    expect(api.applyLicenseKey).toHaveBeenCalledWith('sample-parent-token', 'renewed-sample')
   })
 })

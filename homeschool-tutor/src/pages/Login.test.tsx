@@ -126,22 +126,22 @@ describe('per-child PIN sign-in', () => {
     renderLogin()
     await waitFor(() => expect(fetchAvailableLocales).toHaveBeenCalled())
     fireEvent.click(screen.getByText('Student'))
-    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: '  Synthetic Learner One ' } })
+    fireEvent.change(screen.getByLabelText('Your name'), { target: { value: '  Sample Learner One ' } })
     fireEvent.change(screen.getByLabelText('Student PIN'), { target: { value: '481937' } })
     fireEvent.click(screen.getByText('Continue →'))
-    await waitFor(() => expect(login).toHaveBeenCalledWith('child', '481937', 'en', 'Synthetic Learner One'))
+    await waitFor(() => expect(login).toHaveBeenCalledWith('child', '481937', 'en', 'Sample Learner One'))
   })
 
   it('uses the tablet link’s student and shows no name box', async () => {
     fetchAvailableLocales.mockResolvedValue([])
     login.mockResolvedValue({ accessToken: 'tok', role: 'child', mfaRequired: false, mfaMethods: [] })
-    renderAt('/?returnTo=%2Fsession%3Fstudent%3DSynthetic%2520Learner%2520Two')
+    renderAt('/?returnTo=%2Fsession%3Fstudent%3DSample%2520Learner%2520Two')
     await waitFor(() => expect(fetchAvailableLocales).toHaveBeenCalled())
     fireEvent.click(screen.getByText('Student'))
     expect(screen.queryByLabelText('Your name')).toBeNull()
     fireEvent.change(screen.getByLabelText('Student PIN'), { target: { value: '730582' } })
     fireEvent.click(screen.getByText('Continue →'))
-    await waitFor(() => expect(login).toHaveBeenCalledWith('child', '730582', 'en', 'Synthetic Learner Two'))
+    await waitFor(() => expect(login).toHaveBeenCalledWith('child', '730582', 'en', 'Sample Learner Two'))
   })
 
   it('turns a refusal into plain words for a child, in both languages', async () => {
@@ -221,7 +221,7 @@ describe('why you are looking at this screen', () => {
 describe('institutional mode journey isolation', () => {
   it('shows an explicit service error rather than homeschool roles when pilot mode cannot be read', async () => {
     fetchAvailableLocales.mockResolvedValue([])
-    fetchEducatorPilotMode.mockRejectedValue(new Error('synthetic connection failure'))
+    fetchEducatorPilotMode.mockRejectedValue(new Error('sample connection failure'))
     renderLogin()
     await screen.findByRole('alert')
     expect(screen.getByText(/cannot verify this installation.s access mode/i)).toBeTruthy()
@@ -231,7 +231,7 @@ describe('institutional mode journey isolation', () => {
 
   it('recovers after retry and shows educator passkey access for school mode', async () => {
     fetchAvailableLocales.mockResolvedValue([])
-    fetchEducatorPilotMode.mockRejectedValueOnce(new Error('synthetic connection failure'))
+    fetchEducatorPilotMode.mockRejectedValueOnce(new Error('sample connection failure'))
       .mockResolvedValueOnce({ enabled: true, shared_child_pin_disabled: true })
     renderLogin()
     fireEvent.click(await screen.findByRole('button', { name: /Retry connection/i }))

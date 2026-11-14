@@ -3,7 +3,7 @@ The demo watchdog must not rely on `playwright install --with-deps`.
 
 `--with-deps` runs `apt` on the GitHub runner. A transient upstream apt index
 mismatch (seen on the Google Chrome repo) can fail the watchdog before the
-synthetic journey even starts, producing false outage alarms.
+sample journey even starts, producing false outage alarms.
 """
 from pathlib import Path
 

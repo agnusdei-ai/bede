@@ -15,7 +15,7 @@ Two cross-lane properties neither lane could test alone:
 Real HTTP through the assembled app, on SQLite and on Postgres as a
 non-superuser role (the ``client`` fixture from
 ``test_canonical_assessment_api.py``; ``BEDE_REQUIRE_PG=1`` makes an
-unreachable Postgres a failure). Synthetic data only.
+unreachable Postgres a failure). Sample data only.
 """
 from __future__ import annotations
 

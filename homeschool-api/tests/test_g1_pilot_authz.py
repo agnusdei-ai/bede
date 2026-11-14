@@ -1,7 +1,7 @@
 """G1: the shared authorization context and its fail-closed revalidation.
 
 Drives the assembled app over real HTTP (tests/g1_harness.py). Runs on SQLite
-by default and on Postgres when G1_TEST_DATABASE_URL is set. Synthetic
+by default and on Postgres when G1_TEST_DATABASE_URL is set. Sample
 identities only.
 """
 import pytest
@@ -138,16 +138,16 @@ def test_legacy_roster_replacement_that_removes_a_learner_revokes(legacy_world):
 
     # Adding a learner is not a revocation: the version is unchanged.
     r = w.client.put(f"/educators/accounts/{one}/roster", headers=w.admin(), json={
-        "configs": [legacy_config(w.extra["name_one"]), legacy_config("Synthetic Learner Three")]})
+        "configs": [legacy_config(w.extra["name_one"]), legacy_config("Sample Learner Three")]})
     assert r.status_code == 200
     assert w.credential_version(one) == before
     assert w.client.get("/educators/me/roster", headers=token).status_code == 200
 
     # Removing one IS a revocation, exactly as the pilot revoke route is.
     r = w.client.put(f"/educators/accounts/{one}/roster", headers=w.admin(), json={
-        "configs": [legacy_config("Synthetic Learner Three")]})
+        "configs": [legacy_config("Sample Learner Three")]})
     assert r.status_code == 200
     assert w.credential_version(one) == before + 1
     assert w.client.get("/educators/me/roster", headers=token).status_code == 401
     fresh = w.client.get("/educators/me/roster", headers=w.teacher(one))
-    assert [c["student_name"] for c in fresh.json()] == ["Synthetic Learner Three"]
+    assert [c["student_name"] for c in fresh.json()] == ["Sample Learner Three"]

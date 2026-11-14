@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Synthetic end-to-end check of the public demo — the detector half of the
+ * Sample end-to-end check of the public demo — the detector half of the
  * watchdog loop (see .github/workflows/demo-watchdog.yml).
  *
  * WHY A REAL BROWSER, AND WHY THE REAL JOURNEY
@@ -36,11 +36,11 @@
  * OUTPUT is JSON on stdout — one object, always, pass or fail — so the
  * workflow can hand it to an agent verbatim without scraping logs.
  *
- * PRIVACY: this is a synthetic session. The "student" is a fixed fake name
+ * PRIVACY: this is a sample session. The "student" is a fixed fake name
  * on a throwaway demo code, and nothing about a real family is read,
  * transmitted, or stored. The diagnostics it captures are its own.
  *
- * Usage:  node scripts/synthetic_journey.mjs https://agnusdei.ai/bede/
+ * Usage:  node scripts/sample_journey.mjs https://agnusdei.ai/bede/
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

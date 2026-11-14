@@ -1,6 +1,6 @@
 """Deterministic, entirely fabricated two-campus pilot fixtures.
 
-Never replace these with exported school records. IDs are stable, synthetic
+Never replace these with exported school records. IDs are stable, sample
 UUIDv4-shaped values so they match the G1 API's parser during replayable denial
 tests; no names, identifiers, or emails come from people.
 """
@@ -14,45 +14,45 @@ _NAMESPACE = UUID("5cde68fb-9b92-49c0-b52f-b15b2c7029e1")
 
 
 @dataclass(frozen=True)
-class SyntheticLearner:
+class SampleLearner:
     learner_id: str
     campus_id: str
     display_name: str
 
 
 @dataclass(frozen=True)
-class SyntheticCampus:
+class SampleCampus:
     campus_id: str
     label: str
-    learners: tuple[SyntheticLearner, ...]
+    learners: tuple[SampleLearner, ...]
 
 
 def _id(kind: str, label: str) -> str:
     # G1's deployed _id() accepts only canonical UUIDv4 IDs.
     # Reproducible test-only v4-shaped IDs ensure each run addresses the same
     # fabricated learner, without ever using exported or actual school data.
-    digest = sha256(f"{_NAMESPACE}/bede-synthetic-pilot/{kind}/{label}".encode()).digest()
+    digest = sha256(f"{_NAMESPACE}/bede-sample-pilot/{kind}/{label}".encode()).digest()
     return str(UUID(bytes=digest[:16], version=4))
 
 
-def two_campus_fixture() -> tuple[SyntheticCampus, SyntheticCampus]:
+def two_campus_fixture() -> tuple[SampleCampus, SampleCampus]:
     """Two distinct tenants with intentionally identical learner display names."""
     campuses = []
-    for campus_label in ("synthetic-campus-alpha", "synthetic-campus-beta"):
+    for campus_label in ("sample-campus-alpha", "sample-campus-beta"):
         campus_id = _id("campus", campus_label)
         learners = tuple(
-            SyntheticLearner(
+            SampleLearner(
                 learner_id=_id("learner", f"{campus_label}/{index}"),
                 campus_id=campus_id,
                 display_name="Example Learner",
             )
             for index in (1, 2)
         )
-        campuses.append(SyntheticCampus(campus_id, campus_label, learners))
+        campuses.append(SampleCampus(campus_id, campus_label, learners))
     return campuses[0], campuses[1]
 
 
-def assert_synthetic_fixture() -> None:
+def assert_sample_fixture() -> None:
     """Fail early if fixtures lose unique tenant/learner identity."""
     a, b = two_campus_fixture()
     assert a.campus_id != b.campus_id

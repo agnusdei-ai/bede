@@ -10,8 +10,8 @@ import type { SessionConfig, Subject } from '../types'
 import { subjectLabel } from '../utils/subjectLabel'
 import { prepareFocusedLesson } from '../utils/focusedLesson'
 import ConsentBanner from '../components/ConsentBanner'
-import { useParentName } from '../hooks/useParentName'
 import { displayNameOf } from '../utils/displayName'
+import { useParentName } from '../hooks/useParentName'
 
 export default function PodDashboard() {
   const { t } = useTranslation()

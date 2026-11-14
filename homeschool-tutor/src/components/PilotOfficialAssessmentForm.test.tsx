@@ -36,13 +36,13 @@ beforeEach(() => {
   api.fetchOfficialAssessment.mockResolvedValue(record)
   api.fetchOfficialDataDay.mockResolvedValue(packet)
   api.enterOfficialScores.mockResolvedValue(record)
-  api.recordOfficialObservation.mockResolvedValue({ evidence_id: 'synthetic' })
+  api.recordOfficialObservation.mockResolvedValue({ evidence_id: 'sample' })
 })
 afterEach(cleanup)
 
 function view() {
-  return render(<PilotOfficialAssessmentForm token="synthetic-token" campusId={CID}
-    learnerId={LID} learnerName="Synthetic Learner" />)
+  return render(<PilotOfficialAssessmentForm token="sample-token" campusId={CID}
+    learnerId={LID} learnerName="Sample Learner" />)
 }
 
 describe('pilot official assessment two-panel workflow', () => {
@@ -54,7 +54,7 @@ describe('pilot official assessment two-panel workflow', () => {
     expect(screen.getByRole('link', { name: /authorized official DIBELS 8 materials/ })
       .getAttribute('href')).toBe('https://dibels.uoregon.edu/materials/dibels')
     await waitFor(() => expect(api.fetchOfficialAssessment).toHaveBeenCalledWith(
-      'synthetic-token', CID, LID, AID))
+      'sample-token', CID, LID, AID))
   })
 
   it('shows an approved teacher artifact and separately records an after-teaching observation', async () => {
@@ -69,29 +69,29 @@ describe('pilot official assessment two-panel workflow', () => {
       artifact_type: 'teacher_use_instructional_plan',
       status: 'teacher_approved_for_offline_use',
       campus_id: CID, learner_id: LID, assessment_id: AID, plan_id: planId,
-      approval_action: 'approve', plan_text: 'Synthetic teacher-approved handout',
+      approval_action: 'approve', plan_text: 'Sample teacher-approved handout',
       disclaimer: 'Teacher material, not an official report',
     })
-    api.recordTeacherFollowUp.mockResolvedValue({ follow_up_id: 'synthetic-follow-up' })
-    api.fetchTeacherFollowUps.mockResolvedValue([{ follow_up_id: 'synthetic-follow-up',
-      observed_on: '2026-10-19', teaching_mode: 'in_person', observation: 'Synthetic teacher observation',
+    api.recordTeacherFollowUp.mockResolvedValue({ follow_up_id: 'sample-follow-up' })
+    api.fetchTeacherFollowUps.mockResolvedValue([{ follow_up_id: 'sample-follow-up',
+      observed_on: '2026-10-19', teaching_mode: 'in_person', observation: 'Sample teacher observation',
       next_step: null }])
     view()
     fireEvent.click(await screen.findByRole('button', { name: 'Prepare teacher-use artifact' }))
-    expect(await screen.findByText('Synthetic teacher-approved handout')).toBeTruthy()
-    expect(api.fetchTeacherArtifact).toHaveBeenCalledWith('synthetic-token', CID, LID, AID, planId)
+    expect(await screen.findByText('Sample teacher-approved handout')).toBeTruthy()
+    expect(api.fetchTeacherArtifact).toHaveBeenCalledWith('sample-token', CID, LID, AID, planId)
     expect(screen.getByText(/not an official report/)).toBeTruthy()
     fireEvent.change(screen.getByLabelText('What you observed'), {
-      target: { value: 'Synthetic teacher observation' },
+      target: { value: 'Sample teacher observation' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save teacher follow-up' }))
     await waitFor(() => expect(api.recordTeacherFollowUp).toHaveBeenCalled())
     const [token, campusId, learnerId, assessmentId, savedPlanId, body] = api.recordTeacherFollowUp.mock.calls[0]
     expect([token, campusId, learnerId, assessmentId, savedPlanId])
-      .toEqual(['synthetic-token', CID, LID, AID, planId])
-    expect(body.observation).toBe('Synthetic teacher observation')
+      .toEqual(['sample-token', CID, LID, AID, planId])
+    expect(body.observation).toBe('Sample teacher observation')
     expect(body.teaching_mode).toBe('in_person')
-    expect(await screen.findByText('Synthetic teacher observation')).toBeTruthy()
+    expect(await screen.findByText('Sample teacher observation')).toBeTruthy()
   })
 
   it('does not convert a skipped measure to a numeric zero', async () => {
@@ -102,7 +102,7 @@ describe('pilot official assessment two-panel workflow', () => {
     expect(screen.getByRole('button', { name: 'Save official measure result' })
       .hasAttribute('disabled')).toBe(true)
     fireEvent.change(screen.getByLabelText(/Reason \(required/),
-      { target: { value: 'Not administered in synthetic session' } })
+      { target: { value: 'Not administered in sample session' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save official measure result' }))
     await waitFor(() => expect(api.enterOfficialScores).toHaveBeenCalled())
     const scores = api.enterOfficialScores.mock.calls[0][4]
@@ -121,7 +121,7 @@ describe('pilot official assessment two-panel workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create official record' }))
     await waitFor(() => expect(api.createOfficialAssessment).toHaveBeenCalled())
     const [token, campus, learner, body] = api.createOfficialAssessment.mock.calls[0]
-    expect(token).toBe('synthetic-token')
+    expect(token).toBe('sample-token')
     expect(campus).toBe(CID)
     expect(learner).toBe(LID)
     expect(body.form_id).toBe('SYN-OFFICIAL-1')

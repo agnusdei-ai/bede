@@ -2,7 +2,7 @@
 
 The existing opt-in `stage_lesson` and `review_staged_lesson` workflow
 already supports independently reviewed original lessons. This increment
-adds synthetic regression coverage rather than duplicating the staging or
+adds sample regression coverage rather than duplicating the staging or
 review implementation.
 
 ## Required behavior
@@ -20,7 +20,7 @@ review implementation.
 - An `original` rights claim never permits verbatim source text. Such
   submissions are denied before any write.
 
-The tests use synthetic educator identities, synthetic campuses, SQLite,
+The tests use sample educator identities, sample campuses, SQLite,
 and the existing encrypted curriculum storage. They do not prove legal
 authorship, independent licensing verification, a production school
 deployment, or the identity of a real reviewer.

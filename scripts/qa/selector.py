@@ -29,7 +29,7 @@ CROSS = (
     "render.yaml", "docker-compose.yml", "Makefile", "wrangler.jsonc",
     "scripts/build_pages_site.sh", "docs/DECISIONS.md",
     "docs/RETENTION_POLICY.md", "docs/DATA_RETENTION.md",
-    "docs/INFORMATION_SECURITY_POLICY.md", "docs/SYNTHETIC_QUALIFICATION.md",
+    "docs/INFORMATION_SECURITY_POLICY.md", "docs/SAMPLE_QUALIFICATION.md",
     "site/privacy/index.html", "demo/public/privacy.html",
     "site/index.html", "site/assets/site.css",
     "docs/LICENSE_SERVER_SETUP.md",
@@ -49,7 +49,7 @@ DOC_TESTS = {
     "docs/RETENTION_POLICY.md": "test_coppa_compliance.py",
     "docs/DATA_RETENTION.md": "test_coppa_compliance.py",
     "docs/INFORMATION_SECURITY_POLICY.md": "test_coppa_compliance.py",
-    "docs/SYNTHETIC_QUALIFICATION.md": "test_qualification_workflow.py",
+    "docs/SAMPLE_QUALIFICATION.md": "test_qualification_workflow.py",
     # Public crawl contracts must exercise the backend AEO guard.
     "site/sitemap.xml": "test_site_aeo.py",
     "site/robots.txt": "test_site_aeo.py",

@@ -25,7 +25,7 @@ self.addEventListener('fetch', (e) => {
   // API calls are never answered by the service worker. A failed fetch must
   // reach the app as a real network error: streamTutorChat retries a turn
   // that never got through (#794) and every other caller shows its own
-  // message. Answering with a synthetic 200 here made a one-second network
+  // message. Answering with a sample 200 here made a one-second network
   // drop lose the child's turn silently (#755, defect D-1).
   if (isApi) return
   // Only GETs are cached; anything else goes straight to the network.

@@ -136,9 +136,30 @@ _LESSON_RULES = _SHARED_RULES + """- not_schoolwork: only something plainly unre
   an experiment, an object or a place is fine.
 """
 
-_ANSWER = """Reply with ONLY one JSON object and nothing else:
-{"verdict": "ok"} if every picture is fine, or
-{"verdict": "refuse", "category": "<one of the categories above>"} naming the most serious problem."""
+# What a picture shows, from a closed list, named before the verdict. The live
+# demo passed a game screen as schoolwork 2 runs in 3 even at temperature 0
+# (docs/release/UPLOAD_CHECK_VERIFICATION.md): a one-word yes/no left the
+# model nothing to anchor on. Naming the kind first is an easier question,
+# and the not-schoolwork rule is then applied here in code from that list,
+# so a model that names a game screen and still answers "ok" is overruled.
+SCHOOL_KINDS = ("worksheet_or_test", "book_or_text_page", "notes_or_student_work", "diagram_chart_or_map")
+OFF_TOPIC_KINDS = ("game_or_app_screen", "video_or_social_media", "meme")
+OTHER_KINDS = ("photo_of_people", "object_animal_plant_or_place", "something_else")
+KINDS = SCHOOL_KINDS + OFF_TOPIC_KINDS + OTHER_KINDS
+
+# Which kinds a context accepts. A worksheet upload must be school material;
+# a lesson picture may be a pet, a plant or a place, but never a game screen,
+# a video or social-media screenshot, or a meme.
+_ALLOWED_KINDS = {
+    "worksheet": frozenset(SCHOOL_KINDS),
+    "lesson": frozenset(SCHOOL_KINDS + OTHER_KINDS),
+}
+
+_ANSWER = """First name what each picture shows, in order, using one of: """ + ", ".join(KINDS) + """.
+Then reply with ONLY one JSON object and nothing else:
+{"shows": ["<kind of picture 1>", ...], "verdict": "ok"} if every picture is fine, or
+{"shows": ["<kind of picture 1>", ...], "verdict": "refuse", "category": "<one of the categories above>"} naming the most serious problem.
+"shows" has exactly one entry for each picture."""
 
 
 def _rules(context: Context) -> str:
@@ -210,11 +231,14 @@ def _text_of(response) -> str:
 _OBJECT = re.compile(r"\{[^{}]*\}")
 
 
-def parse_verdict(text: str) -> str | None:
+def parse_verdict(text: str, context: Context, count: int) -> str | None:
     """None when every picture is fine, else the refusal category.
 
-    Anything that is not exactly one of the two expected shapes raises
-    ScreeningUnavailable: an unclear answer refuses, it never passes.
+    Anything that is not exactly one of the two expected shapes, or that
+    names a kind for other than exactly `count` pictures, raises
+    ScreeningUnavailable: an unclear answer refuses, it never passes. A
+    kind the context does not accept refuses as not_schoolwork even when
+    the model said "ok"; the model's own refusal is never softened.
     """
     found = _OBJECT.findall(text or "")
     if len(found) != 1:
@@ -225,13 +249,20 @@ def parse_verdict(text: str) -> str | None:
         raise ScreeningUnavailable("unexpected reply") from exc
     if not isinstance(data, dict):
         raise ScreeningUnavailable("unexpected reply")
+    shows = data.get("shows")
+    if (not isinstance(shows, list) or len(shows) != count
+            or not all(isinstance(k, str) and k in KINDS for k in shows)):
+        raise ScreeningUnavailable("unexpected reply")
     verdict = data.get("verdict")
-    if verdict == "ok" and set(data) == {"verdict"}:
-        return None
     if verdict == "refuse":
         category = data.get("category")
-        if category in REFUSAL_CATEGORIES:
+        if category in REFUSAL_CATEGORIES and set(data) == {"shows", "verdict", "category"}:
             return category
+        raise ScreeningUnavailable("unexpected reply")
+    if verdict == "ok" and set(data) == {"shows", "verdict"}:
+        if any(k not in _ALLOWED_KINDS[context] for k in shows):
+            return "not_schoolwork"
+        return None
     raise ScreeningUnavailable("unexpected reply")
 
 
@@ -250,7 +281,7 @@ async def screen_images(client, images: list[tuple[str, str]], context: Context)
         response = await asyncio.wait_for(
             client.messages.create(
                 model=settings.tutor_model,
-                max_tokens=60,
+                max_tokens=160,
                 # A safety verdict must not change between two sends of the
                 # same picture: at the default temperature the live demo
                 # passed a game screen once and refused it the next run.
@@ -265,7 +296,7 @@ async def screen_images(client, images: list[tuple[str, str]], context: Context)
     except Exception as exc:  # never log the request: it holds the pictures
         log.warning("Upload content check failed: %s", type(exc).__name__)
         raise ScreeningUnavailable(type(exc).__name__) from exc
-    category = parse_verdict(_text_of(response))
+    category = parse_verdict(_text_of(response), context, len(images))
     if category is not None:
         raise ContentRefused(category, context)
 

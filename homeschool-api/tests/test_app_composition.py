@@ -303,8 +303,8 @@ GUARDS = {
     # routers/consent.py: every route is parent-only. These carry a child's
     # consent ledger, pause state, full data export and the adult's own
     # greeting name, so a downgrade to require_auth (which admits a child)
-    # must fail this table rather than pass silently. The router was not
-    # walked at all until it was added to _ROUTER_MODULES.
+    # must fail this table rather than pass silently. The assembled-app walk
+    # ensures these routes are included in the comparison.
     ('GET', '/household/consent'): 'require_parent',
     ('POST', '/household/consent'): 'require_parent',
     ('GET', '/household/profile'): 'require_parent',

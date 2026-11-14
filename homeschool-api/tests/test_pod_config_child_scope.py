@@ -9,7 +9,7 @@ Everything runs over real HTTP through the assembled app (SQLite per test),
 with learners assigned through the real parent route and child tokens issued
 by the real /auth/login. tests/test_child_learner_binding.py calls the
 dependency directly; this file proves the routes actually invoke it, and that
-a refused PATCH writes nothing. Synthetic names only.
+a refused PATCH writes nothing. Sample names only.
 """
 import asyncio
 import tempfile
@@ -26,10 +26,10 @@ from core.student_keys import clear_cache
 
 pytestmark = pytest.mark.real_consent
 
-ONE = "Synthetic Learner One"
-TWO = "Synthetic Learner Two"
-TABLET_A = "synthetic-tablet-a"
-TABLET_B = "synthetic-tablet-b"
+ONE = "Sample Learner One"
+TWO = "Sample Learner Two"
+TABLET_A = "sample-tablet-a"
+TABLET_B = "sample-tablet-b"
 
 
 def _parent():
@@ -173,7 +173,7 @@ def test_scope_is_the_device_binding_not_the_learner_name(client):
 def test_a_non_household_role_naming_the_same_learner_is_refused(client):
     """An educator (separate campus/grant domain) naming a household learner
     gets nothing from these routes; its own grant checks live elsewhere."""
-    educator = _bearer({"sub": "synthetic-educator", "role": "educator"})
+    educator = _bearer({"sub": "sample-educator", "role": "educator"})
     assert client.get(f"/pod/configs/{ONE}", headers=educator).status_code in (401, 403, 404)
     assert _patch(client, ONE, educator).status_code in (401, 403, 404)
     assert _narration(client, ONE) is True

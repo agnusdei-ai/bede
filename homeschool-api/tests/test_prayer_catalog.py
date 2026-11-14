@@ -529,7 +529,7 @@ async def test_the_index_does_not_lock_to_a_weekday_at_a_pool_size_of_seven(monk
     divides 7, so the danger returns silently the moment someone trims the
     catalog back to seven opening prayers — a plausible edit, since three of
     the current thirteen are recent additions. This pins the property at the
-    size where it breaks, with a synthetic pool, so it fails on the
+    size where it breaks, with a sample pool, so it fails on the
     arithmetic regardless of what the real catalog happens to hold.
     """
     from datetime import timedelta

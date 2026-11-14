@@ -62,7 +62,7 @@ teacher-controlled interface without changing the approval boundary.
 
 ## Minimum pilot acceptance
 
-With synthetic campuses A and B and identically named learners, verify:
+With sample campuses A and B and identically named learners, verify:
 a teacher can complete the authorized lifecycle and open their plan; another
 campus cannot read/append it; rejected or pending suggestions produce no
 artifact; a version conflict cannot apply a decision; the artifact GET does
@@ -71,7 +71,7 @@ plan, are visible after reload, and never create official scores or change
 rosters. These are functional checks, not Valor production-environment
 certification. No real student data is authorized by passing them.
 
-## Versioned schema and synthetic agent-state QA
+## Versioned schema and sample agent-state QA
 
 The strict internal envelope is `services/pilot_teacher_review_contract.py`
 (`TeacherReviewCycle`, schema version `1.1.0`). It has four separately
@@ -92,7 +92,7 @@ validated responsibilities sharing the same tenant-bound cycle:
 The pure envelope rejects cross-tenant references, absent learner binding,
 unfinalized DIBELS-based proposals, mixed benchmark/progress-monitoring
 purpose, implicit approval, edited/stale version, unknown actions, and
-artifacts after teacher rejection. Synthetic positive and negative scenario
+artifacts after teacher rejection. Sample positive and negative scenario
 tests live in `tests/test_pilot_teacher_review_contract.py`.
 
 **Runtime separation:** the existing canonical assessment database and

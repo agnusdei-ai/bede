@@ -1,4 +1,4 @@
-"""Offline synthetic acceptance tests; no sockets, credentials, or learner data."""
+"""Offline sample acceptance tests; no sockets, credentials, or learner data."""
 from copy import deepcopy
 import hashlib
 from html.parser import HTMLParser
@@ -48,7 +48,7 @@ class FactoryTests(unittest.TestCase):
         self.manifest.write_bytes(c.canonical(bundle))
 
     def run_job(self, **kwargs):
-        return execute(self.ledger, self.manifest, "synthetic-acceptance", **kwargs)
+        return execute(self.ledger, self.manifest, "sample-acceptance", **kwargs)
 
     def rebind(self, b):
         b["lessons"][0]["source_refs"][0]["source"] = c.ref(b["sources"][0])
@@ -125,10 +125,10 @@ class FactoryTests(unittest.TestCase):
         b = example()
         b["evidence"] = [dict(
             id="review", target=c.ref(b["lessons"][0]), author_run="same", reviewer_run="same",
-            reviewer_identity="synthetic", reviewer_version="unavailable", role="agent_academic",
-            at="2026-11-12T12:00:00Z", scope="Synthetic only", methods=["fixture"],
+            reviewer_identity="sample", reviewer_version="unavailable", role="agent_academic",
+            at="2026-11-12T12:00:00Z", scope="Sample only", methods=["fixture"],
             artifacts=[deepcopy(b["sources"][0]["asset"])], findings=[], disagreements=[],
-            conditions=[], decision="agent_reviewed", command="fixture", result="synthetic")]
+            conditions=[], decision="agent_reviewed", command="fixture", result="sample")]
         with self.assertRaisesRegex(Error, "self review"):
             validate_bundle(b, self.manifest.parent)
 
@@ -292,7 +292,7 @@ class FactoryTests(unittest.TestCase):
                     if phase == cancel_phase:
                         other = Ledger(self.ledger.root)
                         try:
-                            other.cancel(key, "Synthetic cancellation test")
+                            other.cancel(key, "Sample cancellation test")
                         finally:
                             other.close()
                 with self.assertRaisesRegex(Error, "Canceled"):

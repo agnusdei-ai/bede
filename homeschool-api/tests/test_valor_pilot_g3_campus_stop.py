@@ -1,4 +1,4 @@
-"""Synthetic G3: a deliberate operator stop must revoke only its campus.
+"""Sample G3: a deliberate operator stop must revoke only its campus.
 
 This is engineering validation, never production-school evidence or Pilot GO.
 """
@@ -16,7 +16,7 @@ from test_valor_pilot_g2_journey import ADMIN, db, token, two_campuses  # noqa: 
 
 def req():
     return Request({"type": "http", "client": ("127.0.0.1", 1),
-                    "headers": [(b"user-agent", b"synthetic-test")]})
+                    "headers": [(b"user-agent", b"sample-test")]})
 
 
 @pytest.mark.asyncio

@@ -18,7 +18,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: synthetic-diagnostic-admin
+          POSTGRES_PASSWORD: sample-diagnostic-admin
           POSTGRES_DB: postgres
         ports:
           - 5432:5432
@@ -29,7 +29,7 @@ jobs:
           --health-retries 15
     env:
       BEDE_REQUIRE_PG: '1'
-      BEDE_CANON_PG_URL: postgresql+asyncpg://diagnostic_ci:synthetic-diagnostic-app@127.0.0.1:5432/diagnostic_ci
+      BEDE_CANON_PG_URL: postgresql+asyncpg://diagnostic_ci:sample-diagnostic-app@127.0.0.1:5432/diagnostic_ci
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -51,9 +51,9 @@ jobs:
           import asyncio, asyncpg
           async def run():
               c = await asyncpg.connect(host="127.0.0.1", user="postgres",
-                                        password="synthetic-diagnostic-admin", database="postgres")
+                                        password="sample-diagnostic-admin", database="postgres")
               try:
-                  await c.execute("CREATE ROLE diagnostic_ci LOGIN PASSWORD 'synthetic-diagnostic-app' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS")
+                  await c.execute("CREATE ROLE diagnostic_ci LOGIN PASSWORD 'sample-diagnostic-app' NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS")
                   await c.execute("CREATE DATABASE diagnostic_ci OWNER diagnostic_ci")
               finally:
                   await c.close()

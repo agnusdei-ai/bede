@@ -18,7 +18,7 @@ only /health probes, and the demo showed its generic "Could not reach the
 server" message, which fires on the bare TypeError a blocked fetch produces.
 
 The bug was invisible to the check that was supposed to catch it. A local
-harness simulated Cloudflare's `_headers` handling, initially emitted both
+harness mock Cloudflare's `_headers` handling, initially emitted both
 headers (the real risk), and was then "fixed" to merge them into one —
 encoding an assumption about Cloudflare's precedence rather than testing the
 danger. The test was changed to match the belief.
@@ -144,7 +144,7 @@ def test_the_demo_backend_is_reachable_under_the_policy_that_actually_applies():
         # blesses the shared <audio> element so Bede can speak later without
         # one. Block it and Bede is simply mute on iPad — silently, with no
         # error a parent could report usefully. Caught by
-        # scripts/synthetic_journey.mjs against a policy that had shipped.
+        # scripts/sample_journey.mjs against a policy that had shipped.
         assert "data:" in media, (
             "media-src must allow data: — it is the iOS audio-unlock path "
             "(useTextToSpeech.ts's SILENT_WAV_DATA_URI). Without it Bede "

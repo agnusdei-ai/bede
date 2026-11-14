@@ -6,7 +6,7 @@ Use U.S. English and simple product copy.
 1. For each PR, calculate the correct git merge-base and generate a
    deterministic affected-test plan. Trace imports, consumers, contracts
    and security/persistence boundaries. Fail closed on unmapped paths.
-2. Run static/dependency checks, affected unit tests and relevant synthetic
+2. Run static/dependency checks, affected unit tests and relevant sample
    positive/negative/recovery/authorization tests locally when possible.
    Never replace G1's non-superuser PostgreSQL check with a mock.
 3. If failing, retain original log and SHA, identify root cause, reproduce
@@ -15,7 +15,7 @@ Use U.S. English and simple product copy.
    iterations per invocation; escalate with diagnosis if unresolved.
 4. Never disable security, privacy, license, audit checks or reduce assertions,
    nor classify missing evidence as passing. No identifiable learner data
-   or production credentials in synthetic tests.
+   or production credentials in sample tests.
 5. Reuse existing dependency-remediation and demo-watchdog agents; do not
    create a competing scheduler, runner or CI framework.
 6. Record source-keyed QA evidence, changed files, selected tests, diagnoses,

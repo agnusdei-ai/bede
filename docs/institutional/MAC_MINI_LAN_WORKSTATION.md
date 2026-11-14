@@ -1,6 +1,6 @@
 # Mac mini server with an older Mac educator workstation
 
-Status: **opt-in LAN installer implementation exists; physical LAN/device G3 qualification NOT RUN**. The integrated synthetic G1/G2 candidate passed 146/146 and is merged to `main`. No real-data permission or pilot authorization follows from that result. Follow [the G3 physical-Mac runbook](MAC_G3_CERTIFICATION_RUNBOOK.md) and [certification record](MAC_G3_CERTIFICATION_RECORD.md).
+Status: **opt-in LAN installer implementation exists; physical LAN/device G3 qualification NOT RUN**. The integrated sample G1/G2 candidate passed 146/146 and is merged to `main`. No real-data permission or pilot authorization follows from that result. Follow [the G3 physical-Mac runbook](MAC_G3_CERTIFICATION_RUNBOOK.md) and [certification record](MAC_G3_CERTIFICATION_RECORD.md).
 
 ## Separation of responsibilities
 
@@ -42,7 +42,7 @@ Status: **opt-in LAN installer implementation exists; physical LAN/device G3 qua
    rule out a security key or another phone. The browser decides which
    options are supported at ceremony time. Bede must not collect device
    biometrics, PINs or passwords as an educator fallback.
-5. Use one synthetic instructor and learner first; verify enrollment/login
+5. Use one sample instructor and learner first; verify enrollment/login
    with an older Mac browser, cancel/retry, distinct admin passkey,
    unauthorized learner denial, and revoked credential rejection.
    Test the signed-in desktop's browser/OS/version and any external

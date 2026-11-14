@@ -1,9 +1,9 @@
 # Bede | G3 physical-Mac certification runbook
 
 **Document owner:** Agnus Dei Technologies, LLC — Bede engineering / release owner  
-**Scope:** Invite-only institutional pilot, synthetic identities and learner records only  
+**Scope:** Invite-only institutional pilot, sample identities and learner records only  
 **Application baseline:** `agnusdei-ai/bede` main merge `d3eb645c2de1058bb8056005a09c7d40446cea20` (#616, incorporating #618)  
-**Automated qualification provenance:** candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e`; synthetic matrix 146 PASS / 0 FAIL / 0 ABSENT / 0 BLOCKED / 0 UNVERIFIED  
+**Automated qualification provenance:** candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e`; sample matrix 146 PASS / 0 FAIL / 0 ABSENT / 0 BLOCKED / 0 UNVERIFIED  
 **Disposition:** Test procedure only. No physical-Mac acceptance, certificate, real-data permission or Pilot GO is implied.
 
 This is the controlling G3 test procedure for the above code baseline. Use [MAC_G3_CERTIFICATION_RECORD.md](MAC_G3_CERTIFICATION_RECORD.md) to record every observation, missing capability, failure and sign-off. A change to any application, installer, recovery, authorization or test-criterion code requires impact-based requalification of the new exact code SHA. Documentation-only updates do not require rerunning already qualified code tests.
@@ -16,7 +16,7 @@ This is the controlling G3 test procedure for the above code baseline. Use [MAC_
 
 1. Install and start Docker Desktop. Optionally install Ollama with a model, so the instance has a local model to call. Inference is not part of G3-01, and the script records whether a model answered.
 2. `brew install zstd gh`, then `gh auth login`. The script only downloads the workflow artifact with it. For `--mac-check`, also have Python 3.12 or newer, Node 20 or newer, and Apple's command-line tools (`xcode-select --install`): two pinned Python packages ship as source and are compiled on the Mac.
-3. Mint a campus key for a disposable synthetic campus and save the command's output to a file. The script reads the key from its `LICENSE_KEY=` line, and a bare key in a file works too.
+3. Mint a campus key for a disposable sample campus and save the command's output to a file. The script reads the key from its `LICENSE_KEY=` line, and a bare key in a file works too.
 
 ```bash
 python scripts/issue_license.py --tier campus_location --licensee "G3 test campus" \
@@ -38,7 +38,7 @@ What it does, and which row it feeds:
 | --- | --- |
 | Records model, chip, memory, macOS build, FileVault, Docker, Compose and browser versions. It never records a serial number, hardware UUID, user name or host name. | Section A |
 | Downloads the offline bundle and checks its SHA-256, `RELEASE` commit, `ARCH` and Docker architecture. | G3-01 |
-| Installs a fresh synthetic campus instance unattended, answering the setup wizard itself. It generates an administrator password into a private file. | G3-01 |
+| Installs a fresh sample campus instance unattended, answering the setup wizard itself. It generates an administrator password into a private file. | G3-01 |
 | Runs `Verify-Bede.command`. Checks that Docker publishes HTTPS on 127.0.0.1 only, and that the served certificate verifies against this instance's CA. | G3-01 |
 | Restarts the stack and checks health and unchanged data volumes. | G3-09 (partial) |
 | With `--mac-check`: runs `mac_check.py` on a throwaway database. You tap Touch ID and answer its questions. | G3-02, G3-03 (source checkout) |
@@ -52,7 +52,7 @@ The draft marks a row PASS only from something the script measured. G3-04 to G3-
 
 | Evidence | Real implementation | Proves | Does not prove |
 | --- | --- | --- | --- |
-| 146/146 synthetic matrix | `scripts/qualification/`, CI qualification workflow | G1/G2/deletion and scoped synthetic HTTP security behavior at qualified SHA | Physical Mac, actual Touch ID or packaged installer |
+| 146/146 sample matrix | `scripts/qualification/`, CI qualification workflow | G1/G2/deletion and scoped sample HTTP security behavior at qualified SHA | Physical Mac, actual Touch ID or packaged installer |
 | **Mac real-device browser check** | `scripts/qualification/mac_check.py` | Six browser/teacher passkey and roster outcomes on physical Mac; virtual authenticator for administrator | Packaged delivery, lost-device recovery, school offboarding, physical capacity |
 | **Operator package smoke** | `packaging/bundle/Install-Bede.command`, `Verify-Bede.command` | Architecture matched, Compose validates, app starts, CA-validated HTTPS health | Teacher, G1/G2, disaster recovery or Pilot GO |
 | **G3 owner-executed scenarios** | This procedure and the release build | Actual Mac setup, authorization, recovery, offboarding, restart and independent recovery boundary | Automatic certification; outcomes must be observed and signed |
@@ -68,8 +68,8 @@ The packaging workflow `.github/workflows/build-bede-operator.yml` creates `bede
 
 Preconditions:
 
-- Only **disposable, explicitly synthetic** school identities, educator mailboxes, campus UUIDs, learners, assessments, transcripts and backup data. No Valor/student production records, school production credentials, real external inference keys or billing activation.
-- A separately controlled test administrator with a **real** Bede user-verified WebAuthn session, and at least one synthetic educator test mailbox and authenticator. For the loopback `mac_check.py`, only the **teacher** authenticator is physical; the administrator authenticator is virtual.
+- Only **disposable, explicitly sample** school identities, educator mailboxes, campus UUIDs, learners, assessments, transcripts and backup data. No Valor/student production records, school production credentials, real external inference keys or billing activation.
+- A separately controlled test administrator with a **real** Bede user-verified WebAuthn session, and at least one sample educator test mailbox and authenticator. For the loopback `mac_check.py`, only the **teacher** authenticator is physical; the administrator authenticator is virtual.
 - Docker Desktop and Docker Compose started on the host Mac; a package for its native Docker architecture, trusted HTTPS hostname, configured Postgres, and a suitable locally controlled inference service for the actual tutoring test. A loopback inference stub proves qualification plumbing, **not** model quality or physical inference capacity.
 - For two Macs, stable **private** IPv4 and organization-controlled **private DNS** for the server. Enable LAN mode expressly in the wizard, restrict host/network firewall ingress, and trust the **specific** exported Bede CA on the client only after fingerprint comparison. Never expose Bede with router port-forwarding, use a bare LAN IP as WebAuthn origin, or accept unexplained browser certificate warnings.
 - Do not rerun setup against an established encrypted database to change network settings. Setup can regenerate master keys and render existing encrypted records inaccessible. Test on a fresh disposable instance.
@@ -108,9 +108,9 @@ python scripts/qualification/mac_check.py --browser safari
 # Repeat in Chrome only if Chrome is an in-scope supported client.
 ```
 
-This command **recreates** a scratch database named `bede_mac_check` and drops it on exit. Use an **isolated sacrificial Postgres server only**; never point it at a shared or production server. The tool uses a synthetic mail sink and loopback local model stub, and produces `mac-check-out/mac-check-result.json` and `mac-check-calls.json`. It proves: real teacher passkey enrollment/login; invitation replay refusal; zero learners before grant; precisely one after grant; identical denial for another campus's same-name learner and an unknown UUID; and no accessible roster after revocation/relogin. Inspect that every item actually passed; skipped operator observations are not a substitute for full G3 sign-off.
+This command **recreates** a scratch database named `bede_mac_check` and drops it on exit. Use an **isolated sacrificial Postgres server only**; never point it at a shared or production server. The tool uses a sample mail sink and loopback local model stub, and produces `mac-check-out/mac-check-result.json` and `mac-check-calls.json`. It proves: real teacher passkey enrollment/login; invitation replay refusal; zero learners before grant; precisely one after grant; identical denial for another campus's same-name learner and an unknown UUID; and no accessible roster after revocation/relogin. Inspect that every item actually passed; skipped operator observations are not a substitute for full G3 sign-off.
 
-On the **installed package**, separately test real browser-origin passkeys and educator identity/roster routes (no stub or virtual administrator unless a separately documented synthetic fixture is deliberately used). The implemented API contract includes:
+On the **installed package**, separately test real browser-origin passkeys and educator identity/roster routes (no stub or virtual administrator unless a separately documented sample fixture is deliberately used). The implemented API contract includes:
 
 | Operation | Exact route |
 | --- | --- |
@@ -120,29 +120,29 @@ On the **installed package**, separately test real browser-origin passkeys and e
 | Authorized roster | `GET /pilot/me/learners`, `GET /pilot/me/learners/{learner_id}` |
 | Roster grant / revoke | `POST` / `DELETE /pilot/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}` |
 
-The operator must establish two synthetic campuses with the **same learner display name but distinct UUIDs**, and evidence both successful in-campus access and uniform cross-campus/unassigned/refused access. No name-based institutional learner identifier is accepted.
+The operator must establish two sample campuses with the **same learner display name but distinct UUIDs**, and evidence both successful in-campus access and uniform cross-campus/unassigned/refused access. No name-based institutional learner identifier is accepted.
 
 **PASS:** verified UV passkey on the actual client, no downgraded educator login path, matching trusted HTTPS origin, and the expected grant/denial outcomes. Browser cancellation must be retryable; one reused invitation must fail.
 
 ## 5. Phase C — authorized classroom and local tutor (G3-04 / G3-05)
 
-Run one synthetic teacher journey on the **packaged** Mac build using the actual teacher-facing UI/API:
+Run one sample teacher journey on the **packaged** Mac build using the actual teacher-facing UI/API:
 
 1. Authorized learner evidence is entered or retrieved at `/pilot/me/learners/{learner_id}/evidence`.
 2. A recommendation is requested at `/recommendations`; inadequate source evidence must abstain, never fabricate diagnostic measures.
 3. The educator **approves, edits or rejects** through `POST /recommendations/{recommendation_id}/decision`. Check `GET /decisions` for durable, hash-chained decision evidence and `GET /instruction` for **approved/edited only** instruction.
-4. Query `GET /pilot/me/learners/{learner_id}/diagnostic` and `GET /pilot/me/learners/{learner_id}/tutoring/history` against **real stored synthetic records**; no fabricated historical records or scores.
+4. Query `GET /pilot/me/learners/{learner_id}/diagnostic` and `GET /pilot/me/learners/{learner_id}/tutoring/history` against **real stored sample records**; no fabricated historical records or scores.
 5. Verify that teacher approval leaves `delivery_state = NOT_REQUESTED`, that no learner session or delivery is created, and that revoking the teacher's grant blocks subsequent access and writes (including after restart). An educator-only diagnostic tutoring endpoint is not part of this teacher-directed release acceptance.
 
-The educator-only tutoring diagnostic is not a release criterion for the current Valor pilot and must not be presented as learner instruction. **No learner-facing delivery/session launch is authorized.** Persist a redacted record of expected/actual status, persistence after restart and denied negative operations. Local model behavior/safeguarding and observed resource limits are separate from the loopback-stub synthetic matrix.
+The educator-only tutoring diagnostic is not a release criterion for the current Valor pilot and must not be presented as learner instruction. **No learner-facing delivery/session launch is authorized.** Persist a redacted record of expected/actual status, persistence after restart and denied negative operations. Local model behavior/safeguarding and observed resource limits are separate from the loopback-stub sample matrix.
 
 ## 6. Phase D — lost device, offboarding, recovery isolation (G3-06 / G3-07 / G3-08)
 
-**Lost educator authenticator (synthetic account only):** an independently authenticated, passkey-elevated Bede administrator verifies continuing educator affiliation out of band, then calls `POST /auth/educator-passkey/recovery/{educator_id}` with the educator's **previously verified institutional email** (or uses **Replace a lost passkey** on the Classroom Educator page; if email isn't set up on the Mac mini, the link is shown once there instead of emailed). Complete the short-lived one-use recovery enrollment on a *different* physical authenticator; then prove the old key is disabled, old session is refused, and only the freshly enrolled key can sign in. Check that email alone or a campus login cannot perform administrator recovery. This code does not substitute for manual identity vetting.
+**Lost educator authenticator (sample account only):** an independently authenticated, passkey-elevated Bede administrator verifies continuing educator affiliation out of band, then calls `POST /auth/educator-passkey/recovery/{educator_id}` with the educator's **previously verified institutional email** (or uses **Replace a lost passkey** on the Classroom Educator page; if email isn't set up on the Mac mini, the link is shown once there instead of emailed). Complete the short-lived one-use recovery enrollment on a *different* physical authenticator; then prove the old key is disabled, old session is refused, and only the freshly enrolled key can sign in. Check that email alone or a campus login cannot perform administrator recovery. This code does not substitute for manual identity vetting.
 
 **Offboarding:** revoke the specific roster grant with the `DELETE` route above and/or call `POST /pilot/campuses/{campus_id}/educators/{educator_id}/disable`. For **whole-account** offboarding also use the separately elevated `POST /educators/accounts/{educator_id}/disable`: campus membership disable alone must not be described as account-wide termination. Test old token, refreshed browser, new login, direct UUID API, active voice SSE and active tutor SSE; all former authorized operations must be refused or terminate without post-revocation protected output. Other educators and campuses must remain accessible.
 
-**Independent recovery trust domain:** use separate Bede-controlled recovery credentials and a recovery environment isolated from school AD, Entra ID, SSO, directory admin and school backup agents. Attempt an explicitly authorized, **non-destructive negative test** using a synthetic campus directory administrator: it must not access recovery console, decrypt/alter backup keys, change retention or administer recovery enrollment. Then prove the distinct Bede recovery operator **can** perform the authorized recovery operation. A design document or a failed login alone does **not** prove network, identity and backup-enclave separation; collect environmental policy/authorization evidence. If an independent recovery plane is not deployed, mark **BLOCKED**, not PASS.
+**Independent recovery trust domain:** use separate Bede-controlled recovery credentials and a recovery environment isolated from school AD, Entra ID, SSO, directory admin and school backup agents. Attempt an explicitly authorized, **non-destructive negative test** using a sample campus directory administrator: it must not access recovery console, decrypt/alter backup keys, change retention or administer recovery enrollment. Then prove the distinct Bede recovery operator **can** perform the authorized recovery operation. A design document or a failed login alone does **not** prove network, identity and backup-enclave separation; collect environmental policy/authorization evidence. If an independent recovery plane is not deployed, mark **BLOCKED**, not PASS.
 
 ## 7. Phase E — stop, restart and isolated recovery (G3-09 / G3-10)
 

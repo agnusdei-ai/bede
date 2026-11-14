@@ -1,4 +1,4 @@
-"""Synthetic, real-HTTP tutoring-history read and isolation tests (SQLite/Postgres).
+"""Sample, real-HTTP tutoring-history read and isolation tests (SQLite/Postgres).
 
 The canonical assessment client fixture supplies real app, DB and two
 different campuses whose learners deliberately share a display name.
@@ -34,7 +34,7 @@ def _seed(world):
                 student_name=scope.storage_subject, session_date=now,
                 subjects="reading", duration_minutes=5,
                 transcript_enc=encrypt_json(
-                    {"messages": [{"role": "learner", "content": "Synthetic practice"}]},
+                    {"messages": [{"role": "learner", "content": "Sample practice"}]},
                     student_aad("session_transcripts", "transcript_enc", scope.storage_subject),
                     key,
                 ),
@@ -54,7 +54,7 @@ def test_reads_real_encrypted_scoped_session_without_message_contents(world):
     item = r.json()["sessions"][0]
     assert item["session_id"] == session_id
     assert item["message_count"] == 1 and item["subjects"] == ["reading"]
-    assert "Synthetic practice" not in r.text
+    assert "Sample practice" not in r.text
     assert "Example Learner" not in r.text
 
 

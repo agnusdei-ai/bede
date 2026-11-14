@@ -18,12 +18,12 @@ vi.mock('../services/api', async original => ({
 import ClassroomSetup from './ClassroomSetup'
 import { useSessionStore } from '../store/sessionStore'
 
-const LINK = 'https://bede.synthetic.example/educator-enroll#ticket=12345678-1234-1234-1234-123456789abc&token=' + 'z'.repeat(43)
+const LINK = 'https://bede.sample.example/educator-enroll#ticket=12345678-1234-1234-1234-123456789abc&token=' + 'z'.repeat(43)
 
 const fill = () => {
-  fireEvent.change(screen.getByPlaceholderText('instructor.name'), { target: { value: 'synthetic.teacher' } })
+  fireEvent.change(screen.getByPlaceholderText('instructor.name'), { target: { value: 'sample.teacher' } })
   fireEvent.change(screen.getAllByPlaceholderText('teacher@school.example')[0],
-    { target: { value: 'synthetic.teacher@school.example' } })
+    { target: { value: 'sample.teacher@school.example' } })
 }
 
 const storageText = () => {
@@ -41,7 +41,7 @@ beforeEach(() => {
   invitePasskeyInstructor.mockReset()
   fetchInstructors.mockResolvedValue([])
   fetchEducatorPilotMode.mockResolvedValue({ enabled: true })
-  useSessionStore.setState({ token: 'synthetic-admin-token' })
+  useSessionStore.setState({ token: 'sample-admin-token' })
   window.localStorage.clear()
   window.sessionStorage.clear()
 })
@@ -52,7 +52,7 @@ describe('teacher invitation without outbound mail', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.assign(navigator, { clipboard: { writeText } })
     invitePasskeyInstructor.mockResolvedValue({
-      sent: false, delivery: 'shown_to_admin', username: 'synthetic.teacher',
+      sent: false, delivery: 'shown_to_admin', username: 'sample.teacher',
       enrollment_url: LINK, expires_in_minutes: 10,
     })
     render(<MemoryRouter><ClassroomSetup /></MemoryRouter>)
@@ -75,23 +75,23 @@ describe('teacher invitation without outbound mail', () => {
   })
 
   it('shows no link when the invitation was emailed', async () => {
-    invitePasskeyInstructor.mockResolvedValue({ sent: true, username: 'synthetic.teacher' })
+    invitePasskeyInstructor.mockResolvedValue({ sent: true, username: 'sample.teacher' })
     render(<MemoryRouter><ClassroomSetup /></MemoryRouter>)
     fill()
     await waitFor(() => expect(screen.getByRole('button', { name: /Send passkey invitation/ }).hasAttribute('disabled')).toBe(false))
     fireEvent.click(screen.getByRole('button', { name: /Send passkey invitation/ }))
-    expect(await screen.findByText(/sent to the school mailbox for synthetic\.teacher/)).toBeTruthy()
+    expect(await screen.findByText(/sent to the school mailbox for sample\.teacher/)).toBeTruthy()
     expect(screen.queryByLabelText('Enrollment link')).toBeNull()
   })
 })
 
 describe('lost-passkey recovery without outbound mail', () => {
-  const TEACHER = { id: '87654321-4321-4321-4321-cba987654321', username: 'synthetic.teacher', enabled: true, learner_count: 0 }
+  const TEACHER = { id: '87654321-4321-4321-4321-cba987654321', username: 'sample.teacher', enabled: true, learner_count: 0 }
   const issue = async () => {
     render(<MemoryRouter><ClassroomSetup /></MemoryRouter>)
-    await screen.findByRole('option', { name: /synthetic\.teacher/ })
+    await screen.findByRole('option', { name: /sample\.teacher/ })
     fireEvent.change(screen.getAllByPlaceholderText('teacher@school.example')[1],
-      { target: { value: 'synthetic.teacher@school.example' } })
+      { target: { value: 'sample.teacher@school.example' } })
     await waitFor(() => expect(screen.getByRole('button', { name: 'Issue recovery link' }).hasAttribute('disabled')).toBe(false))
     fireEvent.click(screen.getByRole('button', { name: 'Issue recovery link' }))
   }
@@ -105,8 +105,8 @@ describe('lost-passkey recovery without outbound mail', () => {
     await issue()
     const box = await screen.findByLabelText('Enrollment link') as HTMLInputElement
     expect(box.value).toBe(LINK)
-    expect(recoverPasskeyInstructor).toHaveBeenCalledWith('synthetic-admin-token', TEACHER.id, 'synthetic.teacher@school.example')
-    expect(screen.getByText(/Recovery link for synthetic\.teacher/)).toBeTruthy()
+    expect(recoverPasskeyInstructor).toHaveBeenCalledWith('sample-admin-token', TEACHER.id, 'sample.teacher@school.example')
+    expect(screen.getByText(/Recovery link for sample\.teacher/)).toBeTruthy()
     expect(screen.getByText(/It works once and expires in 10 minutes\./)).toBeTruthy()
     expect(storageText()).not.toContain('educator-enroll')
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))

@@ -140,11 +140,11 @@ jobs:
       # Wall-clock is unchanged (~45s) because the legs were never the
       # slow part.
       #
-      # Emulated, not real hardware — see synthetic_journey.mjs's PROFILES
+      # Emulated, not real hardware — see sample_journey.mjs's PROFILES
       # comment. galaxy-a10 is the 360x760 floor: a realistic school
       # device, and the profile most likely to expose a control that is
       # off-screen or too small to hit.
-      - name: Run the synthetic journey on every device profile
+      - name: Run the sample journey on every device profile
         id: journey
         env:
           # The live demo. Falls back to the canonical domain so the check
@@ -160,7 +160,7 @@ jobs:
           overall=0
           for device in desktop galaxy-a10 android-tablet; do
             report="journey-report-$device.json"
-            DEVICE_PROFILE="$device" node scripts/synthetic_journey.mjs "$DEMO_URL" > "$report"
+            DEVICE_PROFILE="$device" node scripts/sample_journey.mjs "$DEMO_URL" > "$report"
             code=$?
             [ "$code" -eq 0 ] || overall=1
 

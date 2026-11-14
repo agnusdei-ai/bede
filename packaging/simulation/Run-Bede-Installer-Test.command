@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local synthetic installer acceptance. No GHCR credentials or student data.
+# Local sample installer acceptance. No GHCR credentials or student data.
 set -euo pipefail
 cd "$(dirname "$0")"
 fail() { echo "Bede installer simulation FAILED: $*" >&2; exit 1; }
@@ -16,8 +16,8 @@ for attempt in $(seq 1 30); do
   if curl --fail --silent --show-error --max-time 3 http://127.0.0.1:18766/health 2>/dev/null | grep -q '"real_bede": false'; then ok=1; break; fi
   sleep 2
 done
-[[ "$ok" = 1 ]] || fail "Local synthetic health endpoint did not respond."
+[[ "$ok" = 1 ]] || fail "Local sample health endpoint did not respond."
 echo
-echo "PASS: Local container startup, architecture, loopback networking and synthetic HTTP health."
+echo "PASS: Local container startup, architecture, loopback networking and sample HTTP health."
 echo "SIMULATION ONLY: This is NOT the Bede API, WebAuthn, database or school pilot certification."
 echo "Cleanup: docker compose -p bede-installer-sim down"

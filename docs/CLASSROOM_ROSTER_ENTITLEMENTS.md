@@ -67,7 +67,7 @@ per-Pod limit and current platform availability.
 ## Evidence and tests
 
 - `homeschool-api/tests/test_roster_capacity.py`:
-  24 synthetic student configs under a 75-student signed-license
+  24 sample student configs under a 75-student signed-license
   *substitute*; no ten-student truncation; remaining seat counts;
   no invented organizational maximum; parent-only dependency.
   The fake license is a test double, not a forged production

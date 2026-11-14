@@ -277,7 +277,7 @@ def main():
     parser.add_argument("--store", type=Path,
                         default=ROOT / "generated-artifacts/curriculum-factory/local")
     parser.add_argument("--manifest", type=Path)
-    parser.add_argument("--task", default="synthetic-draft")
+    parser.add_argument("--task", default="sample-draft")
     parser.add_argument("--key")
     parser.add_argument("--reason")
     args = parser.parse_args()

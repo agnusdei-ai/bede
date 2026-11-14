@@ -199,14 +199,14 @@ def _post_to_stub(system: str, with_image: bool) -> str:
     spec = importlib.util.spec_from_file_location("model_stub", HARNESS / "model_stub.py")
     stub = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(stub)
-    stub.time.sleep = lambda *_: None  # skip the simulated model latency
+    stub.time.sleep = lambda *_: None  # skip the stub's added model latency
     server = ThreadingHTTPServer(("127.0.0.1", 0), stub.H)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         user = [{"type": "text", "text": "check"}]
         if with_image:
             user.append({"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}})
-        body = {"model": "synthetic-stub", "messages": [{"role": "system", "content": system},
+        body = {"model": "sample-stub", "messages": [{"role": "system", "content": system},
                                                         {"role": "user", "content": user}]}
         r = httpx.post(f"http://127.0.0.1:{server.server_address[1]}/v1/chat/completions", json=body, timeout=10)
         return r.json()["choices"][0]["message"]["content"]

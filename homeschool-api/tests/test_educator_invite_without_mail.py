@@ -7,11 +7,11 @@ who issued it, to hand over in person. With mail configured nothing changes:
 the link is emailed and never returned.
 
 Driven over real HTTP against a real uvicorn server (tests/g1_harness.py). The
-enrollment itself is a real WebAuthn registration: a synthetic software
+enrollment itself is a real WebAuthn registration: a sample software
 authenticator below builds a genuine "none" attestation that py_webauthn
 verifies, so the ticket is consumed by the real ceremony and not by a stub.
 The "configured" case drives the real email_configured() condition and the
-real send_email() against a loopback mail sink. Synthetic identities only.
+real send_email() against a loopback mail sink. Sample identities only.
 """
 from __future__ import annotations
 
@@ -38,8 +38,8 @@ from g1_harness import world  # noqa: F401 (fixture)
 
 ORIGIN = "https://qualification.agnusdei.ai"
 RP_ID = "qualification.agnusdei.ai"
-BODY = {"username": "synthetic.teacher.handover",
-        "institutional_email": "synthetic.teacher.handover@qualification.agnusdei.ai"}
+BODY = {"username": "sample.teacher.handover",
+        "institutional_email": "sample.teacher.handover@qualification.agnusdei.ai"}
 INVITE = "/auth/educator-passkey/invite"
 LINK = re.compile(r"/educator-enroll#ticket=([0-9a-f-]{36})&token=([A-Za-z0-9_-]{32,})")
 
@@ -249,7 +249,7 @@ class _Sink(BaseHTTPRequestHandler):
     def do_POST(self):  # noqa: N802
         raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         type(self).messages.append(json.loads(raw))
-        data = b'{"id": "synthetic"}'
+        data = b'{"id": "sample"}'
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
@@ -265,7 +265,7 @@ def test_configured_mail_emails_the_link_and_never_returns_it(world, monkeypatch
     sink = ThreadingHTTPServer(("127.0.0.1", 0), _Sink)
     threading.Thread(target=sink.serve_forever, daemon=True).start()
     try:
-        monkeypatch.setattr(settings, "resend_api_key", "synthetic-sink-key")
+        monkeypatch.setattr(settings, "resend_api_key", "sample-sink-key")
         monkeypatch.setattr(settings, "resend_from_address", "bede@qualification.agnusdei.ai")
         monkeypatch.setattr(settings, "resend_api_base_url", f"http://127.0.0.1:{sink.server_port}")
         monkeypatch.setattr(email_service, "_http_client", None)

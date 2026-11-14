@@ -9,7 +9,7 @@ Status: **integration candidate only**, not yet cleared as a complete Valor pilo
 2. The instructor opens the ten-minute invitation on a browser with secure origin / configured WebAuthn RP ID. The browser requests a discoverable passkey with user verification required. Bede never receives the device PIN or biometrics.
 3. The enrollment server checks invitation binding, fresh one-time challenge, RP ID, origin, signature and UV, then persists the scoped credential. Invitation email does not grant a student session. Instructor must perform a separate passkey sign-in.
 4. The teacher enters an account name, verifies the registered passkey and receives a short-lived educator-only session token. Legacy teacher password and TOTP routes return HTTP 410. Parent/admin sessions and educator sessions are separate.
-5. The educator desk shows only assigned learners through roster authorization. Teacher selects a learner and approved subject and starts the **real Bede tutor session**, not a simulated preview. Tutor streaming checks assignment again server-side.
+5. The educator desk shows only assigned learners through roster authorization. Teacher selects a learner and approved subject and starts the **real Bede tutor session**, not a mock preview. Tutor streaming checks assignment again server-side.
 6. Teacher reviews subject-specific academic evidence and may transcribe authorized externally administered DIBELS 8 results. DIBELS outcomes are never inferred from Bede conversation, and changes are not represented as evidence Bede caused learning gains.
 7. Teacher may inspect enrolled passkeys and revoke a spare key. Revocation invalidates existing sessions. Last-key revocation is not self-service: the authorized operator must independently approve recovery, verify school affiliation and send a one-time invitation to the previously associated mailbox (from **Replace a lost passkey** on the Classroom Educator page). If email isn't set up on this computer, the recovery link is shown once to the operator to give the teacher in person, with the same ten-minute, single-use rules. Using it turns off the teacher's old passkeys and signs out their sessions.
 8. An authorized operator can disable instructor access and invalidate outstanding sessions and roster authorization.
@@ -31,14 +31,14 @@ Status: **integration candidate only**, not yet cleared as a complete Valor pilo
 - Exercise school invitation delivery, wrong domain, invitation expiry/replay, one-use WebAuthn challenge, invalid origin/RP/UV/signature, passkey cancellation/retry, suspended educator and arbitrary learner lookup.
 - Test an actual authorized learner session, a second session resumption, evidence writing and post-lesson review.
 - Verify clean-hardware recovery from separately protected encrypted backups and escrowed original application keys.
-- Owner reviews one to five simulated educator journeys and records accessible usability, error states, consent, performance and go/no-go.
+- Owner reviews one to five mock educator journeys and records accessible usability, error states, consent, performance and go/no-go.
 
 No release status should be advanced merely because the UI is attractive or isolated unit tests pass.
 
 
 ## Owner-led organizational enrollment verification (not Valor staff enrollment)
 
-For an owner-controlled synthetic enrollment exercise, set `EDUCATOR_BOOTSTRAP_EMAILS=info@agnusdei.ai,kristian@adaptcloud.io` in Bede's protected runtime configuration. This is a **case-insensitive exact-address allowlist**, empty by default. It does not authorize every address at either domain and does not create any campus/learner rights. Keep `EDUCATOR_INSTITUTION_EMAIL_DOMAIN` separate for a future school-approved educator population. No Bede external identity provider or Microsoft Entra dependency is introduced.
+For an owner-controlled sample enrollment exercise, set `EDUCATOR_BOOTSTRAP_EMAILS=info@agnusdei.ai,kristian@adaptcloud.io` in Bede's protected runtime configuration. This is a **case-insensitive exact-address allowlist**, empty by default. It does not authorize every address at either domain and does not create any campus/learner rights. Keep `EDUCATOR_INSTITUTION_EMAIL_DOMAIN` separate for a future school-approved educator population. No Bede external identity provider or Microsoft Entra dependency is introduced.
 
 Mailbox MFA protects the mail account; Bede independently requires an administrator's Bede WebAuthn session to invite, and a fresh browser WebAuthn passkey ceremony on the configured HTTPS RP origin to enroll or sign in. For a genuine Valor staff account, do not substitute either owner address for Valor's verified affiliation, consent, campus membership, or delegated administrator approval.
 

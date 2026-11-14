@@ -9,7 +9,7 @@ that part and records, mechanically, what the server answered.
 
 What you provide: the Touch ID taps, the button presses in one browser page,
 and a yes/no (plus an optional short note) for each item. Everything else is
-automatic: it starts the real stack on synthetic data, invites one synthetic
+automatic: it starts the real stack on sample data, invites one sample
 teacher, grants and revokes the roster through the real admin routes, records
 every response status, and decides pass or fail from those records.
 
@@ -122,9 +122,9 @@ button{font:inherit;padding:.5rem .9rem;margin:.2rem .2rem .2rem 0}
 pre{background:#f3f3f3;padding:.6rem;white-space:pre-wrap}.ok{color:#0a6b2d}.bad{color:#a11}
 .note{color:#555}input[type=text]{width:60%}</style>
 <h1>Bede real-device check</h1>
-<p class=note>Synthetic data only. Do not type any real name, address or student information into this page.</p>
+<p class=note>Sample data only. Do not type any real name, address or student information into this page.</p>
 <ol>
-<li><b>Enroll</b> a passkey for the synthetic teacher (Touch ID will prompt).
+<li><b>Enroll</b> a passkey for the sample teacher (Touch ID will prompt).
  <br><button id=enroll>Enroll passkey</button>
  <button id=again>Try this invitation again</button></li>
 <li><b>Sign in</b> with that passkey. <br><button id=login>Sign in with Touch ID</button></li>
@@ -148,7 +148,7 @@ const ticket={ticket_id:h.get('ticket')||'',ticket_token:h.get('token')||''};
 if(h.get('ticket')) history.replaceState(null,'',location.pathname);  // the link is single-use; do not leave it in history
 let token='', fixture={};
 fetch('/__fixture').then(r=>r.json()).then(f=>fixture=f);
-const U='synthetic-teacher-one';
+const U='sample-teacher-one';
 const dec=s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0)).buffer};
 const enc=b=>{let s='';for(const x of new Uint8Array(b))s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 async function api(method,path,body,auth){
@@ -282,7 +282,7 @@ def start_proxy(tls: dict):
     return srv
 
 
-# ── The application's environment: synthetic, loopback-only, production off ──
+# ── The application's environment: sample, loopback-only, production off ──
 
 def build_env(db_url: str, sink_key: str) -> dict:
     return {
@@ -294,11 +294,11 @@ def build_env(db_url: str, sink_key: str) -> dict:
         "RESEND_API_BASE_URL": f"http://{cfg.MAIL_SINK_HOST}:{cfg.MAIL_SINK_PORT}",
         "RESEND_API_KEY": sink_key, "RESEND_FROM_ADDRESS": f"bede@{cfg.INSTITUTION_EMAIL_DOMAIN}",
         "LOCAL_LLM_BASE_URL": f"http://{cfg.STUB_HOST}:{cfg.STUB_PORT}/v1",
-        "LOCAL_LLM_MODEL": "synthetic-stub", "BEDE_FORCE_ADAPTER": "local",
+        "LOCAL_LLM_MODEL": "sample-stub", "BEDE_FORCE_ADAPTER": "local",
         "RATE_LIMIT_AUTH_PER_MINUTE": "120", "RATE_LIMIT_API_PER_MINUTE": "1200",
         "CHILD_PIN": "739184", "DATABASE_URL": db_url,
         "SECRET_KEY": secrets.token_hex(32), "MASTER_SECRET": secrets.token_hex(32),
-        "PARENT_PASSWORD": "synthetic-" + secrets.token_hex(16),
+        "PARENT_PASSWORD": "sample-" + secrets.token_hex(16),
     }
 
 
@@ -350,7 +350,7 @@ def evaluate() -> dict:
             f"counts before grant {[c.get('count') for c in pre]}")
     post = [c for c in lists if c["phase"] == "after_grant"]
     verdict("granted", bool(post) and all(c.get("count") == 1 for c in post)
-            and all(c.get("names") == ["Synthetic Learner"] for c in post),
+            and all(c.get("names") == ["Sample Learner"] for c in post),
             f"counts after grant {[c.get('count') for c in post]} (two same-named learners exist)")
     one = REC.where(route="/pilot/me/learners/{id}", phase="after_grant")
     by_status = {}
@@ -375,16 +375,16 @@ def main() -> int:
     args = ap.parse_args()
     admin = os.environ.get("QUAL_DB_ADMIN_URL", "")
     if not admin:
-        print("QUAL_DB_ADMIN_URL is required (a local Postgres superuser URL; see docs/SYNTHETIC_QUALIFICATION.md)")
+        print("QUAL_DB_ADMIN_URL is required (a local Postgres superuser URL; see docs/SAMPLE_QUALIFICATION.md)")
         return 2
     OUT.mkdir(parents=True, exist_ok=True)
     cfg.MAIL_SINK_DIR.mkdir(parents=True, exist_ok=True)
 
     import db_setup
-    app_pw = "synthetic-" + secrets.token_hex(12)
+    app_pw = "sample-" + secrets.token_hex(12)
     dbname = "bede_mac_check"
     db_url = asyncio.run(db_setup.setup(admin, dbname, cfg.APP_DB_ROLE, app_pw, recreate=True))
-    env = build_env(db_url, "synthetic-" + secrets.token_hex(12))
+    env = build_env(db_url, "sample-" + secrets.token_hex(12))
     os.environ.update(env)           # preflight and the app import read the process environment
     import preflight
     pre = preflight.run("pre-start", env)
@@ -401,7 +401,7 @@ def main() -> int:
         stack.start_stub()
         stack.start_sink()
         stack.start_server()
-        driver = Driver(ORIGIN, OUT, tls["spki"])   # Chromium only plays the synthetic ADMIN
+        driver = Driver(ORIGIN, OUT, tls["spki"])   # Chromium only plays the sample ADMIN
         proxy = start_proxy(tls)
         api = Api(stack.base, driver.user_agent("admin"), True)
         from seed import Seeder
@@ -425,7 +425,7 @@ def main() -> int:
         teacher_id = next(a["id"] for a in accounts if a["username"] == TEACHER)
 
         url = f"{ORIGIN}/educator-enroll#ticket={ticket[0]}&token={ticket[1]}"
-        print("\n=== Bede real-device check (synthetic data only) ===")
+        print("\n=== Bede real-device check (sample data only) ===")
         print("Your browser will show a certificate warning once: this run's own self-signed certificate.")
         print("Accept it for localhost. Then, in the page:\n"
               "  1. Press 'Enroll passkey' (Touch ID), then 'Try this invitation again' (should be refused).\n"

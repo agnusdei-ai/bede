@@ -4,12 +4,12 @@
 
 Optionally with G1_TEST_DATABASE_URL set to a NON-superuser Postgres URL.
 
-What it does, all with synthetic data:
+What it does, all with sample data:
 
 1. Serves the assembled API on 127.0.0.1:8000 through tests/g1_harness.py
-   (a real uvicorn server), seeding Synthetic Campus One/Two, Teacher One/Two
+   (a real uvicorn server), seeding Sample Campus One/Two, Teacher One/Two
    and two learners with the SAME display name through the real admin routes.
-   Transcription is a synthetic echo, so no model or audio stack is needed.
+   Transcription is a sample echo, so no model or audio stack is needed.
 2. Runs the same voice scenarios twice: directly against the API with httpx
    (reading SSE incrementally), and in a real Chromium page on the app's own
    origin, driving the app's REAL frontend modules through the real Vite dev

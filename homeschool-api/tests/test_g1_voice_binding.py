@@ -3,7 +3,7 @@ grant id and grant version, and an educator's event stream ends on revocation.
 
 Real HTTP and real SSE through the assembled app (tests/g1_harness.py). The
 SSE stream is read incrementally while chunks, finishes and revocations are
-sent on the same live loop. Transcription is stubbed to a synthetic echo of
+sent on the same live loop. Transcription is stubbed to a sample echo of
 the audio bytes, so each learner's session produces distinguishable text.
 SQLite by default; Postgres when G1_TEST_DATABASE_URL is set.
 """
@@ -22,7 +22,7 @@ UNKNOWN = {"type": "error", "message": "unknown or expired session"}
 
 
 @pytest.fixture(autouse=True)
-def _synthetic_transcription(monkeypatch):
+def _sample_transcription(monkeypatch):
     async def echo(audio_bytes, language="en"):
         # The last bytes name the speaker, so two sessions' transcripts differ.
         return {"text": audio_bytes[-12:].decode("ascii", "ignore"), "language": language}
@@ -71,7 +71,7 @@ def _revocations(w):
 
 # ── Same campus works end to end ─────────────────────────────────────────────
 
-def test_authorized_teacher_streams_a_permitted_synthetic_event(world):
+def test_authorized_teacher_streams_a_permitted_sample_event(world):
     w = world
     t1 = w.teacher(w.teacher_one)
     sid = _start(w, t1, learner_id=w.learner_one).json()["session_id"]
@@ -222,7 +222,7 @@ def test_chunk_after_revocation_is_refused_and_never_lands(world):
     {"learner_id": "00000000-0000-0000-0000-000000000000"},  # nil, not v4
     {"learner_id": "6F9619FF-8B86-4011-B42D-00CF4FC964FF"},  # non-canonical case
     {"learner_id": "1b4e28ba-2fa1-41d2-883f-0016d3cca427"},  # random v4
-    {"student_name": "Synthetic Learner"},            # a name cannot bypass the UUID
+    {"student_name": "Sample Learner"},            # a name cannot bypass the UUID
 ])
 def test_every_bad_or_missing_learner_reads_the_same(world, scope):
     w = world
@@ -258,7 +258,7 @@ def test_legacy_mode_binds_to_the_roster_learner(legacy_world):
     # Removing the learner from the roster revokes: the old token is dead and
     # a fresh one cannot reach the session.
     r = w.client.put(f"/educators/accounts/{w.teacher_one}/roster", headers=w.admin(),
-                     json={"configs": [{"student_name": "Synthetic Learner Three", "grade": "4",
+                     json={"configs": [{"student_name": "Sample Learner Three", "grade": "4",
                                         "grade_stage": "3-5", "subjects": ["mathematics"]}]})
     assert r.status_code == 200
     assert w.client.post(f"/voice/stream/{sid}/chunk", files=_audio("x"), headers=t1).status_code == 401

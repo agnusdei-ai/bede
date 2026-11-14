@@ -1,6 +1,6 @@
 """Static regression guard for the privileged event-driven merge gate.
 
-Automatic merging is DELIBERATELY PAUSED during synthetic qualification
+Automatic merging is DELIBERATELY PAUSED during sample qualification
 (owner decision, 2026-10-15, commit 280e8d3). This guard tests that paused
 policy rather than being deleted: while the workflow carries the pause
 marker it must be impossible to run automatically or manually, a manual

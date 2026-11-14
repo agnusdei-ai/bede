@@ -5,7 +5,7 @@ name: Cross-platform browser journeys
 # and macos-15, Google Chrome on ubuntu-24.04, plus Playwright's Firefox build
 # (the Gecko engine, NOT branded Firefox) on all three and Playwright's WebKit
 # build on macos-15 (the Safari engine, NOT Safari itself). All browsers on a
-# runner run at the same time against the same service. Synthetic data and a
+# runner run at the same time against the same service. Sample data and a
 # loopback model stub only.
 #
 # The `mobile` row is Playwright DEVICE EMULATION (iPhone and iPad on WebKit,
@@ -22,7 +22,7 @@ name: Cross-platform browser journeys
 # - The production server shape. The API runs natively on the runner with
 #   SQLite, not in the Mac candidate's containers with Postgres.
 # - Real Safari, real passkeys (Windows Hello / Touch ID), or the Windows
-#   installer. See docs/SYNTHETIC_QUALIFICATION.md.
+#   installer. See docs/SAMPLE_QUALIFICATION.md.
 # - Any physical iPhone, iPad or Android device, or Debian 12. The
 #   physical-device checklist is docs/release/DEVICE_QUALIFICATION.md.
 #

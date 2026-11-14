@@ -9,7 +9,7 @@ elevated administrator who issued it; with mail configured the response stays
 Real HTTP against a real uvicorn server (tests/g1_harness.py); the teacher
 first enrolls through the invite link with one real WebAuthn credential, then
 recovers onto a second, so the recovery ticket's real side effects (old
-passkeys disabled, sessions ended) are observed. Synthetic identities only.
+passkeys disabled, sessions ended) are observed. Sample identities only.
 """
 from __future__ import annotations
 
@@ -127,7 +127,7 @@ def test_the_wrong_mailbox_gets_422_and_no_link(world, monkeypatch):
     teacher = _enrolled_teacher(w)
     before = _count(w, EducatorPasskeyInvitation)
     r = w.client.post(_recovery(teacher),
-                      json={"institutional_email": "synthetic.someone.else@qualification.agnusdei.ai"},
+                      json={"institutional_email": "sample.someone.else@qualification.agnusdei.ai"},
                       headers=w.admin())
     assert r.status_code == 422
     assert "educator-enroll" not in r.text
@@ -220,7 +220,7 @@ def test_configured_mail_emails_the_recovery_link_and_never_returns_it(world, mo
     sink = ThreadingHTTPServer(("127.0.0.1", 0), _Sink)
     threading.Thread(target=sink.serve_forever, daemon=True).start()
     try:
-        monkeypatch.setattr(settings, "resend_api_key", "synthetic-sink-key")
+        monkeypatch.setattr(settings, "resend_api_key", "sample-sink-key")
         monkeypatch.setattr(settings, "resend_from_address", "bede@qualification.agnusdei.ai")
         monkeypatch.setattr(settings, "resend_api_base_url", f"http://127.0.0.1:{sink.server_port}")
         monkeypatch.setattr(email_service, "_http_client", None)
@@ -259,7 +259,7 @@ def test_a_recovery_whose_commit_fails_never_returns_a_link(monkeypatch):
         factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as db:
             await initialize_encryption(settings.master_secret, db)
-            teacher = await provision_educator(db, BODY["username"], "synthetic-passphrase-strong-one")
+            teacher = await provision_educator(db, BODY["username"], "sample-passphrase-strong-one")
             await issue_invitation_for_admin(db, teacher["id"], BODY["institutional_email"])
 
             async def failing_commit():

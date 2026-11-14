@@ -14,7 +14,7 @@ volume adjustments. Gentle full-track mastering balances the audio around
 
 The same narrator and presentation are retained. The script includes Bede's
 question about the Lion sparing the Mouse, followed by reasoning from the fable
-and everyday application. The removed synthetic-narration line is absent from
+and everyday application. The removed sample-narration line is absent from
 the speech and on-page note. The narrator is a fictional delivery persona,
 not a customer testimonial or Bede's tutor voice. Both adult walkthroughs use
 scripted examples.

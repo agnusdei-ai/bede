@@ -46,7 +46,7 @@ def test_grade_8_gets_the_adaptive_learning_loop():
     assert "2. Technological Exposure" in text
     assert "3. Critical Narration" in text
     assert "4. Calibration" in text
-    # Never actually invokes a real external AI call — this is a simulated
+    # Never actually invokes a real external AI call — this is a mock
     # Socratic exercise Bede narrates, not a live tool integration.
     assert "you are not actually invoking any outside AI tool" in text
 

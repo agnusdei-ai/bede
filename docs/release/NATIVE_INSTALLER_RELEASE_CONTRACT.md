@@ -29,7 +29,7 @@ Do not advertise an architecture before a native installer and full application 
 - Both Standard and Offline paths complete; Offline works with networking disabled after prerequisite installation.
 - Interrupted download resumes; corrupted payload is rejected; insufficient disk, unsupported CPU, unavailable container runtime, and revoked signatures fail safely.
 - Repair, upgrade, reinstall, rollback, restart, and uninstall are observed with no unauthorized deletion of user data.
-- G1 campus isolation, G2 teacher approval workflow, and G3 device/package tests use the exact installed artifact. Synthetic data only until separate owner Pilot GO.
+- G1 campus isolation, G2 teacher approval workflow, and G3 device/package tests use the exact installed artifact. Sample data only until separate owner Pilot GO.
 - Each tested combination records artifact digest, test runner/device, UTC timestamp, test evidence, and independent reviewer.
 
 ## Current implementation gaps (as of 2026-10-17)
@@ -103,7 +103,7 @@ Record exact client installer digest, server installer digest, OS versions, API 
 
 The next engineering evidence demonstration is **one complete end-to-end pass on the owner's 24 GB Apple Silicon MacBook Pro**, selecting **Same machine** so the Mac runs the full Bede server and local client. The demonstration must use a single exact installer artifact and source SHA from initial download through final recovery; do not substitute source checkout, Docker archives, mock screens, or CI syntax checks for the actual installer.
 
-Capture: prerequisite detection and consent-based no-cost runtime provisioning if absent; installer launch; architecture/memory/disk preflight; verified runtime acquisition; database and local inference provisioning; trusted HTTPS and passkey enrollment; synthetic learner-to-teacher journey; G1 campus isolation; G2 teacher decision and authorized follow-up; G3 packaged Mac install, restart, revoke, repair/recovery; diagnostic evidence and final release-candidate digest. Record each outcome PASS/FAIL/NOT RUN with machine and installer metadata.
+Capture: prerequisite detection and consent-based no-cost runtime provisioning if absent; installer launch; architecture/memory/disk preflight; verified runtime acquisition; database and local inference provisioning; trusted HTTPS and passkey enrollment; sample learner-to-teacher journey; G1 campus isolation; G2 teacher decision and authorized follow-up; G3 packaged Mac install, restart, revoke, repair/recovery; diagnostic evidence and final release-candidate digest. Record each outcome PASS/FAIL/NOT RUN with machine and installer metadata.
 
 **Evidence limitation:** This single macOS same-machine pass is the immediate demonstration and may support a narrowly scoped Mac pilot decision only after all required gates pass and the owner separately authorizes Pilot GO. It does **not** certify Windows or Linux installers, remote macOS/Linux server connectivity, or the six-cell cross-platform matrix. Those requirements remain mandatory for their respective broader releases; do not hold this one Mac demonstration hostage to their physical certification.
 
@@ -132,13 +132,13 @@ For **general distribution outside the owner's controlled test Mac**, retain Dev
 
 ## Narrow pilot blocker policy — owner-approved
 
-**Scope:** one locally controlled Apple Silicon 24 GB Mac, same-machine deployment, local inference, initial administrator passkey, synthetic learner data, one complete G1/G2/G3 evidence pass. A passing result authorizes only a separate owner Pilot GO decision, not production or multi-platform certification.
+**Scope:** one locally controlled Apple Silicon 24 GB Mac, same-machine deployment, local inference, initial administrator passkey, sample learner data, one complete G1/G2/G3 evidence pass. A passing result authorizes only a separate owner Pilot GO decision, not production or multi-platform certification.
 
 ### Required to start and complete this pilot evidence pass
 1. A real locally runnable Mac installation entrypoint that performs a complete installation, with supported free/no-cost container runtime present or consent-based guided provisioning; do not require a paid Apple Developer Program membership.
 2. Verified complete Bede application and local inference assets with exact source SHA and integrity evidence; no Git checkout, manual archive extraction or unapproved credentials.
 3. Working local HTTPS, initial administrator passkey, least-privilege database/runtime service accounts, and safe secrets handling.
-4. A functional end-to-end synthetic learner -> evidence -> teacher decision -> authorized follow-up journey (G2), including explicit G1 cross-campus and unauthorized-access denials.
+4. A functional end-to-end sample learner -> evidence -> teacher decision -> authorized follow-up journey (G2), including explicit G1 cross-campus and unauthorized-access denials.
 5. Same installed build successfully restarts, revokes access, and recovers without leaking data (G3), with a single consolidated evidence record and a separate owner GO decision.
 
 ### Explicitly NON-BLOCKING for this one Mac evidence pass
@@ -164,7 +164,7 @@ The narrow single-Mac **installation evidence pass** is not a reduction in the f
 - Security and stewardship: verified HTTPS, least-privilege database/runtime accounts, audit trails for privileged and instructional decisions, credential revocation, data deletion, and a working backup/restore path.
 - Usable operation: minimal-input installer, administrator onboarding, real app readiness, error/recovery guidance, restart, and a clear school-facing experience.
 - If voice or accessibility features are presented as included in the paid campus offer, their actual supported paths must work; otherwise accurately disclose the limitation before release. No unverified marketing claims.
-- Confirm the real teacher and learner journeys against the exact packaged candidate, using synthetic data until G1/G2/G3 and owner GO.
+- Confirm the real teacher and learner journeys against the exact packaged candidate, using sample data until G1/G2/G3 and owner GO.
 
 ### Scope discipline
 A single-Mac evidence run may establish a limited technical pilot, **not** that a $2,600/month campus offering is ready for production. Public notarization, Windows/Linux installer certification, remote clients, enterprise SSO, HA, analytics beyond core mastery/progress, advanced fleet management, and payment automation are not prerequisites for the one-Mac evidence run. They must not be falsely represented as available.
@@ -187,7 +187,7 @@ This review is grounded in `docs/institutional/MAC_G3_CERTIFICATION_RUNBOOK.md`,
 
 ### Founding-campus acceptance journeys (required, exact packaged release candidate)
 
-1. **Campus administrator:** create/choose synthetic campus, invite educator with passkey, enroll learner, assign and revoke learner access, view scoped audit events; never obtain host or database superuser rights.
+1. **Campus administrator:** create/choose sample campus, invite educator with passkey, enroll learner, assign and revoke learner access, view scoped audit events; never obtain host or database superuser rights.
 2. **Teacher roster:** sign in, see only assigned learners, add/update permitted learning-plan details, view evidence, progress, session continuity and mastery with explicit provenance.
 3. **Teacher decision:** receive grounded Bede recommendation, approve/edit/reject in UI, verify durable audit and that only approved/edited guidance appears in the correct learner's next authorized session.
 4. **Learner session:** launch with authorized identity, receive approved instruction, complete work, persist evidence/history, and show resulting progress to authorized teacher; revoked access must fail, including active streaming where applicable.

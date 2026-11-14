@@ -1,6 +1,6 @@
 # Local verification and handoff
 
-November 12, 2026. Scope: specification and synthetic contract fixtures only.
+November 12, 2026. Scope: specification and sample contract fixtures only.
 Base: `b36daf78c98d9c5184a650da70d09cc41f1f1233` in the actual Bede
 repository, isolated detached worktree `release-checkout/bede-pipeline-spec`.
 No new branch, remote write, PR, merge, publication, deployment, flag change,
@@ -19,7 +19,7 @@ From `curriculum/production-spec/`:
   address-space and 10 MiB per-file limit; external timeout 35 seconds.
   **All passed.** Schema/export output parsed back as JSON.
 * Executable `example()` serialized with `canonical()`, stored as JSON alongside
-  its synthetic asset, read with `read_bundle()`, then `check()` — **PASS**.
+  its sample asset, read with `read_bundle()`, then `check()` — **PASS**.
 * Canonical review export (without CLI trailing newline) SHA-256:
   `8361af57048f0f41340317284830249363c5051712a07ac30e5a9d9f6a21de93`.
   Determinism under object-key reordering and changes to excluded ledger fields
@@ -68,3 +68,11 @@ lawfully usable exact assets, independent academic evidence, explicit human
 slice acceptance and operating/access/safety evidence. Full-year work and
 Grades 9–12 remain distinct downstream milestones. No duplicate follow-up task
 was proposed; those planned tasks already cover the next work.
+
+**2026-11-14 note.** The fixture's wording was renamed under the banned
+nomenclature rule (CLAUDE.md, "Banned Nomenclature"), which changes the
+fixture text and so the digests above. `pairs.txt` is now 52 bytes,
+SHA-256 `a8c7a3c347ef3bacd41d9e93948b5d58eaf6742306f2416fd92f7f8e15ff9819`, and
+`contract.py check` reports review export SHA-256
+`7967cf5399867ff57d262cbf9b968028c4aea2cac5af7aeb8d6b8520bc24fee7`. The
+records above stay as they were observed at the time.

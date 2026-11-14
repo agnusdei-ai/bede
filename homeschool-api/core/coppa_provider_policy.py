@@ -23,7 +23,7 @@ def enforcement_enabled() -> bool:
 
     Import settings lazily: this module is also imported by the provider
     router while the application initializes. The demo is a separate
-    synthetic-only surface and retains its existing opt-in behavior.
+    sample-only surface and retains its existing opt-in behavior.
     """
     if os.environ.get("BEDE_COPPA_ENFORCE", "").strip().lower() in _TRUE:
         return True

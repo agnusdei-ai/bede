@@ -98,7 +98,7 @@ the pilot's device inventory actually needs.
 | Session lifecycle | Logout, expiry, revocation, background and resume, and reconnect expose nothing unauthorized |
 | Usability | Touch, keyboard, scrolling, zoom, orientation, English and Spanish all remain usable |
 
-Use synthetic learners only.
+Use sample learners only.
 
 ### Only a physical device can show these
 
@@ -142,7 +142,7 @@ session with:
    matrix.
 4. Run independent teacher sessions at the same time.
 5. Exercise grant and revoke, cross-campus denial, restart and reconnect.
-6. Confirm the expected provider and network behavior with synthetic inputs.
+6. Confirm the expected provider and network behavior with sample inputs.
 
 Never bypass TLS, CORS, MFA or authorization to make a client pass.
 

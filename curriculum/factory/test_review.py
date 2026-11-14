@@ -11,12 +11,12 @@ from fixture import write_fixture
 from ledger import Ledger
 from run import execute
 
-# All values here are synthetic test configuration, not workspace secrets.
+# All values here are sample test configuration, not workspace secrets.
 for key, value in {
-    "SECRET_KEY": "factory-synthetic-secret-" + "x"*32,
-    "MASTER_SECRET": "factory-synthetic-master-" + "y"*32,
-    "ANTHROPIC_API_KEY": "synthetic-never-called",
-    "DATABASE_URL": "postgresql+asyncpg://synthetic:synthetic@127.0.0.1/never_connect",
+    "SECRET_KEY": "factory-sample-secret-" + "x"*32,
+    "MASTER_SECRET": "factory-sample-master-" + "y"*32,
+    "ANTHROPIC_API_KEY": "sample-never-called",
+    "DATABASE_URL": "postgresql+asyncpg://sample:sample@127.0.0.1/never_connect",
 }.items():
     os.environ.setdefault(key, value)
 
@@ -43,7 +43,7 @@ class ReviewerTests(unittest.IsolatedAsyncioTestCase):
         self.root = Path(self.temp.name)
         write_fixture(self.root/"input")
         self.ledger = Ledger(self.root/"store")
-        self.job = execute(self.ledger, self.root/"input/bundle.json", "review-synthetic")
+        self.job = execute(self.ledger, self.root/"input/bundle.json", "review-sample")
         self.monkeypatch = pytest.MonkeyPatch()
         self.engine, self.Session, self.author, self.reviewer, self.outsider = await setup(self.monkeypatch)
 
@@ -57,12 +57,12 @@ class ReviewerTests(unittest.IsolatedAsyncioTestCase):
     async def stage(self, db):
         return await stage_for_review(
             db, token(self.author), "campus-a", self.ledger, self.job, "pairs",
-            rights_verified_by="Synthetic rights staff", rights_evidence_ref="synthetic:original")
+            rights_verified_by="Sample rights staff", rights_evidence_ref="sample:original")
 
     async def approve(self, db):
         return await review_staged_lesson(
             db, token(self.reviewer), "campus-a", "pairs",
-            decision=ReviewDecision.approve, notes="Synthetic adapter test, not curriculum approval")
+            decision=ReviewDecision.approve, notes="Sample adapter test, not curriculum approval")
 
     async def resolve(self, db, receipt, **kwargs):
         return await resolve_receipt(

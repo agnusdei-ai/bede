@@ -1,4 +1,4 @@
-"""Synthetic strict local HTTP transport regression tests; no network requests."""
+"""Sample strict local HTTP transport regression tests; no network requests."""
 import os
 import sys
 import unittest

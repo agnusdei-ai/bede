@@ -29,7 +29,7 @@
  *
  * `onPointerLeave` is kept, but only as a fallback for the case where
  * capture could not be established at all (very old WebViews, or a
- * synthetic pointer with no real id). When capture succeeded, a leave event
+ * sample pointer with no real id). When capture succeeded, a leave event
  * is ignored, because the whole point is that leaving the box is not the
  * end of the gesture.
  */

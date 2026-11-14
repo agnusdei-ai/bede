@@ -31,7 +31,7 @@ describe('approved practice delivery', () => {
 
   it('shows only the approved prompt, records the response, and sends it into Socratic chat', async () => {
     const onAnswer = vi.fn()
-    render(<PracticeDelivery token="synthetic-token" studentName="Synthetic Learner" onAnswer={onAnswer} />)
+    render(<PracticeDelivery token="sample-token" studentName="Sample Learner" onAnswer={onAnswer} />)
 
     expect(await screen.findByText('A duck swimming. Quid agit?')).toBeTruthy()
     expect(screen.queryByText(/Anas natat/)).toBeNull()
@@ -41,7 +41,7 @@ describe('approved practice delivery', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send my answer to Bede' }))
 
     await waitFor(() => expect(mocks.recordPracticeOutcome).toHaveBeenCalledWith(
-      'synthetic-token', 'Synthetic Learner', 21, 0, 'Anas natat.',
+      'sample-token', 'Sample Learner', 21, 0, 'Anas natat.',
     ))
     expect(onAnswer).toHaveBeenCalledWith('A duck swimming. Quid agit?', 'Anas natat.')
     expect(await screen.findByRole('button', { name: 'Check for approved practice' })).toBeTruthy()
@@ -53,7 +53,7 @@ describe('approved practice delivery', () => {
       items: [{ index: 0, prompt: 'What time does the clock show?', hint: '', diagram: { kind: 'clock', hour: 4, minute: 30 } }],
       completed_indices: [],
     }])
-    render(<PracticeDelivery token="synthetic-token" studentName="Synthetic Learner" onAnswer={vi.fn()} />)
+    render(<PracticeDelivery token="sample-token" studentName="Sample Learner" onAnswer={vi.fn()} />)
     expect(await screen.findByText('What time does the clock show?')).toBeTruthy()
     expect(screen.getByRole('img', { name: /A clock/ }).querySelector('svg')).not.toBeNull()
   })
@@ -61,7 +61,7 @@ describe('approved practice delivery', () => {
   it('does not send an answer to Bede when outcome recording fails', async () => {
     mocks.recordPracticeOutcome.mockRejectedValue(new Error('failed'))
     const onAnswer = vi.fn()
-    render(<PracticeDelivery token="synthetic-token" studentName="Synthetic Learner" onAnswer={onAnswer} />)
+    render(<PracticeDelivery token="sample-token" studentName="Sample Learner" onAnswer={onAnswer} />)
     await screen.findByText('A duck swimming. Quid agit?')
     fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), {
       target: { value: 'Anas natat.' },

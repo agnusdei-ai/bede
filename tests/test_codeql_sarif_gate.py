@@ -7,7 +7,7 @@ from scripts.check_codeql_sarif import check
 
 
 def _report(root: Path, level: str | None) -> None:
-    results = [] if level is None else [{"level": level, "ruleId": "security-test", "message": {"text": "synthetic"}}]
+    results = [] if level is None else [{"level": level, "ruleId": "security-test", "message": {"text": "sample"}}]
     (root / "test.sarif").write_text(json.dumps({"runs": [
         {"tool": {"driver": {"rules": []}}, "results": results}
     ]}))

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare one approved synthetic campus pilot entitlement without retaining a signing key.
+"""Prepare one approved sample campus pilot entitlement without retaining a signing key.
 
 Run this trusted script locally on the owner Mac only. The Ed25519 key exists
 only during this process. A new public verifier replaces the source constant,

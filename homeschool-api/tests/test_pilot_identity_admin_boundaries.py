@@ -1,4 +1,4 @@
-"""Synthetic identity-boundary checks for institutional pilot.
+"""Sample identity-boundary checks for institutional pilot.
 
 A campus SSO/LDAP identity must never become a Bede recovery administrator.
 These are direct route authorization tests, not a hardware WebAuthn E2E claim.
@@ -13,7 +13,7 @@ from routers.educator_passkeys import (
 
 
 @pytest.mark.parametrize("principal", [
-    {"role": "educator", "auth_method": "webauthn_uv", "sub": "synthetic"},
+    {"role": "educator", "auth_method": "webauthn_uv", "sub": "sample"},
     {"role": "parent", "auth_method": "oidc", "sub": "campus-directory"},
     {"role": "parent", "auth_method": "saml", "sub": "campus-directory"},
     {"role": "parent", "auth_method": "ldap", "sub": "campus-directory"},
@@ -53,7 +53,7 @@ async def test_directory_identity_cannot_invite_teacher(monkeypatch):
     monkeypatch.setattr(routes.settings, "demo_pin", "")  # is_demo_deployment is derived from demo_pin
     with pytest.raises(HTTPException) as exc:
         await invite_educator(
-            InviteRequest(username="synthetic.teacher", institutional_email="teacher@example.edu"),
+            InviteRequest(username="sample.teacher", institutional_email="teacher@example.edu"),
             admin={"role": "parent", "auth_method": "saml", "sub": "directory"},
             db=None,
         )

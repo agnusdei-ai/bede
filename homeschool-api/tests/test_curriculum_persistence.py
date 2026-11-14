@@ -47,7 +47,7 @@ async def test_additive_idempotent_and_campus_scoped(monkeypatch):
                 dict(campus_id=campus, lesson_id="l1", version=1,
                      owner_educator_id="educator-1", visibility="campus",
                      status="approved", generated=False, rights_status="original",
-                     review_id="r1", body_enc=b"synthetic-ciphertext")
+                     review_id="r1", body_enc=b"sample-ciphertext")
                 for campus in ("campus-a", "campus-b")
             ])
             result = (await connection.execute(
@@ -69,7 +69,7 @@ async def test_duplicate_lesson_key_rejected(monkeypatch):
         row = dict(campus_id="campus-a", lesson_id="lesson-1", version=1,
                    owner_educator_id="educator-1", visibility="teacher_private",
                    status="staged", generated=False, rights_status="original",
-                   review_id=None, body_enc=b"synthetic-ciphertext")
+                   review_id=None, body_enc=b"sample-ciphertext")
         async with engine.begin() as connection:
             await connection.execute(insert(lessons).values(**row))
         with pytest.raises(IntegrityError):
@@ -97,7 +97,7 @@ async def test_cross_campus_review_reference_rejected(monkeypatch):
                     campus_id="campus-b", lesson_id="lesson-1", version=1,
                     owner_educator_id="educator-1", visibility="campus",
                     status="approved", generated=False, rights_status="original",
-                    review_id="review-1", body_enc=b"synthetic-ciphertext"))
+                    review_id="review-1", body_enc=b"sample-ciphertext"))
     finally:
         await engine.dispose()
 

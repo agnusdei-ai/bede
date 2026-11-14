@@ -85,9 +85,9 @@ def test_llms_crawl_links_and_pilot_data_boundary():
         assert url in published or url == "https://agnusdei.ai/bede/", (
             f"llms.txt links to an undeclared public page: {url}"
         )
-    # llms.txt is read by crawlers, not shown on a page, and the owner chose to
-    # name the boundary there in both words (#782): "synthetic data (example records)".
-    assert "synthetic data" in llms.lower()
+    # llms.txt is read by crawlers, not shown on a page. #782 named the boundary
+    # there in two words; the owner's nomenclature rule (2026-11-14) dropped the
+    # first, so it now says "example records", as the school page does.
     assert "example records" in llms.lower()
     assert "real learner data" in llms.lower()
 
@@ -113,7 +113,9 @@ def test_school_plans_require_email_pricing_and_preserve_scope():
         assert "provided in response to an email request" in source
         assert "/inquire/?audience=charter_school" in source
         assert "example records" in source
-        assert "synthetic" not in source.lower()
+        # Banned nomenclature (scripts/check_nomenclature.sh), spelled from pieces.
+        for word in ("synth" + "etic", "simul" + "ated", "artifi" + "cial"):
+            assert word not in source.lower()
         assert "mutually agreed written" in source
     assert "each additional campus" in page.lower()
     assert "site/assets/schools-pricing.css" not in page  # Website URLs are root-relative.

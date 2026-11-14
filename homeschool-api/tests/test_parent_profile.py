@@ -88,6 +88,32 @@ def test_setting_reading_editing_and_clearing(ctx):
     assert ctx.get("/household/profile", headers=_h()).json() == {"parent_display_name": None}
 
 
+def test_learner_preferred_name_persists_without_changing_parent_greeting_or_storage_key(ctx):
+    from core.consent import notice_hash
+    from core.database import StudentConfig
+
+    ctx.put("/household/profile", json={"parent_display_name": "Adult"}, headers=_h())
+    config = {"student_name": "stable-name", "preferred_name": "First", "grade": "3", "grade_stage": "3-5"}
+    for preferred in ("First", "Second"):
+        config["preferred_name"] = preferred
+        response = ctx.post("/pod/configs", headers=_h(), json={
+            "configs": [config], "consent_notice_hash": notice_hash(),
+        })
+        assert response.status_code == 204, response.text
+        saved = ctx.get("/pod/configs/stable-name", headers=_h())
+        assert saved.status_code == 200
+        assert saved.json()["student_name"] == "stable-name"
+        assert saved.json()["preferred_name"] == preferred
+        assert ctx.get("/household/profile", headers=_h()).json() == {"parent_display_name": "Adult"}
+
+    async def read(s):
+        return (await s.execute(select(StudentConfig))).scalars().all()
+
+    rows = _db(ctx, read)
+    assert [row.student_name for row in rows] == ["stable-name"]
+    assert b"Second" not in rows[0].config_enc
+
+
 @pytest.mark.parametrize("empty", ["", "   ", "<>{}", "\n\t"])
 def test_an_empty_or_all_junk_value_clears_the_name(ctx, empty):
     ctx.put("/household/profile", json={"parent_display_name": "Kristian"}, headers=_h())

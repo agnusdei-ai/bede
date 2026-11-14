@@ -356,6 +356,16 @@ Near the top of Parent Setup there is a small card, **What should Bede call you?
 
 It is used only to greet you on your own screens. It is not your account name, it does not identify you to Bede or log you in, Bede never sends it to the AI, and it never appears in an email subject, a log or anything your child sees. It is kept encrypted on your own server. Use **Remove my name** (or save the box empty) to delete it. Do not enter a surname or legal name; Bede does not need one.
 
+### What Bede calls each child (preferred name)
+
+Each child card has an optional **Preferred name** under the child's name. Leave it empty and Bede uses the name above. Fill it in only if you want Bede to use a different spelling or a nickname. Bede then uses that name in greetings, lessons, feedback and the notes it writes for you, and your screens show it too.
+
+It only changes what is *said and shown*. Bede still saves this child's records under the name above, so setting or changing the preferred name does not move, copy or lose anything, and nothing else about the child's record changes. Two children who share a first name need two different names in the first box (for example "Sam" and "Sam R."), and each can still be addressed as "Sam" through the preferred name.
+
+Bede only asks for a first name. It never needs a surname or full legal name, and it does not read a name off a worksheet photo to decide whose work it is: you choose the child when you upload.
+
+Bede sends a child's name to its AI provider where the lesson or your notes need it. The summary Bede writes for you is addressed by name. The learner profile it builds from past work is not, because it does not need one. Generic session-summary and safeguarding email subjects reduce exposure, but the email bodies still contain learner information. Device notification previews may show body text, including a learner's name.
+
 ### Give a child their own PIN
 
 By default every child signs in with the one shared child PIN, and the

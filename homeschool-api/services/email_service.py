@@ -327,8 +327,8 @@ async def send_distress_alert(student_name: str, timestamp_iso: str, trigger_exc
     if not (email_configured() and recipient):
         return False
     html_body = build_distress_alert_html(student_name, timestamp_iso, trigger_excerpt, picture=picture)
-    subject = (f"Possible safety concern in {student_name}'s Bede session — please check in"
-               if picture is not None else f"Bede paused {student_name}'s session — please check in")
+    subject = ("Possible safety concern in a Bede session — please check in"
+               if picture is not None else "Bede paused a session — please check in")
     return await send_email(recipient, subject=subject, html_body=html_body)
 
 

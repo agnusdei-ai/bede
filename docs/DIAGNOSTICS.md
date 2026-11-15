@@ -233,6 +233,24 @@ the cause lives in Render, Cloudflare, or DNS.
 (dedicated and separately revocable). Without it the detector still runs
 and still reports; only the automated repair is skipped.
 
+## A turn ends when the chat screen goes away
+
+A lesson turn in flight is cancelled when the chat screen closes: on logout,
+on a move to another page, and when another learner's session replaces it.
+Before this, the request, its reader and its retry loop (up to about 25
+seconds, `services/api.ts`) kept running after the screen had gone, and the
+reply was written into whatever session the app held by then.
+
+The cancel is deferred by one tick and dropped if the screen comes straight
+back, because React's development StrictMode unmounts and remounts once on
+load. `SocraticChat.unmount.test.tsx` covers a request still waiting, a
+reply still streaming, no retry after leaving, and the StrictMode case.
+
+This was found while auditing stream cleanup for the macOS WebKit crash
+after an API restart. It is a cleanup fix, not a fix for that crash: a page
+reload already ends every request, and no before-and-after WebKit run has
+been made. The demo's chat has the same gap and is unchanged here.
+
 ## A turn lost to a dropped connection
 
 This is what it looks like in a trace, from a real 5G phone mid-lesson:

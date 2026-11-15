@@ -83,6 +83,18 @@ export default function SocraticChat({
   const [pendingPdfName, setPendingPdfName] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // A turn still in flight ends with the chat. Without this, a turn (and its
+  // up-to-25-second retry loop in services/api.ts) outlived the screen: it
+  // kept reading after a logout or a move to another page, and wrote its
+  // reply into whatever session the store held by then.
+  // Deferred one tick and cancelled on a remount, because React's development
+  // StrictMode unmounts and remounts once straight away, and aborting there
+  // would cancel the lesson's opening message for good.
+  const unmountAbortRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (unmountAbortRef.current) clearTimeout(unmountAbortRef.current)
+    return () => { unmountAbortRef.current = setTimeout(() => abortRef.current?.abort(), 0) }
+  }, [])
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const consecutiveContinuesRef = useRef(0)

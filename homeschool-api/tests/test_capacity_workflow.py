@@ -233,6 +233,35 @@ def test_the_shared_child_steps_load_and_export_what_both_callers_use():
     assert out.stdout.strip() == "childLogin,inputReady,passIntro,replies,sendChat,stillInLesson"
 
 
+def test_the_stack_env_boots_licensed_and_passes_production_validation(tmp_path, monkeypatch):
+    """stack_env.py's licence verifies under the checkout it rewrites, and the
+    .env it writes, plus the two values compose hard-codes, is a valid
+    production configuration, so the stack boots licensed rather than gated
+    or refusing to start. Run against a COPY of core/licensing.py."""
+    import importlib.util
+    sys.path.insert(0, str(CAP))
+    import stack_env
+    lic = tmp_path / "licensing.py"
+    lic.write_text((API_DIR / "core" / "licensing.py").read_text(encoding="utf-8"), encoding="utf-8")
+    key = stack_env.mint_license(lic)
+    spec = importlib.util.spec_from_file_location("capacity_licensing_copy", lic)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    info = mod.verify_license(key)
+    assert info.tier == "trial" and info.seats == 10 and not info.is_expired
+    lines = stack_env.env_lines("http://host.docker.internal:18411/v1", key,
+                                {"DB_POOL_SIZE": 20, "DB_MAX_OVERFLOW": None, "RATE_LIMIT_API_PER_MINUTE": None})
+    env = dict(line.split("=", 1) for line in lines)
+    assert env["DB_POOL_SIZE"] == "20" and "DB_MAX_OVERFLOW" not in env, "an unset override must stay the default"
+    from core.config import Settings
+    for k in list(os.environ):
+        if k.endswith("_API_KEY"):
+            monkeypatch.delenv(k, raising=False)
+    fields = {k.lower(): v for k, v in env.items() if k.lower() in Settings.model_fields}
+    s = Settings(_env_file=None, production="true", disable_api_docs="true", **fields)
+    assert s.db_pool_size == 20 and s.local_llm_base_url.endswith("/v1")
+
+
 def test_the_stub_delays_are_settable_and_default_to_the_journeys_values(tmp_path):
     """The capacity run fixes the stub's delays; the journeys keep theirs."""
     src = (JOURNEYS / "model_stub.py").read_text(encoding="utf-8")

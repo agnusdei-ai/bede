@@ -597,6 +597,9 @@ def build_step(kind: str, n: int, results: list[dict], learners_used: list[str],
         step["error"] = "no session completed sign-in: " + "; ".join(step["session_errors"][:3])
     api = step["api"]
     step["api_restarted"] = api.get("restarted", False)
+    if kind == "browser":
+        # Every browser session answers one approved practice question.
+        step["practice_required"] = n
     step["rate"] = {"busiest_client_per_min": {"api": api.get("busiest_client_per_min", 0)},
                     "limits": {"api": (api.get("settings") or {}).get("rate_limit_api_per_minute")},
                     "refused_by_bucket": api.get("rate_limited_by_bucket", {})}

@@ -104,6 +104,14 @@ def test_each_threshold_fails_the_step_and_names_its_class(change, cls):
     assert not v["passed"] and cls in v["classes"], v
 
 
+def test_a_browser_session_that_never_answered_its_practice_question_fails_the_step():
+    s = step(4, practice_required=4)
+    assert rpt.step_verdict(s, TH, 1.5)["passed"]
+    s["practice"]["accepted"] = 3
+    v = rpt.step_verdict(s, TH, 1.5)
+    assert not v["passed"] and "3 of 4 sessions answered" in v["reasons"][0]
+
+
 def test_first_token_is_judged_against_the_one_session_median():
     assert rpt.step_verdict(step(4, first=1.5 + TH["first_token_p95_excess_s"] - 0.1), TH, 1.5)["passed"]
     v = rpt.step_verdict(step(4, first=1.5 + TH["first_token_p95_excess_s"] + 0.1), TH, 1.5)

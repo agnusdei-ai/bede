@@ -109,6 +109,9 @@ def step_verdict(step: dict, th: dict, baseline: float | None) -> dict:
     dup = _n(step, "duplicated_turns") + _n(step, "practice", "duplicated")
     if dup > th["max_duplicated_turns"]:
         bad("response", f"{dup} duplicated turns or answers")
+    need = step.get("practice_required")
+    if need and _n(step, "practice", "accepted") < need:
+        bad("response", f"{_n(step, 'practice', 'accepted')} of {need} sessions answered their practice question")
     if step.get("session_errors"):
         bad("response", "session errors: " + "; ".join(step["session_errors"][:3]))
     short = [k for k, v in (step.get("turns_per_session") or {}).items() if v < th["min_turns_per_session"]]

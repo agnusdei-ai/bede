@@ -114,12 +114,43 @@ and a p95 first-token time no more than 3 seconds over the one-session median.
   (`VOICE_TRANSCRIPTION_MAX_CONCURRENCY` is 1, see
   [VOICE_SETUP.md](VOICE_SETUP.md)), so many children speaking at once queue
   behind each other. That queue is not measured here.
-- **The browsers and the stack share one runner.** The runner's own CPU and
-  memory are recorded at every step so a saturated runner reads as
-  client-side, never as a Bede limit.
+- **The browsers and the stack share one runner** (one job, one machine). The
+  runner's own CPU and memory are recorded at every step so a saturated runner
+  reads as client-side, never as a Bede limit. Measured on a machine the size
+  of the runner (4 cores, 16 GB): 10 Chromium sessions plus the API, the UI
+  server and the stub used about 4.4 GB of browser memory, 14% of memory and a
+  sustained 48% of CPU, so the single-job layout fits with room to spare. If a
+  stack run ever reports client-side, split the browsers onto a second job.
 - The instrumented launcher (`instrumented_api.py`) runs the same app with the
   same uvicorn flags as the image, plus read-only counters. It is never part
   of a family's deployment.
+
+## What the first runs found
+
+Measured on 2026-11-15 at commit `2352598`, **local target** (one 4-core,
+16 GB machine, SQLite, no docker), 60-second windows, model stub. The stack
+target, with Postgres, has not run yet; treat these as the first reading, not
+the result.
+
+| Run | Browser sessions supported | At 10 browsers | API clients supported | What failed first |
+|---|---|---|---|---|
+| Shipped pool (5 + 5) | 8 | **FAIL** | 8 | the database pool |
+| Raised pool (20 + 20, NON-DEFAULT) | 10 | PASS | 32 | the database pool, again, at 48 |
+
+The failure is a cliff, not a slope. Up to 8 sessions every turn's first words
+arrived in about 1.6 seconds (the stub's own 1.5 plus Bede's overhead); at 10
+browsers or 12 clients, demand for connections passed the pool's 10, requests
+waited the pool's full 30-second timeout, first words took over 31 seconds,
+some turns ended in a 500, and audit writes failed in the log. Memory stayed
+near 250 MB of the 1024 MB limit and the API's CPU stayed low throughout: the
+process was waiting, not working. Peak pool demand ran at roughly one and a
+quarter connections per active session, because a lesson turn holds its
+request's connection for the whole streamed reply while the same turn opens
+further short sessions (usage and audit records).
+
+Every sample device reached the API from its own address in both runs (one
+distinct client per browser and per API client), so the per-IP rate limit
+refused nothing.
 
 ## The database pool setting
 

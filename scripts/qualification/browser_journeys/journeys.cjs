@@ -165,12 +165,23 @@ async function child(br, bname, i) {
       await c.unrouteAll({ behavior: 'ignoreErrors' });
       check(who, 'client_retry_recovers_dropped_connection', aborted === 1 && seen >= 2 && !/didn't reach me/.test(await c.locator('body').innerText()), `attempts=${seen} aborted=${aborted}`);
     } else if (i === 1) {
-      // D-1 (#806): with the app's service worker in control, a one-second
-      // network drop while a turn is sent must still deliver the turn. The
-      // old worker answered the failed send with a fake 200 and the turn was
-      // lost with no message.
-      const controlled = await c.evaluate(async () => { await navigator.serviceWorker?.ready; return !!navigator.serviceWorker?.controller; });
-      check(who, 'service_worker_in_control', controlled);
+      // D-1 (#806): a one-second network drop while a turn is sent must
+      // still deliver the turn. The app's service worker, which once answered
+      // the failed send with a fake 200, is now retired (docs/RELIABILITY.md),
+      // so this also checks no worker is left in control of the page.
+      // navigator.serviceWorker.ready would never resolve with nothing
+      // registered, so this asks for the registrations instead. Polled with
+      // evaluate(), never waitForFunction(): waitForFunction does not await an
+      // async predicate, so its Promise counts as true and the check passes
+      // without ever looking (measured with Chromium on Playwright 1.56, the version CI pins,
+      // and on 1.63).
+      let noWorker = false;
+      for (let k = 0; k < 20 && !noWorker; k++) {
+        noWorker = await c.evaluate(async () => !navigator.serviceWorker?.controller
+          && ((await navigator.serviceWorker?.getRegistrations?.()) ?? []).length === 0);
+        if (!noWorker) await c.waitForTimeout(500);
+      }
+      check(who, 'no_service_worker_in_control', noWorker);
       await step(who, 'lesson_turn_through_network_blip', async () => {
         const n = await replies(c); await inputReady(c);
         const ta = c.locator('textarea').last(); await ta.fill('The river was the Nile.');
@@ -179,7 +190,7 @@ async function child(br, bname, i) {
         await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 60000 });
         await inputReady(c);
       });
-      check(who, 'turn_survives_network_blip_with_service_worker', true);
+      check(who, 'turn_survives_network_blip', true);
     } else {
       await step(who, 'lesson_turn_1', () => sendChat(c, 'The river was the Nile.'));
     }
@@ -261,41 +272,6 @@ async function child(br, bname, i) {
   await ctx.close().catch(() => {});
 }
 
-
-// Service-worker experiment for the macOS WebKit reload crash (owner
-// decision, #826). Diagnostic only: it prints SWPROBE lines and never calls
-// check(), so the row passes or fails exactly as before. Two extra WebKit
-// tabs for the same learner load the lesson BEFORE the API restart, one with
-// the service worker allowed and one with it blocked; after the restart each
-// reloads. Only the worker tab crashing implicates the worker; both crashing
-// clears it; neither crashing means the trigger needs something the real
-// child did, which is inconclusive.
-async function swProbe(br, name) {
-  const variants = [['sw_allowed', {}], ['sw_blocked', { serviceWorkers: 'block' }]];
-  const tabs = [];
-  for (const [label, opts] of variants) {
-    try {
-      const ctx = await br.newContext({ viewport: { width: 1180, height: 820 }, ...opts });
-      const pg = await ctx.newPage(); pg.on('dialog', d => d.accept());
-      await childLogin(pg, name);
-      const controlled = await pg.evaluate(async () => {
-        if (!navigator.serviceWorker) return false;
-        await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(r, 5000))]);
-        return !!navigator.serviceWorker.controller;
-      }).catch(() => 'unknown');
-      const beforeRestart = !fs.existsSync(path.join(CTL, 'killed'));
-      tabs.push({ label, ctx, pg, controlled, beforeRestart });
-    } catch (e) { console.log(`SWPROBE ${label} setup failed: ${String(e).split('\n')[0].slice(0, 160)}`); }
-  }
-  await waitFile('restarted').catch(() => {});
-  for (const t of tabs) {
-    let crashed = false; t.pg.on('crash', () => { crashed = true; });
-    const outcome = await t.pg.reload({ timeout: 60000 }).then(() => (crashed ? 'crashed' : 'ok'))
-      .catch(e => (crashed || /crash/i.test(String(e)) ? 'crashed' : `error: ${String(e).split('\n')[0].slice(0, 120)}`));
-    console.log(`SWPROBE ${t.label} controlled=${t.controlled} loaded_before_restart=${t.beforeRestart} reload=${outcome} at=${new Date().toISOString()}`);
-    await t.ctx.close().catch(() => {});
-  }
-}
 
 // No horizontal page scroll: a layout that only works at desktop width is a
 // usability failure on a phone even when every button still technically works.
@@ -632,7 +608,7 @@ function expectedChecks() {
       'approved_set_persisted_after_restart', 'child_answer_visible_to_parent_after_restart']) out.push([`parent${i + 1}_${b}`, c]);
     const child = [];
     if (i === 0) child.push('client_retry_recovers_dropped_connection', 'midstream_restart_shows_plain_message');
-    if (i === 1) child.push('service_worker_in_control', 'turn_survives_network_blip_with_service_worker');
+    if (i === 1) child.push('no_service_worker_in_control', 'turn_survives_network_blip');
     if (N > 1) child.push('sibling_data_refused');
     child.push('answer_persisted_after_restart', 'answer_retry_is_idempotent');
     for (const c of child) out.push([`child${i + 1}_${b}`, c]);
@@ -658,11 +634,7 @@ function pct(a, q) { const s = [...a].sort((x, y) => x - y); return s.length ? s
     await Promise.all(F.browsers.flatMap((b, i) => [boundaryParent(browsers[i], b, i), boundaryChild(browsers[i], b, i)]));
     await boundaryLockout(browsers[0]);
   } else {
-    const wk = PROFILE === 'desktop' ? F.browsers.indexOf('webkit') : -1;
-    await Promise.all([
-      ...F.browsers.flatMap((b, i) => [parent(browsers[i], b, i), child(browsers[i], b, i)]),
-      ...(wk >= 0 ? [swProbe(browsers[wk], LEARNERS[wk]).catch(e => console.log(`SWPROBE failed: ${String(e).slice(0, 160)}`))] : []),
-    ]);
+    await Promise.all(F.browsers.flatMap((b, i) => [parent(browsers[i], b, i), child(browsers[i], b, i)]));
   }
   const versions = Object.fromEntries(F.browsers.map((b, i) => [b, `${browsers[i].browserType().name()} ${browsers[i].version()}`]));
   for (const br of browsers) await br.close();

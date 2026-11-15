@@ -1363,10 +1363,10 @@ covers and writes new questions.
 
 Before you print:
 
-- Maths answers say **Worked out**: Bede computed them. A picture question
+- Math answers say **Worked out**: Bede computed them. A picture question
   (a shaded fraction, a clock, a shape) is drawn by Bede, and its answer is
   counted off that same picture, so the two always agree.
-- Picture questions work in every subject, not only maths: things measured
+- Picture questions work in every subject, not only math: things measured
   on a ruler, coins to count, a thermometer, animals, plants and objects to
   name or count (when the answer choices are pictures, they are drawn too), a scene, a timeline, a Venn diagram, a
   table, the water cycle or another cycle, and the steps of a process. Check
@@ -1682,7 +1682,7 @@ schedule rather than about your child:
 - Morning Time opens the day.
 - Anything you left a "pick this up here" note on comes next — your own
   instruction outranks any preference of Bede's.
-- Subjects that ask for sustained attention (maths, Latin, Greek, logic,
+- Subjects that ask for sustained attention (math, Latin, Greek, logic,
   language arts) sit earlier, while the day is fresh.
 - Anything that hasn't come up in a couple of weeks gets nudged forward
   before it drifts further.
@@ -1917,7 +1917,7 @@ subjects relate to your curriculum resources differently: see §5.
 
 ## What your child works on in mathematics, year by year
 
-The maths scope now targets what an independent or classical preparatory
+The math scope now targets what an independent or classical preparatory
 school expects, which means **grade 8 is a full Algebra I year** rather than
 the lighter grade-8 scope a conventional curriculum sets. That has knock-on
 effects earlier:
@@ -2129,6 +2129,23 @@ sibling.
 Use it the way you'd use any record of completed work on a team: to spot
 that one of your children has finished something another is just starting,
 and ask the first to show the second. Your children never see either card.
+
+## Map practice (kindergarten to grade 2)
+
+During History, Nature Study or Living Books, Bede may offer a K-2 child a
+few minutes of map practice, at most once a session. There is nothing to
+turn on. Kindergarten practises position words and maps as pictures from
+above, grade 1 symbols, a key and the four directions, and grade 2 the
+compass rose, simple grids and land and water. Your child watches one,
+does two with hints, then does three alone by tapping.
+
+- Bede never asks for your street, address or neighbourhood, and the
+  practice maps name no real place.
+- The maps and their answers are made by Bede's own code, not by the AI.
+- There is no map score. Each question your child gets right alone appears
+  in the work ledger on the Progress page, and nothing else is kept.
+
+See `docs/MAP_PRACTICE.md` for the detail.
 
 ## The writing pad: drawings, and where they go
 

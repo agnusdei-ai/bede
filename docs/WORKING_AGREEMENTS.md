@@ -256,7 +256,8 @@ repository itself is public.
 *Source: `CLAUDE.md` → Standing Workflow: Banned Nomenclature*
 
 Three words are banned from every tracked file: code, tests, fixtures, docs,
-workflows, file names and visible copy. `scripts/check_nomenclature.sh` names
+workflows, file names and visible copy. So is the UK spelling of "math": Bede
+writes US English. `scripts/check_nomenclature.sh` names
 them, built from pieces, and runs on every push and pull request. Test data
 and stand-ins are **sample**, **test**, **example** or **mock**. The one
 exemption is the full phrase for "AI" in the two legal notices, whose hashes

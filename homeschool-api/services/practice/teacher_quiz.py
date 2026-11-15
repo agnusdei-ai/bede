@@ -10,7 +10,7 @@ The workflow, and which step does what:
 4. The teacher uploads one student's completed work (``read_submission``).
 5. Bede proposes readings and scores (``score_responses``). Scoring is
    deterministic: a response is compared with the approved key in code,
-   numbers with the maths pack's exact evaluator. Only a written response
+   numbers with the math pack's exact evaluator. Only a written response
    with a rubric gets a model-proposed score, and it is always marked for
    the teacher.
 6. The teacher approves or corrects each result (``finalize``). Nothing

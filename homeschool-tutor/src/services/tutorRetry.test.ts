@@ -210,6 +210,34 @@ describe('a connection that drops before Bede answers', () => {
     expect(bodies[1]).toEqual(bodies[0])
   })
 
+  it('marks every retry as the same turn, so the server records the child’s work once', async () => {
+    // A retry can reach the server after an earlier attempt already saved
+    // the child's work. The shared turn id is what lets the server tell
+    // (services/turn_replay.py); a fresh id per attempt would save it twice.
+    fetchMock
+      .mockRejectedValueOnce(loadFailed())
+      .mockRejectedValueOnce(loadFailed())
+      .mockResolvedValueOnce(sseResponse(REPLY))
+
+    await drive(collect(run()))
+
+    const ids = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body).turn_id)
+    expect(ids).toHaveLength(3)
+    expect(ids[0]).toMatch(/^[A-Za-z0-9_-]{1,64}$/)
+    expect(new Set(ids).size).toBe(1)
+  })
+
+  it('gives each new turn its own id', async () => {
+    fetchMock.mockResolvedValue(sseResponse(REPLY))
+    await drive(collect(run()))
+    fetchMock.mockResolvedValue(sseResponse(REPLY))
+    await drive(collect(run()))
+
+    const ids = fetchMock.mock.calls.map((c) => JSON.parse(c[1].body).turn_id)
+    expect(ids).toHaveLength(2)
+    expect(ids[0]).not.toBe(ids[1])
+  })
+
   it('gives up rather than retrying forever, and reports the real failure', async () => {
     fetchMock.mockRejectedValue(loadFailed())
 

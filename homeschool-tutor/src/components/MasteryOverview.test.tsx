@@ -68,7 +68,7 @@ describe('MasteryOverview', () => {
   })
 
   it('emits no overall score across areas', () => {
-    // Averaging maths against language exposure would invent a quantity
+    // Averaging math against language exposure would invent a quantity
     // that does not exist, and would read as a grade for the child.
     const { container } = render(
       <MasteryOverview
@@ -85,11 +85,11 @@ describe('MasteryOverview', () => {
   it('holds the rows in the order given, never sorted by how well the child is doing', () => {
     // A list that reshuffles as a child improves is a ranking of their own
     // subjects. The order is the caller's fixed pedagogical one.
-    const weakMaths = summary({ domains: [{ domain: 'Fractions', average_probability: 0.1, level: 'gap', skills: [] }] })
+    const weakMath = summary({ domains: [{ domain: 'Fractions', average_probability: 0.1, level: 'gap', skills: [] }] })
     const strongWriting = summary({ domains: [{ domain: 'Narration', average_probability: 0.95, level: 'secure', skills: [] }] })
     const { container } = render(
       <MasteryOverview
-        areas={[area('mathematics', weakMaths), area('composition', strongWriting)]}
+        areas={[area('mathematics', weakMath), area('composition', strongWriting)]}
         loading={false}
         studentName="Ada"
       />

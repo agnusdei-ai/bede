@@ -1231,7 +1231,7 @@
     "saveTo": "Save to a student's record",
     "chooseStudent": "Choose a student",
     "saveResult": "Save result",
-    "saveHint": "Choose the student from your class list. Saving adds this result to their quiz history; maths questions Bede can read also count toward their progress. It is not an official assessment.",
+    "saveHint": "Choose the student from your class list. Saving adds this result to their quiz history; math questions Bede can read also count toward their progress. It is not an official assessment.",
     "saved": "Saved to {{name}}'s record.",
     "savedCorrection": "Saved as a correction to {{name}}'s earlier result.",
     "saveError": "The result could not be saved. Please try again.",
@@ -1247,5 +1247,125 @@
     "name": "Name",
     "date": "Date",
     "failed": "Printing did not start. Try again."
+  },
+  "errorBoundary": {
+    "message": "Something went wrong. Let's get back on track.",
+    "returnToLogin": "Return to Login",
+    "updating": "Bede was updated. Loading the new version…",
+    "checking": "Checking for a new version of Bede…"
+  },
+  "routine": {
+    "steps": "Steps",
+    "back": "Back to Bede",
+    "step": {
+      "watch": "Watch",
+      "together": "Together",
+      "your_turn": "Your turn"
+    }
+  },
+  "mapPractice": {
+    "title": "Map practice",
+    "loading": "Getting a map ready…",
+    "loadTrouble": "The map could not be loaded.",
+    "tryAgain": "Try again",
+    "finished": "You finished the map practice!",
+    "backToBede": "Back to Bede",
+    "anotherMap": "Another map",
+    "lead": {
+      "watch": "Watch first.",
+      "together": "Let’s do this one together.",
+      "your_turn": "Your turn."
+    },
+    "letsTry": "Let’s try one",
+    "next": "Next",
+    "right": "Yes, that’s it!",
+    "again": "Not quite. Look again and have another go.",
+    "shownSquare": "It is square {{square}}. It is marked in green.",
+    "shownChoice": "The answer is marked in green.",
+    "watchShownSquare": "The answer is marked in green.",
+    "watchShownChoice": "The answer is marked in green.",
+    "checkTrouble": "That could not be checked. Try again.",
+    "pickAMap": "Pick a map",
+    "pickAnAnswer": "Pick an answer",
+    "mapNumber": "Map {{n}}",
+    "mapLabel": "Map",
+    "compassLabel": "Compass",
+    "keyLabel": "Key",
+    "sideViewLabel": "The same things seen from the side",
+    "square": "Square {{label}}",
+    "compass": {
+      "n": "N",
+      "s": "S",
+      "e": "E",
+      "w": "W"
+    },
+    "ground": {
+      "water": "water"
+    },
+    "word": {
+      "above": "above",
+      "below": "below",
+      "left_of": "left of",
+      "right_of": "right of",
+      "north": "north",
+      "south": "south",
+      "east": "east",
+      "west": "west",
+      "land": "land",
+      "water": "water"
+    },
+    "symbol": {
+      "house": "house",
+      "tree": "tree",
+      "pond": "pond",
+      "gate": "gate",
+      "well": "well",
+      "barn": "barn",
+      "bridge": "bridge",
+      "rock": "rock",
+      "flower": "flower",
+      "bench": "bench"
+    },
+    "symbolThe": {
+      "house": "the house",
+      "tree": "the tree",
+      "pond": "the pond",
+      "gate": "the gate",
+      "well": "the well",
+      "barn": "the barn",
+      "bridge": "the bridge",
+      "rock": "the rock",
+      "flower": "the flower",
+      "bench": "the bench"
+    },
+    "symbolOf": {
+      "house": "the house",
+      "tree": "the tree",
+      "pond": "the pond",
+      "gate": "the gate",
+      "well": "the well",
+      "barn": "the barn",
+      "bridge": "the bridge",
+      "rock": "the rock",
+      "flower": "the flower",
+      "bench": "the bench"
+    },
+    "prompt": {
+      "position_choice": "Where is {{thingThe}}? Pick the word that fits: it is … {{referenceOf}}.",
+      "next_to_tap": "Tap what is next to {{referenceOf}}.",
+      "birds_eye_match": "Which map shows these things from above?",
+      "path_end_tap": "Start at {{startThe}}. Follow the path. Tap where it ends.",
+      "find_symbol_tap": "Use the key. Tap {{thingThe}} on the map.",
+      "symbol_meaning_choice": "Look at the square with the dashed box. What does that symbol show?",
+      "direction_tap": "Tap what is {{direction}} of {{referenceOf}}.",
+      "direction_choice": "Which way is {{thingThe}} from {{referenceThe}}?",
+      "place_tap": "Where would {{thingThe}} go if it is {{direction}} of {{referenceOf}}? Tap a square.",
+      "walk_tap": "Start at {{startThe}}. Go {{first}} {{first_steps}}, then {{second}} {{second_steps}}. Tap where you stop.",
+      "square_tap": "Tap square {{square}}.",
+      "square_choice": "Which square is {{thingThe}} in?",
+      "ground_tap": "Tap a square that is {{ground}}.",
+      "ground_choice": "Is square {{square}} land or water?"
+    },
+    "open": "Open the map"
   }
 }

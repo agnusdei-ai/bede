@@ -21,7 +21,7 @@ or to what a child that age "should" be doing, or even to how the same
 child did last week. Those are all comparisons, and a comparison answers
 a different question than the one a teaching parent is asking.
 
-The unit matters. Bede does not track "maths" — it tracks *divides
+The unit matters. Bede does not track "math" — it tracks *divides
 fractions*, *finds slope as a rate of change*, *reads multisyllable
 words*. A child is rarely good or bad at a subject; they are secure on
 some of its skills and not yet on others, and only the smaller unit tells
@@ -49,7 +49,7 @@ misleading.
 built from four observations is a guess wearing a number. Bede says so
 rather than hiding it: each area holds back its picture until it has
 enough — two assessed narrations for writing, three for reading and
-phonics, five for maths — and until then the card says it is still
+phonics, five for math — and until then the card says it is still
 getting to know your learner.
 
 **Marked quizzes count too.** A graded quiz you upload to the Practice

@@ -93,3 +93,33 @@ def test_no_workflow_uses_the_runner_context_where_github_forbids_it():
             if any("runner." in v for v in _env_values((job or {}).get("env"))):
                 offenders.append(f"{wf.name}: jobs.{name}.env")
     assert not offenders, offenders
+
+
+_QUALIFICATION = ROOT / "scripts" / "qualification"
+
+
+def _browser_scripts():
+    return [p for p in _QUALIFICATION.rglob("*") if p.suffix in {".cjs", ".js", ".mjs"} and "node_modules" not in p.parts]
+
+
+def test_no_browser_check_passes_an_async_predicate_to_waitForFunction():
+    """Playwright's waitForFunction does not await an async predicate: the
+    Promise it returns is truthy, so the wait succeeds at once and the check
+    never looks (measured with Chromium on Playwright 1.56, the version
+    CI pins, and on 1.63: an async predicate returning false resolved at once,
+    the same predicate written synchronously timed out). A check written that way
+    passes whatever the page is doing. Poll with evaluate() instead."""
+    offenders = [
+        str(p.relative_to(ROOT)) for p in _browser_scripts()
+        if re.search(r"waitForFunction\(\s*async\b", p.read_text(encoding="utf-8"))
+    ]
+    assert not offenders, offenders
+
+
+def test_the_journeys_check_no_service_worker_is_left_in_control():
+    """Bede's service worker is retired (docs/RELIABILITY.md). The old check
+    waited for one to take control, which would now hang forever."""
+    src = JOURNEYS.read_text(encoding="utf-8")
+    assert "'no_service_worker_in_control'" in src
+    assert "serviceWorker?.ready" not in src
+    assert "service_worker_in_control'" not in src.replace("no_service_worker_in_control'", "")

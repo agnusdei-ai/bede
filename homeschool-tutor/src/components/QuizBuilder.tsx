@@ -45,7 +45,7 @@ export function optionLines(options: string[]): string[] {
 /**
  * Make a new quiz or exam for one student from an existing quiz, a previous
  * or prep exam, or a description of the lesson. Bede drafts questions and
- * answers; maths answers are worked out again on the server, everything else
+ * answers; math answers are worked out again on the server, everything else
  * is marked to check. Nothing is saved: the parent prints the quiz and the
  * answer key.
  */

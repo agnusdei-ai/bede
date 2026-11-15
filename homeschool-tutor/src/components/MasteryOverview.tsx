@@ -22,7 +22,7 @@
  *
  *  - **No overall score.** There is no roll-up across areas, no composite,
  *    no single number for the child. Each area stands on its own, because
- *    averaging maths against language exposure would invent a quantity that
+ *    averaging math against language exposure would invent a quantity that
  *    does not exist and would read as a grade.
  *  - **No ordering by how well they are doing.** Rows sit in a fixed
  *    pedagogical order (foundational first), never sorted by score — a list

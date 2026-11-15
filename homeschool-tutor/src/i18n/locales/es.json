@@ -1247,5 +1247,125 @@
     "name": "Nombre",
     "date": "Fecha",
     "failed": "No se pudo imprimir. Inténtalo de nuevo."
+  },
+  "errorBoundary": {
+    "message": "Algo salió mal. Volvamos a empezar.",
+    "returnToLogin": "Volver al inicio de sesión",
+    "updating": "Bede se actualizó. Cargando la versión nueva…",
+    "checking": "Buscando una versión nueva de Bede…"
+  },
+  "routine": {
+    "steps": "Pasos",
+    "back": "Volver con Bede",
+    "step": {
+      "watch": "Mira",
+      "together": "Juntos",
+      "your_turn": "Tu turno"
+    }
+  },
+  "mapPractice": {
+    "title": "Práctica de mapas",
+    "loading": "Preparando un mapa…",
+    "loadTrouble": "No se pudo cargar el mapa.",
+    "tryAgain": "Intentar de nuevo",
+    "finished": "¡Terminaste la práctica de mapas!",
+    "backToBede": "Volver con Bede",
+    "anotherMap": "Otro mapa",
+    "lead": {
+      "watch": "Primero mira.",
+      "together": "Hagamos este juntos.",
+      "your_turn": "Tu turno."
+    },
+    "letsTry": "Vamos a probar uno",
+    "next": "Siguiente",
+    "right": "¡Sí, eso es!",
+    "again": "Todavía no. Mira otra vez e inténtalo de nuevo.",
+    "shownSquare": "Es el cuadro {{square}}. Está marcado en verde.",
+    "shownChoice": "La respuesta está marcada en verde.",
+    "watchShownSquare": "La respuesta está marcada en verde.",
+    "watchShownChoice": "La respuesta está marcada en verde.",
+    "checkTrouble": "No se pudo revisar. Inténtalo de nuevo.",
+    "pickAMap": "Elige un mapa",
+    "pickAnAnswer": "Elige una respuesta",
+    "mapNumber": "Mapa {{n}}",
+    "mapLabel": "Mapa",
+    "compassLabel": "Brújula",
+    "keyLabel": "Clave",
+    "sideViewLabel": "Las mismas cosas vistas de lado",
+    "square": "Cuadro {{label}}",
+    "compass": {
+      "n": "N",
+      "s": "S",
+      "e": "E",
+      "w": "O"
+    },
+    "ground": {
+      "water": "agua"
+    },
+    "word": {
+      "above": "arriba",
+      "below": "abajo",
+      "left_of": "a la izquierda",
+      "right_of": "a la derecha",
+      "north": "norte",
+      "south": "sur",
+      "east": "este",
+      "west": "oeste",
+      "land": "tierra",
+      "water": "agua"
+    },
+    "symbol": {
+      "house": "casa",
+      "tree": "árbol",
+      "pond": "estanque",
+      "gate": "portón",
+      "well": "pozo",
+      "barn": "granero",
+      "bridge": "puente",
+      "rock": "roca",
+      "flower": "flor",
+      "bench": "banca"
+    },
+    "symbolThe": {
+      "house": "la casa",
+      "tree": "el árbol",
+      "pond": "el estanque",
+      "gate": "el portón",
+      "well": "el pozo",
+      "barn": "el granero",
+      "bridge": "el puente",
+      "rock": "la roca",
+      "flower": "la flor",
+      "bench": "la banca"
+    },
+    "symbolOf": {
+      "house": "de la casa",
+      "tree": "del árbol",
+      "pond": "del estanque",
+      "gate": "del portón",
+      "well": "del pozo",
+      "barn": "del granero",
+      "bridge": "del puente",
+      "rock": "de la roca",
+      "flower": "de la flor",
+      "bench": "de la banca"
+    },
+    "prompt": {
+      "position_choice": "¿Dónde está {{thingThe}}? Elige la palabra que va: está … {{referenceOf}}.",
+      "next_to_tap": "Toca lo que está al lado {{referenceOf}}.",
+      "birds_eye_match": "¿Qué mapa muestra estas cosas vistas desde arriba?",
+      "path_end_tap": "Empieza en {{startThe}}. Sigue el camino. Toca donde termina.",
+      "find_symbol_tap": "Usa la clave. Toca {{thingThe}} en el mapa.",
+      "symbol_meaning_choice": "Mira el cuadro con la línea punteada. ¿Qué muestra ese símbolo?",
+      "direction_tap": "Toca lo que está al {{direction}} {{referenceOf}}.",
+      "direction_choice": "¿Hacia dónde queda {{thingThe}} desde {{referenceThe}}?",
+      "place_tap": "¿Dónde iría {{thingThe}} si está al {{direction}} {{referenceOf}}? Toca un cuadro.",
+      "walk_tap": "Empieza en {{startThe}}. Ve al {{first}} {{first_steps}}, luego al {{second}} {{second_steps}}. Toca donde te detienes.",
+      "square_tap": "Toca el cuadro {{square}}.",
+      "square_choice": "¿En qué cuadro está {{thingThe}}?",
+      "ground_tap": "Toca un cuadro que sea {{ground}}.",
+      "ground_choice": "¿El cuadro {{square}} es tierra o agua?"
+    },
+    "open": "Abrir el mapa"
   }
 }

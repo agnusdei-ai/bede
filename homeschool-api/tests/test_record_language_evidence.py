@@ -56,10 +56,12 @@ def test_record_language_evidence_tool_is_registered_with_the_right_schema():
 
 
 @pytest.mark.asyncio
-async def test_returns_none_under_every_condition_proving_no_sse_chunk_is_possible():
+async def test_returns_only_whether_it_saved_proving_no_sse_chunk_is_possible():
+    """Only a bool, consumed by _gated_save (services/turn_replay.py); never
+    content, so no code path could emit an SSE chunk for it."""
     tool_input = {"language": "latin", "outcome": "correct"}
-    assert await _record_language_evidence(None, None, _config(), Subject.history, tool_input) is None
-    assert await _record_language_evidence(None, None, _config(), Subject.history, {"outcome": "bad"}) is None
+    assert await _record_language_evidence(None, None, _config(), Subject.history, tool_input) is False
+    assert await _record_language_evidence(None, None, _config(), Subject.history, {"outcome": "bad"}) is False
 
 
 @pytest.mark.asyncio

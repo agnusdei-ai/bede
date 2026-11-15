@@ -509,17 +509,3 @@ def test_status_functions_appear_only_in_if_conditions(workflow):
     cross-platform matrix, and a YAML parse reported nothing wrong."""
     bad = list(_status_functions_outside_if(yaml.safe_load(workflow.read_text())))
     assert not bad, f"{workflow.name}: status function outside `if:` at {bad}"
-
-
-# ── the service-worker experiment is diagnostic only ────────────────────────
-
-def test_the_service_worker_probe_never_records_a_check_and_runs_only_on_desktop_webkit():
-    """Owner decision on #826: run the experiment without changing what the
-    macOS row asserts. The probe may print SWPROBE lines; it may not call
-    check(), and it runs only beside the WebKit desktop child."""
-    src = (HARNESS / "journeys.cjs").read_text()
-    start = src.index("async function swProbe(")
-    body = src[start:src.index("\n}\n", start)]
-    assert "check(" not in body and "SWPROBE" in body
-    assert "serviceWorkers: 'block'" in body
-    assert "PROFILE === 'desktop' ? F.browsers.indexOf('webkit')" in src

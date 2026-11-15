@@ -1,43 +1,34 @@
-const CACHE_NAME = 'bede-v3'
-const STATIC_ASSETS = ['/', '/index.html', '/manifest.json']
-const API_PREFIXES = ['/api/', '/auth/', '/tutor/', '/narration/', '/pod/', '/voice/', '/transcripts/', '/catalog/']
+// Bede no longer uses a service worker. This file exists only to remove the
+// one an older version installed.
+//
+// The old worker cached the app's pages under one fixed name and served them
+// cache-first, so a tablet could keep running an old release after
+// `make update` until its cache happened to be cleared. On the family Docker
+// deployment it never actually installed (nginx refused /manifest.json, which
+// its install step fetched), so families lose nothing by its removal; the
+// places it did run were development servers, test runs and any browser that
+// reached a build some other way.
+//
+// A browser that still has the old worker checks this URL for an update,
+// fetches this file, and installs it. On activation it deletes the caches the
+// old worker created (every name it used began with "bede-") and unregisters
+// itself. It deliberately has no fetch handler, so from
+// the moment it takes over nothing is intercepted: every request goes to the
+// network exactly as if no worker existed. It does not reload open pages, so
+// a child mid-lesson is never interrupted; the next load is simply served by
+// the server.
+//
+// See homeschool-tutor/src/utils/serviceWorker.ts (the page-side half) and
+// docs/RELIABILITY.md.
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  )
+self.addEventListener('install', () => {
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  )
-  self.clients.claim()
-})
-
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url)
-  const isApi = API_PREFIXES.some((p) => url.pathname.startsWith(p))
-
-  // API calls are never answered by the service worker. A failed fetch must
-  // reach the app as a real network error: streamTutorChat retries a turn
-  // that never got through (#794) and every other caller shows its own
-  // message. Answering with a sample 200 here made a one-second network
-  // drop lose the child's turn silently (#755, defect D-1).
-  if (isApi) return
-  // Only GETs are cached; anything else goes straight to the network.
-  if (e.request.method !== 'GET') return
-  // Cache-first for static assets
-  e.respondWith(
-    caches.match(e.request).then((cached) => cached || fetch(e.request).then((res) => {
-      if (res.ok) {
-        const clone = res.clone()
-        caches.open(CACHE_NAME).then((c) => c.put(e.request, clone))
-      }
-      return res
-    }))
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('bede-')).map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
   )
 })

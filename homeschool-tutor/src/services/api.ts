@@ -432,6 +432,15 @@ const TUTOR_MAX_ATTEMPTS = TUTOR_RETRY_DELAYS_MS.length + 1
 // Two missed keep-alives plus slack.
 const TUTOR_SILENCE_MS = 35_000
 
+/** A random id for one lesson turn. Null when the browser has no Web Crypto,
+ *  in which case the server records every attempt, exactly as before. */
+export function newTurnId(): string | null {
+  const c: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto
+  if (!c || typeof c.getRandomValues !== 'function') return null
+  const bytes = c.getRandomValues(new Uint8Array(16))
+  return `turn-${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
+}
+
 function browserSaysOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false
 }
@@ -608,6 +617,11 @@ export async function* streamTutorChat(
   // deliberately will not retry.
   // Set at the first retryable failure: the whole retry budget runs from there.
   let retryDeadline: number | undefined
+  // One id for this turn, reused by every retry below, so the server lets
+  // exactly one attempt record the child's work (services/turn_replay.py).
+  // A retry that reached the server after an earlier attempt had already
+  // saved something used to save it a second time.
+  const turnId = newTurnId()
   for (let attempt = 1; ; attempt++) {
     // Set before the first yield, so a failure that arrives after the child
     // has already seen part of Bede's reply is final rather than restarting
@@ -632,6 +646,7 @@ export async function* streamTutorChat(
           // keep no profile between sessions (see the backend's
           // retain_mastery_profiles). Ignored entirely otherwise.
           session_id: sessionId ?? null,
+          turn_id: turnId,
           // The subject the child just came from, so Bede marks the change
           // instead of greeting them again (TutorRequest.previous_subject).
           previous_subject: previousSubject ?? null,
@@ -2320,4 +2335,76 @@ export const finalizeTeacherQuiz = (
   body: { quiz: TeacherQuiz; results: { number: number; points: number | null }[] },
 ) => teacherQuizFetch<{ results: { number: number; points: number; max_points: number }[]; total: number; possible: number }>(
   token, 'finalize', body,
+)
+
+// ── Map-reading practice for K-2 (homeschool-api/services/map_practice.py) ──
+// The server draws every map and checks every answer. Nothing typed is sent:
+// an answer is a tapped square, one of the offered choices, or spoken words.
+
+export type MapCell = [number, number]
+
+export interface MapScene {
+  cols: number
+  rows: number
+  style: 'picture' | 'map'
+  items: { symbol: string; col: number; row: number }[]
+  water: MapCell[]
+  path: MapCell[]
+  compass: 'none' | 'north_only' | 'labeled'
+  grid_labels: boolean
+  key: boolean
+}
+
+export interface MapTask {
+  phase?: 'together' | 'your_turn'
+  index?: number
+  scene: MapScene
+  prompt: { key: string; args: Record<string, string | number | number[]> }
+  answer_kind: 'tap' | 'choice' | 'scene_choice'
+  choices?: string[]
+  options?: MapScene[]
+  side_view?: string[]
+  marked?: MapCell
+  guide_cells?: MapCell[]
+}
+
+export interface MapReveal { cell?: MapCell; choice?: string }
+
+export interface MapLesson {
+  lesson_id: string
+  level: 'K' | '1' | '2'
+  skill: string
+  your_turn_tries: number
+  watch: MapTask & { answer: MapReveal }
+  together: MapTask[]
+  your_turn: MapTask[]
+}
+
+export interface MapAnswerResult {
+  understood: boolean
+  correct: boolean
+  tries_left?: number
+  reveal?: MapReveal
+  recorded?: boolean
+}
+
+async function mapPracticeFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/map-practice${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (!res.ok) throw new Error(`map practice ${res.status}`)
+  return res.json()
+}
+
+export const fetchMapLesson = (token: string, studentName: string) =>
+  mapPracticeFetch<MapLesson>(token, `/${encodeURIComponent(studentName)}/lesson`)
+
+export const answerMapTask = (
+  token: string, studentName: string, lessonId: string,
+  phase: 'together' | 'your_turn', index: number,
+  answer: { cell: MapCell } | { choice: string } | { spoken: string },
+) => mapPracticeFetch<MapAnswerResult>(
+  token, `/${encodeURIComponent(studentName)}/lessons/${encodeURIComponent(lessonId)}/answers`,
+  { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
 )

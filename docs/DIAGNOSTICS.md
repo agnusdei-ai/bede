@@ -233,6 +233,35 @@ the cause lives in Render, Cloudflare, or DNS.
 (dedicated and separately revocable). Without it the detector still runs
 and still reports; only the automated repair is skipped.
 
+## A turn ends when the chat screen goes away
+
+A lesson turn in flight is cancelled when the chat screen closes: on logout,
+on a move to another page, and when another learner's session replaces it.
+Before this, the request, its reader and its retry loop (up to about 25
+seconds, `services/api.ts`) kept running after the screen had gone, and the
+reply was written into whatever session the app held by then.
+
+The cancel is deferred by one tick and dropped if the screen comes straight
+back, because React's development StrictMode unmounts and remounts once on
+load.
+
+A change of learner or session while the screen stays up ends the turn the
+same way, and the new session gets its own opening message. A turn that was
+cut off writes nothing more once the session in the app is no longer its
+own: no reply text, no error message, and no "finished" mark. Logging out
+and starting a session each clear the "Bede is replying" mark themselves,
+since the cut-off turn no longer does.
+
+`SocraticChat.unmount.test.tsx` covers a request still waiting, a reply
+still streaming, no retry after leaving, the StrictMode case, a learner
+change with the screen up, no late write into a replacement session, and
+the mark being cleared on logout.
+
+This was found while auditing stream cleanup for the macOS WebKit crash
+after an API restart. It is a cleanup fix, not a fix for that crash: a page
+reload already ends every request, and no before-and-after WebKit run has
+been made. The demo's chat has the same gap and is unchanged here.
+
 ## A turn lost to a dropped connection
 
 This is what it looks like in a trace, from a real 5G phone mid-lesson:
@@ -323,6 +352,15 @@ mirrored in `demo/src/`) substitutes the translated
 `chat.turnNetworkFailed` / `chatScreen.turnNetworkFailed` for a dropped
 connection or a cut-off stream, and leaves every other error's own text
 alone, since those are our sentences and were written for a reader.
+
+**A retried turn records the child's work once.** The server saves the
+child's work while it builds the reply, so a retry that reached it after an
+earlier attempt had already saved something used to save it again: the
+parent's Progress page then showed work done once as work done twice. Each
+turn now carries a `turn_id` that every retry of it reuses, and each piece of
+work in the turn is saved by one attempt only, marked once it actually saved: a
+save that failed or never ran is left for the retry. The retry still answers
+the child in full. See `docs/RELIABILITY.md`.
 
 The same predicate, `isNetworkFailure`, answers both questions — what to say,
 and whether trying again is reasonable — and is shared with the voice path,

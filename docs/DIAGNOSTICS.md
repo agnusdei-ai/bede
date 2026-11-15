@@ -243,8 +243,19 @@ reply was written into whatever session the app held by then.
 
 The cancel is deferred by one tick and dropped if the screen comes straight
 back, because React's development StrictMode unmounts and remounts once on
-load. `SocraticChat.unmount.test.tsx` covers a request still waiting, a
-reply still streaming, no retry after leaving, and the StrictMode case.
+load.
+
+A change of learner or session while the screen stays up ends the turn the
+same way, and the new session gets its own opening message. A turn that was
+cut off writes nothing more once the session in the app is no longer its
+own: no reply text, no error message, and no "finished" mark. Logging out
+and starting a session each clear the "Bede is replying" mark themselves,
+since the cut-off turn no longer does.
+
+`SocraticChat.unmount.test.tsx` covers a request still waiting, a reply
+still streaming, no retry after leaving, the StrictMode case, a learner
+change with the screen up, no late write into a replacement session, and
+the mark being cleared on logout.
 
 This was found while auditing stream cleanup for the macOS WebKit crash
 after an API restart. It is a cleanup fix, not a fix for that crash: a page

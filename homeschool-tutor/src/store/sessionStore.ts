@@ -201,6 +201,9 @@ export const useSessionStore = create<SessionState>()(
       sessionConfig: null,
       podStudents: [],
       displayMessages: [],
+      // A turn cut off by the logout no longer clears this itself (it may not
+      // write into a session that is not its own), so the store does.
+      isStreaming: false,
       subjectStart: 0,
       sessionId: null,
       sessionStartedAt: null,
@@ -252,6 +255,7 @@ export const useSessionStore = create<SessionState>()(
       currentSubjectIndex: 0,
       currentSubject: firstSubject,
       displayMessages: [welcomeMsg],
+      isStreaming: false,
       subjectStart: 1, // API history starts after the welcome system message
       subjectsCompleted: [],
     })

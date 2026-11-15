@@ -94,4 +94,60 @@ describe('leaving the chat ends the turn in flight', () => {
     await findByText(/Good morning/)
     expect(chatCalls(fetchMock).length).toBe(1)
   })
+
+  it('ends the turn when the learner changes while the chat stays up, and opens the new lesson', async () => {
+    const fetchMock = vi.fn((_url: unknown, init?: RequestInit) => new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SocraticChat />)
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1))
+    const first = (chatCalls(fetchMock)[0][1] as RequestInit)
+    act(() => {
+      useSessionStore.getState().setSessionConfig({ ...CONFIG, student_name: 'Ben' } as SessionConfig)
+      useSessionStore.getState().startSession()
+    })
+    await waitFor(() => expect(first.signal!.aborted).toBe(true))
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(2))
+    const second = JSON.parse(String((chatCalls(fetchMock)[1][1] as RequestInit).body))
+    expect(second.session_config.student_name).toBe('Ben')
+    expect(JSON.parse(String(first.body)).session_config.student_name).toBe('Ada')
+  })
+
+  it('writes nothing into a session that replaced its own', async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new TextEncoder().encode('data: {"type":"text","content":"Hello Ada"}\n')) },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body } as unknown as Response))
+    const { unmount, findByText } = render(<SocraticChat />)
+    await findByText(/Hello Ada/)
+    // Logout, then another learner signs in and their first reply starts,
+    // all before the old turn has finished winding down.
+    unmount()
+    act(() => {
+      const store = useSessionStore.getState()
+      store.logout()
+      store.setAuth('other-token', 'child')
+      store.setSessionConfig({ ...CONFIG, student_name: 'Ben' } as SessionConfig)
+      store.startSession()
+      store.startAssistantStream()
+      store.appendAssistantChunk('Hello Ben')
+    })
+    await new Promise((r) => setTimeout(r, 300))
+    const state = useSessionStore.getState()
+    expect(state.isStreaming).toBe(true)
+    const text = state.displayMessages.map((m) => m.content).join(' | ')
+    expect(text).toContain('Hello Ben')
+    expect(text).not.toContain('Hello Ada')
+    expect(text).not.toMatch(/⚠️/)
+  })
+
+  it('a logout clears the streaming mark the cut-off turn can no longer clear', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    const { unmount } = render(<SocraticChat />)
+    await waitFor(() => expect(useSessionStore.getState().isStreaming).toBe(true))
+    unmount()
+    act(() => { useSessionStore.getState().logout() })
+    expect(useSessionStore.getState().isStreaming).toBe(false)
+  })
 })

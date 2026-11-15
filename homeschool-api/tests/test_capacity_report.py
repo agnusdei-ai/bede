@@ -112,6 +112,16 @@ def test_a_browser_session_that_never_answered_its_practice_question_fails_the_s
     assert not v["passed"] and "3 of 4 sessions answered" in v["reasons"][0]
 
 
+@pytest.mark.parametrize("code", ["429", "500", "503"])
+def test_a_refusal_outside_a_lesson_turn_still_fails_the_step(code):
+    """A 429 on a reload's sign-in check or a 500 on a page load never shows up
+    in the turn records; the API's own status count catches it."""
+    s = step(4, extra={"api.statuses": {"200": 40, code: 1}})
+    v = rpt.step_verdict(s, TH, 1.5)
+    assert not v["passed"] and "response" in v["classes"], v
+    assert rpt.server_refusals(s) == ((1, 0) if code != "429" else (0, 1))
+
+
 def test_first_token_is_judged_against_the_one_session_median():
     assert rpt.step_verdict(step(4, first=1.5 + TH["first_token_p95_excess_s"] - 0.1), TH, 1.5)["passed"]
     v = rpt.step_verdict(step(4, first=1.5 + TH["first_token_p95_excess_s"] + 0.1), TH, 1.5)

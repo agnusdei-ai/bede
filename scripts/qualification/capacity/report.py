@@ -76,6 +76,18 @@ def _n(d: dict | None, *keys, default=0):
     return default if d is None else d
 
 
+def server_refusals(step: dict) -> tuple[int, int]:
+    """(5xx, 429) for one step. The API's own count of every response it sent
+    (sign-ins, page loads, reloads, practice) is authoritative where it was
+    recorded; the clients' count of their turns and answers is a floor, so a
+    refusal outside a lesson turn is never missed."""
+    oc = (step.get("summary") or {}).get("outcomes", {})
+    client5, client429 = oc.get("5xx", 0), oc.get("429", 0) + _n(step, "practice", "429")
+    st = (step.get("api") or {}).get("statuses") or {}
+    server5 = sum(v for k, v in st.items() if str(k).isdigit() and int(k) >= 500)
+    return max(client5, server5), max(client429, st.get("429", 0))
+
+
 def step_verdict(step: dict, th: dict, baseline: float | None) -> dict:
     """Whether one step met every threshold, why not, and which failure classes
     appeared. Unknown data never passes: a missing baseline, a missing
@@ -92,10 +104,9 @@ def step_verdict(step: dict, th: dict, baseline: float | None) -> dict:
         classes.add(cls)
         reasons.append(msg)
 
-    n5 = oc.get("5xx", 0)
+    n5, n429 = server_refusals(step)
     if n5 > th["max_5xx"]:
         bad("response", f"{n5} server errors (5xx)")
-    n429 = oc.get("429", 0) + _n(step, "practice", "429")
     if n429 > th["max_429"]:
         bad("response", f"{n429} refused by the rate limit (429)")
     if oc.get("timeout", 0) > th["max_timeouts"]:
@@ -283,7 +294,7 @@ def markdown(report: dict) -> str:
                 f"{s['sessions']}{mark}", s.get("status", "-"), f"{sm.get('completed', 0)}/{sm.get('turns', 0)}",
                 f"{_f(ft.get('p50'))}/{_f(ft.get('p95'))}/{_f(ft.get('max'))}",
                 f"{_f(fu.get('p50'))}/{_f(fu.get('p95'))}/{_f(fu.get('max'))}",
-                str(oc.get("5xx", 0)), str(oc.get("429", 0) + _n(s, "practice", "429")),
+                str(server_refusals(s)[0]), str(server_refusals(s)[1]),
                 str(oc.get("dropped", 0) + oc.get("error", 0) + oc.get("4xx", 0)
                     + _n(s, "practice", "missing") + _n(s, "practice", "refused")),
                 str(_n(s, "duplicated_turns") + _n(s, "practice", "duplicated")),

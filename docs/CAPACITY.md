@@ -150,7 +150,14 @@ further short sessions (usage and audit records).
 
 Every sample device reached the API from its own address in both runs (one
 distinct client per browser and per API client), so the per-IP rate limit
-refused nothing.
+refused nothing at 60-second windows. A shorter smoke run (20-second windows,
+so one device signed in and reloaded twice in two steps inside one minute)
+drew three 429s from the sign-in bucket (`RATE_LIMIT_AUTH_PER_MINUTE`, 10 a
+minute per device), and the refused reload put that child back at the sign-in
+screen. Each page load checks the session against `/auth/`, so the sign-in
+bucket is spent by reloads as well as sign-ins. That is a per-device pattern,
+not a capacity limit, but it is the one a tablet that keeps reloading would
+meet first.
 
 ## The database pool setting
 

@@ -264,6 +264,8 @@ def select(root: Path, files: list[str], *, full: bool = False) -> dict:
             "scripts/setup_wizard/", "scripts/trust_service/",
             "scripts/qualification/", "packaging/", "agent-governance/",
             ".github/workflows/", "scripts/qa/",
+            "scripts/release_repair/", "config/release-repair.json", "config/acceptance/",
+            "schemas/", ".github/agent-prompts/",
         )):
             known = True
             if name.startswith("scripts/qa/"):

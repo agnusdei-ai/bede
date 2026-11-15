@@ -1,0 +1,9 @@
+{
+  "label": "TEST ONLY: controller tests, not a Bede release gate",
+  "test_only": true,
+  "_note": "Used only by homeschool-api/tests/test_release_repair_*.py. READY against this manifest says nothing about Bede's real release gates.",
+  "gates": [
+    {"id": "backend_tests", "kind": "automated", "required": true, "source": "qa_runner", "scope": "backend"},
+    {"id": "independent_review", "kind": "review", "required": true, "source": "review"}
+  ]
+}

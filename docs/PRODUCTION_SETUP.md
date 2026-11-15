@@ -25,6 +25,13 @@ pass measured, target-device checks before a campus capacity is promised.
 The existing signed seat license remains authoritative; a separate
 purchase never enables unlimited seats by itself.
 
+How many children one backend serves at once is measured, not assumed: the
+capacity run ([CAPACITY.md](CAPACITY.md)) steps real browser sessions up to 10
+against one stack and reports the curve, the limit that binds first and a
+PASS/FAIL at 10. It runs on a CI runner with a model stub, so read the shape
+and the binding limit rather than the absolute count, and measure on the
+target device before promising a number.
+
 ## Parental Notice and Consent at install
 
 Every installation path begins with the **Parental Notice and Consent**

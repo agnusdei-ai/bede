@@ -1,0 +1,187 @@
+name: Capacity (report only)
+
+# How many children can ONE Bede backend serve at once on a private network?
+# Boots the real docker compose stack (Caddy -> nginx -> api + Postgres) on
+# one runner, then steps up real Chromium sessions (1, 2, 4, 6, 8, 10 by
+# default) and API clients (to 64) against it, and publishes the curve, the
+# supported count, which limit binds first, and PASS/FAIL/NOT_RUN at 10
+# browser sessions. See docs/CAPACITY.md.
+#
+# REPORT ONLY. Dispatch-only, never on a pull request or a schedule, and
+# nothing reads its result: it gates no merge and no release. A step that
+# fails its thresholds is a finding in the report, not a red run; the run is
+# red only when it could not produce trustworthy evidence.
+#
+# Sample data only. The AI provider is the loopback model stub; no secret is
+# used, no commercial model is called, no mail is sent. Every input reaches a
+# script through env:, never interpolated into a command.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: 'Full 40-character commit SHA to measure'
+        required: true
+        type: string
+      target:
+        description: 'stack = the real docker compose stack (the result); local = uvicorn + vite preview on the runner (a quick look)'
+        type: choice
+        options: [stack, local]
+        default: stack
+      parts:
+        description: 'browser = real Chromium sessions; api = API clients for headroom'
+        type: choice
+        options: ['browser,api', browser, api]
+        default: 'browser,api'
+      browser_steps:
+        description: 'Comma-separated browser session counts (10 at most); empty = capacity.json'
+        type: string
+        default: ''
+      api_steps:
+        description: 'Comma-separated API client counts; empty = capacity.json'
+        type: string
+        default: ''
+      window_seconds:
+        description: 'Steady-load seconds per step (10-900); empty = capacity.json'
+        type: string
+        default: ''
+      model:
+        description: 'stub = loopback model stub; ollama = a small local model (not built yet: reported NOT_RUN)'
+        type: choice
+        options: [stub, ollama]
+        default: stub
+      db_pool_size:
+        description: 'Optional DB_POOL_SIZE override (1-100); empty = shipped default'
+        type: string
+        default: ''
+      db_max_overflow:
+        description: 'Optional DB_MAX_OVERFLOW override (0-100); empty = shipped default'
+        type: string
+        default: ''
+      rate_limit_api_per_minute:
+        description: 'Optional RATE_LIMIT_API_PER_MINUTE override (1-10000); empty = shipped default'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  capacity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
+      TARGET: ${{ github.event.inputs.target }}
+      PARTS: ${{ github.event.inputs.parts }}
+      BROWSER_STEPS: ${{ github.event.inputs.browser_steps }}
+      API_STEPS: ${{ github.event.inputs.api_steps }}
+      WINDOW_SECONDS: ${{ github.event.inputs.window_seconds }}
+      MODEL: ${{ github.event.inputs.model }}
+      DB_POOL_SIZE_INPUT: ${{ github.event.inputs.db_pool_size }}
+      DB_MAX_OVERFLOW_INPUT: ${{ github.event.inputs.db_max_overflow }}
+      RATE_LIMIT_API_INPUT: ${{ github.event.inputs.rate_limit_api_per_minute }}
+      PLAYWRIGHT_VERSION: '1.56.0'
+    steps:
+      - name: Validate inputs
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "candidate_sha must be a full 40-character SHA"; exit 1; }
+          [[ "$TARGET" =~ ^(stack|local)$ ]] || { echo "bad target"; exit 1; }
+          [[ "$PARTS" =~ ^(browser,api|browser|api)$ ]] || { echo "bad parts"; exit 1; }
+          [[ "$MODEL" =~ ^(stub|ollama)$ ]] || { echo "bad model"; exit 1; }
+          for v in "$BROWSER_STEPS" "$API_STEPS"; do
+            [[ -z "$v" || "$v" =~ ^[1-9][0-9]{0,2}(,[1-9][0-9]{0,2}){0,19}$ ]] || { echo "steps must be comma-separated positive integers"; exit 1; }
+          done
+          [[ -z "$WINDOW_SECONDS" || "$WINDOW_SECONDS" =~ ^[1-9][0-9]{1,2}$ ]] || { echo "window_seconds must be 10-999"; exit 1; }
+          [[ -z "$DB_POOL_SIZE_INPUT" || "$DB_POOL_SIZE_INPUT" =~ ^([1-9][0-9]?|100)$ ]] || { echo "db_pool_size must be 1-100"; exit 1; }
+          [[ -z "$DB_MAX_OVERFLOW_INPUT" || "$DB_MAX_OVERFLOW_INPUT" =~ ^([0-9]{1,2}|100)$ ]] || { echo "db_max_overflow must be 0-100"; exit 1; }
+          [[ -z "$RATE_LIMIT_API_INPUT" || "$RATE_LIMIT_API_INPUT" =~ ^[1-9][0-9]{0,3}$ ]] || { echo "rate_limit_api_per_minute must be 1-9999"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install the load generator's Python dependencies from the hash-pinned lockfile
+        run: |
+          # The stack target needs only the HTTP client and the licence signer
+          # on the runner (the API runs in its own image); the local target
+          # runs the API here, so it takes the whole lockfile.
+          python - <<'PY'
+          import os, re
+          text = open("homeschool-api/requirements-dev.lock.txt", encoding="utf-8").read()
+          if os.environ["TARGET"] == "stack":
+              keep = {"httpx", "httpcore", "h11", "anyio", "idna", "certifi", "sniffio", "typing-extensions", "pycryptodome"}
+              blocks = re.split(r"\n(?=\S)", text)
+              text = "\n".join(b for b in blocks if b.split("==")[0].strip().lower().replace("_", "-") in keep) + "\n"
+          open("capacity-requirements.txt", "w", encoding="utf-8").write(text)
+          PY
+          python -m pip install --require-hashes --no-deps -r capacity-requirements.txt
+      - name: Build the app UI (local target)
+        if: env.TARGET == 'local'
+        working-directory: homeschool-tutor
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Install pinned Playwright and its Chromium
+        if: contains(env.PARTS, 'browser')
+        working-directory: scripts/qualification/capacity
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+          npx playwright install --with-deps chromium
+      - name: Write a throwaway licensed production .env (stack target)
+        if: env.TARGET == 'stack'
+        run: |
+          args=(--stub-url "http://host.docker.internal:18411/v1")
+          [[ -n "$DB_POOL_SIZE_INPUT" ]] && args+=(--db-pool-size "$DB_POOL_SIZE_INPUT")
+          [[ -n "$DB_MAX_OVERFLOW_INPUT" ]] && args+=(--db-max-overflow "$DB_MAX_OVERFLOW_INPUT")
+          [[ -n "$RATE_LIMIT_API_INPUT" ]] && args+=(--rate-limit-api-per-minute "$RATE_LIMIT_API_INPUT")
+          python scripts/qualification/capacity/stack_env.py "${args[@]}"
+      - name: Start the full stack (stack target)
+        if: env.TARGET == 'stack'
+        run: docker compose -f docker-compose.yml -f scripts/qualification/capacity/docker-compose.capacity.yml up -d --build
+      - name: Wait for the API to become healthy (stack target)
+        if: env.TARGET == 'stack'
+        run: |
+          for i in $(seq 1 90); do
+            if curl -skf https://localhost/api/health >/dev/null 2>&1; then
+              echo "Healthy after $((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API never became healthy"
+          docker compose ps
+          exit 1
+      - name: Run the capacity steps
+        run: |
+          args=(--sha "$CANDIDATE_SHA" --target "$TARGET" --parts "$PARTS" --model "$MODEL" --out "$RUNNER_TEMP/bede-capacity")
+          [[ -n "$BROWSER_STEPS" ]] && args+=(--browser-steps "$BROWSER_STEPS")
+          [[ -n "$API_STEPS" ]] && args+=(--api-steps "$API_STEPS")
+          [[ -n "$WINDOW_SECONDS" ]] && args+=(--window-s "$WINDOW_SECONDS")
+          if [[ "$TARGET" == "local" ]]; then
+            [[ -n "$DB_POOL_SIZE_INPUT" ]] && args+=(--db-pool-size "$DB_POOL_SIZE_INPUT")
+            [[ -n "$DB_MAX_OVERFLOW_INPUT" ]] && args+=(--db-max-overflow "$DB_MAX_OVERFLOW_INPUT")
+            [[ -n "$RATE_LIMIT_API_INPUT" ]] && args+=(--rate-limit-api-per-minute "$RATE_LIMIT_API_INPUT")
+          fi
+          python scripts/qualification/capacity/run_capacity.py "${args[@]}"
+      - name: Publish the report to the job summary
+        if: always()
+        run: |
+          f="$RUNNER_TEMP/bede-capacity/report.md"
+          if [ -f "$f" ]; then cat "$f" >> "$GITHUB_STEP_SUMMARY"; else echo "No report was written: NOT_RUN" >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Show the stack's state on failure (stack target)
+        if: failure() && env.TARGET == 'stack'
+        run: docker compose ps
+      - name: Preserve the capacity evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bede-capacity-${{ env.TARGET }}-${{ env.CANDIDATE_SHA }}
+          path: ${{ runner.temp }}/bede-capacity/
+          if-no-files-found: warn
+      - name: Tear down (stack target)
+        if: always() && env.TARGET == 'stack'
+        run: docker compose -f docker-compose.yml -f scripts/qualification/capacity/docker-compose.capacity.yml down -v

@@ -1,0 +1,16 @@
+# Capacity run only (docs/CAPACITY.md). Layered over the real
+# docker-compose.yml:
+#   docker compose -f docker-compose.yml -f scripts/qualification/capacity/docker-compose.capacity.yml up -d --build
+# The api container runs the same image, the same app and the same uvicorn
+# flags as homeschool-api/Dockerfile's CMD, through instrumented_api.py, which
+# only adds read-only counters (DB pool, statuses, client addresses, 429s by
+# bucket, RSS/threads/fds/disk I/O) written to its own /tmp. Nothing else in
+# the stack changes: Caddy, nginx, Postgres, the mem_limit, the read-only root
+# and the dropped capabilities are all as shipped. Never used by a family.
+services:
+  api:
+    command: ["python", "/capacity/instrumented_api.py", "--host", "0.0.0.0", "--port", "8000", "--forwarded-allow-ips", "*"]
+    environment:
+      - CAPACITY_METRICS_PATH=/tmp/capacity-metrics.json
+    volumes:
+      - ./scripts/qualification/capacity:/capacity:ro

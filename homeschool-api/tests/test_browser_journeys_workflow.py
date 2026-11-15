@@ -15,6 +15,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import time
 import re
 from pathlib import Path
@@ -327,55 +328,149 @@ def test_cleanup_is_registered_before_the_first_server_starts():
 
 
 # ── native crash reports on macOS (diagnostic only) ─────────────────────────
+# A fake report proves the collection mechanics only, not that macOS writes
+# one or that it is read correctly; that is checked on the runner.
 
-COLLECTOR = HARNESS / "collect_crash_reports.sh"
+COLLECTOR = HARNESS / "collect_crash_reports.py"
+SECRET = "SAMPLE_SECRET_MARKER_7f3a"
+SECRET_PATH = "/Users/runner/private-marker-dir/Thing.framework/Thing"
+
+
+def _collector():
+    spec = importlib.util.spec_from_file_location("collect_crash_reports", COLLECTOR)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _step(name_part: str) -> dict:
     return next(s for s in _job()["steps"] if name_part in str(s.get("name", "")))
 
 
-def test_the_job_start_is_marked_before_the_journeys_run():
-    steps = [str(s.get("name", "")) for s in _job()["steps"]]
-    mark = steps.index(next(n for n in steps if "Mark the job start for crash reports" in n))
-    journeys = steps.index(next(n for n in steps if "Run concurrent journeys" in n))
-    assert mark < journeys
+def _names() -> list[str]:
+    return [str(s.get("name", "")) for s in _job()["steps"]]
+
+
+def _ips(path: Path, proc="com.apple.WebKit.WebContent", secret=True):
+    header = {"bug_type": "309", "app_name": proc, "timestamp": "2026-11-15 00:53:00.00 +0000"}
+    body = {
+        "procName": proc, "pid": 4242, "faultingThread": 0,
+        "exception": {"type": "EXC_BAD_ACCESS", "signal": "SIGSEGV", "codes": "0x1, 0x0"},
+        "termination": {"namespace": "SIGNAL", "indicator": "Segmentation fault: 11",
+                        "reasons": [f"token={SECRET} at {SECRET_PATH}"] if secret else []},
+        "usedImages": [{"name": "WebCore", "path": SECRET_PATH}],
+        "threads": [{"triggered": True, "frames": [{"imageIndex": 0, "symbol": "WebCore::Page::reload"}]}],
+    }
+    path.write_text(json.dumps(header) + "\n" + json.dumps(body))
+
+
+def _fresh(tmp_path):
+    marker = tmp_path / "marker"; marker.write_text("")
+    os.utime(marker, (time.time() - 60, time.time() - 60))
+    user, system = tmp_path / "user", tmp_path / "system"; user.mkdir(); system.mkdir()
+    return marker, user, system
+
+
+def test_the_job_start_is_marked_early_and_collection_sits_between_the_journeys_and_the_upload():
+    n = _names()
+    mark = n.index(next(x for x in n if "Mark the job start for crash reports" in x))
+    run = n.index(next(x for x in n if "Run concurrent journeys" in x))
+    collect = n.index(next(x for x in n if "Collect native crash reports" in x))
+    upload = n.index(next(x for x in n if "Preserve journey evidence" in x))
+    assert mark < run < collect < upload
     assert "macOS" in str(_step("Mark the job start").get("if"))
 
 
-def test_crash_reports_are_collected_on_macos_even_after_a_failure_and_never_decide_the_row():
+def test_collection_runs_after_a_failure_and_cannot_change_the_row():
     step = _step("Collect native crash reports")
-    cond = str(step.get("if"))
-    assert "always()" in cond and "macOS" in cond
+    assert "always()" in str(step.get("if")) and "macOS" in str(step.get("if"))
     assert step.get("continue-on-error") is True
-    assert "collect_crash_reports.sh" in step["run"] and "DiagnosticReports" in step["run"]
-    names = [str(s.get("name", "")) for s in _job()["steps"]]
-    assert names.index(step["name"]) < names.index(next(n for n in names if "Preserve journey evidence" in n))
+    assert "failure()" in str(step.get("env", {}).get("CRASH_WAIT_SECONDS", ""))
+    # The journeys keep their own result: not wrapped, not continue-on-error.
+    run = _step("Run concurrent journeys")
+    assert "continue-on-error" not in run and "|| true" not in run["run"] and "||" not in run["run"]
 
 
-def test_the_collected_reports_are_uploaded():
-    upload = _step("Preserve journey evidence")
-    assert "crash-reports/" in upload["with"]["path"]
+def test_only_the_sanitized_summary_is_uploaded_and_upload_still_runs_after_a_failure():
+    upload, step = _step("Preserve journey evidence"), _step("Collect native crash reports")
+    assert "always()" in str(upload.get("if"))
+    assert "bede-browser-journeys/crash-reports/" in upload["with"]["path"]
+    assert "--summary-dir \"$RUNNER_TEMP/bede-browser-journeys/crash-reports\"" in step["run"]
+    raw = re.search(r'--raw-dir "\$RUNNER_TEMP/([^"]+)"', step["run"]).group(1)
+    assert not raw.startswith("bede-browser-journeys") and raw not in upload["with"]["path"]
 
 
-@pytest.mark.skipif(os.name == "nt", reason="the collector runs only on the macOS row")
-def test_the_collector_takes_only_this_jobs_webkit_reports_and_always_exits_zero(tmp_path):
-    reports, dest = tmp_path / "DiagnosticReports", tmp_path / "out"
-    reports.mkdir()
-    old = reports / "com.apple.WebKit.WebContent-old.ips"; old.write_text("old crash")
+def test_only_new_relevant_reports_are_taken_and_same_names_never_collide(tmp_path):
+    cc = _collector(); marker, user, system = _fresh(tmp_path)
+    old = user / "com.apple.WebKit.WebContent-old.ips"; _ips(old)
     os.utime(old, (time.time() - 3600, time.time() - 3600))
-    marker = tmp_path / "marker"; marker.write_text("")
-    os.utime(marker, (time.time() - 60, time.time() - 60))
-    (reports / "com.apple.WebKit.WebContent-new.ips").write_text("Thread 0 Crashed:\n0 WebCore frame\n")
-    (reports / "JetsamEvent-new.ips").write_text("largestProcess: WebContent\n")
-    (reports / "Finder-new.ips").write_text("not ours")
-    r = subprocess.run(["bash", str(COLLECTOR), str(marker), str(dest), str(reports), str(tmp_path / "missing")],
-                       capture_output=True, text=True)
+    (user / "Finder-new.ips").write_text("{}\n{}")
+    _ips(user / "com.apple.WebKit.WebContent-same.ips"); _ips(system / "com.apple.WebKit.WebContent-same.ips")
+    (user / "jetsamevent-2026.IPS").write_text(json.dumps({"bug_type": "298"}) + "\n" +
+                                               json.dumps({"largestProcess": "com.apple.WebKit.WebContent", "processes": []}))
+    rec = cc.collect(marker, [("user", user), ("system", system)], tmp_path / "raw", wait=0)
+    got = sorted((r["source"], r["file"]) for r in rec["reports"])
+    assert got == [("system", "com.apple.WebKit.WebContent-same.ips"), ("user", "com.apple.WebKit.WebContent-same.ips"),
+                   ("user", "jetsamevent-2026.IPS")]
+    assert (tmp_path / "raw/user/com.apple.WebKit.WebContent-same.ips").exists()
+    assert (tmp_path / "raw/system/com.apple.WebKit.WebContent-same.ips").exists()
+    assert rec["outcome"] == "report_collected"
+    crash = next(r for r in rec["reports"] if r["kind"] == "crash")
+    assert crash["exception"]["type"] == "EXC_BAD_ACCESS" and crash["termination"]["namespace"] == "SIGNAL"
+    assert crash["triggered_thread"] == 0 and crash["frames"] == ["WebCore WebCore::Page::reload"]
+
+
+def test_printed_and_saved_output_never_carries_a_secret_or_a_path(tmp_path):
+    cc = _collector(); marker, user, system = _fresh(tmp_path)
+    _ips(user / "com.apple.WebKit.WebContent-x.ips")
+    out = tmp_path / "summary"
+    r = subprocess.run([sys.executable, str(COLLECTOR), "--marker", str(marker), "--summary-dir", str(out),
+                        "--raw-dir", str(tmp_path / "raw"), "--wait", "0", "--dir", f"user={user}"], capture_output=True, text=True)
     assert r.returncode == 0
-    assert sorted(p.name for p in dest.iterdir()) == ["JetsamEvent-new.ips", "com.apple.WebKit.WebContent-new.ips"]
-    assert "Thread 0 Crashed" in r.stdout and "crash reports collected: 2" in r.stdout
-    assert "does not exist" in r.stdout
-    # No marker: nothing is attributed to this job, and still exit 0.
-    r = subprocess.run(["bash", str(COLLECTOR), str(tmp_path / "nomarker"), str(tmp_path / "out2"), str(reports)],
-                       capture_output=True, text=True)
-    assert r.returncode == 0 and "no job-start marker" in r.stdout
+    saved = (out / "crash-report-summary.json").read_text()
+    for text in (r.stdout, saved):
+        assert SECRET not in text and "private-marker-dir" not in text and "/Users/runner" not in text
+        assert "EXC_BAD_ACCESS" in text
+    cleaned = cc.sanitize("Authorization: Bearer abcdefgh12345678")
+    assert "abcdefgh12345678" not in cleaned and cleaned.startswith("Authorization: <redacted>")
+
+
+def test_no_report_is_inconclusive_and_never_read_as_a_kill(tmp_path):
+    cc = _collector(); marker, user, system = _fresh(tmp_path)
+    rec = cc.collect(marker, [("user", user), ("system", system)], tmp_path / "raw", wait=0)
+    assert rec["outcome"] == "no_matching_report"
+    assert rec["note"] == ("No matching native report was collected within the observation window. "
+                           "The process-termination cause remains unknown.")
+    assert "kill" not in json.dumps(rec).lower()
+
+
+def test_missing_and_denied_directories_are_recorded_separately_from_an_empty_search(tmp_path, monkeypatch):
+    cc = _collector(); marker, user, system = _fresh(tmp_path)
+    rec = cc.collect(marker, [("user", user), ("gone", tmp_path / "nope")], tmp_path / "raw", wait=0)
+    assert rec["directories"] == {"user": "searched", "gone": "missing"} and rec["outcome"] == "no_matching_report"
+    real = cc.os.scandir
+    monkeypatch.setattr(cc.os, "scandir", lambda d: (_ for _ in ()).throw(PermissionError()) if str(d) == str(system) else real(d))
+    rec = cc.collect(marker, [("system", system)], tmp_path / "raw", wait=0)
+    assert rec["directories"] == {"system": "permission_denied"} and rec["outcome"] == "collection_failed"
+    rec = cc.collect(tmp_path / "no-marker", [("user", user)], tmp_path / "raw", wait=0)
+    assert rec["outcome"] == "collection_failed" and "marker" in rec["note"]
+
+
+def test_a_collector_error_still_leaves_a_record(tmp_path, monkeypatch):
+    cc = _collector(); marker, user, _ = _fresh(tmp_path)
+    monkeypatch.setattr(cc, "collect", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    out = tmp_path / "summary"
+    status = cc.main(["--marker", str(marker), "--summary-dir", str(out), "--raw-dir", str(tmp_path / "raw"),
+                      "--wait", "0", "--dir", f"user={user}"])
+    rec = json.loads((out / "crash-report-summary.json").read_text())
+    assert status == 2 and rec["outcome"] == "collection_failed" and "RuntimeError" in rec["note"]
+
+
+def test_a_report_written_after_the_failure_is_still_caught_within_the_window(tmp_path):
+    import threading
+    cc = _collector(); marker, user, _ = _fresh(tmp_path)
+    threading.Timer(0.6, lambda: _ips(user / "com.apple.WebKit.WebContent-late.ips")).start()
+    t0 = time.monotonic()
+    rec = cc.collect(marker, [("user", user)], tmp_path / "raw", wait=5, interval=0.2)
+    assert [r["file"] for r in rec["reports"]] == ["com.apple.WebKit.WebContent-late.ips"]
+    assert time.monotonic() - t0 < 4, "it should stop once the report has settled, not wait out the window"

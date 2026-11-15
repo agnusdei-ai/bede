@@ -162,14 +162,27 @@ jobs:
         # runner.temp is not available in job-level env, so the evidence
         # directory is built from the RUNNER_TEMP variable here instead.
         run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --profile "$PROFILE" --browsers "$BROWSERS" --out "$RUNNER_TEMP/bede-browser-journeys"
-      # Diagnostic only: copies and prints the native report behind a WebKit
-      # "Page crashed", which Playwright reports with no backtrace. It never
-      # changes the row's result.
+      # Diagnostic only: summarizes the native report behind a WebKit "Page
+      # crashed", which Playwright reports with no backtrace. Never changes
+      # the row's result. Crash reports may contain sensitive diagnostic
+      # information and this repository's logs and artifacts are public, so
+      # only a sanitized summary is printed and uploaded; the full copies go
+      # to a directory that is never uploaded. A missing report is
+      # inconclusive, not evidence of how the process ended.
       - name: Collect native crash reports (diagnostic only)
         if: always() && runner.os == 'macOS'
         continue-on-error: true
         shell: bash
-        run: bash scripts/qualification/browser_journeys/collect_crash_reports.sh "$RUNNER_TEMP/crash-report-marker" "$RUNNER_TEMP/bede-browser-journeys/crash-reports" "$HOME/Library/Logs/DiagnosticReports" /Library/Logs/DiagnosticReports
+        env:
+          CRASH_WAIT_SECONDS: ${{ failure() && '45' || '5' }}
+        run: >-
+          python scripts/qualification/browser_journeys/collect_crash_reports.py
+          --marker "$RUNNER_TEMP/crash-report-marker"
+          --summary-dir "$RUNNER_TEMP/bede-browser-journeys/crash-reports"
+          --raw-dir "$RUNNER_TEMP/crash-reports-raw-not-uploaded"
+          --wait "$CRASH_WAIT_SECONDS"
+          --dir "user=$HOME/Library/Logs/DiagnosticReports"
+          --dir "system=/Library/Logs/DiagnosticReports"
       - name: Preserve journey evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -179,7 +192,7 @@ jobs:
             ${{ runner.temp }}/bede-browser-journeys/*.json
             ${{ runner.temp }}/bede-browser-journeys/*.log
             ${{ runner.temp }}/bede-browser-journeys/*.png
-            ${{ runner.temp }}/bede-browser-journeys/crash-reports/*
+            ${{ runner.temp }}/bede-browser-journeys/crash-reports/
           if-no-files-found: warn
           # A dispatched candidate run is release evidence and is kept longer
           # than a pull request's routine run.

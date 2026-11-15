@@ -41,11 +41,27 @@ image, the Playwright version and every browser's exact version in its
 `results.json`. Candidate (dispatched) evidence is kept 90 days; download it
 into the release record before then.
 
-On macOS, the job also copies and prints any native crash report written
-during it (WebKit and Playwright processes, and `JetsamEvent` for a
-memory-pressure kill). Playwright reports a WebKit "Page crashed" with no
-backtrace, and the native report is the only stack. Collecting it never
-changes a row's result.
+On macOS, the job also looks for native crash reports written during it
+(WebKit, WebContent, Playwright and `JetsamEvent`, polled for a bounded
+window). Playwright reports a WebKit "Page crashed" with no backtrace, and
+the native report is the only stack. Collecting it never changes a row's
+result, and its outcome is one of:
+
+- **report collected:** process, exception and termination fields, the
+  triggered thread and its frames;
+- **collected but uncertain:** found, but not parsed or not attributable;
+- **no matching report:** inconclusive. The process-termination cause
+  remains unknown, because a report's absence says nothing about how the
+  process ended;
+- **collection failed:** a directory was missing or inaccessible, or the
+  collector itself failed.
+
+Crash reports may contain sensitive diagnostic information. This
+repository's logs and artifacts are public, so only a sanitized, bounded
+summary is printed and uploaded (paths reduced to file names, tokens,
+long identifiers and email addresses redacted). The full reports are kept
+in a runner directory that is never uploaded. Preserving one needs a
+restricted location and a sensitivity review first.
 
 ## 1a. Boundaries checked on every run of the `boundary` row
 

@@ -338,6 +338,12 @@ async function mobileChild(br, dev, i) {
 // over-long message, a child reaching parent pages, text at 175%, and the
 // account-recovery route staying reachable while the parent is locked out.
 const tokenIn = pg => pg.evaluate(() => Object.keys(sessionStorage).some(k => { try { return !!JSON.parse(sessionStorage.getItem(k))?.state?.token } catch { return false } }));
+// The refusal checks compare the stub's reading count before and after, and
+// every browser's parent shares one stub. One parent's real reading landing in
+// another's window counted as a read of a refused file (status=422 reads=1 on
+// 1e755825). Sections that read or count readings take turns.
+let readingTurn = Promise.resolve();
+const readingExclusive = fn => { const run = readingTurn.then(fn); readingTurn = run.catch(() => {}); return run; };
 const stubCount = kind => { try { return fs.readFileSync(path.join(OUT, 'stub.jsonl'), 'utf8').split('\n').filter(l => l.includes(`"kind": "${kind}"`)).length; } catch { return 0; } };
 const appFetch = (pg, p, method = 'GET', body, auth = true) => pg.evaluate(async ([p, method, body, auth]) => {
   let tok = null; if (auth) for (const k of Object.keys(sessionStorage)) { try { const v = JSON.parse(sessionStorage.getItem(k)); if (v?.state?.token) tok = v.state.token } catch {} }
@@ -409,6 +415,7 @@ async function boundaryParent(br, bname, i) {
     const { card } = await step(who, 'open_practice_coach', () => openCoach(p, learner, true));
     await card.locator('select').first().selectOption('history');
     const input = card.getByLabel('Photos or a PDF of the graded pages');
+    await readingExclusive(async () => {
     const readsBefore = stubCount('reading');
     await input.setInputFiles(path.join(F.fixtures, 'oversize.jpg'));
     const big = await card.getByText(/larger than 25 MB/).waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
@@ -421,9 +428,10 @@ async function boundaryParent(br, bname, i) {
     const reviewing = await card.getByRole('button', { name: 'Confirm and plan practice' }).count();
     check(who, 'unsupported_upload_refused_without_reading', !reviewing && stubCount('reading') === readsBefore && (r === null || r.status() >= 400),
       `status=${r ? r.status() : 'not sent'} reads=${stubCount('reading') - readsBefore}`);
+    });
 
     await input.setInputFiles(path.join(F.fixtures, 'quiz.png'));
-    await step(who, 'upload_and_read', async () => { await card.getByRole('button', { name: 'Read the quiz' }).click(); await card.getByRole('button', { name: 'Confirm and plan practice' }).waitFor({ timeout: 120000 }); });
+    await readingExclusive(() => step(who, 'upload_and_read', async () => { await card.getByRole('button', { name: 'Read the quiz' }).click(); await card.getByRole('button', { name: 'Confirm and plan practice' }).waitFor({ timeout: 120000 }); }));
     await card.getByLabel("Teacher's correction for Ancient Egypt #2").fill('pharaoh');
     await card.getByRole('button', { name: 'Looks right' }).click();
     await card.getByLabel("Teacher's correction for Ancient Egypt #3").fill('papyrus');

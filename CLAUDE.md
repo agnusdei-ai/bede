@@ -2406,7 +2406,7 @@ feature is not done until its documentation is:
    thorough PR description is not a substitute — PRs get buried in git
    history; docs are what the next person (or session) actually reads.
 
-**Use Bede's own words.** `docs/GLOSSARY.md` lists them (pod, learning sprint, mastery cycle, work ledger, narration and the rest) with the generic phrase each replaces. A small group is a **pod**; a short focused block is a **learning sprint**, which is never the mastery cycle and never carries a deadline. New docs and copy use these; `site/` and `demo/` wording still changes only with sign-off.
+**Use Bede's own words.** `docs/GLOSSARY.md` lists them (pod, learning sprint, mastery cycle, work ledger, narration and the rest) with the generic phrase each replaces. A small group is a **pod**; a focused 20-minute block is a **learning sprint**, which is never the mastery cycle and never carries a deadline. New docs and copy use these; `site/` and `demo/` wording still changes only with sign-off.
 
 Also check whether the change makes existing doc text stale (e.g. a new
 setting that replaces "this isn't configurable") and fix that text in the

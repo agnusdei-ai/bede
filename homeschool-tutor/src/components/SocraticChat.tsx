@@ -442,6 +442,12 @@ export default function SocraticChat({
     turnOwnerRef.current = turnOwner
     abortRef.current?.abort()
     openerFiredRef.current.clear()
+    // The turn just cut off no longer clears these itself (it is not this
+    // session's turn any more), and a stale "replying" mark would block the
+    // new session's opening message.
+    advanceSubjectRef.current = false
+    setStreaming(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [turnOwner])
 
   const clearInactivityTimer = useCallback(() => {

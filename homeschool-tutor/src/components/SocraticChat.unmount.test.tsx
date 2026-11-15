@@ -114,6 +114,18 @@ describe('leaving the chat ends the turn in flight', () => {
     expect(JSON.parse(String(first.body)).session_config.student_name).toBe('Ada')
   })
 
+  it('opens the new lesson even when the learner changes without a new session being started', async () => {
+    const fetchMock = vi.fn((_url: unknown, init?: RequestInit) => new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SocraticChat />)
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1))
+    act(() => { useSessionStore.getState().setSessionConfig({ ...CONFIG, student_name: 'Ben' } as SessionConfig) })
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(2))
+    expect(JSON.parse(String((chatCalls(fetchMock)[1][1] as RequestInit).body)).session_config.student_name).toBe('Ben')
+  })
+
   it('writes nothing into a session that replaced its own', async () => {
     const body = new ReadableStream<Uint8Array>({
       start(controller) { controller.enqueue(new TextEncoder().encode('data: {"type":"text","content":"Hello Ada"}\n')) },

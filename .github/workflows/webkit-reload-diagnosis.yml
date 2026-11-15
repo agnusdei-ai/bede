@@ -22,7 +22,7 @@ on:
       orders:
         description: 'JSON list of browser orders for the macOS desktop journey; each must include webkit'
         required: false
-        default: '["webkit,chrome,firefox", "chrome,webkit,firefox", "chrome,msedge,webkit,firefox", "chrome,msedge,firefox,webkit"]'
+        default: '["webkit,chrome,firefox", "chrome,msedge,webkit,firefox"]'
 
 permissions:
   contents: read
@@ -32,6 +32,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The minimal reproduction, independent of Bede: a tiny local page, one
+  # factor varied at a time (pushState or not, replaceState, a real
+  # navigation, one, two or three reloads), in WebKit with Chromium and
+  # Firefox as controls. A crash is the observation; the job passes either way
+  # and the REPRO/TALLY lines are the result.
+  minimal:
+    name: WebKit reload diagnosis (minimal reproduction)
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
+      PLAYWRIGHT_VERSION: '1.56.0'
+    steps:
+      - name: Validate candidate SHA
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "candidate_sha must be a full 40-character SHA"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install pinned Playwright and its engines
+        shell: bash
+        working-directory: scripts/qualification/browser_journeys
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+          npx playwright install webkit chromium firefox
+      - name: Run the minimal reproduction
+        shell: bash
+        working-directory: scripts/qualification/browser_journeys
+        env:
+          REPEATS: '3'
+        run: node webkit_nav_repro.cjs
+
   journeys:
     name: WebKit reload diagnosis (${{ matrix.browsers }})
     runs-on: macos-15

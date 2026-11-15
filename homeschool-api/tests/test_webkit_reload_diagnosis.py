@@ -38,11 +38,25 @@ def test_it_is_dispatch_only_read_only_and_macos():
     assert "secrets." not in DIAG.read_text()
 
 
-def test_the_default_orders_put_webkit_in_every_position():
+def test_the_default_orders_compare_webkit_first_with_the_gates_order():
+    """The probes showed the trigger is a pushState then two reloads, not the
+    slot, so two orders confirm it: WebKit first, and the gate's own order."""
     orders = json.loads(_load(DIAG)["_on"]["workflow_dispatch"]["inputs"]["orders"]["default"])
-    positions = {o.split(",").index("webkit") for o in orders}
-    assert positions == {0, 1, 2, 3}
-    assert "chrome,msedge,webkit,firefox" in orders     # the gate's own order, as the control
+    assert {o.split(",").index("webkit") for o in orders} == {0, 2}
+    assert "chrome,msedge,webkit,firefox" in orders
+
+
+def test_the_minimal_reproduction_runs_every_engine_and_varies_one_factor():
+    job = _load(DIAG)["jobs"]["minimal"]
+    assert job["runs-on"] == "macos-15"
+    assert job["env"]["PLAYWRIGHT_VERSION"] == _load(GATE)["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"]
+    install = next(s for s in job["steps"] if "playwright install" in str(s.get("run", "")))
+    assert all(e in install["run"] for e in ("webkit", "chromium", "firefox"))
+    repro = (JOURNEYS.parent / "webkit_nav_repro.cjs").read_text()
+    for v in ("A_no_push_two_reloads", "B_push_two_reloads", "C_push_one_reload",
+              "D_replace_two_reloads", "E_real_navigation_two_reloads"):
+        assert v in repro
+    assert "process.exit(1)" not in repro       # a crash is the observation, not a script failure
 
 
 def test_every_order_is_validated_before_anything_runs():

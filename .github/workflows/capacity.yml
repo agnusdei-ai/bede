@@ -80,7 +80,7 @@ jobs:
       DB_POOL_SIZE_INPUT: ${{ github.event.inputs.db_pool_size }}
       DB_MAX_OVERFLOW_INPUT: ${{ github.event.inputs.db_max_overflow }}
       RATE_LIMIT_API_INPUT: ${{ github.event.inputs.rate_limit_api_per_minute }}
-      PLAYWRIGHT_VERSION: '1.56.0'
+      PLAYWRIGHT_VERSION: '1.63.0'
     steps:
       - name: Validate inputs
         run: |

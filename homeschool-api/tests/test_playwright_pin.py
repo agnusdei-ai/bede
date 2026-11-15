@@ -31,6 +31,7 @@ REPRODUCING = "1.56.0"
 PIN_SITES = {
     WF / "cross-platform-browser-journeys.yml": r"PLAYWRIGHT_VERSION: '([\d.]+)'",
     WF / "webkit-reload-diagnosis.yml": r"PLAYWRIGHT_VERSION: '([\d.]+)'",
+    WF / "capacity.yml": r"PLAYWRIGHT_VERSION: '([\d.]+)'",
     WF / "qualification.yml": r"(?:playwright_version:\n(?:\s+\w+:.*\n)*?\s+default: |inputs\.playwright_version \|\| ')(\d+\.\d+\.\d+)",
     WF / "macos-installer-ui.yml": r"playwright==([\d.]+)",
     WF / "build-bede-operator.yml": r"playwright==([\d.]+)",

@@ -64,6 +64,33 @@ async function passIntro(c) {
     await c.waitForTimeout(200);
   }
 }
+// Diagnostic only (the macOS WebKit reload crash): what each page holds just
+// before a reload. Every request still in flight of ANY kind, the last 4xx/5xx
+// responses with their paths, and the page's own history, Navigation API and
+// service-worker state. It logs and never calls check(), so no row's result
+// changes. Paths only, never an origin; the sample learners are not people.
+function trackPage(pg) {
+  const inflight = new Set(), bad = [];
+  const pathOf = u => u.replace(/^https?:\/\/[^/]+/, '').slice(0, 120);
+  pg.on('request', r => inflight.add(r));
+  pg.on('requestfinished', r => inflight.delete(r)); pg.on('requestfailed', r => inflight.delete(r));
+  pg.on('response', r => { if (r.status() >= 400) { bad.push(`${r.status()} ${r.request().method()} ${pathOf(r.url())}`); if (bad.length > 10) bad.shift(); } });
+  return { inflight, bad, pathOf };
+}
+async function logPrestate(pg, who, label, t) {
+  const state = await pg.evaluate(async () => {
+    const nav = 'navigation' in window ? {
+      entries: navigation.entries().length, index: navigation.currentEntry?.index ?? null,
+      url: navigation.currentEntry?.url ? new URL(navigation.currentEntry.url).pathname : null,
+      transition: !!navigation.transition,
+    } : null;
+    const regs = await navigator.serviceWorker?.getRegistrations?.().catch(() => null);
+    return { history: history.length, nav, sw: { controller: !!navigator.serviceWorker?.controller, regs: regs ? regs.length : null },
+             ready: document.readyState, visible: document.visibilityState };
+  }).catch(e => ({ error: String(e.message || e).slice(0, 120) }));
+  const inflight = [...t.inflight].map(r => `${r.method()} ${r.resourceType()} ${t.pathOf(r.url())}`);
+  console.log(`PRESTATE ${who} ${label} state=${JSON.stringify(state)} inflight_any=${JSON.stringify(inflight)} bad=${JSON.stringify(t.bad)}`);
+}
 async function childLogin(c, name) {
   await c.goto(F.ui + '/?returnTo=' + encodeURIComponent('/session?student=' + name));
   await c.getByRole('button', { name: /Student/ }).first().click();
@@ -105,6 +132,7 @@ async function launch(name) {
 async function parent(br, bname, i) {
   const who = `parent${i + 1}_${bname}`, learner = LEARNERS[i], file = ['quiz.jpg', 'quiz.png', 'quiz.pdf'][i % 3];
   const ctx = await br.newContext({ viewport: { width: 1366, height: 900 } }); const p = await ctx.newPage(); p.on('dialog', d => d.accept());
+  const ptrack = trackPage(p);
   try {
     await step(who, 'sign_in', () => parentLogin(p));
     const { card, status } = await step(who, 'open_practice_coach', () => openCoach(p, learner, true));
@@ -127,6 +155,7 @@ async function parent(br, bname, i) {
   await waitFile('restarted').catch(() => {});
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
+    await logPrestate(p, who, 'reload_after_restart', ptrack);
     await p.reload(); if (await p.getByPlaceholder(/password/i).count()) await parentLogin(p);
     await openCoach(p, learner, false);
     const s = JSON.parse((await apiCall(p, `/practice/${encodeURIComponent(learner)}/sets?status=approved`)).body);
@@ -142,6 +171,7 @@ async function child(br, bname, i) {
   // The first child blocks the app's service worker so the #794 transport retry can be observed with route().
   const ctx = await br.newContext({ viewport: { width: 1180, height: 820 }, ...(first ? { serviceWorkers: 'block' } : {}) });
   const c = await ctx.newPage(); c.on('dialog', d => d.accept());
+  const ctrack = trackPage(c);
   // Record what the browser itself reports, so an engine-specific failure
   // (a WebKit page crash, a script error) is visible in the job log.
   c.on('pageerror', err => console.log(`PAGEERROR ${who}: ${String(err).slice(0, 300)}`));
@@ -206,6 +236,7 @@ async function child(br, bname, i) {
     await step(who, 'receive_approved_practice', async () => {
       for (let k = 0; k < 90 && !setId; k++) { const r = JSON.parse((await apiCall(c, `/practice/${encodeURIComponent(name)}/delivery`)).body || '[]'); if (Array.isArray(r) && r.length) setId = r[0].id; else await c.waitForTimeout(1000); }
       if (!setId) throw new Error('no approved set');
+      await logPrestate(c, who, 'first_reload', ctrack);
       await c.reload(); await passIntro(c);
       const chk = c.getByRole('button', { name: 'Check for approved practice' }); if (await chk.count()) await chk.click();
       await sec.waitFor({ timeout: 30000 });
@@ -243,6 +274,7 @@ async function child(br, bname, i) {
     })).catch(e => ({ error: e.message }));
     console.log(`PRERELOAD ${who} inflight=${JSON.stringify([...inflight].map(r => `${r.method()} ${r.url().replace(/^https?:\/\/[^/]+/, '')}`))} media=${JSON.stringify(media)} recent=${JSON.stringify(recent)}`);
     await c.screenshot({ path: path.join(OUT, `prereload-${who}.png`) }).catch(() => {});
+    await logPrestate(c, who, 'reload_after_restart', ctrack);
     try { await c.reload(); } catch (e) {
       // Control, diagnostic only: does a NEW page in the same context load
       // this lesson? Yes means the crash is tied to tearing this page down;

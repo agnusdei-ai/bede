@@ -18,8 +18,8 @@ to the real, persistent parent/child path
 (services.diagnostic.process_evidence). Verified here: both routes work
 correctly in isolation, neither is ever called when it shouldn't be (the
 other backend's guard, a non-math subject, malformed/hallucinated input),
-and — since _record_skill_evidence itself returns nothing and emits no SSE
-chunk at either call site — the child's stream is untouched regardless of
+and — since _record_skill_evidence returns only whether it saved and emits
+no SSE chunk at either call site — the child's stream is untouched regardless of
 outcome.
 """
 
@@ -75,14 +75,20 @@ def test_record_skill_evidence_tool_is_registered_with_the_right_schema():
 
 
 @pytest.mark.asyncio
-async def test_returns_none_under_every_condition_proving_no_sse_chunk_is_possible():
-    """_record_skill_evidence has no return value at all (None always) —
-    the caller in stream_tutor_response never yields anything for this
-    branch, so there is no code path that could emit an SSE chunk."""
+async def test_returns_only_whether_it_saved_proving_no_sse_chunk_is_possible():
+    """_record_skill_evidence returns only a bool, whether it saved, which
+    stream_tutor_response's _gated_save consumes to mark the save done for a
+    retried turn (services/turn_replay.py). It is never content: the caller
+    yields nothing for this branch, so no code path could emit an SSE chunk.
+    tests/test_turn_replay.py checks the real stream emits nothing for it."""
     tool_input = {"probe_id": "probe.cc.rote_count_20", "outcome": "correct"}
-    assert await _record_skill_evidence(None, None, _config(), Subject.mathematics, tool_input) is None
-    assert await _record_skill_evidence(None, "fake-code", _config(), Subject.mathematics, tool_input) is None
-    assert await _record_skill_evidence(None, None, _config(), Subject.mathematics, {"outcome": "bad"}) is None
+    for result in (
+        await _record_skill_evidence(None, None, _config(), Subject.mathematics, tool_input),
+        await _record_skill_evidence(None, "fake-code", _config(), Subject.mathematics, tool_input),
+        await _record_skill_evidence(None, None, _config(), Subject.mathematics, {"outcome": "bad"}),
+    ):
+        assert type(result) is bool
+    assert await _record_skill_evidence(None, None, _config(), Subject.mathematics, {"outcome": "bad"}) is False
 
 
 @pytest.mark.asyncio

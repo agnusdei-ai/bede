@@ -47,7 +47,7 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
-from services import content_screen, pilot_authz, safeguarding_alerts
+from services import content_screen, pilot_authz, safeguarding_alerts, turn_replay
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_email
@@ -428,6 +428,12 @@ async def chat(
                     role=role,
                     session_id=req.session_id,
                     time_remaining_seconds=req.time_remaining_seconds,
+                    # One attempt of a retried turn records the child's work;
+                    # the others answer and record nothing (turn_replay.py).
+                    evidence_gate=turn_replay.gate_for(
+                        f"{role}:{auth.get('code') if is_demo_code else req.session_config.student_name}",
+                        req.turn_id,
+                    ),
                     **audit_from_request(request),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,

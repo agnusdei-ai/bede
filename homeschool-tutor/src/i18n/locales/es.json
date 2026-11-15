@@ -1247,6 +1247,12 @@
     "date": "Fecha",
     "failed": "No se pudo imprimir. Inténtalo de nuevo."
   },
+  "errorBoundary": {
+    "message": "Algo salió mal. Volvamos a empezar.",
+    "returnToLogin": "Volver al inicio de sesión",
+    "updating": "Bede se actualizó. Cargando la versión nueva…",
+    "checking": "Buscando una versión nueva de Bede…"
+  },
   "routine": {
     "steps": "Pasos",
     "back": "Volver con Bede",

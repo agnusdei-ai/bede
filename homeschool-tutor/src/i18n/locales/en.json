@@ -1247,6 +1247,12 @@
     "date": "Date",
     "failed": "Printing did not start. Try again."
   },
+  "errorBoundary": {
+    "message": "Something went wrong. Let's get back on track.",
+    "returnToLogin": "Return to Login",
+    "updating": "Bede was updated. Loading the new version…",
+    "checking": "Checking for a new version of Bede…"
+  },
   "routine": {
     "steps": "Steps",
     "back": "Back to Bede",

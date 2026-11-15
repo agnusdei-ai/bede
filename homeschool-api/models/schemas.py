@@ -781,6 +781,12 @@ class TutorRequest(BaseModel):
     # rather than the student. Absent from older clients and the sandbox,
     # in which case there is simply nothing to accumulate into.
     session_id: Optional[str] = Field(default=None, max_length=64)
+    # Minted client-side once per child turn (services/api.ts's
+    # streamTutorChat) and reused by every retry of that same turn, so the
+    # server lets exactly one attempt record the child's work — see
+    # services/turn_replay.py. Absent from older clients, the sandbox and the
+    # demo, in which case every attempt records, as before.
+    turn_id: Optional[str] = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     # Seconds left in THIS subject's study block, from the child's own
     # running timer (gradeTimer.ts's getPhase().remainingSecs, which
     # TutorSession.tsx already computes every second to paint the

@@ -265,6 +265,12 @@ We can find a clearer path together without rushing.
   remind you when we come back to it, so you don't have to remember it all
   yourself or start over from the beginning.
 
+## If the page reloads
+
+Sometimes the screen reloads by itself, or you press refresh by mistake. If you
+were typing something to me and hadn't sent it yet, your words are still in the
+box when the page comes back. Just keep going.
+
 ## If something feels wrong
 
 If you ever feel unsafe, upset, or need help with something that isn't about your

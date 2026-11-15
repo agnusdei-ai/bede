@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from core.learner_scope import LearnerScope
+    from services.turn_replay import EvidenceGate
 
 from services import action_governance, tool_registry
 from services.poetry_catalog import poetry_note as _poetry_catalog_note
@@ -3671,7 +3672,7 @@ def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
         return None
 
 
-async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: str) -> None:
+async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: str) -> bool:
     """
     Increments LearnerBehaviorCheck.count by one — only ever called when
     the caller has already confirmed BOTH that processing_style is one of
@@ -3687,7 +3688,7 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
     call, not something worth caching or batching.
     """
     if db is None:
-        return
+        return False
     try:
         from sqlalchemy import select
 
@@ -3699,7 +3700,7 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         )
         row = result.scalar_one_or_none()
         if row is None:
-            return
+            return False
         from core import student_keys
 
         _aad = student_aad("learner_behavior_checks", "count_enc", student_name)
@@ -3707,8 +3708,54 @@ async def _increment_behavior_check(db: Optional["AsyncSession"], student_name: 
         count = decrypt_json(row.count_enc, _aad, _key)["count"]
         row.count_enc = encrypt_json({"count": count + 1}, _aad, _key)
         await db.commit()
+        return True
     except Exception as exc:
         log.warning("Behavior-check increment failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
+        return False
+
+
+async def _gated_save(gate: "EvidenceGate", name: str, save) -> tuple[bool, Any]:
+    """Run one save through the turn's evidence gate (services/turn_replay.py).
+
+    Returns (saved, result). `save` is an async callable whose result is truthy
+    only when it actually saved: the _record_* functions return True or False,
+    and _save_assessment returns its summary or None. When an earlier attempt
+    of the same turn already saved this effect, nothing runs and the result is
+    what THAT attempt saved. A save that fails, raises, or is cancelled (the
+    child's connection dropped) releases the effect for the retry.
+    """
+    claim = await gate.claim(name)
+    if not claim.allowed:
+        return False, claim.prior
+    saved, result = False, None
+    try:
+        result = await save()
+        saved = bool(result)
+    finally:
+        claim.finish(saved, result if saved else None)
+    return saved, result
+
+
+def _assessment_total(tool_input: dict) -> int:
+    return (
+        tool_input.get("completeness", 0)
+        + tool_input.get("sequence", 0)
+        + tool_input.get("detail", 0)
+        + tool_input.get("language_quality", 0)
+        + tool_input.get("synthesis", 0)
+    )
+
+
+def _assessment_summary(subject: Subject, tool_input: dict) -> dict:
+    """What the frontend and the model are told about a narration's scores,
+    once they are saved. A retry whose earlier attempt saved them is handed
+    that saved summary by the turn's evidence gate (services/turn_replay.py),
+    never one rebuilt from its own scores."""
+    return {
+        "subject": subject.value,
+        "total_score": _assessment_total(tool_input),
+        "adaptive_signal": tool_input.get("adaptive_signal"),
+    }
 
 
 async def _save_assessment(
@@ -3727,13 +3774,7 @@ async def _save_assessment(
         from core.database import NarrationAssessment
         from core.encryption import encrypt_json, student_aad
 
-        total = (
-            tool_input.get("completeness", 0)
-            + tool_input.get("sequence", 0)
-            + tool_input.get("detail", 0)
-            + tool_input.get("language_quality", 0)
-            + tool_input.get("synthesis", 0)
-        )
+        total = _assessment_total(tool_input)
         now = datetime.now(timezone.utc)
         data = {
             "subject":                subject.value,
@@ -3777,7 +3818,7 @@ async def _save_assessment(
         except Exception as exc:
             log.warning("Composition mastery update failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
 
-        return {"subject": subject.value, "total_score": total, "adaptive_signal": data["adaptive_signal"]}
+        return _assessment_summary(subject, tool_input)
     except Exception as exc:
         log.warning("Assessment save failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return None
@@ -4283,7 +4324,7 @@ async def _record_skill_evidence(
     subject: Subject,
     tool_input: dict,
     session_id: Optional[str] = None,
-) -> None:
+) -> bool:
     """
     Silently record math-skill diagnostic evidence. Routes to exactly one
     backend: demo_code drives the demo's own single-session preview
@@ -4296,7 +4337,7 @@ async def _record_skill_evidence(
     break the child's tutoring turn.
     """
     if subject != Subject.mathematics:
-        return
+        return False
     try:
         from models.schemas import RecordSkillEvidenceInput
 
@@ -4344,8 +4385,10 @@ async def _record_skill_evidence(
             await _record_work_done(
                 db, config.student_name, "mathematics", skill_id, ev.outcome, ev,
             )
+        return True
     except Exception as exc:
         log.warning("Skill-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
+        return False
 
 
 # Reading and spelling live where a child actually reads and writes:
@@ -4503,7 +4546,7 @@ async def _record_literacy_evidence(
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
-) -> None:
+) -> bool:
     """
     Silently record reading/spelling evidence — see
     services/diagnostic/literacy.py for the domain sequence and why it is
@@ -4517,9 +4560,9 @@ async def _record_literacy_evidence(
     session must fall through to phonics.py, never to this engine.
     """
     if db is None and demo_code is None:
-        return
+        return False
     if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
-        return
+        return False
     try:
         from models.schemas import RecordLiteracyEvidenceInput
         from services.diagnostic.literacy import process_evidence as _process_literacy
@@ -4533,8 +4576,10 @@ async def _record_literacy_evidence(
             await _record_work_done(db, config.student_name, "literacy", ev.domain, ev.outcome, ev)
         else:
             await _record_work_done_demo(demo_code, "literacy", ev.domain, ev.outcome, ev)
+        return True
     except Exception as exc:
         log.warning("Literacy-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
+        return False
 
 
 async def _record_music_evidence(
@@ -4543,7 +4588,7 @@ async def _record_music_evidence(
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
-) -> None:
+) -> bool:
     """
     Silently record music-knowledge evidence — see
     services/diagnostic/music.py for the domain sequence and for the line
@@ -4562,9 +4607,9 @@ async def _record_music_evidence(
     the real card.
     """
     if db is None and demo_code is None:
-        return
+        return False
     if subject not in _MUSIC_CHECKIN_SUBJECTS:
-        return
+        return False
     try:
         from models.schemas import RecordMusicEvidenceInput
         from services.diagnostic.music import process_evidence as _process_music
@@ -4575,8 +4620,10 @@ async def _record_music_evidence(
             await _record_work_done(db, config.student_name, "music_knowledge", ev.domain, ev.outcome, ev)
         else:
             await _record_work_done_demo(demo_code, "music_knowledge", ev.domain, ev.outcome, ev)
+        return True
     except Exception as exc:
         log.warning("Music-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
+        return False
 
 
 async def _record_phonics_evidence(
@@ -4585,7 +4632,7 @@ async def _record_phonics_evidence(
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
-) -> None:
+) -> bool:
     """
     Silently record phonics/reading-foundations evidence from a light
     check-in — see services/diagnostic/phonics.py's own docstring for the
@@ -4600,9 +4647,9 @@ async def _record_phonics_evidence(
     must never break the child's tutoring turn.
     """
     if subject != Subject.language_arts or config.grade_stage != GradeStage.foundations:
-        return
+        return False
     if db is None and demo_code is None:
-        return
+        return False
     try:
         from models.schemas import RecordPhonicsEvidenceInput
         from services.diagnostic.phonics import process_evidence as _process_phonics
@@ -4616,8 +4663,10 @@ async def _record_phonics_evidence(
             await _record_work_done(db, config.student_name, "phonics", ev.domain, ev.outcome, ev)
         else:
             await _record_work_done_demo(demo_code, "phonics", ev.domain, ev.outcome, ev)
+        return True
     except Exception as exc:
         log.warning("Phonics-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
+        return False
 
 
 async def _record_language_evidence(
@@ -4626,7 +4675,7 @@ async def _record_language_evidence(
     config: SessionConfig,
     subject: Subject,
     tool_input: dict,
-) -> None:
+) -> bool:
     """
     Silently record language-exposure evidence from a light teach-then-
     recall moment — see services/diagnostic/language_exposure.py's own
@@ -4653,9 +4702,9 @@ async def _record_language_evidence(
     legitimately in play.
     """
     if db is None and demo_code is None:
-        return
+        return False
     if subject not in _CLASSICAL_LANGUAGE_SUBJECTS and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
-        return
+        return False
     try:
         from models.schemas import RecordLanguageEvidenceInput
         from services.diagnostic.language_exposure import process_evidence as _process_language
@@ -4666,7 +4715,7 @@ async def _record_language_evidence(
         # actually name" instead of two that could drift apart.
         own_language = _CLASSICAL_LANGUAGE_SUBJECTS.get(subject)
         if own_language and ev.language != own_language:
-            return
+            return False
         # The mastery engine needs sessions the demo doesn't have, so it
         # stays real-sessions-only. The LEDGER needs none — it records
         # events, not an estimate — so a demo visitor gets the real card.
@@ -4675,8 +4724,10 @@ async def _record_language_evidence(
             await _record_work_done(db, config.student_name, "language_exposure", ev.language, ev.outcome, ev)
         else:
             await _record_work_done_demo(demo_code, "language_exposure", ev.language, ev.outcome, ev)
+        return True
     except Exception as exc:
         log.warning("Language-evidence record failed for %s: %s", learner_ref(config.student_name), exc_text(exc, config.student_name))
+        return False
 
 
 async def stream_tutor_response(
@@ -4697,9 +4748,14 @@ async def stream_tutor_response(
     ip: str = "unknown",
     user_agent: str = "",
     learner_scope: Optional["LearnerScope"] = None,
+    evidence_gate: Optional["EvidenceGate"] = None,
 ) -> AsyncIterator[str]:
     """
     Stream the Socratic tutor response token by token using Claude Sonnet.
+
+    evidence_gate (services/turn_replay.py) lets exactly one attempt of a
+    retried turn record the child's work. None, which every caller but
+    routers/tutor.py passes, records on every attempt, as before.
     Uses agentic tool calls when appropriate (narration, hints, celebration, faith).
 
     role/ip/user_agent are audit context only (routers/tutor.py passes
@@ -4724,6 +4780,9 @@ async def stream_tutor_response(
     settings.locale globally anymore; see core/config.py's comment on that
     setting for what it means instead.
     """
+    from services.turn_replay import always_record as _always_record
+    from services.turn_replay import effect_name as _effect_name
+    record_gate = evidence_gate if evidence_gate is not None else _always_record()
     # Demo-only, best-effort structural signal (see services/interaction_signals.py
     # for the privacy design) — never fires for parent/child sessions (demo_code
     # is None there). Records that a turn happened and, separately, whether this
@@ -5057,16 +5116,24 @@ async def stream_tutor_response(
                                 # ordinary turn never grows a second round. Deliberately
                                 # NOT extended to record_skill_evidence/
                                 # record_phonics_evidence/record_language_evidence:
-                                # those three have an explicit, tested contract
-                                # (services/ai_service.py callers + their own test
-                                # suites) of returning nothing and emitting nothing, by
-                                # design — silent, best-effort diagnostic writes that
-                                # must never gain a new visible-to-the-model surface.
+                                # those have an explicit, tested contract (their own
+                                # test suites) of emitting nothing, by design —
+                                # silent, best-effort diagnostic writes that must
+                                # never gain a new visible-to-the-model surface. They
+                                # return only whether they saved, a bool that
+                                # _gated_save consumes and never yields.
                                 result_payload = dict(_TRIVIAL_TOOL_RESULT)
 
                                 if tc["name"] == "assess_narration":
                                     # Silent server-side save; emit minimal event for frontend
-                                    summary = await _save_assessment(db, config.student_name, subject, tool_input)
+                                    # On a retry whose earlier attempt already
+                                    # saved these scores, this is the summary
+                                    # of what that attempt SAVED, never one
+                                    # rebuilt from this attempt's own scores.
+                                    _, summary = await _gated_save(
+                                        record_gate, "assess_narration",
+                                        lambda: _save_assessment(db, config.student_name, subject, tool_input),
+                                    )
                                     if summary:
                                         yield json.dumps({'type': 'assessment', 'data': summary})
                                         result_payload = summary
@@ -5113,7 +5180,10 @@ async def stream_tutor_response(
                                         if processing_style == "visual":
                                             # See LearnerBehaviorCheck's docstring — only counts
                                             # a successfully-resolved aid, not a hallucinated id.
-                                            await _increment_behavior_check(db, config.student_name)
+                                            await _gated_save(
+                                                record_gate, "behavior_check",
+                                                lambda: _increment_behavior_check(db, config.student_name),
+                                            )
                                         result_payload = {"found": True, "visual_aid_id": aid.get("id")}
                                     else:
                                         log.warning(
@@ -5133,25 +5203,40 @@ async def stream_tutor_response(
                                     # assess_narration's minimal event. See
                                     # _record_skill_evidence's own docstring for which
                                     # backend (demo_code vs db) actually persists it.
-                                    await _record_skill_evidence(db, demo_code, config, subject, tool_input, session_id)
+                                    await _gated_save(
+                                        record_gate, _effect_name(tc["name"], tool_input),
+                                        lambda: _record_skill_evidence(db, demo_code, config, subject, tool_input, session_id),
+                                    )
                                 elif tc["name"] == "record_phonics_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_phonics_evidence's own docstring.
-                                    await _record_phonics_evidence(db, demo_code, config, subject, tool_input)
+                                    await _gated_save(
+                                        record_gate, _effect_name(tc["name"], tool_input),
+                                        lambda: _record_phonics_evidence(db, demo_code, config, subject, tool_input),
+                                    )
                                 elif tc["name"] == "record_literacy_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_literacy_evidence's own docstring.
-                                    await _record_literacy_evidence(db, demo_code, config, subject, tool_input)
+                                    await _gated_save(
+                                        record_gate, _effect_name(tc["name"], tool_input),
+                                        lambda: _record_literacy_evidence(db, demo_code, config, subject, tool_input),
+                                    )
                                 elif tc["name"] == "record_language_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_language_evidence's own docstring.
-                                    await _record_language_evidence(db, demo_code, config, subject, tool_input)
+                                    await _gated_save(
+                                        record_gate, _effect_name(tc["name"], tool_input),
+                                        lambda: _record_language_evidence(db, demo_code, config, subject, tool_input),
+                                    )
                                 elif tc["name"] == "record_music_evidence":
                                     # Fully silent, same as record_skill_evidence above —
                                     # see _record_music_evidence's own docstring, and
                                     # services/diagnostic/music.py for why this records
                                     # what the child knows and never how they responded.
-                                    await _record_music_evidence(db, demo_code, config, subject, tool_input)
+                                    await _gated_save(
+                                        record_gate, _effect_name(tc["name"], tool_input),
+                                        lambda: _record_music_evidence(db, demo_code, config, subject, tool_input),
+                                    )
                                 elif tc["name"] == "invite_map_practice" and not _map_practice_allowed(
                                     config, subject, demo_code, history
                                 ):
@@ -5168,10 +5253,14 @@ async def stream_tutor_response(
                                         # plain-written-narration signal — the same tool
                                         # serves both, disambiguated this way.
                                         has_elements = bool(tool_input.get("elements"))
-                                        if (processing_style == "kinesthetic" and has_elements) or (
+                                        style_matches = (processing_style == "kinesthetic" and has_elements) or (
                                             processing_style == "reading_writing" and not has_elements
-                                        ):
-                                            await _increment_behavior_check(db, config.student_name)
+                                        )
+                                        if style_matches:
+                                            await _gated_save(
+                                                record_gate, "behavior_check",
+                                                lambda: _increment_behavior_check(db, config.student_name),
+                                            )
                                     tool_response = _process_tool_use(tc["name"], tool_input, locale)
                                     if tool_response:
                                         yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})

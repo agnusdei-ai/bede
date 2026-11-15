@@ -73,6 +73,14 @@ async function childLogin(c, name) {
   await passIntro(c);
   await c.waitForFunction(() => /STUB-TUTOR/.test(document.body.innerText), null, { timeout: 60000 });
 }
+// After a reload, is this child still in the lesson or back at sign-in? The
+// login page's own URL carries ?returnTo=%2Fsession…, so test the PATH, and
+// wait for one of the two screens to render before deciding.
+async function stillInLesson(c) {
+  await c.waitForFunction(() => document.querySelector('textarea') || document.querySelector('input[placeholder="Enter PIN"]') ||
+    [...document.querySelectorAll('button')].some(b => /Student|Let's begin!/.test(b.textContent)), null, { timeout: 30000 }).catch(() => {});
+  return new URL(c.url()).pathname.startsWith('/session') && !(await c.getByPlaceholder('Enter PIN').count());
+}
 async function openCoach(p, learner, viaPodSave) {
   await p.goto(F.ui + '/setup'); await p.getByText(learner).first().waitFor({ timeout: 30000 });
   let status = 'not-saved';
@@ -140,6 +148,13 @@ async function child(br, bname, i) {
   c.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log(`CONSOLE ${who} ${m.type()}: ${m.text().slice(0, 300)}`); });
   c.on('crash', () => console.log(`CRASH ${who} at ${c.url()}`));
   c.on('requestfailed', r => console.log(`REQFAIL ${who} ${r.method()} ${r.url().replace(/^https?:\/\/[^/]+/, '')} ${r.failure()?.errorText || ''}`));
+  // Diagnostics for the macOS WebKit crash on reload after the API restart:
+  // which streams were still open, and the last things the page said.
+  const inflight = new Set(), recent = [];
+  const streamy = r => /\/api\/(tutor\/(chat|speak)|voice\/stream)/.test(r.url());
+  c.on('request', r => { if (streamy(r)) inflight.add(r); });
+  c.on('requestfinished', r => inflight.delete(r)); c.on('requestfailed', r => inflight.delete(r));
+  c.on('console', m => { recent.push(`${m.type()}: ${m.text().slice(0, 160)}`); if (recent.length > 8) recent.shift(); });
   let setId = null;
   try {
     await step(who, 'sign_in_and_session_start', () => childLogin(c, name));
@@ -210,8 +225,31 @@ async function child(br, bname, i) {
   await waitFile('restarted').catch(e => check(who, 'restart_observed', false, e.message));
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
-    await c.reload(); if (!/session/.test(c.url()) || await c.getByPlaceholder('Enter PIN').count()) await childLogin(c, name);
-    else { await passIntro(c); }
+    const at = c.url();
+    const media = await c.evaluate(() => ({
+      playing: [...document.querySelectorAll('audio,video')].filter(m => !m.paused).length,
+      speaking: !!window.speechSynthesis?.speaking,
+    })).catch(e => ({ error: e.message }));
+    console.log(`PRERELOAD ${who} inflight=${JSON.stringify([...inflight].map(r => `${r.method()} ${r.url().replace(/^https?:\/\/[^/]+/, '')}`))} media=${JSON.stringify(media)} recent=${JSON.stringify(recent)}`);
+    await c.screenshot({ path: path.join(OUT, `prereload-${who}.png`) }).catch(() => {});
+    try { await c.reload(); } catch (e) {
+      // Control, diagnostic only: does a NEW page in the same context load
+      // this lesson? Yes means the crash is tied to tearing this page down;
+      // no means the engine or runner. The step still fails either way.
+      if (/crash/i.test(e.message)) {
+        const fresh = await ctx.newPage();
+        const outcome = await (async () => {
+          // A new tab has no sessionStorage, so it signs in, as a person would.
+          await fresh.goto(at); await childLogin(fresh, name);
+          await sendChat(fresh, 'Checking the lesson after a reload crash.');
+          return 'new page loaded and a lesson turn completed';
+        })().catch(err => `new page failed: ${err.message.slice(0, 160)}`);
+        console.log(`CONTROL ${who} after reload crash: ${outcome}`);
+        await fresh.close().catch(() => {});
+      }
+      throw e;
+    }
+    if (await stillInLesson(c)) await passIntro(c); else await childLogin(c, name);
   }).catch(() => {});
   await step(who, 'lesson_turn_after_restart', () => sendChat(c, 'One more thing about Egypt.')).catch(() => {});
   if (setId) try {

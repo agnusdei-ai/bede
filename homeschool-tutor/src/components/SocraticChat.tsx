@@ -53,6 +53,13 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
+/** Identifies the session a lesson turn belongs to: who is signed in, which
+ *  learner, and which sitting. Read from the store at the moment it is asked. */
+function turnOwnerKey(): string {
+  const { token, sessionConfig, sessionId } = useSessionStore.getState()
+  return `${token ?? ''}|${sessionConfig?.student_name ?? ''}|${sessionId ?? ''}`
+}
+
 export default function SocraticChat({
   breakActive = false,
   gradeStage,
@@ -83,6 +90,18 @@ export default function SocraticChat({
   const [pendingPdfName, setPendingPdfName] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // A turn still in flight ends with the chat. Without this, a turn (and its
+  // up-to-25-second retry loop in services/api.ts) outlived the screen: it
+  // kept reading after a logout or a move to another page, and wrote its
+  // reply into whatever session the store held by then.
+  // Deferred one tick and cancelled on a remount, because React's development
+  // StrictMode unmounts and remounts once straight away, and aborting there
+  // would cancel the lesson's opening message for good.
+  const unmountAbortRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (unmountAbortRef.current) clearTimeout(unmountAbortRef.current)
+    return () => { unmountAbortRef.current = setTimeout(() => abortRef.current?.abort(), 0) }
+  }, [])
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const consecutiveContinuesRef = useRef(0)
@@ -414,6 +433,23 @@ export default function SocraticChat({
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
 
+  // A change of learner or session while this screen stays up also ends the
+  // turn in flight, and lets the new session have its own opening message.
+  const turnOwner = turnOwnerKey()
+  const turnOwnerRef = useRef(turnOwner)
+  useEffect(() => {
+    if (turnOwnerRef.current === turnOwner) return
+    turnOwnerRef.current = turnOwner
+    abortRef.current?.abort()
+    openerFiredRef.current.clear()
+    // The turn just cut off no longer clears these itself (it is not this
+    // session's turn any more), and a stale "replying" mark would block the
+    // new session's opening message.
+    advanceSubjectRef.current = false
+    setStreaming(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnOwner])
+
   const clearInactivityTimer = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
     inactivityTimerRef.current = null
@@ -443,12 +479,18 @@ export default function SocraticChat({
     // study is look → put away → narrate, so re-showing a picture in a
     // LATER turn is the method working, not a repeat to suppress.
     const shownAidIds = new Set<string>()
+    // Whose turn this is. Once the session in the store is a different one
+    // (a logout, another learner), this turn writes nothing more: its reply,
+    // its error and its "finished" mark belong to a session that has gone.
+    const owner = turnOwnerKey()
+    const mine = () => turnOwnerKey() === owner
     const flush = () => {
       if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
     }
     try {
       for await (const chunk of stream) {
+        if (!mine()) return
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
           pendingText += chunk.content
@@ -482,9 +524,9 @@ export default function SocraticChat({
         }
       }
       flush()
-      if (speechSegments.length) speak(speechSegments.join(' '))
+      if (speechSegments.length && mine()) speak(speechSegments.join(' '))
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (mine() && err instanceof Error && err.name !== 'AbortError') {
         // A dropped connection reaches here as Safari's "Load failed" or
         // Chrome's "Failed to fetch" — browser-internal wording a child
         // cannot act on, and which reads as though Bede itself broke. By
@@ -503,8 +545,10 @@ export default function SocraticChat({
         )
       }
     } finally {
-      finalizeAssistantMessage()
-      setStreaming(false)
+      if (mine()) {
+        finalizeAssistantMessage()
+        setStreaming(false)
+      }
       // advanceSubjectRef, if set, is picked up by the turn-completion effect
       // below once streaming AND any queued speech have both finished.
     }
@@ -595,7 +639,7 @@ export default function SocraticChat({
     consecutiveContinuesRef.current = 0  // fresh subject, fresh idle-continue budget
     sendOpener()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSubject, !!sessionConfig, !!token])
+  }, [currentSubject, !!sessionConfig, !!token, turnOwner])
 
   // The live interim transcript, the "transcribing…" indicator, and the
   // voice-review confirm/cancel card (below) are all rendered inside this

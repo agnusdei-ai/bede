@@ -91,3 +91,14 @@ def test_every_watched_reload_is_preceded_by_its_page_state():
     child = _body(src, "child")
     assert child.index("'first_reload'") < child.index("await c.reload(); await passIntro(c);")
     assert child.index("'reload_after_restart'") < child.index("try { await c.reload(); }")
+
+
+def test_the_navigation_probes_only_log_and_cover_the_child_journey():
+    src = JOURNEYS.read_text()
+    body = _body(src, "logNav")
+    assert "check(" not in body and "throw" not in body and ".catch(" in body
+    child = _body(src, "child")
+    for label in ("after_sign_in", "after_lesson_turn_1", "after_overlapped_turn", "after_sibling_check",
+                  "after_first_reload", "after_practice_answer", "after_restart_observed"):
+        assert f"'{label}'" in child, label
+    assert "logNav(p, who, 'after_sign_in')" in _body(src, "parent")

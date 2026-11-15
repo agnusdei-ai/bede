@@ -91,6 +91,18 @@ async function logPrestate(pg, who, label, t) {
   const inflight = [...t.inflight].map(r => `${r.method()} ${r.resourceType()} ${t.pathOf(r.url())}`);
   console.log(`PRESTATE ${who} ${label} state=${JSON.stringify(state)} inflight_any=${JSON.stringify(inflight)} bad=${JSON.stringify(t.bad)}`);
 }
+// Diagnostic only: the Navigation API's view of this page at a named moment.
+// On macOS WebKit the child page's navigation.currentEntry goes stale (URL "/"
+// while the page is on /session) and then null before the crashing reload, so
+// this marks WHEN it diverges from the real session history. Logs only.
+async function logNav(pg, who, label) {
+  const s = await pg.evaluate(() => ({
+    path: location.pathname, history: history.length,
+    nav: 'navigation' in window ? { entries: navigation.entries().length, index: navigation.currentEntry?.index ?? null,
+      url: navigation.currentEntry?.url ? new URL(navigation.currentEntry.url).pathname : null } : null,
+  })).catch(e => ({ error: String(e.message || e).slice(0, 120) }));
+  console.log(`NAVSTATE ${who} ${label} ${JSON.stringify(s)}`);
+}
 async function childLogin(c, name) {
   await c.goto(F.ui + '/?returnTo=' + encodeURIComponent('/session?student=' + name));
   await c.getByRole('button', { name: /Student/ }).first().click();
@@ -135,6 +147,7 @@ async function parent(br, bname, i) {
   const ptrack = trackPage(p);
   try {
     await step(who, 'sign_in', () => parentLogin(p));
+    await logNav(p, who, 'after_sign_in');
     const { card, status } = await step(who, 'open_practice_coach', () => openCoach(p, learner, true));
     check(who, 'overlapping_pod_save_ok', [200, 201, 204].includes(status), `POST /pod/configs -> ${status}`);
     await card.locator('select').first().selectOption('history');
@@ -188,6 +201,7 @@ async function child(br, bname, i) {
   let setId = null;
   try {
     await step(who, 'sign_in_and_session_start', () => childLogin(c, name));
+    await logNav(c, who, 'after_sign_in');
     if (first) {
       let seen = 0, aborted = 0;
       await c.route(u => u.pathname.endsWith('/api/tutor/chat'), route => { seen++; if (!aborted) { aborted++; return route.abort('connectionreset'); } return route.continue(); });
@@ -223,13 +237,16 @@ async function child(br, bname, i) {
       check(who, 'turn_survives_network_blip', true);
     } else {
       await step(who, 'lesson_turn_1', () => sendChat(c, 'The river was the Nile.'));
+    await logNav(c, who, 'after_lesson_turn_1');
     }
     await barrier('start'); await barrier('overlap');
     await step(who, 'lesson_turn_overlapped', () => sendChat(c, 'Farmers planted after the flood.'));
+    await logNav(c, who, 'after_overlapped_turn');
     if (N > 1) {
       const a = await apiCall(c, `/pod/configs/${encodeURIComponent(sibling)}`);
       const d = await apiCall(c, `/practice/${encodeURIComponent(sibling)}/delivery`);
       check(who, 'sibling_data_refused', a.status >= 400 && d.status >= 400, `config ${a.status}, practice ${d.status}`);
+    await logNav(c, who, 'after_sibling_check');
     }
     await waitFor('save');
     const sec = c.getByRole('region', { name: 'A practice question your parent approved' });
@@ -241,6 +258,7 @@ async function child(br, bname, i) {
       const chk = c.getByRole('button', { name: 'Check for approved practice' }); if (await chk.count()) await chk.click();
       await sec.waitFor({ timeout: 30000 });
     });
+    await logNav(c, who, 'after_first_reload');
     await step(who, 'answer_practice_item', async () => {
       const n = await replies(c);
       const o = c.waitForResponse(r => r.url().includes('/outcomes') && r.request().method() === 'POST', { timeout: 30000 });
@@ -248,6 +266,7 @@ async function child(br, bname, i) {
       const r = await o; if (r.status() !== 200) throw new Error('outcome ' + r.status());
       await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 90000 });
     });
+    await logNav(c, who, 'after_practice_answer');
   } catch (e) {
     // Screenshots live in an artifact not every reader can download, so say what was on screen.
     const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
@@ -265,6 +284,7 @@ async function child(br, bname, i) {
       .catch(() => check(who, 'midstream_restart_shows_plain_message', false, 'nothing shown in 90s'));
   }
   await waitFile('restarted').catch(e => check(who, 'restart_observed', false, e.message));
+  await logNav(c, who, 'after_restart_observed');
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
     const at = c.url();

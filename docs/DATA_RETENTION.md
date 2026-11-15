@@ -121,6 +121,16 @@ A drawing the child deliberately **sends** to Bede is a different thing
 and unchanged by any of this: it travels with that message and is retained
 exactly as the rest of that conversation is.
 
+### The same is true of unsent chat text
+
+What a child has typed or dictated into the chat box but not yet sent is kept
+the same way, so a reload or a crash does not take it: in the browser's own
+`sessionStorage`, on that tablet, under a key scoped to that student. Nothing
+is sent to the API until the child presses send, and nothing is written to any
+table. It is removed the moment the message is sent, when anyone signs out, and
+when the tab closes; a draft more than six hours old is discarded rather than
+restored, and only one student's draft is kept on a tablet at a time.
+
 ## The public demo's data
 
 The demo (`docs/DEMO_HOSTING.md`) is deliberately built to hold as little

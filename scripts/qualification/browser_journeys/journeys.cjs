@@ -143,12 +143,22 @@ async function child(br, bname, i) {
       await c.unrouteAll({ behavior: 'ignoreErrors' });
       check(who, 'client_retry_recovers_dropped_connection', aborted === 1 && seen >= 2 && !/didn't reach me/.test(await c.locator('body').innerText()), `attempts=${seen} aborted=${aborted}`);
     } else if (i === 1) {
-      // D-1 (#806): with the app's service worker in control, a one-second
-      // network drop while a turn is sent must still deliver the turn. The
-      // old worker answered the failed send with a fake 200 and the turn was
-      // lost with no message.
-      const controlled = await c.evaluate(async () => { await navigator.serviceWorker?.ready; return !!navigator.serviceWorker?.controller; });
-      check(who, 'service_worker_in_control', controlled);
+      // D-1 (#806): a one-second network drop while a turn is sent must
+      // still deliver the turn. The app's service worker, which once answered
+      // the failed send with a fake 200, is now retired (docs/RELIABILITY.md),
+      // so this also checks no worker is left in control of the page.
+      // navigator.serviceWorker.ready would never resolve with nothing
+      // registered, so this asks for the registrations instead. Polled with
+      // evaluate(), never waitForFunction(): waitForFunction does not await an
+      // async predicate, so its Promise counts as true and the check passes
+      // without ever looking (measured on Playwright 1.63).
+      let noWorker = false;
+      for (let k = 0; k < 20 && !noWorker; k++) {
+        noWorker = await c.evaluate(async () => !navigator.serviceWorker?.controller
+          && ((await navigator.serviceWorker?.getRegistrations?.()) ?? []).length === 0);
+        if (!noWorker) await c.waitForTimeout(500);
+      }
+      check(who, 'no_service_worker_in_control', noWorker);
       await step(who, 'lesson_turn_through_network_blip', async () => {
         const n = await replies(c); await inputReady(c);
         const ta = c.locator('textarea').last(); await ta.fill('The river was the Nile.');
@@ -157,7 +167,7 @@ async function child(br, bname, i) {
         await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 60000 });
         await inputReady(c);
       });
-      check(who, 'turn_survives_network_blip_with_service_worker', true);
+      check(who, 'turn_survives_network_blip', true);
     } else {
       await step(who, 'lesson_turn_1', () => sendChat(c, 'The river was the Nile.'));
     }

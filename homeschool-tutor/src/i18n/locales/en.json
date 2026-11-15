@@ -1246,5 +1246,10 @@
     "name": "Name",
     "date": "Date",
     "failed": "Printing did not start. Try again."
+  },
+  "errorBoundary": {
+    "message": "Something went wrong. Let's get back on track.",
+    "returnToLogin": "Return to Login",
+    "updating": "Bede was updated. Loading the new version…"
   }
 }

@@ -19,6 +19,7 @@ import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
 import { displayNameOf } from '../utils/displayName'
+import { loadDraft, saveDraft } from '../utils/chatDraft'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -66,7 +67,11 @@ export default function SocraticChat({
   // immediately after a tick still reads the tick's own value.
   const remainingSecsRef = useRef<number | null>(remainingSecs)
   remainingSecsRef.current = remainingSecs
-  const [input, setInput] = useState('')
+  // What the child has typed or dictated but not sent survives a reload or a
+  // crash (utils/chatDraft.ts). Keyed by student, like the box itself, which
+  // keeps its text across a change of subject. Saved by the effect below the
+  // store read further down.
+  const [input, setInput] = useState(() => loadDraft(useSessionStore.getState().sessionConfig?.student_name ?? ''))
   const [showCanvas, setShowCanvas] = useState(false)
   const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
@@ -144,6 +149,8 @@ export default function SocraticChat({
     nextSubject,
     setSessionConfig,
   } = useSessionStore()
+  const draftOwner = sessionConfig?.student_name ?? ''
+  useEffect(() => { saveDraft(draftOwner, input) }, [draftOwner, input])
   // Approved practice shows only while Practice Coach is on for this install.
   const practiceCoachEnabled = usePracticeCoachEnabled(role === 'child' ? token : null)
 

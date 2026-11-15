@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import type { SessionConfig, Subject, ChatMessage, VisualAidData } from '../types'
 import { SUBJECTS } from '../types'
 import { displayNameOf } from '../utils/displayName'
+import { clearAllDrafts } from '../utils/chatDraft'
 
 interface DisplayMessage {
   id: string
@@ -193,7 +194,10 @@ export const useSessionStore = create<SessionState>()(
   role: null,
   locale: null,
   setAuth: (token, role, locale) => set({ token, role, locale: locale ?? null }),
-  logout: () =>
+  logout: () => {
+    // A child's unsent words must not wait in the box for whoever signs in
+    // next on a shared tablet (utils/chatDraft.ts).
+    clearAllDrafts()
     set({
       token: null,
       role: null,
@@ -209,7 +213,8 @@ export const useSessionStore = create<SessionState>()(
       subjectsCompleted: [],
       timeOfDay: null,
       localDate: null,
-    }),
+    })
+  },
 
   podStudents: [],
   setPodStudents: (configs) => set({ podStudents: configs }),

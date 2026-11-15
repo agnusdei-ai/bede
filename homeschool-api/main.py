@@ -359,6 +359,41 @@ async def _periodic_local_health_check():
             log.warning("Periodic local-adapter health check failed — will retry next interval", exc_info=True)
 
 
+def _report_task_end(name: str, task: "asyncio.Task", one_shot: bool = False) -> None:
+    """Logs a background job that stopped while the app was still running.
+
+    Every periodic job below catches its own errors and tries again next time,
+    so none of them should ever finish. One that does (an error that escaped
+    its handler, a bug that returns from the loop) used to stop silently, and
+    the work it did (purging expired data, re-reading the license, refreshing
+    revoked devices) simply stopped happening with nothing in the logs to say
+    so. Cancellation at shutdown is the normal end and is not reported, and
+    a one-shot job (the voice-model warm-up) finishing is its normal end too:
+    only its failure is.
+    See docs/RELIABILITY.md.
+    """
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log.error(
+            "Background job %s stopped: %s: %s.%s",
+            name, type(exc).__name__, exc,
+            "" if one_shot else " It will not run again until the API restarts.",
+        )
+    elif not one_shot:
+        log.error("Background job %s stopped. It will not run again until the API restarts.", name)
+
+
+def _start_background(coro, name: str, one_shot: bool = False) -> "asyncio.Task":
+    """Starts one of the lifespan's background jobs and reports if it ever
+    stops (_report_task_end). Every job the lifespan starts goes through this;
+    tests/test_background_jobs.py fails on a bare asyncio.create_task there."""
+    task = asyncio.create_task(coro, name=name)
+    task.add_done_callback(lambda t: _report_task_end(name, t, one_shot))
+    return task
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -464,8 +499,8 @@ async def lifespan(app: FastAPI):
 
     _log_security_posture()
 
-    warmup_task = asyncio.create_task(_warm_voice_models())
-    purge_task = asyncio.create_task(_periodic_data_purge())
+    warmup_task = _start_background(_warm_voice_models(), "voice-model-warmup", one_shot=True)
+    purge_task = _start_background(_periodic_data_purge(), "data-purge")
     # Bounds how long a running replica can keep honouring a token that a
     # SIBLING replica already invalidated by a password change or recovery.
     # A no-op cost on a single-instance deployment (which is what both
@@ -473,28 +508,28 @@ async def lifespan(app: FastAPI):
     # password to end a takeover" from being quietly false under
     # replication — see core/parent_credential.py and
     # docs/DEPLOYMENT_TOPOLOGY.md.
-    credentials_refresh_task = asyncio.create_task(parent_credential.periodic_refresh())
+    credentials_refresh_task = _start_background(parent_credential.periodic_refresh(), "credentials-refresh")
     # Same multi-replica-staleness bound as credentials_refresh_task above,
     # applied to P9's revoked-device set (core/device_registry.py) instead
     # of credentials_version.
-    device_refresh_task = asyncio.create_task(device_registry.periodic_refresh())
+    device_refresh_task = _start_background(device_registry.periodic_refresh(), "device-revocation-refresh")
     # Proactively catches a dead/never-started local model server instead of
     # only discovering it via a child's failed real turn — see that
     # function's own docstring and CLAUDE.md's "AI backend failure
     # alerting" section.
-    local_health_check_task = asyncio.create_task(_periodic_local_health_check())
+    local_health_check_task = _start_background(_periodic_local_health_check(), "local-ai-health-check")
     # Makes an expiry actually take effect on a long-running instance, which
     # nothing did before: license_state.current() is cached and refresh() ran
     # only at startup and on a pasted key. Load-bearing for any short-dated
     # key (a 30-day trial above all) — see that function's own docstring.
-    license_refresh_task = asyncio.create_task(_periodic_license_refresh())
+    license_refresh_task = _start_background(_periodic_license_refresh(), "license-refresh")
     # The optional license-server heartbeat — only started when
     # LICENSE_SERVER_URL is configured. An unset URL (the default) is the
     # permanent opt-out: no task, no outbound license traffic, byte-for-byte
     # today's offline behavior (asserted as code in
     # tests/test_license_heartbeat.py's opt-out test).
     heartbeat_task = (
-        asyncio.create_task(license_heartbeat.run_periodic())
+        _start_background(license_heartbeat.run_periodic(), "license-heartbeat")
         if license_heartbeat.enabled()
         else None
     )

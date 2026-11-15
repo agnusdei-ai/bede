@@ -324,6 +324,14 @@ mirrored in `demo/src/`) substitutes the translated
 connection or a cut-off stream, and leaves every other error's own text
 alone, since those are our sentences and were written for a reader.
 
+**A retried turn records the child's work once.** The server saves the
+child's work while it builds the reply, so a retry that reached it after an
+earlier attempt had already saved something used to save it again: the
+parent's Progress page then showed work done once as work done twice. Each
+turn now carries a `turn_id` that every retry of it reuses, and the server
+lets only the first attempt that saves anything save at all. The retry still
+answers the child in full. See `docs/RELIABILITY.md`.
+
 The same predicate, `isNetworkFailure`, answers both questions — what to say,
 and whether trying again is reasonable — and is shared with the voice path,
 which reached this conclusion first for the request that opens a voice

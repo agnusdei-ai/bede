@@ -241,6 +241,10 @@ transcript, no child's words, and no task prose: `detail_enc` is
 derived-not-raw privacy class as narration assessments and the diagnostic
 evidence log.
 
+K-2 map practice (`docs/MAP_PRACTICE.md`) writes here too, under subject
+area `map_skills`, and stores nothing else: no new table, no map, no answer
+text, and no place.
+
 Deliberately *not* a psychometric record. The mastery tables hold an
 inference about the child; this holds an observation of an event. It is
 parent-facing only, is never shown to a child, and is removed in full by

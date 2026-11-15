@@ -6,6 +6,7 @@ import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/ses
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import MapPractice from './MapPractice'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -68,6 +69,8 @@ export default function SocraticChat({
   remainingSecsRef.current = remainingSecs
   const [input, setInput] = useState('')
   const [showCanvas, setShowCanvas] = useState(false)
+  // Map practice (K-2) opens over the chat the same way the canvas does.
+  const [showMapPractice, setShowMapPractice] = useState(false)
   const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
@@ -397,7 +400,7 @@ export default function SocraticChat({
   })
   useEffect(() => {
     if (isContinuous || !sttSupported || !awaitingChildTurn) return
-    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || uploadingNarration || pendingVoiceTranscript) return
     prewarmRef.current()
     // Cleanup fires the instant awaitingChildTurn (or one of the other
     // guards) goes false again — either the child pressed
@@ -406,7 +409,7 @@ export default function SocraticChat({
     // safe no-op) or the turn ended some other way without a press (a real
     // prewarmed stream that genuinely needs releasing).
     return () => cancelPrewarmRef.current()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -455,6 +458,7 @@ export default function SocraticChat({
           // Side effects (opening the canvas) still fire even for a card we
           // suppress — only the duplicated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
+          if (chunk.tool === 'invite_map_practice') setShowMapPractice(true)
           if (isDuplicateUtterance(chunk.content, turnText)) {
             // The turn already said this — don't render or speak it twice.
             continue
@@ -554,7 +558,7 @@ export default function SocraticChat({
     // Don't interrupt a child who's mid-drawing, has a drawing ready to
     // send, is uploading narration, or has unsent text sitting in the box —
     // the whole point is to fire only once they've genuinely gone quiet.
-    if (showCanvas || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
+    if (showCanvas || showMapPractice || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
     if (consecutiveContinuesRef.current >= MAX_CONSECUTIVE_CONTINUES) return
     consecutiveContinuesRef.current += 1
 
@@ -581,7 +585,7 @@ export default function SocraticChat({
       previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
-  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
+  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, pendingDrawing, uploadingNarration])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -791,13 +795,13 @@ export default function SocraticChat({
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return
-    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || uploadingNarration || pendingVoiceTranscript) return
     const now = Date.now()
     if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
     lastAutoStartRef.current = now
     logDebug('continuous voice mode — auto-starting listening for the child\'s turn')
     start()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript, start])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, uploadingNarration, pendingVoiceTranscript, start])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
@@ -861,7 +865,7 @@ export default function SocraticChat({
       {/* Messages */}
       <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
@@ -1090,6 +1094,16 @@ export default function SocraticChat({
         </p>
       </div>
 
+      {/* Map practice overlay (K-2). Nothing in it is kept after it closes. */}
+      {showMapPractice && token && sessionConfig?.student_name && (
+        <MapPractice
+          token={token}
+          studentName={sessionConfig.student_name}
+          onClose={() => setShowMapPractice(false)}
+          onSpeak={speak}
+        />
+      )}
+
       {/* Handwriting overlay */}
       {showCanvas && (
         <HandwritingCanvas
@@ -1124,9 +1138,12 @@ interface MsgProps {
   // one hook instance at the top of SocraticChat rather than re-subscribing
   // in every bubble.
   bubbleClass: string
+  /** Reopens map practice from its card. */
+  onOpenMap?: () => void
 }
 
-function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
+function MessageBubble({ msg, studentName, bubbleClass, onOpenMap }: MsgProps) {
+  const { t } = useTranslation()
   if (msg.role === 'system') {
     return (
       <div className="flex justify-center">
@@ -1146,6 +1163,7 @@ function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
     const toolAccent: Record<string, string> = {
       request_narration:   'border-l-[3px] border-amber-400 bg-amber-50/70',
       invite_handwriting:  'border-l-[3px] border-purple-400 bg-purple-50/70',
+      invite_map_practice: 'border-l-[3px] border-sage-400 bg-sage-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith:    'border-l-[3px] border-gold-400 bg-gold-50/70',
@@ -1156,6 +1174,14 @@ function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {renderEmphasis(msg.content)}
+        {msg.tool === 'invite_map_practice' && onOpenMap && (
+          <button
+            type="button" onClick={onOpenMap}
+            className="mt-2 block min-h-[44px] rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600"
+          >
+            {t('mapPractice.open')}
+          </button>
+        )}
       </div>
     )
   }

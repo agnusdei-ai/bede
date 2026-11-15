@@ -2394,3 +2394,24 @@ changes what gets built:
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
 - **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
 - **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.
+
+## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
+
+**Status:** open · needs: the owner's written confirmation of `main_guard_detect_not_prevent`
+
+The pre-release repair loop ([`release/REPAIR_LOOP.md`](release/REPAIR_LOOP.md))
+runs its AI roles as Claude Code sessions under the owner's account, with no
+API key and no model in CI. Those sessions push with the owner's own
+authorization, and the live ruleset has no required checks, so nothing makes
+a push to `main` impossible. The loop instead tells repair sessions to push
+only to `release-repair/<cycle>/<task>`, validates every such branch with
+trusted code, and runs a provenance audit on every push to `main` that fails
+loudly on a commit that did not arrive through a merged pull request.
+
+This option was chosen in the build session's design question. It is
+recorded here as proposed, not as a signed decision: `owner_approval_ref` is
+`null` until the owner confirms it. It does not meet the `demo-watchdog`
+repair hold's condition ("a design that cannot push to main"), so that hold
+and the event-driven merge hold stay in force. Closing this entry requires
+either the owner's confirmation or a structural guard (for example, a
+ruleset restricting updates to `main`).

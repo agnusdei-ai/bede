@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentResult",
+  "type": "object",
+  "required": [
+    "kind",
+    "task_id",
+    "agent_role",
+    "status",
+    "summary"
+  ],
+  "properties": {
+    "kind": {
+      "const": "AgentResult"
+    },
+    "agent_role": {
+      "enum": [
+        "triage",
+        "reproduce",
+        "repair",
+        "review"
+      ]
+    },
+    "status": {
+      "enum": [
+        "done",
+        "reproduced",
+        "patch_pushed",
+        "blocked",
+        "reviewed"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "approve",
+        "changes_requested",
+        "escalate",
+        null
+      ]
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "observations": {
+      "type": "array"
+    },
+    "hypotheses": {
+      "type": "array"
+    },
+    "not_run": {
+      "type": "array"
+    }
+  },
+  "description": "A claim by a model. The controller stores it as a claim; it is never evidence."
+}

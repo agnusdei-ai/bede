@@ -31,6 +31,12 @@ semantic code/test failures are BLOCKED for an authenticated coding agent
 to correct with a deterministic regression test and new commit. The CI runner
 uses read-only tokens and never edits code, commits, merges or deploys.
 
+The pre-release repair loop (`docs/release/REPAIR_LOOP.md`,
+`scripts/release_repair/`) builds on this machinery rather than replacing it.
+Its isolated candidate job runs this selector and runner from a trusted
+checkout, keeps the same two-attempt ceiling, and routes semantic failures to
+owner-authorized coding sessions.
+
 ## Non-negotiable qualification
 
 * G1 real SQLite and non-superuser PostgreSQL are independent gates and

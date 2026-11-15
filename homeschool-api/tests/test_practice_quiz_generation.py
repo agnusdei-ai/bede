@@ -49,7 +49,7 @@ def req(**kw):
 
 
 @pytest.mark.asyncio
-async def test_a_wrong_maths_answer_is_recomputed_and_marked(monkeypatch, quota):
+async def test_a_wrong_math_answer_is_recomputed_and_marked(monkeypatch, quota):
     stub = StubClient(draft(q("27 + 15 =", "32", "computation"), q("48 ÷ 6 =", "8", "computation")))
     _routing(monkeypatch, local=True, cloud=None, local_client=stub)
     out = await practice_router.demo_generate_quiz(req(), auth=DEMO)
@@ -281,7 +281,7 @@ async def test_a_failed_check_leaves_answers_to_be_checked_by_the_adult(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_computed_maths_answers_are_not_sent_to_the_checker(monkeypatch, quota):
+async def test_computed_math_answers_are_not_sent_to_the_checker(monkeypatch, quota):
     client = SeqClient(draft(q("27 + 15 =", "42", "computation")), check())
     _routing(monkeypatch, local=True, cloud=None, local_client=client)
     await practice_router.demo_generate_quiz(req(), auth=DEMO)

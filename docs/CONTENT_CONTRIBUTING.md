@@ -444,7 +444,7 @@ it. If content is added freely while the skill maps stand still, Bede ends up
 teaching one thing and measuring another — and what a parent actually sees is
 their child appearing to fail at material Bede never taught. That is not
 hypothetical: it is the drift `tests/diagnostic/test_prep_school_scope.py`
-was written for, when the maths scope and the year plans had come apart.
+was written for, when the math scope and the year plans had come apart.
 
 **Content may not invent a skill id.** `MasteryProfile` stores
 `encrypt_json({skill_id: probability})`, and this codebase has no

@@ -46,3 +46,16 @@ def test_the_workflow_runs_it_on_every_change():
     workflow = (ROOT / ".github" / "workflows" / "nomenclature.yml").read_text()
     assert "scripts/check_nomenclature.sh" in workflow
     assert "paths" not in workflow and "pull_request:" in workflow
+
+
+def test_it_fails_on_the_uk_spelling_of_math(tmp_path):
+    """Owner rule 2026-11-15: Bede writes US English, "math"."""
+    probe = ROOT / "nomenclature_math_probe.txt"
+    probe.write_text("Practice the " + "Mat" + "hs pack first\n")
+    try:
+        subprocess.run(["git", "add", "-N", probe.name], cwd=ROOT, check=True)
+        result = _run()
+        assert result.returncode == 1 and probe.name in result.stdout
+    finally:
+        subprocess.run(["git", "rm", "-q", "--cached", "-f", probe.name], cwd=ROOT, check=False)
+        probe.unlink(missing_ok=True)

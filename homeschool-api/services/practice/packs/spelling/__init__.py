@@ -1,6 +1,6 @@
 """Spelling subject pack: what a misspelling shows, and words that practise it.
 
-Deterministic, like the Latin and maths packs. Each miss is compared letter by
+Deterministic, like the Latin and math packs. Each miss is compared letter by
 letter with the teacher's correction and named by the pattern that explains
 it: a homophone, two letters swapped, ie/ei, a doubled consonant, a silent e,
 a suffix rule, a vowel pattern, a sound spelled another way, a letter left out
@@ -8,7 +8,7 @@ or added. A word with no correction on the page is handed to the parent,
 because guessing the intended word would be guessing.
 
 Practice is look-say-cover-write-check: the missed word itself first (unlike
-Latin or maths, practising the very word IS the remedy for spelling), then
+Latin or math, practising the very word IS the remedy for spelling), then
 words from ``item_bank/patterns.json`` that share its pattern. The bank only
 supplies example words for a pattern the child already missed; it never adds
 a pattern.

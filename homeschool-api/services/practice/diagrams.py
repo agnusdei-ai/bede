@@ -591,7 +591,7 @@ FAMILY = {
 
 
 def category(diagram) -> str:
-    """The maths-pack category for a miss on this kind of picture."""
+    """The math-pack category for a miss on this kind of picture."""
     return f"math.diagram.{FAMILY.get(diagram.kind, 'graph')}"
 
 

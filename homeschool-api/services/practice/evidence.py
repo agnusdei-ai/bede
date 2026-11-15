@@ -13,7 +13,7 @@ toward both. How it counts follows the rules those two records already keep:
 * **Only once the parent has confirmed the reading**, and only once per quiz
   (``PracticeEvidenceMark``). Editing a reading after it was counted does
   not count it again.
-* **Only where the skill is clear.** A maths problem maps to one skill in
+* **Only where the skill is clear.** A math problem maps to one skill in
   ``services/diagnostic/skill_map.py`` when the pack can read it
   (``packs.math.skill_for``); a word problem or anything unclear records
   nothing. Spelling and reading map to the reading-and-spelling engine, which
@@ -46,7 +46,7 @@ from models.practice import GradedAssessment
 log = logging.getLogger(__name__)
 
 # How far one marked quiz question moves an estimate, relative to a question
-# Bede watched the child answer in a session. Applied as the maths engine's
+# Bede watched the child answer in a session. Applied as the math engine's
 # `confidence` and the literacy engine's `weight`.
 QUIZ_EVIDENCE_WEIGHT = 0.5
 

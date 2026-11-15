@@ -3,7 +3,7 @@ short-answer recall (docs/PRACTICE_COACH.md, "Subject packs").
 
 Each pack has a sample golden quiz in its own golden/ folder, written for
 this repository. The properties pinned here are the ones a careless pack gets
-wrong: a maths answer the pack computed wrongly, a practice problem that is
+wrong: a math answer the pack computed wrongly, a practice problem that is
 just the missed one again, a spelling word or a fact the page never gave, and
 a reading the parent has not settled being diagnosed anyway.
 """
@@ -173,14 +173,14 @@ def value_of(answer: str) -> Fraction:
     return Fraction(answer)
 
 
-def test_every_maths_practice_answer_is_arithmetically_right():
+def test_every_math_practice_answer_is_arithmetically_right():
     a = assessment("math", "math_quiz_1")
     practice = pipeline.plan(pipeline.diagnose(a), a)
     for item in practice.items:
         assert value_of(item.expected_answer) == independent_value(item.prompt), item
 
 
-def test_maths_practice_never_repeats_a_problem_from_the_page():
+def test_math_practice_never_repeats_a_problem_from_the_page():
     a = assessment("math", "math_quiz_1")
     on_page = {re.sub(r"\s", "", i.prompt) for s in a.sections for i in s.items}
     practice = pipeline.plan(pipeline.diagnose(a), a)
@@ -201,7 +201,7 @@ def test_a_problem_already_on_the_page_is_never_generated_as_practice():
     assert not {i.prompt for i in first.items} & {i.prompt for i in second.items}
 
 
-def test_maths_practice_has_the_same_shape_as_the_miss():
+def test_math_practice_has_the_same_shape_as_the_miss():
     from services.practice.packs.math import binary, needs_borrow, needs_carry
 
     a = assessment("math", "math_quiz_1")
@@ -232,7 +232,7 @@ def test_a_correct_mixed_number_is_not_called_unsimplified():
     assert [e.category for e in errors] == ["math.unclassified"]
 
 
-def test_maths_strengths_name_a_family_only_when_all_of_it_was_right():
+def test_math_strengths_name_a_family_only_when_all_of_it_was_right():
     data = {"subject": "math", "sections": [{"label": "A", "items": [
         {"number": 1, "prompt": "34 + 12 =", "student_response": "46", "teacher_mark": "correct"},
         {"number": 2, "prompt": "45 + 21 =", "student_response": "66", "teacher_mark": "correct"},

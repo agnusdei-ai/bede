@@ -105,8 +105,8 @@ def _browser_scripts():
 def test_no_browser_check_passes_an_async_predicate_to_waitForFunction():
     """Playwright's waitForFunction does not await an async predicate: the
     Promise it returns is truthy, so the wait succeeds at once and the check
-    never looks (measured with Chromium on Playwright 1.56, the version
-    CI pins, and on 1.63: an async predicate returning false resolved at once,
+    never looks (measured with Chromium on Playwright 1.56, and on 1.63,
+    the version CI pins: an async predicate returning false resolved at once,
     the same predicate written synchronously timed out). A check written that way
     passes whatever the page is doing. Poll with evaluate() instead."""
     offenders = [

@@ -238,7 +238,7 @@ the block the brief fixes. That is an owner decision.
 | `app_db_role` | `bede_qual_app` | Non-superuser application role. |
 | `postgres_image` | `postgres:16` | Service image. |
 | `python_version` | `3.12` | API and harness Python. |
-| `playwright_version` | `1.56.0` | Chromium driver for the virtual authenticator. |
+| `playwright_version` | `1.63.0` | Chromium driver for the virtual authenticator. |
 | `build_images` | `true` | Build the API image at the SHA and record its digest. |
 | `artifact_retention_days` | `30` | Evidence retention. |
 | `mac_package` | `none` | **G3 placeholder only.** |

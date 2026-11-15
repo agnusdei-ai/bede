@@ -44,7 +44,7 @@ on:
         description: Playwright npm version for the virtual authenticator
         required: false
         type: string
-        default: 1.56.0
+        default: 1.63.0
       build_images:
         description: Build the API image at the candidate SHA and record its digest (never pushed)
         required: false
@@ -171,7 +171,7 @@ jobs:
 
       - name: Install Playwright (chromium only)
         env:
-          PLAYWRIGHT_VERSION: ${{ inputs.playwright_version || '1.56.0' }}
+          PLAYWRIGHT_VERSION: ${{ inputs.playwright_version || '1.63.0' }}
         run: npm install --no-save "playwright@${PLAYWRIGHT_VERSION}" && npx playwright install chromium
 
       - name: Generate sample secrets and the non-superuser application role

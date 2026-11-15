@@ -102,7 +102,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install pinned Playwright
-        run: python -m pip install playwright==1.56.0
+        run: python -m pip install playwright==1.63.0
       - name: Install browser runtime
         run: python -m playwright install --with-deps chromium
       - name: Exercise sample administrator UI journeys

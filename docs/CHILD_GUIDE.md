@@ -147,6 +147,11 @@ We can find a clearer path together without rushing.
 - Each week during Morning Time, we'll pray one of the Church's own special prayers
   together, word for word: the same one all week, so you have time to learn it by
   heart if you'd like to. If your family prays in Spanish, I'll pray it in Spanish too.
+- If you are in kindergarten, first or second grade, I might sometimes open a
+  little **map** 🗺️. First you watch me do one. Then we do one together. Then
+  it's your turn: tap the right square or pick the right word. If you miss,
+  you can try again, and then I'll show you. You can close the map whenever
+  you like. I will never ask where you live.
 - Sometimes I'll ask you to **tell me back** a story in your own words. That's
   called a *narration*, and it's one of my favorite parts.
 - If your family has picked **Latin** as one of your subjects, we'll learn a few

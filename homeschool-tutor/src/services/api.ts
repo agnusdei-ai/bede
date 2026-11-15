@@ -2336,3 +2336,75 @@ export const finalizeTeacherQuiz = (
 ) => teacherQuizFetch<{ results: { number: number; points: number; max_points: number }[]; total: number; possible: number }>(
   token, 'finalize', body,
 )
+
+// ── Map-reading practice for K-2 (homeschool-api/services/map_practice.py) ──
+// The server draws every map and checks every answer. Nothing typed is sent:
+// an answer is a tapped square, one of the offered choices, or spoken words.
+
+export type MapCell = [number, number]
+
+export interface MapScene {
+  cols: number
+  rows: number
+  style: 'picture' | 'map'
+  items: { symbol: string; col: number; row: number }[]
+  water: MapCell[]
+  path: MapCell[]
+  compass: 'none' | 'north_only' | 'labeled'
+  grid_labels: boolean
+  key: boolean
+}
+
+export interface MapTask {
+  phase?: 'together' | 'your_turn'
+  index?: number
+  scene: MapScene
+  prompt: { key: string; args: Record<string, string | number | number[]> }
+  answer_kind: 'tap' | 'choice' | 'scene_choice'
+  choices?: string[]
+  options?: MapScene[]
+  side_view?: string[]
+  marked?: MapCell
+  guide_cells?: MapCell[]
+}
+
+export interface MapReveal { cell?: MapCell; choice?: string }
+
+export interface MapLesson {
+  lesson_id: string
+  level: 'K' | '1' | '2'
+  skill: string
+  your_turn_tries: number
+  watch: MapTask & { answer: MapReveal }
+  together: MapTask[]
+  your_turn: MapTask[]
+}
+
+export interface MapAnswerResult {
+  understood: boolean
+  correct: boolean
+  tries_left?: number
+  reveal?: MapReveal
+  recorded?: boolean
+}
+
+async function mapPracticeFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/map-practice${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (!res.ok) throw new Error(`map practice ${res.status}`)
+  return res.json()
+}
+
+export const fetchMapLesson = (token: string, studentName: string) =>
+  mapPracticeFetch<MapLesson>(token, `/${encodeURIComponent(studentName)}/lesson`)
+
+export const answerMapTask = (
+  token: string, studentName: string, lessonId: string,
+  phase: 'together' | 'your_turn', index: number,
+  answer: { cell: MapCell } | { choice: string } | { spoken: string },
+) => mapPracticeFetch<MapAnswerResult>(
+  token, `/${encodeURIComponent(studentName)}/lessons/${encodeURIComponent(lessonId)}/answers`,
+  { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
+)

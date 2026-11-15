@@ -427,6 +427,19 @@ TUTOR_TOOLS = [
         },
     },
     {
+        "name": "invite_map_practice",
+        "description": (
+            "K-2 only. Open a short map-reading practice on the child's screen: Watch, then "
+            "Together, then Your turn. The maps are drawn by the app and the answers are checked "
+            "by the app, so you send nothing with this call: no place, no map, no question. Use it "
+            "at most once in a session, as the applied step after you have talked about where "
+            "things are (in a story's setting, on a nature walk, or on a map in the history "
+            "lesson). Never ask the child where they live, their street, town or school, and "
+            "never describe a real place as if it were on the practice map."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "offer_socratic_hint",
         "description": (
             "Give a gentle Socratic hint when a child is stuck — never the answer, "
@@ -2791,6 +2804,54 @@ def _composition_note(history: Optional[List[ChatMessage]]) -> str:
     )
 
 
+# Map-reading practice (services/map_practice.py): K-2 only, and only in the
+# subjects where "where is it?" comes up on its own. The card's emoji prefix
+# is the same in every locale, so the once-a-session scan keys on it rather
+# than on translated words.
+_MAP_CARD_PREFIX = "\U0001F5FA\uFE0F "
+_MAP_PRACTICE_SUBJECTS = (Subject.history, Subject.nature_study, Subject.living_books)
+
+
+def _map_practice_allowed(
+    config: SessionConfig, subject: Subject, demo_code: Optional[str],
+    history: Optional[List[ChatMessage]],
+) -> bool:
+    """Whether Bede may open map practice on this turn. Checked when the note
+    is built AND again when the tool is dispatched, so a call the prompt did
+    not invite is dropped rather than shown.
+
+    Not in the public demo: its screen has no map practice to open, and a
+    card inviting something that does not exist is worse than no card.
+    """
+    from services.map_practice import level_for_grade
+
+    if demo_code is not None or subject not in _MAP_PRACTICE_SUBJECTS:
+        return False
+    if config.grade_stage != GradeStage.foundations or level_for_grade(config.grade) is None:
+        return False
+    return not any(
+        m.role == "assistant" and _MAP_CARD_PREFIX in (m.content or "") for m in (history or [])
+    )
+
+
+def _map_practice_note(
+    config: SessionConfig, subject: Subject, demo_code: Optional[str],
+    history: Optional[List[ChatMessage]],
+) -> str:
+    if not _map_practice_allowed(config, subject, demo_code, history):
+        return ""
+    return """
+
+<map_practice>
+This child is at the age for home geography: maps of places they know, with position and
+direction words. If this lesson has talked about where things are (a story's setting, what was
+seen on a walk, a map in the history lesson), you may call `invite_map_practice` once, as the
+applied step after that talk. The app draws the map and checks the answers; you send nothing
+with the call. Never ask where the child lives, their street, town or school. Do not use it to
+fill time, and do not mention that anything is recorded.
+</map_practice>"""
+
+
 def _phonics_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
     K-2 Language Arts only: a light nudge to occasionally weave in ONE
@@ -3372,6 +3433,7 @@ async def _build_subject_prompt(
     processing_style_note = _processing_style_note(processing_style)
     composition_note = _composition_note(history)
     phonics_note = _phonics_checkin_note(config, subject)
+    map_practice_note = _map_practice_note(config, subject, demo_code, history)
     work_scoring_note = _WORK_SCORING_NOTE
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
@@ -3388,7 +3450,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3463,12 +3525,16 @@ _CARD_PHRASES = {
     "en": {
         "narration_title": "Narration Time",
         "handwriting_title": "Time to Write or Draw",
+        "map_title": "Map Time",
+        "map_body": "Let's read a map together. Watch first, then we'll do one together, then it's your turn.",
         "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
         "hint_plain": "Let me ask it this way: {hint}",
     },
     "es": {
         "narration_title": "Momento de Narración",
         "handwriting_title": "Hora de Escribir o Dibujar",
+        "map_title": "Hora del Mapa",
+        "map_body": "Vamos a leer un mapa juntos. Primero mira, luego hacemos uno juntos y después te toca a ti.",
         "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
         "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
     },
@@ -3512,6 +3578,10 @@ def _process_tool_use(tool_name: str, tool_input: dict, locale: str = "en") -> s
 
     if tool_name == "invite_handwriting":
         return f"✍️ *{phrases['handwriting_title']}* — {tool_input['prompt']}"
+
+    if tool_name == "invite_map_practice":
+        # Wholly server-composed: the model sends nothing with this call.
+        return f"{_MAP_CARD_PREFIX}*{phrases['map_title']}* — {phrases['map_body']}"
 
     if tool_name == "offer_socratic_hint":
         hint = tool_input["hint_question"]
@@ -4141,6 +4211,9 @@ def _work_label(subject_area: str, skill_id: str) -> str:
         return _EXPOSURE_LANGUAGE_LABELS.get(skill_id, skill_id)
     if subject_area == "music_knowledge":
         return _MUSIC_DOMAIN_LABELS.get(skill_id, skill_id)
+    if subject_area == "map_skills":
+        from services.map_practice import SKILL_LABELS
+        return SKILL_LABELS.get(skill_id, skill_id)
     return skill_id
 
 
@@ -5116,6 +5189,12 @@ async def stream_tutor_response(
                                     # what the child knows and never how they responded.
                                     if record_gate.may_record():
                                         await _record_music_evidence(db, demo_code, config, subject, tool_input)
+                                elif tc["name"] == "invite_map_practice" and not _map_practice_allowed(
+                                    config, subject, demo_code, history
+                                ):
+                                    # Outside K-2, outside its subjects, in the demo, or a
+                                    # second time in one session: dropped, never shown.
+                                    log.info("Map practice invitation dropped for %s", learner_ref(config.student_name))
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,

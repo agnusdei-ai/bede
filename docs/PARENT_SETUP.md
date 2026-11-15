@@ -2130,6 +2130,23 @@ Use it the way you'd use any record of completed work on a team: to spot
 that one of your children has finished something another is just starting,
 and ask the first to show the second. Your children never see either card.
 
+## Map practice (kindergarten to grade 2)
+
+During History, Nature Study or Living Books, Bede may offer a K-2 child a
+few minutes of map practice, at most once a session. There is nothing to
+turn on. Kindergarten practises position words and maps as pictures from
+above, grade 1 symbols, a key and the four directions, and grade 2 the
+compass rose, simple grids and land and water. Your child watches one,
+does two with hints, then does three alone by tapping.
+
+- Bede never asks for your street, address or neighbourhood, and the
+  practice maps name no real place.
+- The maps and their answers are made by Bede's own code, not by the AI.
+- There is no map score. Each question your child gets right alone appears
+  in the work ledger on the Progress page, and nothing else is kept.
+
+See `docs/MAP_PRACTICE.md` for the detail.
+
 ## The writing pad: drawings, and where they go
 
 When Bede invites your child to write or draw by hand, a full-screen

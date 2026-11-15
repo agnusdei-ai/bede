@@ -125,6 +125,16 @@ reaches a terminal state (ready, budget exhausted, blocked or cancelled).
   hold. This loop does not meet their "cannot push to main" condition and
   does not touch them.
 
+## What the live runs have found
+
+- **Cycle `webkit-1`, run 2 (2026-11-15):** the first `record` dispatch
+  failed with 401 while downloading the saved snapshot. GitHub answers an
+  artifact download with a redirect to blob storage, and `urllib` forwarded
+  the GitHub token to the storage host, which refused it. `artifacts.py` now
+  drops the token on any cross-host redirect (also keeping it from a third
+  party), and a real-socket test pins it. Nothing was published by the
+  failed run, and its event was resubmitted under the same `event_id`.
+
 ## Files
 
 - `scripts/release_repair/`: controller, state store, leases, policy,

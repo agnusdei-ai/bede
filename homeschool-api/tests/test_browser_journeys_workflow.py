@@ -324,3 +324,58 @@ def test_cleanup_is_registered_before_the_first_server_starts():
         start = body.index(name)
         call = body[start:body.index(")\n", start)]
         assert "own_group()" in call, f"{name} is not started in its own process group"
+
+
+# ── native crash reports on macOS (diagnostic only) ─────────────────────────
+
+COLLECTOR = HARNESS / "collect_crash_reports.sh"
+
+
+def _step(name_part: str) -> dict:
+    return next(s for s in _job()["steps"] if name_part in str(s.get("name", "")))
+
+
+def test_the_job_start_is_marked_before_the_journeys_run():
+    steps = [str(s.get("name", "")) for s in _job()["steps"]]
+    mark = steps.index(next(n for n in steps if "Mark the job start for crash reports" in n))
+    journeys = steps.index(next(n for n in steps if "Run concurrent journeys" in n))
+    assert mark < journeys
+    assert "macOS" in str(_step("Mark the job start").get("if"))
+
+
+def test_crash_reports_are_collected_on_macos_even_after_a_failure_and_never_decide_the_row():
+    step = _step("Collect native crash reports")
+    cond = str(step.get("if"))
+    assert "always()" in cond and "macOS" in cond
+    assert step.get("continue-on-error") is True
+    assert "collect_crash_reports.sh" in step["run"] and "DiagnosticReports" in step["run"]
+    names = [str(s.get("name", "")) for s in _job()["steps"]]
+    assert names.index(step["name"]) < names.index(next(n for n in names if "Preserve journey evidence" in n))
+
+
+def test_the_collected_reports_are_uploaded():
+    upload = _step("Preserve journey evidence")
+    assert "crash-reports/" in upload["with"]["path"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the collector runs only on the macOS row")
+def test_the_collector_takes_only_this_jobs_webkit_reports_and_always_exits_zero(tmp_path):
+    reports, dest = tmp_path / "DiagnosticReports", tmp_path / "out"
+    reports.mkdir()
+    old = reports / "com.apple.WebKit.WebContent-old.ips"; old.write_text("old crash")
+    os.utime(old, (time.time() - 3600, time.time() - 3600))
+    marker = tmp_path / "marker"; marker.write_text("")
+    os.utime(marker, (time.time() - 60, time.time() - 60))
+    (reports / "com.apple.WebKit.WebContent-new.ips").write_text("Thread 0 Crashed:\n0 WebCore frame\n")
+    (reports / "JetsamEvent-new.ips").write_text("largestProcess: WebContent\n")
+    (reports / "Finder-new.ips").write_text("not ours")
+    r = subprocess.run(["bash", str(COLLECTOR), str(marker), str(dest), str(reports), str(tmp_path / "missing")],
+                       capture_output=True, text=True)
+    assert r.returncode == 0
+    assert sorted(p.name for p in dest.iterdir()) == ["JetsamEvent-new.ips", "com.apple.WebKit.WebContent-new.ips"]
+    assert "Thread 0 Crashed" in r.stdout and "crash reports collected: 2" in r.stdout
+    assert "does not exist" in r.stdout
+    # No marker: nothing is attributed to this job, and still exit 0.
+    r = subprocess.run(["bash", str(COLLECTOR), str(tmp_path / "nomarker"), str(tmp_path / "out2"), str(reports)],
+                       capture_output=True, text=True)
+    assert r.returncode == 0 and "no job-start marker" in r.stdout

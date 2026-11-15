@@ -41,6 +41,12 @@ image, the Playwright version and every browser's exact version in its
 `results.json`. Candidate (dispatched) evidence is kept 90 days; download it
 into the release record before then.
 
+On macOS, the job also copies and prints any native crash report written
+during it (WebKit and Playwright processes, and `JetsamEvent` for a
+memory-pressure kill). Playwright reports a WebKit "Page crashed" with no
+backtrace, and the native report is the only stack. Collecting it never
+changes a row's result.
+
 ## 1a. Boundaries checked on every run of the `boundary` row
 
 Each is a failure class this codebase has already got wrong or guards on

@@ -262,6 +262,41 @@ async function child(br, bname, i) {
 }
 
 
+// Service-worker experiment for the macOS WebKit reload crash (owner
+// decision, #826). Diagnostic only: it prints SWPROBE lines and never calls
+// check(), so the row passes or fails exactly as before. Two extra WebKit
+// tabs for the same learner load the lesson BEFORE the API restart, one with
+// the service worker allowed and one with it blocked; after the restart each
+// reloads. Only the worker tab crashing implicates the worker; both crashing
+// clears it; neither crashing means the trigger needs something the real
+// child did, which is inconclusive.
+async function swProbe(br, name) {
+  const variants = [['sw_allowed', {}], ['sw_blocked', { serviceWorkers: 'block' }]];
+  const tabs = [];
+  for (const [label, opts] of variants) {
+    try {
+      const ctx = await br.newContext({ viewport: { width: 1180, height: 820 }, ...opts });
+      const pg = await ctx.newPage(); pg.on('dialog', d => d.accept());
+      await childLogin(pg, name);
+      const controlled = await pg.evaluate(async () => {
+        if (!navigator.serviceWorker) return false;
+        await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(r, 5000))]);
+        return !!navigator.serviceWorker.controller;
+      }).catch(() => 'unknown');
+      const beforeRestart = !fs.existsSync(path.join(CTL, 'killed'));
+      tabs.push({ label, ctx, pg, controlled, beforeRestart });
+    } catch (e) { console.log(`SWPROBE ${label} setup failed: ${String(e).split('\n')[0].slice(0, 160)}`); }
+  }
+  await waitFile('restarted').catch(() => {});
+  for (const t of tabs) {
+    let crashed = false; t.pg.on('crash', () => { crashed = true; });
+    const outcome = await t.pg.reload({ timeout: 60000 }).then(() => (crashed ? 'crashed' : 'ok'))
+      .catch(e => (crashed || /crash/i.test(String(e)) ? 'crashed' : `error: ${String(e).split('\n')[0].slice(0, 120)}`));
+    console.log(`SWPROBE ${t.label} controlled=${t.controlled} loaded_before_restart=${t.beforeRestart} reload=${outcome} at=${new Date().toISOString()}`);
+    await t.ctx.close().catch(() => {});
+  }
+}
+
 // No horizontal page scroll: a layout that only works at desktop width is a
 // usability failure on a phone even when every button still technically works.
 const noHorizontalScroll = pg => pg.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
@@ -623,7 +658,11 @@ function pct(a, q) { const s = [...a].sort((x, y) => x - y); return s.length ? s
     await Promise.all(F.browsers.flatMap((b, i) => [boundaryParent(browsers[i], b, i), boundaryChild(browsers[i], b, i)]));
     await boundaryLockout(browsers[0]);
   } else {
-    await Promise.all(F.browsers.flatMap((b, i) => [parent(browsers[i], b, i), child(browsers[i], b, i)]));
+    const wk = PROFILE === 'desktop' ? F.browsers.indexOf('webkit') : -1;
+    await Promise.all([
+      ...F.browsers.flatMap((b, i) => [parent(browsers[i], b, i), child(browsers[i], b, i)]),
+      ...(wk >= 0 ? [swProbe(browsers[wk], LEARNERS[wk]).catch(e => console.log(`SWPROBE failed: ${String(e).slice(0, 160)}`))] : []),
+    ]);
   }
   const versions = Object.fromEntries(F.browsers.map((b, i) => [b, `${browsers[i].browserType().name()} ${browsers[i].version()}`]));
   for (const br of browsers) await br.close();

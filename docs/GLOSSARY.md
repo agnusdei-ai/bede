@@ -7,7 +7,7 @@ here. Internal ids and stored values keep whatever name they already have.
 | Say | Meaning | Instead of |
 | --- | --- | --- |
 | **pod** | The learners who study together under one plan: a household, a co-op group, a tutor's group or a small class. Up to ten. | small group, cohort (when it means the learners), class group |
-| **learning sprint** | One focused 20-minute block of work on one subject, followed by a break. A session is one or more learning sprints. | study block, focused block, work period |
+| **learning sprint** | One focused block of work on one subject, followed by a break. 20 minutes by default; the length may vary by learner (for example a younger learner, or one whose parent or teacher knows a shorter or longer block suits them). A session is one or more learning sprints. | study block, focused block, work period |
 | **session** | One sitting with Bede, from sign-in to the summary. It has a parent-set length and a required break each hour. | lesson (for the whole sitting) |
 | **lesson** | One subject's part of a session. | class, period |
 | **mastery cycle** | The rolling window (28 days unless travel mode widens it) over which a parent sees whether a topic moved. It limits how far back Bede looks. It is never a deadline for the child. | sprint, grading period |

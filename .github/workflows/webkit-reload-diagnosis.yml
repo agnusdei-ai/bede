@@ -38,12 +38,18 @@ jobs:
   # Firefox as controls. A crash is the observation; the job passes either way
   # and the REPRO/TALLY lines are the result.
   minimal:
-    name: WebKit reload diagnosis (minimal reproduction)
+    name: WebKit reload diagnosis (minimal reproduction; Playwright ${{ matrix.playwright }})
     runs-on: macos-15
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # The gate's pinned version (WebKit 26.0) and a current one, so a
+        # result names the WebKit build it holds for rather than "WebKit".
+        playwright: ['1.56.0', '1.63.0']
     env:
       CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
-      PLAYWRIGHT_VERSION: '1.56.0'
+      PLAYWRIGHT_VERSION: ${{ matrix.playwright }}
     steps:
       - name: Validate candidate SHA
         shell: bash

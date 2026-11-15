@@ -49,7 +49,12 @@ def test_the_default_orders_compare_webkit_first_with_the_gates_order():
 def test_the_minimal_reproduction_runs_every_engine_and_varies_one_factor():
     job = _load(DIAG)["jobs"]["minimal"]
     assert job["runs-on"] == "macos-15"
-    assert job["env"]["PLAYWRIGHT_VERSION"] == _load(GATE)["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"]
+    gate_version = _load(GATE)["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"]
+    versions = job["strategy"]["matrix"]["playwright"]
+    assert gate_version in versions and len(versions) >= 2     # the gate's WebKit build and a current one
+    assert all(re.fullmatch(r"\d+\.\d+\.\d+", v) for v in versions)   # exact versions only
+    assert job["env"]["PLAYWRIGHT_VERSION"] == "${{ matrix.playwright }}"
+    assert "ENV " in (JOURNEYS.parent / "webkit_nav_repro.cjs").read_text()   # every run records its builds
     install = next(s for s in job["steps"] if "playwright install" in str(s.get("run", "")))
     assert all(e in install["run"] for e in ("webkit", "chromium", "firefox"))
     repro = (JOURNEYS.parent / "webkit_nav_repro.cjs").read_text()

@@ -62,7 +62,25 @@ async function run(br, engine, name, v, rep, base) {
   return outcome;
 }
 
+function environment() {
+  // The tested environment, recorded rather than implied: a Playwright WebKit
+  // build is not a Safari release, so its exact build revision is named.
+  const os = require('os');
+  let pwVersion = 'unknown', builds = {};
+  try { pwVersion = require('playwright/package.json').version; } catch {}
+  try {
+    // browsers.json is not an exported subpath, so read it from disk beside
+    // playwright-core's own package.json.
+    const path = require('path'), fs = require('fs');
+    const from = path.dirname(require.resolve('playwright/package.json'));
+    const core = path.dirname(require.resolve('playwright-core/package.json', { paths: [from] }));
+    for (const b of JSON.parse(fs.readFileSync(path.join(core, 'browsers.json'), 'utf8')).browsers) builds[b.name] = { revision: b.revision, version: b.browserVersion || null };
+  } catch (e) { builds = { error: String(e.message || e).slice(0, 80) }; }
+  return { playwright: pwVersion, builds, os: `${os.type()} ${os.release()} ${os.arch()}`, node: process.version };
+}
+
 (async () => {
+  console.log(`ENV ${JSON.stringify(environment())}`);
   const server = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(PAGE); });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${server.address().port}`;

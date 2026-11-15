@@ -403,3 +403,26 @@ async def test_a_save_that_raises_reports_nothing_saved():
     db = MagicMock()
     db.execute = AsyncMock(side_effect=RuntimeError("database went away"))
     assert await ai_service._increment_behavior_check(db, "Sam") is False
+
+
+@pytest.mark.asyncio
+async def test_the_silent_save_tools_still_emit_nothing_on_the_stream(monkeypatch):
+    """The save functions now return whether they saved. That bool goes to
+    _gated_save and nowhere else: the real stream must emit no chunk for a
+    silent tool, on a first attempt or a retry."""
+    monkeypatch.setattr(ai_service, "log_event_nowait", lambda *a, **k: None)
+    for gate in (_gate("turn-s"), _gate("turn-s")):
+        rounds = [
+            (list(_tool_use_events("t0", *_SKILL)), "end_turn"),
+        ]
+        fake, _ = _multi_round_stream(rounds)
+        with patch.object(ai_service._client.messages, "stream", side_effect=fake):
+            chunks = [
+                _json.loads(c) async for c in ai_service.stream_tutor_response(
+                    config=SessionConfig(student_name="Sam", grade="1", grade_stage=GradeStage.foundations),
+                    subject=Subject.mathematics, history=[], child_message="It was 7.",
+                    evidence_gate=gate,
+                )
+            ]
+        assert {c["type"] for c in chunks} <= {"text", "done"}, chunks
+        assert not any(c.get("content") in (True, False) for c in chunks)

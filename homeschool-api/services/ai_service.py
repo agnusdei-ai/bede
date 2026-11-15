@@ -5116,11 +5116,12 @@ async def stream_tutor_response(
                                 # ordinary turn never grows a second round. Deliberately
                                 # NOT extended to record_skill_evidence/
                                 # record_phonics_evidence/record_language_evidence:
-                                # those three have an explicit, tested contract
-                                # (services/ai_service.py callers + their own test
-                                # suites) of returning nothing and emitting nothing, by
-                                # design — silent, best-effort diagnostic writes that
-                                # must never gain a new visible-to-the-model surface.
+                                # those have an explicit, tested contract (their own
+                                # test suites) of emitting nothing, by design —
+                                # silent, best-effort diagnostic writes that must
+                                # never gain a new visible-to-the-model surface. They
+                                # return only whether they saved, a bool that
+                                # _gated_save consumes and never yields.
                                 result_payload = dict(_TRIVIAL_TOOL_RESULT)
 
                                 if tc["name"] == "assess_narration":

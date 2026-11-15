@@ -7,8 +7,13 @@ verdict, a picture-check verdict, a moderation verdict, or streamed tutor text. 
 0.5-3.0 s (non-stream: whole delay before reply; stream: 0.4-1.2 s to first
 token, then chunks) so concurrent requests genuinely overlap.
 Logs t_start/t_end/kind per request (never content) to <dir>/stub.jsonl.
+
+The capacity run (scripts/qualification/capacity/) sets the delays with
+STUB_NONSTREAM_DELAY_S, STUB_FIRST_TOKEN_DELAY_S and STUB_CHUNK_DELAY_S
+("low-high" seconds) and, inside its docker network, STUB_BIND. Unset, every
+value is the one above, so the journeys behave exactly as before.
 """
-import json, random, sys, threading, time
+import json, os, random, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -24,6 +29,16 @@ READING = {"subject": "history", "sections": [{
 # The opening words of content_screen's rules; tests/test_qualification_workflow.py
 # checks they still match the real prompt.
 SCREEN_MARK = "You check pictures before a K-8 school app"
+
+
+def _range(name, default):
+    lo, _, hi = os.environ.get(name, default).partition("-")
+    return float(lo), float(hi or lo)
+
+
+NONSTREAM = _range("STUB_NONSTREAM_DELAY_S", "0.5-3.0")
+FIRST_TOKEN = _range("STUB_FIRST_TOKEN_DELAY_S", "0.4-1.2")
+CHUNK = _range("STUB_CHUNK_DELAY_S", "0.05-0.2")
 REPLY = "STUB-TUTOR sample reply. Good thinking. What clue in the question helped you decide?"
 
 
@@ -57,20 +72,20 @@ class H(BaseHTTPRequestHandler):
             try:
                 self.send_response(200); self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Connection", "close"); self.end_headers()
-                time.sleep(random.uniform(0.4, 1.2))
+                time.sleep(random.uniform(*FIRST_TOKEN))
                 words = REPLY.split(" ")
                 for i in range(0, len(words), 2):
                     ch = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "sample-stub",
                           "choices": [{"index": 0, "delta": {"role": "assistant", "content": " ".join(words[i:i+2]) + " "}, "finish_reason": None}]}
                     self.wfile.write(b"data: " + json.dumps(ch).encode() + b"\n\n"); self.wfile.flush()
-                    time.sleep(random.uniform(0.05, 0.2))
+                    time.sleep(random.uniform(*CHUNK))
                 end = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "sample-stub", "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}
                 self.wfile.write(b"data: " + json.dumps(end).encode() + b"\n\ndata: [DONE]\n\n"); self.wfile.flush()
             except (BrokenPipeError, ConnectionResetError):
                 kind = "stream-cancelled"
             self.close_connection = True
             log({"t0": t0, "t1": time.time(), "kind": kind, "images": imgs}); return
-        time.sleep(random.uniform(0.5, 3.0))
+        time.sleep(random.uniform(*NONSTREAM))
         if SCREEN_MARK in sysmsg:
             # The upload/lesson picture check (services/content_screen.py)
             # also carries images, so it must be recognised before the
@@ -96,4 +111,4 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+    ThreadingHTTPServer((os.environ.get("STUB_BIND", "127.0.0.1"), int(sys.argv[1])), H).serve_forever()

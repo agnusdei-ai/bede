@@ -1,0 +1,53 @@
+{
+  "_note": "Thresholds and steps for the capacity run (docs/CAPACITY.md). Report only: nothing here gates a merge or a release. Every number a verdict uses is stated here, not in code.",
+  "browser": {
+    "steps": [1, 2, 4, 6, 8, 10],
+    "required_sessions": 10,
+    "window_s": 90,
+    "think_s": 6,
+    "practice_every_turns": 3
+  },
+  "api": {
+    "steps": [1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64],
+    "window_s": 60,
+    "think_s": 4,
+    "practice_every_turns": 3
+  },
+  "stub": {
+    "_note": "Fixed delays, so the stub's own share of a turn is a known constant rather than noise. Each lesson turn makes one non-stream call (the moderation check) before the streamed reply.",
+    "nonstream_delay_s": "1.0-1.0",
+    "first_token_delay_s": "0.5-0.5",
+    "chunk_delay_s": "0.05-0.05"
+  },
+  "thresholds": {
+    "_note": "A step is supported only when it ran and met every threshold, and so did every smaller step. first_token_excess is the step's p95 first-token time minus the one-session step's median, so the stub's own fixed delay is not counted against Bede.",
+    "first_token_p95_excess_s": 3.0,
+    "first_token_p95_max_s": 10.0,
+    "max_5xx": 0,
+    "max_429": 0,
+    "max_dropped_turns": 0,
+    "max_duplicated_turns": 0,
+    "max_timeouts": 0,
+    "max_sse_stalls": 0,
+    "min_turns_per_session": 1,
+    "allow_oom_or_restart": false,
+    "rss_fraction_of_limit_max": 0.9,
+    "client_host_cpu_fraction_max": 0.9,
+    "_cpu_note": "CPU thresholds apply to the 75th percentile of one-second samples (sustained use), not to a single spike such as a page load.",
+    "client_host_mem_fraction_max": 0.9,
+    "pool_wait_p95_max_s": 0.25,
+    "binding_utilisation_note": "The binding limit at the supported step is the one with the highest utilisation: pool (most connections checked out / pool size plus overflow), rate limit (busiest client's requests per minute in a bucket / that bucket's limit), CPU (API process CPU / one core), memory (RSS / mem_limit), model stub (stub p95 call time / its configured delay)."
+  },
+  "reference": {
+    "family_membership_seats": 6,
+    "_note": "DECISIONS.md entry 10: the Family Membership is up to six children (core/licensing.py seats). Shown on the curve as a reference line, never used as a gate."
+  },
+  "api_mem_limit_mb": 1024,
+  "sse_stall_s": 35,
+  "turn_timeout_s": 90,
+  "error_patterns": {
+    "threads_fds": ["Too many open files", "Errno 24", "can't start new thread", "RuntimeError: can't create new thread", "Resource temporarily unavailable"],
+    "io": ["No space left on device", "OperationalError", "DBAPIError", "InterfaceError", "QueuePool limit", "TimeoutError: QueuePool", "connection was closed in the middle", "too many clients already", "disk I/O error", "database is locked"],
+    "memory": ["MemoryError", "Cannot allocate memory", "Killed"]
+  }
+}

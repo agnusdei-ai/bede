@@ -62,8 +62,8 @@ def _build_engine():
     return create_async_engine(
         url,
         pool_pre_ping=True,   # verify connection health before each use
-        pool_size=5,
-        max_overflow=5,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
     )
 
 

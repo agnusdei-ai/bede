@@ -41,28 +41,10 @@ const apiCall = (pg, p, method = 'GET', body) => pg.evaluate(async ([p, method, 
   const r = await fetch('/api' + p, { method, headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, body: await r.text() };
 }, [p, method, body]);
-const replies = c => c.evaluate(() => (document.body.innerText.match(/STUB-TUTOR/g) || []).length);
-const inputReady = c => c.waitForFunction(() => { const t = [...document.querySelectorAll('textarea')].pop(); return t && !t.disabled; }, null, { timeout: 60000 });
-async function sendChat(c, text) {
-  const n = await replies(c); await inputReady(c);
-  const ta = c.locator('textarea').last(); await ta.fill(text); await ta.press('Enter');
-  await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 90000 });
-  await inputReady(c);
-}
+const { replies, inputReady, sendChat, passIntro, childLogin, stillInLesson } = require('./child_steps.cjs')(F);
 async function parentLogin(p) {
   await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
-}
-// The one-time "Meet Bede" introduction can take several seconds to render
-// on a slow runner. Wait for either its button or Bede's first message
-// rather than giving up after a fixed few seconds.
-async function passIntro(c) {
-  const go = c.getByRole('button', { name: "Let's begin!" });
-  for (let i = 0; i < 150; i++) {
-    if (await go.isVisible().catch(() => false)) { await go.click(); return; }
-    if (await c.evaluate(() => /STUB-TUTOR/.test(document.body.innerText)).catch(() => false)) return;
-    await c.waitForTimeout(200);
-  }
 }
 // Diagnostic only (the macOS WebKit reload crash): what each page holds just
 // before a reload. Every request still in flight of ANY kind, the last 4xx/5xx
@@ -102,23 +84,6 @@ async function logNav(pg, who, label) {
       url: navigation.currentEntry?.url ? new URL(navigation.currentEntry.url).pathname : null } : null,
   })).catch(e => ({ error: String(e.message || e).slice(0, 120) }));
   console.log(`NAVSTATE ${who} ${label} ${JSON.stringify(s)}`);
-}
-async function childLogin(c, name) {
-  await c.goto(F.ui + '/?returnTo=' + encodeURIComponent('/session?student=' + name));
-  await c.getByRole('button', { name: /Student/ }).first().click();
-  const nm = c.getByPlaceholder('Emma'); if (await nm.count()) await nm.fill(name);
-  await c.getByPlaceholder('Enter PIN').fill(F.learners[name]);
-  await c.getByRole('button', { name: /Continue/ }).click(); await c.waitForURL(/session/, { timeout: 30000 });
-  await passIntro(c);
-  await c.waitForFunction(() => /STUB-TUTOR/.test(document.body.innerText), null, { timeout: 60000 });
-}
-// After a reload, is this child still in the lesson or back at sign-in? The
-// login page's own URL carries ?returnTo=%2Fsession…, so test the PATH, and
-// wait for one of the two screens to render before deciding.
-async function stillInLesson(c) {
-  await c.waitForFunction(() => document.querySelector('textarea') || document.querySelector('input[placeholder="Enter PIN"]') ||
-    [...document.querySelectorAll('button')].some(b => /Student|Let's begin!/.test(b.textContent)), null, { timeout: 30000 }).catch(() => {});
-  return new URL(c.url()).pathname.startsWith('/session') && !(await c.getByPlaceholder('Enter PIN').count());
 }
 async function openCoach(p, learner, viaPodSave) {
   await p.goto(F.ui + '/setup'); await p.getByText(learner).first().waitFor({ timeout: 30000 });

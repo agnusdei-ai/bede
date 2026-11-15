@@ -2374,3 +2374,23 @@ This is the owner's effective v1.0 ruling. It updates the **policy** of the exis
 **Additional recommendations expressly NOT adopted:** first-period-only advance billing (versus first-and-last-month); no renewal grace; any specific refund rule; automatic or denied Community eligibility; specific offline check-in or escalation periods; specific retention/backup-expiry durations; any unreviewed parental-verification method. These remain `recommendation_not_adopted`, not hidden defaults.
 
 **Closeout rule:** policy questions settled above are not implementation completions. Preserve the original numbered entries and linked issues. Do not close implementation/security/content issues without integrated SHA, tests, evidence or proven exclusion. The exact Mac artifact and any production deployment/public distribution require separate target-specific approval.
+
+---
+
+## 40. `[PRODUCT]` K-2 practice: the choices the specification leaves open
+
+**Status:** open · needs: owner rulings on (a) to (g)
+
+[`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
+practice for kindergarten to grade 2: phonics, handwriting, practical math,
+spelling and copying a sentence first, then memory work. Map reading, from the
+same design, shipped in #830. The specification cannot settle these, and each
+changes what gets built:
+
+- **(a) The per-child setting's default.** Off; only practice sets the parent approved; or Bede may also choose from today's subjects. *Recommended:* the third, since it is what makes practice Bede-initiated out of the box. The second is more cautious but means Bede rarely offers anything until a parent uploads a quiz.
+- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Recommended:* the marked-quiz weight, 0.5 (`QUIZ_EVIDENCE_WEIGHT`), since both are short, scaffolded observations rather than a test.
+- **(c) The handwriting style.** Ball-and-stick print, a continuous-stroke print, or pre-cursive. *Recommended:* ask the family in Parent Setup, defaulting to ball-and-stick, so Bede never teaches a different form from the one at home. Each style is its own stroke data.
+- **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
+- **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
+- **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
+- **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.

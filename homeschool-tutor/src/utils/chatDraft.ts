@@ -13,13 +13,18 @@
  * 1. **sessionStorage, never the server.** Unsent text is the child's own
  *    work in progress, not a record about them, and a per-tab store raises no
  *    retention question: it dies with the tab.
- * 2. **One draft per tab.** Saving a draft drops any other student's, so a
+ * 2. **One draft per tab.** Saving a draft drops any other owner's, so a
  *    sibling's half-written sentence never appears in the next child's box.
+ *    It lives in this tab only: another tab or another device never sees it.
  * 3. **Bounded.** Text past `MAX_DRAFT_CHARS` is not stored (it is still in
  *    the box; only the copy kept against a reload is skipped), and a draft
  *    older than `MAX_DRAFT_AGE_MS` is dropped rather than restored.
  * 4. **Validated, not trusted.** The store is editable in devtools, so a
- *    malformed entry reads as no draft.
+ *    malformed entry, or one stamped with an impossible time, reads as no
+ *    draft.
+ * 5. **Bound to who is signed in.** A draft belongs to one sign-in and one
+ *    learner (`draftOwnerFor`), so a different account on the same tablet
+ *    never finds it, even for a learner with the same name.
  *
  * Every failure is silent: storage that is full, blocked or missing (Safari
  * private browsing, a locked-down webview) costs the copy, never the lesson.
@@ -55,14 +60,48 @@ function otherDraftKeys(s: Storage, keep: string): string[] {
   return keys
 }
 
-/** The unsent text kept for this owner (a student's name), or ''. */
+/**
+ * Who a draft belongs to: the role signed in, that sign-in, and the learner.
+ * The sign-in is a short hash of the session token, never the token itself,
+ * so two sign-ins on one tablet never share a draft even for the same
+ * learner's name, while a reload (which keeps the token) still finds it.
+ * Empty when any part is missing, and an empty owner keeps nothing.
+ */
+export function draftOwnerFor(
+  role: string | null | undefined,
+  token: string | null | undefined,
+  student: string | null | undefined,
+): string {
+  if (!role || !token || !student) return ''
+  return `${role}:${fingerprint(token)}:${student}`
+}
+
+/** FNV-1a, 32 bits, as hex. Only tells two sign-ins apart; it protects
+ *  nothing and the token it is taken from already sits in this tab's
+ *  storage. */
+function fingerprint(text: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h.toString(16).padStart(8, '0')
+}
+
+/** A saved-at time this far ahead of the clock is treated as invalid. */
+export const MAX_CLOCK_SKEW_MS = 60_000
+
+/** The unsent text kept for this owner (see draftOwnerFor), or ''. */
 export function loadDraft(owner: string, now: number = Date.now(), s: Storage | null = store()): string {
   if (!s || !owner) return ''
   try {
     const raw = s.getItem(keyFor(owner))
     if (!raw) return ''
     const d = JSON.parse(raw) as Partial<StoredDraft>
-    if (typeof d?.text !== 'string' || typeof d.savedAt !== 'number') {
+    if (
+      typeof d?.text !== 'string' || typeof d.savedAt !== 'number' || !Number.isFinite(d.savedAt)
+      || d.savedAt <= 0 || d.savedAt > now + MAX_CLOCK_SKEW_MS
+    ) {
       s.removeItem(keyFor(owner))
       return ''
     }

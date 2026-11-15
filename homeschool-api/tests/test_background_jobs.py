@@ -25,12 +25,15 @@ async def test_a_job_that_raises_is_reported(caplog):
     async def boom():
         raise RuntimeError("database went away")
 
+    def _boom_line(text):
+        return "Background job data-purge stopped: RuntimeError" in text
+
     with caplog.at_level(logging.ERROR, logger="main"):
         task = main._start_background(boom(), "data-purge")
         with pytest.raises(RuntimeError):
             await task
         await asyncio.sleep(0)
-    assert "Background job data-purge stopped: RuntimeError: database went away" in caplog.text
+    assert _boom_line(caplog.text)
     assert "will not run again until the API restarts" in caplog.text
 
 
@@ -76,7 +79,7 @@ async def test_a_one_shot_job_finishing_is_its_normal_end(caplog):
         with pytest.raises(OSError):
             await task
         await asyncio.sleep(0)
-    assert "voice-model-warmup stopped: OSError: model files missing." in caplog.text
+    assert "voice-model-warmup stopped: OSError" in caplog.text
     assert "will not run again" not in caplog.text
 
 
@@ -104,3 +107,22 @@ def test_each_job_goes_through_the_watcher(job):
 
 def test_only_the_warm_up_is_one_shot():
     assert re.findall(r"_start_background\((\w[\w.]*)\(\)[^)]*one_shot=True", _LIFESPAN) == ["_warm_voice_models"]
+
+
+@pytest.mark.asyncio
+async def test_the_report_never_prints_the_error_message(caplog):
+    """An error's text can carry a learner's name, a row or a key. The report
+    names the job, the error type and where it was raised, and nothing else."""
+    secret = "Sam Example sk-live-0123456789abcdef"
+
+    async def leaky():
+        raise ValueError(f"could not purge rows for {secret}")
+
+    with caplog.at_level(logging.ERROR, logger="main"):
+        task = main._start_background(leaky(), "data-purge")
+        with pytest.raises(ValueError):
+            await task
+        await asyncio.sleep(0)
+    assert "Background job data-purge stopped: ValueError" in caplog.text
+    assert "leaky" in caplog.text, "where it was raised is the actionable part and must stay"
+    assert secret not in caplog.text and "sk-live" not in caplog.text and "Sam Example" not in caplog.text

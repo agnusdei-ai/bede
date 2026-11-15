@@ -125,11 +125,14 @@ exactly as the rest of that conversation is.
 
 What a child has typed or dictated into the chat box but not yet sent is kept
 the same way, so a reload or a crash does not take it: in the browser's own
-`sessionStorage`, on that tablet, under a key scoped to that student. Nothing
-is sent to the API until the child presses send, and nothing is written to any
-table. It is removed the moment the message is sent, when anyone signs out, and
-when the tab closes; a draft more than six hours old is discarded rather than
-restored, and only one student's draft is kept on a tablet at a time.
+`sessionStorage`, in that browser tab only, under a key for that sign-in and
+that learner (the sign-in is a short hash of the session, never the session
+token itself). Nothing is sent to the API until the child presses send, and
+nothing is written to any table. It is removed the moment the message is sent,
+at sign-out (including one forced by an expired session), and when the tab
+closes. A draft more than six hours old, or stamped with an impossible time, is
+discarded rather than restored. Only one draft is kept in a tab at a time, and
+another tab or device never sees it.
 
 ## The public demo's data
 

@@ -376,9 +376,14 @@ def _report_task_end(name: str, task: "asyncio.Task", one_shot: bool = False) ->
         return
     exc = task.exception()
     if exc is not None:
+        # The type and where it was raised, never the message: a job's error
+        # text can carry a learner's name, a database row or a key, and these
+        # logs are read by whoever runs the server (core/log_redaction.py).
+        from core.log_redaction import exc_summary
+
         log.error(
-            "Background job %s stopped: %s: %s.%s",
-            name, type(exc).__name__, exc,
+            "Background job %s stopped: %s.%s",
+            name, exc_summary(exc),
             "" if one_shot else " It will not run again until the API restarts.",
         )
     elif not one_shot:

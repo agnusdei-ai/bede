@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
-import { retireServiceWorker } from './utils/serviceWorker'
+import { isBedeWorker, retireServiceWorker } from './utils/serviceWorker'
 
 // Bede's service worker is retired (docs/RELIABILITY.md). public/sw.js now
 // only removes the worker an older version installed, and the app registers
@@ -67,18 +67,51 @@ describe('the app registers no service worker', () => {
   })
 })
 
+const ORIGIN = 'https://bede.local'
+
+function reg(stage: 'installing' | 'waiting' | 'active' | null, script = `${ORIGIN}/sw.js`) {
+  const worker = stage ? { scriptURL: script } : null
+  return {
+    installing: stage === 'installing' ? worker : null,
+    waiting: stage === 'waiting' ? worker : null,
+    active: stage === 'active' ? worker : null,
+    unregister: vi.fn(async () => true),
+  } as unknown as ServiceWorkerRegistration & { unregister: ReturnType<typeof vi.fn> }
+}
+
+function navWith(regs: ServiceWorkerRegistration[]) {
+  return { serviceWorker: { getRegistrations: async () => regs } } as unknown as Navigator
+}
+
+describe('isBedeWorker', () => {
+  it.each(['installing', 'waiting', 'active'] as const)('recognises Bede\'s worker while it is %s', (stage) => {
+    expect(isBedeWorker(reg(stage), ORIGIN)).toBe(true)
+  })
+
+  it('does not claim a worker running another script, from another origin, or with no worker at all', () => {
+    expect(isBedeWorker(reg('active', `${ORIGIN}/other-sw.js`), ORIGIN)).toBe(false)
+    expect(isBedeWorker(reg('active', 'https://elsewhere.example/sw.js'), ORIGIN)).toBe(false)
+    expect(isBedeWorker(reg('active', `${ORIGIN}/app/sw.js`), ORIGIN)).toBe(false)
+    expect(isBedeWorker(reg(null), ORIGIN)).toBe(false)
+  })
+})
+
 describe('retireServiceWorker', () => {
-  it('unregisters every registration and clears only the old worker\'s caches', async () => {
-    const regs = [{ unregister: vi.fn(async () => true) }, { unregister: vi.fn(async () => true) }]
-    const nav = { serviceWorker: { getRegistrations: async () => regs } } as unknown as Navigator
+  it('unregisters only Bede\'s worker and leaves an unrelated one on the same origin', async () => {
+    vi.stubGlobal('location', { origin: ORIGIN })
+    const bede = [reg('active'), reg('waiting'), reg('installing')]
+    const other = reg('active', `${ORIGIN}/push-worker.js`)
     const deleted: string[] = []
     const store = {
       keys: async () => ['bede-v3', 'other-app'],
       delete: async (k: string) => { deleted.push(k); return true },
     } as unknown as CacheStorage
 
-    expect(await retireServiceWorker(nav, store)).toBe(2)
+    expect(await retireServiceWorker(navWith([...bede, other]), store)).toBe(3)
+    for (const r of bede) expect(r.unregister).toHaveBeenCalledTimes(1)
+    expect(other.unregister).not.toHaveBeenCalled()
     expect(deleted).toEqual(['bede-v3'])
+    vi.unstubAllGlobals()
   })
 
   it('is silent where service workers or Cache Storage are unavailable', async () => {
@@ -89,11 +122,10 @@ describe('retireServiceWorker', () => {
   })
 
   it('keeps going when one registration refuses to unregister', async () => {
-    const regs = [
-      { unregister: vi.fn(async () => { throw new Error('nope') }) },
-      { unregister: vi.fn(async () => true) },
-    ]
-    const nav = { serviceWorker: { getRegistrations: async () => regs } } as unknown as Navigator
-    expect(await retireServiceWorker(nav, undefined)).toBe(1)
+    vi.stubGlobal('location', { origin: ORIGIN })
+    const refusing = reg('active')
+    refusing.unregister.mockImplementation(async () => { throw new Error('nope') })
+    expect(await retireServiceWorker(navWith([refusing, reg('active')]), undefined)).toBe(1)
+    vi.unstubAllGlobals()
   })
 })

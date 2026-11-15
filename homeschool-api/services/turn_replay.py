@@ -1,75 +1,132 @@
-"""One lesson turn records the child's work once, however many times it is sent.
+"""One lesson turn records each piece of the child's work once, however many
+times the tablet sends it.
 
 ``homeschool-tutor/src/services/api.ts``'s ``streamTutorChat`` retries a turn
 whose connection failed before any of Bede's reply reached the tablet (up to
-six attempts over about 25 seconds). That retry is right for the child, who
-would otherwise lose their answer. It was not right for the record. The
-server saves the child's work WHILE it builds the reply: skill evidence, the
-work ledger, a narration's rubric scores, the learning-style counters. A
-connection that dropped after the first attempt had saved something, but
-before any of the reply reached the tablet, sent the same turn again, and the
-second attempt saved it all a second time. Nothing errored; the parent's
-Progress page simply showed work the child did once as work done twice.
+six attempts over about 25 seconds). That is right for the child, who would
+otherwise lose their answer. It was not right for the record. The server saves
+the child's work WHILE it builds the reply: skill evidence, the work ledger, a
+narration's rubric scores, the learning-style counter. A retry that reached the
+server after an earlier attempt had already saved something saved it again, and
+the parent's Progress page showed work done once as work done twice.
 
-So the client now sends a ``turn_id``, minted once per turn and reused by
-every retry of it, and the server lets exactly ONE attempt of a turn record
-anything. The first attempt that reaches a write claims the turn; any other
-attempt of the same turn still answers the child in full and records
-nothing. Claiming at the first WRITE, rather than when the request arrives,
-is deliberate: an attempt that failed before it saved anything (the model
-errored, the stream stalled) must not stop the retry from saving the work.
+So the client sends a ``turn_id``, minted once per turn and reused by every
+retry, and every save in the turn goes through an ``EvidenceGate``:
 
-Three properties, each pinned by ``tests/test_turn_replay.py``:
+* **Per effect, not per turn.** Each save is named for what it records: one
+  skill's evidence, the narration's scores, the learning-style counter. A turn
+  that saved the skill evidence and then dropped before saving the narration
+  leaves the narration open: the retry saves it. The first version of this
+  claimed the whole turn at the first save, so that narration was silently
+  lost.
+* **Marked only once it actually saved.** A save that failed (the save
+  functions report it) or never ran leaves its effect open for the retry.
+* **Overlapping attempts take turns.** If another attempt is in the middle of
+  the same save, a retry waits for it to finish (up to ``WAIT_SECONDS``) and
+  then skips it if it saved, or saves it if it did not. Without the wait, two
+  attempts racing on one save would both write.
+* **A retry reports what was saved, never something new.** A skipped narration
+  hands back the summary the earlier attempt actually saved, so neither the
+  screen nor the model is told about scores that were never stored.
 
-* **No turn id, no change.** An older client, the sandbox, a script, and
-  the public demo send none, and every attempt records exactly as before.
-* **Keyed by who is speaking as well as the turn id.** A turn id is a random
-  value from the client, so one caller cannot suppress another's record by
-  sending their id.
-* **Claim and check are one step.** There is no ``await`` between them, so
-  two attempts of one turn interleaving on the event loop cannot both win.
+What a retry does NOT do: an effect already saved by an earlier attempt is not
+saved again even if the retry's model produced a different value for it (the
+same skill, a different outcome). The first saved observation stands, since the
+child answered once. A different skill in the retry is a different effect, and
+is saved.
 
-Like ``services/streaming_transcription.py``'s voice sessions, the claims are
-held in this process's memory. A retry that reaches a different replica, or
-arrives after a restart, is not recognised and records again, which is the
-old behaviour rather than a new failure. Both supported deployments run a
-single process.
+No turn id (older clients, the sandbox, scripts, the public demo) means no
+gate: every attempt saves, exactly as before. The key includes who is speaking,
+so one caller cannot suppress another's record by sending their turn id.
+
+Like ``services/streaming_transcription.py``'s voice sessions, this is held in
+this process's memory for ``CLAIM_TTL_SECONDS``. A retry that reaches a
+different process, or arrives after a restart, is not recognised and saves
+again: the old behavior, not a new failure. Both supported deployments run one
+process. See docs/RELIABILITY.md.
 """
 
 from __future__ import annotations
 
+import asyncio
+import json
+import logging
 import secrets
 import time
 from collections import OrderedDict
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
-# Long enough to outlast the client's whole retry budget
-# (TUTOR_RETRY_BUDGET_MS, ~25 seconds) many times over; short enough that the
-# table never holds more than a few minutes of turns.
+log = logging.getLogger(__name__)
+
+# Long enough to outlast the client's whole retry budget (~25 seconds) many
+# times over; short enough that the table holds only minutes of turns.
 CLAIM_TTL_SECONDS = 600
-# A household sends a turn every few seconds at most, so this is far above any
-# real load; it only bounds memory if something sends turn ids in a loop.
-MAX_CLAIMS = 5000
+# Bounds memory if something sends turn ids in a loop; far above real use.
+MAX_TURNS = 5000
+# How long a retry waits for another attempt that is mid-save. A save is a few
+# database writes; this is generous.
+WAIT_SECONDS = 15.0
 
-# key -> (attempt token that owns the turn, expiry on the monotonic clock)
-_claims: "OrderedDict[str, tuple[str, float]]" = OrderedDict()
+
+@dataclass
+class _Effect:
+    token: str
+    saved: bool = False
+    result: Any = None
+    done: asyncio.Event = field(default_factory=asyncio.Event)
+
+
+@dataclass
+class _Turn:
+    expiry: float
+    effects: dict[str, _Effect] = field(default_factory=dict)
+
+
+_turns: "OrderedDict[str, _Turn]" = OrderedDict()
 
 
 def _sweep(now: float) -> None:
-    while _claims:
-        key, (_, expiry) = next(iter(_claims.items()))
-        if expiry > now and len(_claims) <= MAX_CLAIMS:
+    while _turns:
+        key, turn = next(iter(_turns.items()))
+        if turn.expiry > now and len(_turns) <= MAX_TURNS:
             break
-        _claims.popitem(last=False)
+        _turns.popitem(last=False)
+
+
+def effect_name(tool_name: str, tool_input: Optional[dict] = None) -> str:
+    """The name of what a save records. One skill, domain or language is one
+    effect; the narration's scores and the learning-style counter are one each
+    per turn."""
+    ti = tool_input or {}
+    for field_name in ("probe_id", "domain", "language"):
+        value = ti.get(field_name)
+        if isinstance(value, str) and value:
+            return f"{tool_name}:{value}"
+    return tool_name
+
+
+class Claim:
+    """One attempt's right to perform one save, or the record that another
+    attempt already did. Always ``finish()`` it."""
+
+    def __init__(self, gate: "EvidenceGate", name: str, allowed: bool, prior: Any = None):
+        self._gate = gate
+        self._name = name
+        self.allowed = allowed
+        #: For a skipped save: what the attempt that saved it returned.
+        self.prior = prior
+        self._finished = not allowed
+
+    def finish(self, saved: bool, result: Any = None) -> None:
+        if self._finished:
+            return
+        self._finished = True
+        self._gate._finish(self._name, saved, result)
 
 
 class EvidenceGate:
-    """Decides, for one attempt of one turn, whether it may record anything.
-
-    Created once per request. ``may_record()`` is asked before every write;
-    the first time it is asked on a turn nobody has claimed, it claims the
-    turn for this attempt and answers True from then on.
-    """
+    """Decides, for one attempt of one turn, which saves it may perform."""
 
     def __init__(self, key: Optional[str]) -> None:
         self._key = key
@@ -79,16 +136,52 @@ class EvidenceGate:
     def tracked(self) -> bool:
         return self._key is not None
 
-    def may_record(self) -> bool:
-        if self._key is None:
-            return True
+    def _turn(self) -> _Turn:
         now = time.monotonic()
         _sweep(now)
-        held = _claims.get(self._key)
-        if held is None:
-            _claims[self._key] = (self._token, now + CLAIM_TTL_SECONDS)
-            return True
-        return held[0] == self._token
+        turn = _turns.get(self._key)
+        if turn is None:
+            turn = _Turn(expiry=now + CLAIM_TTL_SECONDS)
+            _turns[self._key] = turn
+        return turn
+
+    async def claim(self, name: str) -> Claim:
+        if self._key is None:
+            return Claim(self, name, allowed=True)
+        turn = self._turn()
+        held = turn.effects.get(name)
+        if held is not None and held.token != self._token and not held.done.is_set():
+            # Another attempt is mid-save. Wait for it to finish, then decide.
+            try:
+                await asyncio.wait_for(held.done.wait(), timeout=WAIT_SECONDS)
+            except asyncio.TimeoutError:
+                log.warning("turn_replay: another attempt is still saving %s; skipping it here", name.split(":")[0])
+                return Claim(self, name, allowed=False)
+            held = turn.effects.get(name)
+        if held is not None and held.saved and held.token != self._token:
+            return Claim(self, name, allowed=False, prior=held.result)
+        if held is not None and held.token == self._token:
+            # This attempt saving the same thing again within its own turn
+            # (one skill observed twice): allowed, and a failure the second
+            # time must not erase the record that the first one saved.
+            return Claim(self, name, allowed=True)
+        # Free: never claimed, or the earlier attempt's save failed.
+        turn.effects[name] = _Effect(token=self._token)
+        return Claim(self, name, allowed=True)
+
+    def _finish(self, name: str, saved: bool, result: Any) -> None:
+        if self._key is None:
+            return
+        turn = _turns.get(self._key)
+        effect = turn.effects.get(name) if turn else None
+        if effect is None or effect.token != self._token:
+            return
+        if saved:
+            effect.saved = True
+            effect.result = result
+        elif not effect.saved:
+            del turn.effects[name]
+        effect.done.set()
 
 
 def gate_for(owner: str, turn_id: Optional[str]) -> EvidenceGate:
@@ -96,7 +189,7 @@ def gate_for(owner: str, turn_id: Optional[str]) -> EvidenceGate:
     student or demo code); ``turn_id`` is the client's id for the turn."""
     if not turn_id:
         return EvidenceGate(None)
-    return EvidenceGate(f"{owner}\x1f{turn_id}")
+    return EvidenceGate(json.dumps([owner, turn_id]))
 
 
 def always_record() -> EvidenceGate:
@@ -105,4 +198,4 @@ def always_record() -> EvidenceGate:
 
 
 def _reset_for_tests() -> None:
-    _claims.clear()
+    _turns.clear()

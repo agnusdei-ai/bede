@@ -328,9 +328,10 @@ alone, since those are our sentences and were written for a reader.
 child's work while it builds the reply, so a retry that reached it after an
 earlier attempt had already saved something used to save it again: the
 parent's Progress page then showed work done once as work done twice. Each
-turn now carries a `turn_id` that every retry of it reuses, and the server
-lets only the first attempt that saves anything save at all. The retry still
-answers the child in full. See `docs/RELIABILITY.md`.
+turn now carries a `turn_id` that every retry of it reuses, and each piece of
+work in the turn is saved by one attempt only, marked once it actually saved: a
+save that failed or never ran is left for the retry. The retry still answers
+the child in full. See `docs/RELIABILITY.md`.
 
 The same predicate, `isNetworkFailure`, answers both questions — what to say,
 and whether trying again is reasonable — and is shared with the voice path,

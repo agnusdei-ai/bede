@@ -22,9 +22,25 @@ builds the reply: skill evidence, the work ledger, a narration's scores, the
 learning-style counters. A retry that reached the server after an earlier
 attempt had already saved something used to save it again, so the parent's
 Progress page showed work done once as work done twice. Each turn now carries a
-`turn_id`, made once and reused by every retry of that turn, and the server lets
-only the first attempt that saves anything save at all. The retry still answers
-the child in full.
+`turn_id`, made once and reused by every retry of that turn, and each piece of
+the child's work in it (one skill's evidence, the narration's scores, the
+learning-style counter) is saved by only one attempt:
+
+- **Marked only once it actually saved.** A save that failed, or never ran because
+  the connection dropped first, is left for the retry to make. A turn that saved
+  the skill evidence and then dropped before the narration has its narration
+  saved by the retry, not lost.
+- **Overlapping attempts take turns.** A retry that arrives while another
+  attempt is in the middle of the same save waits for it, then skips the save if
+  it went through or makes it if it did not.
+- **A retry reports what was saved.** If the narration was already saved, the
+  retry hands the screen and the model the summary that was saved, never a new
+  one built from its own scoring.
+- **The first saved answer stands.** A retry whose model records a different
+  value for something already saved (the same skill, another outcome) does not
+  overwrite it, since the child answered once. A different skill is saved.
+
+The retry still answers the child in full.
 
 The server remembers turn ids for ten minutes, in memory, in one process. A
 retry that reached a different server process, or arrived after a restart,
@@ -55,8 +71,9 @@ from it.
 
 So:
 
-- the app registers no service worker, and removes any an older version left
-  behind, with its caches (`src/utils/serviceWorker.ts`, called from
+- the app registers no service worker, and removes the one an older version
+  left behind, with its `bede-*` caches. It removes only a worker running Bede's
+  own `/sw.js` from this origin, and leaves any other on the origin alone (`src/utils/serviceWorker.ts`, called from
   `src/main.tsx`);
 - `public/sw.js` now only removes itself: a browser that still has the old
   worker fetches it, deletes the old caches and unregisters, and from then on
@@ -111,11 +128,14 @@ error. The error screen speaks the session's language.
 
 What a child has typed or dictated but not yet sent is kept in the browser's own
 storage for that tab, so a reload, a crash or the one-time update reload above
-does not take it. It is removed once sent, when anyone signs out (so the next
-person on a shared tablet never sees it), and when the tab closes. Only one
-student's draft is kept per tablet, and a draft older than six hours is
-discarded. Nothing is sent to the server until the child presses send. See
-`docs/DATA_RETENTION.md`.
+does not take it. It belongs to one sign-in and one learner: if the learner
+changes, or someone else signs in, while the chat is open, the box shows that
+person's own draft or nothing. It is removed once sent, at sign-out (including a
+sign-out forced by an expired session), and when the tab closes. It lives in
+that tab only, not on the device: another tab never sees it. Only one draft is
+kept per tab, and a draft older than six hours, or stamped with an impossible
+time, is discarded. Nothing is sent to the server until the child presses send.
+See `docs/DATA_RETENTION.md`.
 
 - `homeschool-tutor/src/utils/chatDraft.ts`, used by
   `src/components/SocraticChat.tsx` and cleared in `src/store/sessionStore.ts`'s
@@ -131,7 +151,9 @@ catches its own errors and tries again next time, so none should ever finish.
 One that did, through an error escaping its handler or a loop that returns,
 used to stop with nothing in the logs, and its work simply stopped happening.
 Every job now starts through `main.py`'s `_start_background`, which logs an
-error naming the job if it ever stops. Stopping at shutdown is normal and is
+error naming the job if it ever stops, with the error's type and where it was
+raised but never its message, which could carry a learner's name or a key.
+Stopping at shutdown is normal and is
 not reported, and the one-time voice-model warm-up is reported only if it
 fails.
 

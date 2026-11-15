@@ -1,5 +1,6 @@
 /**
- * Removes any service worker and cache an older version of Bede installed.
+ * Removes the service worker and caches an older version of Bede installed,
+ * and nothing else on the origin.
  *
  * Bede used to register `/sw.js`, which cached the app's pages under one
  * fixed name and served them cache-first, so a tablet could keep running an
@@ -14,6 +15,25 @@
  * Best-effort and silent. Nothing here can fail a page load, and nothing is
  * reloaded, so a lesson already open is never interrupted.
  */
+/** The script the old version registered. Only a registration running this
+ *  exact script on this origin is Bede's; anything else on the origin is left
+ *  alone. */
+export const BEDE_WORKER_PATH = '/sw.js'
+
+/** Whether a registration is the worker Bede installed: any of its installing,
+ *  waiting or active workers runs `/sw.js` from this page's own origin. */
+export function isBedeWorker(reg: ServiceWorkerRegistration, origin: string = location.origin): boolean {
+  return [reg.installing, reg.waiting, reg.active].some((w) => {
+    if (!w?.scriptURL) return false
+    try {
+      const url = new URL(w.scriptURL)
+      return url.origin === origin && url.pathname === BEDE_WORKER_PATH
+    } catch {
+      return false
+    }
+  })
+}
+
 export async function retireServiceWorker(
   nav: Navigator | undefined = typeof navigator === 'undefined' ? undefined : navigator,
   cacheStorage: CacheStorage | undefined = typeof caches === 'undefined' ? undefined : caches,
@@ -22,6 +42,9 @@ export async function retireServiceWorker(
   try {
     const regs = (await nav?.serviceWorker?.getRegistrations?.()) ?? []
     for (const reg of regs) {
+      // Only Bede's own worker. Unregistering every worker on the origin
+      // would remove one some other page or tool installed there.
+      if (!isBedeWorker(reg)) continue
       if (await reg.unregister().catch(() => false)) removed++
     }
   } catch {

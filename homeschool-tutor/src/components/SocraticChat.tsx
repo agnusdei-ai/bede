@@ -20,7 +20,7 @@ import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
 import { displayNameOf } from '../utils/displayName'
-import { loadDraft, saveDraft } from '../utils/chatDraft'
+import { draftOwnerFor, loadDraft, saveDraft } from '../utils/chatDraft'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -69,10 +69,19 @@ export default function SocraticChat({
   const remainingSecsRef = useRef<number | null>(remainingSecs)
   remainingSecsRef.current = remainingSecs
   // What the child has typed or dictated but not sent survives a reload or a
-  // crash (utils/chatDraft.ts). Keyed by student, like the box itself, which
-  // keeps its text across a change of subject. Saved by the effect below the
-  // store read further down.
-  const [input, setInput] = useState(() => loadDraft(useSessionStore.getState().sessionConfig?.student_name ?? ''))
+  // crash (utils/chatDraft.ts). The text is held together with the owner it
+  // belongs to (who is signed in, and which learner), so that when either
+  // changes while this chat stays open, the previous child's words are never
+  // shown in the box or saved under the next one. Kept across a change of
+  // subject, like the box itself. The owner is worked out below the store read.
+  const [draft, setDraft] = useState(() => {
+    const st = useSessionStore.getState()
+    const owner = draftOwnerFor(st.role, st.token, st.sessionConfig?.student_name)
+    return { owner, text: loadDraft(owner) }
+  })
+  const setInput = useCallback((next: string | ((prev: string) => string)) => {
+    setDraft((d) => ({ owner: d.owner, text: typeof next === 'function' ? next(d.text) : next }))
+  }, [])
   const [showCanvas, setShowCanvas] = useState(false)
   // Map practice (K-2) opens over the chat the same way the canvas does.
   const [showMapPractice, setShowMapPractice] = useState(false)
@@ -95,7 +104,7 @@ export default function SocraticChat({
   // fire time rather than closing over it — avoids re-arming the timer on
   // every keystroke while still correctly skipping a child mid-typing.
   const inputRef = useRef('')
-  useEffect(() => { inputRef.current = input }, [input])
+  useEffect(() => { inputRef.current = draft.text }, [draft.text])
 
   // ── Voice input: tap to speak ─────────────────────────────────────────────
   // One tap starts listening for a single utterance; a finished transcript
@@ -152,8 +161,15 @@ export default function SocraticChat({
     nextSubject,
     setSessionConfig,
   } = useSessionStore()
-  const draftOwner = sessionConfig?.student_name ?? ''
-  useEffect(() => { saveDraft(draftOwner, input) }, [draftOwner, input])
+  const draftOwner = draftOwnerFor(role, token, sessionConfig?.student_name)
+  if (draft.owner !== draftOwner) {
+    // A different learner, or a different sign-in, with this chat still open:
+    // switch to that owner's own draft before anything is shown or saved.
+    setDraft({ owner: draftOwner, text: loadDraft(draftOwner) })
+  }
+  const input = draft.owner === draftOwner ? draft.text : ''
+  // Saved under the owner the text belongs to, never the one now signed in.
+  useEffect(() => { saveDraft(draft.owner, draft.text) }, [draft])
   // Approved practice shows only while Practice Coach is on for this install.
   const practiceCoachEnabled = usePracticeCoachEnabled(role === 'child' ? token : null)
 

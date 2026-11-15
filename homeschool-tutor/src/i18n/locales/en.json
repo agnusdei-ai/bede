@@ -136,6 +136,7 @@
     "micUnavailable": "I can't hear you right now — something's wrong with the microphone. You can still type your answer instead.",
     "micNetworkUnavailable": "I can't hear you right now — we lost the connection for a moment. Try holding the mic again, or type your answer instead.",
     "turnNetworkFailed": "Your message didn't reach me — we lost the connection for a moment. Try sending it again.",
+    "messageTooLong": "That's longer than one message can be ({{max}} characters). Your words are still in the box. Try sending them in two parts.",
     "micNoSpeechHeard": "I didn't quite catch that. Try holding the mic and talking a bit closer, or type your answer instead.",
     "placeholderOnBreak": "On a break. Bede will be here when you return.",
     "placeholderHoldListening": "Listening… let go when you're done",

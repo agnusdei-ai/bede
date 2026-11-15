@@ -136,6 +136,7 @@
     "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar.",
     "micNetworkUnavailable": "No puedo escucharte ahora mismo — perdimos la conexión por un momento. Intenta mantener presionado el micrófono otra vez, o escribe tu respuesta.",
     "turnNetworkFailed": "Tu mensaje no me llegó — perdimos la conexión por un momento. Intenta enviarlo otra vez.",
+    "messageTooLong": "Es más largo de lo que cabe en un mensaje ({{max}} caracteres). Tus palabras siguen en el cuadro: intenta enviarlas en dos partes.",
     "micNoSpeechHeard": "No logré escucharte bien. Intenta mantener presionado el micrófono y hablar un poco más cerca, o escribe tu respuesta.",
     "placeholderOnBreak": "En un descanso. Bede estará aquí cuando regreses.",
     "placeholderHoldListening": "Escuchando… suelta cuando termines",

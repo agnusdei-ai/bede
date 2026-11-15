@@ -54,6 +54,11 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
+/** The most a child's chat message may hold: TutorRequest.child_message's
+ *  max_length in homeschool-api/models/schemas.py. A test reads that file and
+ *  fails if the two disagree. */
+export const MAX_CHILD_MESSAGE_CHARS = 2000
+
 /** Identifies the session a lesson turn belongs to: who is signed in, which
  *  learner, and which sitting. Read from the store at the moment it is asked. */
 function turnOwnerKey(): string {
@@ -726,6 +731,17 @@ export default function SocraticChat({
     const msg = (overrideMsg ?? input).trim()
     if ((!msg && !pendingDrawing) || isStreaming || !token || !sessionConfig) return
 
+    // Longer than the server accepts (TutorRequest.child_message). Sent, it
+    // came back refused and reached the child as "we lost the connection",
+    // which is untrue and invites resending the same message forever. Keep
+    // the words in the box, say plainly what to do, and send nothing. Covers
+    // a long voice transcript too, which arrives as overrideMsg.
+    if ((pendingDrawing ? `${msg} [✏️ Drawing]` : msg).length > MAX_CHILD_MESSAGE_CHARS) {
+      setInput(msg)
+      addToolMessage('error', `⚠️ ${t('chat.messageTooLong', { max: MAX_CHILD_MESSAGE_CHARS })}`)
+      return
+    }
+
     stopSpeech()      // stop any ongoing speech when child replies
     stopListening()
     setInput('')
@@ -761,7 +777,7 @@ export default function SocraticChat({
     await consumeTurnStream(stream)
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
-    timeOfDay, localDate, sessionId, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
+    timeOfDay, localDate, sessionId, addUserMessage, addToolMessage, t, stopSpeech, stopListening, consumeTurnStream,
   ])
 
   // Keeps sendRef (declared above useHybridVoiceInput, before send() exists)
@@ -926,11 +942,12 @@ export default function SocraticChat({
         <PracticeDelivery
           token={token}
           studentName={sessionConfig.student_name}
+          busy={isStreaming}
           onAnswer={(prompt, response) => send(`${t('practiceDelivery.questionContext', { prompt })}\n${t('practiceDelivery.answerContext', { response })}`)}
         />
       )}
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
+      <div data-chat-messages className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} />
         ))}

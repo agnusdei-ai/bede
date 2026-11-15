@@ -88,6 +88,10 @@ You can answer me in whichever way feels easiest:
   message didn't reach me, and you can send it again. It wasn't anything you
   did. If I'm taking too long to answer, I'll stop waiting rather than leave
   you stuck. You can try again when you're ready.
+- One message can hold a lot of words, but not endless ones. If you write or
+  say something really long, I'll tell you it's too long for one message.
+  Your words stay right there in the box, so nothing is lost. Just send them
+  in two parts.
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and

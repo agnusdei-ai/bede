@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -25,10 +26,30 @@ from release_repair import state_store  # noqa: E402
 _SEQ = re.compile(r"^release-repair-state-(?P<cycle>[0-9a-z-]+)-(?P<seq>\d+)$")
 
 
+class _DropAuthOnCrossHostRedirect(urllib.request.HTTPRedirectHandler):
+    """Never forward the GitHub token to another host.
+
+    An artifact's archive_download_url answers 302 to a short-lived, pre-signed
+    blob-storage URL. urllib copies every header onto the redirected request,
+    so the GitHub token went to the storage host too, which refused it with 401
+    and broke every snapshot download (found by the first live cycle,
+    webkit-1 run 2). Leaking the token to a third-party host is the worse half
+    of the same defect."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc:
+            new.remove_header("Authorization")
+        return new
+
+
+_OPENER = urllib.request.build_opener(_DropAuthOnCrossHostRedirect)
+
+
 def _get(url: str, token: str, raw: bool = False):
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}",
                                                "Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with _OPENER.open(req, timeout=60) as r:
         return r.read() if raw else json.load(r)
 
 

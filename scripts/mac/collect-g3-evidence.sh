@@ -413,7 +413,7 @@ if [ "$MAC_CHECK" = 1 ]; then
   mac_lock "$SRC/homeschool-api/requirements-dev.lock.txt" > "$WORK/requirements-mac.lock.txt"
   "$WORK/venv/bin/pip" install -q --require-hashes -r "$WORK/requirements-mac.lock.txt" > "$PRIVATE/pip.log" 2>&1 \
     || die "dependency install failed (see $PRIVATE/pip.log)"
-  (cd "$SRC" && npm install -q --no-save playwright@1.56.0 > "$PRIVATE/npm.log" 2>&1 && npx -y playwright@1.56.0 install chromium >> "$PRIVATE/npm.log" 2>&1) \
+  (cd "$SRC" && npm install -q --no-save playwright@1.63.0 > "$PRIVATE/npm.log" 2>&1 && npx -y playwright@1.63.0 install chromium >> "$PRIVATE/npm.log" 2>&1) \
     || die "browser driver install failed (see $PRIVATE/npm.log)"
   PG_PASS="$(openssl rand -hex 16)"
   printf 'throwaway_postgres_password=%s\n' "$PG_PASS" >> "$PRIVATE/credentials.txt"

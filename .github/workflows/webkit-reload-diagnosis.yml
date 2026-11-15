@@ -87,7 +87,7 @@ jobs:
       CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
       BROWSERS: ${{ matrix.browsers }}
       PROFILE: desktop
-      PLAYWRIGHT_VERSION: '1.56.0'
+      PLAYWRIGHT_VERSION: '1.63.0'
     steps:
       - name: Validate candidate SHA and browser order
         shell: bash

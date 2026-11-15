@@ -217,8 +217,8 @@ async function child(br, bname, i) {
       // registered, so this asks for the registrations instead. Polled with
       // evaluate(), never waitForFunction(): waitForFunction does not await an
       // async predicate, so its Promise counts as true and the check passes
-      // without ever looking (measured with Chromium on Playwright 1.56, the version CI pins,
-      // and on 1.63).
+      // without ever looking (measured with Chromium on Playwright 1.56, and on
+      // 1.63, the version CI pins).
       let noWorker = false;
       for (let k = 0; k < 20 && !noWorker; k++) {
         noWorker = await c.evaluate(async () => !navigator.serviceWorker?.controller

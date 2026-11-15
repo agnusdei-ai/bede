@@ -1,7 +1,8 @@
 # The WebKit reload crash: status and release requirement
 
-**Status: open. Release-blocking for any claim that Apple devices are
-supported.** Tracked as release-repair cycle `webkit-1`, task
+**Status: release qualification pinned to WebKit 26.6 (owner decision,
+2026-11-15). The physical Apple-device sign-off is still required before any
+claim that Apple devices are supported.** Tracked as release-repair cycle `webkit-1`, task
 `t001-webkit-original-page-reload-crash`
 (`config/release-repair.json`).
 
@@ -25,13 +26,29 @@ build 2215; runs 43750343851 and 43751428905):
 - the parent WebKit page shows the same stale record, is reloaded once, and
   does not crash; Chromium's record matches real history throughout.
 
-**Hypothesis** (not yet isolated): WebKit's Navigation API does not record
-`history.pushState`; a reload then leaves `currentEntry` null; a second reload
-crashes. `scripts/qualification/browser_journeys/webkit_nav_repro.cjs`, run by
-the `minimal` job of `.github/workflows/webkit-reload-diagnosis.yml`, tests this
-on a page independent of Bede, under each recorded Playwright/WebKit build.
-Variants A, E, G, H and I are **candidate** mitigations until that run shows
-otherwise.
+**Isolated in Playwright's WebKit** (run 43757437010, candidate `f59a83af`,
+macOS 15.8.2 arm64, Node 24.22.2; three runs per variant, an initial screen):
+WebKit 26.0's Navigation API does not record `history.pushState`, a reload
+then leaves `currentEntry` null, and a second reload crashes.
+`scripts/qualification/browser_journeys/webkit_nav_repro.cjs`, run by the
+`minimal` job of `.github/workflows/webkit-reload-diagnosis.yml`, shows it on a
+page independent of Bede:
+
+| Variant | Playwright 1.56.0 (WebKit 26.0, build 2215) | Playwright 1.63.0 (WebKit 26.6, build 2359) |
+|---|---|---|
+| A no `pushState`, 2 reloads | 0/3 | 0/3 |
+| B `pushState`, 2 reloads | **3/3 crashed** | 0/3 |
+| C `pushState`, 1 reload | 0/3 | 0/3 |
+| D `replaceState`, 2 reloads | 0/3 | 0/3 |
+| E real navigation instead of `pushState` | 0/3 | 0/3 |
+| F `pushState`, 3 reloads | **3/3 crashed** | 0/3 |
+| G repair after the first reload | **3/3 crashed** | 0/3 |
+| H `pushState`, then an immediate real navigation | 0/3 | 0/3 |
+| I `pushState`, then `navigation.reload()` | **3/3 crashed** | 0/3 |
+
+Chromium (141, 153) and Firefox (142, 155) crashed in no variant. Bede's own
+journey crashed on WebKit 26.0 with WebKit as child 1 and as child 3, so the
+slot path is not the cause.
 
 **Not equivalent:** a Playwright WebKit build is not a Safari release. Every
 result records the Playwright version, the bundled WebKit build revision, the
@@ -64,3 +81,23 @@ progress, authentication and expected navigation. In-memory routing, real
 document navigation and a bounded startup repair may each address different
 conditions; they are not combined without evidence, so that it stays clear
 which change fixed the defect.
+
+## Decision: the release qualification pin (owner, 2026-11-15)
+
+Release qualification pins **Playwright 1.63.0**, whose bundled engines are
+WebKit 26.6 (build 2359), Chromium 153.0.8010.12 and Firefox 155.0: the most
+recent builds with recorded evidence on Bede's reload path. Every workflow that
+qualifies a release uses that one version, and
+`homeschool-api/tests/test_playwright_pin.py` fails if any of them drifts. The
+`minimal` diagnosis job keeps 1.56.0 beside it, so the reproduction of the
+26.0 defect stays on record.
+
+What the pin does and does not cover:
+
+- It makes the gate represent a WebKit build in which this defect does not
+  occur. It changes nothing in Bede.
+- It does not establish which Safari or iPadOS releases carry the defect.
+  Families on such a release are not protected by the pin. Variant E (a real
+  document navigation at the sign-in hop) remains the candidate product
+  mitigation if the physical check finds an affected release in use.
+- The physical-device sign-off above is unchanged.

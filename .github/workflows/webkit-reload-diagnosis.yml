@@ -1,0 +1,183 @@
+name: WebKit reload diagnosis
+
+# Diagnostic only, dispatched by hand (owner authorization 2026-11-15, the
+# release-repair cycle webkit-1). It is NOT a release gate and never runs on
+# a pull request or a schedule.
+#
+# The macOS desktop browser journeys crash only child3_webkit's reload after
+# the API restart. In the gate, WebKit is always the third browser, so it has
+# only ever run the third child's path: "only WebKit crashes" could not be
+# told apart from "only that slot's path crashes". This runs the same macOS
+# desktop journey with WebKit in several positions, one job per order, so the
+# browser and the path can be separated. Each job records PRESTATE lines (the
+# page's history, Navigation API, service-worker and in-flight state before
+# every reload) and the same sanitized native crash summary the gate collects.
+# Raw crash reports are never uploaded: this repository's logs are public.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: 'Full 40-character commit SHA to test'
+        required: true
+      orders:
+        description: 'JSON list of browser orders for the macOS desktop journey; each must include webkit'
+        required: false
+        default: '["webkit,chrome,firefox", "chrome,msedge,webkit,firefox"]'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: webkit-reload-diagnosis-${{ github.event.inputs.candidate_sha }}
+  cancel-in-progress: false
+
+jobs:
+  # The minimal reproduction, independent of Bede: a tiny local page, one
+  # factor varied at a time (pushState or not, replaceState, a real
+  # navigation, one, two or three reloads), in WebKit with Chromium and
+  # Firefox as controls. A crash is the observation; the job passes either way
+  # and the REPRO/TALLY lines are the result.
+  minimal:
+    name: WebKit reload diagnosis (minimal reproduction)
+    runs-on: macos-15
+    timeout-minutes: 20
+    env:
+      CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
+      PLAYWRIGHT_VERSION: '1.56.0'
+    steps:
+      - name: Validate candidate SHA
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "candidate_sha must be a full 40-character SHA"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install pinned Playwright and its engines
+        shell: bash
+        working-directory: scripts/qualification/browser_journeys
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+          npx playwright install webkit chromium firefox
+      - name: Run the minimal reproduction
+        shell: bash
+        working-directory: scripts/qualification/browser_journeys
+        env:
+          REPEATS: '3'
+        run: node webkit_nav_repro.cjs
+
+  journeys:
+    name: WebKit reload diagnosis (${{ matrix.browsers }})
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        browsers: ${{ fromJSON(github.event.inputs.orders) }}
+    env:
+      CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha }}
+      BROWSERS: ${{ matrix.browsers }}
+      PROFILE: desktop
+      PLAYWRIGHT_VERSION: '1.56.0'
+    steps:
+      - name: Validate candidate SHA and browser order
+        shell: bash
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "candidate_sha must be a full 40-character SHA"; exit 1; }
+          [[ "$BROWSERS" =~ ^(chrome|msedge|webkit|firefox)(,(chrome|msedge|webkit|firefox)){1,3}$ ]] || { echo "bad browser order: $BROWSERS"; exit 1; }
+          [[ ",$BROWSERS," == *",webkit,"* ]] || { echo "an order without webkit diagnoses nothing"; exit 1; }
+          echo "WebKit runs as child $(( $(tr ',' '\n' <<<"$BROWSERS" | grep -n '^webkit$' | cut -d: -f1) )) in: $BROWSERS"
+      # Native crash reports newer than this marker belong to this job.
+      - name: Mark the job start for crash reports
+        if: runner.os == 'macOS'
+        shell: bash
+        run: touch "$RUNNER_TEMP/crash-report-marker"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install the API from the hash-pinned development lockfile
+        shell: bash
+        run: |
+          # The lockfile is resolved on Linux. torch's CUDA dependencies
+          # (nvidia-*, cuda-*, triton) are Linux-only and carry no platform
+          # marker, so they are dropped on macOS and Windows. uvloop has no
+          # Windows build and uvicorn does not use it there.
+          python - <<'PY'
+          import re, sys
+          text = open("homeschool-api/requirements-dev.lock.txt", encoding="utf-8").read()
+          if sys.platform != "linux":
+              text = re.sub(r"(?ms)^(?:nvidia-[^=\s]+|cuda-[^=\s\[]+(?:\[[^\]]*\])?|triton)==.*?(?=^\S)", "", text)
+          if sys.platform == "win32":
+              text = re.sub(r"(?ms)^uvloop==.*?(?=^\S)", "", text)
+          open("lock-for-runner.txt", "w", encoding="utf-8").write(text)
+          PY
+          python -m pip install --require-hashes --no-deps -r lock-for-runner.txt
+      - name: Build the app UI
+        shell: bash
+        working-directory: homeschool-tutor
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Install pinned Playwright (drives the installed Chrome and Edge)
+        shell: bash
+        working-directory: scripts/qualification/browser_journeys
+        run: |
+          npm init -y >/dev/null
+          npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+          # Engine builds Playwright downloads; branded Chrome and Edge are the
+          # runner's installed browsers. Linux also needs their system libraries.
+          deps=""; [[ "$RUNNER_OS" == "Linux" ]] && deps="--with-deps"
+          for engine in webkit firefox chromium; do
+            if [[ ",$BROWSERS," == *",$engine,"* ]]; then npx playwright install $deps "$engine"; fi
+          done
+      - name: Run concurrent journeys
+        id: journeys
+        shell: bash
+        # runner.temp is not available in job-level env, so the evidence
+        # directory is built from the RUNNER_TEMP variable here instead.
+        run: python scripts/qualification/browser_journeys/run_journeys.py --sha "$CANDIDATE_SHA" --profile "$PROFILE" --browsers "$BROWSERS" --out "$RUNNER_TEMP/bede-browser-journeys"
+      # Diagnostic only: summarizes the native report behind a WebKit "Page
+      # crashed", which Playwright reports with no backtrace. Never changes
+      # the row's result. Crash reports may contain sensitive diagnostic
+      # information and this repository's logs and artifacts are public, so
+      # only a sanitized summary is printed and uploaded; the full copies go
+      # to a directory that is never uploaded. A missing report is
+      # inconclusive, not evidence of how the process ended.
+      - name: Collect native crash reports (diagnostic only)
+        if: always() && runner.os == 'macOS'
+        continue-on-error: true
+        shell: bash
+        # Status functions such as failure() are only valid in `if:`; a step
+        # outcome is how env learns whether the journeys failed.
+        env:
+          JOURNEYS_OUTCOME: ${{ steps.journeys.outcome }}
+        run: >-
+          wait=5; if [ "$JOURNEYS_OUTCOME" = "failure" ]; then wait=45; fi;
+          python scripts/qualification/browser_journeys/collect_crash_reports.py
+          --marker "$RUNNER_TEMP/crash-report-marker"
+          --summary-dir "$RUNNER_TEMP/bede-browser-journeys/crash-reports"
+          --raw-dir "$RUNNER_TEMP/crash-reports-raw-not-uploaded"
+          --wait "$wait"
+          --dir "user=$HOME/Library/Logs/DiagnosticReports"
+          --dir "system=/Library/Logs/DiagnosticReports"
+      - name: Preserve journey evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: webkit-reload-diagnosis-${{ strategy.job-index }}-${{ env.CANDIDATE_SHA }}
+          path: |
+            ${{ runner.temp }}/bede-browser-journeys/*.json
+            ${{ runner.temp }}/bede-browser-journeys/*.log
+            ${{ runner.temp }}/bede-browser-journeys/*.png
+            ${{ runner.temp }}/bede-browser-journeys/crash-reports/
+          if-no-files-found: warn
+          # A dispatched candidate run is release evidence and is kept longer
+          # than a pull request's routine run.
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 90 || 14 }}

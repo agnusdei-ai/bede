@@ -18,6 +18,10 @@ const VARIANTS = {
   D_replace_two_reloads: { push: 'replace', reloads: 2 },
   E_real_navigation_two_reloads: { push: 'assign', reloads: 2 },
   F_push_three_reloads: { push: 'push', reloads: 3 },
+  // Candidate workarounds Bede could ship, each against B:
+  G_push_reload_relocate_reload: { push: 'push', reloads: 2, relocateAfterFirst: true },
+  H_push_relocate_two_reloads: { push: 'push', relocate: true, reloads: 2 },
+  I_push_navigation_api_reloads: { push: 'push', reloads: 2, navReload: true },
 };
 const REPEATS = Number(process.env.REPEATS || 3);
 const ENGINES = (process.env.ENGINES || 'webkit,chromium,firefox').split(',');
@@ -40,9 +44,15 @@ async function run(br, engine, name, v, rep, base) {
     if (v.push === 'push') await pg.evaluate(() => history.pushState({}, '', '/session'));
     if (v.push === 'replace') await pg.evaluate(() => history.replaceState({}, '', '/session'));
     if (v.push === 'assign') { await pg.goto(base + '/session'); }
+    // A real navigation to the page's own URL, which is what the app could do
+    // to make WebKit rebuild an honest Navigation API record.
+    const relocate = async () => { await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.evaluate(() => location.replace(location.href))]); };
+    if (v.relocate) await relocate();
     for (let k = 0; k < v.reloads; k++) {
       trail.push(await navState(pg));
-      await pg.reload({ timeout: 20000 });
+      if (v.navReload) await Promise.all([pg.waitForNavigation({ timeout: 20000 }), pg.evaluate(() => navigation.reload())]);
+      else await pg.reload({ timeout: 20000 });
+      if (v.relocateAfterFirst && k === 0) { trail.push(await navState(pg)); await relocate(); }
     }
     trail.push(await navState(pg));
   } catch (e) { outcome = crashed || /crash/i.test(String(e)) ? 'crashed' : `error: ${String(e).split('\n')[0].slice(0, 100)}`; }

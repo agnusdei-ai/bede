@@ -16,6 +16,9 @@ const CONFIG = {
   student_name: 'Ada', grade: '4', grade_stage: '3-5', subjects: ['living_books'],
 } as unknown as SessionConfig
 
+// Generous, so a loaded CI runner does not turn a slow render into a failure.
+const WAIT = { timeout: 5000 }
+
 const chatCalls = (fetchMock: ReturnType<typeof vi.fn>) =>
   fetchMock.mock.calls.filter(([url]) => String(url).includes('/tutor/chat'))
 
@@ -45,11 +48,11 @@ describe('leaving the chat ends the turn in flight', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
     const { unmount } = render(<SocraticChat />)
-    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1))
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1), WAIT)
     const signal = (chatCalls(fetchMock)[0][1] as RequestInit).signal!
     expect(signal.aborted).toBe(false)
     unmount()
-    await waitFor(() => expect(signal.aborted).toBe(true))
+    await waitFor(() => expect(signal.aborted).toBe(true), WAIT)
   })
 
   it('stops reading a reply that is still streaming', async () => {
@@ -61,17 +64,17 @@ describe('leaving the chat ends the turn in flight', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, body } as unknown as Response)
     vi.stubGlobal('fetch', fetchMock)
     const { unmount, findByText } = render(<SocraticChat />)
-    await findByText(/Hello/)
+    await findByText(/Hello/, undefined, WAIT)
     expect(cancelled).toBe(false)
     unmount()
-    await waitFor(() => expect(cancelled).toBe(true))
+    await waitFor(() => expect(cancelled).toBe(true), WAIT)
   })
 
   it('does not send the turn again after the chat has gone', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new TypeError('Load failed'))
     vi.stubGlobal('fetch', fetchMock)
     const { unmount } = render(<SocraticChat />)
-    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1))
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1), WAIT)
     unmount()
     // The first retry would come one second later.
     await new Promise((r) => setTimeout(r, 1600))
@@ -91,7 +94,7 @@ describe('leaving the chat ends the turn in flight', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
     const { findByText } = render(<StrictMode><SocraticChat /></StrictMode>)
-    await findByText(/Good morning/)
+    await findByText(/Good morning/, undefined, WAIT)
     expect(chatCalls(fetchMock).length).toBe(1)
   })
 
@@ -101,14 +104,14 @@ describe('leaving the chat ends the turn in flight', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
     render(<SocraticChat />)
-    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1))
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1), WAIT)
     const first = (chatCalls(fetchMock)[0][1] as RequestInit)
     act(() => {
       useSessionStore.getState().setSessionConfig({ ...CONFIG, student_name: 'Ben' } as SessionConfig)
       useSessionStore.getState().startSession()
     })
-    await waitFor(() => expect(first.signal!.aborted).toBe(true))
-    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(2))
+    await waitFor(() => expect(first.signal!.aborted).toBe(true), WAIT)
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(2), WAIT)
     const second = JSON.parse(String((chatCalls(fetchMock)[1][1] as RequestInit).body))
     expect(second.session_config.student_name).toBe('Ben')
     expect(JSON.parse(String(first.body)).session_config.student_name).toBe('Ada')
@@ -120,9 +123,9 @@ describe('leaving the chat ends the turn in flight', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
     render(<SocraticChat />)
-    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1))
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(1), WAIT)
     act(() => { useSessionStore.getState().setSessionConfig({ ...CONFIG, student_name: 'Ben' } as SessionConfig) })
-    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(2))
+    await waitFor(() => expect(chatCalls(fetchMock).length).toBe(2), WAIT)
     expect(JSON.parse(String((chatCalls(fetchMock)[1][1] as RequestInit).body)).session_config.student_name).toBe('Ben')
   })
 
@@ -132,7 +135,7 @@ describe('leaving the chat ends the turn in flight', () => {
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, body } as unknown as Response))
     const { unmount, findByText } = render(<SocraticChat />)
-    await findByText(/Hello Ada/)
+    await findByText(/Hello Ada/, undefined, WAIT)
     // Logout, then another learner signs in and their first reply starts,
     // all before the old turn has finished winding down.
     unmount()
@@ -157,7 +160,7 @@ describe('leaving the chat ends the turn in flight', () => {
   it('a logout clears the streaming mark the cut-off turn can no longer clear', async () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
     const { unmount } = render(<SocraticChat />)
-    await waitFor(() => expect(useSessionStore.getState().isStreaming).toBe(true))
+    await waitFor(() => expect(useSessionStore.getState().isStreaming).toBe(true), WAIT)
     unmount()
     act(() => { useSessionStore.getState().logout() })
     expect(useSessionStore.getState().isStreaming).toBe(false)

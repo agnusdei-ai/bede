@@ -167,3 +167,46 @@ def test_a_newer_snapshot_published_meanwhile_refuses_this_publish(monkeypatch, 
     code, out = _artifacts_main(monkeypatch, capsys, [_art(0), _art(1)],
                                 ["check-unchanged", "--cycle", "c1", "--loaded-sequence", "1"])
     assert code == 0
+
+
+def test_downloads_follow_the_storage_redirect_without_sending_the_token():
+    """GitHub answers an artifact download with 302 to blob storage. The token
+    must reach GitHub and never the storage host, which refuses it (401). Real
+    sockets, real urllib redirect handling: the first live cycle failed here."""
+    import http.server
+    import threading
+    from release_repair import artifacts
+
+    seen = {}
+
+    class Storage(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen["storage_auth"] = self.headers.get("Authorization")
+            code, body = (401, b"no") if self.headers.get("Authorization") else (200, b"zip-bytes")
+            self.send_response(code); self.end_headers(); self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    storage = http.server.HTTPServer(("127.0.0.1", 0), Storage)
+
+    class GitHub(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen["github_auth"] = self.headers.get("Authorization")
+            self.send_response(302)
+            self.send_header("Location", f"http://127.0.0.1:{storage.server_port}/blob?sig=x")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    github = http.server.HTTPServer(("127.0.0.1", 0), GitHub)
+    for srv in (storage, github):
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        body = artifacts._get(f"http://127.0.0.1:{github.server_port}/zip", "secret-token", raw=True)
+    finally:
+        storage.shutdown(); github.shutdown()
+    assert body == b"zip-bytes"
+    assert seen["github_auth"] == "Bearer secret-token"
+    assert seen["storage_auth"] is None

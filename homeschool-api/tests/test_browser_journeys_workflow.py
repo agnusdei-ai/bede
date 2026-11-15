@@ -385,7 +385,10 @@ def test_collection_runs_after_a_failure_and_cannot_change_the_row():
     step = _step("Collect native crash reports")
     assert "always()" in str(step.get("if")) and "macOS" in str(step.get("if"))
     assert step.get("continue-on-error") is True
-    assert "failure()" in str(step.get("env", {}).get("CRASH_WAIT_SECONDS", ""))
+    # The window follows the journeys' outcome, read from the steps context.
+    assert step.get("env", {}).get("JOURNEYS_OUTCOME") == "${{ steps.journeys.outcome }}"
+    assert _step("Run concurrent journeys").get("id") == "journeys"
+    assert '"$JOURNEYS_OUTCOME" = "failure"' in step["run"] and '--wait "$wait"' in step["run"]
     # The journeys keep their own result: not wrapped, not continue-on-error.
     run = _step("Run concurrent journeys")
     assert "continue-on-error" not in run and "|| true" not in run["run"] and "||" not in run["run"]
@@ -474,3 +477,35 @@ def test_a_report_written_after_the_failure_is_still_caught_within_the_window(tm
     rec = cc.collect(marker, [("user", user)], tmp_path / "raw", wait=5, interval=0.2)
     assert [r["file"] for r in rec["reports"]] == ["com.apple.WebKit.WebContent-late.ips"]
     assert time.monotonic() - t0 < 4, "it should stop once the report has settled, not wait out the window"
+
+
+# ── GitHub expression rules a YAML parse cannot see ─────────────────────────
+
+WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
+_STATUS_FN = re.compile(r"\b(always|success|failure|cancelled)\s*\(\s*\)")
+
+
+def _status_functions_outside_if(node, path=""):
+    """Yield (path, value) for every ${{ }} using a status function anywhere but an `if:`."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            if k == "if":
+                continue
+            yield from _status_functions_outside_if(v, f"{path}.{k}")
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            yield from _status_functions_outside_if(v, f"{path}[{i}]")
+    elif isinstance(node, str):
+        for expr in re.findall(r"\$\{\{(.*?)\}\}", node, re.S):
+            if _STATUS_FN.search(expr):
+                yield path, expr.strip()
+
+
+@pytest.mark.parametrize("workflow", sorted(WORKFLOWS.glob("*.y*ml")), ids=lambda p: p.name)
+def test_status_functions_appear_only_in_if_conditions(workflow):
+    """GitHub allows always()/success()/failure()/cancelled() only in `if:`.
+    Anywhere else the whole file is rejected and no job runs at all: on
+    1f50205f, failure() in a step's env stopped every row of the
+    cross-platform matrix, and a YAML parse reported nothing wrong."""
+    bad = list(_status_functions_outside_if(yaml.safe_load(workflow.read_text())))
+    assert not bad, f"{workflow.name}: status function outside `if:` at {bad}"

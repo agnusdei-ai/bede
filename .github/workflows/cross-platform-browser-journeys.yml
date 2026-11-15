@@ -158,6 +158,7 @@ jobs:
             if [[ ",$BROWSERS," == *",$engine,"* ]]; then npx playwright install $deps "$engine"; fi
           done
       - name: Run concurrent journeys
+        id: journeys
         shell: bash
         # runner.temp is not available in job-level env, so the evidence
         # directory is built from the RUNNER_TEMP variable here instead.
@@ -173,14 +174,17 @@ jobs:
         if: always() && runner.os == 'macOS'
         continue-on-error: true
         shell: bash
+        # Status functions such as failure() are only valid in `if:`; a step
+        # outcome is how env learns whether the journeys failed.
         env:
-          CRASH_WAIT_SECONDS: ${{ failure() && '45' || '5' }}
+          JOURNEYS_OUTCOME: ${{ steps.journeys.outcome }}
         run: >-
+          wait=5; if [ "$JOURNEYS_OUTCOME" = "failure" ]; then wait=45; fi;
           python scripts/qualification/browser_journeys/collect_crash_reports.py
           --marker "$RUNNER_TEMP/crash-report-marker"
           --summary-dir "$RUNNER_TEMP/bede-browser-journeys/crash-reports"
           --raw-dir "$RUNNER_TEMP/crash-reports-raw-not-uploaded"
-          --wait "$CRASH_WAIT_SECONDS"
+          --wait "$wait"
           --dir "user=$HOME/Library/Logs/DiagnosticReports"
           --dir "system=/Library/Logs/DiagnosticReports"
       - name: Preserve journey evidence

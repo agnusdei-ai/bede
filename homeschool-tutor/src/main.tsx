@@ -4,7 +4,6 @@ import { Capacitor } from '@capacitor/core'
 import App from './App'
 import { installDiagnostics } from './hooks/diagnostics'
 import { retireServiceWorker } from './utils/serviceWorker'
-import { reloadOnceForNewRelease } from './utils/staleBuild'
 import { logDebug } from './hooks/debugBus'
 import './index.css'
 import './i18n'
@@ -17,13 +16,13 @@ import './i18n'
 installDiagnostics()
 
 // Vite reports a page file that failed to preload here, before the import
-// itself throws. A tab still running the previous release after an update hits
-// exactly this; reloading once fetches the new one (utils/staleBuild.ts). If it
-// already reloaded moments ago, the import throws as usual and the error
-// screen takes over.
+// itself throws. Recorded only. The error screen decides whether to reload,
+// and only once the server confirms a new release (utils/staleBuild.ts): a
+// browser also cancels the files it was loading when the page navigates away,
+// and reloading on that alone hijacked the navigation underway.
 window.addEventListener('vite:preloadError', (event) => {
-  logDebug('PAGE FILE FAILED TO PRELOAD; reloading once for a new release')
-  if (reloadOnceForNewRelease()) event.preventDefault()
+  const reason = (event as Event & { payload?: unknown }).payload
+  logDebug(`PAGE FILE FAILED TO PRELOAD ${reason instanceof Error ? reason.message : String(reason ?? '')}`)
 })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

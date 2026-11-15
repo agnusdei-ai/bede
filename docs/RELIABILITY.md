@@ -80,14 +80,24 @@ its tablets.
 pages are loaded on demand, from files named after their contents. After an
 update those files are replaced, so a tab opened before the update fails to
 load the next page it opens. That used to show the child the error screen
-("Something went wrong") for a problem one reload fixes. Now a page file that
-fails to load reloads the app once, which fetches the new release. A marker
-stops it reloading again within a minute, so a server that is genuinely missing
-a file shows the error screen rather than reloading forever.
+("Something went wrong") for a problem one reload fixes. Now, when a page file
+fails to load, the app asks the server whether a new release is out: it fetches
+the start page uncached and compares the script it names with the one this tab
+is running. Only if they differ does it reload, once, which fetches the new
+release. A marker stops it reloading again within a minute, so a server that is
+genuinely missing a file shows the error screen rather than reloading forever.
 
-- `homeschool-tutor/src/utils/staleBuild.ts`, used by
-  `src/components/ErrorBoundary.tsx` and `src/main.tsx` (Vite's
-  `vite:preloadError` event).
+The check matters. A browser also cancels the page files it was loading when
+the page navigates away, for example on signing out or following a link, and
+that failure looks the same. An earlier version reloaded on the failure alone,
+and the browser journeys caught it on WebKit: a parent opening Parent Setup was
+sent back by a reload of the page they were leaving. A failed page file with no
+new release behind it is now logged and never reloads.
+
+- `homeschool-tutor/src/utils/staleBuild.ts` (`releaseChanged`,
+  `reloadOnceForNewRelease`), used by `src/components/ErrorBoundary.tsx`.
+  `src/main.tsx` only records Vite's `vite:preloadError` event; the error
+  screen alone decides whether to reload.
 - Tests: `homeschool-tutor/src/components/ErrorBoundary.test.tsx`.
 
 ## A crash is recorded, not just shown

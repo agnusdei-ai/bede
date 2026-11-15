@@ -1250,6 +1250,7 @@
   "errorBoundary": {
     "message": "Algo salió mal. Volvamos a empezar.",
     "returnToLogin": "Volver al inicio de sesión",
-    "updating": "Bede se actualizó. Cargando la versión nueva…"
+    "updating": "Bede se actualizó. Cargando la versión nueva…",
+    "checking": "Buscando una versión nueva de Bede…"
   }
 }

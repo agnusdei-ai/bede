@@ -844,6 +844,16 @@ break every hour for every child, but it will not tell you that your
      attention — it removes an age limit on a choice that is yours to make.
      It cannot shorten, skip, delay, or extend past the mandatory ten-minute
      break every hour, which stays exactly as it is for everyone.
+   - **Learning sprint length** (a dropdown: Usual, 20 minutes, 30 minutes,
+     1 hour). A learning sprint is one focused stretch of work before Bede
+     offers a pause. Pick the length that suits this learner. With 20 or 30
+     minutes, Bede offers a short pause at the end of each sprint, at any
+     grade; the child can take it or keep going. With 1 hour, Bede offers
+     no pause and the sprint runs to the required hourly break. **Usual**
+     leaves things as they were: an offer every 20 minutes for grades K-3
+     (or any grade with the checkbox above), none otherwise. The required
+     ten-minute break every hour does not change, and Bede never tells the
+     child a sprint is ending or hurries them to finish.
 
    **There is deliberately no dyslexia font, and no "dyslexia mode."** The
    special fonts sold for this — OpenDyslexic and similar — have been

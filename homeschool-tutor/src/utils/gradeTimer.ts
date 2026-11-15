@@ -122,6 +122,21 @@ export function getTimerConfig(grade: string, sessionCapMinutes?: number | null)
 // that the mandatory rhythm already governs.
 export const SUGGESTED_BREAK_INTERVAL_MINUTES = 20
 
+/** The learning sprint lengths an adult can pick for a learner. */
+export const SPRINT_MINUTES_OPTIONS = [20, 30, 60] as const
+export type SprintMinutes = (typeof SPRINT_MINUTES_OPTIONS)[number]
+
+/** A stored value is used only if it is one of the three lengths. */
+export function cleanSprintMinutes(value: unknown): SprintMinutes | null {
+  return (SPRINT_MINUTES_OPTIONS as readonly unknown[]).includes(value)
+    ? (value as SprintMinutes) : null
+}
+
+/** Minutes between offered pauses: the chosen sprint, or the usual 20. */
+export function suggestedBreakIntervalMinutes(sprintMinutes?: SprintMinutes | null): number {
+  return sprintMinutes ?? SUGGESTED_BREAK_INTERVAL_MINUTES
+}
+
 export interface SuggestedBreak {
   /** 1 = the 20-minute mark, 2 = the 40-minute mark. */
   mark: number
@@ -146,6 +161,7 @@ export function getSuggestedBreak(
   phase: PhaseInfo,
   isYounger: boolean,
   frequentBreakOffers = false,
+  sprintMinutes?: SprintMinutes | null,
 ): SuggestedBreak | null {
   // The age gate was the whole availability rule, so a twelve-year-old whose
   // parent knows they do better stopping every twenty minutes could not have
@@ -163,9 +179,18 @@ export function getSuggestedBreak(
   // Everything below is unchanged, so it still cannot shorten, skip, delay
   // or extend past the mandatory hourly break — it only makes the existing
   // suggestion reachable at a grade that was previously refused it.
-  if ((!isYounger && !frequentBreakOffers) || phase.phase !== 'study') return null
+  //
+  // `sprintMinutes` is the parent's or teacher's chosen learning sprint for
+  // this learner (docs/GLOSSARY.md): 20, 30 or 60 minutes. When it is set it
+  // decides the rhythm for any grade: a pause is offered at the end of each
+  // sprint, and a 60-minute sprint offers none, because the required hourly
+  // break already ends it. Unset keeps the rule above exactly as it was.
+  if (phase.phase !== 'study') return null
+  if (sprintMinutes == null && !isYounger && !frequentBreakOffers) return null
+  const interval = suggestedBreakIntervalMinutes(sprintMinutes)
+  if (interval >= SESSION_STUDY_MINUTES) return null
   const studyElapsedSecs = SESSION_STUDY_MINUTES * 60 - phase.remainingSecs
-  const mark = Math.floor(studyElapsedSecs / (SUGGESTED_BREAK_INTERVAL_MINUTES * 60))
+  const mark = Math.floor(studyElapsedSecs / (interval * 60))
   if (mark < 1) return null
   return { mark, key: `${phase.cycleIndex}:${mark}` }
 }

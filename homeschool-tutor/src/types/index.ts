@@ -83,6 +83,10 @@ export interface SessionConfig {
   // Removes an age gate on a parent's choice; NOT a claim that more breaks
   // improve attention. Cannot touch the mandatory hourly break.
   frequent_break_offers?: boolean
+  // The learning sprint chosen for this learner: 20, 30 or 60 minutes
+  // (docs/GLOSSARY.md). Absent keeps the usual rhythm for the grade. It sets
+  // when a pause is offered; it cannot touch the required hourly break.
+  sprint_minutes?: 20 | 30 | 60 | null
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's

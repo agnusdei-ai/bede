@@ -365,6 +365,10 @@ def clean_display_name(value: str) -> str:
     return " ".join(kept.split())[:50]
 
 
+#: The learning sprint lengths an adult can pick (mirrored in gradeTimer.ts).
+SPRINT_MINUTES_OPTIONS = (20, 30, 60)
+
+
 class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
     # What an adult wants the learner called: a corrected spelling or a
@@ -561,6 +565,21 @@ class SessionConfig(BaseModel):
     #: §5). Cannot shorten, skip, delay, or extend past the mandatory hourly
     #: break; it only makes the existing suggestion reachable.
     frequent_break_offers: bool = False
+    #: The learning sprint chosen for this learner, in minutes: 20, 30 or 60
+    #: (docs/GLOSSARY.md). None keeps the usual rhythm for the grade. The app
+    #: offers a pause at the end of each sprint; a 60-minute sprint offers
+    #: none, since the required hourly break already ends it. It cannot
+    #: shorten, skip or delay that break, and it never reaches a prompt:
+    #: Bede does not time or hurry a child.
+    sprint_minutes: Optional[int] = None
+
+    @field_validator("sprint_minutes", mode="before")
+    @classmethod
+    def _clean_sprint_minutes(cls, value):
+        """Clean, never reject: anything but 20, 30 or 60 means "not set"."""
+        if isinstance(value, bool):
+            return None
+        return value if value in SPRINT_MINUTES_OPTIONS else None
     # Parent's chosen starting point (see CompanionMode) — how much Bede
     # drives the day versus defers to the family's own books. Purely a
     # behavioral framing layered into the prompt (_companion_mode_note);

@@ -17,7 +17,8 @@ import { SUBJECT_MAP } from '../types'
 import {
   getTimerConfig, getPhase, fmtTime, effectiveEyeRestMinutes, effectiveSessionCap,
   getSuggestedBreak, SESSION_STUDY_MINUTES, SESSION_BREAK_MINUTES,
-  SUGGESTED_BREAK_INTERVAL_MINUTES,
+  cleanSprintMinutes,
+  suggestedBreakIntervalMinutes,
 } from '../utils/gradeTimer'
 import { renderEmphasis } from '../utils/renderEmphasis'
 import { readingStyle } from '../utils/readingPresentation'
@@ -250,8 +251,11 @@ export default function TutorSession() {
   // frequent_break_offers lets a parent reach this rhythm at any grade —
   // see getSuggestedBreak's own comment for why that is removing an age
   // gate rather than a claim about attention.
+  // sprint_minutes, when the adult set one, decides the rhythm instead.
+  const sprintMinutes = cleanSprintMinutes(sessionConfig?.sprint_minutes)
   const suggestedBreak = getSuggestedBreak(
     sessionPhase, timerCfg.isYounger, sessionConfig?.frequent_break_offers ?? false,
+    sprintMinutes,
   )
 
   // Both flags are keyed to the SUGGESTION they answer, not kept as bare
@@ -534,7 +538,7 @@ export default function TutorSession() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-800">
                     {t('tutorSession.breakSuggestionTitle', {
-                      minutes: suggestedBreak.mark * SUGGESTED_BREAK_INTERVAL_MINUTES,
+                      minutes: suggestedBreak.mark * suggestedBreakIntervalMinutes(sprintMinutes),
                     })}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">{t('tutorSession.breakSuggestionBody')}</p>

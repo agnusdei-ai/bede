@@ -424,6 +424,12 @@
     "lineLoose": "Máximo",
     "frequentBreaks": "Ofrecer un descanso cada 20 minutos",
     "frequentBreaksTooltip": "Normalmente solo se ofrece de K a 3.º; esto ofrece la misma pausa a cualquier edad, y su hijo siempre puede rechazarla. No cambia ni omite el descanso obligatorio de cada hora. Quita un límite de edad sobre una decisión que le corresponde a usted; no afirma que más descansos mejoren la atención.",
+    "sprintLength": "Duración del sprint de aprendizaje",
+    "sprintUsual": "El ritmo habitual de Bede para este grado",
+    "sprint20": "20 minutos",
+    "sprint30": "30 minutos",
+    "sprint60": "1 hora",
+    "sprintLengthHint": "Un sprint de aprendizaje es un bloque de trabajo concentrado. Bede ofrece una pausa al final de cada sprint, y su hijo siempre puede rechazarla. Un sprint de 1 hora llega hasta el descanso obligatorio de cada hora, que nunca cambia.",
     "trialLicense": "Prueba"
   },
   "parentGreeting": {

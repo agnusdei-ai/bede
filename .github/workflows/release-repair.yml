@@ -1,0 +1,230 @@
+name: Release repair loop
+
+# The deterministic half of Bede's pre-release repair loop
+# (docs/release/REPAIR_LOOP.md). No model runs here and no secret is used:
+# the AI roles are Claude Code sessions coordinated outside CI, and this
+# workflow decides what their results are worth.
+#
+# Trust boundary:
+# - `resolve` and `record` run ONLY the controller, policy and acceptance
+#   manifest checked out at this run's own github.sha on main ("trusted/").
+# - `candidate` is the only job that executes candidate code. It has
+#   contents: read, no state access and no coordinator credential, and it
+#   runs the candidate's tests with the TRUSTED runner and verifier.
+# - Snapshots are accepted only from this workflow's `record` job on main
+#   (artifacts.py refuses anything uploaded before `record` started).
+#
+# This workflow never pushes, never merges, never deploys and never
+# approves. It cannot stop a push to main; release-repair-audit.yml detects
+# one after the fact.
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: start | record | status
+        required: true
+        type: choice
+        options: [start, record, status]
+      cycle_id:
+        description: Cycle id (lowercase letters, digits, hyphens)
+        required: true
+        type: string
+      candidate_sha:
+        description: Full candidate SHA (start only)
+        required: false
+        type: string
+      task_id:
+        description: Task whose repair branch to verify (record only)
+        required: false
+        type: string
+      branch:
+        description: release-repair/<cycle>/<task> branch to verify (record only)
+        required: false
+        type: string
+      base_sha:
+        description: The task's recorded base SHA (record only)
+        required: false
+        type: string
+      results_runs:
+        description: Comma-separated run ids of finished CI runs on the candidate SHA to read
+        required: false
+        type: string
+      event_json:
+        description: JSON event or list of events (agent results, owner decisions)
+        required: false
+        type: string
+      acceptance:
+        description: Acceptance manifest under config/acceptance/
+        required: false
+        default: bede-release.json
+        type: string
+
+concurrency:
+  group: release-repair-${{ inputs.cycle_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      resolved_sha: ${{ steps.resolve.outputs.resolved_sha }}
+      controller_revision: ${{ github.sha }}
+    steps:
+      - name: Refuse anything but main
+        env:
+          REF: ${{ github.ref }}
+          CYCLE: ${{ inputs.cycle_id }}
+          ACCEPTANCE: ${{ inputs.acceptance }}
+          BRANCH: ${{ inputs.branch }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          TASK_ID: ${{ inputs.task_id }}
+        run: |
+          set -euo pipefail
+          [ "$REF" = "refs/heads/main" ] || { echo "release-repair runs only from main, not $REF"; exit 1; }
+          if [ -n "$BRANCH" ]; then
+            # A malformed request is the coordinator's error, not a failed
+            # repair: refuse it here so it never spends a repair attempt.
+            printf '%s' "$BASE_SHA" | grep -qE '^[0-9a-f]{40}$' || { echo "base_sha (40 hex) is required with branch"; exit 1; }
+            printf '%s' "$TASK_ID" | grep -qE '^[0-9a-z][0-9a-z-]{0,62}$' || { echo "task_id is required with branch"; exit 1; }
+          fi
+          printf '%s' "$CYCLE" | grep -qE '^[0-9a-z][0-9a-z-]{0,62}$' || { echo "bad cycle id"; exit 1; }
+          printf '%s' "$ACCEPTANCE" | grep -qE '^[a-z0-9-]+\.json$' || { echo "bad acceptance name"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - id: resolve
+        name: Resolve the branch to an immutable SHA
+        env:
+          BRANCH: ${{ inputs.branch }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          if [ -z "$BRANCH" ]; then echo "resolved_sha=" >> "$GITHUB_OUTPUT"; exit 0; fi
+          python3 - "$BRANCH" <<'PY'
+          import sys
+          sys.path.insert(0, "trusted/scripts")
+          from release_repair import policy
+          if not policy.load("trusted/config/release-repair.json").branch_ok(sys.argv[1]):
+              sys.exit("branch is outside release-repair/<cycle>/<task>")
+          PY
+          SHA=$(git ls-remote "$REPO_URL" "refs/heads/$BRANCH" | cut -f1)
+          printf '%s' "$SHA" | grep -qE '^[0-9a-f]{40}$' || { echo "branch did not resolve"; exit 1; }
+          echo "resolved_sha=$SHA" >> "$GITHUB_OUTPUT"
+
+  candidate:
+    needs: resolve
+    if: needs.resolve.outputs.resolved_sha != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.resolve.outputs.resolved_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Install the candidate's locked dependencies
+        run: |
+          set -euo pipefail
+          pip install --require-hashes -r candidate/homeschool-api/requirements-dev.lock.txt
+          (cd candidate/homeschool-tutor && npm ci --no-audit --no-fund)
+      - name: Affected tests and the regression check, with the trusted runner
+        env:
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ needs.resolve.outputs.resolved_sha }}
+        run: |
+          set -uo pipefail
+          mkdir -p out
+          python3 trusted/scripts/qa/selector.py --repo candidate --base "$BASE_SHA" --head "$HEAD_SHA" --output out/qa-plan.json
+          python3 trusted/scripts/qa/runner.py --repo candidate --plan out/qa-plan.json --scope backend --report out/qa-backend.json || true
+          python3 trusted/scripts/qa/runner.py --repo candidate --plan out/qa-plan.json --scope homeschool-tutor --report out/qa-tutor.json || true
+          python3 trusted/scripts/release_repair/verify_regression.py --repo candidate --base "$BASE_SHA" --head "$HEAD_SHA" --adjacent-report out/qa-backend.json --adjacent-report out/qa-tutor.json --out out/regression.json || echo '{}' > out/regression.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: candidate-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: out/
+          retention-days: 14
+          if-no-files-found: error
+
+  record:
+    needs: [resolve, candidate]
+    if: always() && needs.resolve.result == 'success' && needs.candidate.result != 'cancelled'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        if: needs.resolve.outputs.resolved_sha != ''
+        with:
+          ref: ${{ needs.resolve.outputs.resolved_sha }}
+          path: candidate-data
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v7
+        if: needs.resolve.outputs.resolved_sha != ''
+        # A failed candidate job leaves no artifact. record.sh then answers
+        # INFRA_ERROR (exit 3) and spends no repair attempt.
+        continue-on-error: true
+        with:
+          name: candidate-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: candidate-out
+      - name: Load, apply and publish state
+        id: apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ inputs.action }}
+          CYCLE: ${{ inputs.cycle_id }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          TASK_ID: ${{ inputs.task_id }}
+          BRANCH: ${{ inputs.branch }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          RESOLVED_SHA: ${{ needs.resolve.outputs.resolved_sha }}
+          RESULTS_RUNS: ${{ inputs.results_runs }}
+          EVENT_JSON: ${{ inputs.event_json }}
+          ACCEPTANCE: ${{ inputs.acceptance }}
+          CONTROLLER_REVISION: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        working-directory: trusted
+        run: bash scripts/release_repair/record.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: steps.apply.outputs.publish == 'true'
+        with:
+          name: release-repair-state-${{ inputs.cycle_id }}-${{ steps.apply.outputs.sequence }}
+          path: trusted/.rr/snapshot-out/
+          retention-days: 90
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always() && steps.apply.outputs.evidence == 'true'
+        with:
+          name: release-repair-evidence-${{ inputs.cycle_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: trusted/.rr/evidence/
+          retention-days: 90

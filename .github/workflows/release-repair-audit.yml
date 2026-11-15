@@ -1,0 +1,29 @@
+name: Main provenance audit
+
+# Detects, after the fact, a commit on main that did not arrive through a
+# merged pull request. It cannot prevent one: this repository's live ruleset
+# has no required checks, and repair-loop sessions push with the owner's own
+# authorization (docs/release/REPAIR_LOOP.md). A merged PR is evidence of HOW
+# a commit arrived, not proof that anyone authorized it.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Every newly introduced commit came through a merged pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: python3 scripts/release_repair/main_audit.py --before "$BEFORE" --after "$AFTER"

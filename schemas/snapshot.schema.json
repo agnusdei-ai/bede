@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Snapshot",
+  "type": "object",
+  "required": [
+    "cycle_id",
+    "state_sequence",
+    "previous_snapshot_digest",
+    "snapshot_digest",
+    "controller_revision",
+    "producing_run_id",
+    "producing_run_attempt",
+    "last_accepted_event_id"
+  ],
+  "properties": {
+    "state_sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "snapshot_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "previous_snapshot_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

@@ -72,7 +72,7 @@
 
 **Class/population:** randomized school evaluation centered on **Year5 primary pupils**, trained teachers, mentoring/video reflection and structured classroom talk. **Verified:** commissioning body's design/results summary, not full replication.
 
-**Measured outcomes:** page reports positive English/science/maths effects summarized as around two months' progress. **Relevance:** discussion quality, teacher development and evidence-based reasoning matter.
+**Measured outcomes:** page reports positive English/science/math effects summarized as around two months' progress. **Relevance:** discussion quality, teacher development and evidence-based reasoning matter.
 
 **Limits:** younger population, intervention/support package, different curriculum and context. Do not export the months-progress figure to Grade8–12, Bede or an ordinary untrained seminar.
 

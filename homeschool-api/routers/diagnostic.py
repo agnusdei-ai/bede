@@ -346,7 +346,7 @@ async def get_session_plan(
     How Bede would order today's subjects, and why.
 
     Parent-only, like every other route on this router, and deliberately so:
-    a child shown "Bede put maths first because you haven't done it in a
+    a child shown "Bede put math first because you haven't done it in a
     while" has been told something about themselves that Bede has no
     standing to say.
 

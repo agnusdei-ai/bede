@@ -7,7 +7,7 @@ for review. Bede has no verified source for a school's content, so inventing
 a question or an answer here would be making things up in a child's
 practice. A miss with no correction on the page goes to the parent instead.
 
-That is also why the practice works differently from Latin and maths: for
+That is also why the practice works differently from Latin and math: for
 remembered material, answering the same question again later is the
 practice (retrieval practice), so a missed question is asked again, mixed in
 with a few the child already knew. Diagnosis names only what the page shows:

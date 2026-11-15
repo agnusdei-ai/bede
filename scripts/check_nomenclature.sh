@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fails if any tracked file uses the banned nomenclature (owner rule
 # 2026-11-14): the three words assembled below. Test data and stand-ins are
-# called "sample", "test", "example" or "mock" instead.
+# called "sample", "test", "example" or "mock" instead. Also bans the UK
+# spelling of "math" ($d, owner rule 2026-11-15: Bede writes US English).
 #
 # The words are built from pieces so this file passes its own check. The one
 # exemption is the full phrase for "AI" ($c intelligence) in the two notices,
@@ -10,8 +11,8 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-a="synth""etic"; b="simul""ated"; c="artifi""cial"
-pattern="${a}|${b}|${c}"
+a="synth""etic"; b="simul""ated"; c="artifi""cial"; d="mat""hs"
+pattern="${a}|${b}|${c}|${d}"
 notices=(homeschool-api/data/consent_notice.txt homeschool-api/data/school_data_notice.txt)
 
 found=$(git grep -n -I -i -E "$pattern" -- . ':(exclude).claude' \
@@ -25,7 +26,7 @@ done
 names=$(git ls-files | grep -i -E "$pattern" || true)
 
 if [ -n "${found//[$'\n']/}" ] || [ -n "$names" ]; then
-  echo "Banned nomenclature found (use sample, test, example or mock):"
+  echo "Banned nomenclature found (use sample, test, example or mock; write \"math\", US English):"
   [ -n "${found//[$'\n']/}" ] && echo "$found"
   [ -n "$names" ] && echo "$names"
   exit 1

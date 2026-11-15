@@ -1230,7 +1230,7 @@
     "saveTo": "Save to a student's record",
     "chooseStudent": "Choose a student",
     "saveResult": "Save result",
-    "saveHint": "Choose the student from your class list. Saving adds this result to their quiz history; maths questions Bede can read also count toward their progress. It is not an official assessment.",
+    "saveHint": "Choose the student from your class list. Saving adds this result to their quiz history; math questions Bede can read also count toward their progress. It is not an official assessment.",
     "saved": "Saved to {{name}}'s record.",
     "savedCorrection": "Saved as a correction to {{name}}'s earlier result.",
     "saveError": "The result could not be saved. Please try again.",

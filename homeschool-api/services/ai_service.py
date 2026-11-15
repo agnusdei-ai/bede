@@ -1649,7 +1649,7 @@ def _classical_language_companion_note(config: SessionConfig, subject: Subject) 
     than trying to detect which named programme is a Latin one. Matching
     publisher names would mean maintaining a list that is wrong the moment a
     family types something unexpected, and the guidance is safe either way:
-    a family who listed only a maths publisher still benefits from Bede
+    a family who listed only a math publisher still benefits from Bede
     deferring to whatever sequence they actually follow.
     """
     if subject not in _CLASSICAL_LANGUAGE_SUBJECTS:

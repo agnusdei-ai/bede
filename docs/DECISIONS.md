@@ -2415,3 +2415,35 @@ repair hold's condition ("a design that cannot push to main"), so that hold
 and the event-driven merge hold stay in force. Closing this entry requires
 either the owner's confirmation or a structural guard (for example, a
 ruleset restricting updates to `main`).
+
+## 42. `[PRODUCT]` The K-2 UX baseline, and where it meets Bede as built
+
+**Status:** closed
+
+**Decided (2026-11-16, owner).** The K-2 Early Learning Pilot UX checklist,
+[`K2_UX_CHECKLIST.md`](K2_UX_CHECKLIST.md), is the design baseline for K-2
+work, alongside [`K2_PRACTICE.md`](K2_PRACTICE.md). It was written for a
+generic tablet pilot, and four of its assumptions conflicted with Bede as
+built. The owner ruled on each:
+
+1. **Deployment: both.** The school campus pilot and home families. Each
+   consent route is verified on its own: school authorization and verifiable
+   parental consent. The shared-device checks apply to both, since siblings
+   share a family tablet too.
+2. **Generative chat and the microphone are in scope.** The pilot includes
+   Bede's tutoring chat, so the checklist's own rule applies: adding them
+   reopens privacy, safety and UX review, which the chat, voice capture and
+   transcription each need before enrollment. The K-2 practice rounds stay
+   deterministic and send nothing to an AI provider.
+3. **The palette is the brand's.** Each colour role maps onto the existing
+   agnusdei.ai tokens, held to the checklist's contrast floors (4.5:1 for
+   text). No second palette.
+4. **Text resize reaches 200% app-wide.** The text-size control gains a 200%
+   step, and every screen is verified at it. The public demo's copy changes
+   only with the owner's separate sign-off.
+
+Decision entry 40's rulings (the per-child default, evidence weight,
+handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
+separate and still open. So are the checklist's own pre-enrollment decisions:
+supported devices and assistive technology, the final collected fields and
+vendors, and the pilot's learning objectives.

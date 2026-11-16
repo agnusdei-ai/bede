@@ -133,7 +133,7 @@ describe('the practice card leaves room for the conversation', () => {
   afterEach(() => { cleanup(); vi.resetAllMocks() })
 
   // jsdom has no layout, so this pins the classes; the measured guarantee is
-  // the browser journey's conversation_visible_at_175 check.
+  // the browser journey's conversation_visible_at_200 check.
   it('is height-capped and scrolls on its own', async () => {
     render(<PracticeDelivery token="t" studentName="Sample Learner" onAnswer={vi.fn()} />)
     const card = await screen.findByRole('region', { name: /practice question/i })

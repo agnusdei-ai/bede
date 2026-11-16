@@ -41,7 +41,8 @@ def verify(repo: Path, base: str, head: str, pol, timeout: int = 900, runner=run
     tests = [pth for _, pth in changed if pol.is_test(pth) and test_command(pth)]
     report = {"base": base, "head": head, "tests": tests}
     if not tests:
-        return {**report, "pre_fix_failed": False, "post_fix_passed": False, "adjacent_passed": False,
+        return {**report, "pre_fix_failed": False, "pre_fix_passed": False, "post_fix_passed": False,
+                "adjacent_passed": False,
                 "reason": "no_runnable_regression_test_in_change"}
     base_wt = repo.parent / (repo.name + "-base")
     subprocess.run(["git", "-C", str(repo), "worktree", "remove", "--force", str(base_wt)], capture_output=True)
@@ -58,6 +59,9 @@ def verify(repo: Path, base: str, head: str, pol, timeout: int = 900, runner=run
     post = {t: runner(*_split(test_command(t), repo), timeout) for t in tests}
     return {**report, "pre_fix_exit": pre, "post_fix_exit": post,
             "pre_fix_failed": all(code not in (0, 124) for code in pre.values()),
+            # Every new test PASSED on the base: the change proves nothing about
+            # the fix. A timeout (124) is neither a pass nor a failure.
+            "pre_fix_passed": all(code == 0 for code in pre.values()),
             "post_fix_passed": all(code == 0 for code in post.values())}
 
 
@@ -94,7 +98,7 @@ def main() -> int:
     report = verify(Path(a.repo).resolve(), a.base, a.head, policy_mod.load(a.policy))
     report["adjacent_passed"] = adjacent_passed(a.adjacent_report, a.head)
     Path(a.out).write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps({k: report[k] for k in ("pre_fix_failed", "post_fix_passed", "adjacent_passed")}))
+    print(json.dumps({k: report[k] for k in ("pre_fix_failed", "pre_fix_passed", "post_fix_passed", "adjacent_passed")}))
     return 0
 
 

@@ -63,6 +63,35 @@ class Policy:
     def failure_rules(self) -> list[dict]:
         return list(self.data["failures"])
 
+    def diagnosis_for(self, failure_key: str) -> dict | None:
+        """The trusted-diagnosis pins for one failure, or None when it has none."""
+        for rule in self.data["failures"]:
+            if rule.get("key") == failure_key:
+                return rule.get("trusted_diagnosis")
+        return None
+
+    def trusted_diagnoses(self) -> list[dict]:
+        return [r["trusted_diagnosis"] for r in self.data["failures"] if r.get("trusted_diagnosis")]
+
+
+_VERSION = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def _check_diagnosis(key, d: dict):
+    """A trusted diagnosis names one workflow and exact pins, never a range."""
+    if not re.fullmatch(r"\.github/workflows/[a-z0-9-]+\.yml", str(d.get("workflow", ""))):
+        raise PolicyError(f"{key}: trusted_diagnosis.workflow must name one workflow file")
+    if not re.fullmatch(r"v\d+\.\d+\.\d+", str(d.get("node", ""))):
+        raise PolicyError(f"{key}: trusted_diagnosis.node must be one exact version")
+    for side in ("baseline", "comparison"):
+        pin = d.get(side) or {}
+        if not _VERSION.match(str(pin.get("playwright", ""))) or not pin.get("webkit"):
+            raise PolicyError(f"{key}: trusted_diagnosis.{side} needs an exact playwright and webkit pin")
+    if d["baseline"]["playwright"] == d["comparison"]["playwright"]:
+        raise PolicyError(f"{key}: the control and the comparison must be different versions")
+    if not d.get("engine") or not d.get("artifact_prefix") or int(d.get("macos_min_major", 0)) < 1:
+        raise PolicyError(f"{key}: trusted_diagnosis needs engine, artifact_prefix and macos_min_major")
+
 
 def load(path: Path | str = DEFAULT_POLICY) -> Policy:
     raw = Path(path).read_bytes()
@@ -85,6 +114,9 @@ def load(path: Path | str = DEFAULT_POLICY) -> Policy:
             raise PolicyError(f"{rule.get('key')}: suppress_repair needs an owner_approval_ref")
         if rule.get("disposition") != "investigate" and not rule.get("owner_approval_ref"):
             raise PolicyError(f"{rule.get('key')}: only 'investigate' needs no owner approval")
+        diag = rule.get("trusted_diagnosis")
+        if diag is not None:
+            _check_diagnosis(rule.get("key"), diag)
     return Policy(data=data, revision=hashlib.sha256(raw).hexdigest())
 
 

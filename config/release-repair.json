@@ -86,7 +86,17 @@
         "native report: release assertion in WebCore::Navigation::initializeForNewWindow while committing the reloaded page",
         "CONTROL: a new page in the same context loads and completes a lesson turn",
         "the retired service worker is ruled out (#829)"
-      ]
+      ],
+      "trusted_diagnosis": {
+        "_note": "Owner ruling 2026-11-16, the versions are #848's rule: Node exactly v24.22.2; Playwright 1.56.0 (WebKit 26.0, the build that crashed) is the CONTROL; 1.63.0 (WebKit 26.6, the version main pins) is the COMPARISON; the browser is the one the pinned package installs. Only the trusted record job builds a diagnosis event, from a named run of this workflow.",
+        "workflow": ".github/workflows/webkit-reload-diagnosis.yml",
+        "artifact_prefix": "webkit-repro-minimal-",
+        "engine": "webkit",
+        "node": "v24.22.2",
+        "macos_min_major": 15,
+        "baseline": {"playwright": "1.56.0", "webkit": "26.0"},
+        "comparison": {"playwright": "1.63.0", "webkit": "26.6"}
+      }
     }
   ]
 }

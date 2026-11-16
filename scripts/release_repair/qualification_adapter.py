@@ -6,8 +6,10 @@ produced against a different SHA than the one asked about.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import tarfile
 from pathlib import Path
 
 STATUSES = ("PASS", "FAIL", "SKIP", "NOT_RUN", "INFRA_ERROR")
@@ -100,7 +102,83 @@ def release_provenance(path: Path, sha: str) -> list[dict]:
     ok = data.get("prior_qualification_carries_to_this_sha") is False
     return [_r("release_provenance", "package", "PASS" if ok else "FAIL", sha,
                "bound to this SHA" if ok else "provenance claims prior qualification carries over",
-               digest=data.get("digest"))]
+               digest=data.get("digest"), embedded_sha=data.get("source_sha"),
+               architecture=data.get("architecture"))]
+
+
+PACKAGE_SUFFIXES = (".tar.gz", ".dmg", ".exe", ".deb", ".rpm")
+_PROVENANCE = "RELEASE_PROVENANCE.json"
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as fp:
+        for chunk in iter(lambda: fp.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _checksum(f: Path) -> dict:
+    """The build's own .sha256 sidecar, recomputed. Never inferred from the
+    Actions archive digest: a missing sidecar is NOT_RUN."""
+    side = f.with_name(f.name + ".sha256")
+    if not side.exists():
+        return {"status": "NOT_RUN", "reason": "no .sha256 sidecar beside the artifact"}
+    want = (side.read_text().split() or [""])[0].lower()
+    got = _sha256(f)
+    return {"status": "PASS" if want == got else "FAIL", "sha256": got, "sidecar": want}
+
+
+def _provenance_for(f: Path) -> tuple[dict | None, str]:
+    """RELEASE_PROVENANCE.json beside the file, or inside a .tar.gz (read, never
+    extracted). A DMG's or EXE's embedded copy cannot be read here."""
+    beside = f.parent / _PROVENANCE
+    if beside.exists():
+        return json.loads(beside.read_text()), "beside the artifact"
+    if f.name.endswith(".tar.gz"):
+        with tarfile.open(f, "r:gz") as tar:
+            for m in tar:
+                if m.isfile() and m.name.count("/") == 1 and m.name.endswith("/" + _PROVENANCE):
+                    return json.loads(tar.extractfile(m).read()), "inside the tarball"
+    return None, "no RELEASE_PROVENANCE.json beside the artifact or readable inside it"
+
+
+def package_artifacts(root: Path, sha: str, artifact_name: str = "") -> list[dict]:
+    """One row per packaged file, recording filename, embedded SHA,
+    architecture, OS, checksum and signing status. Only facts the build wrote
+    down are recorded: RELEASE_PROVENANCE.json has source_sha and architecture
+    but no OS and no signing or notarization field, so those are NOT_RUN with
+    the reason, never read off an artifact's name."""
+    files = sorted(f for f in root.rglob("*") if f.is_file() and f.name.endswith(PACKAGE_SUFFIXES))
+    rows = []
+    for f in files:
+        prov, where = _provenance_for(f)
+        embedded = (prov or {}).get("source_sha")
+        if embedded and embedded != sha:
+            raise ShaMismatch(f"{f.name} embeds {embedded[:12]}, not {sha[:12]}")
+        checksum = _checksum(f)
+        info = {
+            "artifact": artifact_name, "filename": f.name,
+            "embedded_sha": embedded or {"status": "NOT_RUN", "reason": where},
+            "architecture": (prov or {}).get("architecture") or {"status": "NOT_RUN", "reason": where},
+            "os": (prov or {}).get("os") or {"status": "NOT_RUN", "reason": "RELEASE_PROVENANCE.json records no OS"},
+            "checksum": checksum,
+            "signing": ({"status": "RECORDED", "value": prov["signing"]} if (prov or {}).get("signing") else
+                        {"status": "NOT_RUN", "reason": "RELEASE_PROVENANCE.json records no signing or notarization status"}),
+            "not_for_distribution_notice": (f.parent / "NOT_FOR_DISTRIBUTION.txt").exists(),
+        }
+        if checksum["status"] == "FAIL":
+            st, why = "FAIL", "checksum does not match its .sha256 sidecar"
+        elif prov is not None and prov.get("prior_qualification_carries_to_this_sha") is not False:
+            st, why = "FAIL", "provenance claims prior qualification carries over"
+        elif checksum["status"] == "NOT_RUN":
+            st, why = "NOT_RUN", checksum["reason"]
+        elif not embedded:
+            st, why = "NOT_RUN", f"embedded SHA: {where}"
+        else:
+            st, why = "PASS", "embedded SHA, architecture and checksum bound to this SHA"
+        rows.append(_r("release_provenance", f"package/{f.name}", st, sha, why, package=info))
+    return rows
 
 
 def mac_check(path: Path, sha: str) -> list[dict]:

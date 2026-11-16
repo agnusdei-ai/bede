@@ -474,6 +474,9 @@ export interface MasteryProfileSummary {
   subject_area: string
   evidence_count: number
   calibration: boolean
+  /** Recorded K-2 practice answers (phonics only). They move the estimate
+   *  but are not counted in evidence_count. Absent from an older server. */
+  practice_answers?: number
   domains: DomainMasteryView[]
   gaps: SkillMasteryView[]
   next_steps: SkillMasteryView[]

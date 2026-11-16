@@ -265,6 +265,11 @@ describe('K2PhonicsPractice', () => {
     const onClose = vi.fn()
     render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={onClose} />)
     expect((await screen.findByTestId('phonics-needs-sound')).textContent).toBe(en.k2Phonics.needsSound)
+    // Covers narration being off AND a device with no installed voice for the language.
+    expect(en.k2Phonics.needsSound).toMatch(/turn on Bede's voice/)
+    expect(en.k2Phonics.needsSound).toMatch(/install a voice for this language/)
+    expect(es.k2Phonics.needsSound).toMatch(/active la voz de Bede/)
+    expect(es.k2Phonics.needsSound).toMatch(/instale una voz para este idioma/)
     expect(screen.queryByRole('group', { name: 'Pick an answer' })).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: 'Back to Bede' }).pop()!)
     expect(onClose).toHaveBeenCalled()

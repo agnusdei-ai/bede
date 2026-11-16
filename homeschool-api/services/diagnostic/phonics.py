@@ -351,6 +351,13 @@ async def get_phonics_summary(db, student_name: str) -> Optional[dict]:
         log.warning("Phonics mastery summary load failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return None
 
-    return build_summary_view(
+    view = build_summary_view(
         vector, student_name, row.evidence_count, row.updated_at.replace(microsecond=0).isoformat(),
     )
+    # Practice answers move this picture but are not Bede's check-ins and do
+    # not count toward calibration (owner ruling 2026-11-16). Reported
+    # separately so a "still getting to know" line never reads as though
+    # nothing had been recorded.
+    from services.diagnostic.activity import count_from_source
+    view["practice_answers"] = await count_from_source(db, student_name, "phonics", "practice_round")
+    return view

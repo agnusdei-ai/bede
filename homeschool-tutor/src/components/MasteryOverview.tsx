@@ -70,6 +70,19 @@ function rowState(
 ): { text: string; tone: 'none' | 'calibrating' | 'ready' } {
   if (!summary) return { text: t('mastery.notStartedYet'), tone: 'none' }
   if (summary.calibration) {
+    // Practice answers move the picture but are not Bede's lesson check-ins
+    // and do not count toward calibration, so they are named separately:
+    // "0 so far" alone would read as though nothing had been recorded.
+    const practice = summary.practice_answers ?? 0
+    if (practice > 0) {
+      return {
+        text: t('mastery.stillGettingToKnowWithPractice', {
+          checkIns: t('mastery.lessonCheckIns', { count: summary.evidence_count }),
+          practice: t('mastery.practiceAnswers', { count: practice }),
+        }),
+        tone: 'calibrating',
+      }
+    }
     return {
       text: t('mastery.stillGettingToKnow', { count: summary.evidence_count }),
       tone: 'calibrating',

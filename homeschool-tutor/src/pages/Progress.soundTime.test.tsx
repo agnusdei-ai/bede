@@ -31,8 +31,9 @@ vi.mock('../services/api', async (importOriginal) => {
 
 import Progress from './Progress'
 
-const student = (name: string, grade: string, stage: string) =>
-  ({ student_name: name, grade, grade_stage: stage, subjects: ['language_arts'] }) as unknown as SessionConfig
+const student = (name: string, grade: string, stage: string, practice_offers?: string) =>
+  ({ student_name: name, grade, grade_stage: stage, subjects: ['language_arts'],
+     ...(practice_offers ? { practice_offers } : {}) }) as unknown as SessionConfig
 
 beforeEach(() => {
   i18n.changeLanguage('en')
@@ -55,6 +56,22 @@ describe('Progress and Sound Time', () => {
     expect(screen.getByTestId('sound-time-record-note').textContent).toBe(en.progress.soundTimeRecordNote)
     expect(en.progress.soundTimeRecordNote).toMatch(/practice only/)
     expect(es.progress.soundTimeRecordNote).toMatch(/solo práctica/)
+  })
+
+  it('says a round is the first one the child answers', () => {
+    expect(en.progress.soundTimeRecordNote).toMatch(/the first round your child answers/)
+    expect(es.progress.soundTimeRecordNote).toMatch(/la primera ronda que responde tu hijo/)
+  })
+
+  it('shows the note when practice is on or only approved, and not when it is off', async () => {
+    await show([student('Ada', '1', 'K-2', 'approved_only')])
+    expect(screen.getByTestId('sound-time-record-note')).toBeTruthy()
+    cleanup()
+    await show([student('Ada', '1', 'K-2', 'todays_subjects')])
+    expect(screen.getByTestId('sound-time-record-note')).toBeTruthy()
+    cleanup()
+    await show([student('Ada', '1', 'K-2', 'off')])
+    expect(screen.queryByTestId('sound-time-record-note')).toBeNull()
   })
 
   it('says nothing about Sound Time for an older child', async () => {

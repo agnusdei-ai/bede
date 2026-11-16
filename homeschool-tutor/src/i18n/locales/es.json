@@ -446,7 +446,7 @@
     "welcomeBack": "Le damos la bienvenida de nuevo, {{name}}."
   },
   "progress": {
-    "soundTimeRecordNote": "La Hora de los Sonidos guarda una ronda por inicio de sesión. Las rondas extra que jugó tu hijo fueron solo práctica: no aparecen en el registro de trabajo ni en el panorama de lectura.",
+    "soundTimeRecordNote": "La Hora de los Sonidos guarda una ronda por inicio de sesión: la primera ronda que responde tu hijo. Las rondas extra que jugó tu hijo fueron solo práctica: no aparecen en el registro de trabajo ni en el panorama de lectura.",
     "advance": "Avanzar",
     "repeat": "Repetir",
     "review": "Repasar",
@@ -640,6 +640,11 @@
     "areaMusic": "Conocimiento musical",
     "notStartedYet": "aún sin empezar",
     "stillGettingToKnow": "aún conociéndole — {{count}} hasta ahora",
+    "stillGettingToKnowWithPractice": "aún conociéndole: {{checkIns}} hasta ahora, más {{practice}}",
+    "lessonCheckIns_one": "{{count}} comprobación en la lección",
+    "lessonCheckIns_other": "{{count}} comprobaciones en la lección",
+    "practiceAnswers_one": "{{count}} respuesta de práctica",
+    "practiceAnswers_other": "{{count}} respuestas de práctica",
     "secureOf": "{{secure}} de {{total}} dominadas",
     "nothingYet": "Aún no se ha evaluado nada de {{name}}. Mientras tanto, vea Trabajo completado abajo."
   },
@@ -1381,7 +1386,7 @@
     "title": "Hora de los Sonidos",
     "open": "Empezar la Hora de los Sonidos",
     "loading": "Preparando las palabras…",
-    "needsSound": "Esta práctica necesita sonido. Pide a un adulto que active la voz de Bede y vuelve a intentarlo.",
+    "needsSound": "Esta práctica necesita sonido. Pide a un adulto que active la voz de Bede o que instale una voz para este idioma en este dispositivo, y vuelve a intentarlo.",
     "loadTrouble": "No se pudo cargar la práctica.",
     "tryAgain": "Intentar de nuevo",
     "finished": "¡Terminaste la Hora de los Sonidos!",

@@ -163,10 +163,16 @@ toward the early-evidence window: they move the estimate by their weight but do 
 `evidence_count`, so Bede's own in-lesson check-ins keep the full early boost and the
 parent's summary stays "calibrating" until enough check-ins exist. And one round is recorded
 per area per sign-in, with at most three recorded answers; "Another one" still works and
-records nothing. The server keys this on the learner, the area and a digest of the sign-in's
-token, so a reload or a new lesson id does not reset it and a new sign-in does; it is held in
-memory, so a server restart forgets it. Progress tells the parent the extra rounds were
-practice only.
+records nothing. A round counts once its first answer is recorded, not when it is served:
+opening a round and leaving, a lost response followed by "Try again", or a round that needs
+sound on a device that cannot give it leaves the sign-in's round unused, and if two rounds
+are answered at once only one is recorded. The server keys this on the learner, the area and
+a digest of the sign-in's token, so a reload or a new lesson id does not reset it and a new
+sign-in does; it is held in memory, so a server restart forgets it. Progress tells the parent
+of a K-2 child whose practice is not off that the extra rounds were practice only, and while
+the reading picture is still calibrating it names the practice answers apart from Bede's own
+lesson check-ins ("0 lesson check-ins so far, plus 3 practice answers"), so the line never
+reads as though nothing had been recorded.
 
 **Limitations of the record (product defaults, no research behind any number here).** A child tapping at random still ends up "correct" within two tries this often:
 

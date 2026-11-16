@@ -658,6 +658,10 @@ export default function Progress() {
   // never overlap. Skip the fetch for a K-2 student rather than showing a
   // card that can never have data — same reasoning as phonics above.
   const activeStudentIsBeyondFoundations = !activeStudentIsFoundations
+  // The Sound Time note is for a K-2 child whose practice is not switched
+  // off. An absent setting is the server's default, todays_subjects.
+  const activeStudentHasPractice = activeStudentIsFoundations
+    && (podStudents.find((s) => s.student_name === activeStudent)?.practice_offers ?? 'todays_subjects') !== 'off'
 
   // The rows of the unified mastery card, in a FIXED pedagogical order —
   // foundational first, never sorted by how well the child is doing. A list
@@ -917,12 +921,12 @@ export default function Progress() {
             )}
             <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
-            {/* K-2 Sound Time records one round per sign-in (owner ruling
-                2026-11-16); further rounds are practice only and write
+            {/* K-2 Sound Time records one round per sign-in, the first one
+                answered (owner ruling 2026-11-16); further rounds are practice only and write
                 nothing, so they are absent from the ledger and the mastery
                 picture above. Said here so a parent who watched more rounds
                 than appear knows why. */}
-            {activeStudentIsFoundations && (
+            {activeStudentHasPractice && (
               <p className="text-xs text-gray-500 px-1" data-testid="sound-time-record-note">
                 {t('progress.soundTimeRecordNote')}
               </p>

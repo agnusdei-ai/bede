@@ -75,7 +75,8 @@ _MAX_PROGRESS = 4096
 MAX_RECORDED_ANSWERS = 3
 AREA = "phonics"
 
-#: (student, area, sign-in) -> {"at", "lesson_id", "count"}. Keyed on the
+#: (student, area, sign-in) -> {"at", "lesson_id", "count"}. The round is the
+#: lesson whose answer was the first one recorded in that sign-in. Keyed on the
 #: SIGN-IN (a digest of the authenticated token's own claims), never on the
 #: client's session id, which a page reload re-mints: a reload or a fresh
 #: lesson id must not open a second recorded round, and a new sign-in does.
@@ -138,13 +139,6 @@ def _round(student_name: str, auth: dict) -> dict:
                                {"at": now, "lesson_id": None, "count": 0})
     entry["at"] = now
     return entry
-
-
-def _claim_round(student_name: str, auth: dict, lesson_id: str) -> None:
-    """The first lesson served in a sign-in is its one recorded round."""
-    entry = _round(student_name, auth)
-    if entry["lesson_id"] is None:
-        entry["lesson_id"] = lesson_id
 
 
 def _state(student_name: str, lesson_id: str) -> dict:
@@ -219,7 +213,6 @@ async def new_lesson(
     seed = secrets.randbelow(1_000_000)
     lesson = phonics.build_lesson(level, seed, domain, audio=audio)
     lesson["lesson_id"] = mint_lesson_id(student_name, level, domain, seed, audio)
-    _claim_round(student_name, auth, lesson["lesson_id"])
     lesson["your_turn_tries"] = YOUR_TURN_TRIES
     return lesson
 
@@ -249,6 +242,7 @@ async def _record(db: AsyncSession, student_name: str, domain: str, first_try: b
     recorded = await record_activity(
         db, student_name, phonics.LEDGER_SUBJECT_AREA, domain, phonics.DOMAIN_LABELS[domain],
         "correct" if first_try else "partial",
+        source="practice_round",
     )
     if settings.retain_mastery_profiles:
         await phonics_record.process_evidence(
@@ -313,6 +307,11 @@ async def answer(
 
     # Claimed before the first await, so two overlapping retries cannot both record.
     state["done"].add(body.index)
+    # The round is claimed by its first RECORDED answer, never by serving a
+    # lesson: opening a round and leaving, a lost response and "Try again", or
+    # a no-sound lesson with nothing to answer leave the round unused. The
+    # check and the claim run with no await between them, so two lessons
+    # answered at once in one sign-in cannot both become the recorded round.
     entry = _round(student_name, auth)
     if entry["lesson_id"] is None:
         entry["lesson_id"] = lesson_id

@@ -446,7 +446,7 @@
     "welcomeBack": "Welcome back, {{name}}."
   },
   "progress": {
-    "soundTimeRecordNote": "Sound Time keeps one round per sign-in. Any extra rounds your child played were practice only: they are not in the work record or the reading picture.",
+    "soundTimeRecordNote": "Sound Time keeps one round per sign-in: the first round your child answers. Any extra rounds your child played were practice only: they are not in the work record or the reading picture.",
     "advance": "Advance",
     "repeat": "Repeat",
     "review": "Review",
@@ -640,6 +640,11 @@
     "areaMusic": "Music knowledge",
     "notStartedYet": "not started yet",
     "stillGettingToKnow": "still getting to know — {{count}} so far",
+    "stillGettingToKnowWithPractice": "still getting to know: {{checkIns}} so far, plus {{practice}}",
+    "lessonCheckIns_one": "{{count}} lesson check-in",
+    "lessonCheckIns_other": "{{count}} lesson check-ins",
+    "practiceAnswers_one": "{{count}} practice answer",
+    "practiceAnswers_other": "{{count}} practice answers",
     "secureOf": "{{secure}} of {{total}} secure",
     "nothingYet": "Nothing assessed yet for {{name}}. Until then, see Work Completed below."
   },
@@ -1381,7 +1386,7 @@
     "title": "Sound Time",
     "open": "Start Sound Time",
     "loading": "Getting the words ready…",
-    "needsSound": "This practice needs sound. Ask a grown-up to turn on Bede's voice, then try again.",
+    "needsSound": "This practice needs sound. Ask a grown-up to turn on Bede's voice, or to install a voice for this language on this device, then try again.",
     "loadTrouble": "The practice could not be loaded.",
     "tryAgain": "Try again",
     "finished": "You finished Sound Time!",

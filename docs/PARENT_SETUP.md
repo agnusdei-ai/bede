@@ -2180,11 +2180,18 @@ What is kept:
   one right answer is never enough to mark a step secure; two right first
   tries are.
 - Only the first round in each sign-in is recorded, at most three answers.
-  "Another one" still works and is practice only, and your Progress page
-  says so. Your child's screen looks the same either way.
+  A round counts once its first answer is recorded, so opening a round and
+  leaving, or a round that would not load, does not use it up. "Another one"
+  still works and is practice only, and your Progress page says so. Your
+  child's screen looks the same either way.
 - Practice answers do not hurry the reading picture past its "still getting
   to know your learner" stage; that stage follows Bede's own checks in
-  lessons.
+  lessons. While it lasts, Progress shows the two counts separately, for
+  example "0 lesson check-ins so far, plus 3 practice answers".
+- If a round says it needs sound, turn on Bede's voice, or install a voice
+  for your language on the device (in its speech or accessibility
+  settings). Bede only speaks practice through a voice installed on the
+  device.
 - A child tapping at random still lands on the right answer within two tries
   about half the time or more (56% with three choices, 44% with four). That is
   why only one round a sign-in is recorded, and why the record only picks the

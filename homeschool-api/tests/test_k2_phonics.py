@@ -766,6 +766,31 @@ async def test_practice_does_not_use_up_the_early_window_for_bedes_own_check_ins
 
 
 @pytest.mark.asyncio
+async def test_the_summary_counts_practice_answers_apart_from_bedes_check_ins(db):
+    """The Progress line says how many practice answers moved a picture that
+    is still calibrating, so it never reads as though nothing was recorded.
+    Only rows the practice route wrote count: a check-in or a marked quiz
+    in the same area does not."""
+    from models.schemas import MasteryProfileSummary
+    from services.diagnostic.activity import record_activity
+
+    lesson = await routes.new_lesson("Ben", auth=PARENT, db=db)
+    for index in range(phonics.YOUR_TURN_TASKS):
+        assert (await _answer_right(db, "Ben", lesson, PARENT, index=index))["recorded"] is True
+    summary = await phonics_record.get_phonics_summary(db, "Ben")
+    assert summary["evidence_count"] == 0 and summary["calibration"] is True
+    assert summary["practice_answers"] == phonics.YOUR_TURN_TASKS
+    # A check-in and a marked quiz in the same area are not practice answers.
+    await phonics_record.process_evidence(db, "Ben", lesson["domain"], "correct")
+    await record_activity(db, "Ben", "phonics", lesson["domain"], "x", "correct")
+    await record_activity(db, "Ben", "phonics", lesson["domain"], "x", "correct", source="marked_quiz")
+    summary = await phonics_record.get_phonics_summary(db, "Ben")
+    assert summary["evidence_count"] == 1 and summary["practice_answers"] == phonics.YOUR_TURN_TASKS
+    # And the count survives the route's response model.
+    assert MasteryProfileSummary(**summary).practice_answers == phonics.YOUR_TURN_TASKS
+
+
+@pytest.mark.asyncio
 async def test_a_second_round_in_one_sign_in_records_nothing(db):
     signed_in = {"role": "parent", "sub": "parent", "iat": 1000, "exp": 9000}
     first = await routes.new_lesson("Ben", auth=signed_in, db=db)
@@ -785,7 +810,8 @@ async def test_a_second_round_in_one_sign_in_records_nothing(db):
 async def test_a_reload_or_a_fresh_lesson_id_does_not_reset_the_round_but_a_new_sign_in_does(db, monkeypatch):
     """The same token after a reload (the client re-mints its session id,
     which this round never keys on) and a freshly minted lesson id both stay
-    practice only; a new sign-in (a new token) gets its own recorded round."""
+    practice only once a round has been recorded; a new sign-in (a new token)
+    gets its own recorded round."""
     from core import child_pin
 
     async def _live(_db, _auth):
@@ -793,7 +819,10 @@ async def test_a_reload_or_a_fresh_lesson_id_does_not_reset_the_round_but_a_new_
 
     monkeypatch.setattr(child_pin, "token_is_live", _live)
     token = {"role": "child", "learner": "Ben", "sub": "child", "iat": 2000, "exp": 9000}
-    await routes.new_lesson("Ben", auth=token, db=db)  # this sign-in's round
+    first = await routes.new_lesson("Ben", auth=token, db=db)
+    first_task = _task("Ben", first, "your_turn", 0)
+    assert (await _send(db, "Ben", first, "your_turn", 0, auth=token,
+                        choice=first_task.accept_choice))["recorded"] is True  # this sign-in's round
     reload = await routes.new_lesson("Ben", auth=dict(token), db=db)
     task = _task("Ben", reload, "your_turn", 0)
     assert (await _send(db, "Ben", reload, "your_turn", 0, auth=dict(token),
@@ -802,12 +831,83 @@ async def test_a_reload_or_a_fresh_lesson_id_does_not_reset_the_round_but_a_new_
     fresh_task = phonics.build_task(reload["level"], reload["domain"], 7, "your_turn", 0)
     assert (await _send(db, "Ben", fresh, "your_turn", 0, auth=dict(token),
                         choice=fresh_task.accept_choice))["practice_only"] is True
-    assert await _ledger_rows(db, "Ben") == 0
+    assert await _ledger_rows(db, "Ben") == 1
     new_sign_in = dict(token, iat=3000, exp=9500)
     mine = await routes.new_lesson("Ben", auth=new_sign_in, db=db)
     mine_task = _task("Ben", mine, "your_turn", 0)
     assert (await _send(db, "Ben", mine, "your_turn", 0, auth=new_sign_in,
                         choice=mine_task.accept_choice))["recorded"] is True
+    assert await _ledger_rows(db, "Ben") == 2
+
+
+async def _answer_right(db, name, lesson, auth, index=0):
+    task = _task(name, lesson, "your_turn", index)
+    return await _send(db, name, lesson, "your_turn", index, auth=auth, choice=task.accept_choice)
+
+
+@pytest.mark.asyncio
+async def test_opening_a_round_and_leaving_does_not_use_up_the_round(db):
+    signed_in = {"role": "parent", "sub": "parent", "iat": 5000, "exp": 9000}
+    await routes.new_lesson("Ben", auth=signed_in, db=db)  # opened, then the child left
+    later = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    assert (await _answer_right(db, "Ben", later, signed_in))["recorded"] is True
+    assert await _ledger_rows(db, "Ben") == 1
+
+
+@pytest.mark.asyncio
+async def test_a_lesson_that_needs_sound_does_not_use_up_the_round(db):
+    await _save_grade(db, "Ben", "2")
+    await _secure_through_long_vowels(db, "Ben")
+    rows_before = await _ledger_rows(db, "Ben")
+    signed_in = {"role": "parent", "sub": "parent", "iat": 5100, "exp": 9000}
+    quiet = await routes.new_lesson("Ben", audio=False, auth=signed_in, db=db)
+    assert quiet["needs_audio"] is True
+    loud = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    assert (await _answer_right(db, "Ben", loud, signed_in))["recorded"] is True
+    assert await _ledger_rows(db, "Ben") == rows_before + 1
+
+
+@pytest.mark.asyncio
+async def test_a_lost_response_and_try_again_does_not_use_up_the_round(db):
+    """The first lesson's response never reached the tablet; "Try again"
+    fetched another. The one the child actually answers is the round."""
+    signed_in = {"role": "parent", "sub": "parent", "iat": 5200, "exp": 9000}
+    lost = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    retry = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    assert retry["lesson_id"] != lost["lesson_id"]
+    assert (await _answer_right(db, "Ben", retry, signed_in))["recorded"] is True
+    assert await _ledger_rows(db, "Ben") == 1
+
+
+@pytest.mark.asyncio
+async def test_the_first_lesson_answered_is_the_recorded_round_and_a_second_is_practice_only(db):
+    signed_in = {"role": "parent", "sub": "parent", "iat": 5300, "exp": 9000}
+    served_first = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    served_second = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    # The child answers the lesson served second first: that one is the round.
+    assert (await _answer_right(db, "Ben", served_second, signed_in))["recorded"] is True
+    result = await _answer_right(db, "Ben", served_first, signed_in)
+    assert result == {"understood": True, "correct": True, "recorded": False, "practice_only": True}
+    # The round keeps recording its own remaining questions.
+    assert (await _answer_right(db, "Ben", served_second, signed_in, index=1))["recorded"] is True
+    assert await _ledger_rows(db, "Ben") == 2
+
+
+@pytest.mark.asyncio
+async def test_two_lessons_answered_at_once_in_one_sign_in_record_only_one_round(db):
+    import asyncio
+
+    signed_in = {"role": "parent", "sub": "parent", "iat": 5400, "exp": 9000}
+    one = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    two = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    maker = async_sessionmaker(db.bind, expire_on_commit=False)
+    async with maker() as db_one, maker() as db_two:
+        results = await asyncio.gather(
+            _answer_right(db_one, "Ben", one, signed_in),
+            _answer_right(db_two, "Ben", two, signed_in),
+        )
+    assert sorted(bool(r["recorded"]) for r in results) == [False, True]
+    assert [r.get("practice_only") for r in results].count(True) == 1
     assert await _ledger_rows(db, "Ben") == 1
 
 

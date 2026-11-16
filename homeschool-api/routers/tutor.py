@@ -249,6 +249,19 @@ async def chat(
     if not is_demo_code:
         await consent.require_collection(db, req.session_config.student_name)
 
+    if role in ("child", "parent") and req.session_config.grade_stage == GradeStage.foundations:
+        # K-2 practice: the per-child setting comes from the SAVED config,
+        # never the tablet's copy, so a parent's change mid-session (to "off"
+        # or "only sets I approved") stops offers on the next turn. Only this
+        # one field is taken; everything else in the turn's config is as sent.
+        # Read only on a foundations-stage turn, the only kind the offer gate
+        # can allow; a tablet claiming an older grade gets no offer, and the
+        # practice routes still take the grade from the saved config.
+        from routers.k2_practice import saved_practice_offers
+        req.session_config = req.session_config.model_copy(update={
+            "practice_offers": await saved_practice_offers(db, req.session_config.student_name),
+        })
+
     demo_quota_exceeded = False
     if is_demo_code:
         demo_code = auth.get("code", "")

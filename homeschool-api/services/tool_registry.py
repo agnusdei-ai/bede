@@ -133,6 +133,9 @@ _SPECS: Tuple[ToolSpec, ...] = (
     # Opens the K-2 map practice screen (services/map_practice.py). The card
     # is wholly server-composed and the model sends no input with the call.
     ToolSpec("invite_map_practice"),
+    # Opens a K-2 practice round (services/k2_practice/). The model sends only
+    # a closed `area`; the card, the words and the checking are the server's.
+    ToolSpec("invite_practice"),
     ToolSpec("offer_socratic_hint"),
     # celebrate_discovery/connect_to_faith render a card and may legitimately
     # carry no question, hence questionless. They are NOT reactable: nothing

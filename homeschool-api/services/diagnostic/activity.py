@@ -54,7 +54,9 @@ log = logging.getLogger(__name__)
 ASSISTANCE_LEVELS = ("unaided", "with_a_hint", "with_help")
 
 # Where work was seen, when it was not in a session with Bede.
-ACTIVITY_SOURCES = ("marked_quiz",)
+# "practice_round": a K-2 practice round's recorded answer (routers/k2_practice.py),
+# counted separately on the parent's mastery summary from Bede's own check-ins.
+ACTIVITY_SOURCES = ("marked_quiz", "practice_round")
 
 # Maps the outcome vocabulary every diagnostic in this package already uses
 # onto that factual scale. `incorrect` is deliberately absent: a task that
@@ -197,6 +199,36 @@ async def summarize(
         records.append((row.skill_id, row.subject_area, detail,
                         row.completed_at.replace(microsecond=0).isoformat()))
     return summarize_records(records, student_name, since_days)
+
+
+async def count_from_source(db, student_name: str, subject_area: str, source: str) -> int:
+    """How many completed-work rows in one area came from `source`. A count of
+    events, never a score. Best-effort: 0 when the rows cannot be read."""
+    from sqlalchemy import select
+
+    from core import student_keys
+    from core.database import SkillActivityLog
+    from core.encryption import decrypt_json, student_aad
+
+    try:
+        rows = (await db.execute(select(SkillActivityLog).where(
+            SkillActivityLog.student_name == student_name,
+            SkillActivityLog.subject_area == subject_area,
+        ))).scalars().all()
+        key = await student_keys.get_existing(db, student_name)
+    except Exception as exc:
+        log.warning("Activity source count failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
+        return 0
+    count = 0
+    for row in rows:
+        try:
+            detail = decrypt_json(row.detail_enc, student_aad(
+                "skill_activity_log", "detail_enc", student_name, row.subject_area, row.skill_id), key)
+        except Exception:
+            continue
+        if detail.get("source") == source:
+            count += 1
+    return count
 
 
 def summarize_records(

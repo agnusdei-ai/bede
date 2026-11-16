@@ -49,7 +49,7 @@ _ROUTER_MODULES = [
     "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
     "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
     "pilot_diagnostic", "pilot_journey", "pilot_owner", "pilot_tutor_history", "pilot_tutor",
-    "consent", "map_practice",
+    "consent", "map_practice", "k2_practice",
 ]
 
 # Dependencies that are plumbing rather than protection.
@@ -67,6 +67,9 @@ GUARDS = {
     # then checks require_learner_access and consent itself.
     ('GET', '/map-practice/{student_name}/lesson'): 'require_real_user',
     ('POST', '/map-practice/{student_name}/lessons/{lesson_id}/answers'): 'require_family_data_write',
+    # K-2 phonics practice: the same guards as map practice, for the same reason.
+    ('GET', '/k2-practice/{student_name}/phonics/lesson'): 'require_real_user',
+    ('POST', '/k2-practice/{student_name}/phonics/lessons/{lesson_id}/answers'): 'require_family_data_write',
     ('POST', '/pilot/me/learners/{learner_id}/tutoring/chat'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/tutoring/history'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',

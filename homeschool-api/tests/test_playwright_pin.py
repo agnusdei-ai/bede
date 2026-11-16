@@ -30,7 +30,8 @@ REPRODUCING = "1.56.0"
 # Every file that installs Playwright to qualify a release, and how it spells the pin.
 PIN_SITES = {
     WF / "cross-platform-browser-journeys.yml": r"PLAYWRIGHT_VERSION: '([\d.]+)'",
-    WF / "webkit-reload-diagnosis.yml": r"PLAYWRIGHT_VERSION: '([\d.]+)'",
+    # The product journey defaults to the pin; 1.56.0 is a declared baseline choice.
+    WF / "webkit-reload-diagnosis.yml": r"(?:journey_playwright \|\| '|options: \['|        default: ')(\d+\.\d+\.\d+)",
     WF / "capacity.yml": r"PLAYWRIGHT_VERSION: '([\d.]+)'",
     WF / "qualification.yml": r"(?:playwright_version:\n(?:\s+\w+:.*\n)*?\s+default: |inputs\.playwright_version \|\| ')(\d+\.\d+\.\d+)",
     WF / "macos-installer-ui.yml": r"playwright==([\d.]+)",

@@ -17,6 +17,7 @@ NODE24_PINNED = {
 }
 USE = re.compile(r"^\s*-?\s*uses:\s*actions/([a-z-]+)@([^\s#]+)")
 NODE_VERSION = re.compile(r"^\s*node-version:\s*(.+)$")
+NODE24_VALUE = re.compile(r"""(['"]?)24(\.\d+\.\d+)?\1""")
 problems = []
 for path in sorted(WORKFLOWS.glob("*.yml")):
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -29,7 +30,9 @@ for path in sorted(WORKFLOWS.glob("*.yml")):
         version = NODE_VERSION.match(line)
         if version:
             value = version.group(1).split("#", 1)[0].strip()
-            if value not in {"24", "'24'", '"24"'}:
+            # Major 24, or an exact 24.x.y patch pin (a reproduction that must
+            # hold Node constant, e.g. webkit-reload-diagnosis.yml).
+            if not NODE24_VALUE.fullmatch(value):
                 problems.append(f"{label}: workflow Node.js must be 24, found {value}")
         if "ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION" in line and not line.lstrip().startswith("#"):
             problems.append(f"{label}: deprecated Node runtime opt out is forbidden")

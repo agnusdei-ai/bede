@@ -1453,6 +1453,13 @@
     "putInBox": "Put a counter in box {{n}}",
     "takeFromBox": "Take the counter out of box {{n}}",
     "frameLabel": "A ten-frame with {{count}} counters, {{crossed}} crossed out",
+    "frameQuiet": "A ten-frame with counters",
+    "buildLabel": "Your ten-frame, with {{count}} counters on it now",
+    "takeAwayBox": "Take this counter away, box {{n}}",
+    "rowQuiet": {
+      "red": "A row of red counters",
+      "yellow": "A row of yellow counters"
+    },
     "bondLabel": "A number bond: {{whole}} is {{a}} and {{b}}",
     "rowOf": {
       "red": "{{count}} red counters",

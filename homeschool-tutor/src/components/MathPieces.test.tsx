@@ -13,16 +13,20 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import type { MathPiece } from '../services/api'
-import { MathPicture, PIECE_KINDS, TenFrameBuilder } from './MathPieces'
+import {
+  BUILD_FRAME_GRID, FRAME_CONTAINER, MathPicture, PICTURE_FRAME_GRID, PIECE_KINDS, TenFrameBuilder,
+} from './MathPieces'
 
 beforeEach(async () => { await i18n.changeLanguage('en') })
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
-function Builder({ frames = 1, start = 0, ghost, onCount }: { frames?: number; start?: number; ghost?: number; onCount?: (n: number) => void }) {
+function Builder({ frames = 1, start = 0, ghost, takeAway, onCount }: {
+  frames?: number; start?: number; ghost?: number; takeAway?: boolean; onCount?: (n: number) => void
+}) {
   const [count, setCount] = useState(start)
   return (
     <>
-      <TenFrameBuilder frames={frames} start={start} count={count} ghost={ghost}
+      <TenFrameBuilder frames={frames} start={start} count={count} ghost={ghost} takeAway={takeAway}
         onChange={(n) => { setCount(n); onCount?.(n) }} />
       <output data-testid="count">{count}</output>
     </>
@@ -39,19 +43,42 @@ describe('MathPicture', () => {
     // Not color alone: a yellow counter carries an inner ring, a red one does not.
     expect(container.querySelector('[data-counter="yellow"]')!.querySelectorAll('circle')).toHaveLength(2)
     expect(container.querySelector('[data-counter="red"]')!.querySelectorAll('circle')).toHaveLength(1)
-    expect(screen.getByRole('img', { name: '4 red counters' })).toBeTruthy()
+    // Without the guide (Your turn) the row's name does not count it.
+    expect(screen.getByRole('img', { name: 'A row of red counters' })).toBeTruthy()
     expect(container.querySelectorAll('text')).toHaveLength(0)
     rerender(<MathPicture d={d} guide />)
+    expect(screen.getByRole('img', { name: '4 red counters' })).toBeTruthy()
     expect(Array.from(container.querySelectorAll('text')).map((t) => t.textContent).slice(0, 4)).toEqual(['1', '2', '3', '4'])
   })
 
   it('draws a ten-frame filled in order, with the taken-away ones crossed out', () => {
-    const { container } = render(<MathPicture d={{ kind: 'ten_frame', frames: 2, red: 8, yellow: 5, crossed: 3 }} />)
+    const { container } = render(<MathPicture d={{ kind: 'ten_frame', frames: 2, red: 8, yellow: 5, crossed: 3 }} guide />)
     expect(container.querySelectorAll('[data-counter]')).toHaveLength(13)
     expect(container.querySelectorAll('[data-counter="red"]')).toHaveLength(8)
     expect(container.querySelectorAll('[data-crossed]')).toHaveLength(3)
     expect(container.querySelectorAll('.grid')).toHaveLength(2)
     expect(screen.getByRole('img', { name: 'A ten-frame with 13 counters, 3 crossed out' })).toBeTruthy()
+  })
+
+  it('in Your turn, no picture names a quantity a screen reader could answer with', async () => {
+    // The echo rule applied to accessible names: without the guide, a label
+    // never states how many there are, since that is what is being asked.
+    const pieces: MathPiece[] = [
+      { kind: 'counters', groups: [{ color: 'red', count: 7 }] },
+      { kind: 'counters', groups: [{ color: 'red', count: 4 }, { color: 'yellow', count: 6 }] },
+      { kind: 'ten_frame', frames: 1, red: 6, yellow: 1 },
+      { kind: 'ten_frame', frames: 2, red: 13, crossed: 4 },
+    ]
+    for (const locale of ['en', 'es']) {
+      await i18n.changeLanguage(locale)
+      for (const d of pieces) {
+        const { container, unmount } = render(<MathPicture d={d} />)
+        const names = Array.from(container.querySelectorAll('[aria-label]')).map((el) => el.getAttribute('aria-label') ?? '')
+        expect(names.length, JSON.stringify(d)).toBeGreaterThan(0)
+        for (const name of names) expect(name, `${locale}: ${name}`).not.toMatch(/\d/)
+        unmount()
+      }
+    }
   })
 
   it('draws a number bond with the blank as a question mark', () => {
@@ -139,6 +166,50 @@ describe('TenFrameBuilder', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Put a counter in box 3' }))
     fireEvent.click(screen.getByRole('button', { name: 'Put in a counter' }))
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('outlines the counters to take away in Together, since those boxes start full', () => {
+    const { container } = render(<Builder start={9} ghost={5} takeAway />)
+    const marked = Array.from(container.querySelectorAll('[data-remove]'))
+    expect(marked.map((el) => el.getAttribute('aria-label'))).toEqual(
+      ['Take this counter away, box 6', 'Take this counter away, box 7', 'Take this counter away, box 8', 'Take this counter away, box 9'])
+    for (const el of marked) expect(el.className).toMatch(/border-dashed/)
+    expect(container.querySelectorAll('[data-ghost]')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Take one out' }))
+    expect(container.querySelectorAll('[data-remove]')).toHaveLength(3)
+    cleanup()
+    // Your turn has no guide at all; building up keeps its empty-box outline.
+    const quiet = render(<Builder start={9} takeAway />)
+    expect(quiet.container.querySelectorAll('[data-remove], [data-ghost]')).toHaveLength(0)
+  })
+
+  it('turns a frame on its side (two across, five down) when five boxes do not fit, by a rem container query', () => {
+    // jsdom evaluates no CSS, so this pins the contract; the layout itself
+    // was measured in Chromium (see docs/K2_PRACTICE.md §5.3).
+    render(<><Builder frames={2} /><MathPicture d={{ kind: 'ten_frame', frames: 2, red: 12 }} /></>)
+    const rem = (grid: string) => Number(grid.match(/@container\(max-width:([\d.]+)rem\)/)?.[1])
+    for (const [grid, box, gap] of [[BUILD_FRAME_GRID, 3.5, 0.5], [PICTURE_FRAME_GRID, 2.75, 0.25]] as const) {
+      for (const cls of ['grid-cols-2', 'grid-rows-5', 'grid-flow-col']) {
+        expect(grid).toContain(`[@container(max-width:${rem(grid)}rem)]:${cls}`)
+      }
+      expect(grid).toMatch(/\bgrid-cols-5\b/)
+      // Never a viewport breakpoint: those do not follow the app's text size.
+      expect(grid).not.toMatch(/\b(sm|md|lg|xl):/)
+      // The switch happens before five boxes, their gaps, the padding and the
+      // 4px border (at most 0.25rem at any supported size) stop fitting.
+      expect(rem(grid)).toBeGreaterThanOrEqual(5 * box + 4 * gap + 0.5 + 0.25)
+    }
+    const builderGrids = document.querySelectorAll('[data-testid="math-build-frame"] > div')
+    const pictureGrids = document.querySelectorAll('[data-testid="math-ten-frame"] > div')
+    expect(builderGrids).toHaveLength(2)
+    for (const g of builderGrids) expect(g.className).toContain(BUILD_FRAME_GRID)
+    for (const g of pictureGrids) expect(g.className).toContain(PICTURE_FRAME_GRID)
+    // Each frame's wrapper is the query container and spans the space it has.
+    for (const id of ['math-build-frame', 'math-ten-frame']) {
+      expect(screen.getByTestId(id).parentElement!.className).toContain(FRAME_CONTAINER)
+    }
+    expect(FRAME_CONTAINER).toContain('[container-type:inline-size]')
+    expect(FRAME_CONTAINER).toContain('w-full')
   })
 
   it('meets the target sizes by class contract, wraps, and keeps targets 8px apart', () => {

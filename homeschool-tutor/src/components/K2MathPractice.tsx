@@ -203,7 +203,7 @@ export default function K2MathPractice({
           <TenFrameBuilder
             frames={task.build.capacity / 10} start={task.build.start} count={built}
             onChange={(n) => { setBuilt(n); if (feedback?.kind === 'again' || feedback?.kind === 'trouble') setFeedback(null) }}
-            ghost={display.ghost} disabled={watching || busy || settled}
+            ghost={display.ghost} takeAway={task.build.take_away} disabled={watching || busy || settled}
           />
           {!watching && !settled && (
             <button type="button" onClick={() => send(String(built))} disabled={busy} className={PRIMARY}>

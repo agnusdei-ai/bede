@@ -325,12 +325,31 @@ Sound Time round are counted apart, each at most three answers. The math
 summary's `practice_answers` counts the practice rows apart from check-ins, as
 phonics does.
 
-Sizes are pinned by class contract (rem, no fixed widths), as for phonics.
-One limit the class contract cannot remove: a ten-frame is five boxes across
-by its nature, so at 200% text on a phone-width screen its five 56 px targets
-(112 px each at that size) are wider than the screen and the frame scrolls
-sideways inside the round rather than wrapping. Step 6's real browser check
-measures this; shrinking the boxes below 56 px would break the target size.
+Sizes are in rem, as for phonics. A ten-frame is five boxes across, and on a
+phone with larger text five boxes no longer fit: squeezed into five columns
+they overlapped, so a tap could land on the wrong box. When five boxes do not
+fit, the frame turns on its side instead, two boxes across and five down,
+filled down the first column and then the second, so it is still two fives.
+The switch is a CSS container query in rem on the frame's own wrapper
+(`MathPieces.tsx`'s `FRAME_CONTAINER`, `BUILD_FRAME_GRID`,
+`PICTURE_FRAME_GRID`), so it follows the app's own text-size control, which a
+viewport breakpoint would not. Measured in real Chromium (Playwright, a
+harness rendering the frames inside the real `RoutineShell`): at 375 px wide
+and 100%, 125%, 150%, 175% and 200% text, and at 820 px wide at the same
+sizes, with one and with two frames, no box overlaps another, none is off
+screen, the round never scrolls sideways, every box of the frame the child
+fills is at least 3.5rem square and 8 px from its neighbours, and a tap at the
+centre of each box reaches that box. At 375 px the frame the child fills turns
+on its side from 125% and the picture of a frame from 150%; at 820 px both
+stay five across up to 200%. With the query removed the same check found
+overlapping boxes from 125% and boxes off screen at 175% and 200%.
+
+In Your turn, a picture's accessible name never states the quantity being
+asked for (the echo rule applied to screen readers): a row is "a row of red
+counters" and a frame "a ten-frame with counters", where Watch and Together
+name the counts. On a Together take-away question the counters to take away
+are outlined, since the boxes below the target start full and an outline of
+empty boxes would show nothing.
 
 Not built yet, and next: clock hands, coins and bills, number-line hops, the
 ruler, base-ten blocks, equal groups and everyday stories. `oa.fact_fluency_20`

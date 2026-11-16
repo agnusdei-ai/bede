@@ -19,6 +19,26 @@ import type { CounterColor, CountersPiece, MathPiece, NumberBondPiece, TenFrameP
  * ever under motion-safe.
  */
 
+/**
+ * A ten-frame is five boxes across and two down. When five boxes do not fit
+ * the space the round has (a phone, larger text), the frame turns on its side:
+ * two boxes across and five down, filled down the first column and then the
+ * second, so it is still two fives. Columns are never squeezed below their
+ * boxes, which is what made boxes overlap and taps land on the wrong one.
+ *
+ * The switch is a CSS container query in rem on the frame's own wrapper
+ * (FRAME_CONTAINER), not a viewport breakpoint: rem follows the app's own
+ * text-size control, a viewport width does not. The thresholds are the width
+ * five boxes need: 5 x 3.5rem boxes + 4 x 0.5rem gaps + 0.5rem padding + the
+ * 4px border for a frame the child fills (BUILD_FRAME_GRID), and 5 x 2.75rem
+ * + 4 x 0.25rem + 0.5rem + the border for a picture (PICTURE_FRAME_GRID).
+ */
+export const FRAME_CONTAINER = 'w-full [container-type:inline-size]'
+export const BUILD_FRAME_GRID = 'grid grid-cols-5 gap-2 [@container(max-width:20.75rem)]:grid-cols-2 '
+  + '[@container(max-width:20.75rem)]:grid-rows-5 [@container(max-width:20.75rem)]:grid-flow-col'
+export const PICTURE_FRAME_GRID = 'grid grid-cols-5 gap-1 [@container(max-width:16rem)]:grid-cols-2 '
+  + '[@container(max-width:16rem)]:grid-rows-5 [@container(max-width:16rem)]:grid-flow-col'
+
 /** One counter, drawn in SVG. `n` is the guide number written on it. */
 export function Counter({ color, n, faint = false }: { color: CounterColor; n?: number; faint?: boolean }) {
   const red = color === 'red'
@@ -46,7 +66,10 @@ function CountersPicture({ d, guide }: { d: CountersPiece; guide: boolean }) {
   return (
     <div className="flex flex-col gap-2" data-testid="math-counters">
       {d.groups.map((g, gi) => (
-        <div key={gi} role="img" aria-label={t(`k2Math.rowOf.${g.color}`, { count: g.count })}
+        // Without the guide (Your turn) the label never says how many: the
+        // count is the question, and a screen reader must not answer it.
+        <div key={gi} role="img"
+          aria-label={guide ? t(`k2Math.rowOf.${g.color}`, { count: g.count }) : t(`k2Math.rowQuiet.${g.color}`)}
           className="flex flex-wrap gap-1">
           {Array.from({ length: g.count }, (_, i) => (
             <Counter key={i} color={g.color} n={guide ? i + 1 : undefined} />
@@ -75,11 +98,14 @@ function TenFramePicture({ d, guide }: { d: TenFramePiece; guide: boolean }) {
   const { t } = useTranslation()
   const cells = frameCells(d)
   const total = (d.red ?? 0) + (d.yellow ?? 0)
+  // Without the guide (Your turn) the label never states a total: for "how
+  // many in all" it is the answer.
+  const label = guide ? t('k2Math.frameLabel', { count: total, crossed: d.crossed ?? 0 }) : t('k2Math.frameQuiet')
   return (
-    <div className="flex flex-col gap-2" role="img" data-testid="math-ten-frame"
-      aria-label={t('k2Math.frameLabel', { count: total, crossed: d.crossed ?? 0 })}>
+    <div className={FRAME_CONTAINER}>
+    <div className="mx-auto flex w-fit flex-col gap-2" role="img" data-testid="math-ten-frame" aria-label={label}>
       {Array.from({ length: d.frames ?? 1 }, (_, f) => (
-        <div key={f} className="grid grid-cols-5 gap-1 rounded-lg border-4 border-navy-700 bg-white p-1">
+        <div key={f} className={`${PICTURE_FRAME_GRID} rounded-lg border-4 border-navy-700 bg-white p-1`}>
           {cells.slice(f * 10, f * 10 + 10).map((cell, i) => (
             <div key={i} className="relative flex min-h-11 min-w-11 items-center justify-center border border-navy-300">
               {cell.color && <Counter color={cell.color} n={guide ? f * 10 + i + 1 : undefined} />}
@@ -93,6 +119,7 @@ function TenFramePicture({ d, guide }: { d: TenFramePiece; guide: boolean }) {
           ))}
         </div>
       ))}
+    </div>
     </div>
   )
 }
@@ -146,15 +173,18 @@ export const PIECE_KINDS = ['counters', 'ten_frame', 'number_bond'] as const
  * the answer is simply how many are on it.
  */
 export function TenFrameBuilder({
-  frames, start, count, onChange, ghost, disabled = false,
+  frames, start, count, onChange, ghost, takeAway = false, disabled = false,
 }: {
   frames: number
   /** Counters already there when the question opened, drawn red. */
   start: number
   count: number
   onChange: (count: number) => void
-  /** Together: how many the frame should hold, faintly shown. */
+  /** Together: how many the frame should hold, faintly shown. When counters
+   * are being taken away, the ones to take are outlined instead, since the
+   * boxes below the target start full. */
   ghost?: number
+  takeAway?: boolean
   disabled?: boolean
 }) {
   const { t } = useTranslation()
@@ -198,28 +228,34 @@ export function TenFrameBuilder({
   }
 
   return (
-    <div className="flex flex-col items-center gap-3" onPointerMove={move} onPointerUp={end}
+    <div className="flex w-full flex-col items-center gap-3" onPointerMove={move} onPointerUp={end}
       onPointerDownCapture={() => { dragged.current = false }}
       onPointerCancel={() => { drag.current = null; setFloating(null) }} data-testid="math-builder">
-      <div ref={frameRef} className="flex flex-col gap-2" data-testid="math-build-frame"
-        role="group" aria-label={t('k2Math.frameLabel', { count, crossed: 0 })}>
+      <div className={FRAME_CONTAINER}>
+      <div ref={frameRef} className="mx-auto flex w-fit flex-col gap-2" data-testid="math-build-frame"
+        role="group" aria-label={t('k2Math.buildLabel', { count })}>
         {Array.from({ length: frames }, (_, f) => (
-          <div key={f} className="grid grid-cols-5 gap-2 rounded-lg border-4 border-navy-700 bg-white p-1">
+          <div key={f} className={`${BUILD_FRAME_GRID} rounded-lg border-4 border-navy-700 bg-white p-1`}>
             {Array.from({ length: 10 }, (_, i) => {
               const n = f * 10 + i
               const full = n < count
               const color: CounterColor = n < start ? 'red' : 'yellow'
+              const guideEmpty = !full && !takeAway && ghost !== undefined && n < ghost
+              const guideRemove = full && takeAway && ghost !== undefined && n >= ghost
               return (
                 <button
                   key={n} type="button" disabled={disabled}
                   onClick={tap(full ? count - 1 : count + 1)}
                   onPointerDown={full ? begin('frame') : undefined}
-                  aria-label={full ? t('k2Math.takeFromBox', { n: n + 1 }) : t('k2Math.putInBox', { n: n + 1 })}
+                  aria-label={guideRemove ? t('k2Math.takeAwayBox', { n: n + 1 })
+                    : full ? t('k2Math.takeFromBox', { n: n + 1 }) : t('k2Math.putInBox', { n: n + 1 })}
                   data-full={full ? '' : undefined}
-                  data-ghost={!full && ghost !== undefined && n < ghost ? '' : undefined}
+                  data-ghost={guideEmpty ? '' : undefined}
+                  data-remove={guideRemove ? '' : undefined}
                   className={`min-h-14 min-w-14 flex items-center justify-center rounded-md touch-none ${
-                    !full && ghost !== undefined && n < ghost
-                      ? 'border-2 border-dashed border-sage-500 bg-sage-50' : 'border border-navy-300'
+                    guideEmpty ? 'border-2 border-dashed border-sage-500 bg-sage-50'
+                      : guideRemove ? 'border-4 border-dashed border-madder-500 bg-madder-50'
+                        : 'border border-navy-300'
                   }`}
                 >
                   {full && <Counter color={color} />}
@@ -228,6 +264,7 @@ export function TenFrameBuilder({
             })}
           </div>
         ))}
+      </div>
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2">
         <button

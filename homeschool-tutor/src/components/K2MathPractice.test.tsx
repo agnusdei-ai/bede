@@ -97,7 +97,9 @@ describe('K2MathPractice', () => {
     expect(answerMathTask).toHaveBeenCalledWith('tok', 'Sam', 'M1', 'together', 0, { choice: '5' })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
-    // Together, choosing: a miss shows the answer straight away.
+    // Together, choosing: the guide may name the total.
+    expect(screen.getByTestId('math-ten-frame').getAttribute('aria-label')).toBe('A ten-frame with 8 counters, 0 crossed out')
+    // A miss shows the answer straight away.
     answerMathTask.mockResolvedValueOnce({ understood: true, correct: false, reveal: { choice: '8' } })
     fireEvent.click(screen.getByRole('button', { name: '9' }))
     await screen.findByText('Here it is. Tap Next when you are ready.')
@@ -108,6 +110,9 @@ describe('K2MathPractice', () => {
     expect(screen.getByText('Your turn').getAttribute('aria-current')).toBe('step')
     expect(onSpeak).toHaveBeenLastCalledWith('6 red and 1 yellow. How many in all?')
     expect(document.querySelectorAll('[data-testid="math-ten-frame"] text')).toHaveLength(0)
+    // ...and its accessible name does not say how many there are in all.
+    expect(screen.getByTestId('math-ten-frame').getAttribute('aria-label')).toBe('A ten-frame with counters')
+    expect(screen.getByRole('img', { name: 'A ten-frame with counters' })).toBeTruthy()
     answerMathTask.mockResolvedValueOnce({ understood: true, correct: false, tries_left: 1 })
     fireEvent.click(screen.getByRole('button', { name: '6' }))
     await screen.findByText('Let’s look again. Try once more.')
@@ -172,6 +177,31 @@ describe('K2MathPractice', () => {
     render(<K2MathPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} />)
     await screen.findByTestId('math-line')
     expect(frameCount()).toBe(6)
+  })
+
+  it('in Together, a take-away frame outlines the counters to take, and taking them answers it', async () => {
+    reduceMotion = true
+    const base = lesson()
+    fetchMathLesson.mockResolvedValue({
+      ...base, topic: 'subtract',
+      together: [{
+        phase: 'together', index: 0, prompt: { key: 'subtract_build', args: { a: '9', b: '3' } },
+        display: { diagram: { kind: 'ten_frame', frames: 1, red: 9 }, guide: true, ghost: 6 },
+        choice_kind: 'build', choices: Array.from({ length: 11 }, (_, i) => String(i)),
+        build: { start: 9, capacity: 10, take_away: true },
+      }],
+    })
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
+    expect(screen.getByTestId('math-line').textContent).toBe('Here are 9. Take 3 away.')
+    expect(Array.from(document.querySelectorAll('[data-remove]')).map((el) => el.getAttribute('aria-label'))).toEqual(
+      ['Take this counter away, box 7', 'Take this counter away, box 8', 'Take this counter away, box 9'])
+    for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole('button', { name: 'Take one out' }))
+    expect(document.querySelectorAll('[data-remove]')).toHaveLength(0)
+    answerMathTask.mockResolvedValueOnce({ understood: true, correct: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Check' }))
+    await screen.findByText('Yes, that’s it!')
+    expect(answerMathTask).toHaveBeenLastCalledWith('tok', 'Sam', 'M1', 'together', 0, { choice: '6' })
   })
 
   it('a failed check counts nothing and lets the child try again', async () => {

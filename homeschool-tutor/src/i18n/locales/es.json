@@ -1453,6 +1453,13 @@
     "putInBox": "Poner una ficha en la casilla {{n}}",
     "takeFromBox": "Quitar la ficha de la casilla {{n}}",
     "frameLabel": "Un marco de diez con {{count}} fichas, {{crossed}} tachadas",
+    "frameQuiet": "Un marco de diez con fichas",
+    "buildLabel": "Tu marco de diez, con {{count}} fichas ahora",
+    "takeAwayBox": "Quita esta ficha, casilla {{n}}",
+    "rowQuiet": {
+      "red": "Una fila de fichas rojas",
+      "yellow": "Una fila de fichas amarillas"
+    },
     "bondLabel": "Un enlace numérico: {{whole}} es {{a}} y {{b}}",
     "rowOf": {
       "red": "{{count}} fichas rojas",

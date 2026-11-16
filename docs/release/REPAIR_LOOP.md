@@ -134,6 +134,27 @@ reaches a terminal state (ready, budget exhausted, blocked or cancelled).
   drops the token on any cross-host redirect (also keeping it from a third
   party), and a real-socket test pins it. Nothing was published by the
   failed run, and its event was resubmitted under the same `event_id`.
+- **Cycle `webkit-1` ended BLOCKED (2026-11-16, run 43782253330, snapshot
+  sequence 4).** Triage classified the crash; the reproduce session reported
+  `blocked`, as its rules require, because a cloud session has no macOS
+  runner and the failure is macOS WebKit only. It read the coordinator's
+  diagnosis run (43757437010) and confirmed its tallies without claiming a
+  run of its own. The controller stored that reason verbatim, marked the task
+  and the cycle BLOCKED, and recorded the terminal notification. The repair
+  could not have gone through the loop either: the fix was the Playwright
+  1.63.0 pin, which lives in `.github/`, a path no repair role may edit. It
+  reached `main` through the owner-directed #841 instead.
+
+  So the loop has now been seen to dispatch, persist, wake, accept a child
+  session's result and reach a terminal state. It has **not** yet exercised
+  trusted verification, review or integration, since no task got that far.
+  Two gaps this cycle exposed:
+  - **A macOS-only failure cannot be reproduced by any role.** A trusted,
+    coordinator-dispatched reproduction (the `webkit-reload-diagnosis.yml`
+    pattern), recorded by the controller as fact, would close it.
+  - **`independent_review` reports PASS when nothing was reviewed.** With no
+    task reaching review it should read NOT_RUN; it is a vacuous pass and is
+    still to be fixed.
 
 ## Files
 

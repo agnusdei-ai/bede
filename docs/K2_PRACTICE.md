@@ -297,7 +297,7 @@ the docs updated in the same PR.
 3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler.
 4. **Spelling** (§5.4): the K-2 patterns, letter tiles, and delivery of approved word lists and Practice Coach misses as rounds.
 5. **Copying a sentence** (§5.5): the sentence from the narration, tracing and copying on the canvas.
-6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 175% text on every area.
+6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 200% text on every area.
 7. **Memory work** (§8), once decision 40(f) is settled.
 
 Each step needs no new database table: rounds rebuild from signed ids, and

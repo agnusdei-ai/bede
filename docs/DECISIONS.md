@@ -950,8 +950,12 @@ reading model cards.
 Entry 19 commits to running the model locally. It does not establish that any
 model which fits on donated hardware can *be* Bede, and nothing in this
 repository has measured that. `core/config.py`'s `local_llm_model` default
-(`Qwen/Qwen3-Coder-30B-A3B-Instruct`) was chosen as a plausible self-hosted
-option, never evaluated against this application's own requirements.
+(`Qwen/Qwen3-Coder-30B-A3B-Instruct` until entry 43, now
+`mistralai/Mistral-Small-3.2-24B-Instruct-2506`) was chosen as a plausible
+self-hosted option, never evaluated against this application's own
+requirements. Entry 43 changed which models are the defaults on provenance
+grounds; it does not resolve this entry, which still needs the measured
+evaluation.
 
 **What has to hold, in rough order of how likely it is to be the thing that
 fails:**
@@ -2447,3 +2451,115 @@ handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
 separate and still open. So are the checklist's own pre-enrollment decisions:
 supported devices and assistive technology, the final collected fields and
 vendors, and the pilot's learning objectives.
+
+## 43. `[PRODUCT]` The local model Bede installs by default is non-Chinese; Qwen stays available
+
+**Status:** closed
+
+**Decided (2026-11-16, owner).** The local AI model Bede installs by default
+comes from a developer based outside China. The Qwen 3 models, which were
+the default until this ruling, stay available as an explicit installer
+choice and are never chosen silently.
+
+**Why.** Model provenance. A model trained under another country's content
+rules may answer differently on topics the curriculum covers, such as
+history, geography and religion, and a family that never chose a model
+should get one whose developer works under the same broad expectations as
+the rest of the product. This is a statement about where a model comes
+from, not a finding about how any particular model behaves: nobody has
+measured that here (entry 20).
+
+**Selection criteria, in priority order:**
+
+1. Native tool calling that works through Ollama's OpenAI-compatible
+   `/v1/chat/completions`, since Bede's tutor depends on tool calls
+   (`services/adapters/openai_compatible_adapter.py`). A model Ollama does
+   not mark as supporting tools is out.
+2. Spanish, because Bede has an `es` locale.
+3. A developer based outside China (US or EU).
+4. A permissive licence: Apache-2.0 or MIT, rather than a licence with
+   attribution or acceptable-use obligations that would become product
+   requirements.
+5. Fits each hardware tier the installers already use.
+
+**The default lineup** (`$OllamaModelTiers` in
+`packaging/windows/Setup-Bede.ps1`, `ollama_model_for_tier` in
+`packaging/unix/install.sh`, checked against each other and against the
+docs by `homeschool-api/tests/test_local_model_default.py`):
+
+| Tier | Ollama tag | Developer | Licence | Ollama download | Tools in Ollama | Spanish listed |
+|---|---|---|---|---|---|---|
+| ≥20 GB VRAM | `mistral-small3.2:24b` | Mistral AI (France) | Apache-2.0 (model card; Ollama's page states none) | ~15 GB | yes | not on Ollama's page; listed on Mistral's card for Mistral Small 3.1, which 3.2 updates |
+| ≥10 GB VRAM | `ministral-3:14b` | Mistral AI (France) | Apache-2.0 | ~9.1 GB | yes | yes (model card) |
+| ≥5 GB VRAM | `granite3.3:8b` | IBM (US) | Apache-2.0 | ~4.9 GB | yes | yes |
+| GPU under 5 GB, or no GPU and ≥16 GB RAM | `ministral-3:3b` | Mistral AI (France) | Apache-2.0 | ~3.0 GB | yes | yes (family listing) |
+| No GPU, under 16 GB RAM | `granite3.3:2b` | IBM (US) | Apache-2.0 | ~1.5 GB | yes | yes |
+
+The vLLM default (`core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`) is
+`mistralai/Mistral-Small-3.2-24B-Instruct-2506`, the full-precision build,
+which needs about 55 GB of GPU memory and vLLM 0.9.1 or later (Mistral's
+model card). The ~15 GB figure above is Ollama's quantised build of the
+same model.
+
+**How the picks were made.** Granite 4 (IBM, Apache-2.0) and Granite 4.1
+(IBM, Apache-2.0, April 2026: 3B, 8B and 30B, tools in Ollama) were
+compared. Granite 4's listed sizes looked inconsistent; the 3.3 GB figure
+belongs to the 1B model's full-precision `1b-bf16` build, while the 2.1 GB
+`micro`/`3b` tag is the 3B model quantised, so the two do not conflict.
+Granite 4.1's 8B (~5.3 GB) fits a 5 GB card less well than `granite3.3:8b`,
+and Spanish could not be confirmed for Granite 4.1 at all. Granite 4's 3B
+(`granite4:micro`, ~2.1 GB, Spanish among its twelve languages) is smaller
+than `ministral-3:3b` and is a reasonable alternative; `ministral-3:3b` was
+preferred because Ollama marks it as accepting images, so a child's
+handwriting and drawing submissions reach it, and Granite 4 is text-only.
+Ministral 3 (Mistral AI, Apache-2.0,
+December 2025, 3B/8B/14B, tools, 256K context) fills the gap between the 8B
+and 24B tiers with its 14B, and its 3B replaces Qwen's 4B on machines with
+16 GB or more. `ministral-3:8b` (~6.0 GB) was not used for the 5 GB tier
+because it does not fit as well as `granite3.3:8b` (~4.9 GB).
+`mistral-nemo:12b` (Mistral AI with NVIDIA, Apache-2.0, 2024) was
+considered for the 10 GB tier and set aside for the newer Ministral 3 14B.
+The `ministral-3` models need Ollama 0.13.1 or later.
+
+**How these facts were checked, and what was not.** Tags, sizes, tool
+support and licences were checked by web search against Ollama's library
+listings, the models' cards and their developers' announcements, and by the
+owner directly on 2026-11-16. Ollama's site and Hugging Face could not be
+opened directly from the build session, so no figure here was read off the
+live page by that session; the 9.1 GB size of `ministral-3:14b` comes from
+the owner's check and a third-party listing. **No model was downloaded or
+run in the build session.**
+
+**Spanish check: NOT RUN.** `homeschool-api/scripts/spanish_local_model_probe.py`
+sends Bede's real Spanish tutoring prompt and real tool list, through Bede's
+own adapter, to each model in Ollama, and records per model whether it stays
+in Spanish, makes a valid tool call and mixes in no English. It runs by
+hand on a computer with the models downloaded; model downloads in CI are
+paused by the owner. Until it has run, every model's result is NOT RUN, and
+no result is inferred. If a model fails, notably the 2B tier, that is
+recorded as a failure, not met by lowering the bar.
+
+**Qwen stays available.** `-ModelFamily qwen` (Windows), `--model-family
+qwen` (Linux and macOS) or `BEDE_MODEL_FAMILY=qwen` select the Qwen 3 tiers
+that were the default: `qwen3:32b`, `qwen3:14b`, `qwen3:8b`, `qwen3:4b`,
+`qwen3:1.7b` (Alibaba's Qwen team, Apache-2.0). For vLLM, setting
+`LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct` still works.
+
+**Existing installations keep their model.** Updating Bede never pulls,
+switches or deletes a model. Re-running an installer keeps the model `.env`
+already names when Ollama still has it, unless a model family is asked for.
+The one setup that must act is a vLLM server running Qwen3-Coder that was
+set up with the model name left blank: it relied on the old default and
+must add `LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct` to `.env`
+before updating (`docs/PROVIDER_ADAPTERS.md`).
+
+**Rules that came with this ruling** (owner, 2026-11-16): model files are
+GGUF or safetensors only, never pickle-based weights and never
+`trust_remote_code`; no China-hosted AI API; the model must not reach the
+network while it runs, and only the download step may reach the model
+library. `docs/SECURITY.md`'s "Local model files and network" section says
+which of these Bede enforces and which it only recommends.
+
+**Related:** entry 20 (whether any local model is good enough to be Bede,
+still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
+`docs/PROVIDER_ADAPTERS.md`, `docs/PARENT_SETUP.md`.

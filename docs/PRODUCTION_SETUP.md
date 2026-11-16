@@ -162,7 +162,9 @@ family, there's no default to fight against:
 1. **Anthropic (Claude)** or **OpenAI** or **Mistral AI** — cloud,
    pay-as-you-go, needs an account and API key with that provider.
 2. **A self-hosted model on your own server** — open-weight
-   (`Qwen/Qwen3-Coder-30B-A3B-Instruct` by default), no account, no
+   (`mistralai/Mistral-Small-3.2-24B-Instruct-2506` by default for a vLLM
+   server; the installers pull an Ollama model sized to your computer
+   instead, see `docs/DECISIONS.md` entry 43), no account, no
    per-message cost. Needs a separate computer with a capable GPU running
    it (NVIDIA/Linux only — see `docs/PROVIDER_ADAPTERS.md` for hardware
    tiers and setup); the machine running Bede itself just points at that

@@ -421,8 +421,8 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append('<div class="hint">The OpenAI-compatible /v1 endpoint URL, e.g. http://your-gpu-box.lan:8000/v1</div>')
     body.append(f'<input type="text" name="local_base_url" value="{html.escape(v.get("local_base_url", ""))}" placeholder="http://your-gpu-box.lan:8000/v1">')
     body.append('<label>Model name (optional)</label>')
-    body.append('<div class="hint">The exact name your model service serves, e.g. qwen3:4b for Ollama. Leave blank to use Bede\'s default.</div>')
-    body.append(f'<input type="text" name="local_model" value="{html.escape(v.get("local_model", ""))}" placeholder="qwen3:4b">')
+    body.append('<div class="hint">The exact name your model service serves, e.g. ministral-3:3b for Ollama. Leave blank to use Bede\'s default.</div>')
+    body.append(f'<input type="text" name="local_model" value="{html.escape(v.get("local_model", ""))}" placeholder="ministral-3:3b">')
     body.append('</div>')
 
     body.append("""

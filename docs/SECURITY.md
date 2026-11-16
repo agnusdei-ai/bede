@@ -123,6 +123,61 @@ incident handled by `docs/INCIDENT_RESPONSE.md`'s "Compromised license
 signing key" section, with the planned rotation sequence in
 [`LICENSE_SERVER_SETUP.md`](LICENSE_SERVER_SETUP.md).
 
+## Local model files and network
+
+Owner rules (2026-11-16), recorded with the model lineup in
+`docs/DECISIONS.md` entry 43. Each rule below says what Bede **enforces**
+(code or a test makes it hold) and what it only **recommends** (an operator
+has to do it; nothing in Bede checks). Read the second column as a list of
+things Bede does not do for you.
+
+**What actually runs today.** `docker-compose.yml` runs no model container.
+The Windows and Linux/macOS installers install Ollama on the host computer
+itself and pull one model (`docs/WINDOWS_INSTALLER.md`,
+`docs/UNIX_INSTALLER.md`); the Mac app records a model Ollama already has
+(`packaging/bundle/record-local-ai.sh`) and pulls nothing. Bede's API
+container reaches Ollama at `http://host.docker.internal:11434/v1`. A vLLM
+server, where one is used, is a separate machine the operator runs
+(`docs/PROVIDER_ADAPTERS.md`); Bede only sends it HTTP requests.
+
+### Model files: GGUF and safetensors only
+
+Never load pickle-based weights (`.bin`, `.pt`, `.pth`, `.pkl`), which can
+run code when they are opened, and never pass `trust_remote_code` /
+`--trust-remote-code`, which runs Python shipped with a model.
+
+| Enforced | Recommended only |
+|---|---|
+| The installers pull only tags from their fixed tables, all plain Ollama library tags; `tests/test_local_model_default.py` fails on a tag that pulls from another registry (`hf.co/...`) or names a cloud model. Ollama's library serves models as GGUF and Ollama does not run code from a model. | Bede cannot see the weights on a vLLM server or any other OpenAI-compatible server. The documented vLLM command loads Mistral's safetensors file (`--load_format mistral`) and has no `--trust-remote-code`; keeping it that way, and not serving pickle-format weights, is the operator's job. |
+| The wizard accepts a model name from the installer's marker file only if it is a plain name (letters, digits, `.`, `_`, `:`, `/`, `-`). | A parent who types another `LOCAL_LLM_MODEL`, or pulls another model into Ollama by hand, is not checked. |
+
+### No China-hosted AI APIs
+
+No tutoring, moderation, transcription or other model call may go to an AI
+API hosted in China.
+
+| Enforced | Recommended only |
+|---|---|
+| Bede ships adapters only for Anthropic and OpenAI (US), Mistral (France, fixed endpoint `https://api.mistral.ai/v1` in `services/adapters/router.py`) and the `local` adapter. There is no adapter for a China-hosted API. | In an ordinary household install, `LOCAL_LLM_BASE_URL` accepts any OpenAI-compatible address, so the `local` adapter could be pointed at a public API anywhere. Bede does not check where that address is hosted. Do not point it at a China-hosted API. |
+| In school pilot mode (`EDUCATOR_PILOT_ENABLED`, or `BEDE_COPPA_ENFORCE`), `core/coppa_provider_policy.py`'s `require_qualified_local_endpoint` refuses any `LOCAL_LLM_BASE_URL` that is not loopback, `host.docker.internal` or a private-network address, and cloud adapters are refused, so no public API is reachable at all. With `BEDE_OFFLINE_INSTALLATION`, the local address must be loopback. | Choosing a Qwen model through the installer's `--model-family qwen` option downloads weights to run locally; it does not use any API. |
+
+### Network: the model runs offline; only the download reaches the library
+
+While the model is running it must not reach the network. The one step
+allowed to reach the network is the **download**: `ollama pull <tag>`,
+which the installer runs once (and only when the model is not already
+installed), and which fetches the model from Ollama's model library
+(`registry.ollama.ai` and the download hosts it redirects to). In Ollama
+the download is carried out by the same `ollama serve` process that later
+runs the model, so the rule is about *when* that process may reach the
+network, not about a separate program.
+
+| Enforced | Recommended only |
+|---|---|
+| The installers' tables contain no Ollama cloud model (a tag ending in `-cloud` runs on Ollama's servers rather than on the computer); `tests/test_local_model_default.py` pins this. | Bede does not firewall Ollama. To hold the rule, block outbound traffic from Ollama with a host firewall, and allow it only while you run `ollama pull`. The Ollama desktop app's own update check is also outbound traffic and is blocked by the same rule. |
+| The wizard accepts the installer's marker only with the exact address `http://host.docker.internal:11434/v1`, so the installer path always points Bede at the computer's own Ollama. | Ollama listens on `127.0.0.1:11434` by default; leave it there where that works (Docker Desktop on Windows and macOS). If you set `OLLAMA_HOST` to another address so containers can reach it, block port 11434 from the rest of your network with a host firewall. |
+| `BEDE_OFFLINE_INSTALLATION` makes Bede's **API process** refuse any non-loopback connection (`core/offline_boundary.py`). | That boundary covers Bede's API only, not Ollama or vLLM, and it is a Python audit hook, not an operating-system sandbox. A vLLM server should run without outbound network access once its weights are downloaded (for example with `HF_HUB_OFFLINE=1` and a firewall rule). |
+
 ## Known open gaps
 
 Tracked here so they don't only live in a one-off review; update this

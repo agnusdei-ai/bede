@@ -30,6 +30,16 @@
   "Local AI (Ollama)" section for the hardware-tiering rationale.
 #>
 
+[CmdletBinding()]
+param(
+    # Which local AI model lineup to install (docs/DECISIONS.md entry 43).
+    # Omitted: the default lineup, from developers based outside China
+    # (Mistral AI in France, IBM in the US). 'qwen': the Qwen 3 lineup,
+    # kept available as an explicit choice. BEDE_MODEL_FAMILY does the same.
+    [ValidateSet('default', 'qwen')]
+    [string]$ModelFamily
+)
+
 $ErrorActionPreference = 'Stop'
 
 $RepoUrl     = 'https://github.com/agnusdei-ai/bede.git'
@@ -105,29 +115,102 @@ function Sync-BedeApp {
     git clone --depth 1 $RepoUrl $AppDir
 }
 
+# Everything between the two "region" lines below is pure (no I/O beyond
+# reading a file it is handed) so homeschool-api/tests/test_local_model_default.py
+# can run it on its own. Keep it that way, and keep the table identical to
+# packaging/unix/install.sh's ollama_model_for_tier.
+#region local-model-tiers
+$OllamaModelTiers = @{
+    default = @{
+        gpu20     = 'mistral-small3.2:24b'
+        gpu10     = 'ministral-3:14b'
+        gpu5      = 'granite3.3:8b'
+        gpu_small = 'ministral-3:3b'
+        ram16     = 'ministral-3:3b'
+        ram_small = 'granite3.3:2b'
+    }
+    qwen = @{
+        gpu20     = 'qwen3:32b'
+        gpu10     = 'qwen3:14b'
+        gpu5      = 'qwen3:8b'
+        gpu_small = 'qwen3:4b'
+        ram16     = 'qwen3:4b'
+        ram_small = 'qwen3:1.7b'
+    }
+}
+
+function Resolve-ModelFamily {
+    param([string]$Requested)
+    if (-not $Requested -or $Requested -eq 'default') { return 'default' }
+    if ($Requested -eq 'qwen') { return 'qwen' }
+    throw "Unknown model family '$Requested' - use 'default' or 'qwen'."
+}
+
+function Get-HardwareTier {
+    # VramMB 0 (or absent) means no usable NVIDIA GPU was found.
+    param([int]$VramMB, [int]$RamGB)
+    if ($VramMB -ge 20000) { return 'gpu20' }
+    if ($VramMB -ge 10000) { return 'gpu10' }
+    if ($VramMB -ge 5000)  { return 'gpu5' }
+    if ($VramMB -gt 0)     { return 'gpu_small' }  # a GPU was found but it's small
+    if ($RamGB -ge 16)     { return 'ram16' }
+    return 'ram_small'
+}
+
+function Get-OllamaModelForTier {
+    param([string]$Family, [string]$Tier)
+    return $OllamaModelTiers[$Family][$Tier]
+}
+
+function Get-ConfiguredLocalModel {
+    # The LOCAL_LLM_MODEL an earlier setup wrote into .env, if any.
+    param([string]$EnvPath)
+    if (-not (Test-Path -LiteralPath $EnvPath)) { return $null }
+    $line = Get-Content -LiteralPath $EnvPath | Where-Object { $_ -like 'LOCAL_LLM_MODEL=*' } | Select-Object -Last 1
+    if (-not $line) { return $null }
+    $value = $line.Substring('LOCAL_LLM_MODEL='.Length)
+    if ($value -cmatch '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$') { return $value }
+    return $null
+}
+
+function Select-ModelToKeep {
+    # An existing installation keeps the model it already uses, so long as
+    # Ollama still has it: an update never re-pulls, switches or deletes it.
+    param([string]$Configured, [string[]]$Installed)
+    if ($Configured -and ($Installed -ccontains $Configured)) { return $Configured }
+    return $null
+}
+#endregion local-model-tiers
+
+$ModelFamilyRequested = if ($ModelFamily) { $ModelFamily } else { $env:BEDE_MODEL_FAMILY }
+$ResolvedModelFamily  = Resolve-ModelFamily $ModelFamilyRequested
+
 function Get-RecommendedOllamaModel {
     # GPU VRAM first (via nvidia-smi, if there's an NVIDIA card at all) —
     # the same tiering a developer would reason through by hand: a small
     # laptop GPU gets a small model, a serious card gets a serious one.
     # Falls back to system RAM as a rough proxy for CPU-only inference
     # headroom when no usable NVIDIA GPU is found.
-    $vramMB = $null
+    $vramMB = 0
     if (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue) {
         try {
             $raw = & nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>$null
             if ($raw) { $vramMB = [int]($raw | Select-Object -First 1) }
         } catch {
-            $vramMB = $null
+            $vramMB = 0
         }
     }
-    if ($vramMB -ge 20000) { return 'qwen3:32b' }
-    if ($vramMB -ge 10000) { return 'qwen3:14b' }
-    if ($vramMB -ge 5000)  { return 'qwen3:8b' }
-    if ($vramMB)           { return 'qwen3:4b' }  # a GPU was found but it's small
-
     $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
-    if ($ramGB -ge 16) { return 'qwen3:4b' }
-    return 'qwen3:1.7b'
+    return Get-OllamaModelForTier -Family $ResolvedModelFamily -Tier (Get-HardwareTier -VramMB $vramMB -RamGB $ramGB)
+}
+
+function Get-InstalledOllamaModels {
+    try {
+        $tags = Invoke-RestMethod -Uri 'http://localhost:11434/api/tags' -TimeoutSec 5
+        return @($tags.models | ForEach-Object { $_.name })
+    } catch {
+        return @()
+    }
 }
 
 function Test-OllamaInstalled {
@@ -173,11 +256,22 @@ function Set-LocalAI {
         Install-Ollama
     }
 
-    $model = Get-RecommendedOllamaModel
-    Write-Step "Downloading the $model AI model (first time only — can take a while, several GB)"
-    & ollama pull $model
-    if ($LASTEXITCODE -ne 0) {
-        throw "Downloading the $model model failed — check your internet connection and try again."
+    # Re-running this on an existing installation keeps the model that
+    # installation already uses, unless a model family was asked for
+    # explicitly. Nothing here re-pulls, switches or deletes a family's model.
+    $model = $null
+    if (-not $ModelFamilyRequested) {
+        $model = Select-ModelToKeep -Configured (Get-ConfiguredLocalModel (Join-Path $AppDir '.env')) -Installed (Get-InstalledOllamaModels)
+    }
+    if ($model) {
+        Write-Step "Keeping the local AI model this computer already uses ($model)"
+    } else {
+        $model = Get-RecommendedOllamaModel
+        Write-Step "Downloading the $model AI model (first time only — can take a while, several GB)"
+        & ollama pull $model
+        if ($LASTEXITCODE -ne 0) {
+            throw "Downloading the $model model failed. Check your internet connection; if Ollama says it needs a newer version, update Ollama (https://ollama.com/download), then try again."
+        }
     }
 
     # host.docker.internal is Docker Desktop's own DNS name for the host

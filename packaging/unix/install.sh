@@ -31,6 +31,82 @@ die()  { printf '    \033[1;31m%s\033[0m\n' "$1" >&2; exit 1; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# ── Which local AI model lineup to install ──────────────────────────────────
+# docs/DECISIONS.md entry 43: the default lineup comes from developers based
+# outside China (Mistral AI in France, IBM in the US). The Qwen 3 lineup stays available as an
+# explicit choice, never the default:
+#   BEDE_MODEL_FAMILY=qwen bash install.sh
+#   bash install.sh --model-family qwen
+#   curl -fsSL .../install.sh | bash -s -- --model-family qwen
+# Everything between the two "region" lines below is pure (no I/O beyond
+# reading a file it is handed) so homeschool-api/tests/test_local_model_default.py
+# can run it on its own. Keep it that way.
+
+# region local-model-tiers
+resolve_model_family() {  # <value or empty> -> default | qwen (non-zero if unknown)
+  case "$1" in
+    ""|default) echo "default" ;;
+    qwen)       echo "qwen" ;;
+    *) return 1 ;;
+  esac
+}
+
+hardware_tier() {  # <vram_mb, empty if no NVIDIA GPU> <ram_gb>
+  if [ -n "$1" ]; then
+    if [ "$1" -ge 20000 ]; then echo "gpu20"; return; fi
+    if [ "$1" -ge 10000 ]; then echo "gpu10"; return; fi
+    if [ "$1" -ge 5000 ];  then echo "gpu5";  return; fi
+    echo "gpu_small"  # a GPU was found but it's small
+    return
+  fi
+  if [ "$2" -ge 16 ]; then echo "ram16"; else echo "ram_small"; fi
+}
+
+ollama_model_for_tier() {  # <family> <tier> — same table as Setup-Bede.ps1's $OllamaModelTiers
+  case "$1:$2" in
+    default:gpu20)     echo "mistral-small3.2:24b" ;;
+    default:gpu10)     echo "ministral-3:14b" ;;
+    default:gpu5)      echo "granite3.3:8b" ;;
+    default:gpu_small) echo "ministral-3:3b" ;;
+    default:ram16)     echo "ministral-3:3b" ;;
+    default:ram_small) echo "granite3.3:2b" ;;
+    qwen:gpu20)        echo "qwen3:32b" ;;
+    qwen:gpu10)        echo "qwen3:14b" ;;
+    qwen:gpu5)         echo "qwen3:8b" ;;
+    qwen:gpu_small)    echo "qwen3:4b" ;;
+    qwen:ram16)        echo "qwen3:4b" ;;
+    qwen:ram_small)    echo "qwen3:1.7b" ;;
+    *) return 1 ;;
+  esac
+}
+
+configured_local_model() {  # <.env path> — the LOCAL_LLM_MODEL an earlier setup wrote, if any
+  [ -f "$1" ] || return 0
+  sed -n 's/^LOCAL_LLM_MODEL=//p' "$1" | tail -n 1 \
+    | grep -E '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' || true
+}
+
+model_to_keep() {  # <configured model> <installed model names, one per line>
+  # An existing installation keeps the model it already uses, so long as
+  # Ollama still has it: an update never re-pulls, switches or deletes it.
+  [ -n "$1" ] || return 0
+  if printf '%s\n' "$2" | grep -qxF "$1"; then echo "$1"; fi
+}
+# endregion local-model-tiers
+
+MODEL_FAMILY_REQUESTED="${BEDE_MODEL_FAMILY:-}"
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --model-family)
+      [ "$#" -ge 2 ] || die "--model-family needs a value (default or qwen)."
+      MODEL_FAMILY_REQUESTED="$2"; shift 2 ;;
+    --model-family=*) MODEL_FAMILY_REQUESTED="${1#*=}"; shift ;;
+    *) die "Unknown option: $1 (the only option is --model-family default|qwen)." ;;
+  esac
+done
+MODEL_FAMILY="$(resolve_model_family "$MODEL_FAMILY_REQUESTED")" \
+  || die "Unknown model family '$MODEL_FAMILY_REQUESTED' — use 'default' or 'qwen'."
+
 # ── OS / distro / architecture detection ────────────────────────────────────
 # Only used to pick which official installer command to run — never to
 # change what Bede itself does once installed. See docs/UNIX_INSTALLER.md's
@@ -203,14 +279,6 @@ recommended_ollama_model() {
     vram_mb="$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d '[:space:]')"
   fi
 
-  if [ -n "$vram_mb" ]; then
-    if [ "$vram_mb" -ge 20000 ]; then echo "qwen3:32b"; return; fi
-    if [ "$vram_mb" -ge 10000 ]; then echo "qwen3:14b"; return; fi
-    if [ "$vram_mb" -ge 5000 ];  then echo "qwen3:8b";  return; fi
-    echo "qwen3:4b"  # a GPU was found but it's small
-    return
-  fi
-
   # Rounds to the nearest GB (+ half a GB, then floor-divide) rather than
   # truncating — a machine marketed/expected as "16GB" commonly reports
   # something like 15.7GB to the OS once firmware/reserved memory is
@@ -223,7 +291,13 @@ recommended_ollama_model() {
     ram_bytes=$(( $(grep MemTotal /proc/meminfo | awk '{print $2}') * 1024 ))
   fi
   ram_gb=$(( (ram_bytes + 536870912) / 1073741824 ))
-  if [ "$ram_gb" -ge 16 ]; then echo "qwen3:4b"; else echo "qwen3:1.7b"; fi
+  ollama_model_for_tier "$MODEL_FAMILY" "$(hardware_tier "$vram_mb" "$ram_gb")"
+}
+
+installed_ollama_models() {
+  curl -fsS --max-time 5 http://localhost:11434/api/tags 2>/dev/null \
+    | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' \
+    | sed -E 's/^"name"[[:space:]]*:[[:space:]]*"([^"]*)"$/\1/' || true
 }
 
 setup_local_ai() {
@@ -237,10 +311,21 @@ setup_local_ai() {
     wait_for_ollama
   fi
 
-  local model
-  model="$(recommended_ollama_model)"
-  step "Downloading the $model AI model (first time only — can take a while, several GB)"
-  ollama pull "$model"
+  local model=""
+  # Re-running this on an existing installation keeps the model that
+  # installation already uses, unless a model family was asked for
+  # explicitly. Nothing here re-pulls, switches or deletes a family's model.
+  if [ -z "$MODEL_FAMILY_REQUESTED" ]; then
+    model="$(model_to_keep "$(configured_local_model "$APP_DIR/.env")" "$(installed_ollama_models)")"
+  fi
+  if [ -n "$model" ]; then
+    step "Keeping the local AI model this computer already uses ($model)"
+  else
+    model="$(recommended_ollama_model)"
+    step "Downloading the $model AI model (first time only — can take a while, several GB)"
+    ollama pull "$model" \
+      || die "Downloading the $model model failed. Check your internet connection; if Ollama says it needs a newer version, update Ollama (https://ollama.com/download), then run this again."
+  fi
 
   # host.docker.internal is Docker Desktop's own DNS name for the host
   # machine on Windows/Mac; on Linux the api container gets the same

@@ -56,11 +56,20 @@ proceeds. Both calls go through the same adapter as ordinary tutoring.
 - **Mistral** — `https://api.mistral.ai`. See [Mistral's Privacy
   Policy](https://mistral.ai/terms/).
 - **A self-hosted local model — nothing leaves your machine at all.** The
-  local adapter (`LOCAL_LLM_BASE_URL`) points at a vLLM server you run
-  yourself (open-weight `Qwen/Qwen3-Coder-30B-A3B-Instruct` by default) —
+  local adapter (`LOCAL_LLM_BASE_URL`) points at a model server you run
+  yourself: Ollama, as the installers set it up, or vLLM (open-weight
+  `mistralai/Mistral-Small-3.2-24B-Instruct-2506` by default; see
+  `docs/DECISIONS.md` entry 43 for the lineup and why no Qwen model is the
+  default) —
   no vendor, no account, no third-party data flow for tutoring at all. If
   it's reachable over your LAN/VPN only (as `docs/PROVIDER_ADAPTERS.md`
-  recommends), this section of vendor exposure is simply zero.
+  recommends), this section of vendor exposure is simply zero. The model
+  itself is downloaded once, from Ollama's model library, by the installer's
+  `ollama pull`; that download is the only step that should reach the
+  network. `docs/SECURITY.md`'s "Local model files and network" section has
+  the rules (GGUF or safetensors only, no China-hosted AI API, the model
+  offline while it runs) and says which Bede enforces and which it only
+  recommends.
 
 **What doesn't get sent:** raw encryption key material, other students'
 data, voice biometric embeddings, or anything from the parent's own

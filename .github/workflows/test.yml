@@ -149,6 +149,11 @@ jobs:
             python3 scripts/qa/selector.py --base "$BASE_SHA" --head "$HEAD_SHA" --output qa-plan.json
           fi
       - name: Run affected backend tests and record evidence
+        # BEDE_REQUIRE_PWSH turns tests/test_local_model_default.py's "pwsh
+        # not installed" skip into a failure. ubuntu-24.04 runners ship pwsh,
+        # so the Windows installer's model tiers are run for real here.
+        env:
+          BEDE_REQUIRE_PWSH: '1'
         run: python3 scripts/qa/runner.py --repo . --plan qa-plan.json --scope backend --report qa-evidence/backend.json
       - name: Preserve backend QA evidence
         if: always()

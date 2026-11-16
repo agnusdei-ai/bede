@@ -100,7 +100,7 @@ services:
       # core/provider_state.py's live secondary override the moment
       # ANTHROPIC_API_KEY above is filled in, without changing this file or
       # redeploying. Deliberately excludes "local" (Render has no GPU to run
-      # vLLM/Qwen3-Coder) and does not require "anthropic" to be configured
+      # vLLM or Ollama model) and does not require "anthropic" to be configured
       # at all — this demo boots and serves fully on OpenAI+Mistral with
       # that key left blank, unchanged from before. Because
       # services/ai_service.py's `_client` resolves via

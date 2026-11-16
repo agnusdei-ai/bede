@@ -31,7 +31,7 @@ The whole refactor's trigger case is "we can no longer rely on Anthropic at
 all" (account closed/denied). So the default order is deliberately
 `local,anthropic`, NOT `anthropic`:
 
-* `local` (a self-hosted vLLM server running Qwen3-Coder-30B-A3B-Instruct via
+* `local` (a self-hosted Ollama or vLLM server, docs/DECISIONS.md entry 43, via
   the OpenAI-compatible adapter) is the practical primary.
 * `anthropic` is kept in the code and last in the order so access can be
   restored instantly by re-adding it, but the router NEVER requires

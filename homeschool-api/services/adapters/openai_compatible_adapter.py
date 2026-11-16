@@ -8,9 +8,11 @@ overridden). Because vLLM, Mistral, Together, HF TGI, LM Studio, etc. all
 expose that same OpenAI-compatible endpoint, this one class covers:
 
   * OpenAI itself (default base_url)
-  * a self-hosted vLLM server running Qwen/Qwen3-Coder-30B-A3B-Instruct
-    (start vLLM with `--tool-call-parser qwen3_coder` so it emits tool calls in
-    the OpenAI `tool_calls` shape this adapter reads back)
+  * a self-hosted vLLM server (default model
+    mistralai/Mistral-Small-3.2-24B-Instruct-2506; start vLLM with
+    `--tool-call-parser mistral --enable-auto-tool-choice` so it emits tool
+    calls in the OpenAI `tool_calls` shape this adapter reads back)
+  * Ollama's OpenAI-compatible endpoint, which is what the installers set up
   * Mistral's API
   * any other OpenAI-compatible or HF Inference endpoint
 

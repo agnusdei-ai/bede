@@ -79,6 +79,16 @@ def role_is_exempt_from_provider_requirement(role: str) -> bool:
     return role == PROCESS_ROLE_LOCUTO_IPC
 
 
+# The vLLM default local model and what it needs (docs/DECISIONS.md entry 43).
+# Stated once here; tests/test_local_model_default.py checks that the docs,
+# docker-compose.yml and the example .env files say the same thing. The
+# figure is the model card's for the full-precision (bf16) weights; Ollama's
+# quantised build of the same model is about 15 GB.
+LOCAL_LLM_DEFAULT_MODEL = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
+LOCAL_LLM_DEFAULT_GPU_MEMORY_GB = 55
+LOCAL_LLM_DEFAULT_MIN_VLLM = "0.9.1"
+
+
 class Settings(BaseSettings):
     # Opt-in only for offline school/family installations, never the hosted demo.
     bede_offline_installation: bool = False
@@ -124,17 +134,23 @@ class Settings(BaseSettings):
     bede_process_role: str = PROCESS_ROLE_API
 
     # ── Local self-hosted LLM (OpenAI-compatible, e.g. vLLM) ──────────────────
-    # Points at a vLLM (or any OpenAI-compatible) server's /v1 endpoint serving
-    # Qwen3-Coder-30B-A3B-Instruct. IMPORTANT: this model needs a GPU and CANNOT
-    # run inside the Render web service (Render has no GPU instances) — it runs
-    # on separate GPU hardware and LOCAL_LLM_BASE_URL points at it over the
-    # network. See docs/PROVIDER_ADAPTERS.md's infrastructure note. Empty
-    # LOCAL_LLM_BASE_URL = the local adapter is treated as unconfigured/skipped.
+    # Points at a vLLM (or any OpenAI-compatible) server's /v1 endpoint. The
+    # default model name below is the vLLM default: Mistral Small 3.2
+    # (Mistral AI, Apache-2.0), the full-precision build, which needs about
+    # LOCAL_LLM_DEFAULT_GPU_MEMORY_GB of GPU memory and vLLM
+    # LOCAL_LLM_DEFAULT_MIN_VLLM or later (docs/PROVIDER_ADAPTERS.md, and
+    # docs/DECISIONS.md entry 43 for why the default is not a Qwen model).
+    # Ollama households never use this default: the installers write the
+    # Ollama model they pulled into .env. IMPORTANT: this model needs a GPU
+    # and CANNOT run inside the Render web service (Render has no GPU
+    # instances) — it runs on separate GPU hardware and LOCAL_LLM_BASE_URL
+    # points at it over the network. Empty LOCAL_LLM_BASE_URL = the local
+    # adapter is treated as unconfigured/skipped.
     local_llm_base_url: str = ""
     # vLLM's OpenAI server has no built-in auth; the SDK still requires a
     # non-empty key, so this placeholder is fine for a private/tunnelled server.
     local_llm_api_key: str = "not-needed"
-    local_llm_model: str = "Qwen/Qwen3-Coder-30B-A3B-Instruct"
+    local_llm_model: str = LOCAL_LLM_DEFAULT_MODEL
 
     # ── OpenAI chat adapter (secondary; distinct from OpenAI TTS above) ────────
     # Reuses OPENAI_API_KEY (defined below for TTS) as the credential, plus this

@@ -1033,8 +1033,11 @@ def _fake_ollama(models):
     return srv
 
 
-def _run_helper(bundle_dir, url, ram_gib=16):
+def _run_helper(bundle_dir, url, ram_gib=16, family=None):
     env = {**os.environ, "BEDE_OLLAMA_URL": url, "BEDE_HOST_RAM_BYTES": str(ram_gib * _GIB)}
+    env.pop("BEDE_MODEL_FAMILY", None)
+    if family:
+        env["BEDE_MODEL_FAMILY"] = family
     # macOS CI sets BEDE_TEST_BASH=/bin/bash so the helper is exercised under
     # the bash 3.2 the Mac app actually runs it with.
     shell = os.environ.get("BEDE_TEST_BASH", "bash")
@@ -1043,17 +1046,23 @@ def _run_helper(bundle_dir, url, ram_gib=16):
     return json.loads(marker.read_text()) if marker.exists() else None
 
 
-@pytest.mark.parametrize("installed,ram,expected", [
-    (["llama3.2:latest", "qwen3:4b"], 16, "qwen3:4b"),   # recommended wins over others
-    (["qwen3:8b"], 16, "qwen3:8b"),                     # the only model there
-    (["qwen3:1.7b", "qwen3:4b"], 8, "qwen3:1.7b"),      # same tiers as install.sh
-    (["a:1", "b:2"], 16, None),                         # ambiguous: guess nothing
-    ([], 16, None),
+@pytest.mark.parametrize("installed,ram,family,expected", [
+    # Default lineup (docs/DECISIONS.md entry 43): same RAM tiers as install.sh.
+    (["llama3.2:latest", "ministral-3:3b"], 16, None, "ministral-3:3b"),  # recommended wins
+    (["granite3.3:2b", "ministral-3:3b"], 8, None, "granite3.3:2b"),
+    (["qwen3:4b", "ministral-3:3b"], 16, None, "ministral-3:3b"),       # default beats Qwen
+    (["qwen3:4b", "ministral-3:3b"], 16, "qwen", "qwen3:4b"),           # unless Qwen is asked for
+    # A Mac that already runs the Qwen model keeps it.
+    (["llama3.2:latest", "qwen3:4b"], 16, None, "qwen3:4b"),
+    (["qwen3:1.7b", "qwen3:4b"], 8, None, "qwen3:1.7b"),
+    (["qwen3:8b"], 16, None, "qwen3:8b"),                               # the only model there
+    (["a:1", "b:2"], 16, None, None),                                   # ambiguous: guess nothing
+    ([], 16, None, None),
 ])
-def test_mac_helper_records_the_installed_model(tmp_path, installed, ram, expected):
+def test_mac_helper_records_the_installed_model(tmp_path, installed, ram, family, expected):
     srv = _fake_ollama(installed)
     try:
-        marker = _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}", ram)
+        marker = _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}", ram, family)
     finally:
         srv.shutdown()
     if expected is None:

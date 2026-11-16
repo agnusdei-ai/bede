@@ -92,6 +92,33 @@ jobs:
           cat "$RUNNER_TEMP/webkit-repro/repro.log"
           echo "command: node webkit_nav_repro.cjs (REPEATS=3) exit=$status" | tee -a "$RUNNER_TEMP/webkit-repro/runner.txt"
           exit $status
+      # Pinned is verified, not assumed: each Playwright version must have
+      # installed the WebKit build it is known to bundle (1.64 moves to WebKit
+      # 27.2), Node must be 22 or 24, and macOS must be 15 or later. A mismatch
+      # fails the job rather than reporting a run of the wrong engine.
+      - name: Confirm the engine, Node and macOS versions
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_WEBKIT: '{"1.56.0": "26.0", "1.63.0": "26.6"}'
+        run: |
+          python3 - <<'PY'
+          import json, os, platform, subprocess, sys
+          out = os.environ["RUNNER_TEMP"] + "/webkit-repro"
+          pw = os.environ["PLAYWRIGHT_VERSION"]
+          want = json.loads(os.environ["EXPECTED_WEBKIT"]).get(pw)
+          got = json.load(open(out + "/results.json"))["env"]["builds"].get("webkit", {}).get("version")
+          node = subprocess.run(["node", "-v"], capture_output=True, text=True).stdout.strip()
+          macos = platform.mac_ver()[0]
+          line = f"verified: playwright={pw} webkit={got} (expected {want}) node={node} macos={macos} arch={platform.machine()}"
+          open(out + "/runner.txt", "a").write(line + "\n"); print(line)
+          problems = []
+          if want is None: problems.append(f"no expected WebKit build is recorded for Playwright {pw}")
+          elif got != want: problems.append(f"WebKit {got} installed, {want} expected")
+          if node.lstrip("v").split(".")[0] not in ("22", "24"): problems.append(f"Node {node}, 22 or 24 expected")
+          if not macos or int(macos.split(".")[0]) < 15: problems.append(f"macOS {macos}, 15 or later expected")
+          if problems: sys.exit("; ".join(problems))
+          PY
       # The same sanitized native crash summary the journeys collect. Raw
       # reports go to a directory that is never uploaded.
       - name: Collect native crash reports (diagnostic only)

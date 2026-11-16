@@ -160,3 +160,21 @@ def test_a_variant_the_engine_cannot_run_is_not_run_never_a_pass():
     assert "tally[key].not_run++; continue;" in repro
     assert "'NOT_RUN'" in repro
     assert "RESULTS_FILE" in repro and "TRACE_DIR" in repro
+
+
+def test_each_pinned_playwright_is_checked_against_the_webkit_build_it_bundles():
+    """1.56.0 bundles WebKit 26.0 and 1.63.0 WebKit 26.6; 1.64 moves to 27.2.
+    The job fails if the installed build is not the expected one, if Node is
+    not 22 or 24, or if macOS is older than 15, so no result can describe a
+    different engine than it names. Every matrix version needs an entry."""
+    job = _load(DIAG)["jobs"]["minimal"]
+    step = next(s for s in job["steps"] if s.get("name") == "Confirm the engine, Node and macOS versions")
+    expected = json.loads(step["env"]["EXPECTED_WEBKIT"])
+    assert expected == {"1.56.0": "26.0", "1.63.0": "26.6"}
+    assert set(job["strategy"]["matrix"]["playwright"]) <= set(expected)
+    assert step["if"] == "always()" and "sys.exit" in step["run"]
+    for check in ('("22", "24")', "< 15", "got != want"):
+        assert check in step["run"], check
+    setup_node = next(s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/setup-node@"))
+    assert str(setup_node["with"]["node-version"]) in ("22", "24")
+    assert job["runs-on"] == "macos-15"

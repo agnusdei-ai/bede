@@ -2154,6 +2154,69 @@ does two with hints, then does three alone by tapping.
 
 See `docs/MAP_PRACTICE.md` for the detail.
 
+## Sound Time: phonics practice (kindergarten to grade 2)
+
+During Language Arts or Living Books, on a day those subjects are in your
+child's plan, Bede may offer a few minutes of phonics practice, at most once
+a session. Your child watches one word, does two together (tapping a letter
+says its sound), then does three alone. Kindergarten starts with rhymes, grade 1 with
+blending simple words like *cat*, and grade 2 with blends and digraphs like
+*sh* and *ck*. As your child's phonics record shows a step is secure, the
+next practice moves on to the next one.
+
+**Choose what Bede may offer, per child.** In each K-2 student's card in
+Parent Setup, under **Practice Bede may offer**, pick one:
+
+- **Off**: Bede offers no practice. One tap.
+- **Only sets I approved**: Bede never chooses on its own. Practice made from
+  a quiz you uploaded still needs your approval before your child sees it.
+- **Today's subjects too** (the default): Bede may also offer a round, but
+  only in a subject already in today's plan, and only from its own fixed word
+  lists. It never makes up a word or a question.
+
+You see each offer: it appears in the conversation as a card ("Sound
+Time"). If your own lesson focus or a "where we left off" note points
+somewhere else, Bede follows your plan instead.
+
+What is kept:
+
+- Each question your child gets right alone adds one row to the work ledger
+  on the Progress page and counts toward the phonics picture at half the
+  weight of a live check. Right on the second try counts at a quarter. These
+  weights are product choices, not research findings. From a fresh record,
+  one right answer is never enough to mark a step secure; two right first
+  tries are.
+- Only the first round in each sign-in is recorded, at most three answers.
+  A round counts once its first answer is recorded, so opening a round and
+  leaving, or a round that would not load, does not use it up. "Another one"
+  still works and is practice only, and your Progress page says so. Your
+  child's screen looks the same either way.
+- Practice answers do not hurry the reading picture past its "still getting
+  to know your learner" stage; that stage follows Bede's own checks in
+  lessons. While it lasts, Progress shows the two counts separately, for
+  example "0 lesson check-ins so far, plus 3 practice answers".
+- If a round says it needs sound, turn on Bede's voice, or install a voice
+  for your language on the device (in its speech or accessibility
+  settings). Bede only speaks practice through a voice installed on the
+  device.
+- A child tapping at random still lands on the right answer within two tries
+  about half the time or more (56% with three choices, 44% with four). That is
+  why only one round a sign-in is recorded, and why the record only picks the
+  next practice step, never a placement or a label.
+- A question that ended with the answer shown records nothing. Saying "not
+  now" records nothing.
+- The words, pictures and answers come from Bede's own code, never the AI,
+  and nothing from a round is sent to any AI provider: the round is spoken
+  only by a voice installed on your device, never Bede's cloud voice or a
+  browser voice that works over the internet. On a device with no installed
+  voice for your child's language, or with Bede's voice turned off, the
+  round is shown without speech, and sight-word practice (which works only
+  by ear) waits until sound is on. Bede never judges how your child
+  pronounces a sound.
+
+The words are English phonics. In a Spanish session the instructions are in
+Spanish and the words stay English.
+
 ## The writing pad: drawings, and where they go
 
 When Bede invites your child to write or draw by hand, a full-screen

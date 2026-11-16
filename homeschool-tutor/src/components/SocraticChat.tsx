@@ -7,6 +7,8 @@ import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
+import K2PhonicsPractice from './K2PhonicsPractice'
+import { hasLocalVoice, speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -97,6 +99,8 @@ export default function SocraticChat({
   const [showCanvas, setShowCanvas] = useState(false)
   // Map practice (K-2) opens over the chat the same way the canvas does.
   const [showMapPractice, setShowMapPractice] = useState(false)
+  // K-2 phonics practice, opened by Bede's invite_practice card (area "phonics").
+  const [showPhonics, setShowPhonics] = useState(false)
   const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
@@ -202,6 +206,20 @@ export default function SocraticChat({
     speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
     enabled: ttsEnabled, isSupported: ttsSupported,
   } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
+  // A phonics round speaks on the device; Bede's chat voice stops when it
+  // opens, so two voices never talk over each other.
+  useEffect(() => { if (showPhonics) stopSpeech() }, [showPhonics, stopSpeech])
+  // Whether this device has an installed voice for the session's language.
+  // Without one (or with Bede's voice off) the round is shown without speech
+  // and the server leaves out questions that work only by ear.
+  const [deviceVoice, setDeviceVoice] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!showPhonics) return
+    let live = true
+    setDeviceVoice(null)
+    hasLocalVoice().then((ok) => { if (live) setDeviceVoice(ok) })
+    return () => { live = false }
+  }, [showPhonics])
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -447,7 +465,7 @@ export default function SocraticChat({
   })
   useEffect(() => {
     if (isContinuous || !sttSupported || !awaitingChildTurn) return
-    if (showCanvas || showMapPractice || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || showPhonics || uploadingNarration || pendingVoiceTranscript) return
     prewarmRef.current()
     // Cleanup fires the instant awaitingChildTurn (or one of the other
     // guards) goes false again — either the child pressed
@@ -456,7 +474,7 @@ export default function SocraticChat({
     // safe no-op) or the turn ended some other way without a press (a real
     // prewarmed stream that genuinely needs releasing).
     return () => cancelPrewarmRef.current()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, uploadingNarration, pendingVoiceTranscript])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, showPhonics, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -497,6 +515,9 @@ export default function SocraticChat({
     // Everything this turn has already said (text + rendered cards) — the
     // duplicate-suppression reference for isDuplicateUtterance below.
     let turnText = ''
+    // A turn that opened a phonics round is not read aloud at its end: the
+    // round speaks on the device, and Bede's voice must not talk over it.
+    let openedPracticeRound = false
     // Pictures this turn has already rendered. The server is the real fix
     // for repeated cards (see homeschool-api's shown_aid_ids); this is the
     // same guarantee restated where the rendering happens, since `tool`
@@ -529,6 +550,10 @@ export default function SocraticChat({
           // suppress — only the duplicated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
           if (chunk.tool === 'invite_map_practice') setShowMapPractice(true)
+          if (chunk.tool === 'invite_practice' && chunk.area === 'phonics') {
+            openedPracticeRound = true
+            setShowPhonics(true)
+          }
           if (isDuplicateUtterance(chunk.content, turnText)) {
             // The turn already said this — don't render or speak it twice.
             continue
@@ -552,7 +577,7 @@ export default function SocraticChat({
         }
       }
       flush()
-      if (speechSegments.length && mine()) speak(speechSegments.join(' '))
+      if (speechSegments.length && mine() && !openedPracticeRound) speak(speechSegments.join(' '))
     } catch (err: unknown) {
       if (mine() && err instanceof Error && err.name !== 'AbortError') {
         // A dropped connection reaches here as Safari's "Load failed" or
@@ -630,7 +655,7 @@ export default function SocraticChat({
     // Don't interrupt a child who's mid-drawing, has a drawing ready to
     // send, is uploading narration, or has unsent text sitting in the box —
     // the whole point is to fire only once they've genuinely gone quiet.
-    if (showCanvas || showMapPractice || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
+    if (showCanvas || showMapPractice || showPhonics || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
     if (consecutiveContinuesRef.current >= MAX_CONSECUTIVE_CONTINUES) return
     consecutiveContinuesRef.current += 1
 
@@ -657,7 +682,7 @@ export default function SocraticChat({
       previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
-  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, pendingDrawing, uploadingNarration])
+  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, showPhonics, pendingDrawing, uploadingNarration])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -878,13 +903,13 @@ export default function SocraticChat({
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return
-    if (showCanvas || showMapPractice || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || showPhonics || uploadingNarration || pendingVoiceTranscript) return
     const now = Date.now()
     if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
     lastAutoStartRef.current = now
     logDebug('continuous voice mode — auto-starting listening for the child\'s turn')
     start()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, uploadingNarration, pendingVoiceTranscript, start])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, showPhonics, uploadingNarration, pendingVoiceTranscript, start])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
@@ -949,7 +974,7 @@ export default function SocraticChat({
       {/* Messages */}
       <div data-chat-messages className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} onOpenPhonics={() => setShowPhonics(true)} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
@@ -1188,6 +1213,22 @@ export default function SocraticChat({
         />
       )}
 
+      {/* K-2 phonics practice overlay. Built and checked by the server, nothing
+          sent to an AI provider, nothing kept after it closes. */}
+      {showPhonics && token && sessionConfig?.student_name && (
+        <K2PhonicsPractice
+          token={token}
+          studentName={sessionConfig.student_name}
+          onClose={() => { stopOnDeviceSpeech(); setShowPhonics(false) }}
+          // On-device speech only: nothing from a round may reach an AI
+          // provider, and Bede's ordinary voice goes through /tutor/speak to
+          // a cloud speech service (docs/K2_PRACTICE.md §6). Silent, as the
+          // chat is, when the narration toggle is off.
+          onSpeak={ttsEnabled ? speakOnDevice : undefined}
+          canSpeak={ttsEnabled ? deviceVoice : false}
+        />
+      )}
+
       {/* Handwriting overlay */}
       {showCanvas && (
         <HandwritingCanvas
@@ -1224,9 +1265,11 @@ interface MsgProps {
   bubbleClass: string
   /** Reopens map practice from its card. */
   onOpenMap?: () => void
+  /** Reopens phonics practice from its card. */
+  onOpenPhonics?: () => void
 }
 
-function MessageBubble({ msg, studentName, bubbleClass, onOpenMap }: MsgProps) {
+function MessageBubble({ msg, studentName, bubbleClass, onOpenMap, onOpenPhonics }: MsgProps) {
   const { t } = useTranslation()
   if (msg.role === 'system') {
     return (
@@ -1248,6 +1291,7 @@ function MessageBubble({ msg, studentName, bubbleClass, onOpenMap }: MsgProps) {
       request_narration:   'border-l-[3px] border-amber-400 bg-amber-50/70',
       invite_handwriting:  'border-l-[3px] border-purple-400 bg-purple-50/70',
       invite_map_practice: 'border-l-[3px] border-sage-400 bg-sage-50/70',
+      invite_practice:     'border-l-[3px] border-sage-400 bg-sage-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith:    'border-l-[3px] border-gold-400 bg-gold-50/70',
@@ -1258,6 +1302,14 @@ function MessageBubble({ msg, studentName, bubbleClass, onOpenMap }: MsgProps) {
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {renderEmphasis(msg.content)}
+        {msg.tool === 'invite_practice' && onOpenPhonics && (
+          <button
+            type="button" onClick={onOpenPhonics}
+            className="mt-2 block min-h-14 rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600"
+          >
+            {t('k2Phonics.open')}
+          </button>
+        )}
         {msg.tool === 'invite_map_practice' && onOpenMap && (
           <button
             type="button" onClick={onOpenMap}

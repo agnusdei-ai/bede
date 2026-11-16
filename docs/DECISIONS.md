@@ -2383,7 +2383,25 @@ This is the owner's effective v1.0 ruling. It updates the **policy** of the exis
 
 ## 40. `[PRODUCT]` K-2 practice: the choices the specification leaves open
 
-**Status:** open · needs: owner rulings on (a) to (g)
+**Status:** open · needs: owner rulings on (c) to (h)
+
+**Decided (2026-11-16, owner), for (a) and (b):**
+
+- **(a)** The default is the third choice: **Bede may also choose from today's subjects.** Three limits come with it. Bede picks only from subjects already in that child's parent-set routine for today, and only from authored catalog content; it never invents a topic, word or item. The parent sees each offer (the server-written card in the conversation) and can switch it off with one tap per child. Practice sets made from uploaded quizzes still need the parent's approval before a child sees them. "Only practice sets I approved" never lets Bede choose on its own.
+- **(b)** A Your turn answer right on the first try, unaided, counts at **0.5** (`QUIZ_EVIDENCE_WEIGHT`); right on the second try, after the move is shown again, at **0.25**; an item that ended with the answer shown, or was left, counts **0** and writes no ledger row. These are product defaults the owner chose, not research-backed values. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but from a fresh record, no single practice answer can make a skill secure; two right first tries can. Step 1 applies them to the phonics estimate (`services/diagnostic/phonics.py`'s `process_evidence`, which gained a `weight` argument).
+- **Early-evidence window (owner ruling 2026-11-16, a product default).** Practice answers do not count toward it: a practice observation still moves the estimate by its weight (0.5 / 0.25, no boost) but does not advance `evidence_count`, the count that shrinks the early boost for Bede's own in-lesson check-ins and decides whether the parent's summary says "still getting to know your learner". So a check-in after any number of practice answers gets the full early boost it would have had with no practice, and the summary stays "calibrating" until enough check-ins exist, which is the honest reading of a picture built mostly from taps (`process_evidence(..., count_toward_calibration=False)`, passed only by the practice route).
+- **Replays (owner ruling 2026-11-16, a product default).** One recorded round per area per sign-in, at most three recorded answers in it. A round counts once its first answer is recorded, never when it is served, so opening a round and leaving, a lost response and "Try again", or a round that needs sound the device cannot give leaves the round unused, and two rounds answered at once record only one. After the first round "Another one" still works and records nothing (no ledger row, no observation). Enforced on the server, keyed by learner, area and a digest of the sign-in's own token claims, so a page reload or a fresh lesson id does not reset it and a new sign-in does; held in memory, so a server restart forgets it. The parent's Progress page says the extra rounds were practice only, for a K-2 child whose practice is not off, and its calibrating line names practice answers apart from Bede's lesson check-ins. The child's screen shows nothing different.
+
+**Limitations of the record (product defaults, no research behind any number here).** A child tapping at random still ends up "correct" within two tries this often:
+
+| Choices | Repeats possible | No repeats |
+| --- | --- | --- |
+| 3 | 56% | 67% |
+| 4 | 44% | 50% |
+
+In Bede as built, a wrongly tapped choice stays tappable on the second try (the screen re-enables every choice and the server accepts the same choice again as the second miss), so the "repeats possible" column is what the code does; the owner treats "no repeats" as the realistic case either way. Kindergarten and grade 1 get three choices, grade 2 four. The one-recorded-round cap bounds this to three recorded answers per area per sign-in, and the record only picks the next practice domain, never a placement or a label.
+
+Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (h) stay open below.
 
 [`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
 practice for kindergarten to grade 2: phonics, handwriting, practical math,
@@ -2391,12 +2409,13 @@ spelling and copying a sentence first, then memory work. Map reading, from the
 same design, shipped in #830. The specification cannot settle these, and each
 changes what gets built:
 
-- **(a) The per-child setting's default.** Off; only practice sets the parent approved; or Bede may also choose from today's subjects. *Recommended:* the third, since it is what makes practice Bede-initiated out of the box. The second is more cautious but means Bede rarely offers anything until a parent uploads a quiz.
-- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Recommended:* the marked-quiz weight, 0.5 (`QUIZ_EVIDENCE_WEIGHT`), since both are short, scaffolded observations rather than a test.
+- **(a) The per-child setting's default.** *Decided above.*
+- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Decided above.*
 - **(c) The handwriting style.** Ball-and-stick print, a continuous-stroke print, or pre-cursive. *Recommended:* ask the family in Parent Setup, defaulting to ball-and-stick, so Bede never teaches a different form from the one at home. Each style is its own stroke data.
 - **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
 - **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
+- **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849.
 - **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.
 
 ## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
@@ -2448,7 +2467,7 @@ built. The owner ruled on each:
 
 Decision entry 40's rulings (the per-child default, evidence weight,
 handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
-separate and still open. So are the checklist's own pre-enrollment decisions:
+separate: (a) and (b) were ruled the same day, and (c) to (h) are still open. So are the checklist's own pre-enrollment decisions:
 supported devices and assistive technology, the final collected fields and
 vendors, and the pilot's learning objectives.
 

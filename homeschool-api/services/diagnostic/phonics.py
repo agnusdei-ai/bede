@@ -210,8 +210,39 @@ def build_summary_view(
     }
 
 
-async def process_evidence(db, student_name: str, domain: str, outcome: str) -> Optional[MasteryVector]:
+async def process_evidence(
+    db, student_name: str, domain: str, outcome: str, weight: float = 1.0,
+    skip_calibration_boost: bool = False,
+    count_toward_calibration: bool = True,
+) -> Optional[MasteryVector]:
     """
+    `weight` (0 < weight <= 1) scales how far this one observation moves the
+    estimate, exactly as literacy.process_evidence's does. A check-in Bede
+    watched in a session is 1.0, the default, so every caller that passes no
+    weight behaves as before. A K-2 practice round's "Your turn" answer passes
+    less (routers/k2_practice.py: 0.5 on the first try, 0.25 on the second,
+    product defaults the owner chose, not research values). Anything outside
+    that range is refused rather than clamped, since a malformed weight must
+    not become a full-strength observation.
+
+    `skip_calibration_boost` drops the early-evidence boost
+    (`calibration_weight_for`, up to 2.0 at a cold start), so the step is
+    exactly `weight`. Only K-2 practice passes it (owner ruling 2026-11-16):
+    with the boost, one right practice answer moved a domain from 0.5 to 1.0,
+    secure, and the next round moved the child on. Without it, from a fresh
+    record, no single practice answer can make a domain secure; two right
+    first tries can.
+    Every other caller passes nothing and keeps the boost exactly as before.
+
+    `count_toward_calibration=False` keeps an observation out of
+    `evidence_count`, the count that shrinks the early boost and decides
+    whether the parent's summary says "still getting to know your learner".
+    Only K-2 practice passes it (owner ruling 2026-11-16, a product default):
+    practice still moves the estimate by its weight, but Bede's own in-lesson
+    check-ins keep the full early boost they would have had with no practice,
+    and the summary stays "calibrating" until enough of those check-ins exist,
+    which is the honest reading of a picture built mostly from taps.
+
     Persistence-backed entry point — mirrors composition.process_assessment
     and services.diagnostic.__init__.process_evidence's load/update/store
     shape exactly, against MasteryProfile(subject_area="phonics"). Called
@@ -250,10 +281,16 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
         vector = new_vector()
         vector_is_cold_start = True
 
+    if isinstance(weight, bool) or not isinstance(weight, (int, float)) or not 0.0 < weight <= 1.0:
+        await db.rollback()
+        return None
     evidence_count_before = 0 if vector_is_cold_start else row.evidence_count
     updated_vector, updates = apply_evidence(
         vector, domain, outcome,
-        calibration_weight=calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
+        calibration_weight=weight * (
+            1.0 if skip_calibration_boost
+            else calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD)
+        ),
     )
 
     if not updates:
@@ -270,12 +307,13 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
             db.add(MasteryProfile(
                 student_name=student_name,
                 subject_area="phonics",
-                evidence_count=1,
+                evidence_count=1 if count_toward_calibration else 0,
                 profile_enc=profile_enc,
             ))
         else:
             row.profile_enc = profile_enc
-            row.evidence_count += 1
+            if count_toward_calibration:
+                row.evidence_count += 1
         await db.commit()
     except Exception as exc:
         await db.rollback()
@@ -313,6 +351,13 @@ async def get_phonics_summary(db, student_name: str) -> Optional[dict]:
         log.warning("Phonics mastery summary load failed for %s: %s", learner_ref(student_name), exc_text(exc, student_name))
         return None
 
-    return build_summary_view(
+    view = build_summary_view(
         vector, student_name, row.evidence_count, row.updated_at.replace(microsecond=0).isoformat(),
     )
+    # Practice answers move this picture but are not Bede's check-ins and do
+    # not count toward calibration (owner ruling 2026-11-16). Reported
+    # separately so a "still getting to know" line never reads as though
+    # nothing had been recorded.
+    from services.diagnostic.activity import count_from_source
+    view["practice_answers"] = await count_from_source(db, student_name, "phonics", "practice_round")
+    return view

@@ -83,6 +83,9 @@ export interface SessionConfig {
   // Removes an age gate on a parent's choice; NOT a claim that more breaks
   // improve attention. Cannot touch the mandatory hourly break.
   frequent_break_offers?: boolean
+  // K-2 practice (docs/K2_PRACTICE.md §4): which rounds Bede may offer.
+  // Absent = 'todays_subjects', the owner's default (decision 40(a)).
+  practice_offers?: PracticeOffers
   voice_required?: boolean  // false for mute students — PIN-only auth, no voice passphrase
   // The session's hard stop, in minutes — on by default and there by design
   // (2-hour default, 4-hour maximum; absent = 2 hours, and gradeTimer.ts's
@@ -160,6 +163,12 @@ export type TermSchedule = 'trimester' | 'quarterly'
 // GradeStage's shape: a small, stable string union kept in sync by hand
 // with the backend enum, same convention already used throughout this file.
 export type CompanionMode = 'book_companion' | 'guided' | 'full_plan'
+
+/** Which K-2 practice rounds Bede may offer one child (models/schemas.py's
+ * practice_offers). 'approved_only' means Bede never chooses on its own. */
+export type PracticeOffers = 'off' | 'approved_only' | 'todays_subjects'
+export const PRACTICE_OFFERS: PracticeOffers[] = ['off', 'approved_only', 'todays_subjects']
+export const DEFAULT_PRACTICE_OFFERS: PracticeOffers = 'todays_subjects'
 
 // Bible translations a parent can pick for SessionConfig.bible_translation —
 // mirrors homeschool-api/models/schemas.py's BIBLE_TRANSLATIONS, same
@@ -249,6 +258,8 @@ export interface StreamChunk {
   type: 'text' | 'tool' | 'done' | 'assessment' | 'visual_aid' | 'subject_complete'
   content?: string
   tool?: string
+  /** invite_practice only: which K-2 practice area the card opens. */
+  area?: string
   reason?: 'mastery' | 'frustration'
   data?: { subject: string; total_score: number; adaptive_signal: string }
   visualAid?: VisualAidData
@@ -463,6 +474,9 @@ export interface MasteryProfileSummary {
   subject_area: string
   evidence_count: number
   calibration: boolean
+  /** Recorded K-2 practice answers (phonics only). They move the estimate
+   *  but are not counted in evidence_count. Absent from an older server. */
+  practice_answers?: number
   domains: DomainMasteryView[]
   gaps: SkillMasteryView[]
   next_steps: SkillMasteryView[]

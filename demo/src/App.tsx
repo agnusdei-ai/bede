@@ -985,7 +985,8 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
-function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+// Exported for ChatScreen.unmount.test.tsx only.
+export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   const [showPracticeCoach, setShowPracticeCoach] = useState(false)
   const [approvedPractice, setApprovedPractice] = useState<DemoPracticeDeliveryItem[]>([])
@@ -1143,6 +1144,17 @@ function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token,
   const narrationFileInputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // A turn still in flight ends with the chat. Without this, a turn (and its
+  // retry loop in api.ts) kept running after the visitor logged out or left
+  // this screen. Deferred one tick and dropped on a remount, because React's
+  // development StrictMode unmounts and remounts once straight away, and
+  // aborting there would cancel the opening message for good. Mirrors
+  // homeschool-tutor's SocraticChat.
+  const unmountAbortRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (unmountAbortRef.current) clearTimeout(unmountAbortRef.current)
+    return () => { unmountAbortRef.current = setTimeout(() => abortRef.current?.abort(), 0) }
+  }, [])
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
   // Only the restored subject is pre-marked as fired, not every subject
   // that may have been visited before an earlier reload — messages here

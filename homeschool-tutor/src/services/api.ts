@@ -2408,3 +2408,71 @@ export const answerMapTask = (
   token, `/${encodeURIComponent(studentName)}/lessons/${encodeURIComponent(lessonId)}/answers`,
   { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
 )
+
+// ── K-2 phonics practice (homeschool-api/routers/k2_practice.py) ──────────────
+// The server builds every word and checks every answer; nothing a child types
+// or says is kept, and nothing here reaches an AI provider.
+
+export interface PhonicsGrapheme { text: string; sound?: string; silent?: boolean }
+
+export interface PhonicsTask {
+  phase?: 'together' | 'your_turn'
+  index?: number
+  prompt: { key: string; args: Record<string, string> }
+  /** A picture to hear, a word to read, or a word to listen for. In "Your
+   * turn", a word to read carries no sounds and no spoken word. */
+  display: { kind: 'picture' | 'word' | 'listen'; icon?: string; word?: string; graphemes?: PhonicsGrapheme[] }
+  choice_kind: 'picture' | 'letter' | 'word'
+  choices: string[]
+  /** Sounds for tapping a letter choice. Never sent in "Your turn". */
+  choice_sounds?: Record<string, string>
+}
+
+export interface PhonicsLesson {
+  lesson_id: string
+  area: 'phonics'
+  level: 'K' | '1' | '2'
+  domain: string
+  your_turn_tries: number
+  /** Whether the lesson was built for a device that can speak it. */
+  audio?: boolean
+  /** The child's practice works only by ear and the device cannot speak, so
+   * the lesson has no questions (sight words). Nothing can be recorded. */
+  needs_audio?: boolean
+  watch: (PhonicsTask & { answer: { choice: string } }) | null
+  together: PhonicsTask[]
+  your_turn: PhonicsTask[]
+}
+
+export interface PhonicsAnswerResult {
+  understood: boolean
+  correct: boolean
+  tries_left?: number
+  reveal?: { choice: string }
+  recorded?: boolean
+}
+
+async function phonicsFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/k2-practice${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (!res.ok) throw new Error(`phonics practice ${res.status}`)
+  return res.json()
+}
+
+/** `audio: false` tells the server this device cannot speak the round, so it
+ * leaves out questions that work only by ear. It never chooses a level. */
+export const fetchPhonicsLesson = (token: string, studentName: string, audio = true) =>
+  phonicsFetch<PhonicsLesson>(
+    token, `/${encodeURIComponent(studentName)}/phonics/lesson${audio ? '' : '?audio=false'}`,
+  )
+
+export const answerPhonicsTask = (
+  token: string, studentName: string, lessonId: string,
+  phase: 'together' | 'your_turn', index: number,
+  answer: { choice: string } | { spoken: string },
+) => phonicsFetch<PhonicsAnswerResult>(
+  token, `/${encodeURIComponent(studentName)}/phonics/lessons/${encodeURIComponent(lessonId)}/answers`,
+  { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
+)

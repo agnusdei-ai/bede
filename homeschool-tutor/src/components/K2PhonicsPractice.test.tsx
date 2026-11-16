@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from '../i18n'
@@ -182,20 +182,23 @@ describe('K2PhonicsPractice', () => {
   })
 
   it('reveals the letters one at a time, or all at once with reduced motion', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
+    // Real timers and waitFor, not a fixed fake-timer advance: under CI load
+    // the reveal's interval could start after a fixed advance had run, which
+    // read as no letters lit.
     await open()
     const letters = () => Array.from(document.querySelectorAll('[data-testid="phonics-word"] > *'))
-    expect(letters().filter((el) => el.className.includes('opacity-100'))).toHaveLength(0)
-    await act(async () => { vi.advanceTimersByTime(2200) })
-    expect(letters().filter((el) => el.className.includes('opacity-100'))).toHaveLength(3)
+    const lit = () => letters().filter((el) => el.className.includes('opacity-100'))
+    expect(lit()).toHaveLength(0)
+    await waitFor(() => expect(lit()).toHaveLength(3), { timeout: 4000 })
     // Movement is only ever under motion-safe.
     for (const el of letters()) expect(el.className).toMatch(/motion-safe:transition/)
     cleanup()
-    vi.useRealTimers()
 
+    // Reduced motion: every letter is there on the very first frame.
     reduceMotion = true
-    await open()
-    expect(letters().filter((el) => el.className.includes('opacity-100'))).toHaveLength(3)
+    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} />)
+    await screen.findByTestId('phonics-word')
+    expect(lit()).toHaveLength(3)
   })
 
   it('meets the K-2 target sizes by class contract, in rem so they grow with the text', async () => {

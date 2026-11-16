@@ -209,7 +209,9 @@ export default function K2PhonicsPractice({
       {display.kind === 'word' && display.graphemes && (
         <div className="flex flex-wrap justify-center gap-2" data-testid="phonics-word" aria-label={t('k2Phonics.theWord')}>
           {display.graphemes.map((g, i) => {
-            const shown = i < lit || !watching
+            // Reduced motion shows every letter on the first frame, rather
+            // than waiting for an effect to light them.
+            const shown = reduced.current || i < lit || !watching
             const cls = `${TARGET} rounded-xl border-2 px-3 text-4xl font-semibold ${
               g.silent ? 'border-gray-300 text-gray-500' : 'border-navy-300 text-navy-800'
             } bg-white motion-safe:transition-opacity motion-safe:duration-300 ${shown ? 'opacity-100' : 'opacity-0'}`

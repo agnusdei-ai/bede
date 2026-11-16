@@ -12,7 +12,7 @@ from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowa
 from core.log_redaction import exc_summary, learner_ref
 from core.config import settings
 from core import consent
-from core.database import get_db
+from core.database import get_db, release_idle_connection
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
     get_current_unit as get_demo_current_unit,
@@ -302,6 +302,10 @@ async def chat(
         ))
 
     async def event_generator():
+        # The checks above ran queries, so this request's session holds a
+        # pool connection. Return it before the moderation call and the
+        # streamed reply, which are the long waits (docs/CAPACITY.md).
+        await release_idle_connection(db)
         if demo_quota_exceeded:
             await log_event(
                 AuditEvent.RATE_LIMITED,

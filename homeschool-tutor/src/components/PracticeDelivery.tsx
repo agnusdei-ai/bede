@@ -87,7 +87,7 @@ export default function PracticeDelivery({
     // arrived but could not be read.
     <section
       aria-label={t('practiceDelivery.title')}
-      className="mx-4 mt-3 max-h-[30dvh] shrink-0 overflow-y-auto rounded-xl border border-sage-200 bg-sage-50 p-3 text-sm"
+      className="mx-4 mt-3 max-h-[25dvh] shrink-0 overflow-y-auto rounded-xl border border-sage-200 bg-sage-50 p-3 text-sm"
     >
       {current ? (
         <>

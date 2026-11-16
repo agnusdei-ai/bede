@@ -91,8 +91,10 @@ now keeps the words and says the message is too long
 
 The text-size row found another, when the top step was 175%: an approved practice question squeezed the
 conversation to a 56 px strip, so Bede's replies arrived but could not be
-read. The practice card is now capped at 30% of the screen height and scrolls
-on its own; the check reports each element's height when it fails.
+read. The practice card was capped at 30% of the screen height and scrolls on its
+own; the check reports each element's height when it fails. At 200% the same
+check found the conversation at 194 px of 844 (23%): the card took 253 px,
+the message box 261 and the header 112. The cap is now 25%.
 
 ## 2. Physical layer: the support matrix
 

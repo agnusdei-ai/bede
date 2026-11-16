@@ -4995,6 +4995,15 @@ async def stream_tutor_response(
         # force-ends the loop outright).
         terminal_tool_fired = False
 
+        # Hand this request's DB connection back before the model call: a
+        # streamed reply takes seconds, and holding an idle connection through
+        # it is what exhausted the pool at ten children (docs/CAPACITY.md).
+        # Each round's writes commit themselves, so nothing pending is lost.
+        if db is not None:
+            from core.database import release_idle_connection
+
+            await release_idle_connection(db)
+
         async with _client.messages.stream(
             model=settings.tutor_model,
             # Keep responses tight (Mater Amabilis lesson brevity) but leave real

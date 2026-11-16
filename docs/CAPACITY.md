@@ -148,6 +148,15 @@ quarter connections per active session, because a lesson turn holds its
 request's connection for the whole streamed reply while the same turn opens
 further short sessions (usage and audit records).
 
+**Fixed in code; the stack run that confirms it is pending.** A turn now hands
+its connection back before the moderation call and before every model round
+(`core/database.py`'s `release_idle_connection`, called from `routers/tutor.py`
+and `stream_tutor_response`). It releases only a transaction with nothing
+pending, so no staged write is committed early
+(`tests/test_tutor_stream_releases_db_connection.py`). A connection is now
+checked out only for the queries themselves, not for the seconds a reply
+takes.
+
 Every sample device reached the API from its own address in both runs (one
 distinct client per browser and per API client), so the per-IP rate limit
 refused nothing at 60-second windows. A shorter smoke run (20-second windows,

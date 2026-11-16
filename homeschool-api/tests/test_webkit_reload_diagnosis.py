@@ -77,10 +77,27 @@ def test_it_runs_the_gates_own_steps_and_nothing_else():
             s = dict(s)
             if str(s.get("uses", "")).startswith("actions/upload-artifact@"):
                 s["with"] = {k: v for k, v in s["with"].items() if k != "name"}
+            if str(s.get("uses", "")).startswith("actions/setup-node@"):
+                s["with"] = {k: v for k, v in s["with"].items() if k != "node-version"}
             out.append(s)
         return out
     assert norm(_steps(DIAG), True) == norm(_steps(GATE), True)
-    assert _load(DIAG)["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"] == _load(GATE)["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"]
+
+
+def test_the_journey_deviates_from_the_gate_only_in_its_declared_pins():
+    """Two deviations, both declared: Node is pinned to the original crash
+    run's exact v24.22.2, and Playwright is a choice of the two recorded pairs,
+    defaulting to the gate's own. A baseline then reruns the original crash
+    environment and a comparison changes one variable, never an unpinned latest."""
+    gate_pw = _load(GATE)["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"]
+    d = _load(DIAG)
+    inp = d["_on"]["workflow_dispatch"]["inputs"]["journey_playwright"]
+    assert inp["type"] == "choice" and inp["default"] == gate_pw
+    assert set(inp["options"]) == {gate_pw, "1.56.0"}
+    assert d["jobs"]["journeys"]["env"]["PLAYWRIGHT_VERSION"] == f"${{{{ github.event.inputs.journey_playwright || '{gate_pw}' }}}}"
+    node = next(s for s in _steps(DIAG) if str(s.get("uses", "")).startswith("actions/setup-node@"))
+    assert node["with"]["node-version"] == "24.22.2"
+    assert "unrecorded Playwright" in _steps(DIAG)[0]["run"]
 
 
 def test_raw_crash_reports_are_never_uploaded():
@@ -165,7 +182,7 @@ def test_a_variant_the_engine_cannot_run_is_not_run_never_a_pass():
 def test_each_pinned_playwright_is_checked_against_the_webkit_build_it_bundles():
     """1.56.0 bundles WebKit 26.0 and 1.63.0 WebKit 26.6; 1.64 moves to 27.2.
     The job fails if the installed build is not the expected one, if Node is
-    not 22 or 24, or if macOS is older than 15, so no result can describe a
+    not the original run's v24.22.2, or if macOS is older than 15, so no result can describe a
     different engine than it names. Every matrix version needs an entry."""
     job = _load(DIAG)["jobs"]["minimal"]
     step = next(s for s in job["steps"] if s.get("name") == "Confirm the engine, Node and macOS versions")
@@ -173,9 +190,9 @@ def test_each_pinned_playwright_is_checked_against_the_webkit_build_it_bundles()
     assert expected == {"1.56.0": "26.0", "1.63.0": "26.6"}
     assert set(job["strategy"]["matrix"]["playwright"]) <= set(expected)
     assert step["if"] == "always()" and "sys.exit" in step["run"]
-    for check in ('("22", "24")', "< 15", "got != want"):
+    for check in ('"v24.22.2"', "< 15", "got != want"):
         assert check in step["run"], check
     setup_node = next(s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/setup-node@"))
-    assert str(setup_node["with"]["node-version"]) in ("22", "24")
-    assert setup_node["with"].get("check-latest") is True   # the latest patch, not the image's cached one
+    # Exactly the original crash run's Node, so only the Playwright/WebKit pair varies.
+    assert setup_node["with"]["node-version"] == "24.22.2"
     assert job["runs-on"] == "macos-15"

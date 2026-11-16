@@ -40,6 +40,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +82,20 @@ async def _fetch_live(db, code: str):
     return result.scalar_one_or_none()
 
 
+#: How many times generate_code redraws after losing a race for the same
+#: code. Two concurrent visitors drawing the same 6-digit code is already
+#: about a one-in-a-thousand event at 50 at once; five losses in a row does
+#: not happen in practice, and raising beats looping forever.
+_MAX_MINT_ATTEMPTS = 5
+
+
+async def _code_in_use(db, code: str) -> bool:
+    from core.database import DemoCodeSession
+    return (await db.execute(
+        select(DemoCodeSession.code).where(DemoCodeSession.code == code)
+    )).scalar_one_or_none() is not None
+
+
 async def generate_code(
     student_name: str | None = None, grade: str | None = None, current_unit: str | None = None,
     faith_tradition: str | None = None,
@@ -100,36 +115,43 @@ async def generate_code(
         DemoCodeSession, DemoCodeUnitNote,
     )
 
-    async with AsyncSessionLocal() as db:
-        # Opportunistic cleanup of long-abandoned codes — same lazy
-        # eviction shape the old in-memory _evict_expired() had, just
-        # against a query instead of a dict comprehension.
-        await db.execute(delete(DemoCodeSession).where(DemoCodeSession.created_at < _cutoff()))
-        await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.created_at < _cutoff()))
-        await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.created_at < _cutoff()))
-        await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.created_at < _cutoff()))
-        await db.execute(delete(DemoCodeParentConfig).where(DemoCodeParentConfig.created_at < _cutoff()))
+    # Choosing a code is check-then-insert, so two visitors minting at the
+    # same moment can both draw the same unused code; the second insert then
+    # violates the primary key, which reached the visitor as a 500. The
+    # whole transaction is retried with a fresh draw instead.
+    for _attempt in range(_MAX_MINT_ATTEMPTS):
+        async with AsyncSessionLocal() as db:
+            # Opportunistic cleanup of long-abandoned codes — same lazy
+            # eviction shape the old in-memory _evict_expired() had, just
+            # against a query instead of a dict comprehension.
+            await db.execute(delete(DemoCodeSession).where(DemoCodeSession.created_at < _cutoff()))
+            await db.execute(delete(DemoCodeUnitNote).where(DemoCodeUnitNote.created_at < _cutoff()))
+            await db.execute(delete(DemoCodeFaithNote).where(DemoCodeFaithNote.created_at < _cutoff()))
+            await db.execute(delete(DemoCodeActivityLog).where(DemoCodeActivityLog.created_at < _cutoff()))
+            await db.execute(delete(DemoCodeParentConfig).where(DemoCodeParentConfig.created_at < _cutoff()))
 
-        count = (await db.execute(select(func.count()).select_from(DemoCodeSession))).scalar_one()
-        if count >= _MAX_ACTIVE_CODES:
-            await db.commit()
-            return None
+            count = (await db.execute(select(func.count()).select_from(DemoCodeSession))).scalar_one()
+            if count >= _MAX_ACTIVE_CODES:
+                await db.commit()
+                return None
 
-        while True:
-            code = f"{secrets.randbelow(1_000_000):06d}"
-            existing = (await db.execute(
-                select(DemoCodeSession.code).where(DemoCodeSession.code == code)
-            )).scalar_one_or_none()
-            if existing is None:
-                break
+            while True:
+                code = f"{secrets.randbelow(1_000_000):06d}"
+                if not await _code_in_use(db, code):
+                    break
 
-        db.add(DemoCodeSession(code=code, student_name=student_name, grade=grade))
-        if current_unit:
-            db.add(DemoCodeUnitNote(code=code, note=current_unit))
-        if faith_tradition:
-            db.add(DemoCodeFaithNote(code=code, tradition=faith_tradition))
-        await db.commit()
-        return code
+            db.add(DemoCodeSession(code=code, student_name=student_name, grade=grade))
+            if current_unit:
+                db.add(DemoCodeUnitNote(code=code, note=current_unit))
+            if faith_tradition:
+                db.add(DemoCodeFaithNote(code=code, tradition=faith_tradition))
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                continue
+            return code
+    raise RuntimeError("could not mint a unique demo code")
 
 
 async def get_personalization(code: str) -> tuple[str | None, str | None]:

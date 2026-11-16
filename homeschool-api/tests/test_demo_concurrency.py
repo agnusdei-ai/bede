@@ -216,7 +216,8 @@ async def test_fifty_concurrent_visitors_generate_and_redeem_without_collision(d
             client.post("/auth/demo-code", headers={"X-Forwarded-For": ip})
             for ip in visitor_ips
         ])
-        assert all(r.status_code == 200 for r in code_responses)
+        failed = [(r.status_code, r.text[:200]) for r in code_responses if r.status_code != 200]
+        assert not failed, f"{len(failed)} of 50 code requests failed: {failed[:5]}"
         codes = [r.json()["code"] for r in code_responses]
         assert len(set(codes)) == 50
 

@@ -209,7 +209,7 @@ async def _vector(db, name):
 
 
 def _task(name, lesson, phase, index):
-    level, domain, seed = routes.read_lesson_id(name, lesson["lesson_id"])
+    level, domain, seed, _audio = routes.read_lesson_id(name, lesson["lesson_id"])
     return phonics.build_task(level, domain, seed, phase, index)
 
 
@@ -230,7 +230,11 @@ async def test_the_level_comes_from_the_saved_grade_and_nothing_in_the_request_c
     assert (ben["level"], ben["domain"]) == ("1", "cvc_blending")
     # The route takes no grade, level or domain at all.
     params = set(inspect.signature(routes.new_lesson).parameters)
-    assert params == {"student_name", "auth", "db"}
+    assert params == {"student_name", "audio", "auth", "db"}
+    # The one request flag only removes questions: level and domain stay.
+    quiet = await routes.new_lesson("Ben", audio=False, auth=PARENT, db=db)
+    assert (quiet["level"], quiet["domain"]) == (ben["level"], ben["domain"])
+    assert len(quiet["your_turn"]) == phonics.YOUR_TURN_TASKS
     for name in ("Cal", "Dot", "Eve", "Nobody"):
         with pytest.raises(HTTPException) as exc:
             await routes.new_lesson(name, auth=PARENT, db=db)
@@ -420,6 +424,110 @@ async def test_a_spoken_sight_word_is_an_echo_and_counts_as_nothing(db):
     assert (await _send(db, "Ben", lesson, "your_turn", 0, choice=task.accept_choice))["recorded"] is True
 
 
+def test_without_audio_only_ear_only_domains_lose_their_questions():
+    """audio=False may only REMOVE questions. Sight words, which work only by
+    ear, lose all of theirs; every other domain is byte-for-byte the lesson
+    it would have been, apart from the audio marker."""
+    for level in phonics.LEVELS:
+        for domain in phonics.DOMAINS:
+            loud = phonics.build_lesson(level, 9, domain)
+            quiet = phonics.build_lesson(level, 9, domain, audio=False)
+            assert (quiet["level"], quiet["domain"]) == (level, domain)
+            if domain in phonics.AUDIO_ONLY_DOMAINS:
+                assert quiet["needs_audio"] is True
+                assert quiet["watch"] is None and quiet["together"] == [] and quiet["your_turn"] == []
+            else:
+                assert quiet["needs_audio"] is False
+                for key in ("watch", "together", "your_turn"):
+                    assert quiet[key] == loud[key], (level, domain, key)
+    assert phonics.AUDIO_ONLY_DOMAINS == {"sight_words"}
+    # Every ear-only question really has nothing on screen naming its answer.
+    for level, domain, _seed, _phase, _index, task in _every_task():
+        assert (task.display["kind"] == "listen") == (domain in phonics.AUDIO_ONLY_DOMAINS)
+
+
+async def _secure_through_long_vowels(db, name):
+    for domain in ("blends_digraphs", "long_vowel_patterns"):
+        for _ in range(12):
+            await phonics_record.process_evidence(db, name, domain, "correct")
+
+
+@pytest.mark.asyncio
+async def test_a_sight_word_round_without_sound_serves_and_records_nothing(db):
+    await _save_grade(db, "Ben", "2")
+    await _secure_through_long_vowels(db, "Ben")
+    quiet = await routes.new_lesson("Ben", audio=False, auth=PARENT, db=db)
+    assert quiet["domain"] == "sight_words" and quiet["needs_audio"] is True
+    assert quiet["your_turn"] == [] and quiet["together"] == []
+    rows_before = await _ledger_rows(db, "Ben")
+    vector_before = await _vector(db, "Ben")
+    # Even a correct answer sent against that lesson's id is refused.
+    task = phonics.build_task("2", "sight_words", 0, "your_turn", 0)
+    for phase, index in (("your_turn", 0), ("together", 0)):
+        with pytest.raises(HTTPException) as exc:
+            await _send(db, "Ben", quiet, phase, index, choice=task.accept_choice)
+        assert exc.value.status_code == 404
+    assert await _ledger_rows(db, "Ben") == rows_before
+    assert (await _vector(db, "Ben")) == vector_before
+    # With sound, the same child gets the sight-word questions.
+    loud = await routes.new_lesson("Ben", auth=PARENT, db=db)
+    assert loud["domain"] == "sight_words" and len(loud["your_turn"]) == phonics.YOUR_TURN_TASKS
+
+
+@pytest.mark.asyncio
+async def test_a_lesson_id_cannot_be_flipped_from_quiet_to_loud(db):
+    await _save_grade(db, "Ben", "2")
+    await _secure_through_long_vowels(db, "Ben")
+    quiet = await routes.new_lesson("Ben", audio=False, auth=PARENT, db=db)
+    flipped = quiet["lesson_id"].split("-")
+    flipped[4] = "1"
+    task = phonics.build_task("2", "sight_words", 0, "your_turn", 0)
+    with pytest.raises(HTTPException) as exc:
+        await routes.answer("Ben", "-".join(flipped), routes.PhonicsAnswer(
+            phase="your_turn", index=0, choice=task.accept_choice), auth=PARENT, db=db)
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_grade_3_turn_does_not_read_the_saved_setting(db, monkeypatch):
+    from starlette.requests import Request
+
+    import routers.k2_practice as k2_routes
+    import routers.tutor as tutor_module
+    from models.schemas import Subject, TutorRequest
+
+    reads = []
+
+    async def spy(db_, name):
+        reads.append(name)
+        return "off"
+
+    async def fake_classify(*args, **kwargs):
+        return {"flagged": False, "categories": [], "confidence": "low", "should_block": False}
+
+    seen = []
+
+    async def fake_stream(*args, **kwargs):
+        seen.append(kwargs["config"])
+        yield '{"type": "done"}'
+
+    async def no_check(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(k2_routes, "saved_practice_offers", spy)
+    monkeypatch.setattr(tutor_module, "classify_child_message", fake_classify)
+    monkeypatch.setattr(tutor_module, "stream_tutor_response", fake_stream)
+    monkeypatch.setattr(tutor_module, "require_learner_access", no_check)
+    request = Request({"type": "http", "client": ("127.0.0.1", 1), "headers": [(b"user-agent", b"pytest")]})
+    for grade, stage, expect_read in (("3", "3-5", False), ("7", "6-8", False), ("1", "K-2", True)):
+        reads.clear()
+        req = TutorRequest(session_config=SessionConfig(student_name="Cal", grade=grade, grade_stage=stage),
+                           current_subject=Subject.language_arts, conversation_history=[], child_message="hi")
+        response = await tutor_module.chat(req, request, auth={"role": "child"}, db=db)
+        [c async for c in response.body_iterator]
+        assert (reads == ["Cal"]) is expect_read, grade
+
+
 async def _save_grade(db, name, grade):
     key = await student_keys.get_existing(db, name)
     row = await db.get(StudentConfig, name)
@@ -439,10 +547,10 @@ async def test_a_matched_spoken_answer_counts_like_a_tap(db):
 async def test_a_forged_expired_or_other_learners_lesson_id_is_404(db):
     lesson = await routes.new_lesson("Ben", auth=PARENT, db=db)
     task = _task("Ben", lesson, "your_turn", 0)
-    level, domain, seed = routes.read_lesson_id("Ben", lesson["lesson_id"])
+    level, domain, seed, _audio = routes.read_lesson_id("Ben", lesson["lesson_id"])
     forged = lesson["lesson_id"].rsplit("-", 1)[0] + "-" + "0" * 20
     other_domain = lesson["lesson_id"].replace(f"{level}-", f"{level}x-", 1)
-    body = f"{level}-{phonics.DOMAINS.index(domain)}-{seed}-20200101"
+    body = f"{level}-{phonics.DOMAINS.index(domain)}-{seed}-20200101-1"
     expired = f"{body}-{routes._mac('Ben', body)}"
     for name, lesson_id in (("Ada", lesson["lesson_id"]), ("Ben", forged), ("Ben", other_domain),
                             ("Ben", expired), ("Ben", "junk")):

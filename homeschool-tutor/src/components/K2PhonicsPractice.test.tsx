@@ -9,7 +9,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from '../i18n'
@@ -229,6 +229,46 @@ describe('K2PhonicsPractice', () => {
     expect(source).not.toMatch(/\b(w|min-w|max-w|h)-\[\d+px\]/)
     expect(source).not.toMatch(/style=\{\{[^}]*(width|height)\s*:\s*\d/)
     expect(source).not.toMatch(/framer-motion|react-spring|gsap|lottie/)
+  })
+
+  it('asks for a lesson without ear-only questions when the device cannot speak', async () => {
+    // No speaker at all (Bede's voice off).
+    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} />)
+    await screen.findByTestId('phonics-line')
+    expect(fetchPhonicsLesson).toHaveBeenLastCalledWith('tok', 'Sam', false)
+    cleanup()
+    // A speaker, but no installed voice for the language.
+    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={false} />)
+    await screen.findByTestId('phonics-line')
+    expect(fetchPhonicsLesson).toHaveBeenLastCalledWith('tok', 'Sam', false)
+    cleanup()
+    // Able to speak.
+    await open()
+    expect(fetchPhonicsLesson).toHaveBeenLastCalledWith('tok', 'Sam', true)
+  })
+
+  it('fetches nothing while it is still checking whether the device can speak', async () => {
+    const { rerender } = render(
+      <K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={null} />)
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
+    expect(fetchPhonicsLesson).not.toHaveBeenCalled()
+    rerender(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak />)
+    await screen.findByTestId('phonics-line')
+    expect(fetchPhonicsLesson).toHaveBeenCalledWith('tok', 'Sam', true)
+  })
+
+  it('says a sight-word round needs sound, offers nothing to answer, and sends nothing', async () => {
+    fetchPhonicsLesson.mockResolvedValue({
+      lesson_id: 'L9', area: 'phonics', level: '2', domain: 'sight_words', your_turn_tries: 2,
+      audio: false, needs_audio: true, watch: null, together: [], your_turn: [],
+    })
+    const onClose = vi.fn()
+    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={onClose} />)
+    expect((await screen.findByTestId('phonics-needs-sound')).textContent).toBe(en.k2Phonics.needsSound)
+    expect(screen.queryByRole('group', { name: 'Pick an answer' })).toBeNull()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Back to Bede' }).pop()!)
+    expect(onClose).toHaveBeenCalled()
+    expect(answerPhonicsTask).not.toHaveBeenCalled()
   })
 
   it('has the same keys in English and Spanish, and a line for every question the server asks', () => {

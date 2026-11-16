@@ -45,7 +45,7 @@ export function shownPromptText(t: TFunction, task: PhonicsTask, step: RoutineSt
 const HIDDEN_WHEN_SHOWN = ['first_sound_choice', 'sight_word_choice']
 
 /** What Bede says while demonstrating the Watch step. */
-export function watchText(t: TFunction, watch: PhonicsLesson['watch']): string {
+export function watchText(t: TFunction, watch: NonNullable<PhonicsLesson['watch']>): string {
   const answer = watch.answer.choice
   const word = watch.display.word ?? watch.prompt.args.word ?? answer
   const sounds = (watch.display.graphemes ?? []).filter((g) => g.sound).map((g) => g.sound).join(', ')
@@ -69,13 +69,17 @@ type Feedback =
   | { kind: 'trouble' }
 
 export default function K2PhonicsPractice({
-  token, studentName, onClose, onSpeak,
+  token, studentName, onClose, onSpeak, canSpeak,
 }: {
   token: string
   studentName: string
   onClose: () => void
   /** Reads a line aloud. Every instruction is spoken as well as shown. */
   onSpeak?: (text: string) => void
+  /** Whether this device can actually speak the round: false with no installed
+   * voice for the language or with Bede's voice off, null while still
+   * checking. Defaults to whether `onSpeak` was given. */
+  canSpeak?: boolean | null
 }) {
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<PhonicsLesson | null>(null)
@@ -89,21 +93,25 @@ export default function K2PhonicsPractice({
   const loadId = useRef(0)
   const reduced = useRef(prefersReducedMotion())
 
+  // A round the device cannot speak asks for a lesson without the questions
+  // that only work by ear; until that is known, nothing is fetched.
+  const audio = canSpeak === undefined ? !!onSpeak : canSpeak
   const load = useCallback(() => {
+    if (audio === null) return
     const mine = ++loadId.current
     setLesson(null); setFailed(false); setStep('watch'); setIndex(0); setDone(false); setFeedback(null)
-    fetchPhonicsLesson(token, studentName)
+    fetchPhonicsLesson(token, studentName, audio)
       .then((l) => { if (mine === loadId.current) setLesson(l) })
       .catch(() => { if (mine === loadId.current) setFailed(true) })
-  }, [token, studentName])
+  }, [token, studentName, audio])
 
   useEffect(() => { load(); return () => { loadId.current += 1 } }, [load])
 
-  const task: PhonicsTask | null = !lesson || done ? null
+  const task: PhonicsTask | null = !lesson || done || lesson.needs_audio ? null
     : step === 'watch' ? lesson.watch
       : step === 'together' ? lesson.together[index] : lesson.your_turn[index]
   const watching = step === 'watch'
-  const line = !task || !lesson ? '' : watching ? watchText(t, lesson.watch) : promptText(t, task)
+  const line = !task || !lesson ? '' : watching && lesson.watch ? watchText(t, lesson.watch) : promptText(t, task)
   const shownLine = !task || !lesson || watching ? line : shownPromptText(t, task, step)
 
   const speakRef = useRef(onSpeak)
@@ -175,6 +183,14 @@ export default function K2PhonicsPractice({
       </RoutineShell>
     )
   }
+  if (lesson.needs_audio) {
+    return (
+      <RoutineShell title={title} step="watch" onClose={onClose}>
+        <p className="text-lg text-gray-700 text-center" data-testid="phonics-needs-sound">{t('k2Phonics.needsSound')}</p>
+        <button type="button" onClick={onClose} className={PRIMARY}>{t('k2Phonics.backToBede')}</button>
+      </RoutineShell>
+    )
+  }
   if (done || !task) {
     return (
       <RoutineShell title={title} step="your_turn" done onClose={onClose}>
@@ -187,7 +203,7 @@ export default function K2PhonicsPractice({
     )
   }
 
-  const shownChoice = watching ? lesson.watch.answer.choice
+  const shownChoice = watching ? lesson.watch?.answer.choice
     : feedback?.kind === 'shown' ? feedback.choice : undefined
   const { display } = task
   const tappable = step === 'together' || watching

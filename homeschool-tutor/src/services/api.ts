@@ -2434,7 +2434,12 @@ export interface PhonicsLesson {
   level: 'K' | '1' | '2'
   domain: string
   your_turn_tries: number
-  watch: PhonicsTask & { answer: { choice: string } }
+  /** Whether the lesson was built for a device that can speak it. */
+  audio?: boolean
+  /** The child's practice works only by ear and the device cannot speak, so
+   * the lesson has no questions (sight words). Nothing can be recorded. */
+  needs_audio?: boolean
+  watch: (PhonicsTask & { answer: { choice: string } }) | null
   together: PhonicsTask[]
   your_turn: PhonicsTask[]
 }
@@ -2456,8 +2461,12 @@ async function phonicsFetch<T>(token: string, path: string, init?: RequestInit):
   return res.json()
 }
 
-export const fetchPhonicsLesson = (token: string, studentName: string) =>
-  phonicsFetch<PhonicsLesson>(token, `/${encodeURIComponent(studentName)}/phonics/lesson`)
+/** `audio: false` tells the server this device cannot speak the round, so it
+ * leaves out questions that work only by ear. It never chooses a level. */
+export const fetchPhonicsLesson = (token: string, studentName: string, audio = true) =>
+  phonicsFetch<PhonicsLesson>(
+    token, `/${encodeURIComponent(studentName)}/phonics/lesson${audio ? '' : '?audio=false'}`,
+  )
 
 export const answerPhonicsTask = (
   token: string, studentName: string, lessonId: string,

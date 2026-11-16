@@ -228,8 +228,9 @@ async def process_evidence(
     (`calibration_weight_for`, up to 2.0 at a cold start), so the step is
     exactly `weight`. Only K-2 practice passes it (owner ruling 2026-11-16):
     with the boost, one right practice answer moved a domain from 0.5 to 1.0,
-    secure, and the next round moved the child on. Without it no single
-    practice answer can make a domain secure; two right first tries can.
+    secure, and the next round moved the child on. Without it, from a fresh
+    record, no single practice answer can make a domain secure; two right
+    first tries can.
     Every other caller passes nothing and keeps the boost exactly as before.
 
     Persistence-backed entry point — mirrors composition.process_assessment

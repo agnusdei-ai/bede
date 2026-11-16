@@ -19,8 +19,8 @@ What a "Your turn" question records (decision 40(b), owner ruling
                               observation at half that (0.25)
 
 Each observation moves the estimate by its weight alone, without the
-early-evidence boost other check-ins get (owner ruling 2026-11-16), so no
-single practice answer can make a domain secure.
+early-evidence boost other check-ins get (owner ruling 2026-11-16), so from a
+fresh record no single practice answer can make a domain secure.
     answer shown              nothing at all, the ledger's standing rule
                               for work that was not completed
 
@@ -83,23 +83,25 @@ def _today() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def mint_lesson_id(student_name: str, level: str, domain: str, seed: int) -> str:
-    body = f"{level}-{phonics.DOMAINS.index(domain)}-{seed}-{_today():%Y%m%d}"
+def mint_lesson_id(student_name: str, level: str, domain: str, seed: int, audio: bool = True) -> str:
+    body = f"{level}-{phonics.DOMAINS.index(domain)}-{seed}-{_today():%Y%m%d}-{1 if audio else 0}"
     return f"{body}-{_mac(student_name, body)}"
 
 
-def read_lesson_id(student_name: str, lesson_id: str) -> tuple[str, str, int]:
-    """(level, domain, seed) for an id this server signed for this learner
-    today or yesterday. Anything else is the same 404."""
+def read_lesson_id(student_name: str, lesson_id: str) -> tuple[str, str, int, bool]:
+    """(level, domain, seed, audio) for an id this server signed for this
+    learner today or yesterday. Anything else is the same 404. `audio` is
+    signed in, so a lesson built without sound cannot be answered as one
+    with it."""
     try:
-        level, domain_index, seed, day, mac = lesson_id.split("-")
-        body = f"{level}-{domain_index}-{seed}-{day}"
+        level, domain_index, seed, day, audio, mac = lesson_id.split("-")
+        body = f"{level}-{domain_index}-{seed}-{day}-{audio}"
         if not hmac.compare_digest(mac, _mac(student_name, body)):
             raise ValueError
         valid_days = {f"{_today() - timedelta(days=n):%Y%m%d}" for n in (0, 1)}
-        if day not in valid_days or level not in phonics.LEVELS:
+        if day not in valid_days or level not in phonics.LEVELS or audio not in ("0", "1"):
             raise ValueError
-        return level, phonics.DOMAINS[int(domain_index)], int(seed)
+        return level, phonics.DOMAINS[int(domain_index)], int(seed), audio == "1"
     except (ValueError, IndexError):
         raise HTTPException(status_code=404, detail=NOT_FOUND) from None
 
@@ -162,16 +164,20 @@ async def _saved_phonics_vector(db: AsyncSession, student_name: str) -> Optional
 @router.get("/{student_name}/phonics/lesson")
 async def new_lesson(
     student_name: str,
+    audio: bool = True,
     auth: dict = Depends(require_real_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    """`audio=false` means the child's device cannot speak this round. It may
+    only remove questions that work only by ear; the level and domain still
+    come from the saved grade and the saved phonics record."""
     await require_learner_access(auth, student_name, db)
     await consent.require_collection(db, student_name)
     level = await _level_for(db, student_name)
     domain = phonics.domain_for(level, await _saved_phonics_vector(db, student_name))
     seed = secrets.randbelow(1_000_000)
-    lesson = phonics.build_lesson(level, seed, domain)
-    lesson["lesson_id"] = mint_lesson_id(student_name, level, domain, seed)
+    lesson = phonics.build_lesson(level, seed, domain, audio=audio)
+    lesson["lesson_id"] = mint_lesson_id(student_name, level, domain, seed, audio)
     lesson["your_turn_tries"] = YOUR_TURN_TRIES
     return lesson
 
@@ -222,7 +228,10 @@ async def answer(
     await require_learner_access(auth, student_name, db)
     await consent.require_collection(db, student_name)
     await _level_for(db, student_name)
-    level, domain, seed = read_lesson_id(student_name, lesson_id)
+    level, domain, seed, audio = read_lesson_id(student_name, lesson_id)
+    if not audio and domain in phonics.AUDIO_ONLY_DOMAINS:
+        # A lesson built without sound has no questions that work only by ear.
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
     try:
         task = phonics.build_task(level, domain, seed, body.phase, body.index)
     except ValueError:

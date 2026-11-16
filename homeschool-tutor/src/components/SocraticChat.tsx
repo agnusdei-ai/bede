@@ -8,7 +8,7 @@ import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
-import { speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
+import { hasLocalVoice, speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -209,6 +209,17 @@ export default function SocraticChat({
   // A phonics round speaks on the device; Bede's chat voice stops when it
   // opens, so two voices never talk over each other.
   useEffect(() => { if (showPhonics) stopSpeech() }, [showPhonics, stopSpeech])
+  // Whether this device has an installed voice for the session's language.
+  // Without one (or with Bede's voice off) the round is shown without speech
+  // and the server leaves out questions that work only by ear.
+  const [deviceVoice, setDeviceVoice] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!showPhonics) return
+    let live = true
+    setDeviceVoice(null)
+    hasLocalVoice().then((ok) => { if (live) setDeviceVoice(ok) })
+    return () => { live = false }
+  }, [showPhonics])
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -504,6 +515,9 @@ export default function SocraticChat({
     // Everything this turn has already said (text + rendered cards) — the
     // duplicate-suppression reference for isDuplicateUtterance below.
     let turnText = ''
+    // A turn that opened a phonics round is not read aloud at its end: the
+    // round speaks on the device, and Bede's voice must not talk over it.
+    let openedPracticeRound = false
     // Pictures this turn has already rendered. The server is the real fix
     // for repeated cards (see homeschool-api's shown_aid_ids); this is the
     // same guarantee restated where the rendering happens, since `tool`
@@ -536,7 +550,10 @@ export default function SocraticChat({
           // suppress — only the duplicated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
           if (chunk.tool === 'invite_map_practice') setShowMapPractice(true)
-          if (chunk.tool === 'invite_practice' && chunk.area === 'phonics') setShowPhonics(true)
+          if (chunk.tool === 'invite_practice' && chunk.area === 'phonics') {
+            openedPracticeRound = true
+            setShowPhonics(true)
+          }
           if (isDuplicateUtterance(chunk.content, turnText)) {
             // The turn already said this — don't render or speak it twice.
             continue
@@ -560,7 +577,7 @@ export default function SocraticChat({
         }
       }
       flush()
-      if (speechSegments.length && mine()) speak(speechSegments.join(' '))
+      if (speechSegments.length && mine() && !openedPracticeRound) speak(speechSegments.join(' '))
     } catch (err: unknown) {
       if (mine() && err instanceof Error && err.name !== 'AbortError') {
         // A dropped connection reaches here as Safari's "Load failed" or
@@ -1208,6 +1225,7 @@ export default function SocraticChat({
           // a cloud speech service (docs/K2_PRACTICE.md §6). Silent, as the
           // chat is, when the narration toggle is off.
           onSpeak={ttsEnabled ? speakOnDevice : undefined}
+          canSpeak={ttsEnabled ? deviceVoice : false}
         />
       )}
 

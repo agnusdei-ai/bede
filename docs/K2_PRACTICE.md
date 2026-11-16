@@ -154,7 +154,7 @@ values:
 | Answer shown, or the round left | none | none |
 
 A missed try is never an observation of its own, so the estimate moves only on
-a right answer. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but no single practice answer can make a skill secure; two right first tries can. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
+a right answer. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but from a fresh record, no single practice answer can make a skill secure; two right first tries can. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
 written. This is the phonics record Bede already keeps; it gains a practice
 source, not a new skill.
 
@@ -298,9 +298,15 @@ disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
-like the map practice card, and spoken by the device's own speech engine in the
-session's language (`utils/onDeviceSpeech.ts`), never through `/tutor/speak`,
-which forwards text to a cloud speech provider. A spoken answer is transcribed
+like the map practice card, and spoken only through a voice installed on the
+device, in the session's language (`utils/onDeviceSpeech.ts`): never through
+`/tutor/speak`, which forwards text to a cloud speech provider, and never with a
+browser network voice (`localService === false`, such as Chrome's "Google"
+voices) or an unchecked default voice. On a device with no installed voice for
+the language, or with Bede's voice turned off, the round is shown without
+speech, and the items that only work by ear (sight words) are not served or
+recorded; a child whose practice is sight words is told it needs sound.
+Bede's chat voice does not read the turn over a round it opened. A spoken answer is transcribed
 by the existing voice pipeline and counts only when it matches one of the item's
 own choices, and never when the spoken instruction already said the answer (a
 sight word), since repeating it is an echo rather than a reading. So nothing

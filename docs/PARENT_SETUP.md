@@ -2176,14 +2176,19 @@ What is kept:
 - Each question your child gets right alone adds one row to the work ledger
   on the Progress page and counts toward the phonics picture at half the
   weight of a live check. Right on the second try counts at a quarter. These
-  weights are product choices, not research findings. One right answer is
-  never enough to mark a step secure; it takes at least two.
+  weights are product choices, not research findings. From a fresh record,
+  one right answer is never enough to mark a step secure; two right first
+  tries are.
 - A question that ended with the answer shown records nothing. Saying "not
   now" records nothing.
 - The words, pictures and answers come from Bede's own code, never the AI,
   and nothing from a round is sent to any AI provider: the round is spoken
-  by your device's own voice, not Bede's cloud voice. Bede never judges how
-  your child pronounces a sound.
+  only by a voice installed on your device, never Bede's cloud voice or a
+  browser voice that works over the internet. On a device with no installed
+  voice for your child's language, or with Bede's voice turned off, the
+  round is shown without speech, and sight-word practice (which works only
+  by ear) waits until sound is on. Bede never judges how your child
+  pronounces a sound.
 
 The words are English phonics. In a Spanish session the instructions are in
 Spanish and the words stay English.

@@ -1380,6 +1380,7 @@
     "title": "Sound Time",
     "open": "Start Sound Time",
     "loading": "Getting the words ready…",
+    "needsSound": "This practice needs sound. Ask a grown-up to turn on Bede's voice, then try again.",
     "loadTrouble": "The practice could not be loaded.",
     "tryAgain": "Try again",
     "finished": "You finished Sound Time!",

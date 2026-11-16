@@ -61,6 +61,13 @@ LEDGER_SUBJECT_AREA = "phonics"
 #: never spoken in "Your turn".
 DECODING_DOMAINS = frozenset({"cvc_blending", "blends_digraphs", "long_vowel_patterns"})
 
+#: Domains whose questions work only by ear: a sight word is asked by saying
+#: it, and nothing on screen says which word to find. When the child's device
+#: cannot speak, these are neither served nor recorded, since a right answer
+#: would be a lucky guess. A first-sound question keeps its picture, so it
+#: stays.
+AUDIO_ONLY_DOMAINS = frozenset({"sight_words"})
+
 # ── The authored word lists ─────────────────────────────────────────────────
 
 #: Rhyming pairs. Every pair has its own ending, so a word from another pair
@@ -283,13 +290,23 @@ def build_watch(level: str, domain: str, seed: int) -> dict:
     return out
 
 
-def build_lesson(level: str, seed: int, domain: str) -> dict:
+def build_lesson(level: str, seed: int, domain: str, audio: bool = True) -> dict:
     """The whole lesson as sent to the child's screen. The answer is sent for
-    Watch only; Together and Your turn are checked on the server."""
+    Watch only; Together and Your turn are checked on the server.
+
+    `audio=False` (the child's device cannot speak) may only REMOVE questions:
+    it never changes the level or the domain. A domain that works only by ear
+    then has no questions, and the lesson says it needs sound."""
     if level not in LEVELS or domain not in DOMAINS:
         raise ValueError("unknown level or domain")
+    if not audio and domain in AUDIO_ONLY_DOMAINS:
+        return {
+            "area": "phonics", "level": level, "domain": domain, "label": DOMAIN_LABELS[domain],
+            "audio": False, "needs_audio": True, "watch": None, "together": [], "your_turn": [],
+        }
     return {
         "area": "phonics", "level": level, "domain": domain, "label": DOMAIN_LABELS[domain],
+        "audio": audio, "needs_audio": False,
         "watch": build_watch(level, domain, seed),
         "together": [build_task(level, domain, seed, "together", i).public("together", i)
                      for i in range(TOGETHER_TASKS)],

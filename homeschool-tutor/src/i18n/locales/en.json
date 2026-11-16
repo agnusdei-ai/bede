@@ -1408,6 +1408,10 @@
       "read_word_choice": "Read the word. Tap its picture.",
       "sight_word_choice": "Tap the word {{word}}."
     },
+    "promptShown": {
+      "first_sound_choice": "Which letter does it start with?",
+      "sight_word_choice": "Listen, then tap the word you hear."
+    },
     "watch": {
       "rhyme_choice": "Listen: {{word}} and {{answer}}. They rhyme! They end with the same sound.",
       "first_sound_choice": "{{word}} starts with the sound {{sound}}. We write that sound {{letter}}.",

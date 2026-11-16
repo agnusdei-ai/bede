@@ -29,6 +29,21 @@ export function promptText(t: TFunction, task: PhonicsTask): string {
   return t(`k2Phonics.prompt.${task.prompt.key}`, task.prompt.args)
 }
 
+/**
+ * The instruction as SHOWN. In "Your turn", where seeing the word written
+ * would give the answer away (its first letter, or the very word to find),
+ * the shown line leaves the word out; it is still spoken, because hearing it
+ * is the question.
+ */
+export function shownPromptText(t: TFunction, task: PhonicsTask, step: RoutineStep): string {
+  if (step === 'your_turn' && HIDDEN_WHEN_SHOWN.includes(task.prompt.key)) {
+    return t(`k2Phonics.promptShown.${task.prompt.key}`)
+  }
+  return promptText(t, task)
+}
+
+const HIDDEN_WHEN_SHOWN = ['first_sound_choice', 'sight_word_choice']
+
 /** What Bede says while demonstrating the Watch step. */
 export function watchText(t: TFunction, watch: PhonicsLesson['watch']): string {
   const answer = watch.answer.choice
@@ -89,6 +104,7 @@ export default function K2PhonicsPractice({
       : step === 'together' ? lesson.together[index] : lesson.your_turn[index]
   const watching = step === 'watch'
   const line = !task || !lesson ? '' : watching ? watchText(t, lesson.watch) : promptText(t, task)
+  const shownLine = !task || !lesson || watching ? line : shownPromptText(t, task, step)
 
   const speakRef = useRef(onSpeak)
   speakRef.current = onSpeak
@@ -180,7 +196,7 @@ export default function K2PhonicsPractice({
     <RoutineShell title={title} step={step} onClose={onClose}>
       <p className="text-base text-gray-600 text-center">{t(`k2Phonics.lead.${step}`)}</p>
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <p className="text-xl font-medium text-navy-700 text-center" data-testid="phonics-line">{line}</p>
+        <p className="text-xl font-medium text-navy-700 text-center" data-testid="phonics-line">{shownLine}</p>
         <button
           type="button" onClick={() => speakRef.current?.(line)}
           aria-label={t('k2Phonics.hearAgain')} title={t('k2Phonics.hearAgain')}

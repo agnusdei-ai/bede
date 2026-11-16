@@ -97,6 +97,9 @@ describe('K2PhonicsPractice', () => {
     await screen.findByText('Yes, that’s it!')
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     await screen.findByText('You finished the sounds and words!')
+    // The finish is a stopping point, never a tally.
+    expect(document.body.textContent ?? '').not.toMatch(SCORE_WORDS)
+    expect(document.body.textContent ?? '').not.toMatch(/\d+\s*(\/|of|out of)\s*\d+/)
   })
 
   it('never speaks the word in Your turn when reading it is the skill', async () => {
@@ -112,6 +115,44 @@ describe('K2PhonicsPractice', () => {
     expect(spoken).not.toMatch(/\bmap\b/)
     fireEvent.click(screen.getByRole('button', { name: 'Hear it again' }))
     expect(onSpeak).toHaveBeenLastCalledWith('Read the word. Tap its picture.')
+  })
+
+  it('in Your turn says the cue word aloud but never shows it written when that would give the answer', async () => {
+    const letters: PhonicsLesson = {
+      ...lesson(), level: 'K', domain: 'letter_sound',
+      watch: {
+        prompt: { key: 'first_sound_choice', args: { word: 'sun' } },
+        display: { kind: 'picture', icon: 'sun', word: 'sun' },
+        choice_kind: 'letter', choices: ['s', 'm', 'd'], choice_sounds: { s: 'sss', m: 'mmm', d: 'duh' },
+        answer: { choice: 's' },
+      },
+      together: [{
+        phase: 'together', index: 0, prompt: { key: 'first_sound_choice', args: { word: 'moon' } },
+        display: { kind: 'picture', icon: 'moon', word: 'moon' }, choice_kind: 'letter', choices: ['m', 'r', 't'],
+        choice_sounds: { m: 'mmm', r: 'rrr', t: 'tuh' },
+      }],
+      your_turn: [{
+        phase: 'your_turn', index: 0, prompt: { key: 'first_sound_choice', args: { word: 'pig' } },
+        display: { kind: 'picture', icon: 'pig', word: 'pig' }, choice_kind: 'letter', choices: ['p', 'b', 'h'],
+      }],
+    }
+    fetchPhonicsLesson.mockResolvedValue(letters)
+    const { onSpeak } = await open()
+    expect(onSpeak).toHaveBeenCalledWith('sun starts with the sound sss. We write that sound s.')
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
+    // Together is guided: the word may be shown, and a tapped letter says its sound.
+    expect(screen.getByTestId('phonics-line').textContent).toBe('Which letter starts moon?')
+    answerPhonicsTask.mockResolvedValueOnce({ understood: true, correct: true })
+    fireEvent.click(screen.getByRole('button', { name: 'm' }))
+    expect(onSpeak).toHaveBeenCalledWith('mmm')
+    await screen.findByText('Yes, that’s it!')
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByText('Your turn').getAttribute('aria-current')).toBe('step')
+    expect(onSpeak).toHaveBeenLastCalledWith('Which letter starts pig?')
+    expect(screen.getByTestId('phonics-line').textContent).toBe('Which letter does it start with?')
+    expect(screen.getByTestId('phonics-line').textContent).not.toMatch(/\bpig\b/)
+    fireEvent.click(screen.getByRole('button', { name: 'Hear it again' }))
+    expect(onSpeak).toHaveBeenLastCalledWith('Which letter starts pig?')
   })
 
   it('shows no score, timer or streak and never says wrong, in either language', async () => {

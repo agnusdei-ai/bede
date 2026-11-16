@@ -1408,6 +1408,10 @@
       "read_word_choice": "Lee la palabra. Toca su dibujo.",
       "sight_word_choice": "Toca la palabra {{word}}."
     },
+    "promptShown": {
+      "first_sound_choice": "¿Con qué letra empieza?",
+      "sight_word_choice": "Escucha y toca la palabra que oyes."
+    },
     "watch": {
       "rhyme_choice": "Escucha: {{word}} y {{answer}}. ¡Riman! Terminan con el mismo sonido.",
       "first_sound_choice": "{{word}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",

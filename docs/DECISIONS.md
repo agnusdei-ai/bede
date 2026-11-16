@@ -2379,7 +2379,14 @@ This is the owner's effective v1.0 ruling. It updates the **policy** of the exis
 
 ## 40. `[PRODUCT]` K-2 practice: the choices the specification leaves open
 
-**Status:** open · needs: owner rulings on (a) to (g)
+**Status:** open · needs: owner rulings on (c) to (g)
+
+**Decided (2026-11-16, owner), for (a) and (b):**
+
+- **(a)** The default is the third choice: **Bede may also choose from today's subjects.** Three limits come with it. Bede picks only from subjects already in that child's parent-set routine for today, and only from authored catalog content; it never invents a topic, word or item. The parent sees each offer (the server-written card in the conversation) and can switch it off with one tap per child. Practice sets made from uploaded quizzes still need the parent's approval before a child sees them. "Only practice sets I approved" never lets Bede choose on its own.
+- **(b)** A Your turn answer right on the first try, unaided, counts at **0.5** (`QUIZ_EVIDENCE_WEIGHT`); right on the second try, after the move is shown again, at **0.25**; an item that ended with the answer shown, or was left, counts **0** and writes no ledger row. These are product defaults the owner chose, not research-backed values. Step 1 applies them to the phonics estimate (`services/diagnostic/phonics.py`'s `process_evidence`, which gained a `weight` argument).
+
+Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (g) stay open below.
 
 [`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
 practice for kindergarten to grade 2: phonics, handwriting, practical math,
@@ -2387,8 +2394,8 @@ spelling and copying a sentence first, then memory work. Map reading, from the
 same design, shipped in #830. The specification cannot settle these, and each
 changes what gets built:
 
-- **(a) The per-child setting's default.** Off; only practice sets the parent approved; or Bede may also choose from today's subjects. *Recommended:* the third, since it is what makes practice Bede-initiated out of the box. The second is more cautious but means Bede rarely offers anything until a parent uploads a quiz.
-- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Recommended:* the marked-quiz weight, 0.5 (`QUIZ_EVIDENCE_WEIGHT`), since both are short, scaffolded observations rather than a test.
+- **(a) The per-child setting's default.** *Decided above.*
+- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Decided above.*
 - **(c) The handwriting style.** Ball-and-stick print, a continuous-stroke print, or pre-cursive. *Recommended:* ask the family in Parent Setup, defaulting to ball-and-stick, so Bede never teaches a different form from the one at home. Each style is its own stroke data.
 - **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
@@ -2444,6 +2451,6 @@ built. The owner ruled on each:
 
 Decision entry 40's rulings (the per-child default, evidence weight,
 handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
-separate and still open. So are the checklist's own pre-enrollment decisions:
+separate: (a) and (b) were ruled the same day, and (c) to (g) are still open. So are the checklist's own pre-enrollment decisions:
 supported devices and assistive technology, the final collected fields and
 vendors, and the pilot's learning objectives.

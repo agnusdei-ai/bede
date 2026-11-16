@@ -1,10 +1,11 @@
 # K-2 practice: Watch, Together, Your turn
 
-**Status: specification.** The first wave below is not built. Map reading, from
-the second wave, shipped in #830 (`docs/MAP_PRACTICE.md`) and set the pattern
-this spec follows. The decisions this spec cannot make for itself are
-`docs/DECISIONS.md` entry 40; where they are referred to below, the entry is the
-one place their answers will live.
+**Status: step 1 built; the rest is specification.** Step 1 of §9 (the shared
+`invite_practice` invitation, the per-child setting, and phonics) is built. The
+rest of the first wave is not. Map reading, from the second wave, shipped in
+#830 (`docs/MAP_PRACTICE.md`) and set the pattern this spec follows. The
+decisions this spec cannot make for itself are `docs/DECISIONS.md` entry 40;
+(a) and (b) were ruled by the owner on 2026-11-16, and (c) to (g) are open.
 
 ## 1. What this is for
 
@@ -97,7 +98,8 @@ dispatched**, the way `_map_practice_allowed` does it:
 - Only in the subjects that area belongs to (§5), and only if the parent scheduled that subject today. A parent's own lesson focus comes first.
 - At most one offer per area per session. Never when too little time is left on the block to finish a round (`time_remaining_seconds`, the same budget `services/action_governance.py` uses).
 - It is an invitation ("Shall I show you with the counters?"). The child can say not now, the lesson carries on, and declining records nothing.
-- A per-child parent setting with three choices: off; only practice sets I approved; or Bede may also choose from today's subjects. The default is decision 40(a).
+- A per-child parent setting with three choices: off; only practice sets I approved; or Bede may also choose from today's subjects. The default is the third (decision 40(a), owner ruling 2026-11-16), with three limits: Bede picks only from subjects already in that child's routine today and only from authored content, never inventing a word or an item; the parent sees each offer, as the server-written card in the conversation, and can switch it off with one tap per child; and practice sets made from uploaded quizzes still need the parent's approval. "Only practice sets I approved" never lets Bede choose on its own; step 1 has no approved phonics sets, so it offers no phonics.
+- A parent's own lesson focus comes first. This is prompt guidance, not a server gate: the invitation note tells Bede not to offer practice when today's lesson focus or the subject's "where we left off" note points elsewhere.
 
 **The tool.** One `invite_practice` tool with a closed `area` field (`phonics`,
 `handwriting`, `math`, `spelling`, `copy_sentence`). The card and its wording
@@ -139,10 +141,34 @@ each with a picture from the existing practice icon set (`models/practice.py`'s
 `ICONS`) or a small addition to it. Nothing is generated.
 
 **Records:** a work-ledger row as in §3, and a phonics observation through
-`services/diagnostic/phonics.py`'s `process_evidence` at a reduced weight
-(decision 40(b)). That function takes no weight today; it gains the same
-`weight` argument `literacy.process_evidence` already has. This is the phonics
-record Bede already keeps; it gains a practice source, not a new skill.
+`services/diagnostic/phonics.py`'s `process_evidence`, which now takes the same
+`weight` argument `literacy.process_evidence` has (a caller that passes none
+behaves as before). The weights are decision 40(b), ruled by the owner on
+2026-11-16. They are product defaults the owner chose, not research-backed
+values:
+
+| Your turn answer | Ledger row | Phonics observation weight |
+| --- | --- | --- |
+| Right on the first try | one, unaided | 0.5 (`QUIZ_EVIDENCE_WEIGHT`) |
+| Right on the second try | one, with a hint | 0.25 |
+| Answer shown, or the round left | none | none |
+
+A missed try is never an observation of its own, so the estimate moves only on
+a right answer. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
+written. This is the phonics record Bede already keeps; it gains a practice
+source, not a new skill.
+
+**Built (step 1).** `services/k2_practice/phonics.py` builds a lesson from
+(level, domain, seed) with an authored word list per domain; the level comes
+from the saved grade and the domain from the saved phonics record, never from
+the request. `routers/k2_practice.py` serves it under a signed lesson id. The
+screen is `components/K2PhonicsPractice.tsx` inside `RoutineShell`. In "Your
+turn", where reading the word is the skill, neither the word nor the letters'
+sounds are sent, so narration cannot give the answer away. The words are
+English phonics; in a Spanish session the instructions are Spanish and the
+words stay English. Answering by voice inside the screen is not built; the
+server accepts a spoken answer and counts it only when it matches one offered
+choice.
 
 ### 5.2 Handwriting (letter formation)
 
@@ -292,7 +318,7 @@ line, the child echoes it, then says it from memory. Two firm limits:
 Each step is its own PR, with tests that fail when the behavior is broken, and
 the docs updated in the same PR.
 
-1. **The shared invitation and phonics.** `invite_practice` with its server-side limits and the parent setting (§4), and the phonics area (§5.1) in `RoutineShell`.
+1. **The shared invitation and phonics.** `invite_practice` with its server-side limits and the parent setting (§4), and the phonics area (§5.1) in `RoutineShell`. *Built.* Its 200% layout is pinned in this step by a class contract (rem sizes, no fixed widths); the real 200% browser check is step 6.
 2. **Handwriting** (§5.2): stroke data for the chosen style, the animated pen, and tracing guides on the canvas.
 3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler.
 4. **Spelling** (§5.4): the K-2 patterns, letter tiles, and delivery of approved word lists and Practice Coach misses as rounds.
@@ -319,8 +345,8 @@ entry 42.
 The choices this spec leaves open are recorded as `docs/DECISIONS.md` entry 40,
 with a recommendation for each:
 
-- **(a)** the default of the per-child setting in §4;
-- **(b)** the weight of practice evidence in the phonics and math estimates;
+- **(a)** the default of the per-child setting in §4 (ruled 2026-11-16: Bede may also choose from today's subjects, with the limits in §4);
+- **(b)** the weight of practice evidence in the phonics and math estimates (ruled 2026-11-16 for phonics: 0.5, 0.25, and nothing for an answer shown; see §5.1);
 - **(c)** the handwriting style;
 - **(d)** how parents approve word lists;
 - **(e)** whether K-2 spelling gets a measured skill;

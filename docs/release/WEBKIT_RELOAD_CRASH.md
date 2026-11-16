@@ -65,6 +65,31 @@ reached `main` through the owner-directed #841, and release qualification has
 run on WebKit 26.6 since. The cycle's own gates stay NOT_RUN for this
 candidate, and the physical Mac and Safari gates are still owed.
 
+## Automated reproduction and real Safari are two separate results
+
+Playwright drives its own patched WebKit build. It cannot automate branded
+Safari, and its WebKit support follows its own platform floor, not Safari's:
+Safari 26.6 runs on macOS 14, 15 and 26, but Playwright removed macOS 14
+WebKit support in 1.59. So:
+
+- **Automated crash reproduction:** a GitHub-hosted `macos-15` runner, Node
+  exactly v24.22.2, and Playwright pinned per pair: 1.56.0 (WebKit 26.0, the
+  original crash) as the baseline and 1.63.0 (WebKit 26.6) as a separately
+  labeled comparison. The browser is the one the pinned package installs,
+  never system Safari. `webkit-reload-diagnosis.yml` records and verifies the
+  actual macOS build, architecture, Node and WebKit build, and fails on a
+  mismatch.
+- **Real Safari acceptance:** actual Safari 26.6 on a supported Mac (and the
+  WKWebView app and Home Screen web app), recorded as its own result. A pass in
+  Playwright's WebKit is never reported as a Safari pass.
+
+**Reproduction rule.** Match the original crash environment before changing
+versions. One variable at a time: the comparison changes only the
+Playwright/WebKit pair, with the same app commit, Node and backend
+dependencies. If the crash disappears in the comparison, that shows the
+engine change removed it, not that an application fix did; there is no
+application fix for this defect.
+
 ## Acceptance criteria (owner, 2026-11-15)
 
 | Check | Evidence required |

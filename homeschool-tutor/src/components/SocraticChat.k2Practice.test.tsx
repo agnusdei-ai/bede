@@ -3,6 +3,8 @@
  * reads the server's `area` off the tool chunk and mounts K2PhonicsPractice,
  * which loads its lesson from the practice route. The card can reopen it.
  */
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
@@ -15,6 +17,16 @@ const CONFIG = {
 } as unknown as SessionConfig
 
 const CARD = '🔤 *Sound Time* — Let’s play with sounds and words.'
+const MATH_CARD = '🔢 *Number Time* — Let’s play with counters and numbers.'
+const MATH_LESSON = {
+  lesson_id: 'M1', area: 'math', level: '1', topic: 'add', skill: 'oa.add_within_20', your_turn_tries: 2,
+  watch: {
+    prompt: { key: 'add_how_many', args: { a: '5', b: '3' } },
+    display: { diagram: { kind: 'ten_frame', frames: 1, red: 5, yellow: 3 }, guide: true },
+    choice_kind: 'number', choices: ['7', '8', '9'], answer: { choice: '8' },
+  },
+  together: [], your_turn: [],
+}
 const LESSON = {
   lesson_id: 'L1', area: 'phonics', level: '1', domain: 'cvc_blending', your_turn_tries: 2,
   watch: {
@@ -33,7 +45,10 @@ function sse(chunks: object[]): Response {
 let area: string | undefined
 const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
   if (String(url).includes('/tutor/chat')) {
-    return sse([{ type: 'tool', tool: 'invite_practice', area, content: CARD }, { type: 'done' }])
+    return sse([{ type: 'tool', tool: 'invite_practice', area, content: area === 'math' ? MATH_CARD : CARD }, { type: 'done' }])
+  }
+  if (String(url).includes('/k2-practice/') && String(url).includes('/math/')) {
+    return new Response(JSON.stringify(MATH_LESSON), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
   if (String(url).includes('/k2-practice/')) {
     return new Response(JSON.stringify(LESSON), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -128,8 +143,55 @@ describe('the invite_practice card', () => {
     expect(lessonUrls.every((u) => u.endsWith('/phonics/lesson?audio=false'))).toBe(true)
   })
 
-  it('opens nothing for an area that is not built', async () => {
+  it('opens the math round for area "math", which loads its lesson from the math route', async () => {
     area = 'math'
+    render(<SocraticChat />)
+    expect(await screen.findByRole('dialog', { name: 'Number Time' })).toBeTruthy()
+    const urls = fetchMock.mock.calls.map(([u]) => String(u))
+    expect(urls.some((u) => u.includes('/k2-practice/Ada/math/lesson'))).toBe(true)
+    expect(urls.some((u) => u.includes('/phonics/lesson'))).toBe(false)
+    expect(screen.queryByRole('dialog', { name: 'Sound Time' })).toBeNull()
+    // Closing returns to the chat; the math card reopens the math round, not phonics.
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Bede' }))
+    expect(screen.queryByRole('dialog', { name: 'Number Time' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Start Sound Time' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Number Time' }))
+    expect(await screen.findByRole('dialog', { name: 'Number Time' })).toBeTruthy()
+  })
+
+  it('speaks the math round on the device, never through /tutor/speak, and Bede stays quiet', async () => {
+    const spoken: string[] = []
+    class Utterance { text: string; lang = ''; voice: unknown = null; rate = 1; pitch = 1
+      constructor(text: string) { this.text = text } }
+    vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
+    vi.stubGlobal('speechSynthesis', {
+      speak: (u: Utterance) => spoken.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+      getVoices: () => [{ name: 'Daniel', lang: 'en-GB', localService: true }],
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), speaking: false, pending: false,
+    })
+    area = 'math'
+    render(<SocraticChat />)
+    await screen.findByRole('dialog', { name: 'Number Time' })
+    const watchLine = '5 red and 3 yellow. I count them all: 8.'
+    await waitFor(() => expect(spoken).toContain(watchLine))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/tutor/speak'))).toEqual([])
+  })
+
+  it('reopens the right round from a stored card by the card prefix the server writes', () => {
+    // The stored card keeps no area, so the chat tells math from phonics by
+    // the server's locale-independent prefix. Both copies must agree.
+    const chat = readFileSync(join(__dirname, 'SocraticChat.tsx'), 'utf8')
+    const server = readFileSync(join(__dirname, '../../../homeschool-api/services/k2_practice/__init__.py'), 'utf8')
+    const ts = chat.match(/const MATH_CARD_PREFIX = '\\u\{([0-9A-F]+)\} '/)?.[1]
+    const py = server.match(/"math": "\\U([0-9A-F]{8}) "/)?.[1]
+    expect(ts).toBeTruthy()
+    expect(parseInt(ts!, 16)).toBe(parseInt(py!, 16))
+    expect(MATH_CARD.codePointAt(0)).toBe(parseInt(py!, 16))
+  })
+
+  it('opens nothing for an area that is not built', async () => {
+    area = 'spelling'
     render(<SocraticChat />)
     await screen.findAllByText(/Sound Time/)
     await act(async () => { await new Promise((r) => setTimeout(r, 30)) })

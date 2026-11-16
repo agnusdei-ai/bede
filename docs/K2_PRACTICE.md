@@ -258,7 +258,7 @@ already keeps for the tab only.
 - **Honest record.** Only what is in §3 and each area's "Records". A blank is never shown as a low mark.
 - **The parent decides.** Parents approve word lists and practice sets before a child sees them, choose the setting in §4, and see every ledger row on Progress. A child never sees a record of their own practice.
 - **What helps this child applies.** A child's `learning_support` and reading settings carry into the round. For example, tiles instead of writing for a child who answers better that way, and the letter and line spacing the parent set.
-- **Accessible.** 44 px touch targets, usable at 175% text, every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
+- **Accessible.** 56 px touch targets, 64 px for the main action, 8 px apart; usable at 200% text; every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
 - **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing from a round goes to any AI provider.
 - **Reliable.** A lesson rebuilds from its signed id, a reload resumes it, a retried answer counts once, and every check runs without an AI call.
 - **Never faith.** No area records anything about prayer, Scripture or devotional text. See §8.
@@ -312,7 +312,12 @@ records go to the existing work ledger and evidence paths.
 
 ## 11. Decisions
 
-Recorded as `docs/DECISIONS.md` entry 40, with a recommendation for each:
+The UX baseline every area is held to is [`K2_UX_CHECKLIST.md`](K2_UX_CHECKLIST.md),
+with the owner's rulings on where it met Bede as built in `docs/DECISIONS.md`
+entry 42.
+
+The choices this spec leaves open are recorded as `docs/DECISIONS.md` entry 40,
+with a recommendation for each:
 
 - **(a)** the default of the per-child setting in §4;
 - **(b)** the weight of practice evidence in the phonics and math estimates;

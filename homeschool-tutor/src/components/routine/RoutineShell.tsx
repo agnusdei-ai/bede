@@ -50,7 +50,7 @@ export default function RoutineShell({
         </ol>
         <button
           type="button" onClick={onClose} aria-label={t('routine.back')}
-          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+          className="min-h-14 min-w-14 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
         >
           <X size={20} />
         </button>

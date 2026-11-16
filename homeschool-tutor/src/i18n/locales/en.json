@@ -424,7 +424,15 @@
     "lineLoose": "Loosest",
     "frequentBreaks": "Offer a break every 20 minutes",
     "frequentBreaksTooltip": "Normally offered only to K-3; this offers the same pause at any age, and your child can always wave it off. It cannot change or skip the required hourly break. Removing an age limit on a choice that is yours to make, not a claim that more breaks improve attention.",
-    "trialLicense": "Trial"
+    "trialLicense": "Trial",
+    "practiceOffersLabel": "Practice Bede may offer (K-2)",
+    "practiceOffersHelp": "Short sound-and-word practice in Language Arts and Living Books, only on days those subjects are in the plan. You will see each offer in the conversation.",
+    "practiceOffers_off": "Off",
+    "practiceOffers_offHelp": "Bede offers no practice.",
+    "practiceOffers_approved_only": "Only sets I approved",
+    "practiceOffers_approved_onlyHelp": "Bede never chooses on its own. Practice made from a quiz you uploaded still needs your approval.",
+    "practiceOffers_todays_subjects": "Today’s subjects too",
+    "practiceOffers_todays_subjectsHelp": "Bede may also offer a round from today’s subjects, using only its own word lists."
   },
   "parentGreeting": {
     "title": "What should Bede call you? (optional)",
@@ -1367,5 +1375,44 @@
       "ground_choice": "Is square {{square}} land or water?"
     },
     "open": "Open the map"
+  },
+  "k2Phonics": {
+    "title": "Sounds and words",
+    "open": "Start sounds and words",
+    "loading": "Getting the words ready…",
+    "loadTrouble": "The practice could not be loaded.",
+    "tryAgain": "Try again",
+    "finished": "You finished the sounds and words!",
+    "backToBede": "Back to Bede",
+    "another": "Play again",
+    "letsTry": "Let’s try one",
+    "next": "Next",
+    "hearAgain": "Hear it again",
+    "hearLetter": "Hear {{letter}}",
+    "hearWord": "Hear {{word}}",
+    "theWord": "The word",
+    "pickAnAnswer": "Pick an answer",
+    "thisOne": "This one",
+    "right": "Yes, that’s it!",
+    "again": "Let’s look again. Try once more.",
+    "shown": "Here it is. Tap Next when you are ready.",
+    "checkTrouble": "That answer could not be checked. Try again.",
+    "lead": {
+      "watch": "Watch and listen.",
+      "together": "Now we do it together.",
+      "your_turn": "Your turn."
+    },
+    "prompt": {
+      "rhyme_choice": "Which one rhymes with {{word}}?",
+      "first_sound_choice": "Which letter starts {{word}}?",
+      "read_word_choice": "Read the word. Tap its picture.",
+      "sight_word_choice": "Tap the word {{word}}."
+    },
+    "watch": {
+      "rhyme_choice": "Listen: {{word}} and {{answer}}. They rhyme! They end with the same sound.",
+      "first_sound_choice": "{{word}} starts with the sound {{sound}}. We write that sound {{letter}}.",
+      "read_word_choice": "Listen: {{sounds}}. Put the sounds together: {{word}}!",
+      "sight_word_choice": "This word is {{word}}. We know it by sight."
+    }
   }
 }

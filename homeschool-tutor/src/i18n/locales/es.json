@@ -424,7 +424,15 @@
     "lineLoose": "Máximo",
     "frequentBreaks": "Ofrecer un descanso cada 20 minutos",
     "frequentBreaksTooltip": "Normalmente solo se ofrece de K a 3.º; esto ofrece la misma pausa a cualquier edad, y su hijo siempre puede rechazarla. No cambia ni omite el descanso obligatorio de cada hora. Quita un límite de edad sobre una decisión que le corresponde a usted; no afirma que más descansos mejoren la atención.",
-    "trialLicense": "Prueba"
+    "trialLicense": "Prueba",
+    "practiceOffersLabel": "Práctica que Bede puede ofrecer (K-2)",
+    "practiceOffersHelp": "Práctica corta de sonidos y palabras en Lenguaje y Libros vivos, solo los días en que esas materias están en el plan. Verás cada oferta en la conversación.",
+    "practiceOffers_off": "Apagado",
+    "practiceOffers_offHelp": "Bede no ofrece práctica.",
+    "practiceOffers_approved_only": "Solo lo que yo aprobé",
+    "practiceOffers_approved_onlyHelp": "Bede nunca elige por su cuenta. La práctica hecha de un examen que subiste sigue necesitando tu aprobación.",
+    "practiceOffers_todays_subjects": "También las materias de hoy",
+    "practiceOffers_todays_subjectsHelp": "Bede también puede ofrecer una ronda de las materias de hoy, usando solo sus propias listas de palabras."
   },
   "parentGreeting": {
     "title": "¿Cómo quiere que Bede lo llame? (opcional)",
@@ -1367,5 +1375,44 @@
       "ground_choice": "¿El cuadro {{square}} es tierra o agua?"
     },
     "open": "Abrir el mapa"
+  },
+  "k2Phonics": {
+    "title": "Sonidos y palabras",
+    "open": "Empezar sonidos y palabras",
+    "loading": "Preparando las palabras…",
+    "loadTrouble": "No se pudo cargar la práctica.",
+    "tryAgain": "Intentar de nuevo",
+    "finished": "¡Terminaste los sonidos y palabras!",
+    "backToBede": "Volver con Bede",
+    "another": "Jugar otra vez",
+    "letsTry": "Probemos uno",
+    "next": "Siguiente",
+    "hearAgain": "Escuchar otra vez",
+    "hearLetter": "Escuchar {{letter}}",
+    "hearWord": "Escuchar {{word}}",
+    "theWord": "La palabra",
+    "pickAnAnswer": "Elige una respuesta",
+    "thisOne": "Esta",
+    "right": "¡Sí, esa es!",
+    "again": "Miremos otra vez. Inténtalo una vez más.",
+    "shown": "Aquí está. Toca Siguiente cuando estés listo.",
+    "checkTrouble": "No se pudo revisar esa respuesta. Inténtalo de nuevo.",
+    "lead": {
+      "watch": "Mira y escucha.",
+      "together": "Ahora lo hacemos juntos.",
+      "your_turn": "Te toca a ti."
+    },
+    "prompt": {
+      "rhyme_choice": "¿Cuál rima con {{word}}?",
+      "first_sound_choice": "¿Con qué letra empieza {{word}}?",
+      "read_word_choice": "Lee la palabra. Toca su dibujo.",
+      "sight_word_choice": "Toca la palabra {{word}}."
+    },
+    "watch": {
+      "rhyme_choice": "Escucha: {{word}} y {{answer}}. ¡Riman! Terminan con el mismo sonido.",
+      "first_sound_choice": "{{word}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
+      "read_word_choice": "Escucha: {{sounds}}. Junta los sonidos: ¡{{word}}!",
+      "sight_word_choice": "Esta palabra es {{word}}. La conocemos de vista."
+    }
   }
 }

@@ -1,8 +1,17 @@
-"""K-2 phonics practice routes (services/k2_practice/phonics.py,
-docs/K2_PRACTICE.md §5.1). Modelled on routers/map_practice.py.
+"""K-2 practice routes: phonics (services/k2_practice/phonics.py,
+docs/K2_PRACTICE.md §5.1) and practical math
+(services/k2_practice/practical_math.py, §5.3). Modelled on
+routers/map_practice.py.
 
     GET  /k2-practice/{student}/phonics/lesson                 a new lesson
     POST /k2-practice/{student}/phonics/lessons/{id}/answers   check one answer
+    GET  /k2-practice/{student}/math/lesson                    a new lesson
+    POST /k2-practice/{student}/math/lessons/{id}/answers      check one answer
+
+The two areas share everything but the builder and the record they write:
+the signed lesson id (each area signs with its own key, so a phonics id can
+never be answered as a math one), the saved-grade level, the per-child
+setting, one recorded round per area per sign-in, and the weights below.
 
 Nothing about a lesson is stored. A lesson id names the level, domain, seed
 and day and is signed for one learner, so the server rebuilds the same
@@ -14,8 +23,10 @@ What a "Your turn" question records (decision 40(b), owner ruling
 2026-11-16; the weights are product defaults, not research values):
 
     right on the first try    one ledger row (unaided), and a phonics
-                              observation at QUIZ_EVIDENCE_WEIGHT (0.5)
-    right on the second try   one ledger row (with a hint), and a phonics
+                              observation at QUIZ_EVIDENCE_WEIGHT (0.5);
+                              for math, an observation for the topic's
+                              skill at `confidence` 0.5
+    right on the second try   one ledger row (with a hint), and an
                               observation at half that (0.25)
 
 Each observation moves the estimate by its weight alone, without the
@@ -48,9 +59,10 @@ from core.deps import require_family_data_write, require_learner_access, require
 from core.encryption import decrypt_json
 from core.log_redaction import learner_ref
 from models.schemas import GradeStage, SessionConfig
+from services import diagnostic as math_record
 from services.diagnostic import phonics as phonics_record
 from services.diagnostic.activity import record_activity
-from services.k2_practice import phonics
+from services.k2_practice import phonics, practical_math
 from services.practice.evidence import QUIZ_EVIDENCE_WEIGHT
 
 log = logging.getLogger("sage.k2_practice")
@@ -89,8 +101,14 @@ _rounds: dict[tuple[str, str, str], dict] = {}
 _progress: dict[tuple[str, str], dict] = {}
 
 
-def _mac(student_name: str, body: str) -> str:
-    msg = f"k2-practice-phonics|{student_name}|{body}".encode()
+#: What a lesson id's middle number indexes, per area: phonics domains, math topics.
+_AREA_ITEMS = {"phonics": phonics.DOMAINS, "math": practical_math.TOPICS}
+
+
+def _mac(student_name: str, body: str, area: str = "phonics") -> str:
+    # Each area signs with its own prefix, so an id minted for one area is a
+    # forgery to the other.
+    msg = f"k2-practice-{area}|{student_name}|{body}".encode()
     return hmac.new(settings.secret_key.encode(), msg, hashlib.sha256).hexdigest()[:20]
 
 
@@ -98,25 +116,27 @@ def _today() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def mint_lesson_id(student_name: str, level: str, domain: str, seed: int, audio: bool = True) -> str:
-    body = f"{level}-{phonics.DOMAINS.index(domain)}-{seed}-{_today():%Y%m%d}-{1 if audio else 0}"
-    return f"{body}-{_mac(student_name, body)}"
+def mint_lesson_id(student_name: str, level: str, domain: str, seed: int, audio: bool = True,
+                   area: str = "phonics") -> str:
+    """`domain` is the area's item: a phonics domain or a math topic."""
+    body = f"{level}-{_AREA_ITEMS[area].index(domain)}-{seed}-{_today():%Y%m%d}-{1 if audio else 0}"
+    return f"{body}-{_mac(student_name, body, area)}"
 
 
-def read_lesson_id(student_name: str, lesson_id: str) -> tuple[str, str, int, bool]:
-    """(level, domain, seed, audio) for an id this server signed for this
-    learner today or yesterday. Anything else is the same 404. `audio` is
-    signed in, so a lesson built without sound cannot be answered as one
-    with it."""
+def read_lesson_id(student_name: str, lesson_id: str, area: str = "phonics") -> tuple[str, str, int, bool]:
+    """(level, domain or topic, seed, audio) for an id this server signed for
+    this learner and this area, today or yesterday. Anything else is the same
+    404. `audio` is signed in, so a lesson built without sound cannot be
+    answered as one with it."""
     try:
         level, domain_index, seed, day, audio, mac = lesson_id.split("-")
         body = f"{level}-{domain_index}-{seed}-{day}-{audio}"
-        if not hmac.compare_digest(mac, _mac(student_name, body)):
+        if not hmac.compare_digest(mac, _mac(student_name, body, area)):
             raise ValueError
         valid_days = {f"{_today() - timedelta(days=n):%Y%m%d}" for n in (0, 1)}
         if day not in valid_days or level not in phonics.LEVELS or audio not in ("0", "1"):
             raise ValueError
-        return level, phonics.DOMAINS[int(domain_index)], int(seed), audio == "1"
+        return level, _AREA_ITEMS[area][int(domain_index)], int(seed), audio == "1"
     except (ValueError, IndexError):
         raise HTTPException(status_code=404, detail=NOT_FOUND) from None
 
@@ -128,14 +148,14 @@ def sign_in_key(auth: dict) -> str:
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:24]
 
 
-def _round(student_name: str, auth: dict) -> dict:
+def _round(student_name: str, auth: dict, area: str = AREA) -> dict:
     now = time.monotonic()
     if len(_rounds) >= _MAX_PROGRESS:
         for key in [k for k, v in _rounds.items() if now - v["at"] > _PROGRESS_TTL_SECONDS]:
             _rounds.pop(key, None)
         while len(_rounds) >= _MAX_PROGRESS:
             _rounds.pop(next(iter(_rounds)))
-    entry = _rounds.setdefault((student_name, AREA, sign_in_key(auth)),
+    entry = _rounds.setdefault((student_name, area, sign_in_key(auth)),
                                {"at": now, "lesson_id": None, "count": 0})
     entry["at"] = now
     return entry
@@ -178,9 +198,10 @@ async def saved_practice_offers(db: AsyncSession, student_name: str) -> str:
 
 async def _level_for(db: AsyncSession, student_name: str) -> str:
     """The learner's level from their SAVED grade, never from the request.
-    Only "todays_subjects" serves a round in step 1: with "off" there is no
-    practice, and with "only sets I approved" there is no approved phonics
-    set yet, so neither may build a lesson or record evidence."""
+    Only "todays_subjects" serves a round: with "off" there is no practice,
+    and with "only sets I approved" there is no approved phonics or math set
+    yet, so neither may build a lesson or record evidence. Phonics and math
+    share the K, 1, 2 levels (a test keeps the two lists equal)."""
     config = await _saved_config(db, student_name)
     level = phonics.level_for_grade(config.grade)
     if (level is None or config.grade_stage != GradeStage.foundations
@@ -277,9 +298,19 @@ async def answer(
     except ValueError:
         raise HTTPException(status_code=404, detail=NOT_FOUND) from None
 
+    return await _settle(db, student_name, lesson_id, body, auth, task, AREA,
+                         lambda text: phonics.match_spoken(task, text),
+                         lambda first_try: _record(db, student_name, domain, first_try=first_try))
+
+
+async def _settle(db, student_name: str, lesson_id: str, body: "PhonicsAnswer", auth: dict, task,
+                  area: str, match, record) -> dict:
+    """Check one answer to an area's task and, for a right "Your turn"
+    answer in the sign-in's recorded round, write it once through `record`.
+    Shared by phonics and math, so the two keep one set of rules."""
     choice = body.choice
     if body.spoken is not None:
-        choice = phonics.match_spoken(task, body.spoken)
+        choice = match(body.spoken)
         if choice is None:
             # Not understood is not a miss and not an answer: ask again.
             return {"understood": False, "correct": False}
@@ -312,14 +343,115 @@ async def answer(
     # a no-sound lesson with nothing to answer leave the round unused. The
     # check and the claim run with no await between them, so two lessons
     # answered at once in one sign-in cannot both become the recorded round.
-    entry = _round(student_name, auth)
+    entry = _round(student_name, auth, area)
     if entry["lesson_id"] is None:
         entry["lesson_id"] = lesson_id
     if entry["lesson_id"] != lesson_id or entry["count"] >= MAX_RECORDED_ANSWERS:
         # "Another one": practice only. Nothing is written anywhere.
         return {"understood": True, "correct": True, "recorded": False, "practice_only": True}
     entry["count"] += 1
-    recorded = await _record(db, student_name, domain, first_try=misses == 0)
+    recorded = await record(misses == 0)
     if not recorded:
-        log.info("Phonics practice answer not recorded for %s", learner_ref(student_name))
+        log.info("K-2 %s practice answer not recorded for %s", area, learner_ref(student_name))
     return {"understood": True, "correct": True, "recorded": recorded}
+
+
+# ── Practical math (docs/K2_PRACTICE.md §5.3) ────────────────────────────────
+
+MATH_AREA = "math"
+
+
+async def _saved_math_vector(db: AsyncSession, student_name: str) -> Optional[dict]:
+    """The child's saved math record (skill id -> probability), or None when
+    there is none or it cannot be read; then a lesson starts at the level's
+    first topic."""
+    from sqlalchemy import select
+
+    from core.database import MasteryProfile
+    from core.encryption import student_aad
+
+    try:
+        row = (await db.execute(select(MasteryProfile).where(
+            MasteryProfile.student_name == student_name, MasteryProfile.subject_area == "mathematics",
+        ))).scalar_one_or_none()
+        if row is None:
+            return None
+        return decrypt_json(row.profile_enc, student_aad("mastery_profiles", "profile_enc", student_name,
+                                                         "mathematics"),
+                            await student_keys.get_existing(db, student_name))
+    except Exception:
+        return None
+
+
+@router.get("/{student_name}/math/lesson")
+async def new_math_lesson(
+    student_name: str,
+    audio: bool = True,
+    auth: dict = Depends(require_real_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """A practical-math lesson: the level from the saved grade, the topic
+    from the saved math record, nothing from the request. `audio=false` may
+    only remove questions that work only by ear; no math question does, so
+    the lesson is the same either way."""
+    await require_learner_access(auth, student_name, db)
+    await consent.require_collection(db, student_name)
+    level = await _level_for(db, student_name)
+    topic = practical_math.topic_for(level, await _saved_math_vector(db, student_name))
+    seed = secrets.randbelow(1_000_000)
+    lesson = practical_math.build_lesson(level, seed, topic, audio=audio)
+    lesson["lesson_id"] = mint_lesson_id(student_name, level, topic, seed, audio, area=MATH_AREA)
+    lesson["your_turn_tries"] = YOUR_TURN_TRIES
+    return lesson
+
+
+class MathAnswer(PhonicsAnswer):
+    """One answer to a math question: a tapped choice (a number, or which row
+    has more), the number of counters on a ten-frame after the child dragged
+    or tapped them (sent as that number, itself one of the choices), or
+    spoken words. Never typed text: anything off the choices is refused, and
+    nothing a child says is kept."""
+
+
+async def _record_math(db: AsyncSession, student_name: str, topic: str, first_try: bool) -> bool:
+    """One completed question: a ledger row, then the observation for the
+    topic's skill at its weight, through the math engine's own evidence path
+    (services/diagnostic's process_evidence `confidence`). Practice skips the
+    early-evidence boost and does not advance evidence_count, exactly as
+    phonics practice does (owner rulings 2026-11-16). Both best-effort."""
+    skill = practical_math.TOPIC_SKILL[topic]
+    recorded = await record_activity(
+        db, student_name, practical_math.LEDGER_SUBJECT_AREA, skill, practical_math.skill_label(topic),
+        "correct" if first_try else "partial",
+        source="practice_round",
+    )
+    if settings.retain_mastery_profiles:
+        await math_record.process_evidence(
+            db, student_name, f"probe.{skill}", "correct",
+            FIRST_TRY_WEIGHT if first_try else SECOND_TRY_WEIGHT,
+            GradeStage.foundations.value,
+            skip_calibration_boost=True,
+            count_toward_calibration=False,
+        )
+    return recorded
+
+
+@router.post("/{student_name}/math/lessons/{lesson_id}/answers")
+async def answer_math(
+    student_name: str,
+    lesson_id: str,
+    body: MathAnswer,
+    auth: dict = Depends(require_family_data_write),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await require_learner_access(auth, student_name, db)
+    await consent.require_collection(db, student_name)
+    await _level_for(db, student_name)
+    level, topic, seed, _audio = read_lesson_id(student_name, lesson_id, area=MATH_AREA)
+    try:
+        task = practical_math.build_task(level, topic, seed, body.phase, body.index)
+    except ValueError:
+        raise HTTPException(status_code=404, detail=NOT_FOUND) from None
+    return await _settle(db, student_name, lesson_id, body, auth, task, MATH_AREA,
+                         lambda text: practical_math.match_spoken(task, text),
+                         lambda first_try: _record_math(db, student_name, topic, first_try=first_try))

@@ -27,9 +27,10 @@ from typing import Optional
 
 from pydantic import TypeAdapter
 
-from models.practice import ACTIONS, COIN_CENTS, ICONS, Diagram
+from models.practice import ACTIONS, COIN_CENTS, ICONS, PIECE_DIAGRAM_KINDS, Diagram, PieceDiagram
 
 _ADAPTER = TypeAdapter(Diagram)
+_PIECE_ADAPTER = TypeAdapter(PieceDiagram)
 
 # What a reader or a drafting model is told it may use. One copy, so the two
 # prompts cannot drift from each other or from the model above.
@@ -68,6 +69,14 @@ def parse(raw) -> Optional[object]:
         return _ADAPTER.validate_python(raw)
     except Exception:
         return None
+
+
+def parse_piece(raw) -> object:
+    """A K-2 practice piece (counters, a ten-frame, a number bond), validated
+    against its closed vocabulary (models/practice.py's PieceDiagram). Raises
+    on anything else: pieces are built by code, so an invalid one is a bug,
+    never an input to tolerate."""
+    return _PIECE_ADAPTER.validate_python(raw)
 
 
 def key(diagram) -> str:
@@ -351,8 +360,40 @@ def answer(diagram, prompt: str) -> Optional[str]:
             if len(groups) == 1:
                 return str(groups[0].count)
         return None
+    if kind in PIECE_DIAGRAM_KINDS:
+        return _piece_answer(diagram, prompt)
     # A bar graph, a scene, a timeline, a Venn diagram, a table or steps: the
     # question decides what is asked, so the adult checks the answer.
+    return None
+
+
+def _piece_answer(diagram, prompt: str) -> Optional[str]:
+    """The answer a K-2 practice piece shows (counters, a ten-frame, a number
+    bond), counted from the picture, or None when the question asks something
+    the picture cannot settle. A second, independent working of every answer
+    services/k2_practice/math.py builds: that module works each one out with
+    the math pack's exact evaluator too, and refuses a question where the two
+    disagree."""
+    words = (prompt or "").lower()
+    kind = diagram.kind
+    if kind == "counters":
+        if re.search(r"\bmore\b", words) and len(diagram.groups) == 2:
+            a, b = diagram.groups
+            if a.count == b.count:
+                return "same"
+            return a.color if a.count > b.count else b.color
+        if "how many" in words:
+            return str(sum(g.count for g in diagram.groups))
+        return None
+    if kind == "ten_frame":
+        if re.search(r"\b(left|remain)", words) or "how many" in words:
+            return str(diagram.red + diagram.yellow - diagram.crossed)
+        return None
+    if kind == "number_bond":
+        if diagram.whole is None:
+            return str(sum(diagram.parts))
+        known = next(p for p in diagram.parts if p is not None)
+        return str(diagram.whole - known)
     return None
 
 
@@ -595,4 +636,5 @@ def category(diagram) -> str:
     return f"math.diagram.{FAMILY.get(diagram.kind, 'graph')}"
 
 
-__all__ = ["FAMILY", "category", "from_stimulus", "answer", "explain", "explain_point", "key", "new_like", "parse", "same"]
+__all__ = ["FAMILY", "category", "from_stimulus", "answer", "explain", "explain_point", "key", "new_like", "parse",
+           "parse_piece", "same"]

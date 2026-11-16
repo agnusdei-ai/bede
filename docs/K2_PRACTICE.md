@@ -47,7 +47,7 @@ the code.
 | K-2 math skills | `services/diagnostic/skill_map.py` (24 K-2 skills, below) | Practical math evidence. |
 | Spelling practice | `services/practice/packs/spelling/` (look-say-cover-write-check, `item_bank/patterns.json`) | The spelling routine and its words, after the K-2 additions in §5.4. |
 | Writing canvas | `components/HandwritingCanvas.tsx` | Handwriting and copying a sentence: composition ruling, finger and stylus. |
-| Speech | `hooks/useTextToSpeech.ts`, the server's speech synthesis | Speaking every instruction. |
+| Speech | the browser's own speech (`utils/onDeviceSpeech.ts`), never the server's `/tutor/speak` | Speaking every instruction on the device, so nothing from a round reaches a speech provider. |
 | The invitation pattern | `invite_map_practice` in `services/ai_service.py` and `services/tool_registry.py` | How Bede offers a round (§4). |
 
 ## 3. The routine
@@ -154,7 +154,7 @@ values:
 | Answer shown, or the round left | none | none |
 
 A missed try is never an observation of its own, so the estimate moves only on
-a right answer. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
+a right answer. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but no single practice answer can make a skill secure; two right first tries can. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
 written. This is the phonics record Bede already keeps; it gains a practice
 source, not a new skill.
 
@@ -298,9 +298,14 @@ disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
-like the map practice card, and spoken through the existing speech path. A
-spoken answer is transcribed by the existing voice pipeline and counts only when
-it matches one of the item's own choices.
+like the map practice card, and spoken by the device's own speech engine in the
+session's language (`utils/onDeviceSpeech.ts`), never through `/tutor/speak`,
+which forwards text to a cloud speech provider. A spoken answer is transcribed
+by the existing voice pipeline and counts only when it matches one of the item's
+own choices, and never when the spoken instruction already said the answer (a
+sight word), since repeating it is an echo rather than a reading. So nothing
+from a round reaches an AI provider. Map practice (`MapPractice.tsx`) still
+speaks through the server path and is a known gap, left for the owner.
 
 ## 8. Second wave
 

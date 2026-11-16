@@ -2147,7 +2147,7 @@ does two with hints, then does three alone by tapping.
 
 See `docs/MAP_PRACTICE.md` for the detail.
 
-## Sounds and words: phonics practice (kindergarten to grade 2)
+## Sound Time: phonics practice (kindergarten to grade 2)
 
 During Language Arts or Living Books, on a day those subjects are in your
 child's plan, Bede may offer a few minutes of phonics practice, at most once
@@ -2176,11 +2176,13 @@ What is kept:
 - Each question your child gets right alone adds one row to the work ledger
   on the Progress page and counts toward the phonics picture at half the
   weight of a live check. Right on the second try counts at a quarter. These
-  weights are product choices, not research findings.
+  weights are product choices, not research findings. One right answer is
+  never enough to mark a step secure; it takes at least two.
 - A question that ended with the answer shown records nothing. Saying "not
   now" records nothing.
 - The words, pictures and answers come from Bede's own code, never the AI,
-  and nothing from a round is sent to any AI provider. Bede never judges how
+  and nothing from a round is sent to any AI provider: the round is spoken
+  by your device's own voice, not Bede's cloud voice. Bede never judges how
   your child pronounces a sound.
 
 The words are English phonics. In a Spanish session the instructions are in

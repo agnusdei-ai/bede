@@ -1377,12 +1377,12 @@
     "open": "Open the map"
   },
   "k2Phonics": {
-    "title": "Sounds and words",
-    "open": "Start sounds and words",
+    "title": "Sound Time",
+    "open": "Start Sound Time",
     "loading": "Getting the words ready…",
     "loadTrouble": "The practice could not be loaded.",
     "tryAgain": "Try again",
-    "finished": "You finished the sounds and words!",
+    "finished": "You finished Sound Time!",
     "backToBede": "Back to Bede",
     "another": "Play again",
     "letsTry": "Let’s try one",

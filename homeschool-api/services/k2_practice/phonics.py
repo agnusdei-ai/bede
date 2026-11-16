@@ -310,10 +310,24 @@ def spoken_forms(task: Task, choice: str) -> tuple[str, ...]:
     return (choice,)
 
 
+def speech_echoes_answer(task: Task) -> bool:
+    """Whether the spoken instruction contains the answer, so saying it back
+    shows only that the child heard it."""
+    answer = task.accept_choice.lower()
+    return any(isinstance(v, str) and v.lower() == answer for v in task.prompt_args.values())
+
+
 def match_spoken(task: Task, text: str) -> Optional[str]:
     """The question's own choice a spoken answer names, or None when it names
     none or more than one. The same rule as map_practice.match_spoken, with
-    this area's own words. Never returns anything outside `task.choices`."""
+    this area's own words. Never returns anything outside `task.choices`.
+
+    A question whose spoken instruction says its own answer (a sight word:
+    "Tap the word said") takes no spoken answer at all: repeating what was
+    just heard is an echo, not a reading. Such an answer counts as neither a
+    miss nor an answer, like speech that matched nothing."""
+    if speech_echoes_answer(task):
+        return None
     words = set("".join(ch.lower() if ch.isalnum() else " " for ch in _plain((text or "")[:200])).split())
     hits = [c for c in task.choices if any(w in words for w in spoken_forms(task, c))]
     return hits[0] if len(hits) == 1 else None

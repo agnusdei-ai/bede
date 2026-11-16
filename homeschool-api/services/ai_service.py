@@ -5075,6 +5075,10 @@ async def stream_tutor_response(
     # session-wide "once only" rule. Within a single turn there is no
     # reason to render the same picture twice.
     shown_aid_ids: set[str] = set()
+    # K-2 practice areas already offered in THIS turn. The history a turn
+    # carries does not yet hold this turn's own cards, and an older client
+    # sends no session id, so without this a turn could offer one area twice.
+    practice_areas_offered_this_turn: set[str] = set()
     final_message = None
 
     # Bounded tool_result loop (see _MAX_TOOL_LOOP_ROUNDS's own comment for
@@ -5359,9 +5363,12 @@ async def stream_tutor_response(
                                     # Outside K-2, outside its subjects, in the demo, or a
                                     # second time in one session: dropped, never shown.
                                     log.info("Map practice invitation dropped for %s", learner_ref(config.student_name))
-                                elif tc["name"] == "invite_practice" and not _practice_allowed(
-                                    config, subject, demo_code, history, tool_input.get("area"),
-                                    time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+                                elif tc["name"] == "invite_practice" and (
+                                    tool_input.get("area") in practice_areas_offered_this_turn
+                                    or not _practice_allowed(
+                                        config, subject, demo_code, history, tool_input.get("area"),
+                                        time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+                                    )
                                 ):
                                     # An area not built yet, the setting, outside K-2, a
                                     # subject not in today's routine, too little time,
@@ -5392,6 +5399,7 @@ async def stream_tutor_response(
                                             # the session remembers it was offered (one per area).
                                             from services.k2_practice import mark_offered
                                             mark_offered(config.student_name, session_id, tool_input.get("area"))
+                                            practice_areas_offered_this_turn.add(tool_input.get("area"))
                                             yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response,
                                                               'area': tool_input.get("area")})
                                         else:

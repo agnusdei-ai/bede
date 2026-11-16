@@ -94,6 +94,21 @@ def test_the_card_is_server_composed_in_each_locale(locale):
     assert ai_service.card_phrases("en")["practice_phonics_body"] != ai_service.card_phrases("es")["practice_phonics_body"]
 
 
+@pytest.mark.parametrize("locale", ["en", "es"])
+def test_the_card_and_the_screen_carry_one_name(locale):
+    """The card Bede shows and the practice screen it opens use the same name
+    in each language, so a child is never invited to one thing and handed
+    another."""
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "homeschool-tutor" / "src" / "i18n" / "locales" / f"{locale}.json"
+    screen = json.loads(path.read_text(encoding="utf-8"))["k2Phonics"]
+    title = ai_service.card_phrases(locale)["practice_phonics_title"]
+    assert screen["title"] == title
+    assert title in screen["open"] and title in screen["finished"]
+
+
 @pytest.mark.parametrize("area", [a for a in k2_practice.AREAS if a != "phonics"])
 def test_an_area_not_built_has_no_card(area):
     assert k2_practice.ENABLED_AREAS == {"phonics"}
@@ -175,6 +190,24 @@ async def test_a_second_offer_in_one_session_is_refused_at_both_points(audit_cal
     assert later == [] and "<practice>" not in system
     # A new session may be offered again.
     assert "<practice>" in await _prompt(config, Subject.living_books, session_id="sess-2")
+
+
+@pytest.mark.asyncio
+async def test_two_offers_in_one_turn_show_one_card_even_without_a_session_id(audit_calls):
+    """An older client sends no session id, and this turn's own cards are not
+    in its history yet, so the turn itself must remember what it offered."""
+    events = (list(_tool_use_events("t0", "invite_practice", {"area": "phonics"}))
+              + list(_tool_use_events("t1", "invite_practice", {"area": "phonics"})))
+    fake, _state = _multi_round_stream([(events, "end_turn")])
+    chunks = []
+    with patch.object(ai_service._client.messages, "stream", side_effect=fake):
+        async for chunk in ai_service.stream_tutor_response(
+            config=_config(), subject=Subject.language_arts, history=[], child_message="hello",
+            session_id=None,
+        ):
+            chunks.append(_json.loads(chunk))
+    assert [c["tool"] for c in chunks if c["type"] == "tool"] == ["invite_practice"]
+    assert chunks[-1] == {"type": "done"}
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,7 @@
  * reads the server's `area` off the tool chunk and mounts K2PhonicsPractice,
  * which loads its lesson from the practice route. The card can reopen it.
  */
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { useSessionStore } from '../store/sessionStore'
@@ -31,7 +31,7 @@ function sse(chunks: object[]): Response {
 }
 
 let area: string | undefined
-const fetchMock = vi.fn(async (url: string) => {
+const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
   if (String(url).includes('/tutor/chat')) {
     return sse([{ type: 'tool', tool: 'invite_practice', area, content: CARD }, { type: 'done' }])
   }
@@ -60,22 +60,52 @@ describe('the invite_practice card', () => {
   it('opens the phonics round, which loads its lesson from the practice route', async () => {
     area = 'phonics'
     render(<SocraticChat />)
-    expect(await screen.findByRole('dialog', { name: 'Sounds and words' })).toBeTruthy()
+    expect(await screen.findByRole('dialog', { name: 'Sound Time' })).toBeTruthy()
     const urls = fetchMock.mock.calls.map(([u]) => String(u))
     expect(urls.some((u) => u.includes('/k2-practice/Ada/phonics/lesson'))).toBe(true)
     // Closing returns to the chat; the card reopens it.
     fireEvent.click(screen.getByRole('button', { name: 'Back to Bede' }))
-    expect(screen.queryByRole('dialog', { name: 'Sounds and words' })).toBeNull()
-    fireEvent.click(await screen.findByRole('button', { name: 'Start sounds and words' }))
-    expect(await screen.findByRole('dialog', { name: 'Sounds and words' })).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Sound Time' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'Start Sound Time' }))
+    expect(await screen.findByRole('dialog', { name: 'Sound Time' })).toBeTruthy()
+  })
+
+  it('speaks the round on the device and never through /tutor/speak', async () => {
+    // Nothing from a round may reach an AI provider: /tutor/speak forwards
+    // text to a cloud speech service, so a round must use the browser's own.
+    const spoken: { text: string; lang: string }[] = []
+    class Utterance { text: string; lang = ''; voice: unknown = null; rate = 1; pitch = 1
+      constructor(text: string) { this.text = text } }
+    vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
+    vi.stubGlobal('speechSynthesis', {
+      speak: (u: Utterance) => spoken.push({ text: u.text, lang: u.lang }),
+      cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+      getVoices: () => [{ name: 'Daniel', lang: 'en-GB' }],
+      addEventListener: vi.fn(), removeEventListener: vi.fn(),
+      speaking: false, pending: false,
+    })
+    area = 'phonics'
+    render(<SocraticChat />)
+    await screen.findByRole('dialog', { name: 'Sound Time' })
+    const watchLine = 'Listen: kuh, ah, tuh. Put the sounds together: cat!'
+    await waitFor(() => expect(spoken.map((s) => s.text)).toContain(watchLine))
+    expect(spoken.find((s) => s.text === watchLine)?.lang).toBe('en-GB')
+    fireEvent.click(screen.getByRole('button', { name: 'Hear it again' }))
+    await waitFor(() => expect(spoken.filter((s) => s.text === watchLine).length).toBe(2))
+    const speakCalls = fetchMock.mock.calls.filter(([u]) => String(u).includes('/tutor/speak'))
+    for (const [, init] of speakCalls) {
+      const body = String((init as RequestInit | undefined)?.body ?? '')
+      expect(body).not.toContain('Listen:')
+      expect(body).not.toContain('kuh')
+    }
   })
 
   it('opens nothing for an area that is not built', async () => {
     area = 'math'
     render(<SocraticChat />)
-    await screen.findByText(/Sound Time/)
+    await screen.findAllByText(/Sound Time/)
     await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
-    expect(screen.queryByRole('dialog', { name: 'Sounds and words' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Sound Time' })).toBeNull()
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/k2-practice/'))).toBe(false)
   })
 })

@@ -212,6 +212,7 @@ def build_summary_view(
 
 async def process_evidence(
     db, student_name: str, domain: str, outcome: str, weight: float = 1.0,
+    skip_calibration_boost: bool = False,
 ) -> Optional[MasteryVector]:
     """
     `weight` (0 < weight <= 1) scales how far this one observation moves the
@@ -222,6 +223,14 @@ async def process_evidence(
     product defaults the owner chose, not research values). Anything outside
     that range is refused rather than clamped, since a malformed weight must
     not become a full-strength observation.
+
+    `skip_calibration_boost` drops the early-evidence boost
+    (`calibration_weight_for`, up to 2.0 at a cold start), so the step is
+    exactly `weight`. Only K-2 practice passes it (owner ruling 2026-11-16):
+    with the boost, one right practice answer moved a domain from 0.5 to 1.0,
+    secure, and the next round moved the child on. Without it no single
+    practice answer can make a domain secure; two right first tries can.
+    Every other caller passes nothing and keeps the boost exactly as before.
 
     Persistence-backed entry point — mirrors composition.process_assessment
     and services.diagnostic.__init__.process_evidence's load/update/store
@@ -267,7 +276,10 @@ async def process_evidence(
     evidence_count_before = 0 if vector_is_cold_start else row.evidence_count
     updated_vector, updates = apply_evidence(
         vector, domain, outcome,
-        calibration_weight=weight * calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
+        calibration_weight=weight * (
+            1.0 if skip_calibration_boost
+            else calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD)
+        ),
     )
 
     if not updates:

@@ -1377,12 +1377,12 @@
     "open": "Abrir el mapa"
   },
   "k2Phonics": {
-    "title": "Sonidos y palabras",
-    "open": "Empezar sonidos y palabras",
+    "title": "Hora de los Sonidos",
+    "open": "Empezar la Hora de los Sonidos",
     "loading": "Preparando las palabras…",
     "loadTrouble": "No se pudo cargar la práctica.",
     "tryAgain": "Intentar de nuevo",
-    "finished": "¡Terminaste los sonidos y palabras!",
+    "finished": "¡Terminaste la Hora de los Sonidos!",
     "backToBede": "Volver con Bede",
     "another": "Jugar otra vez",
     "letsTry": "Probemos uno",

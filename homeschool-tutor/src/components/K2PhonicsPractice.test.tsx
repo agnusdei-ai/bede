@@ -96,7 +96,7 @@ describe('K2PhonicsPractice', () => {
     fireEvent.click(screen.getByRole('button', { name: 'map' }))
     await screen.findByText('Yes, that’s it!')
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    await screen.findByText('You finished the sounds and words!')
+    await screen.findByText('You finished Sound Time!')
     // The finish is a stopping point, never a tally.
     expect(document.body.textContent ?? '').not.toMatch(SCORE_WORDS)
     expect(document.body.textContent ?? '').not.toMatch(/\d+\s*(\/|of|out of)\s*\d+/)

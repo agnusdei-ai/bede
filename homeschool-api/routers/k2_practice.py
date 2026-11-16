@@ -17,6 +17,10 @@ What a "Your turn" question records (decision 40(b), owner ruling
                               observation at QUIZ_EVIDENCE_WEIGHT (0.5)
     right on the second try   one ledger row (with a hint), and a phonics
                               observation at half that (0.25)
+
+Each observation moves the estimate by its weight alone, without the
+early-evidence boost other check-ins get (owner ruling 2026-11-16), so no
+single practice answer can make a domain secure.
     answer shown              nothing at all, the ledger's standing rule
                               for work that was not completed
 
@@ -123,12 +127,27 @@ async def _saved_config(db: AsyncSession, student_name: str) -> SessionConfig:
     ))
 
 
+async def saved_practice_offers(db: AsyncSession, student_name: str) -> str:
+    """The per-child practice setting as the parent last SAVED it, never the
+    copy a tablet sent with a turn. A tablet holds the config it loaded at the
+    start of the session, so a parent switching a child to "off" or "only
+    sets I approved" mid-session would otherwise not reach the offer gate.
+    Fails closed: no saved row, or one that cannot be read, is "off"."""
+    try:
+        return (await _saved_config(db, student_name)).practice_offers
+    except Exception:
+        return "off"
+
+
 async def _level_for(db: AsyncSession, student_name: str) -> str:
     """The learner's level from their SAVED grade, never from the request.
-    A parent who switched practice off has switched it off here too."""
+    Only "todays_subjects" serves a round in step 1: with "off" there is no
+    practice, and with "only sets I approved" there is no approved phonics
+    set yet, so neither may build a lesson or record evidence."""
     config = await _saved_config(db, student_name)
     level = phonics.level_for_grade(config.grade)
-    if level is None or config.grade_stage != GradeStage.foundations or config.practice_offers == "off":
+    if (level is None or config.grade_stage != GradeStage.foundations
+            or config.practice_offers != "todays_subjects"):
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     return level
 
@@ -185,6 +204,9 @@ async def _record(db: AsyncSession, student_name: str, domain: str, first_try: b
         await phonics_record.process_evidence(
             db, student_name, domain, "correct",
             weight=FIRST_TRY_WEIGHT if first_try else SECOND_TRY_WEIGHT,
+            # Practice moves the estimate by its weight alone, never the
+            # early-evidence boost (owner ruling 2026-11-16).
+            skip_calibration_boost=True,
         )
     return recorded
 

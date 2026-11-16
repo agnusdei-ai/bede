@@ -157,7 +157,7 @@ We can find a clearer path together without rushing.
   you can try again, and then I'll show you. You can close the map whenever
   you like. I will never ask where you live.
 - In Language Arts or Living Books, I might ask if you'd like to play
-  **Sounds and words** 🔤. I'll show you first and say every word out loud.
+  **Sound Time** 🔤. I'll show you first and say every word out loud.
   Then we do two together, and you can tap a letter to hear its sound. Then
   it's your turn: tap the right picture, letter or word. If it isn't the one,
   we look again and you try once more, and then I'll show you. You can say

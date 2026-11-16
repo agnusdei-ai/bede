@@ -8,6 +8,7 @@ import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
+import { speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -205,6 +206,9 @@ export default function SocraticChat({
     speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
     enabled: ttsEnabled, isSupported: ttsSupported,
   } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
+  // A phonics round speaks on the device; Bede's chat voice stops when it
+  // opens, so two voices never talk over each other.
+  useEffect(() => { if (showPhonics) stopSpeech() }, [showPhonics, stopSpeech])
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -1198,8 +1202,12 @@ export default function SocraticChat({
         <K2PhonicsPractice
           token={token}
           studentName={sessionConfig.student_name}
-          onClose={() => setShowPhonics(false)}
-          onSpeak={speak}
+          onClose={() => { stopOnDeviceSpeech(); setShowPhonics(false) }}
+          // On-device speech only: nothing from a round may reach an AI
+          // provider, and Bede's ordinary voice goes through /tutor/speak to
+          // a cloud speech service (docs/K2_PRACTICE.md §6). Silent, as the
+          // chat is, when the narration toggle is off.
+          onSpeak={ttsEnabled ? speakOnDevice : undefined}
         />
       )}
 

@@ -46,13 +46,24 @@ page independent of Bede:
 | H `pushState`, then an immediate real navigation | 0/3 | 0/3 |
 | I `pushState`, then `navigation.reload()` | **3/3 crashed** | 0/3 |
 
-Chromium (141, 153) and Firefox (142, 155) crashed in no variant. Bede's own
+Chromium (141, 153) and Firefox (142, 155) crashed in no variant. Firefox 142
+has no Navigation API, so variant I ended in an error there (3/3) rather than
+running; it is not evidence for that engine. Bede's own
 journey crashed on WebKit 26.0 with WebKit as child 1 and as child 3, so the
 slot path is not the cause.
 
 **Not equivalent:** a Playwright WebKit build is not a Safari release. Every
 result records the Playwright version, the bundled WebKit build revision, the
 operating system and, for physical checks, the Safari and iPadOS versions.
+
+## The repair cycle
+
+Release-repair cycle `webkit-1` ended **BLOCKED** on 2026-11-16 (run
+43782253330): the reproduce role cannot run macOS WebKit, and the fix (the
+Playwright pin) is in `.github/`, outside every repair role's scope. The pin
+reached `main` through the owner-directed #841, and release qualification has
+run on WebKit 26.6 since. The cycle's own gates stay NOT_RUN for this
+candidate, and the physical Mac and Safari gates are still owed.
 
 ## Acceptance criteria (owner, 2026-11-15)
 

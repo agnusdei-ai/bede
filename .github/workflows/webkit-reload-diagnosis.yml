@@ -68,12 +68,53 @@ jobs:
           npm init -y >/dev/null
           npm install --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
           npx playwright install webkit chromium firefox
+      # The runner is recorded, never assumed from the label: macOS version,
+      # build and architecture as this VM reports them.
+      - name: Record the runner
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/webkit-repro"
+          { sw_vers; echo "arch: $(uname -m)"; echo "kernel: $(uname -sr)"; echo "candidate: $CANDIDATE_SHA"; echo "playwright: $PLAYWRIGHT_VERSION"; } | tee "$RUNNER_TEMP/webkit-repro/runner.txt"
+          touch "$RUNNER_TEMP/crash-report-marker"
       - name: Run the minimal reproduction
+        id: repro
         shell: bash
         working-directory: scripts/qualification/browser_journeys
         env:
           REPEATS: '3'
-        run: node webkit_nav_repro.cjs
+        # The recorded command, unchanged; RESULTS_FILE and TRACE_DIR only add
+        # evidence. Its exit status is recorded beside the log.
+        run: |
+          set +e
+          RESULTS_FILE="$RUNNER_TEMP/webkit-repro/results.json" TRACE_DIR="$RUNNER_TEMP/webkit-repro/traces" \
+            node webkit_nav_repro.cjs > "$RUNNER_TEMP/webkit-repro/repro.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/webkit-repro/repro.log"
+          echo "command: node webkit_nav_repro.cjs (REPEATS=3) exit=$status" | tee -a "$RUNNER_TEMP/webkit-repro/runner.txt"
+          exit $status
+      # The same sanitized native crash summary the journeys collect. Raw
+      # reports go to a directory that is never uploaded.
+      - name: Collect native crash reports (diagnostic only)
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: >-
+          python3 scripts/qualification/browser_journeys/collect_crash_reports.py
+          --marker "$RUNNER_TEMP/crash-report-marker"
+          --summary-dir "$RUNNER_TEMP/webkit-repro/crash-reports"
+          --raw-dir "$RUNNER_TEMP/crash-reports-raw-not-uploaded"
+          --wait 20
+          --dir "user=$HOME/Library/Logs/DiagnosticReports"
+          --dir "system=/Library/Logs/DiagnosticReports"
+      - name: Preserve the reproduction evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: webkit-repro-minimal-${{ matrix.playwright }}-${{ env.CANDIDATE_SHA }}
+          path: |
+            ${{ runner.temp }}/webkit-repro/
+          if-no-files-found: warn
+          retention-days: 90
 
   journeys:
     name: WebKit reload diagnosis (${{ matrix.browsers }})

@@ -51,7 +51,7 @@ evidence from the actual build.
 
 | Area | Where Bede stands | Gap |
 | --- | --- | --- |
-| Touch targets (INT-01) | Phonics practice (`K2PhonicsPractice.tsx`) and the routine frame's close button are 56 px, the main action 64 px, 8 px apart, in rem so they grow with text size; checked by class contract, not yet measured in a browser. Map practice's own controls are still 44 px. | Raise map practice's controls; measure rendered hit areas on the actual build. |
+| Touch targets (INT-01) | Phonics and math practice (`K2PhonicsPractice.tsx`, `K2MathPractice.tsx`, `MathPieces.tsx`) and the routine frame's close button are 56 px, the main action 64 px, 8 px apart, in rem so they grow with text size; checked by class contract, not yet measured in a browser. Map practice's own controls are still 44 px. | Raise map practice's controls; measure rendered hit areas on the actual build. |
 | Text resize (TYPE-04) | The text-size control stops at 175%. | The 200% step (ruling above), then a check on every screen. |
 | Activity length | A round is Watch, then two Together items, then three Your turn items, about five minutes (`K2_PRACTICE.md` §1). | Kindergarten starts at about three minutes: fewer items per step for K. |
 | Answer choices | Map practice draws its choices per task. | Start kindergarten at 2 to 3 choices, grades 1 and 2 at 3 to 4. |

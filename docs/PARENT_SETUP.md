@@ -2158,14 +2158,15 @@ blending simple words like *cat*, and grade 2 with blends and digraphs like
 next practice moves on to the next one.
 
 **Choose what Bede may offer, per child.** In each K-2 student's card in
-Parent Setup, under **Practice Bede may offer**, pick one:
+Parent Setup, under **Practice Bede may offer**, pick one (the same setting
+covers Number Time, below):
 
 - **Off**: Bede offers no practice. One tap.
 - **Only sets I approved**: Bede never chooses on its own. Practice made from
   a quiz you uploaded still needs your approval before your child sees it.
 - **Today's subjects too** (the default): Bede may also offer a round, but
   only in a subject already in today's plan, and only from its own fixed word
-  lists. It never makes up a word or a question.
+  lists and number problems. It never makes up a word or a question.
 
 You see each offer: it appears in the conversation as a card ("Sound
 Time"). If your own lesson focus or a "where we left off" note points
@@ -2209,6 +2210,49 @@ What is kept:
 
 The words are English phonics. In a Spanish session the instructions are in
 Spanish and the words stay English.
+
+## Number Time: practical math (kindergarten to grade 2)
+
+During Mathematics, on a day it is in your child's plan, Bede may offer a few
+minutes of hands-on number practice, at most once a session. It follows the
+same pattern as Sound Time: your child watches one problem, does two together,
+then three alone. The pieces are:
+
+- **Counters**: count them, or say whether there are more red or more yellow
+  (a red counter is solid and a yellow one is a ring, so the two never differ
+  by color alone).
+- **A ten-frame**: put counters in, or take them out, to show a number, add
+  some more, or take some away; or say how many are there in all, or left.
+- **A number bond**: a whole and its two parts, with one part missing.
+
+Kindergarten starts with counting, grade 1 with adding, and grade 2 with
+adding past ten on two ten-frames. As your child's math record shows a skill
+is secure, the next round moves on to the next one. Only skills already in
+Bede's math record are used: counting objects, comparing quantities, adding
+and taking away within 20, and number bonds.
+
+Your child answers by tapping a number, by tapping which row has more, or by
+putting counters on the frame and tapping **Check**. A counter can be dragged
+onto the frame, or a box tapped, or the large **Put in a counter** and **Take
+one out** buttons pressed, so dragging is never the only way. Nothing is
+typed.
+
+The setting is the same one as Sound Time (**Practice Bede may offer**, in
+each K-2 student's card), and so are the rules for what is kept: a question
+right alone adds one row to the work ledger and counts toward the math picture
+at half the weight of a live check, right on the second try at a quarter, and
+an answer that was shown counts nothing. These are product choices, not
+research findings. Only the first Number Time round in each sign-in is
+recorded, at most three answers, separately from Sound Time's round, and your
+Progress page says so. Practice answers do not hurry the math picture past its
+"still getting to know your learner" stage; while it lasts, Progress shows
+Bede's lesson check-ins and the practice answers as two separate counts.
+
+Every number and every answer comes from Bede's own code, worked out twice
+(once from the sum and once by counting the picture), never by the AI.
+Nothing from a round is sent to any AI provider: like Sound Time, it is spoken
+only through a voice installed on your device. Every Number Time question can
+be answered from the picture on screen, so it works without sound too.
 
 ## The writing pad: drawings, and where they go
 

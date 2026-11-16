@@ -1,8 +1,11 @@
 # K-2 practice: Watch, Together, Your turn
 
-**Status: step 1 built; the rest is specification.** Step 1 of §9 (the shared
-`invite_practice` invitation, the per-child setting, and phonics) is built. The
-rest of the first wave is not. Map reading, from the second wave, shipped in
+**Status: steps 1 and 3 built; the rest is specification.** Step 1 of §9 (the
+shared `invite_practice` invitation, the per-child setting, and phonics) and the
+first part of step 3 (practical math's counters, ten-frame and number bonds) are
+built. Step 3 was built before step 2, handwriting, because handwriting waits on
+decision 40(c), the handwriting style, which is still open. The rest of the
+first wave is not built. Map reading, from the second wave, shipped in
 #830 (`docs/MAP_PRACTICE.md`) and set the pattern this spec follows. The
 decisions this spec cannot make for itself are `docs/DECISIONS.md` entry 40;
 (a) and (b) were ruled by the owner on 2026-11-16, and (c) to (h) are open.
@@ -256,6 +259,86 @@ existing math evidence path (`process_evidence`'s `confidence`, in
 `services/diagnostic/__init__.py`) at a reduced weight, the same approach `QUIZ_EVIDENCE_WEIGHT`
 (`services/practice/evidence.py`) takes for a marked quiz (decision 40(b)).
 
+**Built (step 3, first part).** `services/k2_practice/practical_math.py` builds a
+lesson from (level, topic, seed). Five topics, each one existing K-2 skill:
+
+| Topic | Skill | Pieces |
+| --- | --- | --- |
+| count | `cc.count_objects_20` | counters to count; a ten-frame to fill to a number |
+| compare | `cc.compare_quantities` | two rows of counters: more red, more yellow, or the same |
+| add | `oa.add_within_20` | a ten-frame (two past ten) with red and yellow counters |
+| subtract | `oa.subtract_within_20` | a ten-frame with some counters crossed out or taken away |
+| bond | `cc.number_bonds` | a number bond with one part missing |
+
+Kindergarten walks count, compare, bond, add, subtract; grade 1 add, subtract,
+bond, compare; grade 2 add, subtract, bond, with numbers past ten on two
+ten-frames. The level is the saved grade and the topic the first whose skill the
+saved math record does not show as secure, in that order, never anything in the
+request. Every topic but compare has a building question in Watch, Together and
+Your turn: the frame starts with some counters and the answer is how many are on
+it when the child taps **Check**. Counters move three ways, so dragging is never
+the only one: drag a counter from the tray onto the frame or off it; tap a box;
+or tap the large **Put in a counter** and **Take one out** buttons. The other
+questions are a tap on a number or on which row has more.
+
+Every answer is worked out twice, by the math pack's exact evaluator on the
+question's arithmetic and by counting the picture (`diagrams.answer`), and a
+question where the two disagree is never built. The child's answer is a tap, a
+count on the frame (itself one of the offered choices), or speech matched to
+exactly one offered choice; nothing typed is accepted or kept, and the answer
+model refuses any extra field. `match_spoken` has its own English and Spanish
+table for numbers, quantities ("the same", "iguales") and clock times ("ten
+thirty", "diez y media"), where a longer phrase wins over a shorter one inside
+it, so "ten thirty" names 10:30 and not 10:00. A question whose spoken
+instruction says its own answer ("Put 7 counters in the ten-frame") takes no
+spoken answer. Answering by voice inside the screen is not built, as for
+phonics; the server accepts a spoken answer.
+
+Speech is exactly as for phonics (§7): every line is shown and spoken only
+through a voice installed on the device (`utils/onDeviceSpeech.ts`), never
+`/tutor/speak`, a network voice or an unchecked default, and Bede's chat voice
+does not read the turn over a round it opened. No math question works only by
+ear, so a device that cannot speak gets the same lesson, shown without speech.
+Map practice still speaks through the server path, the known gap §7 names.
+
+The three new pictures are `counters`, `ten_frame` and `number_bond`
+(`models/practice.py`'s `PieceDiagram`, drawn by `components/MathPieces.tsx`):
+numbers and two counter colors only, a red counter solid and a yellow one a
+ring. They are a sibling vocabulary rather than members of `Diagram`, on
+purpose: `Diagram` is what a quiz reader or drafter may emit, and every kind in
+it must be drawn by `Diagram.tsx`, which the public demo mirrors byte for byte,
+so adding them there would change the demo. Moving them in later is one line
+plus the renderer copied into `Diagram.tsx` and its demo mirror, with the
+owner's sign-off.
+
+What a Your turn answer records follows phonics exactly (decision 40(b) and
+the two later rulings): right first try, a ledger row (unaided) and an
+observation for the topic's skill at `confidence` 0.5; right second try, a
+ledger row (with a hint) at 0.25; answer shown, nothing. The observation goes
+through `process_evidence` with `skip_calibration_boost=True` and
+`count_toward_calibration=False`, two keyword arguments only this route passes,
+so it never gets the early-evidence boost and never advances `evidence_count`;
+Bede's own `record_skill_evidence` check-ins and marked quizzes behave exactly
+as before. With `RETAIN_MASTERY_PROFILES` off only the ledger row is written.
+One round is recorded per area per sign-in, so a child's Number Time round and
+Sound Time round are counted apart, each at most three answers. The math
+summary's `practice_answers` counts the practice rows apart from check-ins, as
+phonics does.
+
+Sizes are pinned by class contract (rem, no fixed widths), as for phonics.
+One limit the class contract cannot remove: a ten-frame is five boxes across
+by its nature, so at 200% text on a phone-width screen its five 56 px targets
+(112 px each at that size) are wider than the screen and the frame scrolls
+sideways inside the round rather than wrapping. Step 6's real browser check
+measures this; shrinking the boxes below 56 px would break the target size.
+
+Not built yet, and next: clock hands, coins and bills, number-line hops, the
+ruler, base-ten blocks, equal groups and everyday stories. `oa.fact_fluency_20`
+is deliberately not recorded: fluency means recalling a fact quickly, and a
+round has no timer and must not have one (§6), so a right answer here says
+nothing about speed. The spoken-forms table already covers clock times, so the
+clock can use it as it stands.
+
 ### 5.4 Spelling
 
 **Subjects:** Language Arts.
@@ -358,7 +441,7 @@ the docs updated in the same PR.
 
 1. **The shared invitation and phonics.** `invite_practice` with its server-side limits and the parent setting (§4), and the phonics area (§5.1) in `RoutineShell`. *Built.* Its 200% layout is pinned in this step by a class contract (rem sizes, no fixed widths); the real 200% browser check is step 6.
 2. **Handwriting** (§5.2): stroke data for the chosen style, the animated pen, and tracing guides on the canvas.
-3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler.
+3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler. *Counters, ten-frame and number bonds built*, before step 2, which waits on decision 40(c); clock, coins, number line and ruler are next.
 4. **Spelling** (§5.4): the K-2 patterns, letter tiles, and delivery of approved word lists and Practice Coach misses as rounds.
 5. **Copying a sentence** (§5.5): the sentence from the narration, tracing and copying on the canvas.
 6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 200% text on every area.
@@ -384,7 +467,7 @@ The choices this spec leaves open are recorded as `docs/DECISIONS.md` entry 40,
 with a recommendation for each:
 
 - **(a)** the default of the per-child setting in §4 (ruled 2026-11-16: Bede may also choose from today's subjects, with the limits in §4);
-- **(b)** the weight of practice evidence in the phonics and math estimates (ruled 2026-11-16 for phonics: 0.5, 0.25, and nothing for an answer shown; see §5.1);
+- **(b)** the weight of practice evidence in the phonics and math estimates (ruled 2026-11-16: 0.5, 0.25, and nothing for an answer shown; applied to phonics in step 1, §5.1, and to math in step 3, §5.3);
 - **(c)** the handwriting style;
 - **(d)** how parents approve word lists;
 - **(e)** whether K-2 spelling gets a measured skill;

@@ -2399,6 +2399,8 @@ In Bede as built, a wrongly tapped choice stays tappable on the second try (the 
 
 Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (h) stay open below.
 
+**Applied to math in step 3 (2026-11-16, owner brief).** The same weights and the same three rulings above (no early-evidence boost, outside the early-evidence window, one recorded round per area per sign-in) apply to the practical-math round: a right first try is an observation for the topic's existing K-2 skill at `confidence` 0.5 through `services/diagnostic`'s `process_evidence`, a right second try at 0.25, an answer shown nothing. That function gained the two keyword-only flags phonics' has, passed only by the practice route, so Bede's own check-ins and marked quizzes behave exactly as before. Step 3 was built before step 2 because step 2, handwriting, waits on (c). The random-tap table above applies to the number and compare questions (three choices for kindergarten and grade 1, four for grade 2); a building question offers every count the frame holds, so a random answer is right far less often. `oa.fact_fluency_20` is not recorded, since a round is untimed and fluency is recall speed.
+
 [`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
 practice for kindergarten to grade 2: phonics, handwriting, practical math,
 spelling and copying a sentence first, then memory work. Map reading, from the

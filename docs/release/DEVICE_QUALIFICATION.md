@@ -81,7 +81,7 @@ parent account.
 | Blank message | Not sent |
 | Message over 2,000 characters | Not sent; the words stay in the box; the child is told it is too long, never that the connection failed |
 | A child on parent pages | `/pod/configs` and a sibling's practice refused; no parent content or sibling on screen |
-| Text at 175% on a phone-width screen | No sideways page scroll, and the conversation keeps at least a quarter of the screen |
+| Text at 200% (the top step) on a phone-width screen | No sideways page scroll, and the conversation keeps at least a quarter of the screen |
 | Repeated wrong passwords | The parent is locked even with the right password, and account recovery still answers |
 
 The over-long message row found a real defect: the chat sent the message, the
@@ -89,10 +89,12 @@ server refused it, and the child was told "we lost the connection". The chat
 now keeps the words and says the message is too long
 (`SocraticChat.messageLength.test.tsx`).
 
-The 175% row found another: an approved practice question squeezed the
+The text-size row found another, when the top step was 175%: an approved practice question squeezed the
 conversation to a 56 px strip, so Bede's replies arrived but could not be
-read. The practice card is now capped at 30% of the screen height and scrolls
-on its own; the check reports each element's height when it fails.
+read. The practice card was capped at 30% of the screen height and scrolls on its
+own; the check reports each element's height when it fails. At 200% the same
+check found the conversation at 194 px of 844 (23%): the card took 253 px,
+the message box 261 and the header 112. The cap is now 25%.
 
 ## 2. Physical layer: the support matrix
 

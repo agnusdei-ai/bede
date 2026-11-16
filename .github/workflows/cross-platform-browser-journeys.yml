@@ -89,7 +89,7 @@ jobs:
           # Known failure classes at their edge: open redirect, wrong
           # password, rejected token, back after logout, oversized and
           # non-image uploads, double-tapped approval, blank and over-long
-          # messages, a child on parent pages, 175% text, and lockout with
+          # messages, a child on parent pages, 200% text, and lockout with
           # account recovery still reachable. Its own service, because the
           # lockout locks the parent account.
           - os: ubuntu-24.04

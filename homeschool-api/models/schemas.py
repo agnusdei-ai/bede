@@ -544,7 +544,7 @@ class SessionConfig(BaseModel):
 
     #: There is deliberately NO text-size field here. `useTextScale`/
     #: `TextSizeControl` already offer it in both the app and the demo, as a
-    #: floating control on every screen scaling the ROOT font size 87.5%-175%
+    #: floating control on every screen scaling the ROOT font size 87.5%-200%
     #: (WCAG 2.1 SC 1.4.4) — which scales every rem-based size in the product,
     #: not the handful of elements a per-student setting could reach. One
     #: shipped here in #486 without checking for the control that already

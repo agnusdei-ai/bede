@@ -137,7 +137,7 @@ accommodation.
 corrected.** A per-student `text_size` shipped in #486 without anyone checking
 that `TextSizeControl`/`useTextScale` already offered text size in **both** the
 app and the demo: a floating control on every screen, scaling the **root** font
-size 87.5%-175% (WCAG 2.1 SC 1.4.4), which scales every rem-based size in the
+size 87.5%-200% (WCAG 2.1 SC 1.4.4), which scales every rem-based size in the
 product rather than the five elements a per-student setting could reach. Two
 controls for one thing, the newer one strictly weaker, is worse than either
 alone, so the newer one was removed (decision register entry 24).

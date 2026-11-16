@@ -11,13 +11,15 @@ import { useCallback, useEffect, useState } from 'react'
  * fontSize utility in this app is rem-based (see tailwind.config.js's own
  * baseline, already 15% above Tailwind's defaults), so scaling the root
  * proportionally scales all of them app-wide with no per-component
- * change needed. The top step (175%) meets WCAG 2.1 SC 1.4.4's
- * "resizable up to 200%" requirement relative to that baseline.
+ * change needed. The top step is 200%, WCAG 2.2 SC 1.4.4's "resizable up
+ * to 200%" taken literally (docs/DECISIONS.md entry 42; it was 175%,
+ * argued as 200% of an unscaled browser default). The browser journeys
+ * check the top step on a phone-width screen.
  */
 
 const STORAGE_KEY = 'bede-text-scale'
 
-export const TEXT_SCALE_STEPS = [87.5, 100, 112.5, 125, 150, 175] as const
+export const TEXT_SCALE_STEPS = [87.5, 100, 112.5, 125, 150, 175, 200] as const
 export type TextScalePercent = (typeof TEXT_SCALE_STEPS)[number]
 
 const DEFAULT_SCALE: TextScalePercent = 100

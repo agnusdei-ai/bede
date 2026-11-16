@@ -31,7 +31,7 @@
  * TEXT SIZE IS DELIBERATELY NOT HERE, and was removed rather than never
  * added. `useTextScale`/`TextSizeControl` already solve it, in BOTH this app
  * and the demo, and solve it better: a floating control on every screen
- * scaling the ROOT font size 87.5%-175% (WCAG 2.1 SC 1.4.4), which scales
+ * scaling the ROOT font size 87.5%-200% (WCAG 2.1 SC 1.4.4), which scales
  * every rem-based Tailwind size in the product rather than the handful of
  * elements a setting here could reach. A parent-set copy of it was shipped
  * in #486 without checking for the control that already existed — two

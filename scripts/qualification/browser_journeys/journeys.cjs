@@ -363,7 +363,7 @@ async function mobileChild(br, dev, i) {
 // wrong password reported as an expired session, a rejected token that logs
 // out silently, a back button that shows the household after logout, an
 // oversized or non-image upload, a double-tapped approval, a blank or
-// over-long message, a child reaching parent pages, text at 175%, and the
+// over-long message, a child reaching parent pages, text at 200%, and the
 // account-recovery route staying reachable while the parent is locked out.
 const tokenIn = pg => pg.evaluate(() => Object.keys(sessionStorage).some(k => { try { return !!JSON.parse(sessionStorage.getItem(k))?.state?.token } catch { return false } }));
 // The refusal checks compare the stub's reading count before and after, and
@@ -507,16 +507,16 @@ async function boundaryChild(br, bname, i) {
     check(who, 'child_cannot_open_parent_pages', list.status >= 400 && other.status >= 400 && !page.includes('Practice from a graded quiz') && !page.includes(sibling),
       `GET /pod/configs ${list.status}, sibling sets ${other.status}, sibling shown=${page.includes(sibling)}`);
     await ctx.close();
-    // Text at the largest step (175%) on a phone-width screen keeps the page from scrolling sideways.
+    // Text at the largest step (200%) on a phone-width screen keeps the page from scrolling sideways.
     const ctx2 = await br.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
-    await ctx2.addInitScript(() => { try { localStorage.setItem('bede-text-scale', '175') } catch {} });
+    await ctx2.addInitScript(() => { try { localStorage.setItem('bede-text-scale', '200') } catch {} });
     const c2 = await ctx2.newPage(); c2.on('dialog', d => d.accept());
-    c2.on('pageerror', err => console.log(`PAGEERROR ${who}@175%: ${String(err).slice(0, 300)}`));
-    c2.on('crash', () => console.log(`CRASH ${who}@175% at ${c2.url()}`));
-    c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@175% error: ${m.text().slice(0, 300)}`); });
-    const chat175 = [];
-    c2.on('response', r => { if (r.url().includes('/api/tutor/chat')) chat175.push(r.status()); });
-    c2.on('requestfailed', r => { if (r.url().includes('/api/tutor/chat')) chat175.push(`failed:${r.failure()?.errorText || ''}`); });
+    c2.on('pageerror', err => console.log(`PAGEERROR ${who}@200%: ${String(err).slice(0, 300)}`));
+    c2.on('crash', () => console.log(`CRASH ${who}@200% at ${c2.url()}`));
+    c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@200% error: ${m.text().slice(0, 300)}`); });
+    const chat200 = [];
+    c2.on('response', r => { if (r.url().includes('/api/tutor/chat')) chat200.push(r.status()); });
+    c2.on('requestfailed', r => { if (r.url().includes('/api/tutor/chat')) chat200.push(`failed:${r.failure()?.errorText || ''}`); });
     // What the page itself showed, not the first context's (already closed) screen.
     const describe = async (pg, label) => {
       // innerText is what is rendered; textContent includes what is clipped or
@@ -528,26 +528,26 @@ async function boundaryChild(br, bname, i) {
           fontSize: getComputedStyle(document.documentElement).fontSize, replyRendered: /STUB-TUTOR/.test(document.body.innerText),
           replyInDom: /STUB-TUTOR/.test(document.body.textContent || ''), scrollAreaHeights: list, viewport: [innerWidth, innerHeight] };
       }).catch(e => ({ error: String(e).slice(0, 200) }));
-      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)} chatResponses=${JSON.stringify(label === '@175%' ? chat175 : 'n/a')}`);
+      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)} chatResponses=${JSON.stringify(label === '@200%' ? chat200 : 'n/a')}`);
     };
     try {
-      await step(who, 'sign_in_at_175_percent', () => childLogin(c2, name));
+      await step(who, 'sign_in_at_200_percent', () => childLogin(c2, name));
     } catch (e) {
-      await describe(c2, '@175%');
+      await describe(c2, '@200%');
       // Diagnosis only (not a check): the same phone-sized, touch context
-      // without the 175% setting, to tell a text-scale fault from an engine one.
+      // without the 200% setting, to tell a text-scale fault from an engine one.
       const ctl = await br.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const cp = await ctl.newPage();
       const ok = await childLogin(cp, name).then(() => true).catch(() => false);
-      console.log(`CONTROL ${who} phone-size without 175%: sign-in ${ok ? 'succeeded' : 'failed'}`);
+      console.log(`CONTROL ${who} phone-size without 200%: sign-in ${ok ? 'succeeded' : 'failed'}`);
       if (!ok) await describe(cp, '@control');
       await ctl.close().catch(() => {});
       await ctx2.close().catch(() => {});
       throw e;
     }
     const scale = await c2.evaluate(() => getComputedStyle(document.documentElement).fontSize);
-    check(who, 'text_scale_175_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);
-    // The conversation must stay readable: at 175% on a phone, the practice
-    // card once squeezed the message area to 56 px, so Bede's replies were in
+    check(who, 'text_scale_200_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);
+    // The conversation must stay readable: at 175% on a phone (the old top
+    // step), the practice card once squeezed the message area to 56 px, so Bede's replies were in
     // the page but not in view (WebKit's innerText exposed it; Chrome's did not).
     // The detail names every sibling's height so a failure says what took the room.
     const layout = await c2.evaluate(() => {
@@ -563,7 +563,7 @@ async function boundaryChild(br, bname, i) {
       }
       return { area: Math.round(el.getBoundingClientRect().height), vh: innerHeight, parts: parts.join(' ') };
     });
-    check(who, 'conversation_visible_at_175', layout.area >= layout.vh * 0.25,
+    check(who, 'conversation_visible_at_200', layout.area >= layout.vh * 0.25,
       `message area ${layout.area}px of ${layout.vh}px; beside it: ${layout.parts}`);
     await ctx2.close();
   } catch (e) {
@@ -605,8 +605,8 @@ function expectedChecks() {
     F.browsers.forEach((b, i) => {
       for (const c of ['open_redirect_refused', 'wrong_password_plain_error', 'invalid_token_logs_out_with_notice', 'back_after_logout_shows_no_household',
         'oversize_upload_refused_before_send', 'unsupported_upload_refused_without_reading', 'double_approve_single_set']) out.push([`parent${i + 1}_${b}`, c]);
-      for (const c of ['blank_message_not_sent', 'overlong_message_handled_plainly', 'child_cannot_open_parent_pages', 'text_scale_175_no_horizontal_scroll',
-        'conversation_visible_at_175']) out.push([`child${i + 1}_${b}`, c]);
+      for (const c of ['blank_message_not_sent', 'overlong_message_handled_plainly', 'child_cannot_open_parent_pages', 'text_scale_200_no_horizontal_scroll',
+        'conversation_visible_at_200']) out.push([`child${i + 1}_${b}`, c]);
     });
     for (const c of ['parent_locked_after_repeated_failures', 'locked_parent_refused_even_with_right_password', 'recovery_reachable_while_locked']) out.push(['lockout', c]);
     return out;

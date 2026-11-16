@@ -818,3 +818,118 @@ async def test_the_math_summary_counts_practice_answers_apart_from_check_ins(db)
     assert MasteryProfileSummary(**summary).practice_answers == pm.YOUR_TURN_TASKS
     # No record at all still reads as "no data yet".
     assert await _SUMMARY_BUILDERS["mathematics"](db, "Nobody") is None
+
+
+# ── Owner ruling 2026-11-16: a building question records counting only ─────
+
+def test_every_building_question_records_counting_and_every_picked_answer_its_own_skill():
+    assert pm.BUILD_SKILL == "cc.count_objects_20"
+    for _level, topic, _seed, _phase, _index, task in _every_task(range(10)):
+        if task.choice_kind == "build":
+            assert pm.recorded_skill(task) == "cc.count_objects_20", (topic, task.prompt_key)
+        else:
+            assert pm.recorded_skill(task) == pm.TOPIC_SKILL[topic], (topic, task.prompt_key)
+
+
+def _prerequisites(skill):
+    out, todo = set(), [skill]
+    while todo:
+        for p in get_skill(todo.pop()).prerequisites:
+            if p not in out:
+                out.add(p)
+                todo.append(p)
+    return out
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("topic,level,name", [("add", "1", "Ben"), ("subtract", "1", "Ben"), ("bond", "1", "Ben"),
+                                              ("count", "K", "Ada")])
+async def test_a_building_answer_updates_counting_and_nothing_else(db, topic, level, name):
+    """add_build, subtract_build, bond_build and count_build: the right count
+    on the frame moves cc.count_objects_20 alone; every other skill's
+    estimate is exactly where it started, and the ledger names counting."""
+    lesson = {"lesson_id": routes.mint_lesson_id(name, level, topic, 11, area="math")}
+    task = pm.build_task(level, topic, 11, "your_turn", 1)
+    assert task.choice_kind == "build"
+    result = await _send(db, name, lesson, "your_turn", 1, choice=task.accept_choice)
+    assert result["recorded"] is True
+    after = await _vector(db, name)
+    before = new_vector("K-2")
+    moved = {skill for skill in after if after[skill] != pytest.approx(before[skill])}
+    assert moved == {"cc.count_objects_20"}, moved
+    assert after["cc.count_objects_20"] == pytest.approx(_expected(before, "cc.count_objects_20", 0.5))
+    row = (await db.execute(select(SkillActivityLog))).scalar_one()
+    detail = decrypt_json(row.detail_enc, student_aad("skill_activity_log", "detail_enc", name, "mathematics",
+                                                       "cc.count_objects_20"),
+                          await student_keys.get_existing(db, name))
+    assert row.skill_id == "cc.count_objects_20"
+    assert detail["label"] == get_skill("cc.count_objects_20").label
+
+
+@pytest.mark.asyncio
+async def test_a_second_try_build_records_counting_at_a_quarter(db):
+    lesson = {"lesson_id": routes.mint_lesson_id("Ben", "1", "add", 11, area="math")}
+    task = pm.build_task("1", "add", 11, "your_turn", 1)
+    assert (await _send(db, "Ben", lesson, "your_turn", 1, choice=_wrong(task)))["tries_left"] == 1
+    assert (await _send(db, "Ben", lesson, "your_turn", 1, choice=task.accept_choice))["recorded"] is True
+    after = await _vector(db, "Ben")
+    before = new_vector("K-2")
+    assert after["cc.count_objects_20"] == pytest.approx(_expected(before, "cc.count_objects_20", 0.25))
+    assert after["oa.add_within_20"] == pytest.approx(before["oa.add_within_20"])
+
+
+@pytest.mark.asyncio
+async def test_a_guided_or_answer_shown_build_records_no_evidence(db):
+    lesson = {"lesson_id": routes.mint_lesson_id("Ben", "1", "add", 11, area="math")}
+    guided = pm.build_task("1", "add", 11, "together", 0)
+    assert guided.choice_kind == "build"
+    assert (await _send(db, "Ben", lesson, "together", 0, choice=guided.accept_choice))["correct"] is True
+    shown = pm.build_task("1", "add", 11, "your_turn", 1)
+    await _send(db, "Ben", lesson, "your_turn", 1, choice=_wrong(shown))
+    revealed = await _send(db, "Ben", lesson, "your_turn", 1, choice=_wrong(shown))
+    assert revealed["tries_left"] == 0 and "reveal" in revealed
+    after = await _send(db, "Ben", lesson, "your_turn", 1, choice=shown.accept_choice)
+    assert after["recorded"] is False
+    assert await _ledger_rows(db, "Ben") == 0 and await _profile(db, "Ben") is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("topic,skill", [("add", "oa.add_within_20"), ("subtract", "oa.subtract_within_20"),
+                                         ("bond", "cc.number_bonds")])
+async def test_a_picked_arithmetic_answer_still_records_its_own_skill(db, topic, skill):
+    lesson = {"lesson_id": routes.mint_lesson_id("Ben", "1", topic, 12, area="math")}
+    task = pm.build_task("1", topic, 12, "your_turn", 0)
+    assert task.choice_kind == "number"
+    assert (await _send(db, "Ben", lesson, "your_turn", 0, choice=task.accept_choice))["recorded"] is True
+    after, before = await _vector(db, "Ben"), new_vector("K-2")
+    assert after[skill] == pytest.approx(_expected(before, skill, 0.5))
+    # Only that skill moved (the engine may raise its own prerequisites'
+    # floors, never an unrelated skill).
+    moved = {k for k in after if after[k] != pytest.approx(before[k])}
+    assert skill in moved and moved <= {skill} | _prerequisites(skill), moved
+    row = (await db.execute(select(SkillActivityLog))).scalar_one()
+    assert row.skill_id == skill
+
+
+@pytest.mark.asyncio
+async def test_a_retried_building_answer_records_once(db):
+    lesson = {"lesson_id": routes.mint_lesson_id("Ben", "1", "add", 11, area="math")}
+    task = pm.build_task("1", "add", 11, "your_turn", 1)
+    first = await _send(db, "Ben", lesson, "your_turn", 1, choice=task.accept_choice)
+    again = await _send(db, "Ben", lesson, "your_turn", 1, choice=task.accept_choice)
+    assert first["recorded"] is True and again["recorded"] is False
+    assert await _ledger_rows(db, "Ben") == 1
+    before = new_vector("K-2")
+    assert (await _vector(db, "Ben"))["cc.count_objects_20"] == pytest.approx(
+        _expected(before, "cc.count_objects_20", 0.5))
+
+
+@pytest.mark.asyncio
+async def test_a_building_answer_with_retention_off_writes_the_counting_ledger_row_only(db, monkeypatch):
+    monkeypatch.setattr(settings, "retain_mastery_profiles", False)
+    lesson = {"lesson_id": routes.mint_lesson_id("Ben", "1", "add", 11, area="math")}
+    task = pm.build_task("1", "add", 11, "your_turn", 1)
+    assert (await _send(db, "Ben", lesson, "your_turn", 1, choice=task.accept_choice))["recorded"] is True
+    assert await _profile(db, "Ben") is None
+    row = (await db.execute(select(SkillActivityLog))).scalar_one()
+    assert row.skill_id == "cc.count_objects_20"

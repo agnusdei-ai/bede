@@ -11,6 +11,13 @@ existing K-2 skills in services/diagnostic/skill_map.py (no new skill id):
     subtract   oa.subtract_within_20   a ten-frame with some counters taken away
     bond       cc.number_bonds         a number bond with one part missing
 
+A building question (putting counters on a ten-frame, whatever the topic
+framing it) records counting, cc.count_objects_20, and nothing else (owner
+ruling 2026-11-16, `recorded_skill`): the frame does the arithmetic for anyone
+who counts, so it shows the child can make a number, not that they can add,
+take away or split one. A question where the child picks the answer records
+the topic's own skill.
+
 The level comes from the SAVED grade, never the request, and the topic is
 the first of that level's topics whose skill the child's saved math record
 does not show as secure, in a fixed order.
@@ -130,6 +137,22 @@ def topic_for(level: str, vector: Optional[dict] = None) -> str:
 
 def skill_label(topic: str) -> str:
     return get_skill(TOPIC_SKILL[topic]).label
+
+
+#: The one skill a building question records (owner ruling 2026-11-16, a
+#: product default). Putting a number of counters on a ten-frame shows the
+#: child can make that many; it does not show the addition, subtraction or
+#: number bond the question was framed in, since the frame itself does the
+#: arithmetic for anyone who counts. So every building question, whatever its
+#: topic, records counting and nothing else.
+BUILD_SKILL = "cc.count_objects_20"
+
+
+def recorded_skill(task: "Task") -> str:
+    """The skill a right Your turn answer to `task` is evidence for: counting
+    for any building question, the topic's own skill for a question where the
+    child picks the answer."""
+    return BUILD_SKILL if task.choice_kind == "build" else TOPIC_SKILL[task.topic]
 
 
 # ── A question ───────────────────────────────────────────────────────────────
@@ -525,7 +548,8 @@ def match_spoken(task: Task, text: str) -> Optional[str]:
 
 __all__ = [
     "AUDIO_ONLY_TOPICS", "CHOICES_PER_LEVEL", "COMPARE_CHOICES", "LEVELS", "LEVEL_TOPICS", "PHASES",
-    "TOGETHER_TASKS", "TOPICS", "TOPIC_SKILL", "YOUR_TURN_TASKS", "Task", "build_lesson", "build_task",
+    "TOGETHER_TASKS", "TOPICS", "TOPIC_SKILL", "YOUR_TURN_TASKS", "BUILD_SKILL", "Task", "build_lesson",
+    "build_task", "recorded_skill",
     "build_watch", "level_for_grade", "match_spoken", "number_forms", "speech_echoes_answer",
     "spoken_forms", "time_forms", "topic_for",
 ]

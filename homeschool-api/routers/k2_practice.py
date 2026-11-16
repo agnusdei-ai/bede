@@ -413,15 +413,19 @@ class MathAnswer(PhonicsAnswer):
     nothing a child says is kept."""
 
 
-async def _record_math(db: AsyncSession, student_name: str, topic: str, first_try: bool) -> bool:
-    """One completed question: a ledger row, then the observation for the
-    topic's skill at its weight, through the math engine's own evidence path
-    (services/diagnostic's process_evidence `confidence`). Practice skips the
-    early-evidence boost and does not advance evidence_count, exactly as
-    phonics practice does (owner rulings 2026-11-16). Both best-effort."""
-    skill = practical_math.TOPIC_SKILL[topic]
+async def _record_math(db: AsyncSession, student_name: str, skill: str, first_try: bool) -> bool:
+    """One completed question: a ledger row naming `skill`, then the
+    observation for it at its weight, through the math engine's own evidence
+    path (services/diagnostic's process_evidence `confidence`). `skill` is
+    practical_math.recorded_skill(task): counting for any building question
+    (owner ruling 2026-11-16), the topic's skill when the child picked the
+    answer. Practice skips the early-evidence boost and does not advance
+    evidence_count, exactly as phonics practice does (owner rulings
+    2026-11-16). Both best-effort."""
+    from services.diagnostic.skill_map import get_skill
+
     recorded = await record_activity(
-        db, student_name, practical_math.LEDGER_SUBJECT_AREA, skill, practical_math.skill_label(topic),
+        db, student_name, practical_math.LEDGER_SUBJECT_AREA, skill, get_skill(skill).label,
         "correct" if first_try else "partial",
         source="practice_round",
     )
@@ -454,4 +458,5 @@ async def answer_math(
         raise HTTPException(status_code=404, detail=NOT_FOUND) from None
     return await _settle(db, student_name, lesson_id, body, auth, task, MATH_AREA,
                          lambda text: practical_math.match_spoken(task, text),
-                         lambda first_try: _record_math(db, student_name, topic, first_try=first_try))
+                         lambda first_try: _record_math(db, student_name, practical_math.recorded_skill(task),
+                                                        first_try=first_try))

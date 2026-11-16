@@ -2242,7 +2242,11 @@ each K-2 student's card), and so are the rules for what is kept: a question
 right alone adds one row to the work ledger and counts toward the math picture
 at half the weight of a live check, right on the second try at a quarter, and
 an answer that was shown counts nothing. These are product choices, not
-research findings. Only the first Number Time round in each sign-in is
+research findings. Putting counters on the frame counts only as counting,
+even when the question was about adding, taking away or a number bond: the
+frame does the sum for anyone who counts the boxes, so only picking the
+answer from the choices counts toward adding, taking away or number bonds.
+Only the first Number Time round in each sign-in is
 recorded, at most three answers, separately from Sound Time's round, and your
 Progress page says so. Practice answers do not hurry the math picture past its
 "still getting to know your learner" stage; while it lasts, Progress shows

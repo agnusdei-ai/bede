@@ -311,9 +311,20 @@ so adding them there would change the demo. Moving them in later is one line
 plus the renderer copied into `Diagram.tsx` and its demo mirror, with the
 owner's sign-off.
 
+Which skill an answer counts for (owner ruling 2026-11-16, a product
+default): **a building question records counting only.** Putting the right
+number of counters on a ten-frame, whether the question was framed as adding,
+taking away, a number bond or a plain count, is evidence for
+`cc.count_objects_20` and nothing else, because the frame does the arithmetic
+for anyone who counts the boxes. It never moves the addition, subtraction,
+comparison or number-bond estimate. A question where the child picks the
+answer from the choices (how many in all, how many are left, the missing part,
+which row has more) records the topic's own skill. The ledger row names the
+skill recorded (`practical_math.recorded_skill`).
+
 What a Your turn answer records follows phonics exactly (decision 40(b) and
 the two later rulings): right first try, a ledger row (unaided) and an
-observation for the topic's skill at `confidence` 0.5; right second try, a
+observation for the recorded skill at `confidence` 0.5; right second try, a
 ledger row (with a hint) at 0.25; answer shown, nothing. The observation goes
 through `process_evidence` with `skip_calibration_boost=True` and
 `count_toward_calibration=False`, two keyword arguments only this route passes,

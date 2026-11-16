@@ -144,7 +144,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     void run(async () => {
       const ls = await fetchPilotOwnerLearners(token, campusId)
       if (cancelled) return
-      setLearners(ls); setLearnerId(ls[0]?.learner_id ?? '')
+      setLearners(ls); setLearnerId(ls[0]?.learner_id ?? ''); setConfirmName('')
     }, e => cancelled ? '' : describeFailure(e, {
       action: 'load the learners for this campus', forbidden: PASSKEY_NEEDED,
       notFound: 'This campus may have been disabled or removed. Refresh the page to see the current list.',
@@ -153,8 +153,12 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, campusId, token])
 
-  useEffect(() => { setConfirmName('') }, [learnerId])
-  useEffect(() => { setConfirmCampusName('') }, [campusId])
+  // The typed confirmations are cleared where the learner or campus changes,
+  // never from an effect: an effect keyed on the id can run after the
+  // grown-up has already typed and wipe what they typed (seen in CI as an
+  // empty confirm field and a Delete button that never enabled).
+  const chooseLearner = (id: string) => { setLearnerId(id); setConfirmName('') }
+  const chooseCampus = (id: string) => { setCampusId(id); setConfirmCampusName(''); setConfirmName('') }
 
   if (!enabled) return null
   const learner = learners.find(l => l.learner_id === learnerId)
@@ -183,7 +187,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
     setReceipt({ name, data: out })
     setReceipts(rs => [{ ...out, hash_verified: true }, ...rs])
     const rest = learners.filter(l => l.learner_id !== learnerId)
-    setLearners(rest); setLearnerId(rest[0]?.learner_id ?? '')
+    setLearners(rest); setLearnerId(rest[0]?.learner_id ?? ''); setConfirmName('')
   }, e => describeFailure(e, {
     action: "delete this learner's records",
     forbidden: PASSKEY_NEEDED,
@@ -216,7 +220,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
         {campuses.length === 0
           ? (!busy && !error && <p className="text-sm text-gray-500">There are no pilot campuses yet.</p>)
           : <label className="block text-sm">Campus
-              <select className={field + ' mt-1'} value={campusId} onChange={e => setCampusId(e.target.value)}>
+              <select className={field + ' mt-1'} value={campusId} onChange={e => chooseCampus(e.target.value)}>
                 {campuses.map(c => <option key={c.campus_id} value={c.campus_id}>{c.title}{c.enabled ? '' : ' (disabled)'}</option>)}
               </select>
             </label>}
@@ -251,7 +255,7 @@ export default function PilotOwnerPanel({ token }: { token: string }) {
         {selectedCampus?.enabled && campusId && learners.length === 0 && !busy && !error &&
           <p className="text-sm text-gray-500">This campus has no pilot learners.</p>}
         {selectedCampus?.enabled && learners.length > 0 && <label className="block text-sm">Learner
-          <select className={field + ' mt-1'} value={learnerId} onChange={e => setLearnerId(e.target.value)}>
+          <select className={field + ' mt-1'} value={learnerId} onChange={e => chooseLearner(e.target.value)}>
             {learners.map(l => <option key={l.learner_id} value={l.learner_id}>{l.display_name}</option>)}
           </select>
         </label>}

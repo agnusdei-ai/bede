@@ -61,6 +61,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
+          # The latest patched 24.x, not whichever 24.x the runner image cached.
+          check-latest: true
       - name: Install pinned Playwright and its engines
         shell: bash
         working-directory: scripts/qualification/browser_journeys

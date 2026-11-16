@@ -177,4 +177,5 @@ def test_each_pinned_playwright_is_checked_against_the_webkit_build_it_bundles()
         assert check in step["run"], check
     setup_node = next(s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/setup-node@"))
     assert str(setup_node["with"]["node-version"]) in ("22", "24")
+    assert setup_node["with"].get("check-latest") is True   # the latest patch, not the image's cached one
     assert job["runs-on"] == "macos-15"

@@ -210,8 +210,19 @@ def build_summary_view(
     }
 
 
-async def process_evidence(db, student_name: str, domain: str, outcome: str) -> Optional[MasteryVector]:
+async def process_evidence(
+    db, student_name: str, domain: str, outcome: str, weight: float = 1.0,
+) -> Optional[MasteryVector]:
     """
+    `weight` (0 < weight <= 1) scales how far this one observation moves the
+    estimate, exactly as literacy.process_evidence's does. A check-in Bede
+    watched in a session is 1.0, the default, so every caller that passes no
+    weight behaves as before. A K-2 practice round's "Your turn" answer passes
+    less (routers/k2_practice.py: 0.5 on the first try, 0.25 on the second,
+    product defaults the owner chose, not research values). Anything outside
+    that range is refused rather than clamped, since a malformed weight must
+    not become a full-strength observation.
+
     Persistence-backed entry point — mirrors composition.process_assessment
     and services.diagnostic.__init__.process_evidence's load/update/store
     shape exactly, against MasteryProfile(subject_area="phonics"). Called
@@ -250,10 +261,13 @@ async def process_evidence(db, student_name: str, domain: str, outcome: str) -> 
         vector = new_vector()
         vector_is_cold_start = True
 
+    if isinstance(weight, bool) or not isinstance(weight, (int, float)) or not 0.0 < weight <= 1.0:
+        await db.rollback()
+        return None
     evidence_count_before = 0 if vector_is_cold_start else row.evidence_count
     updated_vector, updates = apply_evidence(
         vector, domain, outcome,
-        calibration_weight=calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
+        calibration_weight=weight * calibration_weight_for(evidence_count_before, CALIBRATION_THRESHOLD),
     )
 
     if not updates:

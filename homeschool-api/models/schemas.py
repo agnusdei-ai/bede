@@ -561,6 +561,17 @@ class SessionConfig(BaseModel):
     #: §5). Cannot shorten, skip, delay, or extend past the mandatory hourly
     #: break; it only makes the existing suggestion reachable.
     frequent_break_offers: bool = False
+
+    #: K-2 practice (docs/K2_PRACTICE.md §4): which practice rounds Bede may
+    #: offer this child. "off": none. "approved_only": only practice sets the
+    #: parent approved (Practice Coach), so Bede never chooses on its own.
+    #: "todays_subjects": Bede may also offer a round from authored content in
+    #: a subject already in today's routine. The default is the owner's ruling
+    #: of 2026-11-16 (docs/DECISIONS.md entry 40(a)). Parent-set only; it is
+    #: checked when the prompt is built and again when the tool runs
+    #: (services/ai_service.py's _practice_allowed). Uploaded-quiz practice
+    #: still needs the parent's approval whatever this says.
+    practice_offers: Literal["off", "approved_only", "todays_subjects"] = "todays_subjects"
     # Parent's chosen starting point (see CompanionMode) — how much Bede
     # drives the day versus defers to the family's own books. Purely a
     # behavioral framing layered into the prompt (_companion_mode_note);

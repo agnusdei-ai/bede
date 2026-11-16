@@ -320,6 +320,11 @@ jobs:
             exit 1
           }
           ( cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Engineering-Mac-arm64.dmg" > "Bede-Engineering-Mac-arm64.dmg.sha256" )
+          # Provenance beside the DMG, as the Intel DMG has it, so package
+          # evidence can bind this file to its source SHA and architecture.
+          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/RELEASE_PROVENANCE.json"
+          cp "$RUNNER_TEMP/bede-artifact/bede-operator-standard/RELEASE_PROVENANCE.json" "$RUNNER_TEMP/RELEASE_PROVENANCE.json"
+          python3 -c 'import json,os,sys; d=json.load(open(os.environ["RUNNER_TEMP"]+"/RELEASE_PROVENANCE.json")); sys.exit(0 if d.get("source_sha")==os.environ["SOURCE_SHA"] else "provenance source_sha does not match this build")'
       - name: Upload ad hoc signed engineering candidate only (not for distribution)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -327,6 +332,7 @@ jobs:
           path: |
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg.sha256
+            ${{ runner.temp }}/RELEASE_PROVENANCE.json
             ${{ runner.temp }}/NOT_FOR_DISTRIBUTION.txt
           if-no-files-found: error
           compression-level: 0

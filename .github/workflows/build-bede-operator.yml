@@ -108,6 +108,9 @@ jobs:
           evidence = {
               "source_sha": os.environ["SOURCE_SHA"],
               "architecture": "${{ matrix.arch }}",
+              "os": "${{ matrix.runner }}",
+              "signing": "unsigned",
+              "notarization": "not_applicable",
               "build_run_url": f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}',
               "contents": "source-free operator images and launchers",
               "scope": "teacher-directed, sample-only Valor pilot evaluation",
@@ -160,6 +163,9 @@ jobs:
           provenance = json.loads((d/'RELEASE_PROVENANCE.json').read_text())
           assert provenance['source_sha'] == os.environ['SOURCE_SHA']
           assert provenance['architecture'] == '${{ matrix.arch }}'
+          assert provenance['os'] == '${{ matrix.runner }}'
+          assert provenance['signing'] == 'unsigned'
+          assert provenance['notarization'] == 'not_applicable'
           assert provenance['learner_delivery'] == 'NOT_REQUESTED'
           assert provenance['physical_mac'] == 'NOT_RUN'
           assert provenance['pilot_go'] == 'HOLD'
@@ -320,6 +326,32 @@ jobs:
             exit 1
           }
           ( cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Engineering-Mac-arm64.dmg" > "Bede-Engineering-Mac-arm64.dmg.sha256" )
+          MACOS_VERSION="$(sw_vers -productVersion)" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          evidence = {
+              "source_sha": os.environ["SOURCE_SHA"],
+              "architecture": "arm64",
+              "os": "macOS " + os.environ["MACOS_VERSION"],
+              "signing": "ad hoc (codesign --sign -); codesign --verify --deep --strict passed",
+              "notarization": "none (not notarized)",
+              "digest": (root / "Bede-Engineering-Mac-arm64.dmg.sha256").read_text().split()[0],
+              "build_run_url": f'{os.environ["GITHUB_SERVER_URL"]}/{os.environ["GITHUB_REPOSITORY"]}/actions/runs/{os.environ["GITHUB_RUN_ID"]}',
+              "contents": "compact source-free Mac engineering candidate (no embedded container images)",
+              "scope": "teacher-directed, sample-only Valor pilot evaluation",
+              "learner_delivery": "NOT_REQUESTED",
+              "physical_mac": "NOT_RUN",
+              "engineering_acceptance": "NOT_SIGNED",
+              "pilot_go": "HOLD",
+              "prior_qualification_carries_to_this_sha": False
+          }
+          path = root / "RELEASE_PROVENANCE.json"
+          path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
+          provenance = json.loads(path.read_text())
+          assert provenance['source_sha'] == os.environ['SOURCE_SHA']
+          assert provenance['os'].startswith('macOS')
+          PY
       - name: Upload ad hoc signed engineering candidate only (not for distribution)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -327,6 +359,7 @@ jobs:
           path: |
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg
             ${{ runner.temp }}/Bede-Engineering-Mac-arm64.dmg.sha256
+            ${{ runner.temp }}/RELEASE_PROVENANCE.json
             ${{ runner.temp }}/NOT_FOR_DISTRIBUTION.txt
           if-no-files-found: error
           compression-level: 0

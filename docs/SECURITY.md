@@ -148,7 +148,7 @@ run code when they are opened, and never pass `trust_remote_code` /
 
 | Enforced | Recommended only |
 |---|---|
-| The installers pull only tags from their fixed tables, all plain Ollama library tags; `tests/test_local_model_default.py` fails on a tag that pulls from another registry (`hf.co/...`) or names a cloud model. Ollama's library serves models as GGUF and Ollama does not run code from a model. | Bede cannot see the weights on a vLLM server or any other OpenAI-compatible server. The documented vLLM command loads Mistral's safetensors file (`--load_format mistral`) and has no `--trust-remote-code`; keeping it that way, and not serving pickle-format weights, is the operator's job. |
+| The installers pull only tags from their fixed tables, all plain Ollama library tags; `tests/test_local_model_default.py` fails on a tag that pulls from another registry (`hf.co/...`) or names a cloud model. | That those tags are GGUF files and that Ollama runs no code shipped with a model is Ollama's own behaviour, which Bede relies on and does not check. Bede cannot see the weights on a vLLM server or any other OpenAI-compatible server. The documented vLLM command loads Mistral's safetensors file (`--load_format mistral`) and has no `--trust-remote-code`; keeping it that way, and not serving pickle-format weights, is the operator's job. |
 | The wizard accepts a model name from the installer's marker file only if it is a plain name (letters, digits, `.`, `_`, `:`, `/`, `-`). | A parent who types another `LOCAL_LLM_MODEL`, or pulls another model into Ollama by hand, is not checked. |
 
 ### No China-hosted AI APIs

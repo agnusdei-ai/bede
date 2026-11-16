@@ -66,8 +66,8 @@ It translates symmetrically:
 
 **The image translation needs a vision-capable model on the far end.** OpenAI's
 default (`gpt-4.1-mini`) is vision-capable, so a child's handwriting/drawing
-submission (`invite_handwriting`) reaches it intact. The local adapter's
-vLLM default, Mistral Small 3.2, accepts images, and so do the
+submission (`invite_handwriting`) reaches it intact. The recommended vLLM
+model, Mistral Small 3.2, accepts images, and so do the
 `ministral-3` and `mistral-small3.2` Ollama models the installers pull on
 most tiers. The `granite3.3` Ollama models are text-only, and Mistral's API
 default `mistral-large-latest` is text-only — configuring one of those as
@@ -88,7 +88,7 @@ All in `homeschool-api/core/config.py` (env vars via `.env`):
 | `BEDE_FORCE_ADAPTER` | *(empty)* | Pin to one adapter, skipping order/failover. |
 | `LOCAL_LLM_BASE_URL` | *(empty)* | vLLM/OpenAI-compatible `/v1` endpoint. Empty ⇒ local adapter skipped. |
 | `LOCAL_LLM_API_KEY` | `not-needed` | Placeholder; vLLM's OpenAI server has no built-in auth. |
-| `LOCAL_LLM_MODEL` | `mistralai/Mistral-Small-3.2-24B-Instruct-2506` | Model name the local server serves. The installers write the Ollama model they pulled instead. |
+| `LOCAL_LLM_MODEL` | *(not set)* | Model name the local server serves. Written by every installer and by setup. Not set: the server's only model, or an error naming this setting (see "When `LOCAL_LLM_MODEL` is not set" below). Recommended for vLLM: `mistralai/Mistral-Small-3.2-24B-Instruct-2506`. |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Chat model for the OpenAI adapter (reuses `OPENAI_API_KEY`). |
 | `MISTRAL_API_KEY` / `MISTRAL_MODEL` | *(empty)* / `mistral-large-latest` | Mistral secondary. |
 
@@ -316,7 +316,8 @@ every time, and resets once a call to it succeeds again.
 
 ### Local self-hosted vLLM + Mistral Small 3.2 (needs a large GPU)
 
-The vLLM default (`LOCAL_LLM_MODEL`'s default in `core/config.py`) is
+The recommended vLLM model (`core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`,
+which `setup.sh` offers and writes) is
 `mistralai/Mistral-Small-3.2-24B-Instruct-2506` (Mistral AI, Apache-2.0),
 the full-precision build. **It needs about 55 GB of GPU memory and vLLM
 0.9.1 or later**, both from Mistral's model card for the bf16/fp16 weights.
@@ -330,7 +331,7 @@ NVIDIA GPUs on Linux (bare metal or WSL2):
 
 | Tier | GPU memory | Notes |
 |------|------------|-------|
-| vLLM default | about 55 GB in total (one 80 GB card, or two 32 GB+ cards with `--tensor-parallel-size 2`) | Full precision, the model card's figure |
+| Recommended model | about 55 GB in total (one 80 GB card, or two 32 GB+ cards with `--tensor-parallel-size 2`) | Full precision, the model card's figure |
 | Less GPU memory | — | Use the Ollama path (quantised GGUF builds, see the installer tables) |
 
 If your household hardware is a laptop/tablet/Raspberry Pi without a suitable
@@ -368,18 +369,31 @@ BEDE_ADAPTER_ORDER=local,anthropic
 default before `docs/DECISIONS.md` entry 43) still works: serve it with
 `--tool-call-parser qwen3_coder --enable-auto-tool-choice` and set
 `LOCAL_LLM_MODEL` to its name. A deployment that already sets
-`LOCAL_LLM_MODEL` keeps whatever it set; only the default changed.
+`LOCAL_LLM_MODEL` keeps whatever it set.
 
-**One existing setup must add a line before updating.** A vLLM server
-running Qwen3-Coder, set up with the model name left blank (so `.env` has
-`LOCAL_LLM_BASE_URL` but no `LOCAL_LLM_MODEL` line), was relying on the old
-default. After this change Bede would ask that server for Mistral Small 3.2,
-which it does not serve, and every lesson would fail. Add
-`LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct` to `.env` to keep the
-model it runs. Households set up by the Windows, Linux or Mac installers are
-not affected: the installer writes the Ollama model it pulled into `.env`.
-`setup.sh` now writes the model name even when you accept its default, so
-this cannot recur.
+**When `LOCAL_LLM_MODEL` is not set.** It has no default model name. An
+explicitly set `LOCAL_LLM_MODEL` is always used unchanged. When it is not
+set (absent or empty), Bede asks the local server which models it serves
+(`GET /models`, which only lists; nothing is downloaded, replaced or
+deleted) at startup and again when a lesson first needs the model:
+
+- **Exactly one model:** Bede uses it and logs once which model it found,
+  with the line to add to `.env` to make it explicit. This is how an older
+  setup that left the name blank (for example a vLLM server running
+  `Qwen/Qwen3-Coder-30B-A3B-Instruct`, set up before this change) keeps
+  working after an update, with no edit.
+- **Several models, none, or the server cannot be reached:** Bede does not
+  guess. The local adapter fails with a configuration error that names the
+  fix, `add LOCAL_LLM_MODEL=<the model your server serves> to .env and
+  restart Bede`, in the log and in the `AI_BACKEND_FAILURE` audit detail
+  (so the parent's backend-failure alert names it too). An unreachable
+  server still fails over to a configured backup provider exactly as it did
+  before.
+
+The installers, `setup.sh` and the browser wizard all write
+`LOCAL_LLM_MODEL`, so a new installation never relies on this. The same
+rule applies to every process that uses the local model, including the
+Locuto listener.
 
 Put the vLLM server behind a tunnel/VPN (Tailscale, WireGuard) or an
 authenticating reverse proxy before exposing it beyond your LAN — its OpenAI

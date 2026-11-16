@@ -3,7 +3,7 @@
 docs/DECISIONS.md entry 43 (owner ruling 2026-11-16). The same facts live in
 several files: two installer tables (packaging/unix/install.sh and
 packaging/windows/Setup-Bede.ps1), the Mac helper
-(packaging/bundle/record-local-ai.sh), the vLLM default in core/config.py and
+(packaging/bundle/record-local-ai.sh), the recommended vLLM model in core/config.py and
 docker-compose.yml, the setup wizard's hint, the Spanish probe's lineup, and
 the tables in docs/UNIX_INSTALLER.md, docs/WINDOWS_INSTALLER.md,
 docs/PARENT_SETUP.md, docs/PROVIDER_ADAPTERS.md and docs/DECISIONS.md. This
@@ -331,22 +331,26 @@ def test_the_mac_helper_records_the_installers_model_for_this_ram(tmp_path, fami
     assert marker["model"] == table[tier]
 
 
-# ── The vLLM default in config, compose and docs ─────────────────────────────
+# ── The recommended vLLM model in config, compose and docs ─────────────────────────────
 
-def test_the_vllm_default_is_non_qwen_and_everywhere_the_same():
+def test_the_recommended_vllm_model_is_non_qwen_and_never_a_silent_default():
+    """The recommended vLLM model is not Qwen, and it is not the Settings or
+    compose default either: an unset LOCAL_LLM_MODEL is discovered or refused
+    (tests/test_local_model_unset.py), so no update can switch a deployment
+    to it."""
     from core import config
 
     assert "qwen" not in config.LOCAL_LLM_DEFAULT_MODEL.lower()
-    assert config.Settings.model_fields["local_llm_model"].default == config.LOCAL_LLM_DEFAULT_MODEL
+    assert config.Settings.model_fields["local_llm_model"].default == ""
     compose = COMPOSE.read_text(encoding="utf-8")
     defaults = re.findall(r"LOCAL_LLM_MODEL=\$\{LOCAL_LLM_MODEL:-([^}]*)\}", compose)
-    assert defaults and set(defaults) == {config.LOCAL_LLM_DEFAULT_MODEL}
+    assert defaults and set(defaults) == {""}
     assert f"# LOCAL_LLM_MODEL={config.LOCAL_LLM_DEFAULT_MODEL}" in API_ENV_EXAMPLE.read_text()
-    assert f"| `LOCAL_LLM_MODEL` | `{config.LOCAL_LLM_DEFAULT_MODEL}` |" in PROVIDER_DOC.read_text()
+    assert f"Recommended for vLLM: `{config.LOCAL_LLM_DEFAULT_MODEL}`" in PROVIDER_DOC.read_text()
 
 
 def test_the_docs_and_config_state_the_same_vllm_requirement():
-    """One fact (the vLLM default needs about 55 GB of GPU memory and vLLM
+    """One fact (the recommended vLLM model needs about 55 GB of GPU memory and vLLM
     0.9.1 or later) in config and four documents."""
     from core import config
 
@@ -424,3 +428,10 @@ def test_security_doc_states_what_is_enforced_and_what_is_not():
                  "the model runs offline; only the download reaches the library",
                  "| Enforced | Recommended only |", "ollama pull"):
         assert rule in section, rule
+    # Ollama serving GGUF and running no model code is Ollama's behaviour,
+    # not something Bede enforces, so it must not sit in an Enforced cell.
+    for line in section.splitlines():
+        if line.startswith("| ") and not line.startswith("| Enforced") and not line.startswith("|---"):
+            enforced_cell = line.split(" | ")[0]
+            assert "GGUF" not in enforced_cell, enforced_cell
+            assert "runs no code" not in enforced_cell and "does not run code" not in enforced_cell

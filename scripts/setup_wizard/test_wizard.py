@@ -327,6 +327,7 @@ def test_valid_local_submission_writes_correct_env(running_wizard):
     _post(running_wizard, {
         "provider": "local",
         "local_base_url": "http://gpu-box.lan:8000/v1",
+        "local_model": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
@@ -335,6 +336,8 @@ def test_valid_local_submission_writes_correct_env(running_wizard):
     env = open(wizard.ENV_PATH).read()
     assert "BEDE_ADAPTER_ORDER=local" in env
     assert "LOCAL_LLM_BASE_URL=http://gpu-box.lan:8000/v1" in env
+    # Always written for a local choice (docs/DECISIONS.md entry 43).
+    assert "LOCAL_LLM_MODEL=mistralai/Mistral-Small-3.2-24B-Instruct-2506" in env
     assert "ANTHROPIC_API_KEY" not in env
     assert "OPENAI_API_KEY" not in env
     assert "MISTRAL_API_KEY" not in env
@@ -352,6 +355,32 @@ def test_missing_credential_for_chosen_provider_rejected(running_wizard):
     assert exc_info.value.code == 400
     assert "OpenAI API key" in exc_info.value.read().decode()
     assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_local_choice_without_a_model_name_is_rejected(running_wizard):
+    """The wizard always writes LOCAL_LLM_MODEL for a local choice, so it
+    cannot accept one without a model name (docs/DECISIONS.md entry 43)."""
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "provider": "local",
+            "local_base_url": "http://gpu-box.lan:8000/v1",
+            "local_model": "   ",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": TEST_PIN,
+            "license_key": MOCK_ENTITLEMENT,
+        })
+    assert exc_info.value.code == 400
+    assert "Please enter the model name your model server serves" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_the_local_model_hint_does_not_promise_a_default():
+    """A blank model name never meant "Bede's default" for Ollama (the code
+    default was a vLLM name no Ollama serves), and now is refused."""
+    source = open(wizard.__file__, encoding="utf-8").read()
+    assert "Leave blank to use Bede" not in source
+    assert "Model name (optional)" not in source
 
 
 def test_missing_local_server_url_rejected(running_wizard):

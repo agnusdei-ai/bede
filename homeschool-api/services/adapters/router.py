@@ -134,6 +134,10 @@ def _build(name: str, settings: Any) -> Any:
             api_key=settings.local_llm_api_key,
             model=settings.local_llm_model,
             strict_local_transport=enforcement_enabled() or getattr(settings, "bede_offline_installation", False),
+            # An unset LOCAL_LLM_MODEL is filled from the server's own
+            # /models list when that names exactly one model, and is a
+            # configuration error otherwise (openai_compatible_adapter.py).
+            discover_model=True,
         )
     if name == "openai":
         return OpenAICompatibleClient(

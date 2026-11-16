@@ -207,7 +207,7 @@ quality.
 
 `core/config.py`'s `local_llm_model` default was an A3B MoE
 (`Qwen/Qwen3-Coder-30B-A3B-Instruct`) until `docs/DECISIONS.md` entry 43,
-which made the default lineup non-Chinese: the vLLM default is now
+which made the default lineup non-Chinese: the recommended vLLM model is now
 `mistralai/Mistral-Small-3.2-24B-Instruct-2506`, a dense 24B model that needs
 about 55 GB of GPU memory at full precision. Neither has been **evaluated
 against Bede's own tool set** — entry 20 again. A dense 24B model reads all of

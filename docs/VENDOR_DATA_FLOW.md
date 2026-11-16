@@ -58,7 +58,7 @@ proceeds. Both calls go through the same adapter as ordinary tutoring.
 - **A self-hosted local model — nothing leaves your machine at all.** The
   local adapter (`LOCAL_LLM_BASE_URL`) points at a model server you run
   yourself: Ollama, as the installers set it up, or vLLM (open-weight
-  `mistralai/Mistral-Small-3.2-24B-Instruct-2506` by default; see
+  `mistralai/Mistral-Small-3.2-24B-Instruct-2506` recommended; see
   `docs/DECISIONS.md` entry 43 for the lineup and why no Qwen model is the
   default) —
   no vendor, no account, no third-party data flow for tutoring at all. If

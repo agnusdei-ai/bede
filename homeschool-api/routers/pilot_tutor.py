@@ -22,6 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import school_authorization as school_auth
+from services.adapters.openai_compatible_adapter import backend_failure_detail
 from core.audit import AuditEvent, audit_from_request, log_event_nowait
 from core import student_keys
 from core.config import settings
@@ -52,7 +53,7 @@ def _backend_failure(request: Optional[Request], subject: str, cause: str,
     Fire-and-forget: must not delay the reply the educator is waiting on."""
     detail = f"cause={cause} subject={subject}"
     if exc is not None:
-        detail += f" error={type(exc).__name__}"
+        detail += " " + backend_failure_detail(exc)
     log_event_nowait(
         AuditEvent.AI_BACKEND_FAILURE, role="educator", success=False, detail=detail,
         **(audit_from_request(request) if request is not None else {}),

@@ -79,11 +79,15 @@ def role_is_exempt_from_provider_requirement(role: str) -> bool:
     return role == PROCESS_ROLE_LOCUTO_IPC
 
 
-# The vLLM default local model and what it needs (docs/DECISIONS.md entry 43).
-# Stated once here; tests/test_local_model_default.py checks that the docs,
-# docker-compose.yml and the example .env files say the same thing. The
-# figure is the model card's for the full-precision (bf16) weights; Ollama's
-# quantised build of the same model is about 15 GB.
+# The recommended vLLM model and what it needs (docs/DECISIONS.md entry 43).
+# setup.sh offers it as the answer to "Model name" and writes it to .env.
+# It is deliberately NOT the default of Settings.local_llm_model below: an
+# unset LOCAL_LLM_MODEL is filled from the local server's own model list
+# (exactly one model) or is a configuration error, so an existing vLLM
+# server is never switched to this model by an update. Stated once here;
+# tests/test_local_model_default.py checks that the docs and setup.sh say
+# the same thing. The figure is the model card's for the full-precision
+# (bf16) weights; Ollama's quantised build of the same model is about 15 GB.
 LOCAL_LLM_DEFAULT_MODEL = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
 LOCAL_LLM_DEFAULT_GPU_MEMORY_GB = 55
 LOCAL_LLM_DEFAULT_MIN_VLLM = "0.9.1"
@@ -135,13 +139,16 @@ class Settings(BaseSettings):
 
     # ── Local self-hosted LLM (OpenAI-compatible, e.g. vLLM) ──────────────────
     # Points at a vLLM (or any OpenAI-compatible) server's /v1 endpoint. The
-    # default model name below is the vLLM default: Mistral Small 3.2
-    # (Mistral AI, Apache-2.0), the full-precision build, which needs about
+    # recommended vLLM model is LOCAL_LLM_DEFAULT_MODEL above (Mistral Small
+    # 3.2, Mistral AI, Apache-2.0), which needs about
     # LOCAL_LLM_DEFAULT_GPU_MEMORY_GB of GPU memory and vLLM
     # LOCAL_LLM_DEFAULT_MIN_VLLM or later (docs/PROVIDER_ADAPTERS.md, and
-    # docs/DECISIONS.md entry 43 for why the default is not a Qwen model).
-    # Ollama households never use this default: the installers write the
-    # Ollama model they pulled into .env. IMPORTANT: this model needs a GPU
+    # docs/DECISIONS.md entry 43 for why it is not a Qwen model). The
+    # installers, setup.sh and the wizard all write LOCAL_LLM_MODEL. When it
+    # is not set (empty), the local adapter uses the one model the server
+    # serves, or fails with an error naming this setting if the server
+    # serves several, none, or cannot be reached; it never guesses
+    # (services/adapters/openai_compatible_adapter.py). IMPORTANT: this model needs a GPU
     # and CANNOT run inside the Render web service (Render has no GPU
     # instances) — it runs on separate GPU hardware and LOCAL_LLM_BASE_URL
     # points at it over the network. Empty LOCAL_LLM_BASE_URL = the local
@@ -150,7 +157,7 @@ class Settings(BaseSettings):
     # vLLM's OpenAI server has no built-in auth; the SDK still requires a
     # non-empty key, so this placeholder is fine for a private/tunnelled server.
     local_llm_api_key: str = "not-needed"
-    local_llm_model: str = LOCAL_LLM_DEFAULT_MODEL
+    local_llm_model: str = ""  # empty = not set; see the comment above
 
     # ── OpenAI chat adapter (secondary; distinct from OpenAI TTS above) ────────
     # Reuses OPENAI_API_KEY (defined below for TTS) as the credential, plus this

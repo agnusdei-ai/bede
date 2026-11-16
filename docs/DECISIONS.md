@@ -950,7 +950,8 @@ reading model cards.
 Entry 19 commits to running the model locally. It does not establish that any
 model which fits on donated hardware can *be* Bede, and nothing in this
 repository has measured that. `core/config.py`'s `local_llm_model` default
-(`Qwen/Qwen3-Coder-30B-A3B-Instruct` until entry 43, now
+(`Qwen/Qwen3-Coder-30B-A3B-Instruct` until entry 43; since then there is no
+default name and the recommended vLLM model is
 `mistralai/Mistral-Small-3.2-24B-Instruct-2506`) was chosen as a plausible
 self-hosted option, never evaluated against this application's own
 requirements. Entry 43 changed which models are the defaults on provenance
@@ -2514,7 +2515,8 @@ docs by `homeschool-api/tests/test_local_model_default.py`):
 | GPU under 5 GB, or no GPU and ≥16 GB RAM | `ministral-3:3b` | Mistral AI (France) | Apache-2.0 | ~3.0 GB | yes | yes (family listing) |
 | No GPU, under 16 GB RAM | `granite3.3:2b` | IBM (US) | Apache-2.0 | ~1.5 GB | yes | yes |
 
-The vLLM default (`core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`) is
+The recommended vLLM model (`core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`,
+offered and written by `setup.sh`) is
 `mistralai/Mistral-Small-3.2-24B-Instruct-2506`, the full-precision build,
 which needs about 55 GB of GPU memory and vLLM 0.9.1 or later (Mistral's
 model card). The ~15 GB figure above is Ollama's quantised build of the
@@ -2567,10 +2569,13 @@ that were the default: `qwen3:32b`, `qwen3:14b`, `qwen3:8b`, `qwen3:4b`,
 **Existing installations keep their model.** Updating Bede never pulls,
 switches or deletes a model. Re-running an installer keeps the model `.env`
 already names when Ollama still has it, unless a model family is asked for.
-The one setup that must act is a vLLM server running Qwen3-Coder that was
-set up with the model name left blank: it relied on the old default and
-must add `LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct` to `.env`
-before updating (`docs/PROVIDER_ADAPTERS.md`).
+`LOCAL_LLM_MODEL` no longer has a default model name, so no installation is
+switched to a new default by an update: an explicit name is used unchanged;
+an unset name is filled from the local server's own model list when it
+serves exactly one model (the older vLLM setup that left the name blank),
+and is otherwise a configuration error naming the setting to add, never a
+guess. The installers, `setup.sh` and the wizard all write the name
+(`docs/PROVIDER_ADAPTERS.md`, "When `LOCAL_LLM_MODEL` is not set").
 
 **Rules that came with this ruling** (owner, 2026-11-16): model files are
 GGUF or safetensors only, never pickle-based weights and never

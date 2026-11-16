@@ -163,8 +163,8 @@ The native Mac app does not run `install.sh`. It runs the operator bundle's
 `start.sh`, and it does **not** install Ollama or download a model. Before
 this was fixed, it also wrote no `local-ai.json`, so `.env` never named a
 model and `LOCAL_LLM_MODEL` fell back to `docker-compose.yml`'s default
-(a vLLM name no Ollama serves; today
-`mistralai/Mistral-Small-3.2-24B-Instruct-2506`). Campus
+(a vLLM name no Ollama serves; there is no default name any more, see
+`docs/PROVIDER_ADAPTERS.md`). Campus
 tutoring uses only the local model, so every lesson failed on that install.
 
 Now, on macOS and only while no `.env` exists yet, `start.sh` runs

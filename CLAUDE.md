@@ -1229,12 +1229,25 @@ adapter has its own model setting in `core/config.py`:
   Render demo actually uses in production, since its
   `BEDE_ADAPTER_ORDER=openai,mistral` (OpenAI primary, Mistral as the live
   failover if OpenAI errors mid-request).
-- **Local** (`local_llm_model`, default `mistralai/Mistral-Small-3.2-24B-Instruct-2506`,
-  `core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`) — the self-hosted vLLM
-  option; needs about 55 GB of GPU memory and vLLM 0.9.1 or later at full
-  precision (see docs/PROVIDER_ADAPTERS.md's hardware tiers). Families who
-  install with `packaging/windows/Setup-Bede.ps1` or `packaging/unix/install.sh`
-  run Ollama instead, and the installer writes the model it pulled into `.env`.
+- **Local** (`local_llm_model`, **no default name**; recommended vLLM model
+  `mistralai/Mistral-Small-3.2-24B-Instruct-2506`, `core/config.py`'s
+  `LOCAL_LLM_DEFAULT_MODEL`) — the self-hosted vLLM option; needs about 55 GB
+  of GPU memory and vLLM 0.9.1 or later at full precision (see
+  docs/PROVIDER_ADAPTERS.md's hardware tiers). Families who install with
+  `packaging/windows/Setup-Bede.ps1` or `packaging/unix/install.sh` run Ollama
+  instead, and the installer writes the model it pulled into `.env`; `setup.sh`
+  and the wizard always write it too. An explicit `LOCAL_LLM_MODEL` is used
+  unchanged. Unset (empty, which is also what compose passes when `.env` has
+  no line), `OpenAICompatibleClient._resolved_model` (local adapter only,
+  `discover_model=True`) lists the server's `/models`: exactly one model is
+  used and logged once, so an older blank-name vLLM setup keeps its model
+  across the update; several, none or unreachable raise
+  `LocalModelNotConfiguredError` (`LocalModelUnreachableError` is also a
+  `ConnectionError`, so failover is unchanged) naming
+  `LOCAL_LLM_MODEL=<the model your server serves>`, which
+  `backend_failure_detail()` puts in every `AI_BACKEND_FAILURE` detail.
+  `main.py`'s one-shot `_discover_local_model_at_startup` does the same check
+  at boot. Nothing is downloaded, replaced or deleted.
 
 **The local model lineup is non-Chinese by default; Qwen is an explicit
 choice (docs/DECISIONS.md entry 43, owner ruling 2026-11-16).** Both installers

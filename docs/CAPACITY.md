@@ -155,9 +155,13 @@ so one device signed in and reloaded twice in two steps inside one minute)
 drew three 429s from the sign-in bucket (`RATE_LIMIT_AUTH_PER_MINUTE`, 10 a
 minute per device), and the refused reload put that child back at the sign-in
 screen. Each page load checks the session against `/auth/`, so the sign-in
-bucket is spent by reloads as well as sign-ins. That is a per-device pattern,
+bucket was spent by reloads as well as sign-ins. That is a per-device pattern,
 not a capacity limit, but it is the one a tablet that keeps reloading would
-meet first.
+meet first. **Fixed:** the read-only status checks every page load makes
+(`GET /auth/validate`, `/auth/locales`, `/auth/educator-mode`, `/auth/elevate`)
+now count against the general API bucket; every credential attempt still
+counts against the sign-in bucket (`core/middleware.py`,
+`tests/test_middleware.py`).
 
 ## The database pool setting
 

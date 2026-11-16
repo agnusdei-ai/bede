@@ -116,6 +116,22 @@ def _rate_limited_app() -> FastAPI:
     def recovery_methods():
         return {"ok": True}
 
+    @app.get("/api/auth/validate")
+    def validate():
+        return {"ok": True}
+
+    @app.get("/auth/locales")
+    def locales():
+        return {"ok": True}
+
+    @app.post("/auth/elevate")
+    def elevate_attempt():
+        return {"ok": True}
+
+    @app.get("/auth/elevate")
+    def elevate_status():
+        return {"ok": True}
+
     return app
 
 
@@ -221,6 +237,46 @@ def test_auth_recovery_bucket_has_its_own_limit(monkeypatch):
     assert resp.status_code == 429
     # Still independent from the plain "auth" (login) bucket.
     assert client.get("/auth/login").status_code == 200
+
+
+# Regression coverage for a real failure found by the capacity smoke run
+# (docs/CAPACITY.md): the session check AppShell makes on every page load
+# (GET /auth/validate) counted against the 10-a-minute sign-in bucket, so a
+# child who signed in and reloaded twice inside a minute got a 429 on their
+# own session check and was sent back to sign-in.
+def test_page_load_status_checks_do_not_spend_the_sign_in_budget(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_auth_per_minute", 1)
+    client = TestClient(_rate_limited_app())
+    assert client.get("/auth/login").status_code == 200
+    for _ in range(5):
+        assert client.get("/api/auth/validate").status_code == 200
+        assert client.get("/auth/locales").status_code == 200
+        assert client.get("/auth/elevate").status_code == 200
+    # The sign-in budget is untouched by them: one attempt was spent above.
+    assert client.get("/auth/login").status_code == 429
+
+
+def test_status_checks_still_count_against_the_general_api_budget(monkeypatch):
+    from core.config import settings
+
+    monkeypatch.setattr(settings, "rate_limit_api_per_minute", 2)
+    client = TestClient(_rate_limited_app())
+    assert client.get("/api/auth/validate").status_code == 200
+    assert client.get("/api/auth/validate").status_code == 200
+    assert client.get("/api/auth/validate").status_code == 429
+
+
+def test_a_credential_attempt_on_the_same_path_stays_in_the_sign_in_bucket(monkeypatch):
+    from core.config import settings
+
+    # POST /auth/elevate is a password attempt; only its GET status read moved.
+    monkeypatch.setattr(settings, "rate_limit_auth_per_minute", 1)
+    client = TestClient(_rate_limited_app())
+    assert client.post("/auth/elevate").status_code == 200
+    assert client.post("/auth/elevate").status_code == 429
+    assert client.get("/auth/elevate").status_code == 200
 
 
 # ── ExfiltrationGuard ────────────────────────────────────────────────────────

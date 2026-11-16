@@ -122,10 +122,8 @@ the installer keeps it, pulls nothing and deletes nothing. Updating Bede
 (`git pull`, `make update`) never touches the model either. Only an explicit
 model-family choice (below) picks from a lineup again.
 
-### Choosing the Qwen models
-
-The Qwen lineup stays available. Run the setup script with
-`-ModelFamily qwen` (or set `BEDE_MODEL_FAMILY=qwen` first):
+**Choosing the Qwen models.** The Qwen lineup stays available. Run the setup
+script with `-ModelFamily qwen` (or set `BEDE_MODEL_FAMILY=qwen` first):
 
 ```powershell
 powershell -NoLogo -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Bede\Setup-Bede.ps1" -ModelFamily qwen

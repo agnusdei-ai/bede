@@ -120,9 +120,8 @@ the installer keeps it, pulls nothing and deletes nothing. Updating Bede
 (`git pull`, `make update`) never touches the model either. Only an explicit
 model-family choice (below) picks from a lineup again.
 
-### Choosing the Qwen models
-
-The Qwen lineup stays available. Ask for it in any of these ways:
+**Choosing the Qwen models.** The Qwen lineup stays available. Ask for it in
+any of these ways:
 
 ```bash
 bash install.sh --model-family qwen

@@ -446,6 +446,7 @@
     "welcomeBack": "Le damos la bienvenida de nuevo, {{name}}."
   },
   "progress": {
+    "soundTimeRecordNote": "La Hora de los Sonidos guarda una ronda por inicio de sesión. Las rondas extra que jugó tu hijo fueron solo práctica: no aparecen en el registro de trabajo ni en el panorama de lectura.",
     "advance": "Avanzar",
     "repeat": "Repetir",
     "review": "Repasar",

@@ -446,6 +446,7 @@
     "welcomeBack": "Welcome back, {{name}}."
   },
   "progress": {
+    "soundTimeRecordNote": "Sound Time keeps one round per sign-in. Any extra rounds your child played were practice only: they are not in the work record or the reading picture.",
     "advance": "Advance",
     "repeat": "Repeat",
     "review": "Review",

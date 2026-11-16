@@ -188,6 +188,7 @@ async def db():
                 config.model_dump(), _config_aad(name), key)))
         await session.commit()
         routes._progress.clear()
+        routes._rounds.clear()
         yield session
     await engine.dispose()
 
@@ -271,10 +272,12 @@ async def test_a_right_answer_records_one_row_and_one_observation_at_its_weight(
     seen = []
     real = phonics_record.process_evidence
 
-    async def _spy(db_, name, domain, outcome, weight=1.0, skip_calibration_boost=False):
-        seen.append((name, domain, outcome, weight, skip_calibration_boost))
+    async def _spy(db_, name, domain, outcome, weight=1.0, skip_calibration_boost=False,
+                   count_toward_calibration=True):
+        seen.append((name, domain, outcome, weight, skip_calibration_boost, count_toward_calibration))
         return await real(db_, name, domain, outcome, weight=weight,
-                          skip_calibration_boost=skip_calibration_boost)
+                          skip_calibration_boost=skip_calibration_boost,
+                          count_toward_calibration=count_toward_calibration)
 
     lesson = await routes.new_lesson("Ben", auth=PARENT, db=db)
     task = _task("Ben", lesson, "your_turn", 0)
@@ -283,8 +286,9 @@ async def test_a_right_answer_records_one_row_and_one_observation_at_its_weight(
             assert (await _send(db, "Ben", lesson, "your_turn", 0, choice=_wrong(task)))["tries_left"] == 1
         result = await _send(db, "Ben", lesson, "your_turn", 0, choice=task.accept_choice)
     assert result == {"understood": True, "correct": True, "recorded": True}
-    # The route passes the weight AND asks for no early-evidence boost.
-    assert seen == [("Ben", lesson["domain"], "correct", weight, True)]
+    # The route passes the weight, asks for no early-evidence boost, and keeps
+    # the observation out of the early-evidence window.
+    assert seen == [("Ben", lesson["domain"], "correct", weight, True, False)]
     row = (await db.execute(select(SkillActivityLog))).scalar_one()
     detail = decrypt_json(row.detail_enc, student_aad("skill_activity_log", "detail_enc", "Ben", "phonics",
                                                        lesson["domain"]), await student_keys.get_existing(db, "Ben"))
@@ -367,7 +371,8 @@ async def test_a_retried_answer_records_once(db):
     spoken = await _send(db, "Ben", lesson, "your_turn", 2, spoken=task.accept_choice)
     assert first["recorded"] is True and again["recorded"] is False and spoken["recorded"] is False
     assert await _ledger_rows(db, "Ben") == 1
-    assert (await _profile(db, "Ben")).evidence_count == 1
+    # One observation, once: 0.5 -> 0.75, never a second step.
+    assert (await _vector(db, "Ben"))[lesson["domain"]] == pytest.approx(0.75)
 
 
 @pytest.mark.asyncio
@@ -453,7 +458,7 @@ async def _secure_through_long_vowels(db, name):
 
 
 @pytest.mark.asyncio
-async def test_a_sight_word_round_without_sound_serves_and_records_nothing(db):
+async def test_a_round_with_no_sound_never_records_a_hear_the_word_answer(db):
     await _save_grade(db, "Ben", "2")
     await _secure_through_long_vowels(db, "Ben")
     quiet = await routes.new_lesson("Ben", audio=False, auth=PARENT, db=db)
@@ -467,6 +472,8 @@ async def test_a_sight_word_round_without_sound_serves_and_records_nothing(db):
         with pytest.raises(HTTPException) as exc:
             await _send(db, "Ben", quiet, phase, index, choice=task.accept_choice)
         assert exc.value.status_code == 404
+        # The same 404 as any unknown task.
+        assert exc.value.detail == routes.NOT_FOUND
     assert await _ledger_rows(db, "Ben") == rows_before
     assert (await _vector(db, "Ben")) == vector_before
     # With sound, the same child gets the sight-word questions.
@@ -732,3 +739,99 @@ async def test_process_evidence_without_a_weight_behaves_as_before(db):
 async def test_process_evidence_refuses_a_malformed_weight(db, weight):
     assert await phonics_record.process_evidence(db, "Ada", "letter_sound", "correct", weight=weight) is None
     assert await _profile(db, "Ada") is None
+
+
+# ── Owner rulings 2026-11-16: the early window, and one recorded round ──────
+
+@pytest.mark.asyncio
+async def test_practice_does_not_use_up_the_early_window_for_bedes_own_check_ins(db):
+    """Practice answers first, then an in-lesson check-in: the check-in gets
+    the full early boost it would have had with no practice at all."""
+    lesson = await routes.new_lesson("Ben", auth=PARENT, db=db)
+    domain = lesson["domain"]
+    for index in range(phonics.YOUR_TURN_TASKS):
+        task = _task("Ben", lesson, "your_turn", index)
+        assert (await _send(db, "Ben", lesson, "your_turn", index, choice=task.accept_choice))["recorded"] is True
+    row = await _profile(db, "Ben")
+    assert row.evidence_count == 0  # practice never counts toward the window
+    before = (await _vector(db, "Ben"))[domain]
+    assert before == pytest.approx(0.5 + 0.25 + 0.125 + 0.0625)
+    # Bede's check-in, no flags: calibration_weight_for(0) == 2.0.
+    await phonics_record.process_evidence(db, "Ben", domain, "partial")
+    after = (await _vector(db, "Ben"))[domain]
+    assert after == pytest.approx(before + 2.0 * (0.65 - before))
+    assert (await _profile(db, "Ben")).evidence_count == 1
+    summary = await phonics_record.get_phonics_summary(db, "Ben")
+    assert summary["calibration"] is True and summary["evidence_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_second_round_in_one_sign_in_records_nothing(db):
+    signed_in = {"role": "parent", "sub": "parent", "iat": 1000, "exp": 9000}
+    first = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    task = _task("Ben", first, "your_turn", 0)
+    assert (await _send(db, "Ben", first, "your_turn", 0, auth=signed_in,
+                        choice=task.accept_choice))["recorded"] is True
+    rows, vector = await _ledger_rows(db, "Ben"), await _vector(db, "Ben")
+    another = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    for index in range(phonics.YOUR_TURN_TASKS):
+        t2 = _task("Ben", another, "your_turn", index)
+        result = await _send(db, "Ben", another, "your_turn", index, auth=signed_in, choice=t2.accept_choice)
+        assert result == {"understood": True, "correct": True, "recorded": False, "practice_only": True}
+    assert await _ledger_rows(db, "Ben") == rows and await _vector(db, "Ben") == vector
+
+
+@pytest.mark.asyncio
+async def test_a_reload_or_a_fresh_lesson_id_does_not_reset_the_round_but_a_new_sign_in_does(db, monkeypatch):
+    """The same token after a reload (the client re-mints its session id,
+    which this round never keys on) and a freshly minted lesson id both stay
+    practice only; a new sign-in (a new token) gets its own recorded round."""
+    from core import child_pin
+
+    async def _live(_db, _auth):
+        return True
+
+    monkeypatch.setattr(child_pin, "token_is_live", _live)
+    token = {"role": "child", "learner": "Ben", "sub": "child", "iat": 2000, "exp": 9000}
+    await routes.new_lesson("Ben", auth=token, db=db)  # this sign-in's round
+    reload = await routes.new_lesson("Ben", auth=dict(token), db=db)
+    task = _task("Ben", reload, "your_turn", 0)
+    assert (await _send(db, "Ben", reload, "your_turn", 0, auth=dict(token),
+                        choice=task.accept_choice))["practice_only"] is True
+    fresh = {"lesson_id": routes.mint_lesson_id("Ben", reload["level"], reload["domain"], 7)}
+    fresh_task = phonics.build_task(reload["level"], reload["domain"], 7, "your_turn", 0)
+    assert (await _send(db, "Ben", fresh, "your_turn", 0, auth=dict(token),
+                        choice=fresh_task.accept_choice))["practice_only"] is True
+    assert await _ledger_rows(db, "Ben") == 0
+    new_sign_in = dict(token, iat=3000, exp=9500)
+    mine = await routes.new_lesson("Ben", auth=new_sign_in, db=db)
+    mine_task = _task("Ben", mine, "your_turn", 0)
+    assert (await _send(db, "Ben", mine, "your_turn", 0, auth=new_sign_in,
+                        choice=mine_task.accept_choice))["recorded"] is True
+    assert await _ledger_rows(db, "Ben") == 1
+
+
+@pytest.mark.asyncio
+async def test_the_recorded_round_stops_at_its_answer_ceiling(db, monkeypatch):
+    """A round has three Your turn questions, so the ceiling of three is never
+    met by an honest round; lowered here, it is seen to bite."""
+    assert routes.MAX_RECORDED_ANSWERS == 3 == phonics.YOUR_TURN_TASKS
+    monkeypatch.setattr(routes, "MAX_RECORDED_ANSWERS", 2)
+    signed_in = {"role": "parent", "sub": "parent", "iat": 4000, "exp": 9000}
+    lesson = await routes.new_lesson("Ben", auth=signed_in, db=db)
+    results = []
+    for index in range(phonics.YOUR_TURN_TASKS):
+        task = _task("Ben", lesson, "your_turn", index)
+        results.append(await _send(db, "Ben", lesson, "your_turn", index, auth=signed_in,
+                                   choice=task.accept_choice))
+    assert [r["recorded"] for r in results] == [True, True, False]
+    assert results[2].get("practice_only") is True
+    assert await _ledger_rows(db, "Ben") == 2
+
+
+def test_the_sign_in_key_is_a_digest_never_a_credential():
+    auth = {"role": "child", "sub": "child", "learner": "Ben", "iat": 1, "exp": 2, "learner_pin_nonce": "secret"}
+    key = routes.sign_in_key(auth)
+    assert "secret" not in key and len(key) == 24
+    assert routes.sign_in_key(dict(auth)) == key
+    assert routes.sign_in_key(dict(auth, iat=5)) != key

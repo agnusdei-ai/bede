@@ -2179,6 +2179,16 @@ What is kept:
   weights are product choices, not research findings. From a fresh record,
   one right answer is never enough to mark a step secure; two right first
   tries are.
+- Only the first round in each sign-in is recorded, at most three answers.
+  "Another one" still works and is practice only, and your Progress page
+  says so. Your child's screen looks the same either way.
+- Practice answers do not hurry the reading picture past its "still getting
+  to know your learner" stage; that stage follows Bede's own checks in
+  lessons.
+- A child tapping at random still lands on the right answer within two tries
+  about half the time or more (56% with three choices, 44% with four). That is
+  why only one round a sign-in is recorded, and why the record only picks the
+  next practice step, never a placement or a label.
 - A question that ended with the answer shown records nothing. Saying "not
   now" records nothing.
 - The words, pictures and answers come from Bede's own code, never the AI,

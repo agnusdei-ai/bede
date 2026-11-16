@@ -213,6 +213,7 @@ def build_summary_view(
 async def process_evidence(
     db, student_name: str, domain: str, outcome: str, weight: float = 1.0,
     skip_calibration_boost: bool = False,
+    count_toward_calibration: bool = True,
 ) -> Optional[MasteryVector]:
     """
     `weight` (0 < weight <= 1) scales how far this one observation moves the
@@ -232,6 +233,15 @@ async def process_evidence(
     record, no single practice answer can make a domain secure; two right
     first tries can.
     Every other caller passes nothing and keeps the boost exactly as before.
+
+    `count_toward_calibration=False` keeps an observation out of
+    `evidence_count`, the count that shrinks the early boost and decides
+    whether the parent's summary says "still getting to know your learner".
+    Only K-2 practice passes it (owner ruling 2026-11-16, a product default):
+    practice still moves the estimate by its weight, but Bede's own in-lesson
+    check-ins keep the full early boost they would have had with no practice,
+    and the summary stays "calibrating" until enough of those check-ins exist,
+    which is the honest reading of a picture built mostly from taps.
 
     Persistence-backed entry point — mirrors composition.process_assessment
     and services.diagnostic.__init__.process_evidence's load/update/store
@@ -297,12 +307,13 @@ async def process_evidence(
             db.add(MasteryProfile(
                 student_name=student_name,
                 subject_area="phonics",
-                evidence_count=1,
+                evidence_count=1 if count_toward_calibration else 0,
                 profile_enc=profile_enc,
             ))
         else:
             row.profile_enc = profile_enc
-            row.evidence_count += 1
+            if count_toward_calibration:
+                row.evidence_count += 1
         await db.commit()
     except Exception as exc:
         await db.rollback()

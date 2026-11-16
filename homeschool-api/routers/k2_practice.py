@@ -69,6 +69,20 @@ SECOND_TRY_WEIGHT = QUIZ_EVIDENCE_WEIGHT / 2
 _PROGRESS_TTL_SECONDS = 6 * 60 * 60
 _MAX_PROGRESS = 4096
 
+#: One recorded round per area per sign-in, and at most this many recorded
+#: answers in it (owner ruling 2026-11-16, a product default). Later rounds
+#: ("Another one") still work and record nothing.
+MAX_RECORDED_ANSWERS = 3
+AREA = "phonics"
+
+#: (student, area, sign-in) -> {"at", "lesson_id", "count"}. Keyed on the
+#: SIGN-IN (a digest of the authenticated token's own claims), never on the
+#: client's session id, which a page reload re-mints: a reload or a fresh
+#: lesson id must not open a second recorded round, and a new sign-in does.
+#: In memory, like `_progress`: a server restart forgets it, so at most one
+#: more round could record after a restart.
+_rounds: dict[tuple[str, str, str], dict] = {}
+
 #: (student, lesson id) -> {"at": monotonic, "misses": {index: n}, "done": set}.
 #: In memory only, like map practice: a restart forgets misses, never a record.
 _progress: dict[tuple[str, str], dict] = {}
@@ -104,6 +118,33 @@ def read_lesson_id(student_name: str, lesson_id: str) -> tuple[str, str, int, bo
         return level, phonics.DOMAINS[int(domain_index)], int(seed), audio == "1"
     except (ValueError, IndexError):
         raise HTTPException(status_code=404, detail=NOT_FOUND) from None
+
+
+def sign_in_key(auth: dict) -> str:
+    """A stable digest of one sign-in: the token's own claims, which survive a
+    page reload and change with a new sign-in. Never a credential."""
+    parts = [str(auth.get(k, "")) for k in ("role", "sub", "learner", "device_id", "iat", "exp")]
+    return hashlib.sha256("|".join(parts).encode()).hexdigest()[:24]
+
+
+def _round(student_name: str, auth: dict) -> dict:
+    now = time.monotonic()
+    if len(_rounds) >= _MAX_PROGRESS:
+        for key in [k for k, v in _rounds.items() if now - v["at"] > _PROGRESS_TTL_SECONDS]:
+            _rounds.pop(key, None)
+        while len(_rounds) >= _MAX_PROGRESS:
+            _rounds.pop(next(iter(_rounds)))
+    entry = _rounds.setdefault((student_name, AREA, sign_in_key(auth)),
+                               {"at": now, "lesson_id": None, "count": 0})
+    entry["at"] = now
+    return entry
+
+
+def _claim_round(student_name: str, auth: dict, lesson_id: str) -> None:
+    """The first lesson served in a sign-in is its one recorded round."""
+    entry = _round(student_name, auth)
+    if entry["lesson_id"] is None:
+        entry["lesson_id"] = lesson_id
 
 
 def _state(student_name: str, lesson_id: str) -> dict:
@@ -178,6 +219,7 @@ async def new_lesson(
     seed = secrets.randbelow(1_000_000)
     lesson = phonics.build_lesson(level, seed, domain, audio=audio)
     lesson["lesson_id"] = mint_lesson_id(student_name, level, domain, seed, audio)
+    _claim_round(student_name, auth, lesson["lesson_id"])
     lesson["your_turn_tries"] = YOUR_TURN_TRIES
     return lesson
 
@@ -201,7 +243,9 @@ class PhonicsAnswer(BaseModel):
 
 async def _record(db: AsyncSession, student_name: str, domain: str, first_try: bool) -> bool:
     """One completed question: a ledger row, then the weighted observation.
-    Both best-effort, as every diagnostic write is."""
+    Both best-effort, as every diagnostic write is. The observation moves the
+    estimate by its weight alone and does not count toward the early-evidence
+    window Bede's in-lesson check-ins use (owner rulings 2026-11-16)."""
     recorded = await record_activity(
         db, student_name, phonics.LEDGER_SUBJECT_AREA, domain, phonics.DOMAIN_LABELS[domain],
         "correct" if first_try else "partial",
@@ -211,8 +255,10 @@ async def _record(db: AsyncSession, student_name: str, domain: str, first_try: b
             db, student_name, domain, "correct",
             weight=FIRST_TRY_WEIGHT if first_try else SECOND_TRY_WEIGHT,
             # Practice moves the estimate by its weight alone, never the
-            # early-evidence boost (owner ruling 2026-11-16).
+            # early-evidence boost, and does not use up that window for
+            # Bede's own check-ins (owner rulings 2026-11-16).
             skip_calibration_boost=True,
+            count_toward_calibration=False,
         )
     return recorded
 
@@ -267,6 +313,13 @@ async def answer(
 
     # Claimed before the first await, so two overlapping retries cannot both record.
     state["done"].add(body.index)
+    entry = _round(student_name, auth)
+    if entry["lesson_id"] is None:
+        entry["lesson_id"] = lesson_id
+    if entry["lesson_id"] != lesson_id or entry["count"] >= MAX_RECORDED_ANSWERS:
+        # "Another one": practice only. Nothing is written anywhere.
+        return {"understood": True, "correct": True, "recorded": False, "practice_only": True}
+    entry["count"] += 1
     recorded = await _record(db, student_name, domain, first_try=misses == 0)
     if not recorded:
         log.info("Phonics practice answer not recorded for %s", learner_ref(student_name))

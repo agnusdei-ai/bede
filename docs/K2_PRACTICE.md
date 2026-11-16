@@ -5,7 +5,7 @@
 rest of the first wave is not. Map reading, from the second wave, shipped in
 #830 (`docs/MAP_PRACTICE.md`) and set the pattern this spec follows. The
 decisions this spec cannot make for itself are `docs/DECISIONS.md` entry 40;
-(a) and (b) were ruled by the owner on 2026-11-16, and (c) to (g) are open.
+(a) and (b) were ruled by the owner on 2026-11-16, and (c) to (h) are open.
 
 ## 1. What this is for
 
@@ -157,6 +157,27 @@ A missed try is never an observation of its own, so the estimate moves only on
 a right answer. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but from a fresh record, no single practice answer can make a skill secure; two right first tries can. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
 written. This is the phonics record Bede already keeps; it gains a practice
 source, not a new skill.
+
+**Two more owner rulings (2026-11-16, product defaults).** Practice answers do not count
+toward the early-evidence window: they move the estimate by their weight but do not advance
+`evidence_count`, so Bede's own in-lesson check-ins keep the full early boost and the
+parent's summary stays "calibrating" until enough check-ins exist. And one round is recorded
+per area per sign-in, with at most three recorded answers; "Another one" still works and
+records nothing. The server keys this on the learner, the area and a digest of the sign-in's
+token, so a reload or a new lesson id does not reset it and a new sign-in does; it is held in
+memory, so a server restart forgets it. Progress tells the parent the extra rounds were
+practice only.
+
+**Limitations of the record (product defaults, no research behind any number here).** A child tapping at random still ends up "correct" within two tries this often:
+
+| Choices | Repeats possible | No repeats |
+| --- | --- | --- |
+| 3 | 56% | 67% |
+| 4 | 44% | 50% |
+
+In Bede as built, a wrongly tapped choice stays tappable on the second try (the screen re-enables every choice and the server accepts the same choice again as the second miss), so the "repeats possible" column is what the code does; the owner treats "no repeats" as the realistic case either way. Kindergarten and grade 1 get three choices, grade 2 four. The one-recorded-round cap bounds this to three recorded answers per area per sign-in, and the record only picks the next practice domain, never a placement or a label.
+
+Negative evidence for an item that ended with the answer shown is decision 40(h), open.
 
 **Built (step 1).** `services/k2_practice/phonics.py` builds a lesson from
 (level, domain, seed) with an authored word list per domain; the level comes
@@ -362,4 +383,5 @@ with a recommendation for each:
 - **(d)** how parents approve word lists;
 - **(e)** whether K-2 spelling gets a measured skill;
 - **(f)** whether poems in memory work record anything;
-- **(g)** whether the demo gets practice.
+- **(g)** whether the demo gets practice;
+- **(h)** whether an item that ends with the answer shown records weak negative evidence (recommended; a small separate PR).

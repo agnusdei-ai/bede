@@ -917,6 +917,16 @@ export default function Progress() {
             )}
             <SubjectCoverage coverage={coverage} loading={loading} studentName={activeStudent} />
             <WorkLedger ledger={workLedger} loading={loading} studentName={activeStudent} />
+            {/* K-2 Sound Time records one round per sign-in (owner ruling
+                2026-11-16); further rounds are practice only and write
+                nothing, so they are absent from the ledger and the mastery
+                picture above. Said here so a parent who watched more rounds
+                than appear knows why. */}
+            {activeStudentIsFoundations && (
+              <p className="text-xs text-gray-500 px-1" data-testid="sound-time-record-note">
+                {t('progress.soundTimeRecordNote')}
+              </p>
+            )}
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />

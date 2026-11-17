@@ -1,6 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { CounterColor, CountersPiece, MathPiece, NumberBondPiece, TenFramePiece } from '../services/api'
+import type { CounterColor, CountersPiece, MathPiece, NumberBondPiece, TenFramePiece } from '../services/k2MathTypes'
 
 /**
  * The pieces of a K-2 practical-math round (docs/K2_PRACTICE.md §5.3):

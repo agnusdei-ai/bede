@@ -48,7 +48,7 @@ import ConsentModal from './ConsentModal'
 import { dismissKeyboard } from './dismissKeyboard'
 import DemoPracticeCoach from './DemoPracticeCoach'
 import DemoPracticeDelivery from './DemoPracticeDelivery'
-import K2MathPractice from '../../homeschool-tutor/src/components/K2MathPractice'
+import K2MathPractice from './K2MathPractice'
 import { demoMathTransport } from './api'
 
 interface DisplayMessage {

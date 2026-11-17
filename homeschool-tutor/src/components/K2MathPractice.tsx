@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Volume2 } from 'lucide-react'
-import {
-  answerMathTask, fetchMathLesson,
-  type MathLesson, type MathTask,
-} from '../services/api'
+import type { MathLesson, MathPracticeTransport, MathTask } from '../services/k2MathTypes'
 import RoutineShell, { type RoutineStep } from './routine/RoutineShell'
 import { Counter, MathPicture, TenFrameBuilder } from './MathPieces'
 import { PRACTICE_PRIMARY as PRIMARY, PRACTICE_TARGET as TARGET } from './practiceStyles'
@@ -51,25 +48,8 @@ type Feedback =
   | { kind: 'shown'; choice: string }
   | { kind: 'trouble' }
 
-export interface MathPracticeAnswer {
-  understood: boolean
-  correct: boolean
-  reveal?: { choice: string }
-}
-
-export interface MathPracticeTransport {
-  load: (audio: boolean, topic?: string) => Promise<MathLesson>
-  answer: (
-    lessonId: string,
-    phase: 'together' | 'your_turn',
-    index: number,
-    choice: string,
-    submissionId: string,
-  ) => Promise<MathPracticeAnswer>
-}
-
 export default function K2MathPractice({
-  onClose, onSpeak, canSpeak, transport, token, studentName, showTopicPicker = false,
+  onClose, onSpeak, canSpeak, transport, showTopicPicker = false,
 }: {
   onClose: () => void
   /** Reads a line aloud, on the device only. Every instruction is spoken as well as shown. */
@@ -77,11 +57,8 @@ export default function K2MathPractice({
   /** Whether this device can speak the round (null while checking). No math
    * question works only by ear, so this only decides what the server is told. */
   canSpeak?: boolean | null
-  /** Demo sessions supply their own isolated, temporary transport. */
-  transport?: MathPracticeTransport
-  /** Existing household callers may use the built-in authenticated transport. */
-  token?: string
-  studentName?: string
+  /** The caller supplies its authenticated transport and data boundary. */
+  transport: MathPracticeTransport
   /** Let demo visitors inspect built topics without implying saved mastery. */
   showTopicPicker?: boolean
 }) {
@@ -102,18 +79,8 @@ export default function K2MathPractice({
   const loadId = useRef(0)
   const reduced = useRef(prefersReducedMotion())
   const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null)
-  const defaultTransport: MathPracticeTransport = {
-    load: (speak) => {
-      if (!token || !studentName) return Promise.reject(new Error('Practice is unavailable.'))
-      return fetchMathLesson(token, studentName, speak)
-    },
-    answer: (lessonId, phase, taskIndex, choice) => {
-      if (!token || !studentName) return Promise.reject(new Error('Practice is unavailable.'))
-      return answerMathTask(token, studentName, lessonId, phase, taskIndex, { choice })
-    },
-  }
-  const transportRef = useRef(transport ?? defaultTransport)
-  transportRef.current = transport ?? defaultTransport
+  const transportRef = useRef(transport)
+  transportRef.current = transport
 
   const audio = canSpeak === undefined ? !!onSpeak : canSpeak
   const load = useCallback((topic = selectedTopicRef.current) => {

@@ -1248,7 +1248,7 @@ export default function SocraticChat({
         <K2MathPractice
           transport={{
             load: (audio) => fetchMathLesson(token, sessionConfig.student_name, audio),
-            answer: (lessonId, phase, index, choice) =>
+            answer: (lessonId, phase, index, choice, _submissionId) =>
               answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
           }}
           onClose={() => { stopOnDeviceSpeech(); setShowMath(false) }}

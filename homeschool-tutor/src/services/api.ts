@@ -1,6 +1,10 @@
 import type { DiagramSpec } from '../components/Diagram'
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
+import type { MathLesson } from './k2MathTypes'
+export type {
+  CounterColor, CountersPiece, MathLesson, MathPiece, MathTask, NumberBondPiece, TenFramePiece,
+} from './k2MathTypes'
 import { logDebug } from '../hooks/debugBus'
 import { getOrCreateDeviceId } from '../utils/deviceId'
 import { isNetworkFailure, StreamTruncatedError } from '../utils/networkFailure'
@@ -2476,50 +2480,6 @@ export const answerPhonicsTask = (
   token, `/${encodeURIComponent(studentName)}/phonics/lessons/${encodeURIComponent(lessonId)}/answers`,
   { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
 )
-
-// ── K-2 practical math (homeschool-api/services/k2_practice/practical_math.py) ─
-// Counters, a ten-frame and a number bond. The server chooses every number
-// and works out every answer; the child's answer is a tap, the number of
-// counters left on a frame after dragging or tapping them, or speech matched
-// to an offered choice. Nothing typed is accepted, and nothing here reaches an
-// AI provider.
-
-export type CounterColor = 'red' | 'yellow'
-export interface CountersPiece { kind: 'counters'; groups: { color: CounterColor; count: number }[] }
-export interface TenFramePiece { kind: 'ten_frame'; frames?: number; red?: number; yellow?: number; crossed?: number }
-export interface NumberBondPiece { kind: 'number_bond'; whole: number | null; parts: (number | null)[] }
-/** The closed vocabulary of a math round's pictures (models/practice.py's
- * PieceDiagram). Numbers and two counter colors only, never a label. */
-export type MathPiece = CountersPiece | TenFramePiece | NumberBondPiece
-
-export interface MathTask {
-  phase?: 'together' | 'your_turn'
-  index?: number
-  prompt: { key: string; args: Record<string, string> }
-  /** The picture. `guide` (Watch and Together) numbers the counters; `ghost`
-   * (Together, building only) faintly shows how many the frame should hold. */
-  display: { diagram: MathPiece; guide: boolean; ghost?: number }
-  /** "number": tap a number; "color": tap which row has more; "build": put
-   * counters on, or take them off, the ten-frame and check. */
-  choice_kind: 'number' | 'color' | 'build'
-  choices: string[]
-  build?: { start: number; capacity: number; take_away: boolean }
-}
-
-export interface MathLesson {
-  lesson_id: string
-  area: 'math'
-  level: 'K' | '1' | '2'
-  topic: string
-  skill: string
-  your_turn_tries: number
-  available_topics?: string[]
-  audio?: boolean
-  needs_audio?: boolean
-  watch: (MathTask & { answer: { choice: string } }) | null
-  together: MathTask[]
-  your_turn: MathTask[]
-}
 
 /** `audio: false` tells the server this device cannot speak the round. No
  * math question works only by ear, so the lesson is the same either way. */

@@ -10,8 +10,7 @@ import type { DiagramSpec } from './Diagram'
 
 import { logDebug } from './debugBus'
 import { isNetworkFailure, StreamTruncatedError } from './networkFailure'
-import type { MathLesson } from '../../homeschool-tutor/src/services/api'
-import type { MathPracticeAnswer, MathPracticeTransport } from '../../homeschool-tutor/src/components/K2MathPractice'
+import type { MathLesson, MathPracticeAnswer, MathPracticeTransport } from './k2MathTypes'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
 

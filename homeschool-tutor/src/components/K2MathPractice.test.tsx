@@ -15,12 +15,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import en from '../i18n/locales/en.json'
 import es from '../i18n/locales/es.json'
-import type { MathLesson } from '../services/api'
+import type { MathLesson, MathPracticeTransport } from '../services/k2MathTypes'
 import K2MathPractice from './K2MathPractice'
 
-const fetchMathLesson = vi.hoisted(() => vi.fn())
-const answerMathTask = vi.hoisted(() => vi.fn())
-vi.mock('../services/api', () => ({ fetchMathLesson, answerMathTask }))
+const fetchMathLesson = vi.fn()
+const answerMathTask = vi.fn()
+const transport: MathPracticeTransport = {
+  load: (audio, topic) => fetchMathLesson(audio, topic),
+  answer: (lessonId, phase, index, choice, submissionId) =>
+    answerMathTask(lessonId, phase, index, choice, submissionId),
+}
 
 const lesson = (): MathLesson => ({
   lesson_id: 'M1', area: 'math', level: '1', topic: 'add', skill: 'oa.add_within_20', your_turn_tries: 2,
@@ -51,7 +55,7 @@ const lesson = (): MathLesson => ({
 })
 
 const open = async (onSpeak = vi.fn(), onClose = vi.fn()) => {
-  render(<K2MathPractice token="tok" studentName="Sam" onClose={onClose} onSpeak={onSpeak} />)
+  render(<K2MathPractice transport={transport} onClose={onClose} onSpeak={onSpeak} />)
   await screen.findByTestId('math-line')
   return { onSpeak, onClose }
 }
@@ -94,7 +98,7 @@ describe('K2MathPractice', () => {
     answerMathTask.mockResolvedValueOnce({ understood: true, correct: true })
     fireEvent.click(screen.getByRole('button', { name: 'Check' }))
     await screen.findByText('Yes, that’s it!')
-    expect(answerMathTask).toHaveBeenCalledWith('tok', 'Sam', 'M1', 'together', 0, { choice: '5' })
+    expect(answerMathTask).toHaveBeenCalledWith('M1', 'together', 0, '5', expect.any(String))
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
 
     // Together, choosing: the guide may name the total.
@@ -160,9 +164,9 @@ describe('K2MathPractice', () => {
     noTyping()
     // Every answer sent is one of the question's own choices.
     for (const call of answerMathTask.mock.calls) {
-      const [, , , phase, index, body] = call
+      const [, phase, index, choice] = call
       const task = phase === 'together' ? lesson().together[index] : lesson().your_turn[index]
-      expect(task.choices).toContain(body.choice)
+      expect(task.choices).toContain(choice)
     }
   })
 
@@ -182,7 +186,7 @@ describe('K2MathPractice', () => {
     answerMathTask.mockResolvedValueOnce({ understood: true, correct: true })
     fireEvent.click(screen.getByRole('button', { name: 'Check' }))
     await screen.findByText('Yes, that’s it!')
-    expect(answerMathTask).toHaveBeenLastCalledWith('tok', 'Sam', 'M1', 'together', 0, { choice: '5' })
+    expect(answerMathTask).toHaveBeenLastCalledWith('M1', 'together', 0, '5', expect.any(String))
   })
 
   it('in Watch puts the counters on one at a time, or all at once with reduced motion', async () => {
@@ -191,7 +195,7 @@ describe('K2MathPractice', () => {
     await waitFor(() => expect(frameCount()).toBe(6), { timeout: 4000 })
     cleanup()
     reduceMotion = true
-    render(<K2MathPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} />)
+    render(<K2MathPractice transport={transport} onClose={vi.fn()} onSpeak={vi.fn()} />)
     await screen.findByTestId('math-line')
     expect(frameCount()).toBe(6)
   })
@@ -218,7 +222,7 @@ describe('K2MathPractice', () => {
     answerMathTask.mockResolvedValueOnce({ understood: true, correct: true })
     fireEvent.click(screen.getByRole('button', { name: 'Check' }))
     await screen.findByText('Yes, that’s it!')
-    expect(answerMathTask).toHaveBeenLastCalledWith('tok', 'Sam', 'M1', 'together', 0, { choice: '6' })
+    expect(answerMathTask).toHaveBeenLastCalledWith('M1', 'together', 0, '6', expect.any(String))
   })
 
   it('a failed check counts nothing and lets the child try again', async () => {
@@ -285,12 +289,12 @@ describe('K2MathPractice', () => {
   })
 
   it('tells the server whether the device can speak, and never fetches while that is unknown', async () => {
-    render(<K2MathPractice token="tok" studentName="Sam" onClose={vi.fn()} />)
+    render(<K2MathPractice transport={transport} onClose={vi.fn()} />)
     await screen.findByTestId('math-line')
-    expect(fetchMathLesson).toHaveBeenLastCalledWith('tok', 'Sam', false)
+    expect(fetchMathLesson).toHaveBeenLastCalledWith(false, undefined)
     cleanup()
     fetchMathLesson.mockClear()
-    render(<K2MathPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={null} />)
+    render(<K2MathPractice transport={transport} onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={null} />)
     await new Promise((r) => setTimeout(r, 20))
     expect(fetchMathLesson).not.toHaveBeenCalled()
   })

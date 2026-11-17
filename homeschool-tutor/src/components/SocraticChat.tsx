@@ -1,13 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, ImagePlus, X, Sparkles } from 'lucide-react'
-import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText, ParentalConsentRequiredError } from '../services/api'
+import {
+  streamTutorChat, updateVoiceNarrationPreference, extractNarrationText,
+  ParentalConsentRequiredError, fetchMathLesson, answerMathTask,
+} from '../services/api'
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
+import K2MathPractice from './K2MathPractice'
 import { hasLocalVoice, speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
@@ -101,6 +105,10 @@ export default function SocraticChat({
   const [showMapPractice, setShowMapPractice] = useState(false)
   // K-2 phonics practice, opened by Bede's invite_practice card (area "phonics").
   const [showPhonics, setShowPhonics] = useState(false)
+  // K-2 practical math, opened by the same card with area "math".
+  const [showMath, setShowMath] = useState(false)
+  // Either K-2 round is open: the chat waits, and Bede's voice stays quiet.
+  const practiceOpen = showPhonics || showMath
   const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
@@ -206,20 +214,20 @@ export default function SocraticChat({
     speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
     enabled: ttsEnabled, isSupported: ttsSupported,
   } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
-  // A phonics round speaks on the device; Bede's chat voice stops when it
-  // opens, so two voices never talk over each other.
-  useEffect(() => { if (showPhonics) stopSpeech() }, [showPhonics, stopSpeech])
+  // A phonics or math round speaks on the device; Bede's chat voice stops
+  // when it opens, so two voices never talk over each other.
+  useEffect(() => { if (practiceOpen) stopSpeech() }, [practiceOpen, stopSpeech])
   // Whether this device has an installed voice for the session's language.
   // Without one (or with Bede's voice off) the round is shown without speech
   // and the server leaves out questions that work only by ear.
   const [deviceVoice, setDeviceVoice] = useState<boolean | null>(null)
   useEffect(() => {
-    if (!showPhonics) return
+    if (!practiceOpen) return
     let live = true
     setDeviceVoice(null)
     hasLocalVoice().then((ok) => { if (live) setDeviceVoice(ok) })
     return () => { live = false }
-  }, [showPhonics])
+  }, [practiceOpen])
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -465,7 +473,7 @@ export default function SocraticChat({
   })
   useEffect(() => {
     if (isContinuous || !sttSupported || !awaitingChildTurn) return
-    if (showCanvas || showMapPractice || showPhonics || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
     prewarmRef.current()
     // Cleanup fires the instant awaitingChildTurn (or one of the other
     // guards) goes false again — either the child pressed
@@ -474,7 +482,7 @@ export default function SocraticChat({
     // safe no-op) or the turn ended some other way without a press (a real
     // prewarmed stream that genuinely needs releasing).
     return () => cancelPrewarmRef.current()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, showPhonics, uploadingNarration, pendingVoiceTranscript])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, practiceOpen, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -553,6 +561,10 @@ export default function SocraticChat({
           if (chunk.tool === 'invite_practice' && chunk.area === 'phonics') {
             openedPracticeRound = true
             setShowPhonics(true)
+          }
+          if (chunk.tool === 'invite_practice' && chunk.area === 'math') {
+            openedPracticeRound = true
+            setShowMath(true)
           }
           if (isDuplicateUtterance(chunk.content, turnText)) {
             // The turn already said this — don't render or speak it twice.
@@ -655,7 +667,7 @@ export default function SocraticChat({
     // Don't interrupt a child who's mid-drawing, has a drawing ready to
     // send, is uploading narration, or has unsent text sitting in the box —
     // the whole point is to fire only once they've genuinely gone quiet.
-    if (showCanvas || showMapPractice || showPhonics || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
+    if (showCanvas || showMapPractice || practiceOpen || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
     if (consecutiveContinuesRef.current >= MAX_CONSECUTIVE_CONTINUES) return
     consecutiveContinuesRef.current += 1
 
@@ -682,7 +694,7 @@ export default function SocraticChat({
       previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
-  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, showPhonics, pendingDrawing, uploadingNarration])
+  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, practiceOpen, pendingDrawing, uploadingNarration])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -903,13 +915,13 @@ export default function SocraticChat({
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return
-    if (showCanvas || showMapPractice || showPhonics || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
     const now = Date.now()
     if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
     lastAutoStartRef.current = now
     logDebug('continuous voice mode — auto-starting listening for the child\'s turn')
     start()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, showPhonics, uploadingNarration, pendingVoiceTranscript, start])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, practiceOpen, uploadingNarration, pendingVoiceTranscript, start])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
@@ -974,7 +986,7 @@ export default function SocraticChat({
       {/* Messages */}
       <div data-chat-messages className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} onOpenPhonics={() => setShowPhonics(true)} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} onOpenPhonics={() => setShowPhonics(true)} onOpenMath={() => setShowMath(true)} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
@@ -1229,6 +1241,22 @@ export default function SocraticChat({
         />
       )}
 
+      {/* K-2 practical math overlay: counters, a ten-frame, a number bond.
+          The same rules as phonics: built and checked by the server, spoken
+          on the device only, nothing sent to an AI provider. */}
+      {showMath && token && sessionConfig?.student_name && (
+        <K2MathPractice
+          transport={{
+            load: (audio) => fetchMathLesson(token, sessionConfig.student_name, audio),
+            answer: (lessonId, phase, index, choice, _submissionId) =>
+              answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
+          }}
+          onClose={() => { stopOnDeviceSpeech(); setShowMath(false) }}
+          onSpeak={ttsEnabled ? speakOnDevice : undefined}
+          canSpeak={ttsEnabled ? deviceVoice : false}
+        />
+      )}
+
       {/* Handwriting overlay */}
       {showCanvas && (
         <HandwritingCanvas
@@ -1267,9 +1295,15 @@ interface MsgProps {
   onOpenMap?: () => void
   /** Reopens phonics practice from its card. */
   onOpenPhonics?: () => void
+  /** Reopens math practice from its card. */
+  onOpenMath?: () => void
 }
 
-function MessageBubble({ msg, studentName, bubbleClass, onOpenMap, onOpenPhonics }: MsgProps) {
+/** The math card's prefix (services/k2_practice's CARD_PREFIX["math"]), the
+ * same in every locale, so a stored card reopens the right round. */
+const MATH_CARD_PREFIX = '\u{1F522} '
+
+function MessageBubble({ msg, studentName, bubbleClass, onOpenMap, onOpenPhonics, onOpenMath }: MsgProps) {
   const { t } = useTranslation()
   if (msg.role === 'system') {
     return (
@@ -1302,7 +1336,15 @@ function MessageBubble({ msg, studentName, bubbleClass, onOpenMap, onOpenPhonics
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {renderEmphasis(msg.content)}
-        {msg.tool === 'invite_practice' && onOpenPhonics && (
+        {msg.tool === 'invite_practice' && msg.content.startsWith(MATH_CARD_PREFIX) && onOpenMath && (
+          <button
+            type="button" onClick={onOpenMath}
+            className="mt-2 block min-h-14 rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600"
+          >
+            {t('k2Math.open')}
+          </button>
+        )}
+        {msg.tool === 'invite_practice' && !msg.content.startsWith(MATH_CARD_PREFIX) && onOpenPhonics && (
           <button
             type="button" onClick={onOpenPhonics}
             className="mt-2 block min-h-14 rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600"

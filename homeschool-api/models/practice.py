@@ -347,6 +347,82 @@ DIAGRAM_KINDS = ("fraction_bar", "fraction_circle", "array", "base_ten", "clock"
                  "ruler", "money", "thermometer", "image")
 
 
+# ── K-2 practice pieces (docs/K2_PRACTICE.md §5.3) ───────────────────────────
+# Counters, a ten-frame and a number bond: the pieces of a K-2 practical-math
+# round (services/k2_practice/math.py), drawn by the app
+# (components/MathPieces.tsx) from numbers alone. The same closed-vocabulary
+# rule as every diagram above: numbers and two counter colors, never a label
+# or markup, so nothing a model or a request writes can reach the page.
+#
+# They are a sibling vocabulary rather than members of `Diagram`, on purpose:
+# `Diagram` is what a quiz reader or a quiz drafter may emit, and every member
+# of it must be drawn by Diagram.tsx, which the public demo mirrors byte for
+# byte (demo/src/Diagram.test.tsx). These pieces are built only by the K-2
+# round's own builder, never read off a page or drafted by a model, so they
+# stay out of that union and out of the demo. Moving them in later is one line
+# here plus the renderer copied into Diagram.tsx and its demo mirror.
+
+CounterColor = Literal["red", "yellow"]
+
+
+class CounterGroup(_Strict):
+    color: CounterColor
+    count: int = Field(..., ge=0, le=20)
+
+
+class CountersDiagram(_Strict):
+    """Loose two-color counters, one row per group: "How many counters?",
+    "Are there more red or more yellow?"."""
+    kind: Literal["counters"]
+    groups: List[CounterGroup] = Field(..., min_length=1, max_length=2)
+
+
+class TenFrameDiagram(_Strict):
+    """One or two ten-frames filled in order: `red` counters first, then
+    `yellow`, and the last `crossed` of them crossed out (taken away)."""
+    kind: Literal["ten_frame"]
+    frames: int = Field(default=1, ge=1, le=2)
+    red: int = Field(default=0, ge=0, le=20)
+    yellow: int = Field(default=0, ge=0, le=20)
+    crossed: int = Field(default=0, ge=0, le=20)
+
+    @model_validator(mode="after")
+    def _fits(self) -> "TenFrameDiagram":
+        if self.red + self.yellow > 10 * self.frames:
+            raise ValueError("more counters than the frames hold")
+        if self.crossed > self.red + self.yellow:
+            raise ValueError("more crossed out than there are")
+        return self
+
+
+class NumberBondDiagram(_Strict):
+    """A whole and its two parts, exactly one of the three left blank (None)
+    as the question: "7 is 3 and what?"."""
+    kind: Literal["number_bond"]
+    whole: Optional[int] = Field(default=None, ge=0, le=20)
+    parts: List[Optional[int]] = Field(..., min_length=2, max_length=2)
+
+    @model_validator(mode="after")
+    def _one_blank(self) -> "NumberBondDiagram":
+        values = [self.whole, *self.parts]
+        if sum(v is None for v in values) != 1:
+            raise ValueError("a number bond leaves exactly one blank")
+        if any(v is not None and not 0 <= v <= 20 for v in self.parts):
+            raise ValueError("a part is between 0 and 20")
+        if self.whole is not None and None not in self.parts:
+            raise ValueError("a number bond leaves exactly one blank")
+        if self.whole is not None and any(p is not None and p > self.whole for p in self.parts):
+            raise ValueError("a part is never larger than the whole")
+        return self
+
+
+PieceDiagram = Annotated[
+    Union[CountersDiagram, TenFrameDiagram, NumberBondDiagram],
+    Field(discriminator="kind"),
+]
+PIECE_DIAGRAM_KINDS = ("counters", "ten_frame", "number_bond")
+
+
 class AssessmentItem(_Strict):
     number: int = Field(..., ge=1, le=500)
     prompt: str = Field(..., min_length=1, max_length=300)

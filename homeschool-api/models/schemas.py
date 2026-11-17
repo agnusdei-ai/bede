@@ -1224,7 +1224,7 @@ class MasteryProfileSummary(BaseModel):
     subject_area:   str = "mathematics"
     evidence_count: int
     calibration:    bool                       # still in cold-start widening phase
-    # Recorded K-2 practice answers in this area (phonics only). They move the
+    # Recorded K-2 practice answers in this area (phonics and math). They move the
     # estimate but are not counted in evidence_count; 0 everywhere else.
     practice_answers: int = 0
     domains:        List[DomainMasteryView]

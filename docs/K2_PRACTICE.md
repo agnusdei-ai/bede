@@ -1,8 +1,13 @@
 # K-2 practice: Watch, Together, Your turn
 
-**Status: step 1 built; the rest is specification.** Step 1 of §9 (the shared
-`invite_practice` invitation, the per-child setting, and phonics) is built. The
-rest of the first wave is not. Map reading, from the second wave, shipped in
+**Status: steps 1 and 3 built; the rest is specification.** Step 1 of §9 (the
+shared `invite_practice` invitation, the per-child setting, and phonics) and the
+first part of step 3 (practical math's counters, ten-frame and number bonds) are
+built. Number Time is also available as a direct, temporary activity in the
+public demo; its limits are described in §5.3. Step 3 was built before step 2,
+handwriting, because handwriting waits on decision 40(c), the handwriting
+style, which is still open. The rest of the first wave is not built. Map
+reading, from the second wave, shipped in
 #830 (`docs/MAP_PRACTICE.md`) and set the pattern this spec follows. The
 decisions this spec cannot make for itself are `docs/DECISIONS.md` entry 40;
 (a) and (b) were ruled by the owner on 2026-11-16, and (c) to (h) are open.
@@ -40,7 +45,7 @@ the code.
 | The routine screen | `homeschool-tutor/src/components/routine/RoutineShell.tsx` | The Watch, Together, Your turn frame for every area. It holds no lesson logic. |
 | Lessons built by code and rebuilt from a signed id | `homeschool-api/services/map_practice.py`, `routers/map_practice.py` | The model for every area's builder and routes. Nothing about a lesson is stored. |
 | Spoken answers matched only to offered choices | `map_practice.match_spoken` | Voice answers in every area. |
-| Practice pictures, drawn as SVG from numbers and short labels | `services/practice/diagrams.py`, `components/Diagram.tsx` | Clock, money, ruler, number line, base-ten, array and picture groups for practical math. |
+| Practice pictures, drawn as SVG from numbers and short labels | `services/practice/diagrams.py`, `components/Diagram.tsx` | Existing clock, money, ruler, number line, base-ten, array and picture-group pictures. Practical math's counters and ten-frames use the separate `PieceDiagram` vocabulary and `MathPieces.tsx`. |
 | Exact arithmetic | the math practice pack (`services/practice/packs/math/`) | Working out every math answer. |
 | The work ledger | `services/diagnostic/activity.py`, `SkillActivityLog` | Recording what the child did. |
 | K-2 phonics record | `services/diagnostic/phonics.py` (six domains, below) | Phonics evidence. |
@@ -94,7 +99,8 @@ whether an offer is allowed; the model only chooses the moment. Allowed when:
 **Limits, checked when the prompt is built and again when the tool is
 dispatched**, the way `_map_practice_allowed` does it:
 
-- K-2 only (`GradeStage.foundations`), never in the public demo.
+- K-2 only (`GradeStage.foundations`). The lesson invitation remains unavailable
+  in the public demo; Number Time has its own direct demo action (§5.3).
 - Only in the subjects that area belongs to (§5), and only if the parent scheduled that subject today. A parent's own lesson focus comes first.
 - At most one offer per area per session. Never when too little time is left on the block to finish a round (`time_remaining_seconds`, the same budget `services/action_governance.py` uses).
 - It is an invitation ("Shall I show you with the counters?"). The child can say not now, the lesson carries on, and declining records nothing.
@@ -256,6 +262,135 @@ existing math evidence path (`process_evidence`'s `confidence`, in
 `services/diagnostic/__init__.py`) at a reduced weight, the same approach `QUIZ_EVIDENCE_WEIGHT`
 (`services/practice/evidence.py`) takes for a marked quiz (decision 40(b)).
 
+**Built (step 3, first part).** `services/k2_practice/practical_math.py` builds a
+lesson from (level, topic, seed). Five topics, each one existing K-2 skill:
+
+| Topic | Skill | Pieces |
+| --- | --- | --- |
+| count | `cc.count_objects_20` | counters to count; a ten-frame to fill to a number |
+| compare | `cc.compare_quantities` | two rows of counters: more red, more yellow, or the same |
+| add | `oa.add_within_20` | a ten-frame (two past ten) with red and yellow counters |
+| subtract | `oa.subtract_within_20` | a ten-frame with some counters crossed out or taken away |
+| bond | `cc.number_bonds` | a number bond with one part missing |
+
+Kindergarten walks count, compare, bond, add, subtract; grade 1 add, subtract,
+bond, compare; grade 2 add, subtract, bond, with numbers past ten on two
+ten-frames. The level is the saved grade and the topic the first whose skill the
+saved math record does not show as secure, in that order, never anything in the
+request. Every topic but compare has a building question in Watch, Together and
+Your turn: the frame starts with some counters and the answer is how many are on
+it when the child taps **Check**. Counters move three ways, so dragging is never
+the only one: drag a counter from the tray onto the frame or off it; tap a box;
+or tap the large **Put in a counter** and **Take one out** buttons. The other
+questions are a tap on a number or on which row has more.
+
+Every answer is worked out twice, by the math pack's exact evaluator on the
+question's arithmetic and by counting the picture (`diagrams.answer`), and a
+question where the two disagree is never built. The child's answer is a tap, a
+count on the frame (itself one of the offered choices), or speech matched to
+exactly one offered choice; nothing typed is accepted or kept, and the answer
+model refuses any extra field. `match_spoken` has its own English and Spanish
+table for numbers, quantities ("the same", "iguales") and clock times ("ten
+thirty", "diez y media"), where a longer phrase wins over a shorter one inside
+it, so "ten thirty" names 10:30 and not 10:00. A question whose spoken
+instruction says its own answer ("Put 7 counters in the ten-frame") takes no
+spoken answer. Answering by voice inside the screen is not built, as for
+phonics; the server accepts a spoken answer.
+
+Speech is exactly as for phonics (§7): every line is shown and spoken only
+through a voice installed on the device (`utils/onDeviceSpeech.ts`), never
+`/tutor/speak`, a network voice or an unchecked default, and Bede's chat voice
+does not read the turn over a round it opened. No math question works only by
+ear, so a device that cannot speak gets the same lesson, shown without speech.
+Map practice still speaks through the server path, the known gap §7 names.
+
+The three new pictures are `counters`, `ten_frame` and `number_bond`
+(`models/practice.py`'s `PieceDiagram`, drawn by `components/MathPieces.tsx`):
+numbers and two counter colors only, a red counter solid and a yellow one a
+ring. They are a sibling vocabulary rather than members of `Diagram`:
+`Diagram` is what a quiz reader or drafter may emit, and every kind in it must
+be drawn by `Diagram.tsx`, whose app/demo copies stay mirrored. Number Time
+uses `MathPieces.tsx` in both the app and public demo, so this practice activity
+does not add kinds to that separate contract.
+
+**Public demo.** A demo visitor can open Number Time from its own action and
+select any implemented topic, without a learner profile or a claim about saved
+mastery. The server resolves the level from the live demo session's validated
+K-2 grade (or its configured K-2 default); the visitor cannot override it.
+The demo uses the same authored builders, pictures, and deterministic answer
+checks as the family activity. Every answer response says `demo=true` and
+`recorded=false`: answers and attempts are temporary, with no writes to
+household `StudentConfig`, learner keys, work-ledger, mastery, or demo
+progress/activity stores, and no AI/model calls. Demo lesson ids are separate
+from family practice ids, bound to the live sign-in and no longer than its
+expiry. If the in-memory attempt state disappears on restart, that lesson is
+refused and the visitor can start another round; attempts are never reset by
+rebuilding the lesson from an old id. This support does not enable
+`invite_practice` in demo tutoring turns or add any other practice area to the
+demo. Its UI and wire types are mirrored under `demo/src/` so the demo builds
+with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
+copies against the household implementation. Decision 40(g) records the
+approval and boundary.
+
+Which skill an answer counts for (owner ruling 2026-11-16, a product
+default): **a building question records counting only.** Putting the right
+number of counters on a ten-frame, whether the question was framed as adding,
+taking away, a number bond or a plain count, is evidence for
+`cc.count_objects_20` and nothing else, because the frame does the arithmetic
+for anyone who counts the boxes. It never moves the addition, subtraction,
+comparison or number-bond estimate. A question where the child picks the
+answer from the choices (how many in all, how many are left, the missing part,
+which row has more) records the topic's own skill. The ledger row names the
+skill recorded (`practical_math.recorded_skill`).
+
+What a Your turn answer records follows phonics exactly (decision 40(b) and
+the two later rulings): right first try, a ledger row (unaided) and an
+observation for the recorded skill at `confidence` 0.5; right second try, a
+ledger row (with a hint) at 0.25; answer shown, nothing. The observation goes
+through `process_evidence` with `skip_calibration_boost=True` and
+`count_toward_calibration=False`, two keyword arguments only this route passes,
+so it never gets the early-evidence boost and never advances `evidence_count`;
+Bede's own `record_skill_evidence` check-ins and marked quizzes behave exactly
+as before. With `RETAIN_MASTERY_PROFILES` off only the ledger row is written.
+One round is recorded per area per sign-in, so a child's Number Time round and
+Sound Time round are counted apart, each at most three answers. The math
+summary's `practice_answers` counts the practice rows apart from check-ins, as
+phonics does.
+
+Sizes are in rem, as for phonics. A ten-frame is five boxes across, and on a
+phone with larger text five boxes no longer fit: squeezed into five columns
+they overlapped, so a tap could land on the wrong box. When five boxes do not
+fit, the frame turns on its side instead, two boxes across and five down,
+filled down the first column and then the second, so it is still two fives.
+The switch is a CSS container query in rem on the frame's own wrapper
+(`MathPieces.tsx`'s `FRAME_CONTAINER`, `BUILD_FRAME_GRID`,
+`PICTURE_FRAME_GRID`), so it follows the app's own text-size control, which a
+viewport breakpoint would not. Measured in real Chromium (Playwright, a
+harness rendering the frames inside the real `RoutineShell`): at 375 px wide
+and 100%, 125%, 150%, 175% and 200% text, and at 820 px wide at the same
+sizes, with one and with two frames, no box overlaps another, none is off
+screen, the round never scrolls sideways, every box of the frame the child
+fills is at least 3.5rem square and 8 px from its neighbours, and a tap at the
+centre of each box reaches that box. At 375 px the frame the child fills turns
+on its side from 125% and the picture of a frame from 150%; at 820 px both
+stay five across up to 200%. With the query removed the same check found
+overlapping boxes from 125% and boxes off screen at 175% and 200%.
+
+In Your turn, a picture's accessible name never states the quantity being
+asked for (the echo rule applied to screen readers): a row is "a row of red
+counters" and a frame "a ten-frame with counters", where Watch and Together
+name the counts. On a Together take-away question the counters to take away
+are outlined, since the boxes below the target start full and an outline of
+empty boxes would show nothing.
+
+Not built yet, and next: clock hands, coins and bills, number-line hops, the
+ruler, base-ten blocks, equal groups and everyday stories. These activities
+are not part of the public demo. `oa.fact_fluency_20`
+is deliberately not recorded: fluency means recalling a fact quickly, and a
+round has no timer and must not have one (§6), so a right answer here says
+nothing about speed. The spoken-forms table already covers clock times, so the
+clock can use it as it stands.
+
 ### 5.4 Spelling
 
 **Subjects:** Language Arts.
@@ -358,18 +493,22 @@ the docs updated in the same PR.
 
 1. **The shared invitation and phonics.** `invite_practice` with its server-side limits and the parent setting (§4), and the phonics area (§5.1) in `RoutineShell`. *Built.* Its 200% layout is pinned in this step by a class contract (rem sizes, no fixed widths); the real 200% browser check is step 6.
 2. **Handwriting** (§5.2): stroke data for the chosen style, the animated pen, and tracing guides on the canvas.
-3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler.
+3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler. *Counters, ten-frame and number bonds built*, before step 2, which waits on decision 40(c); clock, coins, number line and ruler are next.
 4. **Spelling** (§5.4): the K-2 patterns, letter tiles, and delivery of approved word lists and Practice Coach misses as rounds.
 5. **Copying a sentence** (§5.5): the sentence from the narration, tracing and copying on the canvas.
 6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 200% text on every area.
 7. **Memory work** (§8), once decision 40(f) is settled.
 
-Each step needs no new database table: rounds rebuild from signed ids, and
-records go to the existing work ledger and evidence paths.
+Each step needs no new database table: household rounds rebuild from signed
+ids, and records go to the existing work ledger and evidence paths. Demo
+Number Time uses a separate bounded in-memory attempt store and records
+nothing.
 
 ## 10. Not in scope
 
-- The public demo. Changes there need the owner's sign-off (decision 40(g)).
+- Practice areas beyond Number Time in the public demo. Demo Number Time's
+  direct entry point is the approved exception in decision 40(g); the
+  `invite_practice` offer and other practice areas remain out of scope.
 - Grade 3 and up, which have their own reading and spelling record (`services/diagnostic/literacy.py`).
 - Any score of handwriting quality, recitation, or a child's response to art, music or faith.
 - Any model-written practice item, or a model judging a child's answer.
@@ -384,10 +523,10 @@ The choices this spec leaves open are recorded as `docs/DECISIONS.md` entry 40,
 with a recommendation for each:
 
 - **(a)** the default of the per-child setting in §4 (ruled 2026-11-16: Bede may also choose from today's subjects, with the limits in §4);
-- **(b)** the weight of practice evidence in the phonics and math estimates (ruled 2026-11-16 for phonics: 0.5, 0.25, and nothing for an answer shown; see §5.1);
+- **(b)** the weight of practice evidence in the phonics and math estimates (ruled 2026-11-16: 0.5, 0.25, and nothing for an answer shown; applied to phonics in step 1, §5.1, and to math in step 3, §5.3);
 - **(c)** the handwriting style;
 - **(d)** how parents approve word lists;
 - **(e)** whether K-2 spelling gets a measured skill;
 - **(f)** whether poems in memory work record anything;
-- **(g)** whether the demo gets practice;
+- **(g)** whether the demo gets practice (decided 2026-11-17; see entry 40).
 - **(h)** whether an item that ends with the answer shown records weak negative evidence (recommended; a small separate PR).

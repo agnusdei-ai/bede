@@ -28,9 +28,9 @@ export default function RoutineShell({
       role="dialog" aria-modal="true" aria-label={title}
       className="fixed inset-0 z-40 flex flex-col bg-parchment-50"
     >
-      <header className="flex items-center gap-2 px-3 sm:px-4 py-3 short:py-1.5 border-b border-sage-200 bg-white">
+      <header className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-3 short:py-1.5 border-b border-sage-200 bg-white">
         <h2 className="text-base font-semibold text-navy-700 mr-auto truncate">{title}</h2>
-        <ol className="flex items-center gap-1.5" aria-label={t('routine.steps')}>
+        <ol className="flex max-w-full flex-wrap items-center justify-center gap-1.5" aria-label={t('routine.steps')}>
           {ROUTINE_STEPS.map((s, i) => {
             const state = done || i < current ? 'past' : i === current ? 'now' : 'next'
             return (

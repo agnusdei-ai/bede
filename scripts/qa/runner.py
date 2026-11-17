@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,18 +43,50 @@ def categorize(log: str) -> str:
     return "application_or_unclassified"
 
 
-def run_command(argv: list[str], cwd: Path, timeout: int) -> dict:
+def _text(value) -> str:
+    if value is None:
+        return ""
+    return value.decode("utf-8", "replace") if isinstance(value, bytes) else value
+
+
+def _warn_slow(argv: list[str], warn_after: int, timeout: int) -> None:
+    # A GitHub workflow command: shows as a yellow annotation on the run while
+    # the command is still going, so a suite creeping toward its limit is
+    # visible on a run that passes, not only on the one that finally fails.
+    print(f"::warning title=QA runtime::{' '.join(argv)} has run {warn_after} s "
+          f"of its {timeout} s limit", flush=True)
+
+
+def run_command(argv: list[str], cwd: Path, timeout: int,
+                warn_after: int | None = None) -> dict:
     start = time.monotonic()
+    category = None
+    timer = None
+    if warn_after and 0 < warn_after < timeout:
+        timer = threading.Timer(warn_after, _warn_slow, args=(argv, warn_after, timeout))
+        timer.daemon = True
+        timer.start()
     try:
         result = subprocess.run(argv, cwd=cwd, capture_output=True, text=True,
                                 errors="replace", timeout=timeout, check=False)
         output = sanitize((result.stdout or "")[-24000:] + "\n" + (result.stderr or "")[-9000:])
         code = result.returncode
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except subprocess.TimeoutExpired as exc:
+        # A timeout is its own outcome, never a flaky test: the command was
+        # stopped, so nothing it would have reported can be trusted as a pass
+        # or as a specific failure. Whatever it printed before the limit is
+        # kept as evidence.
+        partial = _text(exc.stdout)[-24000:] + "\n" + _text(exc.stderr)[-9000:]
+        output = sanitize(partial + f"\nQA timeout: the command was stopped at its {timeout} s limit")
+        code, category = 124, "timeout"
+    except OSError as exc:
         output, code = sanitize(str(exc)), 124
+    finally:
+        if timer is not None:
+            timer.cancel()
     return {"command": argv, "cwd": str(cwd), "exit_code": code,
             "duration_seconds": round(time.monotonic() - start, 2),
-            "category": "pass" if code == 0 else categorize(output),
+            "category": "pass" if code == 0 else (category or categorize(output)),
             "diagnostic_excerpt": "\n".join(output.splitlines()[-90:])[-10000:] if code else ""}
 
 
@@ -63,7 +96,8 @@ def missing_local_install(result: dict) -> bool:
 
 
 def execute(root: Path, plan: dict, scope: str, timeout: int,
-            repair: bool = False, max_attempts: int = 2) -> dict:
+            repair: bool = False, max_attempts: int = 2,
+            warn_after: int | None = None) -> dict:
     if max_attempts < 1 or max_attempts > 2:
         raise ValueError("QA repair attempts are bounded to 1 or 2")
     selected = [cmd for cmd in plan["commands"] if cmd["scope"] == scope]
@@ -102,7 +136,7 @@ def execute(root: Path, plan: dict, scope: str, timeout: int,
         attempt = 0
         while attempt < max_attempts:
             attempt += 1
-            result = run_command(argv, working, timeout)
+            result = run_command(argv, working, timeout, warn_after)
             result["attempt"] = attempt
             report["results"].append(result)
             report["runner_seconds"] += result["duration_seconds"]
@@ -141,6 +175,9 @@ def main() -> int:
     p.add_argument("--repo", default=".")
     p.add_argument("--report", required=True)
     p.add_argument("--timeout", type=int, default=900)
+    p.add_argument("--warn-after", type=int, default=None,
+                   help="Seconds after which a still-running test command posts a "
+                        "GitHub warning annotation (default: half of --timeout)")
     p.add_argument("--repair", action="store_true",
                    help="Only reinstall missing local dependencies; no source edits")
     args = p.parse_args()
@@ -153,7 +190,8 @@ def main() -> int:
     if args.timeout < 1 or args.timeout > 3600:
         print("QA timeout must be 1..3600 seconds", file=sys.stderr)
         return 2
-    result = execute(root, plan, args.scope, args.timeout, args.repair)
+    warn_after = args.warn_after if args.warn_after is not None else args.timeout // 2
+    result = execute(root, plan, args.scope, args.timeout, args.repair, warn_after=warn_after)
     output = Path(args.report)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
@@ -164,6 +202,9 @@ def main() -> int:
     for attempt in result["results"]:
         if attempt["exit_code"]:
             message = attempt["diagnostic_excerpt"]
+            if attempt["category"] == "timeout":
+                print(f"::error title=QA timeout::{' '.join(attempt['command'])} was stopped "
+                      f"at its {args.timeout} s limit; this is a timeout, not a test failure")
             print(
                 f"QA FAIL [{attempt['category']}] "
                 f"{' '.join(attempt['command'])} (exit {attempt['exit_code']})",

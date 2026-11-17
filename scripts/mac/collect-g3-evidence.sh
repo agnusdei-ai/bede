@@ -37,6 +37,9 @@
 #   --arch arm64|amd64    defaults to this Mac's processor
 #   --local-model-url URL OpenAI-compatible local model for the instance
 #                         (default http://host.docker.internal:11434/v1, Ollama)
+#   --local-model NAME    the model that server serves, written as LOCAL_LLM_MODEL;
+#                         default: the one model this Mac's Ollama lists (refuses
+#                         to guess when it lists several or none)
 #   --work DIR            defaults to ~/Bede-G3/<UTC time>
 #   --mac-check           also run the Touch ID teacher check (needs git, Python 3.12
 #                         and Node 20+; installs its own dependencies in DIR)
@@ -129,6 +132,7 @@ if [ "${G3_LIB_ONLY:-}" = "1" ]; then return 0 2>/dev/null || exit 0; fi
 
 LICENSE_FILE=""; RUN_ID=""; BUNDLE=""; ARCH=""; WORK=""; MAC_CHECK=0; TEARDOWN=0
 LOCAL_MODEL_URL="http://host.docker.internal:11434/v1"
+LOCAL_MODEL=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --license-file) LICENSE_FILE="$2"; shift 2 ;;
@@ -137,9 +141,10 @@ while [ $# -gt 0 ]; do
     --arch) ARCH="$2"; shift 2 ;;
     --work) WORK="$2"; shift 2 ;;
     --local-model-url) LOCAL_MODEL_URL="$2"; shift 2 ;;
+    --local-model) LOCAL_MODEL="$2"; shift 2 ;;
     --mac-check) MAC_CHECK=1; shift ;;
     --teardown) TEARDOWN=1; shift ;;
-    -h|--help) sed -n '2,48p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,51p' "$0"; exit 0 ;;
     *) die "unknown option: $1 (see --help)" ;;
   esac
 done
@@ -292,9 +297,19 @@ if [ -z "$CHILD_PIN" ]; then
 fi
 [ -n "$CHILD_PIN" ] || die "could not read the wizard's generated student PIN"
 printf 'student_pin=%s\n' "$CHILD_PIN" >> "$PRIVATE/credentials.txt"
+# The wizard requires a model name for a local choice (docs/DECISIONS.md
+# entry 43). Without --local-model, use the one model Ollama lists; never guess.
+if [ -z "$LOCAL_MODEL" ]; then
+  LOCAL_MODEL="$(curl -fsS --max-time 3 "http://127.0.0.1:11434/api/tags" 2>/dev/null \
+    | grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' \
+    | sed -E 's/^"name"[[:space:]]*:[[:space:]]*"([^"]*)"$/\1/' || true)"
+  [ -n "$LOCAL_MODEL" ] && [ "$(printf '%s\n' "$LOCAL_MODEL" | wc -l | tr -d ' ')" = 1 ] \
+    || die "pass --local-model NAME: this Mac's Ollama does not list exactly one model"
+fi
 curl -sS --max-time 20 -X POST "$WIZARD/submit" \
   --data-urlencode "provider=local" \
   --data-urlencode "local_base_url=$LOCAL_MODEL_URL" \
+  --data-urlencode "local_model=$LOCAL_MODEL" \
   --data-urlencode "db_choice=local" \
   --data-urlencode "parent_password=$ADMIN_PASSWORD" \
   --data-urlencode "child_pin=$CHILD_PIN" \

@@ -49,6 +49,10 @@ on:
         description: Comma-separated run ids of finished CI runs on the candidate SHA to read
         required: false
         type: string
+      diagnosis_run:
+        description: Run id of a finished trusted diagnosis run to record for task_id (record only)
+        required: false
+        type: string
       event_json:
         description: JSON event or list of events (agent results, owner decisions)
         required: false
@@ -83,9 +87,14 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           BASE_SHA: ${{ inputs.base_sha }}
           TASK_ID: ${{ inputs.task_id }}
+          DIAGNOSIS_RUN: ${{ inputs.diagnosis_run }}
         run: |
           set -euo pipefail
           [ "$REF" = "refs/heads/main" ] || { echo "release-repair runs only from main, not $REF"; exit 1; }
+          if [ -n "$DIAGNOSIS_RUN" ]; then
+            printf '%s' "$DIAGNOSIS_RUN" | grep -qE '^[0-9]{1,20}$' || { echo "diagnosis_run must be a run id"; exit 1; }
+            printf '%s' "$TASK_ID" | grep -qE '^[0-9a-z][0-9a-z-]{0,62}$' || { echo "task_id is required with diagnosis_run"; exit 1; }
+          fi
           if [ -n "$BRANCH" ]; then
             # A malformed request is the coordinator's error, not a failed
             # repair: refuse it here so it never spends a repair attempt.
@@ -209,6 +218,8 @@ jobs:
           RESOLVED_SHA: ${{ needs.resolve.outputs.resolved_sha }}
           RESULTS_RUNS: ${{ inputs.results_runs }}
           EVENT_JSON: ${{ inputs.event_json }}
+          DIAGNOSIS_RUN: ${{ inputs.diagnosis_run }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
           ACCEPTANCE: ${{ inputs.acceptance }}
           CONTROLLER_REVISION: ${{ github.sha }}
           RUN_ID: ${{ github.run_id }}

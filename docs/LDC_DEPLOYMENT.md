@@ -205,13 +205,16 @@ answer for exactly this hardware. A 30B-A3B model holds 30B parameters in RAM
 speed depends on) — roughly 8B-class decode speed at substantially better
 quality.
 
-`core/config.py`'s `local_llm_model` default is already an A3B MoE
-(`Qwen/Qwen3-Coder-30B-A3B-Instruct`). Note that default was chosen as a
-plausible self-hosted option and **has not been evaluated against Bede's own
-tool set** — entry 20 again. Its *shape* is right for this hardware; whether
-that specific coder-tuned checkpoint is the right choice for a Socratic tutor
-is an open question, and a general-instruct sibling is the obvious thing to
-measure against it.
+`core/config.py`'s `local_llm_model` default was an A3B MoE
+(`Qwen/Qwen3-Coder-30B-A3B-Instruct`) until `docs/DECISIONS.md` entry 43,
+which made the default lineup non-Chinese: the recommended vLLM model is now
+`mistralai/Mistral-Small-3.2-24B-Instruct-2506`, a dense 24B model that needs
+about 55 GB of GPU memory at full precision. Neither has been **evaluated
+against Bede's own tool set** — entry 20 again. A dense 24B model reads all of
+its weights per token, so it decodes more slowly than an A3B MoE on the same
+hardware; for donated hardware the Ollama builds of the same family
+(quantised, `docs/UNIX_INSTALLER.md`) are the practical path, and the Qwen MoE
+remains a model a deployment may still choose.
 
 ---
 

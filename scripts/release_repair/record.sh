@@ -13,7 +13,10 @@ CTRL=(python3 scripts/release_repair/controller.py --cycle "$CYCLE" --work "$RR/
 
 events=()
 if [ -n "${EVENT_JSON:-}" ]; then
-  printf '%s' "$EVENT_JSON" > "$RR/events/00-input.json"
+  # The coordinator's input. A kind or field only this job builds (a
+  # diagnosis, a verification, results, ancestry) is refused here, visibly.
+  printf '%s' "$EVENT_JSON" > "$RR/events/00-raw.json"
+  python3 scripts/release_repair/intake.py screen --events "$RR/events/00-raw.json" --out "$RR/events/00-input.json"
   events+=("$RR/events/00-input.json")
 fi
 if [ -n "${RESULTS_RUNS:-}" ]; then
@@ -21,6 +24,13 @@ if [ -n "${RESULTS_RUNS:-}" ]; then
   python3 scripts/release_repair/collect_results.py --runs "$RESULTS_RUNS" --sha "${SHA:?candidate_sha is required with results_runs}" \
     --event-id "results-$RUN_ID-$RUN_ATTEMPT" --out "$RR/events/10-results.json"
   events+=("$RR/events/10-results.json")
+fi
+if [ -n "${DIAGNOSIS_RUN:-}" ]; then
+  # Facts read from a named run of the trusted diagnosis workflow; the
+  # controller checks its workflow, SHA and pinned environment.
+  python3 scripts/release_repair/diagnosis.py --run "$DIAGNOSIS_RUN" --task-id "${TASK_ID:?task_id is required with diagnosis_run}" \
+    --out "$RR/events/15-diagnosis.json"
+  events+=("$RR/events/15-diagnosis.json")
 fi
 if [ -n "${RESOLVED_SHA:-}" ]; then
   if [ ! -f ../candidate-out/regression.json ]; then
@@ -69,6 +79,10 @@ else
   if [ "$ACTION" = "status" ]; then
     "${CTRL[@]}" --action status --snapshot-in "$RR/snapshot-in"
   else
+    # An owner's resolved_outside_loop gets the ancestry fact, checked with git
+    # against the candidate in the state just loaded.
+    python3 scripts/release_repair/intake.py enrich --events "$RR/events/all.json" --out "$RR/events/all.json" \
+      --snapshot-in "$RR/snapshot-in" --work "$RR/intake" --cycle "$CYCLE"
     "${CTRL[@]}" --action record --event "$RR/events/all.json" --snapshot-in "$RR/snapshot-in" --snapshot-out "$RR/snapshot-out"
   fi
 fi

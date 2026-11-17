@@ -327,6 +327,7 @@ def test_valid_local_submission_writes_correct_env(running_wizard):
     _post(running_wizard, {
         "provider": "local",
         "local_base_url": "http://gpu-box.lan:8000/v1",
+        "local_model": "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
         "db_choice": "local",
         "parent_password": "parentpass123",
         "child_pin": TEST_PIN,
@@ -335,6 +336,8 @@ def test_valid_local_submission_writes_correct_env(running_wizard):
     env = open(wizard.ENV_PATH).read()
     assert "BEDE_ADAPTER_ORDER=local" in env
     assert "LOCAL_LLM_BASE_URL=http://gpu-box.lan:8000/v1" in env
+    # Always written for a local choice (docs/DECISIONS.md entry 43).
+    assert "LOCAL_LLM_MODEL=mistralai/Mistral-Small-3.2-24B-Instruct-2506" in env
     assert "ANTHROPIC_API_KEY" not in env
     assert "OPENAI_API_KEY" not in env
     assert "MISTRAL_API_KEY" not in env
@@ -352,6 +355,32 @@ def test_missing_credential_for_chosen_provider_rejected(running_wizard):
     assert exc_info.value.code == 400
     assert "OpenAI API key" in exc_info.value.read().decode()
     assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_local_choice_without_a_model_name_is_rejected(running_wizard):
+    """The wizard always writes LOCAL_LLM_MODEL for a local choice, so it
+    cannot accept one without a model name (docs/DECISIONS.md entry 43)."""
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        _post(running_wizard, {
+            "provider": "local",
+            "local_base_url": "http://gpu-box.lan:8000/v1",
+            "local_model": "   ",
+            "db_choice": "local",
+            "parent_password": "parentpass123",
+            "child_pin": TEST_PIN,
+            "license_key": MOCK_ENTITLEMENT,
+        })
+    assert exc_info.value.code == 400
+    assert "Please enter the model name your model server serves" in exc_info.value.read().decode()
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_the_local_model_hint_does_not_promise_a_default():
+    """A blank model name never meant "Bede's default" for Ollama (the code
+    default was a vLLM name no Ollama serves), and now is refused."""
+    source = open(wizard.__file__, encoding="utf-8").read()
+    assert "Leave blank to use Bede" not in source
+    assert "Model name (optional)" not in source
 
 
 def test_missing_local_server_url_rejected(running_wizard):
@@ -1033,8 +1062,11 @@ def _fake_ollama(models):
     return srv
 
 
-def _run_helper(bundle_dir, url, ram_gib=16):
+def _run_helper(bundle_dir, url, ram_gib=16, family=None):
     env = {**os.environ, "BEDE_OLLAMA_URL": url, "BEDE_HOST_RAM_BYTES": str(ram_gib * _GIB)}
+    env.pop("BEDE_MODEL_FAMILY", None)
+    if family:
+        env["BEDE_MODEL_FAMILY"] = family
     # macOS CI sets BEDE_TEST_BASH=/bin/bash so the helper is exercised under
     # the bash 3.2 the Mac app actually runs it with.
     shell = os.environ.get("BEDE_TEST_BASH", "bash")
@@ -1043,17 +1075,23 @@ def _run_helper(bundle_dir, url, ram_gib=16):
     return json.loads(marker.read_text()) if marker.exists() else None
 
 
-@pytest.mark.parametrize("installed,ram,expected", [
-    (["llama3.2:latest", "qwen3:4b"], 16, "qwen3:4b"),   # recommended wins over others
-    (["qwen3:8b"], 16, "qwen3:8b"),                     # the only model there
-    (["qwen3:1.7b", "qwen3:4b"], 8, "qwen3:1.7b"),      # same tiers as install.sh
-    (["a:1", "b:2"], 16, None),                         # ambiguous: guess nothing
-    ([], 16, None),
+@pytest.mark.parametrize("installed,ram,family,expected", [
+    # Default lineup (docs/DECISIONS.md entry 43): same RAM tiers as install.sh.
+    (["llama3.2:latest", "ministral-3:3b"], 16, None, "ministral-3:3b"),  # recommended wins
+    (["granite3.3:2b", "ministral-3:3b"], 8, None, "granite3.3:2b"),
+    (["qwen3:4b", "ministral-3:3b"], 16, None, "ministral-3:3b"),       # default beats Qwen
+    (["qwen3:4b", "ministral-3:3b"], 16, "qwen", "qwen3:4b"),           # unless Qwen is asked for
+    # A Mac that already runs the Qwen model keeps it.
+    (["llama3.2:latest", "qwen3:4b"], 16, None, "qwen3:4b"),
+    (["qwen3:1.7b", "qwen3:4b"], 8, None, "qwen3:1.7b"),
+    (["qwen3:8b"], 16, None, "qwen3:8b"),                               # the only model there
+    (["a:1", "b:2"], 16, None, None),                                   # ambiguous: guess nothing
+    ([], 16, None, None),
 ])
-def test_mac_helper_records_the_installed_model(tmp_path, installed, ram, expected):
+def test_mac_helper_records_the_installed_model(tmp_path, installed, ram, family, expected):
     srv = _fake_ollama(installed)
     try:
-        marker = _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}", ram)
+        marker = _run_helper(tmp_path, f"http://127.0.0.1:{srv.server_address[1]}", ram, family)
     finally:
         srv.shutdown()
     if expected is None:

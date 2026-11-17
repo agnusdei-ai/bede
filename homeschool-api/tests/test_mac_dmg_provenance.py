@@ -4,7 +4,7 @@ The repair loop's package evidence (scripts/release_repair) binds each
 artifact to its source SHA and architecture by reading the provenance file
 next to it. The Intel DMG always had one; the arm64 DMG did not, so its
 package check could only ever read NOT_RUN. This pins both uploads, and that
-the arm64 build checks the copied file names this build's SHA.
+the arm64 build checks the generated file names this build's SHA.
 """
 from pathlib import Path
 
@@ -47,11 +47,13 @@ def test_the_intel_dmg_upload_still_includes_its_provenance():
     assert "dist/mac-intel-engineering/RELEASE_PROVENANCE.json" in text
 
 
-def test_the_arm64_build_checks_the_copied_provenance_names_this_sha():
+def test_the_arm64_build_checks_the_generated_provenance_names_this_sha():
     script = next(
         s["run"] for s in _steps()
         if s.get("name") == "Compile branded Mac installer and package native app"
     )
-    copy = script.index('"$RUNNER_TEMP/RELEASE_PROVENANCE.json"')
-    check = script.index('source_sha")==os.environ["SOURCE_SHA"]')
-    assert check > copy, "the SHA check must read the file that is uploaded"
+    write = script.index('path = root / "RELEASE_PROVENANCE.json"')
+    check = script.index("assert provenance['source_sha'] == os.environ['SOURCE_SHA']")
+    upload = _upload_paths("bede-mac-engineering-unnotarized-arm64-")
+    assert check > write, "the SHA check must follow generation of the uploaded file"
+    assert any(path.endswith("/RELEASE_PROVENANCE.json") for path in upload)

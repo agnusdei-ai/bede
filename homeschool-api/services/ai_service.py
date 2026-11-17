@@ -440,6 +440,28 @@ TUTOR_TOOLS = [
         "input_schema": {"type": "object", "properties": {}},
     },
     {
+        "name": "invite_practice",
+        "description": (
+            "K-2 only. Open a short practice round on the child's screen: Watch, then Together, "
+            "then Your turn. The app builds every word and picture and checks every answer, so "
+            "you send only the area, and only an area the <practice> note names for this lesson. "
+            "Use it at most once per area in a session, at a natural pause, as an invitation the "
+            "child may decline. Never call it during an activity, and never mention that anything "
+            "is recorded."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "area": {
+                    "type": "string",
+                    "enum": ["phonics", "handwriting", "math", "spelling", "copy_sentence"],
+                    "description": "Which practice. Only an area the <practice> note offers is opened.",
+                },
+            },
+            "required": ["area"],
+        },
+    },
+    {
         "name": "offer_socratic_hint",
         "description": (
             "Give a gentle Socratic hint when a child is stuck — never the answer, "
@@ -2852,6 +2874,72 @@ fill time, and do not mention that anything is recorded.
 </map_practice>"""
 
 
+# K-2 practice (services/k2_practice/, docs/K2_PRACTICE.md §4). The same
+# shape as map practice's gate, checked when the note is built AND again when
+# the tool is dispatched, with the per-child setting, today's routine and the
+# time left added.
+def _practice_allowed(
+    config: SessionConfig, subject: Subject, demo_code: Optional[str],
+    history: Optional[List[ChatMessage]], area: Optional[str],
+    *, time_remaining_seconds: Optional[int] = None, session_id: Optional[str] = None,
+) -> bool:
+    """Whether Bede may offer a practice round in `area` on this turn.
+
+    Refused: an area not built yet; the public demo (its screen has no
+    practice to open); any setting but "todays_subjects" (with "off" Bede
+    offers nothing, and with "approved_only" it never chooses on its own:
+    step 1 has no approved phonics sets); outside K-2; a subject the area does
+    not belong to, or one not in this child's routine today; too little time
+    left in the block to finish a round; and a second offer of the same area
+    in one session.
+    """
+    from services import k2_practice
+    from services.action_governance import MIN_SECONDS_FOR_LONG_FORM_TASK
+    from services.k2_practice.phonics import level_for_grade
+
+    if area not in k2_practice.ENABLED_AREAS or demo_code is not None:
+        return False
+    if config.practice_offers != "todays_subjects":
+        return False
+    if config.grade_stage != GradeStage.foundations or level_for_grade(config.grade) is None:
+        return False
+    if subject not in k2_practice.AREA_SUBJECTS[area] or subject not in config.subjects:
+        return False
+    if time_remaining_seconds is not None and time_remaining_seconds < MIN_SECONDS_FOR_LONG_FORM_TASK:
+        return False
+    if k2_practice.was_offered(config.student_name, session_id, area):
+        return False
+    prefix = k2_practice.CARD_PREFIX[area]
+    return not any(m.role == "assistant" and prefix in (m.content or "") for m in (history or []))
+
+
+def _practice_note(
+    config: SessionConfig, subject: Subject, demo_code: Optional[str],
+    history: Optional[List[ChatMessage]], *,
+    time_remaining_seconds: Optional[int] = None, session_id: Optional[str] = None,
+) -> str:
+    from services import k2_practice
+
+    areas = [a for a in k2_practice.AREAS if _practice_allowed(
+        config, subject, demo_code, history, a,
+        time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+    )]
+    if not areas:
+        return ""
+    return f"""
+
+<practice>
+This child may be offered a short practice round in: {", ".join(areas)}. For phonics the app
+shows words and pictures, says every instruction, and checks every answer; you send only the
+area. The parent's own plan comes first: if today's lesson focus or the note on where this
+subject left off points somewhere else, do not offer practice; follow the parent's plan. Otherwise
+offer it once, by calling `invite_practice`, at a natural pause after reading or talking about
+words, never in the middle of an activity. It is an invitation: if the child would rather not,
+carry on with the lesson. Do not use it to fill time, and do not mention that anything is
+recorded.
+</practice>"""
+
+
 def _phonics_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
     K-2 Language Arts only: a light nudge to occasionally weave in ONE
@@ -3345,6 +3433,7 @@ async def _build_subject_prompt(
     music_evidence_count: int = 0,
     adaptive_instruction_note: str = "",
     previous_subject: Optional[Subject] = None,
+    session_id: Optional[str] = None,
 ) -> str:
     """Subject-specific context block — changes between subjects, not cached."""
     faith_raw = _sanitize_parent_field(config.faith_emphasis)
@@ -3434,6 +3523,10 @@ async def _build_subject_prompt(
     composition_note = _composition_note(history)
     phonics_note = _phonics_checkin_note(config, subject)
     map_practice_note = _map_practice_note(config, subject, demo_code, history)
+    practice_note = _practice_note(
+        config, subject, demo_code, history,
+        time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+    )
     work_scoring_note = _WORK_SCORING_NOTE
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
@@ -3450,7 +3543,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{practice_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3527,6 +3620,8 @@ _CARD_PHRASES = {
         "handwriting_title": "Time to Write or Draw",
         "map_title": "Map Time",
         "map_body": "Let's read a map together. Watch first, then we'll do one together, then it's your turn.",
+        "practice_phonics_title": "Sound Time",
+        "practice_phonics_body": "Let's play with sounds and words. Watch first, then we'll do two together, then it's your turn.",
         "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
         "hint_plain": "Let me ask it this way: {hint}",
     },
@@ -3535,6 +3630,8 @@ _CARD_PHRASES = {
         "handwriting_title": "Hora de Escribir o Dibujar",
         "map_title": "Hora del Mapa",
         "map_body": "Vamos a leer un mapa juntos. Primero mira, luego hacemos uno juntos y después te toca a ti.",
+        "practice_phonics_title": "Hora de los Sonidos",
+        "practice_phonics_body": "Vamos a jugar con sonidos y palabras. Primero mira, luego hacemos dos juntos y después te toca a ti.",
         "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
         "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
     },
@@ -3582,6 +3679,15 @@ def _process_tool_use(tool_name: str, tool_input: dict, locale: str = "en") -> s
     if tool_name == "invite_map_practice":
         # Wholly server-composed: the model sends nothing with this call.
         return f"{_MAP_CARD_PREFIX}*{phrases['map_title']}* — {phrases['map_body']}"
+
+    if tool_name == "invite_practice":
+        # Wholly server-composed: the model sends only the area, and an area
+        # with no card of its own (one not built yet) gets no card at all.
+        from services.k2_practice import CARD_PREFIX
+        area = tool_input.get("area")
+        if area not in CARD_PREFIX or f"practice_{area}_title" not in phrases:
+            return ""
+        return f"{CARD_PREFIX[area]}*{phrases[f'practice_{area}_title']}* — {phrases[f'practice_{area}_body']}"
 
     if tool_name == "offer_socratic_hint":
         hint = tool_input["hint_question"]
@@ -4894,6 +5000,7 @@ async def stream_tutor_response(
         time_remaining_seconds=time_remaining_seconds,
         music_vector=music_vector, music_evidence_count=music_evidence_count,
         adaptive_instruction_note=adaptive_instruction_note,
+        session_id=session_id,
     )
 
     # Stage 2: a recorded recommendation is evidence that a controlled
@@ -4968,6 +5075,10 @@ async def stream_tutor_response(
     # session-wide "once only" rule. Within a single turn there is no
     # reason to render the same picture twice.
     shown_aid_ids: set[str] = set()
+    # K-2 practice areas already offered in THIS turn. The history a turn
+    # carries does not yet hold this turn's own cards, and an older client
+    # sends no session id, so without this a turn could offer one area twice.
+    practice_areas_offered_this_turn: set[str] = set()
     final_message = None
 
     # Bounded tool_result loop (see _MAX_TOOL_LOOP_ROUNDS's own comment for
@@ -5252,6 +5363,17 @@ async def stream_tutor_response(
                                     # Outside K-2, outside its subjects, in the demo, or a
                                     # second time in one session: dropped, never shown.
                                     log.info("Map practice invitation dropped for %s", learner_ref(config.student_name))
+                                elif tc["name"] == "invite_practice" and (
+                                    tool_input.get("area") in practice_areas_offered_this_turn
+                                    or not _practice_allowed(
+                                        config, subject, demo_code, history, tool_input.get("area"),
+                                        time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+                                    )
+                                ):
+                                    # An area not built yet, the setting, outside K-2, a
+                                    # subject not in today's routine, too little time,
+                                    # the demo, or a second offer: dropped, never shown.
+                                    log.info("Practice invitation dropped for %s", learner_ref(config.student_name))
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,
@@ -5272,7 +5394,16 @@ async def stream_tutor_response(
                                             )
                                     tool_response = _process_tool_use(tc["name"], tool_input, locale)
                                     if tool_response:
-                                        yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
+                                        if tc["name"] == "invite_practice":
+                                            # Which practice to open travels with the card, and
+                                            # the session remembers it was offered (one per area).
+                                            from services.k2_practice import mark_offered
+                                            mark_offered(config.student_name, session_id, tool_input.get("area"))
+                                            practice_areas_offered_this_turn.add(tool_input.get("area"))
+                                            yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response,
+                                                              'area': tool_input.get("area")})
+                                        else:
+                                            yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
                                         # Which field means "this card asked
                                         # its own question" is per-tool and
                                         # lives in the registry. It used to be

@@ -20,7 +20,8 @@ def verification(task_id, branch, base, resolved, validation, regression, run) -
     return {"kind": "verification", "event_id": f"verify-{task_id}-{resolved[:12]}-{run['run_id']}-{run['run_attempt']}",
             "task_id": task_id, "branch": branch, "base_sha": base, "resolved_sha": resolved,
             "validation": {k: validation.get(k) for k in ("ok", "refused", "needs_authorization", "violations")},
-            "regression": {k: bool(regression.get(k)) for k in ("pre_fix_failed", "post_fix_passed", "adjacent_passed")},
+            "regression": {k: bool(regression.get(k)) for k in ("pre_fix_failed", "pre_fix_passed", "post_fix_passed",
+                                                                 "adjacent_passed")},
             "run": run}
 
 

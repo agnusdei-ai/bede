@@ -52,6 +52,7 @@ from .peer_auth import PeerAuthError, check_peer, default_allowed_uids
 from .protocol import MsgType, Outcome, RequestBody, ResponseBody
 from core.config import settings
 from services.adapters.router import LocalAdapterUnavailableError, resolve_local_only
+from services.adapters.openai_compatible_adapter import LocalModelNotConfiguredError
 
 log = logging.getLogger(__name__)
 
@@ -69,16 +70,25 @@ def _policy_hash() -> str:
     return digest
 
 
-def _adapter_identity() -> str:
+async def _adapter_identity() -> str:
     """What HelloAck reports about the model backing capability calls —
     the local adapter's model name if configured, or 'unavailable' if
     resolve_local_only() would raise right now. Never a base_url, API key,
-    or anything else that could leak deployment topology unnecessarily."""
+    or anything else that could leak deployment topology unnecessarily.
+
+    An unset LOCAL_LLM_MODEL is resolved exactly as for tutoring
+    (docs/DECISIONS.md entry 43): the server's only model, or 'unavailable'
+    with the configuration error logged when it serves several, none, or
+    cannot be reached. Never a guess."""
     try:
-        resolve_local_only(settings)
+        client = resolve_local_only(settings)
     except LocalAdapterUnavailableError:
         return "unavailable"
-    return f"local:{settings.local_llm_model}"
+    try:
+        model = await client._resolved_model()
+    except LocalModelNotConfiguredError:
+        return "unavailable"
+    return f"local:{model}"
 
 
 async def _read_frame(reader: asyncio.StreamReader) -> tuple[int, int, dict]:
@@ -171,7 +181,7 @@ async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.Strea
                 "protocol_version": 1,
                 "server_identity": SERVER_IDENTITY,
                 "policy_hash": _policy_hash(),
-                "adapter_identity": _adapter_identity(),
+                "adapter_identity": await _adapter_identity(),
             },
         )
 

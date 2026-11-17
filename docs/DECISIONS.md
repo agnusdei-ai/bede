@@ -950,8 +950,13 @@ reading model cards.
 Entry 19 commits to running the model locally. It does not establish that any
 model which fits on donated hardware can *be* Bede, and nothing in this
 repository has measured that. `core/config.py`'s `local_llm_model` default
-(`Qwen/Qwen3-Coder-30B-A3B-Instruct`) was chosen as a plausible self-hosted
-option, never evaluated against this application's own requirements.
+(`Qwen/Qwen3-Coder-30B-A3B-Instruct` until entry 43; since then there is no
+default name and the recommended vLLM model is
+`mistralai/Mistral-Small-3.2-24B-Instruct-2506`) was chosen as a plausible
+self-hosted option, never evaluated against this application's own
+requirements. Entry 43 changed which models are the defaults on provenance
+grounds; it does not resolve this entry, which still needs the measured
+evaluation.
 
 **What has to hold, in rough order of how likely it is to be the thing that
 fails:**
@@ -2379,7 +2384,25 @@ This is the owner's effective v1.0 ruling. It updates the **policy** of the exis
 
 ## 40. `[PRODUCT]` K-2 practice: the choices the specification leaves open
 
-**Status:** open · needs: owner rulings on (a) to (g)
+**Status:** open · needs: owner rulings on (c) to (h)
+
+**Decided (2026-11-16, owner), for (a) and (b):**
+
+- **(a)** The default is the third choice: **Bede may also choose from today's subjects.** Three limits come with it. Bede picks only from subjects already in that child's parent-set routine for today, and only from authored catalog content; it never invents a topic, word or item. The parent sees each offer (the server-written card in the conversation) and can switch it off with one tap per child. Practice sets made from uploaded quizzes still need the parent's approval before a child sees them. "Only practice sets I approved" never lets Bede choose on its own.
+- **(b)** A Your turn answer right on the first try, unaided, counts at **0.5** (`QUIZ_EVIDENCE_WEIGHT`); right on the second try, after the move is shown again, at **0.25**; an item that ended with the answer shown, or was left, counts **0** and writes no ledger row. These are product defaults the owner chose, not research-backed values. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but from a fresh record, no single practice answer can make a skill secure; two right first tries can. Step 1 applies them to the phonics estimate (`services/diagnostic/phonics.py`'s `process_evidence`, which gained a `weight` argument).
+- **Early-evidence window (owner ruling 2026-11-16, a product default).** Practice answers do not count toward it: a practice observation still moves the estimate by its weight (0.5 / 0.25, no boost) but does not advance `evidence_count`, the count that shrinks the early boost for Bede's own in-lesson check-ins and decides whether the parent's summary says "still getting to know your learner". So a check-in after any number of practice answers gets the full early boost it would have had with no practice, and the summary stays "calibrating" until enough check-ins exist, which is the honest reading of a picture built mostly from taps (`process_evidence(..., count_toward_calibration=False)`, passed only by the practice route).
+- **Replays (owner ruling 2026-11-16, a product default).** One recorded round per area per sign-in, at most three recorded answers in it. A round counts once its first answer is recorded, never when it is served, so opening a round and leaving, a lost response and "Try again", or a round that needs sound the device cannot give leaves the round unused, and two rounds answered at once record only one. After the first round "Another one" still works and records nothing (no ledger row, no observation). Enforced on the server, keyed by learner, area and a digest of the sign-in's own token claims, so a page reload or a fresh lesson id does not reset it and a new sign-in does; held in memory, so a server restart forgets it. The parent's Progress page says the extra rounds were practice only, for a K-2 child whose practice is not off, and its calibrating line names practice answers apart from Bede's lesson check-ins. The child's screen shows nothing different.
+
+**Limitations of the record (product defaults, no research behind any number here).** A child tapping at random still ends up "correct" within two tries this often:
+
+| Choices | Repeats possible | No repeats |
+| --- | --- | --- |
+| 3 | 56% | 67% |
+| 4 | 44% | 50% |
+
+In Bede as built, a wrongly tapped choice stays tappable on the second try (the screen re-enables every choice and the server accepts the same choice again as the second miss), so the "repeats possible" column is what the code does; the owner treats "no repeats" as the realistic case either way. Kindergarten and grade 1 get three choices, grade 2 four. The one-recorded-round cap bounds this to three recorded answers per area per sign-in, and the record only picks the next practice domain, never a placement or a label.
+
+Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (h) stay open below.
 
 [`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
 practice for kindergarten to grade 2: phonics, handwriting, practical math,
@@ -2387,12 +2410,13 @@ spelling and copying a sentence first, then memory work. Map reading, from the
 same design, shipped in #830. The specification cannot settle these, and each
 changes what gets built:
 
-- **(a) The per-child setting's default.** Off; only practice sets the parent approved; or Bede may also choose from today's subjects. *Recommended:* the third, since it is what makes practice Bede-initiated out of the box. The second is more cautious but means Bede rarely offers anything until a parent uploads a quiz.
-- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Recommended:* the marked-quiz weight, 0.5 (`QUIZ_EVIDENCE_WEIGHT`), since both are short, scaffolded observations rather than a test.
+- **(a) The per-child setting's default.** *Decided above.*
+- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Decided above.*
 - **(c) The handwriting style.** Ball-and-stick print, a continuous-stroke print, or pre-cursive. *Recommended:* ask the family in Parent Setup, defaulting to ball-and-stick, so Bede never teaches a different form from the one at home. Each style is its own stroke data.
 - **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
 - **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
+- **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849.
 - **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.
 
 ## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
@@ -2444,6 +2468,122 @@ built. The owner ruled on each:
 
 Decision entry 40's rulings (the per-child default, evidence weight,
 handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
-separate and still open. So are the checklist's own pre-enrollment decisions:
+separate: (a) and (b) were ruled the same day, and (c) to (h) are still open. So are the checklist's own pre-enrollment decisions:
 supported devices and assistive technology, the final collected fields and
 vendors, and the pilot's learning objectives.
+
+## 43. `[PRODUCT]` The local model Bede installs by default is non-Chinese; Qwen stays available
+
+**Status:** closed
+
+**Decided (2026-11-16, owner).** The local AI model Bede installs by default
+comes from a developer based outside China. The Qwen 3 models, which were
+the default until this ruling, stay available as an explicit installer
+choice and are never chosen silently.
+
+**Why.** Model provenance. A model trained under another country's content
+rules may answer differently on topics the curriculum covers, such as
+history, geography and religion, and a family that never chose a model
+should get one whose developer works under the same broad expectations as
+the rest of the product. This is a statement about where a model comes
+from, not a finding about how any particular model behaves: nobody has
+measured that here (entry 20).
+
+**Selection criteria, in priority order:**
+
+1. Native tool calling that works through Ollama's OpenAI-compatible
+   `/v1/chat/completions`, since Bede's tutor depends on tool calls
+   (`services/adapters/openai_compatible_adapter.py`). A model Ollama does
+   not mark as supporting tools is out.
+2. Spanish, because Bede has an `es` locale.
+3. A developer based outside China (US or EU).
+4. A permissive licence: Apache-2.0 or MIT, rather than a licence with
+   attribution or acceptable-use obligations that would become product
+   requirements.
+5. Fits each hardware tier the installers already use.
+
+**The default lineup** (`$OllamaModelTiers` in
+`packaging/windows/Setup-Bede.ps1`, `ollama_model_for_tier` in
+`packaging/unix/install.sh`, checked against each other and against the
+docs by `homeschool-api/tests/test_local_model_default.py`):
+
+| Tier | Ollama tag | Developer | Licence | Ollama download | Tools in Ollama | Spanish listed |
+|---|---|---|---|---|---|---|
+| ≥20 GB VRAM | `mistral-small3.2:24b` | Mistral AI (France) | Apache-2.0 (model card; Ollama's page states none) | ~15 GB | yes | not on Ollama's page; listed on Mistral's card for Mistral Small 3.1, which 3.2 updates |
+| ≥10 GB VRAM | `ministral-3:14b` | Mistral AI (France) | Apache-2.0 | ~9.1 GB | yes | yes (model card) |
+| ≥5 GB VRAM | `granite3.3:8b` | IBM (US) | Apache-2.0 | ~4.9 GB | yes | yes |
+| GPU under 5 GB, or no GPU and ≥16 GB RAM | `ministral-3:3b` | Mistral AI (France) | Apache-2.0 | ~3.0 GB | yes | yes (family listing) |
+| No GPU, under 16 GB RAM | `granite3.3:2b` | IBM (US) | Apache-2.0 | ~1.5 GB | yes | yes |
+
+The recommended vLLM model (`core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`,
+offered and written by `setup.sh`) is
+`mistralai/Mistral-Small-3.2-24B-Instruct-2506`, the full-precision build,
+which needs about 55 GB of GPU memory and vLLM 0.9.1 or later (Mistral's
+model card). The ~15 GB figure above is Ollama's quantised build of the
+same model.
+
+**How the picks were made.** Granite 4 (IBM, Apache-2.0) and Granite 4.1
+(IBM, Apache-2.0, April 2026: 3B, 8B and 30B, tools in Ollama) were
+compared. Granite 4's listed sizes looked inconsistent; the 3.3 GB figure
+belongs to the 1B model's full-precision `1b-bf16` build, while the 2.1 GB
+`micro`/`3b` tag is the 3B model quantised, so the two do not conflict.
+Granite 4.1's 8B (~5.3 GB) fits a 5 GB card less well than `granite3.3:8b`,
+and Spanish could not be confirmed for Granite 4.1 at all. Granite 4's 3B
+(`granite4:micro`, ~2.1 GB, Spanish among its twelve languages) is smaller
+than `ministral-3:3b` and is a reasonable alternative; `ministral-3:3b` was
+preferred because Ollama marks it as accepting images, so a child's
+handwriting and drawing submissions reach it, and Granite 4 is text-only.
+Ministral 3 (Mistral AI, Apache-2.0,
+December 2025, 3B/8B/14B, tools, 256K context) fills the gap between the 8B
+and 24B tiers with its 14B, and its 3B replaces Qwen's 4B on machines with
+16 GB or more. `ministral-3:8b` (~6.0 GB) was not used for the 5 GB tier
+because it does not fit as well as `granite3.3:8b` (~4.9 GB).
+`mistral-nemo:12b` (Mistral AI with NVIDIA, Apache-2.0, 2024) was
+considered for the 10 GB tier and set aside for the newer Ministral 3 14B.
+The `ministral-3` models need Ollama 0.13.1 or later.
+
+**How these facts were checked, and what was not.** Tags, sizes, tool
+support and licences were checked by web search against Ollama's library
+listings, the models' cards and their developers' announcements, and by the
+owner directly on 2026-11-16. Ollama's site and Hugging Face could not be
+opened directly from the build session, so no figure here was read off the
+live page by that session; the 9.1 GB size of `ministral-3:14b` comes from
+the owner's check and a third-party listing. **No model was downloaded or
+run in the build session.**
+
+**Spanish check: NOT RUN.** `homeschool-api/scripts/spanish_local_model_probe.py`
+sends Bede's real Spanish tutoring prompt and real tool list, through Bede's
+own adapter, to each model in Ollama, and records per model whether it stays
+in Spanish, makes a valid tool call and mixes in no English. It runs by
+hand on a computer with the models downloaded; model downloads in CI are
+paused by the owner. Until it has run, every model's result is NOT RUN, and
+no result is inferred. If a model fails, notably the 2B tier, that is
+recorded as a failure, not met by lowering the bar.
+
+**Qwen stays available.** `-ModelFamily qwen` (Windows), `--model-family
+qwen` (Linux and macOS) or `BEDE_MODEL_FAMILY=qwen` select the Qwen 3 tiers
+that were the default: `qwen3:32b`, `qwen3:14b`, `qwen3:8b`, `qwen3:4b`,
+`qwen3:1.7b` (Alibaba's Qwen team, Apache-2.0). For vLLM, setting
+`LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct` still works.
+
+**Existing installations keep their model.** Updating Bede never pulls,
+switches or deletes a model. Re-running an installer keeps the model `.env`
+already names when Ollama still has it, unless a model family is asked for.
+`LOCAL_LLM_MODEL` no longer has a default model name, so no installation is
+switched to a new default by an update: an explicit name is used unchanged;
+an unset name is filled from the local server's own model list when it
+serves exactly one model (the older vLLM setup that left the name blank),
+and is otherwise a configuration error naming the setting to add, never a
+guess. The installers, `setup.sh` and the wizard all write the name
+(`docs/PROVIDER_ADAPTERS.md`, "When `LOCAL_LLM_MODEL` is not set").
+
+**Rules that came with this ruling** (owner, 2026-11-16): model files are
+GGUF or safetensors only, never pickle-based weights and never
+`trust_remote_code`; no China-hosted AI API; the model must not reach the
+network while it runs, and only the download step may reach the model
+library. `docs/SECURITY.md`'s "Local model files and network" section says
+which of these Bede enforces and which it only recommends.
+
+**Related:** entry 20 (whether any local model is good enough to be Bede,
+still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
+`docs/PROVIDER_ADAPTERS.md`, `docs/PARENT_SETUP.md`.

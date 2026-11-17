@@ -287,7 +287,10 @@ case "$PROVIDER_CHOICE" in
       [[ -n "$LOCAL_LLM_BASE_URL" ]] && break
       warn "This field is required."
     done
-    read -rp "     Model name [Qwen/Qwen3-Coder-30B-A3B-Instruct]: " LOCAL_LLM_MODEL
+    read -rp "     Model name [mistralai/Mistral-Small-3.2-24B-Instruct-2506]: " LOCAL_LLM_MODEL
+    # Written to .env even when the default is accepted, so a later change
+    # of Bede's default never switches this installation's model.
+    LOCAL_LLM_MODEL="${LOCAL_LLM_MODEL:-mistralai/Mistral-Small-3.2-24B-Instruct-2506}"
     ;;
 esac
 

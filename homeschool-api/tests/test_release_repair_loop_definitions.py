@@ -18,7 +18,9 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
@@ -630,13 +632,86 @@ def test_a_package_built_from_another_sha_is_refused(tmp_path):
         qa.package_artifacts(tmp_path, A)
 
 
-def test_the_adapter_records_only_fields_the_build_writes():
-    """The build's RELEASE_PROVENANCE.json has source_sha and architecture and
-    no OS or signing field, which is why those two are NOT_RUN."""
-    text = (REPO / ".github" / "workflows" / "build-bede-operator.yml").read_text()
-    block = text[text.index("evidence = {"):text.index("Path(\"dist/bede-operator/RELEASE_PROVENANCE.json\")")]
-    assert '"source_sha"' in block and '"architecture"' in block
-    assert '"os"' not in block and '"signing"' not in block and '"notarization"' not in block
+@pytest.mark.parametrize("platform,architecture,runner", [
+    ("linux", "amd64", "ubuntu-24.04"),
+    ("linux", "arm64", "ubuntu-24.04-arm"),
+    ("mac", "arm64", "macos-15"),
+])
+def test_the_adapter_records_only_fields_the_build_writes(tmp_path, platform, architecture, runner):
+    """Execute the build's provenance writer, then read the actual artifact contract.
+
+    Only sw_vers and artifact bytes are stand-ins; no native build, signing,
+    physical acceptance, or qualification is performed by this test.
+    """
+    workflow = yaml.safe_load((REPO / ".github/workflows/build-bede-operator.yml").read_text())
+    job = workflow["jobs"]["package" if platform == "linux" else "package-mac-pilot"]
+    step_name = ("Generate source-free installer and seal embedded images" if platform == "linux"
+                 else "Compile branded Mac installer and package native app")
+    script = next(s["run"] for s in job["steps"] if s.get("name") == step_name)
+    if platform == "linux":
+        assert {"arch": architecture, "target_os": "linux", "runner": runner} in job["strategy"]["matrix"]["include"]
+        script = script.replace("${{ matrix.arch }}", architecture).replace("${{ matrix.runner }}", runner)
+        start = script.index("python - <<'PY'")
+        directory = tmp_path / "dist/bede-operator"
+        directory.mkdir(parents=True)
+    else:
+        start = script.index('MACOS_VERSION="$(sw_vers -productVersion)" python3')
+        directory = tmp_path
+    command = script[start:script.index("\nPY", start) + len("\nPY")]
+    env = {**os.environ, "SOURCE_SHA": B, "RUNNER_TEMP": str(tmp_path),
+           "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "example/sample",
+           "GITHUB_RUN_ID": "12345", "MACOS_VERSION": "must-not-use-inherited-version",
+           "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ["PATH"]}
+    dmg = tmp_path / "Bede-Engineering-Mac-arm64.dmg"
+    dmg.write_bytes(b"sample package bytes, not a native installer")
+    sidecar(dmg)
+    sw_vers = 'sw_vers() { test "$*" = "-productVersion" || return 1; printf "15.7.2\\n"; }\n'
+    subprocess.run(["bash", "-euc", sw_vers + command], cwd=tmp_path, env=env, check=True)
+    data = json.loads((directory / "RELEASE_PROVENANCE.json").read_text())
+    expected = {
+        "source_sha": B, "architecture": architecture,
+        "os": runner if platform == "linux" else "macOS 15.7.2",
+        "signing": ("unsigned" if platform == "linux"
+                    else "ad hoc (codesign --sign -); codesign --verify --deep --strict passed"),
+        "notarization": "not_applicable" if platform == "linux" else "none (not notarized)",
+        "build_run_url": "https://github.com/example/sample/actions/runs/12345",
+        "contents": ("source-free operator images and launchers" if platform == "linux"
+                     else "compact source-free Mac engineering candidate (no embedded container images)"),
+        "scope": "teacher-directed, sample-only Valor pilot evaluation",
+        "learner_delivery": "NOT_REQUESTED", "physical_mac": "NOT_RUN",
+        "engineering_acceptance": "NOT_SIGNED", "pilot_go": "HOLD",
+        "prior_qualification_carries_to_this_sha": False,
+    }
+    if platform == "linux":
+        artifact = tarball(tmp_path / f"linux-{architecture}.tar.gz", data)
+        sidecar(artifact)
+        dmg.unlink()
+    else:
+        artifact = dmg
+        expected["digest"] = hashlib.sha256(dmg.read_bytes()).hexdigest()
+        assert set(data) == set(expected)
+        upload = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/upload-artifact"))
+        paths = upload["with"]["path"].splitlines()
+        for name in (dmg.name, dmg.name + ".sha256", "RELEASE_PROVENANCE.json", "NOT_FOR_DISTRIBUTION.txt"):
+            assert "${{ runner.temp }}/" + name in paths
+        assert 'codesign --force --deep --sign - "$RUNNER_TEMP/native/Bede Installer.app"' in script
+        assert 'codesign --verify --deep --strict "$RUNNER_TEMP/native/Bede Installer.app"' in script
+        notice = next(line for line in script.splitlines() if '> "$RUNNER_TEMP/NOT_FOR_DISTRIBUTION.txt"' in line)
+        subprocess.run(["bash", "-euc", notice], cwd=tmp_path, env=env, check=True)
+        assert (tmp_path / "NOT_FOR_DISTRIBUTION.txt").read_text() == (
+            "ENGINEERING TEST ONLY: ad hoc signed, unnotarized, not approved for external distribution.\n")
+    assert {key: data[key] for key in expected} == expected
+    assert data["prior_qualification_carries_to_this_sha"] is False
+    (row,) = qa.package_artifacts(tmp_path, B)
+    assert row["status"] == "PASS"
+    package = row["package"]
+    assert package["filename"] == artifact.name
+    assert package["embedded_sha"] == B and package["architecture"] == architecture
+    assert package["os"] == expected["os"]
+    assert package["signing"] == {"status": "RECORDED", "value": expected["signing"]}
+    assert package["checksum"]["status"] == "PASS"
+    assert package["checksum"]["sha256"] == hashlib.sha256(artifact.read_bytes()).hexdigest()
+    assert package["not_for_distribution_notice"] is (platform == "mac")
 
 
 def test_the_collector_routes_package_artifacts_through_the_per_artifact_adapter(tmp_path):

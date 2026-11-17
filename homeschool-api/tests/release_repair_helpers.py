@@ -55,6 +55,12 @@ class Cycle:
         return {"lease_id": t["lease_id"], "generation": t["lease_generation"]}
 
     def run_role(self, tid, role, **result):
+        if role == "review":
+            # Owner ruling 2026-11-16: an approval is a RECORD with findings and
+            # a digest of the diff shown. A test that means "no findings" passes
+            # findings=None explicitly.
+            result.setdefault("findings", [])
+            result.setdefault("diff_digest", "d" * 64)
         assert self.ev("assign", task_id=tid, role=role, session_id=f"session_{role}_{tid}",
                        replace_session=True)["accepted"]
         return self.ev("agent_result", task_id=tid, lease=self.lease(tid),

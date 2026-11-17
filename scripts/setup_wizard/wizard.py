@@ -420,9 +420,9 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
     body.append('<label>Your model server\'s address</label>')
     body.append('<div class="hint">The OpenAI-compatible /v1 endpoint URL, e.g. http://your-gpu-box.lan:8000/v1</div>')
     body.append(f'<input type="text" name="local_base_url" value="{html.escape(v.get("local_base_url", ""))}" placeholder="http://your-gpu-box.lan:8000/v1">')
-    body.append('<label>Model name (optional)</label>')
-    body.append('<div class="hint">The exact name your model service serves, e.g. qwen3:4b for Ollama. Leave blank to use Bede\'s default.</div>')
-    body.append(f'<input type="text" name="local_model" value="{html.escape(v.get("local_model", ""))}" placeholder="qwen3:4b">')
+    body.append('<label>Model name</label>')
+    body.append('<div class="hint">The exact name your model service serves, e.g. ministral-3:3b for Ollama, or mistralai/Mistral-Small-3.2-24B-Instruct-2506 for vLLM. Bede asks for exactly this model, so it must match what the server lists.</div>')
+    body.append(f'<input type="text" name="local_model" value="{html.escape(v.get("local_model", ""))}" placeholder="ministral-3:3b">')
     body.append('</div>')
 
     body.append("""
@@ -612,8 +612,12 @@ _PROVIDER_ENV_LINES = {
     "anthropic": lambda f: f"ANTHROPIC_API_KEY={f['anthropic_key']}\n",
     "openai": lambda f: f"OPENAI_API_KEY={f['openai_key']}\n",
     "mistral": lambda f: f"MISTRAL_API_KEY={f['mistral_key']}\n",
-    "local": lambda f: f"LOCAL_LLM_BASE_URL={f['local_base_url']}\n" + (
-        f"LOCAL_LLM_MODEL={f['local_model'].strip()}\n" if f.get("local_model", "").strip() else ""
+    # LOCAL_LLM_MODEL is always written for a local choice, so a later change
+    # to how Bede treats an unset name never touches this installation
+    # (docs/DECISIONS.md entry 43). _validate refuses a local choice without it.
+    "local": lambda f: (
+        f"LOCAL_LLM_BASE_URL={f['local_base_url']}\n"
+        f"LOCAL_LLM_MODEL={f['local_model'].strip()}\n"
     ),
 }
 
@@ -842,7 +846,10 @@ def validate(fields: dict) -> str:
         if not fields.get(field_name, "").strip():
             return f"Please enter {_PROVIDER_LABELS[provider]}, or choose a different provider instead."
         local_model = fields.get("local_model", "").strip()
-        if provider == "local" and local_model and not _LOCAL_MODEL_RE.fullmatch(local_model):
+        if provider == "local" and not local_model:
+            return ("Please enter the model name your model server serves "
+                    "(for example ministral-3:3b for Ollama).")
+        if provider == "local" and not _LOCAL_MODEL_RE.fullmatch(local_model):
             return "Enter the model name exactly as your model service lists it (letters, numbers, and . _ : / - only)."
     if fields.get("db_choice") == "managed" and not fields.get("database_url", "").strip():
         return "Please enter your database connection string, or choose \"On this computer\" instead."

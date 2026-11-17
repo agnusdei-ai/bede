@@ -8,9 +8,11 @@ overridden). Because vLLM, Mistral, Together, HF TGI, LM Studio, etc. all
 expose that same OpenAI-compatible endpoint, this one class covers:
 
   * OpenAI itself (default base_url)
-  * a self-hosted vLLM server running Qwen/Qwen3-Coder-30B-A3B-Instruct
-    (start vLLM with `--tool-call-parser qwen3_coder` so it emits tool calls in
-    the OpenAI `tool_calls` shape this adapter reads back)
+  * a self-hosted vLLM server (recommended model
+    mistralai/Mistral-Small-3.2-24B-Instruct-2506; start vLLM with
+    `--tool-call-parser mistral --enable-auto-tool-choice` so it emits tool
+    calls in the OpenAI `tool_calls` shape this adapter reads back)
+  * Ollama's OpenAI-compatible endpoint, which is what the installers set up
   * Mistral's API
   * any other OpenAI-compatible or HF Inference endpoint
 
@@ -39,6 +41,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any, Dict, List, Optional
 
 from .base import (
@@ -49,6 +52,67 @@ from .base import (
     ToolUseBlock,
     _Delta,
 )
+
+log = logging.getLogger(__name__)
+
+
+# ── The local model's name when LOCAL_LLM_MODEL is not set ───────────────────
+# docs/DECISIONS.md entry 43. LOCAL_LLM_MODEL has no default model name any
+# more (core/config.py): an empty value means "not set". An explicitly set
+# name is always used unchanged. When it is not set, the local server is
+# asked which models it serves (GET /models, which only lists: it never
+# downloads, replaces or deletes anything). Exactly one model is an
+# unambiguous older setup, from before the default changed, and that model
+# is used. Several, none, or a server that cannot be reached is never
+# guessed at: the local adapter fails with a configuration error that names
+# the setting to add.
+
+LOCAL_MODEL_FIX = "add LOCAL_LLM_MODEL=<the model your server serves> to .env and restart Bede"
+
+
+class LocalModelNotConfiguredError(RuntimeError):
+    """LOCAL_LLM_MODEL is not set and the local server does not name exactly
+    one model, so Bede will not guess which one to use."""
+
+    fix = LOCAL_MODEL_FIX
+
+
+class LocalModelUnreachableError(LocalModelNotConfiguredError, ConnectionError):
+    """LOCAL_LLM_MODEL is not set and the local server could not be asked
+    which model it serves. Also a ConnectionError, so failover treats it
+    exactly as it already treats an unreachable local server."""
+
+
+# base_url -> the one model that server was found to serve. Shared by every
+# client in the process (ordinary tutoring, resolve_local_only's fresh
+# clients, the Locuto listener) so the server is asked once and the finding
+# is logged once.
+_DISCOVERED_MODELS: Dict[str, str] = {}
+_LOGGED_PROBLEMS: set = set()
+
+
+def discovered_model(base_url: str) -> Optional[str]:
+    """The model found for `base_url`, if discovery has already succeeded."""
+    return _DISCOVERED_MODELS.get(base_url)
+
+
+def backend_failure_detail(exc: BaseException) -> str:
+    """What an AI_BACKEND_FAILURE audit detail says about `exc`: its type,
+    and for a local-model configuration error the setting to add, so the
+    alert a parent receives names the fix instead of a bare failure. Never
+    the exception message, which on other paths can echo a child's words."""
+    detail = f"error={type(exc).__name__}"
+    fix = getattr(exc, "fix", None)
+    if isinstance(exc, LocalModelNotConfiguredError) and fix:
+        detail += f" fix={fix}"
+    return detail
+
+
+def _log_problem_once(base_url: str, kind: str, message: str) -> None:
+    key = (base_url, kind)
+    if key not in _LOGGED_PROBLEMS:
+        _LOGGED_PROBLEMS.add(key)
+        log.error("%s", message)
 
 
 # ── request translation: Anthropic Messages shape → OpenAI chat shape ────────
@@ -208,6 +272,7 @@ class _StreamContext:
         self._final: Optional[AdapterMessage] = None
 
     async def __aenter__(self) -> "_StreamContext":
+        self._request["model"] = await self._client._resolved_model()
         self._raw = await self._client._openai.chat.completions.create(
             stream=True,
             stream_options={"include_usage": True},
@@ -317,6 +382,7 @@ class _Messages:
 
     async def create(self, **kwargs: Any) -> AdapterMessage:
         request = _build_request(self._client._model, kwargs)
+        request["model"] = await self._client._resolved_model()
         resp = await self._client._openai.chat.completions.create(**request)
         choice = resp.choices[0]
         msg = choice.message
@@ -361,7 +427,7 @@ class OpenAICompatibleClient:
 
     def __init__(
         self, *, base_url: str = "", api_key: str = "", model: str = "",
-        strict_local_transport: bool = False,
+        strict_local_transport: bool = False, discover_model: bool = False,
     ) -> None:
         # Enforce at the adapter construction boundary too, not just the
         # router. A direct caller must not bypass school-pilot egress policy
@@ -397,8 +463,52 @@ class OpenAICompatibleClient:
                 timeout=httpx.Timeout(600.0, connect=5.0),
             )
         self._openai = AsyncOpenAI(**client_kwargs)
-        self._model = model
+        self._base_url = base_url
+        self._model = (model or "").strip()
+        # Only the local adapter discovers its model (router._build passes
+        # it). Every other provider keeps sending exactly what it was given.
+        self._discover_model = discover_model
         self.messages = _Messages(self)
+
+    async def _resolved_model(self) -> str:
+        """The model name to send. An explicit name is used unchanged; see
+        LocalModelNotConfiguredError above for what happens without one."""
+        if self._model or not self._discover_model:
+            return self._model
+        known = _DISCOVERED_MODELS.get(self._base_url)
+        if known:
+            self._model = known
+            return known
+        try:
+            listing = await asyncio.wait_for(self._openai.models.list(), timeout=10.0)
+            served = sorted({m.id for m in listing.data if getattr(m, "id", None)})
+        except Exception as exc:
+            message = (
+                f"LOCAL_LLM_MODEL is not set, and the local model server at "
+                f"{self._base_url} could not be reached to ask which model it serves "
+                f"({type(exc).__name__}). Start the server, or {LOCAL_MODEL_FIX}."
+            )
+            _log_problem_once(self._base_url, "unreachable", message)
+            raise LocalModelUnreachableError(message) from exc
+        if len(served) != 1:
+            shown = ", ".join(served[:5]) + (", ..." if len(served) > 5 else "")
+            message = (
+                f"LOCAL_LLM_MODEL is not set, and the local model server at "
+                f"{self._base_url} serves {len(served)} models"
+                f"{' (' + shown + ')' if served else ''}, so Bede will not guess "
+                f"which one to use: {LOCAL_MODEL_FIX}."
+            )
+            _log_problem_once(self._base_url, f"count={len(served)}", message)
+            raise LocalModelNotConfiguredError(message)
+        model = served[0]
+        _DISCOVERED_MODELS[self._base_url] = model
+        log.info(
+            "LOCAL_LLM_MODEL is not set; the local model server at %s serves exactly "
+            "one model, %s, so Bede is using it. Add LOCAL_LLM_MODEL=%s to .env to "
+            "make this explicit.", self._base_url, model, model,
+        )
+        self._model = model
+        return model
 
     async def is_reachable(self, timeout_seconds: float = 5.0) -> bool:
         """

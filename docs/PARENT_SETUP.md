@@ -95,16 +95,23 @@ actually matters, both for download size and for RAM/VRAM while it runs:
 see `docs/UNIX_INSTALLER.md`'s and `docs/WINDOWS_INSTALLER.md`'s "Local AI
 (Ollama)" tables for which model tier your hardware lands in. Roughly, as
 of this writing (Ollama's library can update these: the installers pull
-whatever `ollama pull qwen3:<tag>` currently resolves to, not a pinned
-snapshot):
+whatever the model's tag currently resolves to, not a pinned snapshot):
 
 | Model tier | Approximate download |
 |---|---|
-| `qwen3:1.7b` (weakest tier — e.g. a Pi with under 16GB RAM) | ~1.4GB |
-| `qwen3:4b` | ~2.5GB |
-| `qwen3:8b` | ~5GB |
-| `qwen3:14b` | ~9GB |
-| `qwen3:32b` (strongest tier — a real GPU) | ~20GB |
+| `granite3.3:2b` (weakest tier — e.g. a Pi with under 16GB RAM) | ~1.5GB |
+| `ministral-3:3b` (a computer with 16GB or more and no graphics card) | ~3.0GB |
+| `granite3.3:8b` | ~4.9GB |
+| `ministral-3:14b` | ~9.1GB |
+| `mistral-small3.2:24b` (strongest tier — a real GPU) | ~15GB |
+
+These come from Mistral AI (France) and IBM (US) under the Apache-2.0
+licence. Bede no longer installs a Qwen model by default
+(`docs/DECISIONS.md` entry 43), but you can still choose the Qwen models
+when you run the installer; see "Choosing the Qwen models" in either
+installer guide. If Bede already runs a local model on your computer,
+updating Bede or running the installer again keeps that model: nothing is
+re-downloaded, switched or deleted.
 
 A cloud AI provider (Anthropic, OpenAI, Mistral) skips this download and
 this RAM/VRAM cost entirely: the model runs on their servers, not yours.

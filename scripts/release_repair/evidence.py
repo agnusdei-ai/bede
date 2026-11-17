@@ -23,7 +23,8 @@ def markdown(summary: dict) -> str:
     lines += ["", "| Blocker | Detail |", "|---|---|"]
     lines += [f"| {b['code']} | {b.get('failure') or b.get('task') or b.get('gate') or ''} |" for b in summary.get("blockers", [])] or ["| none | |"]
     lines += ["", "| Task | Failure | Status | Attempt | Reason |", "|---|---|---|---|---|"]
-    lines += [f"| {k} | {t['failure_key']} | {t['status']} | {t['attempt']} | {t.get('reason') or ''} |"
+    lines += [f"| {k} | {t['failure_key']} | {t['status']} | {t['attempt']} | "
+              f"{' + '.join(t.get('reasons') or []) or t.get('reason') or ''} |"
               for k, t in sorted(summary.get("tasks", {}).items())]
     return "\n".join(lines) + "\n"
 

@@ -135,7 +135,8 @@ all. Two narrower, real questions remain:
 - **Self-hosted model weight integrity** — investigated specifically for
   this document. Bede's own installer scripts
   (`packaging/unix/install.sh`, `packaging/windows/Setup-Bede.ps1`) run
-  `ollama pull qwen3:<tag>` (or the equivalent GUI flow via
+  `ollama pull <tag>` for a tag from their fixed lineup
+  (`docs/DECISIONS.md` entry 43) (or the equivalent GUI flow via
   `scripts/setup_wizard/wizard.py`) and add no independent checksum or
   signature verification of their own on top of it — `docs/PROVIDER_ADAPTERS.md`,
   `docs/UNIX_INSTALLER.md`, and `docs/WINDOWS_INSTALLER.md` say nothing

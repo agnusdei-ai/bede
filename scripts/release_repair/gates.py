@@ -7,22 +7,46 @@ READY_FOR_RELEASE_DECISION is never release approval.
 """
 from __future__ import annotations
 
-ACTIVE_TASK = ("TRIAGING", "REPRODUCING", "REPAIRING", "VERIFYING", "REVIEWING", "READY_TO_INTEGRATE")
+ACTIVE_TASK = ("TRIAGING", "REPRODUCING", "AWAITING_DIAGNOSIS", "REPAIRING", "VERIFYING", "REVIEWING",
+               "READY_TO_INTEGRATE")
 TERMINAL_TASK = ("FIXED", "INTEGRATED", "BLOCKED", "BUDGET_EXHAUSTED", "SUPERSEDED", "CANCELLED")
 TERMINAL_CYCLE = ("READY_FOR_RELEASE_DECISION", "BUDGET_EXHAUSTED", "BLOCKED", "CANCELLED")
-STAGE_FOR = {"TRIAGING": "TRIAGING", "REPRODUCING": "REPRODUCING", "REPAIRING": "REPAIRING",
+STAGE_FOR = {"TRIAGING": "TRIAGING", "REPRODUCING": "REPRODUCING", "AWAITING_DIAGNOSIS": "AWAITING_DIAGNOSIS",
+             "REPAIRING": "REPAIRING",
              "VERIFYING": "VERIFYING", "REVIEWING": "REVIEWING", "READY_TO_INTEGRATE": "INTEGRATING"}
-STAGE_ORDER = ["TRIAGING", "REPRODUCING", "REPAIRING", "VERIFYING", "REVIEWING", "INTEGRATING"]
+STAGE_ORDER = ["TRIAGING", "REPRODUCING", "AWAITING_DIAGNOSIS", "REPAIRING", "VERIFYING", "REVIEWING", "INTEGRATING"]
+# A gate that does not apply to this cycle. Reported under its own name, never
+# as PASS, and it does not block.
+NOT_REQUIRED = "NOT_REQUIRED"
+SATISFIED = ("PASS", NOT_REQUIRED)
+_REVIEWED_STATES = ("READY_TO_INTEGRATE", "INTEGRATED")
+
+
+def _approved(state: dict, task: dict) -> bool:
+    recs = state.get("reviews", {}).get(task["task_id"])
+    return isinstance(recs, list) and any(
+        r.get("outcome") == "approve" and r.get("resolved_sha") == task.get("resolved_sha") for r in recs)
+
+
+def review_gate(state: dict) -> str:
+    """Owner ruling 2026-11-16. PASS needs a recorded, qualifying review for
+    every task integrated or ready to integrate. If no repair task ever got
+    that far, the gate is NOT_REQUIRED. Nothing reviewed is never a PASS."""
+    tasks = list(state["tasks"].values())
+    ever = [t for t in tasks if t.get("reached_ready") or t["status"] in _REVIEWED_STATES]
+    if not ever:
+        return NOT_REQUIRED
+    pending = [t for t in tasks if t["status"] in _REVIEWED_STATES]
+    if any(not _approved(state, t) for t in pending) or not any(_approved(state, t) for t in ever):
+        return "NOT_RUN"
+    return "PASS"
 
 
 def _gate_status(gate: dict, state: dict) -> str:
     sha = state.get("candidate_sha")
     src = gate["source"]
     if src == "review":
-        tasks = [t for t in state["tasks"].values() if t["status"] in ("INTEGRATED", "READY_TO_INTEGRATE", "FIXED")]
-        if any(state.get("reviews", {}).get(t["task_id"]) != "approve" for t in tasks):
-            return "NOT_RUN"
-        return "PASS"
+        return review_gate(state)
     rows = [r for r in state.get("results", []) if r["source"] == src and r["sha"] == sha]
     for key in ("scope", "os", "browser"):
         if key in gate:
@@ -53,7 +77,7 @@ def evaluate(state: dict, acceptance: dict) -> dict:
                 blockers.append({"code": code, "task": t["task_id"], "detail": t.get("reason")})
     kinds = {g["id"]: g for g in acceptance["gates"]}
     for gid, st in gates.items():
-        if st == "PASS":
+        if st in SATISFIED:
             continue
         g = kinds[gid]
         if g["kind"] == "physical":
@@ -65,7 +89,8 @@ def evaluate(state: dict, acceptance: dict) -> dict:
     active = [t for t in tasks if t["status"] in ACTIVE_TASK]
     if state.get("cancelled"):
         status = "CANCELLED"
-    elif not blockers and gates and all(v == "PASS" for v in gates.values()):
+    elif (not blockers and gates and all(v in SATISFIED for v in gates.values())
+          and any(v == "PASS" for v in gates.values())):
         status = "READY_FOR_RELEASE_DECISION"
     elif active:
         status = min((STAGE_FOR[t["status"]] for t in active), key=STAGE_ORDER.index)

@@ -22,9 +22,9 @@ release:
   target: production pilot RC for customer-environment implementation
 candidate:
   source_sha: null
-  source_sha_reason: owner has not selected a candidate; working tree is not a candidate
-  target_platform: unknown for the customer deployment; the pilot Mac is the physical acceptance target, not evidence of the server host or topology
-  target_architecture: unknown; owner confirmation required
+  source_sha_reason: owner has not selected a candidate; this branch and its working tree are not a candidate
+  target_platform: customer deployment unknown; documented physical-acceptance target is macOS on the owner's 24 GB Apple Silicon MacBook Pro, same-machine
+  target_architecture: customer deployment unknown; documented physical-acceptance Mac is Apple Silicon/arm64, to be verified on device by owner
   package_digest: null
   package_status: not built
   qualification_manifest: null
@@ -43,42 +43,106 @@ decision:
 
 ## Current evidence
 
-**Source and dependencies.** The reviewed PR #837 tree is
-`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`; it is not current `main` and
-is not an immutable candidate selected by the owner. Current `main` was
-`30c9f3231a561be626109dfd1269a122021ba840` when these states were checked.
-PRs #857 and #864 were merged; #824, #851, and #865 remained open, and #862
-has an explicit owner hold. PR #851 adds arm64 DMG provenance only; it does
-not make the existing engineering DMG distributable. No PR was merged for
-this packet. Reconcile required dependencies on a deliberate integration
-tree; do not silently package the older reviewed SHA.
+**Source and dependencies.** At the latest check, `main` is
+`30c9f3231a561be626109dfd1269a122021ba840`. PR #837 is open at
+`da1a4a2413e80402672d042513325c88bde21a03`, based on
+`33348a35621b235964397579d37d7fe19e4b818b`; neither SHA is an owner-selected
+candidate. GitHub reports 51 changed files and 2,512 additions in the
+PR's base-to-head comparison, including AI-provider settings/routing,
+provider-error handling, sprint timing, Compose configuration, and
+`render.yaml`, in addition to the teacher-content changes. Because the PR's
+base SHA predates current `main`, this count is not the net change against
+current `main`; the integration engineer must compute that exact diff and
+reconcile every retained change with the frozen customer scope before
+candidate selection. PRs #857 and #864 are merged. PRs #824, #851, #862, and #865
+remain open; #862 has an explicit owner hold. PR #851 adds arm64 DMG
+provenance only; it does not make the existing engineering DMG
+distributable. PR #865's audit and backend checks passed on its own head
+`60cd6f1784a136894be8fbe80327f906b274eb7b`, but it remains unmerged. No PR
+was merged for this packet. Reconcile required dependencies on a deliberate
+integration tree; do not silently package an older reviewed SHA.
 
-**Current PR checks.** The latest PR #837 browser-journey run,
-`44158031812`, and sample-qualification run, `44158031588`, both target
-`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a` and report
-`action_required` with zero jobs. They provide no test result; no failed-job
-logs exist for either run. The available record does not identify which
-approval is required. The owner must authorize the exact workflow run or
-provide an approved compatible route before these checks can close. The
-separate browser run `44161273052` passed 36/36 checks on PR #857's
-`e581b077fd171b42ffb953843eef3e362a70dd0e`, including the restart/reopen
-journey on macOS 15.8.2 arm64 with Playwright 1.63.0/WebKit 26.6. It is
-useful evidence about that stack and journey, not qualification of this
-candidate or of real Safari.
+**Current PR checks.** On PR #837 head
+`da1a4a2413e80402672d042513325c88bde21a03`, all ten listed Actions runs
+created at 2026-11-17 22:34 UTC report `action_required`. The browser
+journey run `44191338496` and sample-qualification run `44191338604` each
+have zero jobs, so they provide no result and have no failed-job logs. The
+available record does not identify which approval is required. These runs
+are for the pre-update packet head, not a selected candidate; new commits
+also require checks on their exact SHA. The owner or repository
+administrator must identify and approve the exact required check run after
+the candidate SHA is selected. Do not retry or approve an obsolete-head run
+as release evidence.
 
-**Agent reviews.** The `security-review` agent session
-`0991951b-2452-47e8-907b-0aba3f86ef97` recommended HOLD and identified
-deployment-security and operations gaps. The `code-review` agent session
-`b861f920-7cf8-46f3-a452-247d42f8fa07` found that the official-record
-printout omitted the proposal rationale. Both reviewed the PR #837 tree
-above; neither model identity was exposed. Their reviews were read-only and
-are not educator, human, counsel, school-administrator, or installed-build
-certification. The proposed rationale fix is in the current working tree;
-its API and frontend tests could not run because this checkout has neither
-`pytest` nor `vitest`. A follow-up review of the revised committed source
-remains required.
+**Separate PR #824 failures.** The latest available browser run,
+`44006123663` attempt 2, tested PR #824 head
+`11de74c14ba91b591bfd332f986de5bd54f358a5`, based on the older
+`b8f080a419833c5d62b29d362d0b9764474470c0`. Its Ubuntu boundary job
+`134297685302` failed four checks: three parent journeys errored at
+`locator.fill` because the value was undefined, and the locked-parent
+check returned HTTP 422 after the lockout check itself passed. It recorded
+21 of 39 expected checks, leaving 18 missing. This is distinct from the
+known WebKit reload crash noted on PR #837. PR #824's frontend audit also
+failed on that older head in run `44006123581`; the owner-authorized #864
+allowlist change is merged, and the audit passed on #865 head in run
+`44178150215`. That does not resolve #824's browser failures or qualify
+either PR on the current base. The owner-authorized engineering action is
+for the #824 builder to fix the exact boundary failures and rerun its
+required journeys against current `main`; the integration engineer then
+reviews the resulting tree without merging it.
 
-**WebKit evidence.** The controlled diagnosis run `43757437010` reported
+**Related PR status.** PR #857 is merged at
+`e581b077fd171b42ffb953843eef3e362a70dd0e`; its general browser run
+`44161273052` passed 36/36 checks, including the restart/reopen journey on
+macOS 15.8.2 arm64 with Playwright 1.63.0/WebKit 26.6. This is useful
+evidence about that stack and journey, not qualification of this candidate
+or real Safari. PR #865's audit and backend checks passed on its own head
+`60cd6f1784a136894be8fbe80327f906b274eb7b` in runs `44178150215` and
+`44178150317`; it remains unmerged. PR #862 remains open under the owner's
+hold.
+
+**Agent reviews.** The read-only `security-review` agent task
+`0991951b-2452-47e8-907b-0aba3f86ef97` initially reviewed PR #837 at
+`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`; it recommended HOLD and identified
+deployment-security and operations gaps, including a HIGH-severity concern
+that the local Compose API uses the same `sage` credential as the official
+PostgreSQL image's bootstrap user. The source supports the concern:
+`docker-compose.yml` documents that credential for the API and sets
+`POSTGRES_USER=sage`; `homeschool-api/core/database.py` runs
+`Base.metadata.create_all` at startup. The release contract instead requires
+a runtime `bede_app` role without schema DDL and a separate migrator. This
+is an architecture conflict, not a credential-only change. The backend and
+deployment engineers must design a migration/bootstrap path, then verify
+the role flags, grants, startup, upgrades, and recovery on the selected
+deployment. The database-role issue is a review finding, not a test of the
+customer's installed database. The read-only `code-review` agent task
+`b861f920-7cf8-46f3-a452-247d42f8fa07` initially reviewed
+`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a` and found that the official-record
+printout omitted the proposal rationale. That fix is committed in
+`989af8255b20b3a3f55005c2d267c30341d8f4df`; its targeted API and frontend
+tests could not run here because this checkout has neither `pytest` nor
+`vitest`. A later code-review pass read the uncommitted packet diff against
+source tree `da1a4a2413e80402672d042513325c88bde21a03` and identified
+stale run references, review-SHA ambiguity, missing Number Time trace
+provenance, and the missing #865 backend run reference. The packet has been
+updated for those findings, but the print fix itself still needs an exact
+source follow-up review. The code-review agent also posted status-only
+comment `6963040217` to PR #837 during its read-only follow-up; no duplicate
+comment was posted. Neither reviewer exposed a model or internal session
+identity; the listed values are tool agent task IDs. These reviews are not
+educator, human, counsel, school-administrator, or installed-build
+certification.
+
+**WebKit evidence.** Browser run `43744604620` on head
+`885d3dc2d9a23bc8bffe0db1442a1937cb35dd7d` failed the macOS 15 desktop
+job: `child3_webkit` crashed during `reopen_after_restart`, and the
+dependent lesson/answer checks could not complete. Its summary recorded
+35/36 checks; Chrome, Edge, and Firefox completed their corresponding
+journeys. The collected crash report identifies
+`WebCore::Navigation::initializeForNewWindow` with `EXC_BREAKPOINT`.
+The owner's PR comment reports the same failure on `main` and earlier
+workflow runs; that cross-run claim is owner-reported, not independently
+verified here. The controlled diagnosis run `43757437010` reported
 macOS 15.8.2 arm64, Node 24.22.2, Playwright 1.56.0/WebKit 26.0, with
 variants B, F, G, and I crashing 3/3. The same variants had zero crashes
 in three attempts each on Playwright 1.63.0/WebKit 26.6. Product browser
@@ -89,31 +153,72 @@ that restarts the API during a tutor turn and reloads the child page. The
 relevant journey/runtime source matched current `main` except for
 `.github/audit-allowlist.json`. This narrows the known failure to the older
 WebKit/Playwright stack; it does not establish real Safari or physical Mac
-acceptance, and it is not evidence on a selected final candidate.
+acceptance, and it is not evidence on a selected final candidate. The
+`action_required` current PR checks have zero jobs, so they neither
+reproduce nor clear this failure.
 
-**Print finding.** The proposed fix returns the rationale from the proposal
+**Print finding.** Commit
+`989af8255b20b3a3f55005c2d267c30341d8f4df` returns the rationale from the proposal
 linked by the approved teacher decision and passes it to the existing
 escaped “Based on” print section. It also checks the proposal's assessment,
 campus, and learner association. The targeted API and UI tests were added
 but not run here. Until they run on the selected integrated candidate, the
 official-record print gate is not met.
 
+**Number Time browser acceptance.** An operator note reports that the
+branch preview at
+`https://claude-debug-job-failure-l9isb8-bede.agnusdei.workers.dev/` was
+blocked from its demo API by CORS, and that the production landing page at
+`https://agnusdei.ai/bede/` loaded with `/health` and `/auth/locales`
+returning 200. No timestamped browser trace or session record was retained;
+these observations are unverified navigation notes, not qualification
+evidence. The note reports that no demo session, math attempt, household
+data access, progress-store write, or model call occurred. The production
+demo's session path may invoke its configured tutor, so it must not be used
+for this test unless the path is isolated behind the approved mock tutor and
+a dedicated temporary data store.
+
+The existing browser harness at
+`scripts/qualification/browser_journeys/run_journeys.py` can run the real
+UI and API against a loopback mock provider and a disposable SQLite
+database, but its `journeys.cjs` and `model_stub.py` currently cover
+history/sample tutoring, not Number Time. PR #857, which added Number Time,
+is merged at `e581b077fd171b42ffb953843eef3e362a70dd0e`; it is not in this
+PR's local tree, whose base predates that merge. Its recorded responsive
+layout checks and unit/API tests are useful but do not supply a
+Number-Time-specific browser journey in the qualification harness. The full
+matrix is therefore not runnable on this branch as-is. After the owner
+selects a candidate based on current `main`, the qualification engineer
+must add Number Time-specific mock-provider behavior and browser assertions
+to the isolated harness and run them against that exact candidate. The
+exploration was read-only; agent role was `explore`, tool agent ID
+`913eb3c5-525b-4a40-8069-39ac8185aa0f`; session and model identities were
+not exposed. No production demo session was started.
+
 ## Owner decisions required
 
 Please answer these before selecting a candidate. Recommendations are
 included to make each choice concrete, not to make it on the owner's behalf.
 
-1. **Actual deployment target and topology:** provide the host OS, exact
-   hardware/chip and architecture, and whether the teacher uses the same
-   machine or a second LAN client. Available records do not establish the
-   customer's actual target. Recommendation: use the simplest topology that
-   satisfies the agreed pilot, and do not infer arm64 from prior runner
+1. **Actual deployment target and topology:** the recorded physical
+   acceptance machine is the owner's 24 GB Apple Silicon MacBook Pro, with
+   the runbook selecting same-machine operation
+   (`docs/release/BEDE_MAC_PILOT_INSTALLER.md`). This identifies the
+   owner-operated acceptance target, not the customer's production server
+   or network topology. Confirm whether the customer deployment uses that
+   same target or provide its host OS, exact hardware/chip, architecture,
+   and whether the teacher uses a second LAN client. Recommendation: use
+   the simplest topology that satisfies the agreed pilot; verify the
+   physical Mac's architecture on-device rather than infer it from runner
    evidence.
 2. **Inference and data flow:** name the permitted provider, exact model,
    runtime and endpoint; specify whether any learner message, assessment
    record, or other learner data may leave the customer network; and state
-   credential provisioning. Recommendation: keep educator pilot inference
-   local-only with no cloud fallback unless the owner explicitly approves
+   credential provisioning. Also decide whether the branch's provider
+   selection and provider-check controls are in the customer scope: a
+   provider check sends a real request to configured providers and may incur
+   cost. Recommendation: keep educator pilot inference local-only, disable
+   provider checks and cloud failover unless the owner explicitly approves
    the provider and corresponding data flow. No model download or paid call
    is authorized here.
 3. **Learner-data scope:** state whether the initial customer environment
@@ -127,17 +232,27 @@ included to make each choice concrete, not to make it on the owner's behalf.
    Studio and model-drafted quizzes are in scope; recommendation: defer both
    because neither is in the stated agreement. Model-drafted quizzes would
    additionally require qualification against the approved local model.
+   The integration engineer must also compute PR #837's net diff against
+   current `main`; if provider-switching or sprint-timing changes remain
+   outside the frozen agreement, recommend excluding them unless the owner
+   expressly includes and qualifies them.
 5. **Number Time boundary:** Decision 40(g) permits the already-built,
    direct-entry public-demo activity only. It does not authorize tutoring
-   invitations or other practice areas. Recommend deferring it from the
-   teacher-only pilot; decisions 40(c)-(f) remain outside this RC and should
-   be explicitly deferred, not decided by implementation.
+   invitations or other practice areas. The owner has specifically requested
+   the full Number Time acceptance matrix; do not treat it as passed or
+   defer it without a separate scope decision. Decisions 40(c)-(f) remain
+   outside this RC and should be explicitly deferred, not decided by
+   implementation.
 6. **Exact workflow approvals:** after source and target are selected,
    authorize or decline the exact workflow/ref/SHA/inputs in the approval
-   request below. The existing candidate run IDs target an obsolete SHA and
-   must not be approved as a substitute. No workflow dispatch, package
-   publication, notarization, or release/deployment workflow is authorized
-   by this packet.
+   request below. At the latest check, PR #837 browser run `44191338496`
+   and sample-qualification run `44191338604` on ref
+   `claude/debug-job-failure-l9isb8`, SHA
+   `da1a4a2413e80402672d042513325c88bde21a03`, were `action_required` with
+   zero jobs; the available record does not say which approval is required.
+   These pre-update runs are not evidence for a later head. No workflow
+   dispatch, package publication, notarization, or release/deployment
+   workflow is authorized by this packet.
 
 ### Exact package and check workflow request
 
@@ -173,14 +288,16 @@ notarization credentials. The owner must separately authorize that exact
 workflow/ref/run/SHA/architecture and its external effects. It cannot run
 for this unmerged PR candidate, and no credentials were requested or used.
 
-PR #837 runs `44158031812` (browser journeys) and `44158031588` (sample
-qualification) are both `action_required`, have zero jobs, and target
-`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`. The available record does not
-name the required approval, and these runs are not the selected candidate.
-Do not approve or retry them as release evidence. After the owner selects an
-integrated SHA, the qualification engineer must identify that SHA's exact
-check runs and request any required GitHub approval before interpreting
-results. The existing macOS runner can build arm64; the Intel runner is
+On the latest checked PR #837 head,
+`da1a4a2413e80402672d042513325c88bde21a03`, browser run `44191338496`
+and sample-qualification run `44191338604` are both `action_required` with
+zero jobs; the other eight listed runs on that head have the same
+conclusion. The available record does not name the required approval, and
+these runs are not the selected candidate. Do not approve or retry them as
+release evidence. After the owner selects an integrated SHA, the
+qualification engineer must identify that SHA's exact check runs and
+request any required GitHub approval before interpreting results. The
+existing macOS runner can build arm64; the Intel runner is
 `macos-15-intel`. Neither runner establishes the customer's architecture.
 
 ## Engineering and qualification blockers
@@ -192,12 +309,12 @@ close it:
 | --- | --- | --- |
 | Candidate source and open dependencies | Owner selects the source scope; integration engineer reconciles required PRs without merging on the owner's behalf. Preserve #862's hold. | One committed, clean, full 40-character SHA with a reviewed dependency list. |
 | Customer OS, architecture, topology, provider/model, and data scope | Owner supplies the choices above; release engineer records them without inference. | Approved scope record tied to the candidate. |
-| Database runtime privilege | Deployment engineer separates the API's runtime database role from the Postgres bootstrap superuser and checks the actual grants. | Packaged-deployment test proves the API role has only required application/schema privileges and cannot create roles or databases. |
+| Database runtime privilege | Backend and deployment engineers resolve the conflict between API-startup `create_all` and the release contract's no-DDL `bede_app` role; the local Compose profile currently uses `sage` for both API access and PostgreSQL bootstrap. | On the selected package, prove separate bootstrap/migrator/app identities, required role flags and grants, successful startup and upgrade without app schema DDL, and restore without exposing bootstrap credentials to the runtime. |
 | Production recovery | Deployment engineer provides encrypted backup, key custody, offsite policy if required, and a destructive restore rehearsal. | Dated backup/restore evidence with measured RTO/RPO on the selected deployment. |
 | Package and provenance | Release engineer finds an authorized compatible runner and an approved packaging route. The existing operator image build downloads faster-whisper `base` weights and publishes to GHCR; that path is not authorized here. | Customer-installable package, exact source and target provenance inside/alongside it where supported, SHA-256 from final bytes, and a separate verifier report. No model download or publication without separate approval. |
 | Installed-build security and access | Release engineer qualifies TLS, passkey setup, teacher/campus/learner isolation, persistence, provider connectivity, health, diagnostics, and rollback on the selected topology. | Requirement-mapped results tied to exact candidate and artifact; failures resolved or explicitly left blocking. |
-| Functional and language qualification | Qualification engineer runs the required teacher journeys and isolation/recovery cases, including synthetic Spanish E2E only if Spanish is approved. | Complete exact-candidate matrix and evidence manifest. Synthetic tutor results must be labeled synthetic. |
-| Number Time acceptance | Qualification engineer uses temporary synthetic math attempts in an isolated test environment; must not access household data or write to existing demo progress stores. The merged #857 PR's unit/component checks and its statement that demo files were untouched are not this full acceptance matrix. Recommendation: defer Number Time from the teacher-only pilot unless the owner includes it in scope. | If included, record the full acceptance matrix, prove the test used no household database, and compare demo progress-store state before/after. Otherwise record the explicit deferral and do not package it as pilot functionality. |
+| Functional and language qualification | Qualification engineer runs the required teacher journeys and isolation/recovery cases. If Spanish is approved, run an end-to-end journey with the approved mock tutor and label the result as a mock. Actual local-model Spanish or tool-call claims require an explicitly authorized machine with the model already installed; they are not a gate for mock verification. | Complete exact-candidate matrix and evidence manifest. Mock tutor results must be labeled as mock. |
+| Number Time acceptance | After owner candidate selection, qualification engineer adds Number Time-specific mock responses and browser journeys to `scripts/qualification/browser_journeys/`, then runs the real UI/API with the harness's loopback mock provider and disposable SQLite store. Use temporary math attempts only. The current PR branch predates merged PR #857 and has no Number Time journey. Do not send live model traffic or use household data. | Cover count, compare, add, subtract, and number-bond topics across Watch, Together, and Your turn; first-try, second-try, and answer-shown outcomes; the count-only evidence rule for counter-building; invitation, consent, grade/subject, per-sign-in quota, and retry/race boundaries; accessible labels and responsive layout. Prove no household access and no change to existing demo progress stores. Bind results to the exact candidate. |
 | Physical Mac and Safari | Owner alone operates the pilot Mac; engineering prepares one bounded session and exact install/rollback steps. | Actual owner-recorded results. Until then every physical row remains `NOT_RUN`. |
 | School data authorization and notice | School administrator supplies required authorization; counsel reviews the school notice before real learner data. | Current notice hash and required authorization/review evidence; no wording here claims those occurred. |
 
@@ -205,6 +322,27 @@ These are not a permanent stop list: each names the person or role who can
 act and what evidence closes the gap. If a prerequisite needs a workflow
 permission or runner, request the exact workflow, ref, SHA, inputs, and
 approval rather than claiming delivery.
+
+## Dated owner checklist
+
+**Status recorded 2026-11-17.** No due dates were supplied; none are
+invented here.
+
+- [ ] Confirm the actual customer host, architecture, topology, provider,
+  model, learner-data egress, credential provisioning, and sample-versus-
+  real-data scope.
+- [ ] Decide teacher-language scope, Teacher Quiz Studio/model-drafted quiz
+  scope, and the required Number Time boundary.
+- [ ] Select an integrated full source SHA after dependency and scope review;
+  authorize any exact package, model-weight, GHCR, signing, or notarization
+  effects before they occur.
+- [ ] Ensure exact-SHA checks and qualification run after the necessary
+  workflow approval; review all findings and package provenance.
+- [ ] Operate the bounded physical Mac/Safari acceptance session and record
+  actual results; do not substitute hosted-browser or mock results.
+- [ ] Make a dated `PRODUCTION PILOT RC READY` decision only after every
+  required gate closes, then separately decide whether customer deployment
+  is authorized.
 
 ## Not reopened
 

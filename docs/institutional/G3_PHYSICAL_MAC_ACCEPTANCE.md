@@ -4,9 +4,9 @@
 
 ## Candidate and provenance
 
-Before starting, record UTC time, operator, independent reviewer, exact Git commit, source-free package SHA-256, container image digests, Mac model, macOS version, CPU architecture, RAM, Docker Engine/Compose versions, browser and authenticator. Redact serial numbers and sensitive identifiers. Match the bundle architecture to the actual Docker Engine architecture. Use the packaged Verify-Bede.command, not a checkout-only script, for source-free certification. See MAC_PILOT_SMOKE.md and packaging/bundle/README.md.
+Before starting, record UTC time, owner as physical test operator, separate agent reviewer role and task/session/model identities when exposed, exact Git commit, source-free package SHA-256, container image digests, Mac model, macOS version, CPU architecture, RAM, Docker Engine/Compose versions, browser and authenticator. Redact serial numbers and sensitive identifiers. Match the bundle architecture to the actual Docker Engine architecture. Use the packaged Verify-Bede.command, not a checkout-only script, for source-free certification. Agent review is not human certification; only the owner may operate the pilot Mac and decide Pilot GO. See MAC_PILOT_SMOKE.md and packaging/bundle/README.md.
 
-Archive exact-head links and artifacts for backend, frontend, CodeQL, G1 staged, non-superuser PostgreSQL diagnostic and full 146-cell sample qualification. Verify 146 PASS and zero FAIL, ABSENT, BLOCKED or UNVERIFIED from the actual artifact. Independently confirm code/security review and required branch checks; do not infer them from a green workflow.
+Archive exact-head links and artifacts for backend, frontend, CodeQL, G1 staged, non-superuser PostgreSQL diagnostic and full 146-cell sample qualification. Verify 146 PASS and zero FAIL, ABSENT, BLOCKED or UNVERIFIED from the actual artifact. Record separate agent code/security reviews and required branch checks; do not infer them from a green workflow.
 
 ## Physical test matrix
 

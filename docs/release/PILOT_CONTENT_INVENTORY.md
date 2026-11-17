@@ -10,19 +10,29 @@ counsel, or school-administrator certification.
 
 ## Agent review record
 
-- `security-review` agent, session
+- `security-review` agent task
   `0991951b-2452-47e8-907b-0aba3f86ef97`, reviewed PR #837 at
   `60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`. It recommended HOLD and
   identified deployment-security and operations gaps. Model identity was
   unavailable. The review was read-only and did not run tests or inspect a
   customer installation.
-- `code-review` agent, session
+- `security-review` agent follow-up read the uncommitted packet diff against
+  source tree `da1a4a2413e80402672d042513325c88bde21a03`, identified stale
+  run references and evidence wording, and confirmed the packet's HOLD and
+  data-authorization statements. Session and model identities were
+  unavailable.
+- `code-review` agent task
   `b861f920-7cf8-46f3-a452-247d42f8fa07`, reviewed the same SHA and found
   that the official-record printout omitted its rationale. Model identity
-  was unavailable. The implementation and regression tests are present in
-  the current working tree, but their targeted suites could not run because
-  `pytest` and the frontend `vitest` executable are unavailable here. A
-  follow-up review of the revised committed source is still needed.
+  was unavailable. The implementation and regression tests are committed in
+  `989af8255b20b3a3f55005c2d267c30341d8f4df`, but their targeted suites could
+  not run because `pytest` and the frontend `vitest` executable are
+  unavailable here. A
+  separate follow-up read the uncommitted packet diff against the same
+  `da1a4a2` tree and found packet inconsistencies; it did not review the
+  print-fix implementation. Session and model identities were unavailable.
+  A code review of that fix on a committed, tested source tree is still
+  needed.
 
 These are agent reviews, not human or educator certification. No external
 educator review is required. Counsel and school-administrator authorization

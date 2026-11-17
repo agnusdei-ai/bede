@@ -548,7 +548,7 @@ class SessionConfig(BaseModel):
 
     #: There is deliberately NO text-size field here. `useTextScale`/
     #: `TextSizeControl` already offer it in both the app and the demo, as a
-    #: floating control on every screen scaling the ROOT font size 87.5%-175%
+    #: floating control on every screen scaling the ROOT font size 87.5%-200%
     #: (WCAG 2.1 SC 1.4.4) — which scales every rem-based size in the product,
     #: not the handful of elements a per-student setting could reach. One
     #: shipped here in #486 without checking for the control that already
@@ -580,6 +580,17 @@ class SessionConfig(BaseModel):
         if isinstance(value, bool):
             return None
         return value if value in SPRINT_MINUTES_OPTIONS else None
+
+    #: K-2 practice (docs/K2_PRACTICE.md §4): which practice rounds Bede may
+    #: offer this child. "off": none. "approved_only": only practice sets the
+    #: parent approved (Practice Coach), so Bede never chooses on its own.
+    #: "todays_subjects": Bede may also offer a round from authored content in
+    #: a subject already in today's routine. The default is the owner's ruling
+    #: of 2026-11-16 (docs/DECISIONS.md entry 40(a)). Parent-set only; it is
+    #: checked when the prompt is built and again when the tool runs
+    #: (services/ai_service.py's _practice_allowed). Uploaded-quiz practice
+    #: still needs the parent's approval whatever this says.
+    practice_offers: Literal["off", "approved_only", "todays_subjects"] = "todays_subjects"
     # Parent's chosen starting point (see CompanionMode) — how much Bede
     # drives the day versus defers to the family's own books. Purely a
     # behavioral framing layered into the prompt (_companion_mode_note);
@@ -1232,6 +1243,9 @@ class MasteryProfileSummary(BaseModel):
     subject_area:   str = "mathematics"
     evidence_count: int
     calibration:    bool                       # still in cold-start widening phase
+    # Recorded K-2 practice answers in this area (phonics only). They move the
+    # estimate but are not counted in evidence_count; 0 everywhere else.
+    practice_answers: int = 0
     domains:        List[DomainMasteryView]
     gaps:           List[SkillMasteryView]     # level == gap, worst first
     next_steps:     List[SkillMasteryView]     # KST fringe — learnable now

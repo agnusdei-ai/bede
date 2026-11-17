@@ -255,8 +255,8 @@ BOUNDARY_CHECKS = [
     "open_redirect_refused", "wrong_password_plain_error", "invalid_token_logs_out_with_notice",
     "back_after_logout_shows_no_household", "oversize_upload_refused_before_send",
     "unsupported_upload_refused_without_reading", "double_approve_single_set", "blank_message_not_sent",
-    "overlong_message_handled_plainly", "child_cannot_open_parent_pages", "text_scale_175_no_horizontal_scroll",
-    "conversation_visible_at_175",
+    "overlong_message_handled_plainly", "child_cannot_open_parent_pages", "text_scale_200_no_horizontal_scroll",
+    "conversation_visible_at_200",
     "parent_locked_after_repeated_failures", "locked_parent_refused_even_with_right_password",
     "recovery_reachable_while_locked",
 ]

@@ -25,6 +25,13 @@ pass measured, target-device checks before a campus capacity is promised.
 The existing signed seat license remains authoritative; a separate
 purchase never enables unlimited seats by itself.
 
+How many children one backend serves at once is measured, not assumed: the
+capacity run ([CAPACITY.md](CAPACITY.md)) steps real browser sessions up to 10
+against one stack and reports the curve, the limit that binds first and a
+PASS/FAIL at 10. It runs on a CI runner with a model stub, so read the shape
+and the binding limit rather than the absolute count, and measure on the
+target device before promising a number.
+
 ## Parental Notice and Consent at install
 
 Every installation path begins with the **Parental Notice and Consent**
@@ -155,7 +162,9 @@ family, there's no default to fight against:
 1. **Anthropic (Claude)** or **OpenAI** or **Mistral AI** — cloud,
    pay-as-you-go, needs an account and API key with that provider.
 2. **A self-hosted model on your own server** — open-weight
-   (`Qwen/Qwen3-Coder-30B-A3B-Instruct` by default), no account, no
+   (`mistralai/Mistral-Small-3.2-24B-Instruct-2506` recommended for a vLLM
+   server; the installers pull an Ollama model sized to your computer
+   instead, see `docs/DECISIONS.md` entry 43), no account, no
    per-message cost. Needs a separate computer with a capable GPU running
    it (NVIDIA/Linux only — see `docs/PROVIDER_ADAPTERS.md` for hardware
    tiers and setup); the machine running Bede itself just points at that

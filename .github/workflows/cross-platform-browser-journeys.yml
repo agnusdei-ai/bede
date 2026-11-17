@@ -89,7 +89,7 @@ jobs:
           # Known failure classes at their edge: open redirect, wrong
           # password, rejected token, back after logout, oversized and
           # non-image uploads, double-tapped approval, blank and over-long
-          # messages, a child on parent pages, 175% text, and lockout with
+          # messages, a child on parent pages, 200% text, and lockout with
           # account recovery still reachable. Its own service, because the
           # lockout locks the parent account.
           - os: ubuntu-24.04
@@ -104,7 +104,7 @@ jobs:
       CANDIDATE_SHA: ${{ github.event.inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
       BROWSERS: ${{ matrix.browsers }}
       PROFILE: ${{ matrix.profile }}
-      PLAYWRIGHT_VERSION: '1.56.0'
+      PLAYWRIGHT_VERSION: '1.63.0'
     steps:
       - name: Validate candidate SHA
         shell: bash

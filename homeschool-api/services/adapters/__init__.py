@@ -2,7 +2,7 @@
 
 See base.py for the shared Anthropic-shaped vocabulary and router.py for how a
 concrete adapter is selected (including the account-closure default that treats
-a local vLLM/Qwen3-Coder server as the practical primary and never requires
+a local vLLM or Ollama server as the practical primary and never requires
 Anthropic access to boot).
 """
 

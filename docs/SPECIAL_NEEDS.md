@@ -174,7 +174,7 @@ Not worth promising.
 
 Text size is not one of these settings, and that is deliberate. You already
 have it: the small **T** button in the top-right corner of every screen,
-which scales the whole app from 87.5% up to 175%. It is one tap from wherever
+which scales the whole app from 87.5% up to 200%. It is one tap from wherever
 your child is, and **your child can reach it themselves** — which for a
 preference is better than a setting only you can change.
 

@@ -32,8 +32,24 @@ and this file first.
 ```json
 {"kind": "AgentResult", "task_id": "...", "agent_role": "...", "status": "...",
  "summary": "one or two plain sentences", "branch": null, "verdict": null,
- "blocked_reason": null, "observations": [], "hypotheses": [], "not_run": []}
+ "blocked_reason": null, "blocked_code": null, "observations": [], "hypotheses": [], "not_run": []}
 ```
 
 Keep observations (what you saw) separate from hypotheses (what you think
 caused it). A root cause is `unconfirmed` until a reproducer shows it.
+
+**`blocked_code`** is machine-readable and has one value today:
+`"environment_unavailable"`, for a `blocked` result whose reason is SOLELY
+that the failing environment is unavailable to your session (for example,
+macOS WebKit from a Linux cloud session). The controller then waits for a
+trusted diagnosis the coordinator dispatches; it does not close the task. Any
+other reason for `blocked` leaves `blocked_code` null, and the task is
+blocked. Never set it to get a task past a gap of another kind.
+
+**A review result** also carries `findings` (a list, empty if you found
+nothing) and `diff_digest` (the SHA-256 of `git diff <base_sha>...<branch>`,
+the diff you were shown). Without `findings`, the review counts as NOT_RUN,
+never as an approval.
+
+What you submit is stored as your claim, unchanged. A later trusted fact (a
+verification, a diagnosis) is recorded beside it, never written over it.

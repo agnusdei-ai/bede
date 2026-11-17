@@ -79,8 +79,9 @@ consent record for the learner. The demo cannot reach them.
 - Answering by voice inside the practice screen. The server accepts a
   spoken answer; the screen does not yet record one.
 - The public demo. Changes there need the owner's sign-off.
-- Other subjects in the Watch, Together, Your turn routine. They are specified,
-  not built, in [K2_PRACTICE.md](K2_PRACTICE.md).
+- Other subjects in the Watch, Together, Your turn routine. Phonics is built
+  (step 1 of [K2_PRACTICE.md](K2_PRACTICE.md)); the rest are specified there,
+  not built.
 
 Tests: `homeschool-api/tests/test_map_practice.py` and
 `homeschool-tutor/src/components/MapPractice.test.tsx`.

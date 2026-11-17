@@ -38,8 +38,9 @@ def adapt(kind: str, name: str, root: Path, sha: str) -> list[dict]:
         reports = list(root.rglob("*.json"))
         return qa.qa_runner(reports[0] if reports else root / "missing.json", sha, scope)
     if kind == "package":
-        prov = list(root.rglob("RELEASE_PROVENANCE.json"))
-        return qa.release_provenance(prov[0] if prov else root / "missing.json", sha) if prov else []
+        # One row per packaged file (qualification_adapter.package_artifacts).
+        # An artifact with no package in it (the browser walkthrough) adds none.
+        return qa.package_artifacts(root, sha, name)
     return []
 
 

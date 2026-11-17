@@ -1,10 +1,11 @@
 # K-2 practice: Watch, Together, Your turn
 
-**Status: specification.** The first wave below is not built. Map reading, from
-the second wave, shipped in #830 (`docs/MAP_PRACTICE.md`) and set the pattern
-this spec follows. The decisions this spec cannot make for itself are
-`docs/DECISIONS.md` entry 40; where they are referred to below, the entry is the
-one place their answers will live.
+**Status: step 1 built; the rest is specification.** Step 1 of §9 (the shared
+`invite_practice` invitation, the per-child setting, and phonics) is built. The
+rest of the first wave is not. Map reading, from the second wave, shipped in
+#830 (`docs/MAP_PRACTICE.md`) and set the pattern this spec follows. The
+decisions this spec cannot make for itself are `docs/DECISIONS.md` entry 40;
+(a) and (b) were ruled by the owner on 2026-11-16, and (c) to (h) are open.
 
 ## 1. What this is for
 
@@ -46,7 +47,7 @@ the code.
 | K-2 math skills | `services/diagnostic/skill_map.py` (24 K-2 skills, below) | Practical math evidence. |
 | Spelling practice | `services/practice/packs/spelling/` (look-say-cover-write-check, `item_bank/patterns.json`) | The spelling routine and its words, after the K-2 additions in §5.4. |
 | Writing canvas | `components/HandwritingCanvas.tsx` | Handwriting and copying a sentence: composition ruling, finger and stylus. |
-| Speech | `hooks/useTextToSpeech.ts`, the server's speech synthesis | Speaking every instruction. |
+| Speech | the browser's own speech (`utils/onDeviceSpeech.ts`), never the server's `/tutor/speak` | Speaking every instruction on the device, so nothing from a round reaches a speech provider. |
 | The invitation pattern | `invite_map_practice` in `services/ai_service.py` and `services/tool_registry.py` | How Bede offers a round (§4). |
 
 ## 3. The routine
@@ -97,7 +98,8 @@ dispatched**, the way `_map_practice_allowed` does it:
 - Only in the subjects that area belongs to (§5), and only if the parent scheduled that subject today. A parent's own lesson focus comes first.
 - At most one offer per area per session. Never when too little time is left on the block to finish a round (`time_remaining_seconds`, the same budget `services/action_governance.py` uses).
 - It is an invitation ("Shall I show you with the counters?"). The child can say not now, the lesson carries on, and declining records nothing.
-- A per-child parent setting with three choices: off; only practice sets I approved; or Bede may also choose from today's subjects. The default is decision 40(a).
+- A per-child parent setting with three choices: off; only practice sets I approved; or Bede may also choose from today's subjects. The default is the third (decision 40(a), owner ruling 2026-11-16), with three limits: Bede picks only from subjects already in that child's routine today and only from authored content, never inventing a word or an item; the parent sees each offer, as the server-written card in the conversation, and can switch it off with one tap per child; and practice sets made from uploaded quizzes still need the parent's approval. "Only practice sets I approved" never lets Bede choose on its own; step 1 has no approved phonics sets, so it offers no phonics.
+- A parent's own lesson focus comes first. This is prompt guidance, not a server gate: the invitation note tells Bede not to offer practice when today's lesson focus or the subject's "where we left off" note points elsewhere.
 
 **The tool.** One `invite_practice` tool with a closed `area` field (`phonics`,
 `handwriting`, `math`, `spelling`, `copy_sentence`). The card and its wording
@@ -139,10 +141,61 @@ each with a picture from the existing practice icon set (`models/practice.py`'s
 `ICONS`) or a small addition to it. Nothing is generated.
 
 **Records:** a work-ledger row as in §3, and a phonics observation through
-`services/diagnostic/phonics.py`'s `process_evidence` at a reduced weight
-(decision 40(b)). That function takes no weight today; it gains the same
-`weight` argument `literacy.process_evidence` already has. This is the phonics
-record Bede already keeps; it gains a practice source, not a new skill.
+`services/diagnostic/phonics.py`'s `process_evidence`, which now takes the same
+`weight` argument `literacy.process_evidence` has (a caller that passes none
+behaves as before). The weights are decision 40(b), ruled by the owner on
+2026-11-16. They are product defaults the owner chose, not research-backed
+values:
+
+| Your turn answer | Ledger row | Phonics observation weight |
+| --- | --- | --- |
+| Right on the first try | one, unaided | 0.5 (`QUIZ_EVIDENCE_WEIGHT`) |
+| Right on the second try | one, with a hint | 0.25 |
+| Answer shown, or the round left | none | none |
+
+A missed try is never an observation of its own, so the estimate moves only on
+a right answer. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but from a fresh record, no single practice answer can make a skill secure; two right first tries can. With `RETAIN_MASTERY_PROFILES` off, only the ledger row is
+written. This is the phonics record Bede already keeps; it gains a practice
+source, not a new skill.
+
+**Two more owner rulings (2026-11-16, product defaults).** Practice answers do not count
+toward the early-evidence window: they move the estimate by their weight but do not advance
+`evidence_count`, so Bede's own in-lesson check-ins keep the full early boost and the
+parent's summary stays "calibrating" until enough check-ins exist. And one round is recorded
+per area per sign-in, with at most three recorded answers; "Another one" still works and
+records nothing. A round counts once its first answer is recorded, not when it is served:
+opening a round and leaving, a lost response followed by "Try again", or a round that needs
+sound on a device that cannot give it leaves the sign-in's round unused, and if two rounds
+are answered at once only one is recorded. The server keys this on the learner, the area and
+a digest of the sign-in's token, so a reload or a new lesson id does not reset it and a new
+sign-in does; it is held in memory, so a server restart forgets it. Progress tells the parent
+of a K-2 child whose practice is not off that the extra rounds were practice only, and while
+the reading picture is still calibrating it names the practice answers apart from Bede's own
+lesson check-ins ("0 lesson check-ins so far, plus 3 practice answers"), so the line never
+reads as though nothing had been recorded.
+
+**Limitations of the record (product defaults, no research behind any number here).** A child tapping at random still ends up "correct" within two tries this often:
+
+| Choices | Repeats possible | No repeats |
+| --- | --- | --- |
+| 3 | 56% | 67% |
+| 4 | 44% | 50% |
+
+In Bede as built, a wrongly tapped choice stays tappable on the second try (the screen re-enables every choice and the server accepts the same choice again as the second miss), so the "repeats possible" column is what the code does; the owner treats "no repeats" as the realistic case either way. Kindergarten and grade 1 get three choices, grade 2 four. The one-recorded-round cap bounds this to three recorded answers per area per sign-in, and the record only picks the next practice domain, never a placement or a label.
+
+Negative evidence for an item that ended with the answer shown is decision 40(h), open.
+
+**Built (step 1).** `services/k2_practice/phonics.py` builds a lesson from
+(level, domain, seed) with an authored word list per domain; the level comes
+from the saved grade and the domain from the saved phonics record, never from
+the request. `routers/k2_practice.py` serves it under a signed lesson id. The
+screen is `components/K2PhonicsPractice.tsx` inside `RoutineShell`. In "Your
+turn", where reading the word is the skill, neither the word nor the letters'
+sounds are sent, so narration cannot give the answer away. The words are
+English phonics; in a Spanish session the instructions are Spanish and the
+words stay English. Answering by voice inside the screen is not built; the
+server accepts a spoken answer and counts it only when it matches one offered
+choice.
 
 ### 5.2 Handwriting (letter formation)
 
@@ -258,7 +311,7 @@ already keeps for the tab only.
 - **Honest record.** Only what is in §3 and each area's "Records". A blank is never shown as a low mark.
 - **The parent decides.** Parents approve word lists and practice sets before a child sees them, choose the setting in §4, and see every ledger row on Progress. A child never sees a record of their own practice.
 - **What helps this child applies.** A child's `learning_support` and reading settings carry into the round. For example, tiles instead of writing for a child who answers better that way, and the letter and line spacing the parent set.
-- **Accessible.** 44 px touch targets, usable at 175% text, every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
+- **Accessible.** 56 px touch targets, 64 px for the main action, 8 px apart; usable at 200% text; every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
 - **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing from a round goes to any AI provider.
 - **Reliable.** A lesson rebuilds from its signed id, a reload resumes it, a retried answer counts once, and every check runs without an AI call.
 - **Never faith.** No area records anything about prayer, Scripture or devotional text. See §8.
@@ -272,9 +325,20 @@ disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
-like the map practice card, and spoken through the existing speech path. A
-spoken answer is transcribed by the existing voice pipeline and counts only when
-it matches one of the item's own choices.
+like the map practice card, and spoken only through a voice installed on the
+device, in the session's language (`utils/onDeviceSpeech.ts`): never through
+`/tutor/speak`, which forwards text to a cloud speech provider, and never with a
+browser network voice (`localService === false`, such as Chrome's "Google"
+voices) or an unchecked default voice. On a device with no installed voice for
+the language, or with Bede's voice turned off, the round is shown without
+speech, and the items that only work by ear (sight words) are not served or
+recorded; a child whose practice is sight words is told it needs sound.
+Bede's chat voice does not read the turn over a round it opened. A spoken answer is transcribed
+by the existing voice pipeline and counts only when it matches one of the item's
+own choices, and never when the spoken instruction already said the answer (a
+sight word), since repeating it is an echo rather than a reading. So nothing
+from a round reaches an AI provider. Map practice (`MapPractice.tsx`) still
+speaks through the server path and is a known gap, left for the owner.
 
 ## 8. Second wave
 
@@ -292,12 +356,12 @@ line, the child echoes it, then says it from memory. Two firm limits:
 Each step is its own PR, with tests that fail when the behavior is broken, and
 the docs updated in the same PR.
 
-1. **The shared invitation and phonics.** `invite_practice` with its server-side limits and the parent setting (§4), and the phonics area (§5.1) in `RoutineShell`.
+1. **The shared invitation and phonics.** `invite_practice` with its server-side limits and the parent setting (§4), and the phonics area (§5.1) in `RoutineShell`. *Built.* Its 200% layout is pinned in this step by a class contract (rem sizes, no fixed widths); the real 200% browser check is step 6.
 2. **Handwriting** (§5.2): stroke data for the chosen style, the animated pen, and tracing guides on the canvas.
 3. **Practical math** (§5.3): counters, ten-frame and number bonds first, then clock, coins, number line and ruler.
 4. **Spelling** (§5.4): the K-2 patterns, letter tiles, and delivery of approved word lists and Practice Coach misses as rounds.
 5. **Copying a sentence** (§5.5): the sentence from the narration, tracing and copying on the canvas.
-6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 175% text on every area.
+6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 200% text on every area.
 7. **Memory work** (§8), once decision 40(f) is settled.
 
 Each step needs no new database table: rounds rebuild from signed ids, and
@@ -312,12 +376,18 @@ records go to the existing work ledger and evidence paths.
 
 ## 11. Decisions
 
-Recorded as `docs/DECISIONS.md` entry 40, with a recommendation for each:
+The UX baseline every area is held to is [`K2_UX_CHECKLIST.md`](K2_UX_CHECKLIST.md),
+with the owner's rulings on where it met Bede as built in `docs/DECISIONS.md`
+entry 42.
 
-- **(a)** the default of the per-child setting in §4;
-- **(b)** the weight of practice evidence in the phonics and math estimates;
+The choices this spec leaves open are recorded as `docs/DECISIONS.md` entry 40,
+with a recommendation for each:
+
+- **(a)** the default of the per-child setting in §4 (ruled 2026-11-16: Bede may also choose from today's subjects, with the limits in §4);
+- **(b)** the weight of practice evidence in the phonics and math estimates (ruled 2026-11-16 for phonics: 0.5, 0.25, and nothing for an answer shown; see §5.1);
 - **(c)** the handwriting style;
 - **(d)** how parents approve word lists;
 - **(e)** whether K-2 spelling gets a measured skill;
 - **(f)** whether poems in memory work record anything;
-- **(g)** whether the demo gets practice.
+- **(g)** whether the demo gets practice;
+- **(h)** whether an item that ends with the answer shown records weak negative evidence (recommended; a small separate PR).

@@ -219,7 +219,7 @@ describe('the settings reach the lesson text, not just its container', () => {
     // Removed in the follow-up to #486, not merely never added: a per-student
     // copy shipped without checking that `useTextScale`/`TextSizeControl`
     // already offered it in BOTH this app and the demo, scaling the ROOT font
-    // size 87.5%-175% (WCAG 2.1 SC 1.4.4) and so reaching every rem-based size
+    // size 87.5%-200% (WCAG 2.1 SC 1.4.4) and so reaching every rem-based size
     // in the product rather than five elements. Two controls for one thing,
     // the newer strictly weaker. Decision register entry 24.
     //

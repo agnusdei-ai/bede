@@ -30,6 +30,7 @@
       "enum": [
         "TRIAGING",
         "REPRODUCING",
+        "AWAITING_DIAGNOSIS",
         "REPAIRING",
         "VERIFYING",
         "REVIEWING",

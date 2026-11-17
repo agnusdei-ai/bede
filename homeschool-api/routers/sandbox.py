@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sse_starlette.sse import EventSourceResponse
 
+from services.adapters.openai_compatible_adapter import backend_failure_detail
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.config import settings
 from core.demo_code_session import (
@@ -159,7 +160,10 @@ async def chat(
             log.exception("Sandbox stream failed mid-turn")
             log_event_nowait(
                 AuditEvent.AI_BACKEND_FAILURE, role="parent", success=False,
-                detail=f"cause=exception subject=sandbox error={type(exc).__name__}{_failure_reasons(exc)}",
+                detail=(
+                    f"cause=exception subject=sandbox "
+                    f"{backend_failure_detail(exc)}{_failure_reasons(exc)}"
+                ),
                 **audit_from_request(request),
             )
             yield json.dumps({'type': 'text', 'content': _failure_message(
@@ -247,7 +251,10 @@ async def demo_chat(
             log.exception("Sandbox demo stream failed mid-turn")
             log_event_nowait(
                 AuditEvent.AI_BACKEND_FAILURE, role="demo_code", success=False,
-                detail=f"cause=exception subject=sandbox_demo error={type(exc).__name__}{_failure_reasons(exc)}",
+                detail=(
+                    f"cause=exception subject=sandbox_demo "
+                    f"{backend_failure_detail(exc)}{_failure_reasons(exc)}"
+                ),
                 **audit_from_request(request),
             )
             yield json.dumps({'type': 'text', 'content': _failure_message(

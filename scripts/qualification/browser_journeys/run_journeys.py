@@ -18,7 +18,7 @@ Exits non-zero if any journey check fails.
 The boundary profile drives known failure classes at their edge (open
 redirect, wrong password, rejected token, back after logout, oversized and
 non-image uploads, double-tapped approval, blank and over-long messages, a
-child on parent pages, 175% text, lockout with recovery still reachable).
+child on parent pages, 200% text, lockout with recovery still reachable).
 
 The mobile profile runs Playwright DEVICE EMULATION (iPhone and iPad on
 WebKit, an Android phone on Chromium, each portrait and landscape). It is

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router'
 import { useTranslation, Trans } from 'react-i18next'
 import { Plus, Trash2, Mic, CheckCircle, ChevronDown, ChevronUp, Database, Shield, Users, Loader2, DollarSign, KeyRound, AlertTriangle, BookMarked, X } from 'lucide-react'
 import { useSessionStore } from '../store/sessionStore'
-import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume } from '../types'
+import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume, PracticeOffers } from '../types'
+import { DEFAULT_PRACTICE_OFFERS, PRACTICE_OFFERS } from '../types'
 import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS, CHARACTER_VIRTUE_SUGGESTIONS, LEARNING_SUPPORT_SUGGESTIONS } from '../types'
 import { capForStudyMinutes, studyMinutesWithinCap, cleanSprintMinutes, SPRINT_MINUTES_OPTIONS, type SprintMinutes } from '../utils/gradeTimer'
 import { licenseTierLabel } from '../utils/licenseTierLabel'
@@ -168,6 +169,8 @@ interface StudentForm {
   line_spacing: 'normal' | 'relaxed' | 'loose'
   frequent_break_offers: boolean
   sprint_minutes: SprintMinutes | null
+  // K-2 only: which practice rounds Bede may offer (decision 40(a)).
+  practice_offers: PracticeOffers
   voice_required: boolean
   appearance_locked: boolean
   session_cap_minutes: number
@@ -214,6 +217,7 @@ const blankStudent = (): StudentForm => ({
   line_spacing: 'normal' as const,
   frequent_break_offers: false,
   sprint_minutes: null,
+  practice_offers: DEFAULT_PRACTICE_OFFERS,
   voice_required: true,
   appearance_locked: false,
   // Derived from DEFAULT_SUBJECTS, not a literal — a new student's session
@@ -262,6 +266,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     line_spacing: c.line_spacing ?? 'normal',
     frequent_break_offers: c.frequent_break_offers ?? false,
     sprint_minutes: cleanSprintMinutes(c.sprint_minutes),
+    practice_offers: c.practice_offers ?? DEFAULT_PRACTICE_OFFERS,
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
     session_cap_minutes: c.session_cap_minutes ?? 120,
@@ -411,6 +416,7 @@ export default function ParentSetup() {
       line_spacing: s.line_spacing,
       frequent_break_offers: s.frequent_break_offers,
       sprint_minutes: s.sprint_minutes,
+      practice_offers: s.practice_offers,
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
       companion_mode: s.companion_mode,
@@ -847,6 +853,34 @@ function StudentCard({
             ))}
           </div>
         </div>
+
+        {/* K-2 practice (docs/K2_PRACTICE.md §4): one tap per child, Off
+            included, so a parent can stop Bede offering practice at once. */}
+        {student.grade_stage === 'K-2' && (
+          <div role="radiogroup" aria-label={t('parentSetup.practiceOffersLabel')} data-testid="practice-offers">
+            <span className="label">{t('parentSetup.practiceOffersLabel')}</span>
+            <div className="grid grid-cols-3 gap-2">
+              {PRACTICE_OFFERS.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={student.practice_offers === value}
+                  onClick={() => onUpdate({ practice_offers: value })}
+                  className={`rounded-xl border-2 p-2.5 text-left transition-all ${
+                    student.practice_offers === value
+                      ? 'border-navy-500 bg-navy-50'
+                      : 'border-gray-200 bg-white hover:border-navy-200'
+                  }`}
+                >
+                  <div className="font-semibold text-xs text-gray-800">{t(`parentSetup.practiceOffers_${value}`)}</div>
+                  <div className="text-xs text-gray-500 leading-tight">{t(`parentSetup.practiceOffers_${value}Help`)}</div>
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">{t('parentSetup.practiceOffersHelp')}</p>
+          </div>
+        )}
 
         {/* Sex — only asked when the deployment's locale needs it for
             grammatically correct address (Spanish, Italian, Polish so far;

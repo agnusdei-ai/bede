@@ -41,45 +41,49 @@ const apiCall = (pg, p, method = 'GET', body) => pg.evaluate(async ([p, method, 
   const r = await fetch('/api' + p, { method, headers: { Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, body: await r.text() };
 }, [p, method, body]);
-const replies = c => c.evaluate(() => (document.body.innerText.match(/STUB-TUTOR/g) || []).length);
-const inputReady = c => c.waitForFunction(() => { const t = [...document.querySelectorAll('textarea')].pop(); return t && !t.disabled; }, null, { timeout: 60000 });
-async function sendChat(c, text) {
-  const n = await replies(c); await inputReady(c);
-  const ta = c.locator('textarea').last(); await ta.fill(text); await ta.press('Enter');
-  await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 90000 });
-  await inputReady(c);
-}
+const { replies, inputReady, sendChat, passIntro, childLogin, stillInLesson } = require('./child_steps.cjs')(F);
 async function parentLogin(p) {
   await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
 }
-// The one-time "Meet Bede" introduction can take several seconds to render
-// on a slow runner. Wait for either its button or Bede's first message
-// rather than giving up after a fixed few seconds.
-async function passIntro(c) {
-  const go = c.getByRole('button', { name: "Let's begin!" });
-  for (let i = 0; i < 150; i++) {
-    if (await go.isVisible().catch(() => false)) { await go.click(); return; }
-    if (await c.evaluate(() => /STUB-TUTOR/.test(document.body.innerText)).catch(() => false)) return;
-    await c.waitForTimeout(200);
-  }
+// Diagnostic only (the macOS WebKit reload crash): what each page holds just
+// before a reload. Every request still in flight of ANY kind, the last 4xx/5xx
+// responses with their paths, and the page's own history, Navigation API and
+// service-worker state. It logs and never calls check(), so no row's result
+// changes. Paths only, never an origin; the sample learners are not people.
+function trackPage(pg) {
+  const inflight = new Set(), bad = [];
+  const pathOf = u => u.replace(/^https?:\/\/[^/]+/, '').slice(0, 120);
+  pg.on('request', r => inflight.add(r));
+  pg.on('requestfinished', r => inflight.delete(r)); pg.on('requestfailed', r => inflight.delete(r));
+  pg.on('response', r => { if (r.status() >= 400) { bad.push(`${r.status()} ${r.request().method()} ${pathOf(r.url())}`); if (bad.length > 10) bad.shift(); } });
+  return { inflight, bad, pathOf };
 }
-async function childLogin(c, name) {
-  await c.goto(F.ui + '/?returnTo=' + encodeURIComponent('/session?student=' + name));
-  await c.getByRole('button', { name: /Student/ }).first().click();
-  const nm = c.getByPlaceholder('Emma'); if (await nm.count()) await nm.fill(name);
-  await c.getByPlaceholder('Enter PIN').fill(F.learners[name]);
-  await c.getByRole('button', { name: /Continue/ }).click(); await c.waitForURL(/session/, { timeout: 30000 });
-  await passIntro(c);
-  await c.waitForFunction(() => /STUB-TUTOR/.test(document.body.innerText), null, { timeout: 60000 });
+async function logPrestate(pg, who, label, t) {
+  const state = await pg.evaluate(async () => {
+    const nav = 'navigation' in window ? {
+      entries: navigation.entries().length, index: navigation.currentEntry?.index ?? null,
+      url: navigation.currentEntry?.url ? new URL(navigation.currentEntry.url).pathname : null,
+      transition: !!navigation.transition,
+    } : null;
+    const regs = await navigator.serviceWorker?.getRegistrations?.().catch(() => null);
+    return { history: history.length, nav, sw: { controller: !!navigator.serviceWorker?.controller, regs: regs ? regs.length : null },
+             ready: document.readyState, visible: document.visibilityState };
+  }).catch(e => ({ error: String(e.message || e).slice(0, 120) }));
+  const inflight = [...t.inflight].map(r => `${r.method()} ${r.resourceType()} ${t.pathOf(r.url())}`);
+  console.log(`PRESTATE ${who} ${label} state=${JSON.stringify(state)} inflight_any=${JSON.stringify(inflight)} bad=${JSON.stringify(t.bad)}`);
 }
-// After a reload, is this child still in the lesson or back at sign-in? The
-// login page's own URL carries ?returnTo=%2Fsession…, so test the PATH, and
-// wait for one of the two screens to render before deciding.
-async function stillInLesson(c) {
-  await c.waitForFunction(() => document.querySelector('textarea') || document.querySelector('input[placeholder="Enter PIN"]') ||
-    [...document.querySelectorAll('button')].some(b => /Student|Let's begin!/.test(b.textContent)), null, { timeout: 30000 }).catch(() => {});
-  return new URL(c.url()).pathname.startsWith('/session') && !(await c.getByPlaceholder('Enter PIN').count());
+// Diagnostic only: the Navigation API's view of this page at a named moment.
+// On macOS WebKit the child page's navigation.currentEntry goes stale (URL "/"
+// while the page is on /session) and then null before the crashing reload, so
+// this marks WHEN it diverges from the real session history. Logs only.
+async function logNav(pg, who, label) {
+  const s = await pg.evaluate(() => ({
+    path: location.pathname, history: history.length,
+    nav: 'navigation' in window ? { entries: navigation.entries().length, index: navigation.currentEntry?.index ?? null,
+      url: navigation.currentEntry?.url ? new URL(navigation.currentEntry.url).pathname : null } : null,
+  })).catch(e => ({ error: String(e.message || e).slice(0, 120) }));
+  console.log(`NAVSTATE ${who} ${label} ${JSON.stringify(s)}`);
 }
 async function openCoach(p, learner, viaPodSave) {
   await p.goto(F.ui + '/setup'); await p.getByText(learner).first().waitFor({ timeout: 30000 });
@@ -105,8 +109,10 @@ async function launch(name) {
 async function parent(br, bname, i) {
   const who = `parent${i + 1}_${bname}`, learner = LEARNERS[i], file = ['quiz.jpg', 'quiz.png', 'quiz.pdf'][i % 3];
   const ctx = await br.newContext({ viewport: { width: 1366, height: 900 } }); const p = await ctx.newPage(); p.on('dialog', d => d.accept());
+  const ptrack = trackPage(p);
   try {
     await step(who, 'sign_in', () => parentLogin(p));
+    await logNav(p, who, 'after_sign_in');
     const { card, status } = await step(who, 'open_practice_coach', () => openCoach(p, learner, true));
     check(who, 'overlapping_pod_save_ok', [200, 201, 204].includes(status), `POST /pod/configs -> ${status}`);
     await card.locator('select').first().selectOption('history');
@@ -127,6 +133,7 @@ async function parent(br, bname, i) {
   await waitFile('restarted').catch(() => {});
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
+    await logPrestate(p, who, 'reload_after_restart', ptrack);
     await p.reload(); if (await p.getByPlaceholder(/password/i).count()) await parentLogin(p);
     await openCoach(p, learner, false);
     const s = JSON.parse((await apiCall(p, `/practice/${encodeURIComponent(learner)}/sets?status=approved`)).body);
@@ -142,6 +149,7 @@ async function child(br, bname, i) {
   // The first child blocks the app's service worker so the #794 transport retry can be observed with route().
   const ctx = await br.newContext({ viewport: { width: 1180, height: 820 }, ...(first ? { serviceWorkers: 'block' } : {}) });
   const c = await ctx.newPage(); c.on('dialog', d => d.accept());
+  const ctrack = trackPage(c);
   // Record what the browser itself reports, so an engine-specific failure
   // (a WebKit page crash, a script error) is visible in the job log.
   c.on('pageerror', err => console.log(`PAGEERROR ${who}: ${String(err).slice(0, 300)}`));
@@ -158,6 +166,7 @@ async function child(br, bname, i) {
   let setId = null;
   try {
     await step(who, 'sign_in_and_session_start', () => childLogin(c, name));
+    await logNav(c, who, 'after_sign_in');
     if (first) {
       let seen = 0, aborted = 0;
       await c.route(u => u.pathname.endsWith('/api/tutor/chat'), route => { seen++; if (!aborted) { aborted++; return route.abort('connectionreset'); } return route.continue(); });
@@ -173,8 +182,8 @@ async function child(br, bname, i) {
       // registered, so this asks for the registrations instead. Polled with
       // evaluate(), never waitForFunction(): waitForFunction does not await an
       // async predicate, so its Promise counts as true and the check passes
-      // without ever looking (measured with Chromium on Playwright 1.56, the version CI pins,
-      // and on 1.63).
+      // without ever looking (measured with Chromium on Playwright 1.56, and on
+      // 1.63, the version CI pins).
       let noWorker = false;
       for (let k = 0; k < 20 && !noWorker; k++) {
         noWorker = await c.evaluate(async () => !navigator.serviceWorker?.controller
@@ -193,23 +202,28 @@ async function child(br, bname, i) {
       check(who, 'turn_survives_network_blip', true);
     } else {
       await step(who, 'lesson_turn_1', () => sendChat(c, 'The river was the Nile.'));
+    await logNav(c, who, 'after_lesson_turn_1');
     }
     await barrier('start'); await barrier('overlap');
     await step(who, 'lesson_turn_overlapped', () => sendChat(c, 'Farmers planted after the flood.'));
+    await logNav(c, who, 'after_overlapped_turn');
     if (N > 1) {
       const a = await apiCall(c, `/pod/configs/${encodeURIComponent(sibling)}`);
       const d = await apiCall(c, `/practice/${encodeURIComponent(sibling)}/delivery`);
       check(who, 'sibling_data_refused', a.status >= 400 && d.status >= 400, `config ${a.status}, practice ${d.status}`);
+    await logNav(c, who, 'after_sibling_check');
     }
     await waitFor('save');
     const sec = c.getByRole('region', { name: 'A practice question your parent approved' });
     await step(who, 'receive_approved_practice', async () => {
       for (let k = 0; k < 90 && !setId; k++) { const r = JSON.parse((await apiCall(c, `/practice/${encodeURIComponent(name)}/delivery`)).body || '[]'); if (Array.isArray(r) && r.length) setId = r[0].id; else await c.waitForTimeout(1000); }
       if (!setId) throw new Error('no approved set');
+      await logPrestate(c, who, 'first_reload', ctrack);
       await c.reload(); await passIntro(c);
       const chk = c.getByRole('button', { name: 'Check for approved practice' }); if (await chk.count()) await chk.click();
       await sec.waitFor({ timeout: 30000 });
     });
+    await logNav(c, who, 'after_first_reload');
     await step(who, 'answer_practice_item', async () => {
       const n = await replies(c);
       const o = c.waitForResponse(r => r.url().includes('/outcomes') && r.request().method() === 'POST', { timeout: 30000 });
@@ -217,6 +231,7 @@ async function child(br, bname, i) {
       const r = await o; if (r.status() !== 200) throw new Error('outcome ' + r.status());
       await c.waitForFunction(n => (document.body.innerText.match(/STUB-TUTOR/g) || []).length >= n, n + 1, { timeout: 90000 });
     });
+    await logNav(c, who, 'after_practice_answer');
   } catch (e) {
     // Screenshots live in an artifact not every reader can download, so say what was on screen.
     const screen = (await c.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
@@ -234,6 +249,7 @@ async function child(br, bname, i) {
       .catch(() => check(who, 'midstream_restart_shows_plain_message', false, 'nothing shown in 90s'));
   }
   await waitFile('restarted').catch(e => check(who, 'restart_observed', false, e.message));
+  await logNav(c, who, 'after_restart_observed');
   await barrier('reopen');
   await step(who, 'reopen_after_restart', async () => {
     const at = c.url();
@@ -243,6 +259,7 @@ async function child(br, bname, i) {
     })).catch(e => ({ error: e.message }));
     console.log(`PRERELOAD ${who} inflight=${JSON.stringify([...inflight].map(r => `${r.method()} ${r.url().replace(/^https?:\/\/[^/]+/, '')}`))} media=${JSON.stringify(media)} recent=${JSON.stringify(recent)}`);
     await c.screenshot({ path: path.join(OUT, `prereload-${who}.png`) }).catch(() => {});
+    await logPrestate(c, who, 'reload_after_restart', ctrack);
     try { await c.reload(); } catch (e) {
       // Control, diagnostic only: does a NEW page in the same context load
       // this lesson? Yes means the crash is tied to tearing this page down;
@@ -346,7 +363,7 @@ async function mobileChild(br, dev, i) {
 // wrong password reported as an expired session, a rejected token that logs
 // out silently, a back button that shows the household after logout, an
 // oversized or non-image upload, a double-tapped approval, a blank or
-// over-long message, a child reaching parent pages, text at 175%, and the
+// over-long message, a child reaching parent pages, text at 200%, and the
 // account-recovery route staying reachable while the parent is locked out.
 const tokenIn = pg => pg.evaluate(() => Object.keys(sessionStorage).some(k => { try { return !!JSON.parse(sessionStorage.getItem(k))?.state?.token } catch { return false } }));
 // The refusal checks compare the stub's reading count before and after, and
@@ -490,16 +507,16 @@ async function boundaryChild(br, bname, i) {
     check(who, 'child_cannot_open_parent_pages', list.status >= 400 && other.status >= 400 && !page.includes('Practice from a graded quiz') && !page.includes(sibling),
       `GET /pod/configs ${list.status}, sibling sets ${other.status}, sibling shown=${page.includes(sibling)}`);
     await ctx.close();
-    // Text at the largest step (175%) on a phone-width screen keeps the page from scrolling sideways.
+    // Text at the largest step (200%) on a phone-width screen keeps the page from scrolling sideways.
     const ctx2 = await br.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
-    await ctx2.addInitScript(() => { try { localStorage.setItem('bede-text-scale', '175') } catch {} });
+    await ctx2.addInitScript(() => { try { localStorage.setItem('bede-text-scale', '200') } catch {} });
     const c2 = await ctx2.newPage(); c2.on('dialog', d => d.accept());
-    c2.on('pageerror', err => console.log(`PAGEERROR ${who}@175%: ${String(err).slice(0, 300)}`));
-    c2.on('crash', () => console.log(`CRASH ${who}@175% at ${c2.url()}`));
-    c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@175% error: ${m.text().slice(0, 300)}`); });
-    const chat175 = [];
-    c2.on('response', r => { if (r.url().includes('/api/tutor/chat')) chat175.push(r.status()); });
-    c2.on('requestfailed', r => { if (r.url().includes('/api/tutor/chat')) chat175.push(`failed:${r.failure()?.errorText || ''}`); });
+    c2.on('pageerror', err => console.log(`PAGEERROR ${who}@200%: ${String(err).slice(0, 300)}`));
+    c2.on('crash', () => console.log(`CRASH ${who}@200% at ${c2.url()}`));
+    c2.on('console', m => { if (m.type() === 'error') console.log(`CONSOLE ${who}@200% error: ${m.text().slice(0, 300)}`); });
+    const chat200 = [];
+    c2.on('response', r => { if (r.url().includes('/api/tutor/chat')) chat200.push(r.status()); });
+    c2.on('requestfailed', r => { if (r.url().includes('/api/tutor/chat')) chat200.push(`failed:${r.failure()?.errorText || ''}`); });
     // What the page itself showed, not the first context's (already closed) screen.
     const describe = async (pg, label) => {
       // innerText is what is rendered; textContent includes what is clipped or
@@ -511,26 +528,26 @@ async function boundaryChild(br, bname, i) {
           fontSize: getComputedStyle(document.documentElement).fontSize, replyRendered: /STUB-TUTOR/.test(document.body.innerText),
           replyInDom: /STUB-TUTOR/.test(document.body.textContent || ''), scrollAreaHeights: list, viewport: [innerWidth, innerHeight] };
       }).catch(e => ({ error: String(e).slice(0, 200) }));
-      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)} chatResponses=${JSON.stringify(label === '@175%' ? chat175 : 'n/a')}`);
+      console.log(`SCREEN ${who}${label} at ${pg.url()}: ${JSON.stringify(d)} chatResponses=${JSON.stringify(label === '@200%' ? chat200 : 'n/a')}`);
     };
     try {
-      await step(who, 'sign_in_at_175_percent', () => childLogin(c2, name));
+      await step(who, 'sign_in_at_200_percent', () => childLogin(c2, name));
     } catch (e) {
-      await describe(c2, '@175%');
+      await describe(c2, '@200%');
       // Diagnosis only (not a check): the same phone-sized, touch context
-      // without the 175% setting, to tell a text-scale fault from an engine one.
+      // without the 200% setting, to tell a text-scale fault from an engine one.
       const ctl = await br.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true }); const cp = await ctl.newPage();
       const ok = await childLogin(cp, name).then(() => true).catch(() => false);
-      console.log(`CONTROL ${who} phone-size without 175%: sign-in ${ok ? 'succeeded' : 'failed'}`);
+      console.log(`CONTROL ${who} phone-size without 200%: sign-in ${ok ? 'succeeded' : 'failed'}`);
       if (!ok) await describe(cp, '@control');
       await ctl.close().catch(() => {});
       await ctx2.close().catch(() => {});
       throw e;
     }
     const scale = await c2.evaluate(() => getComputedStyle(document.documentElement).fontSize);
-    check(who, 'text_scale_175_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);
-    // The conversation must stay readable: at 175% on a phone, the practice
-    // card once squeezed the message area to 56 px, so Bede's replies were in
+    check(who, 'text_scale_200_no_horizontal_scroll', await noHorizontalScroll(c2), `root font-size ${scale}`);
+    // The conversation must stay readable: at 175% on a phone (the old top
+    // step), the practice card once squeezed the message area to 56 px, so Bede's replies were in
     // the page but not in view (WebKit's innerText exposed it; Chrome's did not).
     // The detail names every sibling's height so a failure says what took the room.
     const layout = await c2.evaluate(() => {
@@ -546,7 +563,7 @@ async function boundaryChild(br, bname, i) {
       }
       return { area: Math.round(el.getBoundingClientRect().height), vh: innerHeight, parts: parts.join(' ') };
     });
-    check(who, 'conversation_visible_at_175', layout.area >= layout.vh * 0.25,
+    check(who, 'conversation_visible_at_200', layout.area >= layout.vh * 0.25,
       `message area ${layout.area}px of ${layout.vh}px; beside it: ${layout.parts}`);
     await ctx2.close();
   } catch (e) {
@@ -588,8 +605,8 @@ function expectedChecks() {
     F.browsers.forEach((b, i) => {
       for (const c of ['open_redirect_refused', 'wrong_password_plain_error', 'invalid_token_logs_out_with_notice', 'back_after_logout_shows_no_household',
         'oversize_upload_refused_before_send', 'unsupported_upload_refused_without_reading', 'double_approve_single_set']) out.push([`parent${i + 1}_${b}`, c]);
-      for (const c of ['blank_message_not_sent', 'overlong_message_handled_plainly', 'child_cannot_open_parent_pages', 'text_scale_175_no_horizontal_scroll',
-        'conversation_visible_at_175']) out.push([`child${i + 1}_${b}`, c]);
+      for (const c of ['blank_message_not_sent', 'overlong_message_handled_plainly', 'child_cannot_open_parent_pages', 'text_scale_200_no_horizontal_scroll',
+        'conversation_visible_at_200']) out.push([`child${i + 1}_${b}`, c]);
     });
     for (const c of ['parent_locked_after_repeated_failures', 'locked_parent_refused_even_with_right_password', 'recovery_reachable_while_locked']) out.push(['lockout', c]);
     return out;

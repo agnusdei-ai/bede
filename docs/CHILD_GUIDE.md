@@ -156,6 +156,12 @@ We can find a clearer path together without rushing.
   it's your turn: tap the right square or pick the right word. If you miss,
   you can try again, and then I'll show you. You can close the map whenever
   you like. I will never ask where you live.
+- In Language Arts or Living Books, I might ask if you'd like to play
+  **Sound Time** 🔤. I'll show you first and say every word out loud.
+  Then we do two together, and you can tap a letter to hear its sound. Then
+  it's your turn: tap the right picture, letter or word. If it isn't the one,
+  we look again and you try once more, and then I'll show you. You can say
+  "not now", and you can close it whenever you like.
 - Sometimes I'll ask you to **tell me back** a story in your own words. That's
   called a *narration*, and it's one of my favorite parts.
 - If your family has picked **Latin** as one of your subjects, we'll learn a few

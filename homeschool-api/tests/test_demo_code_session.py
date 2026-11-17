@@ -36,6 +36,34 @@ async def test_generate_code_never_collides_with_outstanding_code():
     assert code == "654321"
 
 
+async def test_a_code_taken_by_a_concurrent_visitor_is_redrawn_not_a_500():
+    """Two visitors minting at the same moment can both find a code unused
+    and both insert it; the loser's commit violates the primary key. That
+    must redraw, never raise to the visitor."""
+    from core.database import AsyncSessionLocal, DemoCodeSession
+
+    async with AsyncSessionLocal() as db:
+        db.add(DemoCodeSession(code="111111"))
+        await db.commit()
+
+    real = demo_code_session._code_in_use
+    calls = {"n": 0}
+
+    async def stale_first_check(db, code):
+        # The other visitor's insert had not committed when this one looked.
+        calls["n"] += 1
+        return False if calls["n"] == 1 else await real(db, code)
+
+    import unittest.mock as mock
+    with mock.patch("core.demo_code_session.secrets.randbelow", side_effect=[111111, 222222]), \
+            mock.patch("core.demo_code_session._code_in_use", side_effect=stale_first_check):
+        code = await demo_code_session.generate_code(current_unit="our own unit")
+    assert code == "222222"
+    async with AsyncSessionLocal() as db:
+        from core.database import DemoCodeUnitNote
+        assert (await db.get(DemoCodeUnitNote, "222222")) is not None
+
+
 async def test_generate_code_respects_max_active_codes():
     demo_code_session._MAX_ACTIVE_CODES = 1
     try:

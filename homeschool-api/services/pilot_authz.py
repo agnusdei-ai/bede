@@ -344,6 +344,13 @@ class RevocationGatedSession:
             finally:
                 raise AuthzRevoked("write")
 
+    @property
+    def inner_session(self):
+        """The wrapped session, for ``core.database.release_idle_connection``,
+        which ends only a transaction with nothing pending and so writes
+        nothing the gate could need to refuse."""
+        return self._session
+
     async def commit(self) -> None:
         await self._gate()
         await self._session.commit()

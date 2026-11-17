@@ -327,7 +327,7 @@ def test_the_research_document_is_named_in_the_ci_change_filter():
 def test_no_per_student_text_size_field_comes_back():
     """`TextSizeControl`/`useTextScale` already offer text size in BOTH the app
     and the demo — a floating control on every screen scaling the ROOT font
-    size 87.5%-175% (WCAG 2.1 SC 1.4.4), which reaches every rem-based size in
+    size 87.5%-200% (WCAG 2.1 SC 1.4.4), which reaches every rem-based size in
     the product. A per-student `SessionConfig` copy shipped in #486 without
     anyone checking for it, and was removed as the weaker of two controls for
     one thing.

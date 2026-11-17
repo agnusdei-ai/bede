@@ -146,8 +146,22 @@ async def get_diagnostic_summary(
     return MasteryProfileSummary(**summary)
 
 
+async def get_math_summary(db: AsyncSession, student_name: str):
+    """The math engine's summary, plus how many recorded K-2 practice answers
+    (routers/k2_practice.py's math round) moved it. Those answers are not
+    Bede's check-ins and are not counted in evidence_count (owner ruling
+    2026-11-16), so they are reported apart, the same as phonics, and a
+    "still getting to know" line never reads as though nothing was recorded."""
+    summary = await get_mastery_summary(db, student_name)
+    if summary is None:
+        return None
+    from services.diagnostic.activity import count_from_source
+    summary["practice_answers"] = await count_from_source(db, student_name, "mathematics", "practice_round")
+    return summary
+
+
 _SUMMARY_BUILDERS = {
-    "mathematics": get_mastery_summary,
+    "mathematics": get_math_summary,
     "composition": get_composition_summary,
     "phonics": get_phonics_summary,
     "language_exposure": get_language_summary,
@@ -438,7 +452,8 @@ async def get_student_mastery_summary(
     `_SUMMARY_BUILDERS` above rather than this list, so the two cannot drift:
 
     * "mathematics" — services.diagnostic.get_mastery_summary, the full
-      CDM/IRT/KST engine.
+      CDM/IRT/KST engine, with K-2 practice answers counted apart
+      (get_math_summary above).
     * "composition" — a rollup over assess_narration's own rubric.
     * "phonics" — K-2 reading foundations.
     * "literacy" — reading and spelling for grades 3-8, the complement of

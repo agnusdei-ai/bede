@@ -2888,7 +2888,7 @@ def _practice_allowed(
     Refused: an area not built yet; the public demo (its screen has no
     practice to open); any setting but "todays_subjects" (with "off" Bede
     offers nothing, and with "approved_only" it never chooses on its own:
-    step 1 has no approved phonics sets); outside K-2; a subject the area does
+    no approved phonics or math sets exist yet); outside K-2; a subject the area does
     not belong to, or one not in this child's routine today; too little time
     left in the block to finish a round; and a second offer of the same area
     in one session.
@@ -2913,6 +2913,18 @@ def _practice_allowed(
     return not any(m.role == "assistant" and prefix in (m.content or "") for m in (history or []))
 
 
+#: What the app shows in each area's round, and the moment to offer it, as
+#: the <practice> note words them. Only the areas offered on a turn are named.
+_PRACTICE_NOTE_ITEMS = {
+    "phonics": "words and pictures",
+    "math": "counters, ten-frames and number bonds",
+}
+_PRACTICE_NOTE_MOMENTS = {
+    "phonics": "after reading or talking about words",
+    "math": "after working with numbers or counting something",
+}
+
+
 def _practice_note(
     config: SessionConfig, subject: Subject, demo_code: Optional[str],
     history: Optional[List[ChatMessage]], *,
@@ -2926,17 +2938,18 @@ def _practice_note(
     )]
     if not areas:
         return ""
+    items = "; ".join(f"{_PRACTICE_NOTE_ITEMS[a]} for {a}" for a in areas)
+    moments = "; ".join(f"{_PRACTICE_NOTE_MOMENTS[a]} for {a}" for a in areas)
     return f"""
 
 <practice>
-This child may be offered a short practice round in: {", ".join(areas)}. For phonics the app
-shows words and pictures, says every instruction, and checks every answer; you send only the
-area. The parent's own plan comes first: if today's lesson focus or the note on where this
-subject left off points somewhere else, do not offer practice; follow the parent's plan. Otherwise
-offer it once, by calling `invite_practice`, at a natural pause after reading or talking about
-words, never in the middle of an activity. It is an invitation: if the child would rather not,
-carry on with the lesson. Do not use it to fill time, and do not mention that anything is
-recorded.
+This child may be offered a short practice round in: {", ".join(areas)}. The app shows the
+{items}, says every instruction, and checks every answer; you send only the area. The parent's
+own plan comes first: if today's lesson focus or the note on where this subject left off points
+somewhere else, do not offer practice; follow the parent's plan. Otherwise offer it once, by
+calling `invite_practice`, at a natural pause ({moments}), never in the middle of an activity.
+It is an invitation: if the child would rather not, carry on with the lesson. Do not use it to
+fill time, and do not mention that anything is recorded.
 </practice>"""
 
 
@@ -3622,6 +3635,8 @@ _CARD_PHRASES = {
         "map_body": "Let's read a map together. Watch first, then we'll do one together, then it's your turn.",
         "practice_phonics_title": "Sound Time",
         "practice_phonics_body": "Let's play with sounds and words. Watch first, then we'll do two together, then it's your turn.",
+        "practice_math_title": "Number Time",
+        "practice_math_body": "Let's play with counters and numbers. Watch first, then we'll do two together, then it's your turn.",
         "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
         "hint_plain": "Let me ask it this way: {hint}",
     },
@@ -3632,6 +3647,8 @@ _CARD_PHRASES = {
         "map_body": "Vamos a leer un mapa juntos. Primero mira, luego hacemos uno juntos y después te toca a ti.",
         "practice_phonics_title": "Hora de los Sonidos",
         "practice_phonics_body": "Vamos a jugar con sonidos y palabras. Primero mira, luego hacemos dos juntos y después te toca a ti.",
+        "practice_math_title": "Hora de los Números",
+        "practice_math_body": "Vamos a jugar con fichas y números. Primero mira, luego hacemos dos juntos y después te toca a ti.",
         "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
         "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
     },

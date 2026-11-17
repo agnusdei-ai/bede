@@ -247,6 +247,26 @@ shell script rather than logic duplicated per platform, so it runs
 identically whether GitHub Actions invokes it (`deploy-demo.yml`),
 Cloudflare invokes it, or you run it locally to preview.
 
+The repository root `.nvmrc` pins Node `24.22.2` for this build; the demo
+package declares Node `>=22` as its supported minimum. `npm ci` in the
+script uses `demo/package-lock.json`. The static Worker config can be
+validated without a deployment using Wrangler `4.149.0`, also pinned by
+`license-server/package-lock.json`:
+
+```bash
+npx --yes --package wrangler@4.149.0 wrangler deploy --dry-run --config wrangler.jsonc
+```
+
+The dry run does not publish assets or change Worker settings. A local
+assembly can be checked with:
+
+```bash
+bash scripts/build_pages_site.sh
+test -f publish/index.html
+test -f publish/bede/index.html
+test -f publish/bede/tour/index.html
+```
+
 **One-time Cloudflare Worker custom domain setup** (there is no separate
 Cloudflare Pages project involved — a domain is attached directly to the
 existing, already-Git-connected `bede` Worker described in "Wiring the demo

@@ -931,6 +931,12 @@ export default function Progress() {
                 {t('progress.soundTimeRecordNote')}
               </p>
             )}
+            {/* Number Time (K-2 practical math) keeps the same one-round rule. */}
+            {activeStudentHasPractice && (
+              <p className="text-xs text-gray-500 px-1" data-testid="number-time-record-note">
+                {t('progress.numberTimeRecordNote')}
+              </p>
+            )}
             {podStudents.length > 1 && <PodWorkRoster roster={podRoster} loading={loading} />}
             <AiUsageCard usage={usage} loading={loading} />
             <AssessmentHistory assessments={assessments} />

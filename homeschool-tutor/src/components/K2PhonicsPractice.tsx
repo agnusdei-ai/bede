@@ -8,6 +8,7 @@ import {
 } from '../services/api'
 import { ICONS } from './Diagram'
 import RoutineShell, { type RoutineStep } from './routine/RoutineShell'
+import { PRACTICE_PRIMARY, PRACTICE_TARGET } from './practiceStyles'
 
 /**
  * Phonics practice for K-2: Watch, Together, Your turn
@@ -294,7 +295,7 @@ export default function K2PhonicsPractice({
 }
 
 /** A child's tap target: at least 56 CSS px at the default text size. */
-export const TARGET = 'min-h-14 min-w-14'
+export const TARGET = PRACTICE_TARGET
 /** The main action: at least 64 CSS px. */
-export const PRIMARY = 'min-h-16 min-w-16 rounded-2xl bg-navy-700 px-6 py-3 text-lg font-medium text-white hover:bg-navy-600'
+export const PRIMARY = PRACTICE_PRIMARY
 const SECONDARY = 'min-h-16 min-w-16 rounded-2xl border-2 border-sage-300 bg-white px-6 py-3 text-lg font-medium text-navy-700'

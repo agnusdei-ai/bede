@@ -4,13 +4,15 @@ What every practice area shares: the closed list of areas, which of them is
 built, the subjects each belongs to, the card each one's invitation carries,
 and the record of which areas were already offered in a session.
 
-Only phonics is built (step 1 of the spec's build order). The other areas
-are named so `invite_practice`'s `area` field is a closed list from the
-start, and are refused until their own step ships: a card inviting a round
-that does not exist is worse than no card.
+Phonics (step 1 of the spec's build order) and practical math (step 3,
+built before step 2, handwriting, which waits on decision 40(c)) are built.
+The other areas are named so `invite_practice`'s `area` field is a closed
+list from the start, and are refused until their own step ships: a card
+inviting a round that does not exist is worse than no card.
 
 Nothing here is model-written. A lesson is built by the area's own module
-(phonics.py) and checked by its routes (routers/k2_practice.py).
+(phonics.py, practical_math.py) and checked by its routes
+(routers/k2_practice.py).
 """
 from __future__ import annotations
 
@@ -23,12 +25,13 @@ AREAS = ("phonics", "handwriting", "math", "spelling", "copy_sentence")
 
 #: Built and offerable. Every other area is refused at prompt build and at
 #: dispatch until its own build step ships.
-ENABLED_AREAS = frozenset({"phonics"})
+ENABLED_AREAS = frozenset({"phonics", "math"})
 
 #: The subjects each area belongs to (spec §5). An offer is also limited to
 #: the subjects actually in that child's routine today.
 AREA_SUBJECTS: dict[str, tuple[Subject, ...]] = {
     "phonics": (Subject.language_arts, Subject.living_books),
+    "math": (Subject.mathematics,),
 }
 
 #: The card's prefix, the same in every locale, so the once-a-session scan
@@ -36,6 +39,7 @@ AREA_SUBJECTS: dict[str, tuple[Subject, ...]] = {
 #: reason ai_service's _MAP_CARD_PREFIX exists).
 CARD_PREFIX: dict[str, str] = {
     "phonics": "\U0001F524 ",  # the "input latin letters" symbol
+    "math": "\U0001F522 ",  # the "input numbers" symbol
 }
 
 # ── Which areas were offered in which session ────────────────────────────────

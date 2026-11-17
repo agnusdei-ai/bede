@@ -23,7 +23,7 @@ release:
 candidate:
   source_sha: null
   source_sha_reason: owner has not selected a candidate; working tree is not a candidate
-  target_platform: unknown; owner confirmation required
+  target_platform: unknown for the customer deployment; the pilot Mac is the physical acceptance target, not evidence of the server host or topology
   target_architecture: unknown; owner confirmation required
   package_digest: null
   package_status: not built
@@ -48,9 +48,10 @@ decision:
 is not an immutable candidate selected by the owner. Current `main` was
 `30c9f3231a561be626109dfd1269a122021ba840` when these states were checked.
 PRs #857 and #864 were merged; #824, #851, and #865 remained open, and #862
-has an explicit owner hold. No PR was merged for this packet. Reconcile
-required dependencies on a deliberate integration tree; do not silently
-package the older reviewed SHA.
+has an explicit owner hold. PR #851 adds arm64 DMG provenance only; it does
+not make the existing engineering DMG distributable. No PR was merged for
+this packet. Reconcile required dependencies on a deliberate integration
+tree; do not silently package the older reviewed SHA.
 
 **Current PR checks.** The latest PR #837 browser-journey run,
 `44158031812`, and sample-qualification run, `44158031588`, both target
@@ -132,10 +133,55 @@ included to make each choice concrete, not to make it on the owner's behalf.
    teacher-only pilot; decisions 40(c)-(f) remain outside this RC and should
    be explicitly deferred, not decided by implementation.
 6. **Exact workflow approvals:** after source and target are selected,
-   authorize or decline any exact workflow/ref/SHA/inputs needed for
-   platform packaging or WebKit diagnosis. No workflow dispatch, package
-   publication, or release/deployment workflow is authorized by this
-   packet.
+   authorize or decline the exact workflow/ref/SHA/inputs in the approval
+   request below. The existing candidate run IDs target an obsolete SHA and
+   must not be approved as a substitute. No workflow dispatch, package
+   publication, notarization, or release/deployment workflow is authorized
+   by this packet.
+
+### Exact package and check workflow request
+
+The available Mac build is
+`.github/workflows/build-bede-operator.yml` (`workflow_dispatch`, no inputs).
+For a manual run, the selected workflow ref determines `github.sha`; the
+workflow packages that commit. Its package job has `packages: write`, builds
+and pushes the Linux runtime images to GHCR, and the API Dockerfile downloads
+faster-whisper `base` weights. The arm64 Mac job then creates an ad hoc-signed,
+unnotarized engineering DMG, marks it **not for distribution**, and uploads
+it with a 30-day retention. Its current provenance describes a sample-only
+teacher-directed evaluation and `pilot_go: HOLD`; neither that artifact nor
+the current workflow is a production customer package. PR #851 only adds the
+arm64 provenance file alongside that same engineering DMG.
+
+To use this workflow, the owner must first select the full source SHA and
+target architecture, then explicitly authorize the exact
+`build-bede-operator.yml` run, including model-weight download and GHCR image
+publication. This approval has not been given, so no build was dispatched.
+If those effects are not approved, the accountable release engineer must
+propose and review a package path that avoids them; omitting the model or
+substituting another runtime would not qualify the actual product.
+
+Trusted macOS distribution is a separate workflow,
+`.github/workflows/macos-trusted-distribution.yml`, and is restricted to a
+successful source build on `main`. Its required inputs are
+`source_run_id`, the matching full `source_sha`, and `architecture`
+(`arm64` or `amd64`). It imports the configured Apple Developer ID identity,
+submits the DMG to Apple's notarization service, staples and assesses it, and
+uploads a 30-day artifact. This performs an external notarization submission
+and requires the `mac-trusted-distribution` environment and Apple signing/
+notarization credentials. The owner must separately authorize that exact
+workflow/ref/run/SHA/architecture and its external effects. It cannot run
+for this unmerged PR candidate, and no credentials were requested or used.
+
+PR #837 runs `44158031812` (browser journeys) and `44158031588` (sample
+qualification) are both `action_required`, have zero jobs, and target
+`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`. The available record does not
+name the required approval, and these runs are not the selected candidate.
+Do not approve or retry them as release evidence. After the owner selects an
+integrated SHA, the qualification engineer must identify that SHA's exact
+check runs and request any required GitHub approval before interpreting
+results. The existing macOS runner can build arm64; the Intel runner is
+`macos-15-intel`. Neither runner establishes the customer's architecture.
 
 ## Engineering and qualification blockers
 
@@ -151,6 +197,7 @@ close it:
 | Package and provenance | Release engineer finds an authorized compatible runner and an approved packaging route. The existing operator image build downloads faster-whisper `base` weights and publishes to GHCR; that path is not authorized here. | Customer-installable package, exact source and target provenance inside/alongside it where supported, SHA-256 from final bytes, and a separate verifier report. No model download or publication without separate approval. |
 | Installed-build security and access | Release engineer qualifies TLS, passkey setup, teacher/campus/learner isolation, persistence, provider connectivity, health, diagnostics, and rollback on the selected topology. | Requirement-mapped results tied to exact candidate and artifact; failures resolved or explicitly left blocking. |
 | Functional and language qualification | Qualification engineer runs the required teacher journeys and isolation/recovery cases, including synthetic Spanish E2E only if Spanish is approved. | Complete exact-candidate matrix and evidence manifest. Synthetic tutor results must be labeled synthetic. |
+| Number Time acceptance | Qualification engineer uses temporary synthetic math attempts in an isolated test environment; must not access household data or write to existing demo progress stores. The merged #857 PR's unit/component checks and its statement that demo files were untouched are not this full acceptance matrix. Recommendation: defer Number Time from the teacher-only pilot unless the owner includes it in scope. | If included, record the full acceptance matrix, prove the test used no household database, and compare demo progress-store state before/after. Otherwise record the explicit deferral and do not package it as pilot functionality. |
 | Physical Mac and Safari | Owner alone operates the pilot Mac; engineering prepares one bounded session and exact install/rollback steps. | Actual owner-recorded results. Until then every physical row remains `NOT_RUN`. |
 | School data authorization and notice | School administrator supplies required authorization; counsel reviews the school notice before real learner data. | Current notice hash and required authorization/review evidence; no wording here claims those occurred. |
 

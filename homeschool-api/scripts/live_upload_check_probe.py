@@ -57,7 +57,7 @@ def _png(img: Image.Image) -> str:
 def worksheet() -> str:
     img = Image.new("RGB", (1000, 1300), "white")
     d = ImageDraw.Draw(img)
-    d.text((60, 50), "Week 3 Maths Check", fill="black", font=_font(48))
+    d.text((60, 50), "Week 3 Math Check", fill="black", font=_font(48))
     d.text((60, 120), "Add. Show your answer.", fill="black", font=_font(30))
     rows = [("1.  7 + 5 =", "12", True), ("2.  9 + 4 =", "13", True), ("3.  6 + 8 =", "15", False)]
     y = 220

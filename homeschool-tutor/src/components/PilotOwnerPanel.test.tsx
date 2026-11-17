@@ -235,6 +235,32 @@ describe('PilotOwnerPanel', () => {
     expect(document.body.textContent).not.toMatch(/Request failed|Deletion did not complete/)
   })
 
+  it('clears the typed name when a different learner is chosen', async () => {
+    const L2 = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+    api.fetchPilotOwnerLearners.mockResolvedValue([
+      { learner_id: L, campus_id: C, display_name: 'Example Learner', enabled: true },
+      { learner_id: L2, campus_id: C, display_name: 'Second Learner', enabled: true },
+    ])
+    render(<PilotOwnerPanel token="t"/>)
+    await openPanel()
+    const input = () => screen.getByLabelText(/to confirm/) as HTMLInputElement
+    fireEvent.change(input(), { target: { value: 'Example Learner' } })
+    expect(input().value).toBe('Example Learner')
+    fireEvent.change(screen.getByLabelText('Learner'), { target: { value: L2 } })
+    await screen.findByText(/Delete Second Learner's active pilot records/)
+    expect(input().value).toBe('')
+  })
+
+  it('keeps what was typed: no effect resets the confirmations after the fact', () => {
+    // CI caught an effect keyed on the learner id (useEffect(() =>
+    // setConfirmName(''), [learnerId])) running after the name had been
+    // typed: the field read "" and Delete never enabled. jsdom cannot force
+    // that ordering, so this pins the structure instead: the confirmations
+    // are reset only where the learner or campus actually changes.
+    const source = readFileSync(resolve(__dirname, 'PilotOwnerPanel.tsx'), 'utf8')
+    expect(source).not.toMatch(/useEffect\(\s*\(\)\s*=>\s*\{?\s*setConfirm(Campus)?Name\(/)
+  })
+
   it('the pilot doc quotes the receipt statements exactly', () => {
     const doc = readFileSync(
       resolve(__dirname, '../../../docs/EDUCATOR_CLASSROOM_PILOT.md'), 'utf-8').replace(/\s+/g, ' ')

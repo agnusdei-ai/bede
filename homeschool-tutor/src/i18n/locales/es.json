@@ -136,6 +136,7 @@
     "micUnavailable": "No puedo escucharte ahora mismo — algo anda mal con el micrófono. Puedes escribir tu respuesta en su lugar.",
     "micNetworkUnavailable": "No puedo escucharte ahora mismo — perdimos la conexión por un momento. Intenta mantener presionado el micrófono otra vez, o escribe tu respuesta.",
     "turnNetworkFailed": "Tu mensaje no me llegó — perdimos la conexión por un momento. Intenta enviarlo otra vez.",
+    "messageTooLong": "Es más largo de lo que cabe en un mensaje ({{max}} caracteres). Tus palabras siguen en el cuadro: intenta enviarlas en dos partes.",
     "micNoSpeechHeard": "No logré escucharte bien. Intenta mantener presionado el micrófono y hablar un poco más cerca, o escribe tu respuesta.",
     "placeholderOnBreak": "En un descanso. Bede estará aquí cuando regreses.",
     "placeholderHoldListening": "Escuchando… suelta cuando termines",
@@ -423,7 +424,15 @@
     "lineLoose": "Máximo",
     "frequentBreaks": "Ofrecer un descanso cada 20 minutos",
     "frequentBreaksTooltip": "Normalmente solo se ofrece de K a 3.º; esto ofrece la misma pausa a cualquier edad, y su hijo siempre puede rechazarla. No cambia ni omite el descanso obligatorio de cada hora. Quita un límite de edad sobre una decisión que le corresponde a usted; no afirma que más descansos mejoren la atención.",
-    "trialLicense": "Prueba"
+    "trialLicense": "Prueba",
+    "practiceOffersLabel": "Práctica que Bede puede ofrecer (K-2)",
+    "practiceOffersHelp": "Práctica corta de sonidos y palabras en Lenguaje y Libros vivos, solo los días en que esas materias están en el plan. Verás cada oferta en la conversación.",
+    "practiceOffers_off": "Apagado",
+    "practiceOffers_offHelp": "Bede no ofrece práctica.",
+    "practiceOffers_approved_only": "Solo lo que yo aprobé",
+    "practiceOffers_approved_onlyHelp": "Bede nunca elige por su cuenta. La práctica hecha de un examen que subiste sigue necesitando tu aprobación.",
+    "practiceOffers_todays_subjects": "También las materias de hoy",
+    "practiceOffers_todays_subjectsHelp": "Bede también puede ofrecer una ronda de las materias de hoy, usando solo sus propias listas de palabras."
   },
   "parentGreeting": {
     "title": "¿Cómo quiere que Bede lo llame? (opcional)",
@@ -437,6 +446,7 @@
     "welcomeBack": "Le damos la bienvenida de nuevo, {{name}}."
   },
   "progress": {
+    "soundTimeRecordNote": "La Hora de los Sonidos guarda una ronda por inicio de sesión: la primera ronda que responde tu hijo. Las rondas extra que jugó tu hijo fueron solo práctica: no aparecen en el registro de trabajo ni en el panorama de lectura.",
     "advance": "Avanzar",
     "repeat": "Repetir",
     "review": "Repasar",
@@ -630,6 +640,11 @@
     "areaMusic": "Conocimiento musical",
     "notStartedYet": "aún sin empezar",
     "stillGettingToKnow": "aún conociéndole — {{count}} hasta ahora",
+    "stillGettingToKnowWithPractice": "aún conociéndole: {{checkIns}} hasta ahora, más {{practice}}",
+    "lessonCheckIns_one": "{{count}} comprobación en la lección",
+    "lessonCheckIns_other": "{{count}} comprobaciones en la lección",
+    "practiceAnswers_one": "{{count}} respuesta de práctica",
+    "practiceAnswers_other": "{{count}} respuestas de práctica",
     "secureOf": "{{secure}} de {{total}} dominadas",
     "nothingYet": "Aún no se ha evaluado nada de {{name}}. Mientras tanto, vea Trabajo completado abajo."
   },
@@ -1246,5 +1261,169 @@
     "name": "Nombre",
     "date": "Fecha",
     "failed": "No se pudo imprimir. Inténtalo de nuevo."
+  },
+  "errorBoundary": {
+    "message": "Algo salió mal. Volvamos a empezar.",
+    "returnToLogin": "Volver al inicio de sesión",
+    "updating": "Bede se actualizó. Cargando la versión nueva…",
+    "checking": "Buscando una versión nueva de Bede…"
+  },
+  "routine": {
+    "steps": "Pasos",
+    "back": "Volver con Bede",
+    "step": {
+      "watch": "Mira",
+      "together": "Juntos",
+      "your_turn": "Tu turno"
+    }
+  },
+  "mapPractice": {
+    "title": "Práctica de mapas",
+    "loading": "Preparando un mapa…",
+    "loadTrouble": "No se pudo cargar el mapa.",
+    "tryAgain": "Intentar de nuevo",
+    "finished": "¡Terminaste la práctica de mapas!",
+    "backToBede": "Volver con Bede",
+    "anotherMap": "Otro mapa",
+    "lead": {
+      "watch": "Primero mira.",
+      "together": "Hagamos este juntos.",
+      "your_turn": "Tu turno."
+    },
+    "letsTry": "Vamos a probar uno",
+    "next": "Siguiente",
+    "right": "¡Sí, eso es!",
+    "again": "Todavía no. Mira otra vez e inténtalo de nuevo.",
+    "shownSquare": "Es el cuadro {{square}}. Está marcado en verde.",
+    "shownChoice": "La respuesta está marcada en verde.",
+    "watchShownSquare": "La respuesta está marcada en verde.",
+    "watchShownChoice": "La respuesta está marcada en verde.",
+    "checkTrouble": "No se pudo revisar. Inténtalo de nuevo.",
+    "pickAMap": "Elige un mapa",
+    "pickAnAnswer": "Elige una respuesta",
+    "mapNumber": "Mapa {{n}}",
+    "mapLabel": "Mapa",
+    "compassLabel": "Brújula",
+    "keyLabel": "Clave",
+    "sideViewLabel": "Las mismas cosas vistas de lado",
+    "square": "Cuadro {{label}}",
+    "compass": {
+      "n": "N",
+      "s": "S",
+      "e": "E",
+      "w": "O"
+    },
+    "ground": {
+      "water": "agua"
+    },
+    "word": {
+      "above": "arriba",
+      "below": "abajo",
+      "left_of": "a la izquierda",
+      "right_of": "a la derecha",
+      "north": "norte",
+      "south": "sur",
+      "east": "este",
+      "west": "oeste",
+      "land": "tierra",
+      "water": "agua"
+    },
+    "symbol": {
+      "house": "casa",
+      "tree": "árbol",
+      "pond": "estanque",
+      "gate": "portón",
+      "well": "pozo",
+      "barn": "granero",
+      "bridge": "puente",
+      "rock": "roca",
+      "flower": "flor",
+      "bench": "banca"
+    },
+    "symbolThe": {
+      "house": "la casa",
+      "tree": "el árbol",
+      "pond": "el estanque",
+      "gate": "el portón",
+      "well": "el pozo",
+      "barn": "el granero",
+      "bridge": "el puente",
+      "rock": "la roca",
+      "flower": "la flor",
+      "bench": "la banca"
+    },
+    "symbolOf": {
+      "house": "de la casa",
+      "tree": "del árbol",
+      "pond": "del estanque",
+      "gate": "del portón",
+      "well": "del pozo",
+      "barn": "del granero",
+      "bridge": "del puente",
+      "rock": "de la roca",
+      "flower": "de la flor",
+      "bench": "de la banca"
+    },
+    "prompt": {
+      "position_choice": "¿Dónde está {{thingThe}}? Elige la palabra que va: está … {{referenceOf}}.",
+      "next_to_tap": "Toca lo que está al lado {{referenceOf}}.",
+      "birds_eye_match": "¿Qué mapa muestra estas cosas vistas desde arriba?",
+      "path_end_tap": "Empieza en {{startThe}}. Sigue el camino. Toca donde termina.",
+      "find_symbol_tap": "Usa la clave. Toca {{thingThe}} en el mapa.",
+      "symbol_meaning_choice": "Mira el cuadro con la línea punteada. ¿Qué muestra ese símbolo?",
+      "direction_tap": "Toca lo que está al {{direction}} {{referenceOf}}.",
+      "direction_choice": "¿Hacia dónde queda {{thingThe}} desde {{referenceThe}}?",
+      "place_tap": "¿Dónde iría {{thingThe}} si está al {{direction}} {{referenceOf}}? Toca un cuadro.",
+      "walk_tap": "Empieza en {{startThe}}. Ve al {{first}} {{first_steps}}, luego al {{second}} {{second_steps}}. Toca donde te detienes.",
+      "square_tap": "Toca el cuadro {{square}}.",
+      "square_choice": "¿En qué cuadro está {{thingThe}}?",
+      "ground_tap": "Toca un cuadro que sea {{ground}}.",
+      "ground_choice": "¿El cuadro {{square}} es tierra o agua?"
+    },
+    "open": "Abrir el mapa"
+  },
+  "k2Phonics": {
+    "title": "Hora de los Sonidos",
+    "open": "Empezar la Hora de los Sonidos",
+    "loading": "Preparando las palabras…",
+    "needsSound": "Esta práctica necesita sonido. Pide a un adulto que active la voz de Bede o que instale una voz para este idioma en este dispositivo, y vuelve a intentarlo.",
+    "loadTrouble": "No se pudo cargar la práctica.",
+    "tryAgain": "Intentar de nuevo",
+    "finished": "¡Terminaste la Hora de los Sonidos!",
+    "backToBede": "Volver con Bede",
+    "another": "Jugar otra vez",
+    "letsTry": "Probemos uno",
+    "next": "Siguiente",
+    "hearAgain": "Escuchar otra vez",
+    "hearLetter": "Escuchar {{letter}}",
+    "hearWord": "Escuchar {{word}}",
+    "theWord": "La palabra",
+    "pickAnAnswer": "Elige una respuesta",
+    "thisOne": "Esta",
+    "right": "¡Sí, esa es!",
+    "again": "Miremos otra vez. Inténtalo una vez más.",
+    "shown": "Aquí está. Toca Siguiente cuando estés listo.",
+    "checkTrouble": "No se pudo revisar esa respuesta. Inténtalo de nuevo.",
+    "lead": {
+      "watch": "Mira y escucha.",
+      "together": "Ahora lo hacemos juntos.",
+      "your_turn": "Te toca a ti."
+    },
+    "prompt": {
+      "rhyme_choice": "¿Cuál rima con {{word}}?",
+      "first_sound_choice": "¿Con qué letra empieza {{word}}?",
+      "read_word_choice": "Lee la palabra. Toca su dibujo.",
+      "sight_word_choice": "Toca la palabra {{word}}."
+    },
+    "promptShown": {
+      "first_sound_choice": "¿Con qué letra empieza?",
+      "sight_word_choice": "Escucha y toca la palabra que oyes."
+    },
+    "watch": {
+      "rhyme_choice": "Escucha: {{word}} y {{answer}}. ¡Riman! Terminan con el mismo sonido.",
+      "first_sound_choice": "{{word}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
+      "read_word_choice": "Escucha: {{sounds}}. Junta los sonidos: ¡{{word}}!",
+      "sight_word_choice": "Esta palabra es {{word}}. La conocemos de vista."
+    }
   }
 }

@@ -195,6 +195,11 @@ services:
       - RATE_LIMIT_VOICE_PER_MINUTE=${RATE_LIMIT_VOICE_PER_MINUTE:-20}
       - RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE=${RATE_LIMIT_VOICE_STREAM_SESSION_PER_MINUTE:-120}
       - RATE_LIMIT_ACCOUNT_RECOVERY_PER_MINUTE=${RATE_LIMIT_ACCOUNT_RECOVERY_PER_MINUTE:-10}
+      # Database connection pool (core/database.py). Defaults are the values
+      # the engine always used; docs/CAPACITY.md says how to measure before
+      # raising them.
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-5}
       # What Bede is allowed to keep about a child. RETAIN_MASTERY_PROFILES
       # false runs the identical diagnostic but holds the estimate in memory
       # for the session only, writing nothing describing the child; the

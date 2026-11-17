@@ -12,7 +12,7 @@ from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowa
 from core.log_redaction import exc_summary, learner_ref
 from core.config import settings
 from core import consent
-from core.database import get_db
+from core.database import get_db, release_idle_connection
 from core.demo_code_session import (
     claim_email_send as demo_code_claim_email_send,
     get_current_unit as get_demo_current_unit,
@@ -47,7 +47,7 @@ from services.ai_service import (
     safeguarding_response,
     stream_tutor_response,
 )
-from services import content_screen, pilot_authz, safeguarding_alerts
+from services import content_screen, pilot_authz, safeguarding_alerts, turn_replay
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_email
@@ -249,6 +249,19 @@ async def chat(
     if not is_demo_code:
         await consent.require_collection(db, req.session_config.student_name)
 
+    if role in ("child", "parent") and req.session_config.grade_stage == GradeStage.foundations:
+        # K-2 practice: the per-child setting comes from the SAVED config,
+        # never the tablet's copy, so a parent's change mid-session (to "off"
+        # or "only sets I approved") stops offers on the next turn. Only this
+        # one field is taken; everything else in the turn's config is as sent.
+        # Read only on a foundations-stage turn, the only kind the offer gate
+        # can allow; a tablet claiming an older grade gets no offer, and the
+        # practice routes still take the grade from the saved config.
+        from routers.k2_practice import saved_practice_offers
+        req.session_config = req.session_config.model_copy(update={
+            "practice_offers": await saved_practice_offers(db, req.session_config.student_name),
+        })
+
     demo_quota_exceeded = False
     if is_demo_code:
         demo_code = auth.get("code", "")
@@ -302,6 +315,10 @@ async def chat(
         ))
 
     async def event_generator():
+        # The checks above ran queries, so this request's session holds a
+        # pool connection. Return it before the moderation call and the
+        # streamed reply, which are the long waits (docs/CAPACITY.md).
+        await release_idle_connection(db)
         if demo_quota_exceeded:
             await log_event(
                 AuditEvent.RATE_LIMITED,
@@ -428,6 +445,12 @@ async def chat(
                     role=role,
                     session_id=req.session_id,
                     time_remaining_seconds=req.time_remaining_seconds,
+                    # One attempt of a retried turn records the child's work;
+                    # the others answer and record nothing (turn_replay.py).
+                    evidence_gate=turn_replay.gate_for(
+                        f"{role}:{auth.get('code') if is_demo_code else req.session_config.student_name}",
+                        req.turn_id,
+                    ),
                     **audit_from_request(request),
                 ),
                 timeout_seconds=STREAM_STALL_TIMEOUT_SECONDS,

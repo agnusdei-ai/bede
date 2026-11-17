@@ -432,6 +432,15 @@ const TUTOR_MAX_ATTEMPTS = TUTOR_RETRY_DELAYS_MS.length + 1
 // Two missed keep-alives plus slack.
 const TUTOR_SILENCE_MS = 35_000
 
+/** A random id for one lesson turn. Null when the browser has no Web Crypto,
+ *  in which case the server records every attempt, exactly as before. */
+export function newTurnId(): string | null {
+  const c: Crypto | undefined = typeof crypto === 'undefined' ? undefined : crypto
+  if (!c || typeof c.getRandomValues !== 'function') return null
+  const bytes = c.getRandomValues(new Uint8Array(16))
+  return `turn-${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
+}
+
 function browserSaysOffline(): boolean {
   return typeof navigator !== 'undefined' && navigator.onLine === false
 }
@@ -608,6 +617,11 @@ export async function* streamTutorChat(
   // deliberately will not retry.
   // Set at the first retryable failure: the whole retry budget runs from there.
   let retryDeadline: number | undefined
+  // One id for this turn, reused by every retry below, so the server lets
+  // exactly one attempt record the child's work (services/turn_replay.py).
+  // A retry that reached the server after an earlier attempt had already
+  // saved something used to save it a second time.
+  const turnId = newTurnId()
   for (let attempt = 1; ; attempt++) {
     // Set before the first yield, so a failure that arrives after the child
     // has already seen part of Bede's reply is final rather than restarting
@@ -632,6 +646,7 @@ export async function* streamTutorChat(
           // keep no profile between sessions (see the backend's
           // retain_mastery_profiles). Ignored entirely otherwise.
           session_id: sessionId ?? null,
+          turn_id: turnId,
           // The subject the child just came from, so Bede marks the change
           // instead of greeting them again (TutorRequest.previous_subject).
           previous_subject: previousSubject ?? null,
@@ -2320,4 +2335,144 @@ export const finalizeTeacherQuiz = (
   body: { quiz: TeacherQuiz; results: { number: number; points: number | null }[] },
 ) => teacherQuizFetch<{ results: { number: number; points: number; max_points: number }[]; total: number; possible: number }>(
   token, 'finalize', body,
+)
+
+// ── Map-reading practice for K-2 (homeschool-api/services/map_practice.py) ──
+// The server draws every map and checks every answer. Nothing typed is sent:
+// an answer is a tapped square, one of the offered choices, or spoken words.
+
+export type MapCell = [number, number]
+
+export interface MapScene {
+  cols: number
+  rows: number
+  style: 'picture' | 'map'
+  items: { symbol: string; col: number; row: number }[]
+  water: MapCell[]
+  path: MapCell[]
+  compass: 'none' | 'north_only' | 'labeled'
+  grid_labels: boolean
+  key: boolean
+}
+
+export interface MapTask {
+  phase?: 'together' | 'your_turn'
+  index?: number
+  scene: MapScene
+  prompt: { key: string; args: Record<string, string | number | number[]> }
+  answer_kind: 'tap' | 'choice' | 'scene_choice'
+  choices?: string[]
+  options?: MapScene[]
+  side_view?: string[]
+  marked?: MapCell
+  guide_cells?: MapCell[]
+}
+
+export interface MapReveal { cell?: MapCell; choice?: string }
+
+export interface MapLesson {
+  lesson_id: string
+  level: 'K' | '1' | '2'
+  skill: string
+  your_turn_tries: number
+  watch: MapTask & { answer: MapReveal }
+  together: MapTask[]
+  your_turn: MapTask[]
+}
+
+export interface MapAnswerResult {
+  understood: boolean
+  correct: boolean
+  tries_left?: number
+  reveal?: MapReveal
+  recorded?: boolean
+}
+
+async function mapPracticeFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/map-practice${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (!res.ok) throw new Error(`map practice ${res.status}`)
+  return res.json()
+}
+
+export const fetchMapLesson = (token: string, studentName: string) =>
+  mapPracticeFetch<MapLesson>(token, `/${encodeURIComponent(studentName)}/lesson`)
+
+export const answerMapTask = (
+  token: string, studentName: string, lessonId: string,
+  phase: 'together' | 'your_turn', index: number,
+  answer: { cell: MapCell } | { choice: string } | { spoken: string },
+) => mapPracticeFetch<MapAnswerResult>(
+  token, `/${encodeURIComponent(studentName)}/lessons/${encodeURIComponent(lessonId)}/answers`,
+  { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
+)
+
+// ── K-2 phonics practice (homeschool-api/routers/k2_practice.py) ──────────────
+// The server builds every word and checks every answer; nothing a child types
+// or says is kept, and nothing here reaches an AI provider.
+
+export interface PhonicsGrapheme { text: string; sound?: string; silent?: boolean }
+
+export interface PhonicsTask {
+  phase?: 'together' | 'your_turn'
+  index?: number
+  prompt: { key: string; args: Record<string, string> }
+  /** A picture to hear, a word to read, or a word to listen for. In "Your
+   * turn", a word to read carries no sounds and no spoken word. */
+  display: { kind: 'picture' | 'word' | 'listen'; icon?: string; word?: string; graphemes?: PhonicsGrapheme[] }
+  choice_kind: 'picture' | 'letter' | 'word'
+  choices: string[]
+  /** Sounds for tapping a letter choice. Never sent in "Your turn". */
+  choice_sounds?: Record<string, string>
+}
+
+export interface PhonicsLesson {
+  lesson_id: string
+  area: 'phonics'
+  level: 'K' | '1' | '2'
+  domain: string
+  your_turn_tries: number
+  /** Whether the lesson was built for a device that can speak it. */
+  audio?: boolean
+  /** The child's practice works only by ear and the device cannot speak, so
+   * the lesson has no questions (sight words). Nothing can be recorded. */
+  needs_audio?: boolean
+  watch: (PhonicsTask & { answer: { choice: string } }) | null
+  together: PhonicsTask[]
+  your_turn: PhonicsTask[]
+}
+
+export interface PhonicsAnswerResult {
+  understood: boolean
+  correct: boolean
+  tries_left?: number
+  reveal?: { choice: string }
+  recorded?: boolean
+}
+
+async function phonicsFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${BASE}/k2-practice${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(init?.headers || {}) },
+  })
+  if (!res.ok) throw new Error(`phonics practice ${res.status}`)
+  return res.json()
+}
+
+/** `audio: false` tells the server this device cannot speak the round, so it
+ * leaves out questions that work only by ear. It never chooses a level. */
+export const fetchPhonicsLesson = (token: string, studentName: string, audio = true) =>
+  phonicsFetch<PhonicsLesson>(
+    token, `/${encodeURIComponent(studentName)}/phonics/lesson${audio ? '' : '?audio=false'}`,
+  )
+
+export const answerPhonicsTask = (
+  token: string, studentName: string, lessonId: string,
+  phase: 'together' | 'your_turn', index: number,
+  answer: { choice: string } | { spoken: string },
+) => phonicsFetch<PhonicsAnswerResult>(
+  token, `/${encodeURIComponent(studentName)}/phonics/lessons/${encodeURIComponent(lessonId)}/answers`,
+  { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
 )

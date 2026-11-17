@@ -2257,7 +2257,7 @@ provider choice, not this feature's).
   This covers any taught subject, K-8 (grades 9-12 later), from a quick
   check to a final exam, up to 50 questions, learning from an uploaded quiz,
   a previous or prep exam, or a topic.
-- **Answer keys:** maths answers are recomputed in code, every other answer
+- **Answer keys:** math answers are recomputed in code, every other answer
   is marked for the adult to check, and nothing reaches a student until the
   adult approves. The owner left the answer-key choice to the recommended
   default.
@@ -2265,7 +2265,7 @@ provider choice, not this feature's).
 - **Teachers have the same capability** (owner direction, 2026-11-03), on
   the school's own local model only, since a teacher's upload can hold
   students' work.
-- **Non-maths answers are cross-checked** by an independent second answer
+- **Non-math answers are cross-checked** by an independent second answer
   before the adult sees them.
 - **Ruling 6 is superseded.** Practice Coach is on the public demo, with
   nothing stored. Its demo routes had shipped in #773 before this was
@@ -2374,3 +2374,95 @@ This is the owner's effective v1.0 ruling. It updates the **policy** of the exis
 **Additional recommendations expressly NOT adopted:** first-period-only advance billing (versus first-and-last-month); no renewal grace; any specific refund rule; automatic or denied Community eligibility; specific offline check-in or escalation periods; specific retention/backup-expiry durations; any unreviewed parental-verification method. These remain `recommendation_not_adopted`, not hidden defaults.
 
 **Closeout rule:** policy questions settled above are not implementation completions. Preserve the original numbered entries and linked issues. Do not close implementation/security/content issues without integrated SHA, tests, evidence or proven exclusion. The exact Mac artifact and any production deployment/public distribution require separate target-specific approval.
+
+---
+
+## 40. `[PRODUCT]` K-2 practice: the choices the specification leaves open
+
+**Status:** open · needs: owner rulings on (c) to (h)
+
+**Decided (2026-11-16, owner), for (a) and (b):**
+
+- **(a)** The default is the third choice: **Bede may also choose from today's subjects.** Three limits come with it. Bede picks only from subjects already in that child's parent-set routine for today, and only from authored catalog content; it never invents a topic, word or item. The parent sees each offer (the server-written card in the conversation) and can switch it off with one tap per child. Practice sets made from uploaded quizzes still need the parent's approval before a child sees them. "Only practice sets I approved" never lets Bede choose on its own.
+- **(b)** A Your turn answer right on the first try, unaided, counts at **0.5** (`QUIZ_EVIDENCE_WEIGHT`); right on the second try, after the move is shown again, at **0.25**; an item that ended with the answer shown, or was left, counts **0** and writes no ledger row. These are product defaults the owner chose, not research-backed values. Practice answers move the estimate by their weight alone, without the early-evidence boost Bede's in-lesson check-ins get, by owner ruling 2026-11-16: from a fresh start one right first try takes a domain from 0.5 to 0.75, a second to 0.875 (secure), and one right second try to 0.625. Only right answers count, so guessing can still raise the estimate, but from a fresh record, no single practice answer can make a skill secure; two right first tries can. Step 1 applies them to the phonics estimate (`services/diagnostic/phonics.py`'s `process_evidence`, which gained a `weight` argument).
+- **Early-evidence window (owner ruling 2026-11-16, a product default).** Practice answers do not count toward it: a practice observation still moves the estimate by its weight (0.5 / 0.25, no boost) but does not advance `evidence_count`, the count that shrinks the early boost for Bede's own in-lesson check-ins and decides whether the parent's summary says "still getting to know your learner". So a check-in after any number of practice answers gets the full early boost it would have had with no practice, and the summary stays "calibrating" until enough check-ins exist, which is the honest reading of a picture built mostly from taps (`process_evidence(..., count_toward_calibration=False)`, passed only by the practice route).
+- **Replays (owner ruling 2026-11-16, a product default).** One recorded round per area per sign-in, at most three recorded answers in it. A round counts once its first answer is recorded, never when it is served, so opening a round and leaving, a lost response and "Try again", or a round that needs sound the device cannot give leaves the round unused, and two rounds answered at once record only one. After the first round "Another one" still works and records nothing (no ledger row, no observation). Enforced on the server, keyed by learner, area and a digest of the sign-in's own token claims, so a page reload or a fresh lesson id does not reset it and a new sign-in does; held in memory, so a server restart forgets it. The parent's Progress page says the extra rounds were practice only, for a K-2 child whose practice is not off, and its calibrating line names practice answers apart from Bede's lesson check-ins. The child's screen shows nothing different.
+
+**Limitations of the record (product defaults, no research behind any number here).** A child tapping at random still ends up "correct" within two tries this often:
+
+| Choices | Repeats possible | No repeats |
+| --- | --- | --- |
+| 3 | 56% | 67% |
+| 4 | 44% | 50% |
+
+In Bede as built, a wrongly tapped choice stays tappable on the second try (the screen re-enables every choice and the server accepts the same choice again as the second miss), so the "repeats possible" column is what the code does; the owner treats "no repeats" as the realistic case either way. Kindergarten and grade 1 get three choices, grade 2 four. The one-recorded-round cap bounds this to three recorded answers per area per sign-in, and the record only picks the next practice domain, never a placement or a label.
+
+Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (h) stay open below.
+
+[`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
+practice for kindergarten to grade 2: phonics, handwriting, practical math,
+spelling and copying a sentence first, then memory work. Map reading, from the
+same design, shipped in #830. The specification cannot settle these, and each
+changes what gets built:
+
+- **(a) The per-child setting's default.** *Decided above.*
+- **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Decided above.*
+- **(c) The handwriting style.** Ball-and-stick print, a continuous-stroke print, or pre-cursive. *Recommended:* ask the family in Parent Setup, defaulting to ball-and-stick, so Bede never teaches a different form from the one at home. Each style is its own stroke data.
+- **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
+- **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
+- **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
+- **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849.
+- **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.
+
+## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
+
+**Status:** open · needs: the owner's written confirmation of `main_guard_detect_not_prevent`
+
+The pre-release repair loop ([`release/REPAIR_LOOP.md`](release/REPAIR_LOOP.md))
+runs its AI roles as Claude Code sessions under the owner's account, with no
+API key and no model in CI. Those sessions push with the owner's own
+authorization, and the live ruleset has no required checks, so nothing makes
+a push to `main` impossible. The loop instead tells repair sessions to push
+only to `release-repair/<cycle>/<task>`, validates every such branch with
+trusted code, and runs a provenance audit on every push to `main` that fails
+loudly on a commit that did not arrive through a merged pull request.
+
+This option was chosen in the build session's design question. It is
+recorded here as proposed, not as a signed decision: `owner_approval_ref` is
+`null` until the owner confirms it. It does not meet the `demo-watchdog`
+repair hold's condition ("a design that cannot push to main"), so that hold
+and the event-driven merge hold stay in force. Closing this entry requires
+either the owner's confirmation or a structural guard (for example, a
+ruleset restricting updates to `main`).
+
+## 42. `[PRODUCT]` The K-2 UX baseline, and where it meets Bede as built
+
+**Status:** closed
+
+**Decided (2026-11-16, owner).** The K-2 Early Learning Pilot UX checklist,
+[`K2_UX_CHECKLIST.md`](K2_UX_CHECKLIST.md), is the design baseline for K-2
+work, alongside [`K2_PRACTICE.md`](K2_PRACTICE.md). It was written for a
+generic tablet pilot, and four of its assumptions conflicted with Bede as
+built. The owner ruled on each:
+
+1. **Deployment: both.** The school campus pilot and home families. Each
+   consent route is verified on its own: school authorization and verifiable
+   parental consent. The shared-device checks apply to both, since siblings
+   share a family tablet too.
+2. **Generative chat and the microphone are in scope.** The pilot includes
+   Bede's tutoring chat, so the checklist's own rule applies: adding them
+   reopens privacy, safety and UX review, which the chat, voice capture and
+   transcription each need before enrollment. The K-2 practice rounds stay
+   deterministic and send nothing to an AI provider.
+3. **The palette is the brand's.** Each colour role maps onto the existing
+   agnusdei.ai tokens, held to the checklist's contrast floors (4.5:1 for
+   text). No second palette.
+4. **Text resize reaches 200% app-wide.** The text-size control gains a 200%
+   step, and every screen is verified at it. The public demo's copy changes
+   only with the owner's separate sign-off.
+
+Decision entry 40's rulings (the per-child default, evidence weight,
+handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
+separate: (a) and (b) were ruled the same day, and (c) to (h) are still open. So are the checklist's own pre-enrollment decisions:
+supported devices and assistive technology, the final collected fields and
+vendors, and the pilot's learning objectives.

@@ -31,7 +31,7 @@ lesson and a parent chooses freely.
 
 | | Decision | |
 |---|---|---|
-| **D1** | **Scope: mathematics + reading/literacy.** | Maths has the full prerequisite graph; reading has the developmental sequence. Composition needs a written narration to assess at all, which turns a conversation into a battery — excluded. |
+| **D1** | **Scope: mathematics + reading/literacy.** | Math has the full prerequisite graph; reading has the developmental sequence. Composition needs a written narration to assess at all, which turns a conversation into a battery — excluded. |
 | **D2** | **Shape: woven into the first two or three ordinary lessons.** | No session is ever "the assessment". Bede probes more densely than usual while teaching throughout. Slower to converge than a dedicated sitting, and that is the price of not having a test-shaped event in the product. |
 | **D3** | **Parent output: a narrative in the session summary; results seed the normal cards silently.** | No scorecard on day one. **Conditional on D3a.** |
 | **D3a** | **The Progress page must be unified first.** | ~~It currently renders five separate `MasterySnapshot` cards plus seven more panels.~~ **Done** — `MasteryOverview.tsx` replaced them with one card, a row per area. See §10.1. |
@@ -251,7 +251,7 @@ stating where it stands in a line and opening to the detail the whole card
 used to be. D3's "seed the normal cards" is now a coherent sentence.
 
 Three properties it carries, pinned by test: **no overall score** across
-areas (averaging maths against language exposure would invent a quantity
+areas (averaging math against language exposure would invent a quantity
 that does not exist), **no ordering by how well the child is doing** (a list
 that reshuffles as a child improves is a ranking of their own subjects), and
 an area still **says plainly when it is not calibrated** rather than showing

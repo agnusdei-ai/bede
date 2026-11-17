@@ -238,7 +238,7 @@ the block the brief fixes. That is an owner decision.
 | `app_db_role` | `bede_qual_app` | Non-superuser application role. |
 | `postgres_image` | `postgres:16` | Service image. |
 | `python_version` | `3.12` | API and harness Python. |
-| `playwright_version` | `1.56.0` | Chromium driver for the virtual authenticator. |
+| `playwright_version` | `1.63.0` | Chromium driver for the virtual authenticator. |
 | `build_images` | `true` | Build the API image at the SHA and record its digest. |
 | `artifact_retention_days` | `30` | Evidence retention. |
 | `mac_package` | `none` | **G3 placeholder only.** |
@@ -247,16 +247,17 @@ Every harness setting also has a `QUAL_*` environment override in
 `scripts/qualification/qualconfig.py`, including the sample names, the
 forbidden-variable lists, the delivery markers, ports and timeouts.
 
-## Cross-platform browser journeys (Windows and Mac browsers)
+## Cross-platform browser journeys (Windows, Mac and Linux browsers, emulated phones)
 
-`.github/workflows/cross-platform-browser-journeys.yml` runs the family journeys in real browsers on real Windows and macOS runners: Google Chrome and Microsoft Edge on `windows-2022`, and Chrome, Edge and Playwright's WebKit on `macos-15`. WebKit is the engine Safari uses; it is not Safari, and results are labelled WebKit. Dispatch it with a full `candidate_sha`.
+`.github/workflows/cross-platform-browser-journeys.yml` runs the family journeys in real browsers on real Windows, macOS and Linux runners: Google Chrome, Microsoft Edge and Playwright's Firefox on `windows-2022`; Chrome, Edge, Playwright's WebKit and Firefox on `macos-15`; Chrome and Playwright's Firefox on `ubuntu-24.04`. WebKit is the engine Safari uses, not Safari, and Playwright's Firefox is the Gecko engine build, not branded Firefox; results say which. A fourth row runs a smaller set of journeys in Playwright device emulation (iPhone and iPad on WebKit, an Android phone on Chromium, portrait and landscape), labelled `emulated` and never counted as device evidence. Dispatch it with a full `candidate_sha`; pull requests that change the app UI, its dependencies or the API routes the journeys drive also run it. A run fails if any expected check is missing, not only if one fails. The physical-device checklist that this automated layer feeds is `docs/release/DEVICE_QUALIFICATION.md`.
 
-`scripts/qualification/browser_journeys/run_journeys.py` starts the real `uvicorn main:app` on the runner (file-backed SQLite), the real app build under `vite preview`, and a loopback model stub that waits 0.5 to 3 seconds per call. It seeds one sample household through the API. `journeys.cjs` then runs every browser at once against that one service, with a parent device and a child device per browser: sign-in and session start, lesson turns, a Practice Coach upload, review, approval and delivery, the child's answer, a dropped connection on the first chat attempt (the client retry), a one-second network drop while a turn is sent with the app's service worker in control (D-1, fixed in #806), an API restart while a reply is streaming, and reopening afterwards to check what was saved. Uploads, approvals and answers start within the same few milliseconds. Each child also asks for a sibling's data and must be refused. Results, per-step timings (p50, p95, max) and screenshots of any failure are uploaded as an artifact.
+`scripts/qualification/browser_journeys/run_journeys.py` starts the real `uvicorn main:app` on the runner (file-backed SQLite), the real app build under `vite preview`, and a loopback model stub that waits 0.5 to 3 seconds per call. It seeds one sample household through the API. `journeys.cjs` then runs every browser at once against that one service, with a parent device and a child device per browser: sign-in and session start, lesson turns, a Practice Coach upload, review, approval and delivery, the child's answer, a dropped connection on the first chat attempt (the client retry), a one-second network drop while a turn is sent (D-1, fixed in #806; the check also confirms no service worker is left in control, since Bede's was retired, see `docs/RELIABILITY.md`), an API restart while a reply is streaming, and reopening afterwards to check what was saved. Uploads, approvals and answers start within the same few milliseconds. Each child also asks for a sibling's data and must be refused. Results, per-step timings (p50, p95, max) and screenshots of any failure are uploaded as an artifact.
 
 What it does not cover:
 - Windows and Mac clients against one service at the same time. The two runners cannot reach each other. The physical Mac session covers that by adding a Windows laptop as a client.
 - The production server shape (the Mac candidate's containers and Postgres).
 - Real Safari, Windows Hello or Touch ID passkeys, teacher screens, or any installer.
+- Any physical iPhone, iPad or Android device, or Debian 12. Those are physical rows in `docs/release/DEVICE_QUALIFICATION.md`.
 
 ## G3 / Mac
 

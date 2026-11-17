@@ -135,6 +135,13 @@ GUARDS = {
     ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plans/{plan_id}/follow-ups'): 'require_educator',
     ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plans/{plan_id}/follow-ups'): 'require_educator',
     ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/data-day'): 'require_educator',
+    # K-2 map practice: the learner's own session (or the parent). Each route
+    # then checks require_learner_access and consent itself.
+    ('GET', '/map-practice/{student_name}/lesson'): 'require_real_user',
+    ('POST', '/map-practice/{student_name}/lessons/{lesson_id}/answers'): 'require_family_data_write',
+    # K-2 phonics practice: the same guards as map practice, for the same reason.
+    ('GET', '/k2-practice/{student_name}/phonics/lesson'): 'require_real_user',
+    ('POST', '/k2-practice/{student_name}/phonics/lessons/{lesson_id}/answers'): 'require_family_data_write',
     ('POST', '/pilot/me/learners/{learner_id}/tutoring/chat'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/tutoring/history'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',

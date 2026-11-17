@@ -522,7 +522,7 @@ class PracticeOutcomeRequest(_Strict):
 #
 # A quiz Bede drafts from an existing quiz, a prior or prep exam, or a lesson
 # description. Bede writes the questions AND the answers, so every answer
-# carries `answer_check`: "computed" when this backend worked a maths answer
+# carries `answer_check`: "computed" when this backend worked a math answer
 # out itself, "checked" when an independent second answer agreed, "verify"
 # otherwise, for the adult to check before approving.
 # Nothing here is stored; the draft lives in the request and on the screen.

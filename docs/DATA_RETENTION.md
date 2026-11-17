@@ -121,6 +121,19 @@ A drawing the child deliberately **sends** to Bede is a different thing
 and unchanged by any of this: it travels with that message and is retained
 exactly as the rest of that conversation is.
 
+### The same is true of unsent chat text
+
+What a child has typed or dictated into the chat box but not yet sent is kept
+the same way, so a reload or a crash does not take it: in the browser's own
+`sessionStorage`, in that browser tab only, under a key for that sign-in and
+that learner (the sign-in is a short hash of the session, never the session
+token itself). Nothing is sent to the API until the child presses send, and
+nothing is written to any table. It is removed the moment the message is sent,
+at sign-out (including one forced by an expired session), and when the tab
+closes. A draft more than six hours old, or stamped with an impossible time, is
+discarded rather than restored. Only one draft is kept in a tab at a time, and
+another tab or device never sees it.
+
 ## The public demo's data
 
 The demo (`docs/DEMO_HOSTING.md`) is deliberately built to hold as little
@@ -240,6 +253,10 @@ transcript, no child's words, and no task prose: `detail_enc` is
 `encrypt_json({skill_id, label, assistance, subject_area})`, the same
 derived-not-raw privacy class as narration assessments and the diagnostic
 evidence log.
+
+K-2 map practice (`docs/MAP_PRACTICE.md`) writes here too, under subject
+area `map_skills`, and stores nothing else: no new table, no map, no answer
+text, and no place.
 
 Deliberately *not* a psychometric record. The mastery tables hold an
 inference about the child; this holds an observation of an event. It is

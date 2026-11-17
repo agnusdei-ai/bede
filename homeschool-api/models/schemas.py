@@ -544,7 +544,7 @@ class SessionConfig(BaseModel):
 
     #: There is deliberately NO text-size field here. `useTextScale`/
     #: `TextSizeControl` already offer it in both the app and the demo, as a
-    #: floating control on every screen scaling the ROOT font size 87.5%-175%
+    #: floating control on every screen scaling the ROOT font size 87.5%-200%
     #: (WCAG 2.1 SC 1.4.4) — which scales every rem-based size in the product,
     #: not the handful of elements a per-student setting could reach. One
     #: shipped here in #486 without checking for the control that already
@@ -561,6 +561,17 @@ class SessionConfig(BaseModel):
     #: §5). Cannot shorten, skip, delay, or extend past the mandatory hourly
     #: break; it only makes the existing suggestion reachable.
     frequent_break_offers: bool = False
+
+    #: K-2 practice (docs/K2_PRACTICE.md §4): which practice rounds Bede may
+    #: offer this child. "off": none. "approved_only": only practice sets the
+    #: parent approved (Practice Coach), so Bede never chooses on its own.
+    #: "todays_subjects": Bede may also offer a round from authored content in
+    #: a subject already in today's routine. The default is the owner's ruling
+    #: of 2026-11-16 (docs/DECISIONS.md entry 40(a)). Parent-set only; it is
+    #: checked when the prompt is built and again when the tool runs
+    #: (services/ai_service.py's _practice_allowed). Uploaded-quiz practice
+    #: still needs the parent's approval whatever this says.
+    practice_offers: Literal["off", "approved_only", "todays_subjects"] = "todays_subjects"
     # Parent's chosen starting point (see CompanionMode) — how much Bede
     # drives the day versus defers to the family's own books. Purely a
     # behavioral framing layered into the prompt (_companion_mode_note);
@@ -781,6 +792,12 @@ class TutorRequest(BaseModel):
     # rather than the student. Absent from older clients and the sandbox,
     # in which case there is simply nothing to accumulate into.
     session_id: Optional[str] = Field(default=None, max_length=64)
+    # Minted client-side once per child turn (services/api.ts's
+    # streamTutorChat) and reused by every retry of that same turn, so the
+    # server lets exactly one attempt record the child's work — see
+    # services/turn_replay.py. Absent from older clients, the sandbox and the
+    # demo, in which case every attempt records, as before.
+    turn_id: Optional[str] = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     # Seconds left in THIS subject's study block, from the child's own
     # running timer (gradeTimer.ts's getPhase().remainingSecs, which
     # TutorSession.tsx already computes every second to paint the
@@ -1207,6 +1224,9 @@ class MasteryProfileSummary(BaseModel):
     subject_area:   str = "mathematics"
     evidence_count: int
     calibration:    bool                       # still in cold-start widening phase
+    # Recorded K-2 practice answers in this area (phonics only). They move the
+    # estimate but are not counted in evidence_count; 0 everywhere else.
+    practice_answers: int = 0
     domains:        List[DomainMasteryView]
     gaps:           List[SkillMasteryView]     # level == gap, worst first
     next_steps:     List[SkillMasteryView]     # KST fringe — learnable now

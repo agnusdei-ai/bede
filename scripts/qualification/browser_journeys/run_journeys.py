@@ -13,13 +13,29 @@ Sample data only. No commercial model, no mail, no real learner.
 Exits non-zero if any journey check fails.
 
     python run_journeys.py --sha <40-hex> --browsers chrome,msedge --out <dir>
+    python run_journeys.py --sha <40-hex> --profile mobile --browsers webkit,chromium --out <dir>
+
+The boundary profile drives known failure classes at their edge (open
+redirect, wrong password, rejected token, back after logout, oversized and
+non-image uploads, double-tapped approval, blank and over-long messages, a
+child on parent pages, 200% text, lockout with recovery still reachable).
+
+The mobile profile runs Playwright DEVICE EMULATION (iPhone and iPad on
+WebKit, an Android phone on Chromium, each portrait and landscape). It is
+labelled 'emulated' in the results and is never evidence about a physical
+device; see docs/release/DEVICE_QUALIFICATION.md.
+
+The run fails unless results.json exists and records every expected check:
+a check that never ran is not a pass.
 """
 from __future__ import annotations
 
 import argparse
+import atexit
 import hashlib
 import json
 import os
+import platform
 import re
 import secrets
 import shutil
@@ -37,7 +53,54 @@ API_DIR = REPO / "homeschool-api"
 UI_DIR = REPO / "homeschool-tutor"
 API_PORT, UI_PORT, STUB_PORT = 18402, 18400, 18401
 BROWSERS = {"chrome", "msedge", "webkit", "chromium", "firefox"}
+PROFILES = {"desktop", "mobile", "boundary"}
+# Playwright device descriptors per engine. Each runs on the engine its
+# descriptor names: iPhone/iPad on WebKit, the Android phone on Chromium.
+MOBILE_DEVICES = {
+    "webkit": ["iPhone 15", "iPhone 15 landscape", "iPad Pro 11", "iPad Pro 11 landscape"],
+    "chromium": ["Pixel 7", "Pixel 7 landscape"],
+}
+# Sample learner PINs, each strong under core/pin_policy.pin_is_strong and
+# none a published example (checked when they were chosen).
+SAMPLE_PINS = ["582916", "694217", "815372", "927481", "361948", "472915", "538164", "619382"]
 EVENTS: list[dict] = []
+
+
+def own_group() -> dict:
+    """Popen options putting a child in its own process group, so stopping it
+    stops what it started too. `npx vite preview` is npx starting node: a
+    signal to npx alone left node holding the port, and the next run failed
+    with 'Port 18400 is already in use'."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def stop_all(procs) -> None:
+    """Stop every process started with own_group(), and its children.
+    Idempotent: a process that already exited is skipped."""
+    live = [p for p in procs if p and p.poll() is None]
+    for p in live:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+        else:
+            try:
+                os.killpg(p.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+    # Windows cannot delete a file another process still has open, so wait
+    # for the processes to exit before the database is removed.
+    for p in live:
+        try:
+            p.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            if os.name != "nt":
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            p.kill()
+            p.wait()
 
 
 def ev(**k):
@@ -87,6 +150,13 @@ def make_fixtures(out: Path) -> Path:
     img.save(fx / "quiz.png")
     img.save(fx / "quiz.pdf", "PDF", resolution=150)
     img.convert("RGB").save(fx / "quiz.jpg", "JPEG", quality=85)
+    # Boundary fixtures: just over the 25 MB per-file limit (refused in the
+    # browser before anything is sent), and text named .png (refused by the
+    # server's content check on the real bytes, never read).
+    with (fx / "oversize.jpg").open("wb") as f:
+        f.write(b"\xff\xd8\xff\xe0")
+        f.truncate(25 * 1024 * 1024 + 1024)
+    (fx / "not-an-image.png").write_text("This is plain text with an image file name.\n" * 50)
     return fx
 
 
@@ -102,6 +172,7 @@ def main() -> int:
     ap.add_argument("--sha", required=True)
     ap.add_argument("--browsers", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--profile", default="desktop", choices=sorted(PROFILES))
     a = ap.parse_args()
     if not re.fullmatch(r"[0-9a-f]{40}", a.sha):
         raise SystemExit("--sha must be a 40-character lowercase commit SHA")
@@ -111,14 +182,24 @@ def main() -> int:
     browsers = [b.strip() for b in a.browsers.split(",") if b.strip()]
     if not browsers or set(browsers) - BROWSERS:
         raise SystemExit(f"unknown browser in {browsers}")
+    devices: list[str] = []
+    if a.profile == "mobile":
+        if set(browsers) - set(MOBILE_DEVICES):
+            raise SystemExit(f"the mobile profile runs on {sorted(MOBILE_DEVICES)} only, got {browsers}")
+        devices = [d for b in browsers for d in MOBILE_DEVICES[b]]
+    slots = len(devices) if devices else len(browsers)
+    if a.profile == "boundary":
+        slots = max(slots, 2)  # a child needs a sibling to be refused
+    if slots > len(SAMPLE_PINS):
+        raise SystemExit(f"{slots} learners requested, {len(SAMPLE_PINS)} sample PINs available")
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     (out / "ctl").mkdir(exist_ok=True)
     fixtures = make_fixtures(out)
 
-    # One learner per browser; the household parent and every child sign in at once.
-    learners = {f"Sample Learner {chr(65 + i)}": pin for i, pin in
-                enumerate(["582916", "694217", "815372", "927481", "361948"][:len(browsers)])}
+    # One learner per browser (or per emulated device); the household parent
+    # and every child sign in at once.
+    learners = {f"Sample Learner {chr(65 + i)}": pin for i, pin in enumerate(SAMPLE_PINS[:slots])}
     parent_password = "sample-" + secrets.token_hex(12)
     env = {k: v for k, v in os.environ.items()
            if not k.endswith("_API_KEY") and not k.startswith(("STRIPE_", "AZURE_"))}
@@ -135,17 +216,20 @@ def main() -> int:
         CORS_ORIGINS=f"http://127.0.0.1:{UI_PORT}", PYTHONUTF8="1",
     )
     procs: list[subprocess.Popen] = []
-    stub = subprocess.Popen([sys.executable, str(HERE / "model_stub.py"), str(STUB_PORT), str(out)],
-                            stdout=(out / "stub.log").open("ab"), stderr=subprocess.STDOUT)
-    procs.append(stub)
     api_state = {"proc": None, "starts": 0}
+    # Registered before anything starts, so a failure while seeding (before
+    # the try below) still stops every server.
+    atexit.register(lambda: stop_all([api_state["proc"], *procs]))
+    stub = subprocess.Popen([sys.executable, str(HERE / "model_stub.py"), str(STUB_PORT), str(out)],
+                            stdout=(out / "stub.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
+    procs.append(stub)
 
     def start_api():
         api_state["starts"] += 1
         api_state["proc"] = subprocess.Popen(
             [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", str(API_PORT),
              "--workers", "1", "--no-access-log"], cwd=API_DIR, env=env,
-            stdout=(out / "api.log").open("ab"), stderr=subprocess.STDOUT)
+            stdout=(out / "api.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
         wait_http(f"http://127.0.0.1:{API_PORT}/health", api_state["proc"], "uvicorn main:app")
 
     t0 = time.time()
@@ -174,18 +258,20 @@ def main() -> int:
                     "rewrite: (p) => p.replace(/^\\/api/, '')}}}}\n"
                     % (json.dumps(UI_DIR.as_posix()), UI_PORT, json.dumps(f"http://127.0.0.1:{API_PORT}")))
     preview = subprocess.Popen([npx(), "vite", "preview", "--config", str(conf)], cwd=UI_DIR,
-                               stdout=(out / "preview.log").open("ab"), stderr=subprocess.STDOUT)
+                               stdout=(out / "preview.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
     procs.append(preview)
     wait_http(f"http://127.0.0.1:{UI_PORT}/", preview, "vite preview", timeout=90)
 
     fixture = {"ui": f"http://127.0.0.1:{UI_PORT}", "api": f"http://127.0.0.1:{API_PORT}",
                "learners": learners, "browsers": browsers, "fixtures": str(fixtures),
                "out": str(out), "ctl": str(out / "ctl"),
-               "os": sys.platform, "sha": a.sha}
+               "os": sys.platform, "os_detail": platform.platform(), "sha": a.sha,
+               "profile": a.profile, "devices": devices}
     (out / "fixture.json").write_text(json.dumps(fixture))
     load_env = dict(env, FIX=str(out / "fixture.json"), JOURNEY_PARENT_PASSWORD=parent_password)
     load = subprocess.Popen(["node", str(HERE / "journeys.cjs")], env=load_env,
-                            stdout=(out / "journeys.log").open("ab"), stderr=subprocess.STDOUT)
+                            stdout=(out / "journeys.log").open("ab"), stderr=subprocess.STDOUT, **own_group())
+    procs.append(load)
     rc = None
     try:
         while rc is None:
@@ -206,16 +292,7 @@ def main() -> int:
     finally:
         ev(e="journeys_exit", rc=rc)
         (out / "events.json").write_text(json.dumps(EVENTS, indent=1))
-        live = [p for p in [api_state["proc"], *procs] if p and p.poll() is None]
-        for p in live:
-            p.send_signal(signal.SIGTERM) if os.name != "nt" else p.terminate()
-        # Windows cannot delete a file another process still has open, so
-        # wait for the processes to exit before removing the database.
-        for p in live:
-            try:
-                p.wait(timeout=20)
-            except subprocess.TimeoutExpired:
-                p.kill()
+        stop_all([api_state["proc"], *procs])
         try:
             (out / "journeys.db").unlink(missing_ok=True)
         except PermissionError as exc:
@@ -225,9 +302,31 @@ def main() -> int:
     text = (out / "journeys.log").read_text(encoding="utf-8", errors="replace")
     sys.stdout.buffer.write(text.encode(sys.stdout.encoding or "utf-8", errors="replace"))
     sys.stdout.flush()
+    rc = rc or completeness_failure(out)
     if rc:
         print_log_tails(out)
     return rc or 0
+
+
+def completeness_failure(out: Path) -> int:
+    """Non-zero unless results.json exists, every expected check is present,
+    and nothing failed. Guards the case where the journeys process exits 0
+    without having produced complete evidence."""
+    f = out / "results.json"
+    if not f.exists():
+        print("FAIL no results.json was written; the run produced no evidence", flush=True)
+        return 1
+    summary = json.loads(f.read_text(encoding="utf-8")).get("summary", {})
+    problems = []
+    if summary.get("missing_checks"):
+        problems.append(f"{len(summary['missing_checks'])} expected checks never ran")
+    if not summary.get("expected_checks"):
+        problems.append("no expected checks were declared")
+    if summary.get("failed_checks") or summary.get("failed_steps"):
+        problems.append("failed checks or steps")
+    for p in problems:
+        print(f"FAIL {p}", flush=True)
+    return 1 if problems else 0
 
 
 if __name__ == "__main__":

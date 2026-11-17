@@ -6,6 +6,9 @@ import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/ses
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
 import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import MapPractice from './MapPractice'
+import K2PhonicsPractice from './K2PhonicsPractice'
+import { hasLocalVoice, speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -19,6 +22,7 @@ import { dismissKeyboard } from '../hooks/dismissKeyboard'
 import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
 import { displayNameOf } from '../utils/displayName'
+import { draftOwnerFor, loadDraft, saveDraft } from '../utils/chatDraft'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -52,6 +56,18 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 // come back and press it.
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
+/** The most a child's chat message may hold: TutorRequest.child_message's
+ *  max_length in homeschool-api/models/schemas.py. A test reads that file and
+ *  fails if the two disagree. */
+export const MAX_CHILD_MESSAGE_CHARS = 2000
+
+/** Identifies the session a lesson turn belongs to: who is signed in, which
+ *  learner, and which sitting. Read from the store at the moment it is asked. */
+function turnOwnerKey(): string {
+  const { token, sessionConfig, sessionId } = useSessionStore.getState()
+  return `${token ?? ''}|${sessionConfig?.student_name ?? ''}|${sessionId ?? ''}`
+}
+
 export default function SocraticChat({
   breakActive = false,
   gradeStage,
@@ -66,8 +82,25 @@ export default function SocraticChat({
   // immediately after a tick still reads the tick's own value.
   const remainingSecsRef = useRef<number | null>(remainingSecs)
   remainingSecsRef.current = remainingSecs
-  const [input, setInput] = useState('')
+  // What the child has typed or dictated but not sent survives a reload or a
+  // crash (utils/chatDraft.ts). The text is held together with the owner it
+  // belongs to (who is signed in, and which learner), so that when either
+  // changes while this chat stays open, the previous child's words are never
+  // shown in the box or saved under the next one. Kept across a change of
+  // subject, like the box itself. The owner is worked out below the store read.
+  const [draft, setDraft] = useState(() => {
+    const st = useSessionStore.getState()
+    const owner = draftOwnerFor(st.role, st.token, st.sessionConfig?.student_name)
+    return { owner, text: loadDraft(owner) }
+  })
+  const setInput = useCallback((next: string | ((prev: string) => string)) => {
+    setDraft((d) => ({ owner: d.owner, text: typeof next === 'function' ? next(d.text) : next }))
+  }, [])
   const [showCanvas, setShowCanvas] = useState(false)
+  // Map practice (K-2) opens over the chat the same way the canvas does.
+  const [showMapPractice, setShowMapPractice] = useState(false)
+  // K-2 phonics practice, opened by Bede's invite_practice card (area "phonics").
+  const [showPhonics, setShowPhonics] = useState(false)
   const { bubble } = useChatTheme()
   const [pendingDrawing, setPendingDrawing] = useState<string | null>(null)
   const [uploadingNarration, setUploadingNarration] = useState(false)
@@ -80,6 +113,18 @@ export default function SocraticChat({
   const [pendingPdfName, setPendingPdfName] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  // A turn still in flight ends with the chat. Without this, a turn (and its
+  // up-to-25-second retry loop in services/api.ts) outlived the screen: it
+  // kept reading after a logout or a move to another page, and wrote its
+  // reply into whatever session the store held by then.
+  // Deferred one tick and cancelled on a remount, because React's development
+  // StrictMode unmounts and remounts once straight away, and aborting there
+  // would cancel the lesson's opening message for good.
+  const unmountAbortRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (unmountAbortRef.current) clearTimeout(unmountAbortRef.current)
+    return () => { unmountAbortRef.current = setTimeout(() => abortRef.current?.abort(), 0) }
+  }, [])
   const advanceSubjectRef = useRef(false)  // set when Bede signals mastery/frustration mid-stream
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const consecutiveContinuesRef = useRef(0)
@@ -87,7 +132,7 @@ export default function SocraticChat({
   // fire time rather than closing over it — avoids re-arming the timer on
   // every keystroke while still correctly skipping a child mid-typing.
   const inputRef = useRef('')
-  useEffect(() => { inputRef.current = input }, [input])
+  useEffect(() => { inputRef.current = draft.text }, [draft.text])
 
   // ── Voice input: tap to speak ─────────────────────────────────────────────
   // One tap starts listening for a single utterance; a finished transcript
@@ -144,6 +189,15 @@ export default function SocraticChat({
     nextSubject,
     setSessionConfig,
   } = useSessionStore()
+  const draftOwner = draftOwnerFor(role, token, sessionConfig?.student_name)
+  if (draft.owner !== draftOwner) {
+    // A different learner, or a different sign-in, with this chat still open:
+    // switch to that owner's own draft before anything is shown or saved.
+    setDraft({ owner: draftOwner, text: loadDraft(draftOwner) })
+  }
+  const input = draft.owner === draftOwner ? draft.text : ''
+  // Saved under the owner the text belongs to, never the one now signed in.
+  useEffect(() => { saveDraft(draft.owner, draft.text) }, [draft])
   // Approved practice shows only while Practice Coach is on for this install.
   const practiceCoachEnabled = usePracticeCoachEnabled(role === 'child' ? token : null)
 
@@ -152,6 +206,20 @@ export default function SocraticChat({
     speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
     enabled: ttsEnabled, isSupported: ttsSupported,
   } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
+  // A phonics round speaks on the device; Bede's chat voice stops when it
+  // opens, so two voices never talk over each other.
+  useEffect(() => { if (showPhonics) stopSpeech() }, [showPhonics, stopSpeech])
+  // Whether this device has an installed voice for the session's language.
+  // Without one (or with Bede's voice off) the round is shown without speech
+  // and the server leaves out questions that work only by ear.
+  const [deviceVoice, setDeviceVoice] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!showPhonics) return
+    let live = true
+    setDeviceVoice(null)
+    hasLocalVoice().then((ok) => { if (live) setDeviceVoice(ok) })
+    return () => { live = false }
+  }, [showPhonics])
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -397,7 +465,7 @@ export default function SocraticChat({
   })
   useEffect(() => {
     if (isContinuous || !sttSupported || !awaitingChildTurn) return
-    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || showPhonics || uploadingNarration || pendingVoiceTranscript) return
     prewarmRef.current()
     // Cleanup fires the instant awaitingChildTurn (or one of the other
     // guards) goes false again — either the child pressed
@@ -406,10 +474,27 @@ export default function SocraticChat({
     // safe no-op) or the turn ended some other way without a press (a real
     // prewarmed stream that genuinely needs releasing).
     return () => cancelPrewarmRef.current()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, showPhonics, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
+
+  // A change of learner or session while this screen stays up also ends the
+  // turn in flight, and lets the new session have its own opening message.
+  const turnOwner = turnOwnerKey()
+  const turnOwnerRef = useRef(turnOwner)
+  useEffect(() => {
+    if (turnOwnerRef.current === turnOwner) return
+    turnOwnerRef.current = turnOwner
+    abortRef.current?.abort()
+    openerFiredRef.current.clear()
+    // The turn just cut off no longer clears these itself (it is not this
+    // session's turn any more), and a stale "replying" mark would block the
+    // new session's opening message.
+    advanceSubjectRef.current = false
+    setStreaming(false)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnOwner])
 
   const clearInactivityTimer = useCallback(() => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current)
@@ -430,6 +515,9 @@ export default function SocraticChat({
     // Everything this turn has already said (text + rendered cards) — the
     // duplicate-suppression reference for isDuplicateUtterance below.
     let turnText = ''
+    // A turn that opened a phonics round is not read aloud at its end: the
+    // round speaks on the device, and Bede's voice must not talk over it.
+    let openedPracticeRound = false
     // Pictures this turn has already rendered. The server is the real fix
     // for repeated cards (see homeschool-api's shown_aid_ids); this is the
     // same guarantee restated where the rendering happens, since `tool`
@@ -440,12 +528,18 @@ export default function SocraticChat({
     // study is look → put away → narrate, so re-showing a picture in a
     // LATER turn is the method working, not a repeat to suppress.
     const shownAidIds = new Set<string>()
+    // Whose turn this is. Once the session in the store is a different one
+    // (a logout, another learner), this turn writes nothing more: its reply,
+    // its error and its "finished" mark belong to a session that has gone.
+    const owner = turnOwnerKey()
+    const mine = () => turnOwnerKey() === owner
     const flush = () => {
       if (pendingText.trim()) speechSegments.push(pendingText)
       pendingText = ''
     }
     try {
       for await (const chunk of stream) {
+        if (!mine()) return
         if (chunk.type === 'text' && chunk.content) {
           appendAssistantChunk(chunk.content)
           pendingText += chunk.content
@@ -455,6 +549,11 @@ export default function SocraticChat({
           // Side effects (opening the canvas) still fire even for a card we
           // suppress — only the duplicated words are dropped, not the action.
           if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
+          if (chunk.tool === 'invite_map_practice') setShowMapPractice(true)
+          if (chunk.tool === 'invite_practice' && chunk.area === 'phonics') {
+            openedPracticeRound = true
+            setShowPhonics(true)
+          }
           if (isDuplicateUtterance(chunk.content, turnText)) {
             // The turn already said this — don't render or speak it twice.
             continue
@@ -478,9 +577,9 @@ export default function SocraticChat({
         }
       }
       flush()
-      if (speechSegments.length) speak(speechSegments.join(' '))
+      if (speechSegments.length && mine() && !openedPracticeRound) speak(speechSegments.join(' '))
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
+      if (mine() && err instanceof Error && err.name !== 'AbortError') {
         // A dropped connection reaches here as Safari's "Load failed" or
         // Chrome's "Failed to fetch" — browser-internal wording a child
         // cannot act on, and which reads as though Bede itself broke. By
@@ -499,8 +598,10 @@ export default function SocraticChat({
         )
       }
     } finally {
-      finalizeAssistantMessage()
-      setStreaming(false)
+      if (mine()) {
+        finalizeAssistantMessage()
+        setStreaming(false)
+      }
       // advanceSubjectRef, if set, is picked up by the turn-completion effect
       // below once streaming AND any queued speech have both finished.
     }
@@ -554,7 +655,7 @@ export default function SocraticChat({
     // Don't interrupt a child who's mid-drawing, has a drawing ready to
     // send, is uploading narration, or has unsent text sitting in the box —
     // the whole point is to fire only once they've genuinely gone quiet.
-    if (showCanvas || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
+    if (showCanvas || showMapPractice || showPhonics || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
     if (consecutiveContinuesRef.current >= MAX_CONSECUTIVE_CONTINUES) return
     consecutiveContinuesRef.current += 1
 
@@ -581,7 +682,7 @@ export default function SocraticChat({
       previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
-  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, pendingDrawing, uploadingNarration])
+  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, showPhonics, pendingDrawing, uploadingNarration])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -591,7 +692,7 @@ export default function SocraticChat({
     consecutiveContinuesRef.current = 0  // fresh subject, fresh idle-continue budget
     sendOpener()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSubject, !!sessionConfig, !!token])
+  }, [currentSubject, !!sessionConfig, !!token, turnOwner])
 
   // The live interim transcript, the "transcribing…" indicator, and the
   // voice-review confirm/cancel card (below) are all rendered inside this
@@ -655,6 +756,17 @@ export default function SocraticChat({
     const msg = (overrideMsg ?? input).trim()
     if ((!msg && !pendingDrawing) || isStreaming || !token || !sessionConfig) return
 
+    // Longer than the server accepts (TutorRequest.child_message). Sent, it
+    // came back refused and reached the child as "we lost the connection",
+    // which is untrue and invites resending the same message forever. Keep
+    // the words in the box, say plainly what to do, and send nothing. Covers
+    // a long voice transcript too, which arrives as overrideMsg.
+    if ((pendingDrawing ? `${msg} [✏️ Drawing]` : msg).length > MAX_CHILD_MESSAGE_CHARS) {
+      setInput(msg)
+      addToolMessage('error', `⚠️ ${t('chat.messageTooLong', { max: MAX_CHILD_MESSAGE_CHARS })}`)
+      return
+    }
+
     stopSpeech()      // stop any ongoing speech when child replies
     stopListening()
     setInput('')
@@ -690,7 +802,7 @@ export default function SocraticChat({
     await consumeTurnStream(stream)
   }, [
     input, pendingDrawing, isStreaming, token, sessionConfig, currentSubject, subjectStart, displayMessages,
-    timeOfDay, localDate, sessionId, addUserMessage, stopSpeech, stopListening, consumeTurnStream,
+    timeOfDay, localDate, sessionId, addUserMessage, addToolMessage, t, stopSpeech, stopListening, consumeTurnStream,
   ])
 
   // Keeps sendRef (declared above useHybridVoiceInput, before send() exists)
@@ -791,13 +903,13 @@ export default function SocraticChat({
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return
-    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || showMapPractice || showPhonics || uploadingNarration || pendingVoiceTranscript) return
     const now = Date.now()
     if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
     lastAutoStartRef.current = now
     logDebug('continuous voice mode — auto-starting listening for the child\'s turn')
     start()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript, start])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, showPhonics, uploadingNarration, pendingVoiceTranscript, start])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
@@ -855,13 +967,14 @@ export default function SocraticChat({
         <PracticeDelivery
           token={token}
           studentName={sessionConfig.student_name}
+          busy={isStreaming}
           onAnswer={(prompt, response) => send(`${t('practiceDelivery.questionContext', { prompt })}\n${t('practiceDelivery.answerContext', { response })}`)}
         />
       )}
       {/* Messages */}
-      <div className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
+      <div data-chat-messages className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 ${fontClass}`}>
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} />
+          <MessageBubble key={msg.id} msg={msg} studentName={displayNameOf(sessionConfig) || t('chat.youFallback')} bubbleClass={bubble.className} onOpenMap={() => setShowMapPractice(true)} onOpenPhonics={() => setShowPhonics(true)} />
         ))}
         {isStreaming &&
           displayMessages.find((m) => m.id === 'streaming-response')?.content === '' && (
@@ -1090,6 +1203,32 @@ export default function SocraticChat({
         </p>
       </div>
 
+      {/* Map practice overlay (K-2). Nothing in it is kept after it closes. */}
+      {showMapPractice && token && sessionConfig?.student_name && (
+        <MapPractice
+          token={token}
+          studentName={sessionConfig.student_name}
+          onClose={() => setShowMapPractice(false)}
+          onSpeak={speak}
+        />
+      )}
+
+      {/* K-2 phonics practice overlay. Built and checked by the server, nothing
+          sent to an AI provider, nothing kept after it closes. */}
+      {showPhonics && token && sessionConfig?.student_name && (
+        <K2PhonicsPractice
+          token={token}
+          studentName={sessionConfig.student_name}
+          onClose={() => { stopOnDeviceSpeech(); setShowPhonics(false) }}
+          // On-device speech only: nothing from a round may reach an AI
+          // provider, and Bede's ordinary voice goes through /tutor/speak to
+          // a cloud speech service (docs/K2_PRACTICE.md §6). Silent, as the
+          // chat is, when the narration toggle is off.
+          onSpeak={ttsEnabled ? speakOnDevice : undefined}
+          canSpeak={ttsEnabled ? deviceVoice : false}
+        />
+      )}
+
       {/* Handwriting overlay */}
       {showCanvas && (
         <HandwritingCanvas
@@ -1124,9 +1263,14 @@ interface MsgProps {
   // one hook instance at the top of SocraticChat rather than re-subscribing
   // in every bubble.
   bubbleClass: string
+  /** Reopens map practice from its card. */
+  onOpenMap?: () => void
+  /** Reopens phonics practice from its card. */
+  onOpenPhonics?: () => void
 }
 
-function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
+function MessageBubble({ msg, studentName, bubbleClass, onOpenMap, onOpenPhonics }: MsgProps) {
+  const { t } = useTranslation()
   if (msg.role === 'system') {
     return (
       <div className="flex justify-center">
@@ -1146,6 +1290,8 @@ function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
     const toolAccent: Record<string, string> = {
       request_narration:   'border-l-[3px] border-amber-400 bg-amber-50/70',
       invite_handwriting:  'border-l-[3px] border-purple-400 bg-purple-50/70',
+      invite_map_practice: 'border-l-[3px] border-sage-400 bg-sage-50/70',
+      invite_practice:     'border-l-[3px] border-sage-400 bg-sage-50/70',
       offer_socratic_hint: 'border-l-[3px] border-navy-300 bg-navy-50/70',
       celebrate_discovery: 'border-l-[3px] border-emerald-400 bg-gradient-to-r from-emerald-50 to-emerald-50/40 shadow-sm shadow-emerald-100',
       connect_to_faith:    'border-l-[3px] border-gold-400 bg-gold-50/70',
@@ -1156,6 +1302,22 @@ function MessageBubble({ msg, studentName, bubbleClass }: MsgProps) {
       <div className={`pl-3 pr-4 py-2.5 rounded-r-xl text-sm leading-[var(--bede-line-height,1.625)] text-gray-700 ${isCelebration ? 'animate-celebrate' : 'animate-slide-up'} ${cls}`}>
         {isCelebration && <Sparkles size={14} className="inline-block mr-1.5 mb-0.5 text-emerald-500" />}
         {renderEmphasis(msg.content)}
+        {msg.tool === 'invite_practice' && onOpenPhonics && (
+          <button
+            type="button" onClick={onOpenPhonics}
+            className="mt-2 block min-h-14 rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600"
+          >
+            {t('k2Phonics.open')}
+          </button>
+        )}
+        {msg.tool === 'invite_map_practice' && onOpenMap && (
+          <button
+            type="button" onClick={onOpenMap}
+            className="mt-2 block min-h-[44px] rounded-lg bg-navy-700 px-4 py-2 text-sm font-medium text-white hover:bg-navy-600"
+          >
+            {t('mapPractice.open')}
+          </button>
+        )}
       </div>
     )
   }

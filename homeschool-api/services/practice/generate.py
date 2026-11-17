@@ -9,8 +9,8 @@ and kind, from a quick ad-hoc check to a final exam.
 Bede writes the questions and the answers, so the model's output is checked
 in code before anyone sees it:
 
-* **Maths answers are recomputed.** Any question written as an arithmetic
-  expression is worked out with the maths pack's exact evaluator; a wrong
+* **Math answers are recomputed.** Any question written as an arithmetic
+  expression is worked out with the math pack's exact evaluator; a wrong
   model answer is replaced and the question marked ``computed``.
 * **Every other answer is answered again, independently.** A second call
   sees the questions and the source material but not the first answers.

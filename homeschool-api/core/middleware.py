@@ -86,6 +86,17 @@ _max_window_seen = 60.0
 # as the real new-attempt signal. See the dispatch() comment below.
 _VOICE_STREAM_SESSION_PATH = re.compile(r"/voice/stream/[^/]+/(chunk|finish|events)$")
 
+# Read-only status checks under /auth/ that every page load makes: the
+# session check AppShell runs on every mount, the login screen's language
+# and educator-mode lookups, and the elevation status. They prove nothing
+# about a credential, so they belong in the general "api" bucket, not the
+# 10-a-minute "auth" bucket that exists to slow password guessing. Before
+# this, a child who signed in and reloaded twice inside a minute was sent
+# back to sign-in by a 429 on their own session check (found by the
+# capacity smoke run, docs/CAPACITY.md). GET only: every credential attempt
+# (POST /auth/login, /auth/elevate, /auth/educator-login, ...) stays in "auth".
+_AUTH_READ_ONLY_STATUS_PATH = re.compile(r"/auth/(validate|locales|educator-mode|elevate)$")
+
 
 def _sweep_idle_windows(now: float) -> None:
     """Drop (ip, bucket) entries with no live timestamps left.
@@ -322,6 +333,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # exhausted the budget the parent's very next recovery attempt
             # needed.
             bucket, limit = "auth_recovery", settings.rate_limit_account_recovery_per_minute
+        elif request.method == "GET" and _AUTH_READ_ONLY_STATUS_PATH.search(path.rstrip("/")):
+            bucket, limit = "api", settings.rate_limit_api_per_minute
         elif "/auth/" in path:
             bucket, limit = "auth", settings.rate_limit_auth_per_minute
         elif _VOICE_STREAM_SESSION_PATH.search(path):

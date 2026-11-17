@@ -39,7 +39,7 @@ function readFile(file: File): Promise<string> {
 
 /**
  * Make a new quiz or exam from an existing one. Bede drafts the questions and
- * answers; maths answers are worked out again on the server and everything
+ * answers; math answers are worked out again on the server and everything
  * else is marked for the adult to check. Nothing reaches the student until
  * the adult approves it here.
  */

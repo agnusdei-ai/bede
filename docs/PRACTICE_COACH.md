@@ -374,7 +374,7 @@ Register a new pack with one line in `packs/__init__.py`.
 **Picture questions, in every subject (`services/practice/diagrams.py`,
 `Diagram.tsx`).** When a question's picture is the question, it carries a
 `diagram`: one of twenty kinds holding only numbers and short labels
-(`models/practice.py`, `extra="forbid"`). For maths: fraction bar or circle,
+(`models/practice.py`, `extra="forbid"`). For math: fraction bar or circle,
 array, base-ten blocks, clock, rectangle, right triangle, number line, bar
 graph, coordinate plane, things laid along a ruler (cm or inches, ends on
 whole or half units: "how long", "total length", "how much shorter" are
@@ -534,8 +534,8 @@ the request model accepts K-8 only.
 Bede writes both questions and answers, so the draft is checked in code
 before anyone sees it:
 
-- **Maths answers are recomputed.** A question written as an arithmetic
-  expression is worked out with the maths pack's exact evaluator, and a
+- **Math answers are recomputed.** A question written as an arithmetic
+  expression is worked out with the math pack's exact evaluator, and a
   wrong model answer is replaced. These answers show **Worked out**.
 - **Every other answer is answered a second time, independently.** The
   second answer is written without seeing the first, from the questions
@@ -633,7 +633,7 @@ key, and then score a student's completed work against it. This is the card
    Only the first counts as approved. The other two, and anything Bede was
    unsure of reading, are highlighted and count only after the teacher
    presses **Looks right**, the same step the Practice Coach uses for a
-   flagged reading. A suggested maths answer is worked out with the maths
+   flagged reading. A suggested math answer is worked out with the math
    pack's exact evaluator; when a key read from the page disagrees with the
    computed answer, Bede flags it and leaves the teacher's key in place.
    **Check and approve the key** asks the server, which refuses while
@@ -648,7 +648,7 @@ key, and then score a student's completed work against it. This is the card
    copies what the student wrote rather than what the key says. Each answer
    is then compared with the approved key **in code**:
    - multiple choice and true or false, by the choice's text or its letter;
-   - numbers exactly, with the maths pack's evaluator (`1/2` and `0.5` agree);
+   - numbers exactly, with the math pack's evaluator (`1/2` and `0.5` agree);
    - short answers with case, accents and punctuation ignored, against the
      answer and the teacher's other accepted answers.
 
@@ -716,8 +716,8 @@ only: on an install with no class roster the save step is not shown.
   and stops counting. A result can be corrected once; correct the newer one
   after that.
 - **Progress.** The student's quiz history lists every result, corrections
-  included (`GET .../quiz-results`). Maths questions Bede can read as a plain
-  problem (`7 + 5`, `36 - 19`, `3/4 + 1/4`) also count toward the maths
+  included (`GET .../quiz-results`). Math questions Bede can read as a plain
+  problem (`7 + 5`, `36 - 19`, `3/4 + 1/4`) also count toward the math
   estimate at the marked-quiz weight, with each estimate listing the result
   and question it came from (`GET .../quiz-mastery`). Word problems and
   other subjects stay in the history and move nothing.
@@ -813,7 +813,7 @@ confirmed after review). The rules:
   claim is a primary-key insert committed before anything is written, so two
   confirmations racing each other cannot both count it. Editing a reading
   after it was counted does not count it again.
-- **Only where the skill is clear.** Maths: `packs.math.skill_for` maps a
+- **Only where the skill is clear.** Math: `packs.math.skill_for` maps a
   problem to one `skill_map` id from the problem's own shape (operation, size,
   fractions, decimals, negatives, several operations, or the picture kind),
   and answers `None` for a word problem, a variable or a sum past 100. Spelling
@@ -823,7 +823,7 @@ confirmed after review). The rules:
   own patterns. Both only for grades 3-8: the K-2 engine measures decoding,
   which a marked quiz does not show. Latin, history, science, geography and
   grammar have no engine and record nothing.
-- **Half weight.** `QUIZ_EVIDENCE_WEIGHT` (0.5) is passed as the maths
+- **Half weight.** `QUIZ_EVIDENCE_WEIGHT` (0.5) is passed as the math
   engine's `confidence` and the literacy engine's new `weight`, because Bede
   did not see how the answer was reached. During an engine's calibration
   phase (fewer than its threshold of observations) the first observations
@@ -847,7 +847,7 @@ delivery do not feed the estimate either; that is a separate decision.
 
 Tests: `tests/test_practice_quiz_evidence.py`, over the real route functions
 and a real database. Every guard was verified by breaking it: no hook, no
-once-only mark, full weight for maths, the literacy weight ignored, no grade
+once-only mark, full weight for math, the literacy weight ignored, no grade
 gate, the privacy setting ignored, a wrong or partial answer recorded as
 work, a left-out question counted, and an unmarked question counted.
 

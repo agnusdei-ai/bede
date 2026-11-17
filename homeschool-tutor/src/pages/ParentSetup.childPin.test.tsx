@@ -62,8 +62,12 @@ describe('ParentSetup per-child PIN', () => {
     m.fetchChildPins.mockResolvedValue({})
     m.setChildPin.mockResolvedValue(undefined)
     render(<MemoryRouter><ParentSetup /></MemoryRouter>)
-    fireEvent.click(await screen.findByText('Set a PIN for this child'))
+    // Wait for the panel's mount effect (which fetches, and resets editing)
+    // before clicking. Clicking first raced it on a busy runner: the late
+    // effect closed the editor and the PIN field never appeared.
+    await screen.findByText('Set a PIN for this child')
     await waitFor(() => expect(m.fetchChildPins).toHaveBeenCalledWith('parent-token'))
+    fireEvent.click(screen.getByText('Set a PIN for this child'))
     fireEvent.change(screen.getByLabelText('New PIN for this child'), { target: { value: '481937' } })
     fireEvent.click(screen.getByText('Save PIN'))
     await waitFor(() => expect(m.setChildPin).toHaveBeenCalledWith('parent-token', NAME, '481937'))

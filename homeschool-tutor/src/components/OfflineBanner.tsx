@@ -3,9 +3,10 @@ import { WifiOff } from 'lucide-react'
 
 /**
  * Surfaces browser connectivity loss distinctly from a generic API error.
- * The service worker deliberately leaves API requests alone, so a failed
- * call reaches the app as a real network error (and a tutoring turn is
- * retried); this banner tells the user *why* things stalled.
+ * No service worker answers for the API (Bede's was retired, see
+ * docs/RELIABILITY.md), so a failed call reaches the app as a real network
+ * error (and a tutoring turn is retried); this banner tells the user *why*
+ * things stalled.
  */
 export default function OfflineBanner() {
   const [offline, setOffline] = useState(() => !navigator.onLine)

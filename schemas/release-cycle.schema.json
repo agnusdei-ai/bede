@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReleaseRepairSummary",
+  "type": "object",
+  "required": [
+    "kind",
+    "cycle_id",
+    "candidate_sha",
+    "status",
+    "release_status",
+    "approved_for_distribution",
+    "acceptance",
+    "gates",
+    "blockers",
+    "failures",
+    "tasks",
+    "notifications",
+    "events",
+    "snapshot"
+  ],
+  "properties": {
+    "kind": {
+      "const": "ReleaseRepairSummary"
+    },
+    "candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "status": {
+      "enum": [
+        "TRIAGING",
+        "REPRODUCING",
+        "AWAITING_DIAGNOSIS",
+        "REPAIRING",
+        "VERIFYING",
+        "REVIEWING",
+        "INTEGRATING",
+        "QUALIFYING",
+        "AWAITING_PHYSICAL_VERIFICATION",
+        "ASSEMBLING_EVIDENCE",
+        "READY_FOR_RELEASE_DECISION",
+        "AWAITING_AUTHORIZATION",
+        "BUDGET_EXHAUSTED",
+        "BLOCKED",
+        "CANCELLED"
+      ]
+    },
+    "release_status": {
+      "enum": [
+        "READY_FOR_RELEASE_DECISION",
+        "HOLD"
+      ]
+    },
+    "approved_for_distribution": {
+      "const": false
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code"
+        ]
+      }
+    }
+  }
+}

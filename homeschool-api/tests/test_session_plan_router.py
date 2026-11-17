@@ -134,7 +134,7 @@ async def test_a_parents_resume_note_is_read_from_the_stored_config(db_session):
     )
     result = await get_session_plan("Ada", auth={}, db=db_session)
 
-    # history is ordinary; a resume note should lift it above demanding maths.
+    # history is ordinary; a resume note should lift it above demanding math.
     after_morning_time = [e["subject"] for e in result["subjects"]][1:]
     assert after_morning_time[0] == Subject.history.value
 

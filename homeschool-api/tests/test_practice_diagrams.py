@@ -90,7 +90,7 @@ def test_an_unexplained_miss_is_not_guessed_at():
     assert diagrams.explain(d(kind="array", rows=3, cols=4), "How many?", "40") == ""
 
 
-# ── The maths pack: diagnosis and drawn practice ──────────────────────────────
+# ── The math pack: diagnosis and drawn practice ──────────────────────────────
 
 def _quiz(*items):
     return GradedAssessment.model_validate({"subject": "math", "sections": [{"label": "Pictures", "items": [

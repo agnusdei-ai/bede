@@ -1,0 +1,17 @@
+{
+  "label": "Bede release candidate",
+  "test_only": false,
+  "_note": "Real release gates. READY_FOR_RELEASE_DECISION against this manifest is still not release approval; the owner decides.",
+  "gates": [
+    {"id": "backend_tests", "kind": "automated", "required": true, "source": "qa_runner", "scope": "backend"},
+    {"id": "frontend_tests", "kind": "automated", "required": true, "source": "qa_runner", "scope": "homeschool-tutor"},
+    {"id": "sample_qualification", "kind": "automated", "required": true, "source": "qualification_matrix"},
+    {"id": "browser_journeys_windows", "kind": "automated", "required": true, "source": "browser_journeys", "os": "win32"},
+    {"id": "browser_journeys_macos", "kind": "automated", "required": true, "source": "browser_journeys", "os": "darwin"},
+    {"id": "browser_journeys_linux", "kind": "automated", "required": true, "source": "browser_journeys", "os": "linux"},
+    {"id": "independent_review", "kind": "review", "required": true, "source": "review"},
+    {"id": "package_provenance", "kind": "package", "required": true, "source": "release_provenance"},
+    {"id": "physical_mac", "kind": "physical", "required": true, "source": "mac_check"},
+    {"id": "real_safari", "kind": "physical", "required": true, "source": "mac_check", "browser": "safari"}
+  ]
+}

@@ -88,6 +88,10 @@ You can answer me in whichever way feels easiest:
   message didn't reach me, and you can send it again. It wasn't anything you
   did. If I'm taking too long to answer, I'll stop waiting rather than leave
   you stuck. You can try again when you're ready.
+- One message can hold a lot of words, but not endless ones. If you write or
+  say something really long, I'll tell you it's too long for one message.
+  Your words stay right there in the box, so nothing is lost. Just send them
+  in two parts.
 - If your parent turns on **Voice on** 📻 (the little radio icon next to the
   microphone), you don't need to press and hold at all. I'll just start
   listening on my own when it's your turn. Talk whenever you're ready, and
@@ -147,6 +151,17 @@ We can find a clearer path together without rushing.
 - Each week during Morning Time, we'll pray one of the Church's own special prayers
   together, word for word: the same one all week, so you have time to learn it by
   heart if you'd like to. If your family prays in Spanish, I'll pray it in Spanish too.
+- If you are in kindergarten, first or second grade, I might sometimes open a
+  little **map** 🗺️. First you watch me do one. Then we do one together. Then
+  it's your turn: tap the right square or pick the right word. If you miss,
+  you can try again, and then I'll show you. You can close the map whenever
+  you like. I will never ask where you live.
+- In Language Arts or Living Books, I might ask if you'd like to play
+  **Sound Time** 🔤. I'll show you first and say every word out loud.
+  Then we do two together, and you can tap a letter to hear its sound. Then
+  it's your turn: tap the right picture, letter or word. If it isn't the one,
+  we look again and you try once more, and then I'll show you. You can say
+  "not now", and you can close it whenever you like.
 - Sometimes I'll ask you to **tell me back** a story in your own words. That's
   called a *narration*, and it's one of my favorite parts.
 - If your family has picked **Latin** as one of your subjects, we'll learn a few
@@ -259,6 +274,12 @@ We can find a clearer path together without rushing.
 - If we covered a subject before, I'll remember roughly where we left off and
   remind you when we come back to it, so you don't have to remember it all
   yourself or start over from the beginning.
+
+## If the page reloads
+
+Sometimes the screen reloads by itself, or you press refresh by mistake. If you
+were typing something to me and hadn't sent it yet, your words are still in the
+box when the page comes back. Just keep going.
 
 ## If something feels wrong
 

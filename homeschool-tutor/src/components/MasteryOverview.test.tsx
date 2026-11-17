@@ -68,7 +68,7 @@ describe('MasteryOverview', () => {
   })
 
   it('emits no overall score across areas', () => {
-    // Averaging maths against language exposure would invent a quantity
+    // Averaging math against language exposure would invent a quantity
     // that does not exist, and would read as a grade for the child.
     const { container } = render(
       <MasteryOverview
@@ -85,11 +85,11 @@ describe('MasteryOverview', () => {
   it('holds the rows in the order given, never sorted by how well the child is doing', () => {
     // A list that reshuffles as a child improves is a ranking of their own
     // subjects. The order is the caller's fixed pedagogical one.
-    const weakMaths = summary({ domains: [{ domain: 'Fractions', average_probability: 0.1, level: 'gap', skills: [] }] })
+    const weakMath = summary({ domains: [{ domain: 'Fractions', average_probability: 0.1, level: 'gap', skills: [] }] })
     const strongWriting = summary({ domains: [{ domain: 'Narration', average_probability: 0.95, level: 'secure', skills: [] }] })
     const { container } = render(
       <MasteryOverview
-        areas={[area('mathematics', weakMaths), area('composition', strongWriting)]}
+        areas={[area('mathematics', weakMath), area('composition', strongWriting)]}
         loading={false}
         studentName="Ada"
       />
@@ -110,6 +110,42 @@ describe('MasteryOverview', () => {
     expect(screen.getByText(/still getting to know/i)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /Mathematics/ }))
     expect(screen.getByText(/still calibrating mathematics/)).toBeTruthy()
+  })
+
+  it('names practice answers apart from lesson check-ins while an area is still calibrating', () => {
+    render(
+      <MasteryOverview
+        areas={[area('phonics', summary({ subject_area: 'phonics', calibration: true, evidence_count: 0, practice_answers: 3 }))]}
+        loading={false}
+        studentName="Ada"
+      />
+    )
+    expect(screen.getByText('still getting to know: 0 lesson check-ins so far, plus 3 practice answers')).toBeTruthy()
+    // Never the bare "0 so far", which reads as though nothing was recorded.
+    expect(screen.queryByText(/— 0 so far/)).toBeNull()
+  })
+
+  it('says the same in Spanish, and singular counts read as singular', async () => {
+    await i18n.changeLanguage('es')
+    render(
+      <MasteryOverview
+        areas={[area('phonics', summary({ subject_area: 'phonics', calibration: true, evidence_count: 1, practice_answers: 1 }))]}
+        loading={false}
+        studentName="Ada"
+      />
+    )
+    expect(screen.getByText('aún conociéndole: 1 comprobación en la lección hasta ahora, más 1 respuesta de práctica')).toBeTruthy()
+  })
+
+  it('keeps the plain calibrating line when there are no practice answers', () => {
+    render(
+      <MasteryOverview
+        areas={[area('mathematics', summary({ calibration: true, evidence_count: 3 }))]}
+        loading={false}
+        studentName="Ada"
+      />
+    )
+    expect(screen.getByText('still getting to know — 3 so far')).toBeTruthy()
   })
 
   it('shows an area with no data as not started, and does not let it expand', () => {

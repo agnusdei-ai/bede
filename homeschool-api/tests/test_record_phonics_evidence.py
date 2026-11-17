@@ -56,13 +56,14 @@ def test_record_phonics_evidence_tool_is_registered_with_the_right_schema():
 
 
 @pytest.mark.asyncio
-async def test_returns_none_under_every_condition_proving_no_sse_chunk_is_possible():
-    """_record_phonics_evidence has no return value at all (None always) —
-    the caller in stream_tutor_response never yields anything for this
-    branch, so there is no code path that could emit an SSE chunk."""
+async def test_returns_only_whether_it_saved_proving_no_sse_chunk_is_possible():
+    """_record_phonics_evidence returns only a bool, whether it saved,
+    consumed by _gated_save (services/turn_replay.py). It is never content:
+    the caller yields nothing for this branch, so no code path could emit an
+    SSE chunk."""
     tool_input = {"domain": "letter_sound", "outcome": "correct"}
-    assert await _record_phonics_evidence(None, None, _config(), Subject.language_arts, tool_input) is None
-    assert await _record_phonics_evidence(None, None, _config(), Subject.language_arts, {"outcome": "bad"}) is None
+    assert await _record_phonics_evidence(None, None, _config(), Subject.language_arts, tool_input) is False
+    assert await _record_phonics_evidence(None, None, _config(), Subject.language_arts, {"outcome": "bad"}) is False
 
 
 @pytest.mark.asyncio

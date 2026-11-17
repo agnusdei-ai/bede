@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AgentResult",
+  "type": "object",
+  "required": [
+    "kind",
+    "task_id",
+    "agent_role",
+    "status",
+    "summary"
+  ],
+  "properties": {
+    "kind": {
+      "const": "AgentResult"
+    },
+    "agent_role": {
+      "enum": [
+        "triage",
+        "reproduce",
+        "repair",
+        "review"
+      ]
+    },
+    "status": {
+      "enum": [
+        "done",
+        "reproduced",
+        "patch_pushed",
+        "blocked",
+        "reviewed"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "approve",
+        "changes_requested",
+        "escalate",
+        null
+      ]
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "observations": {
+      "type": "array"
+    },
+    "hypotheses": {
+      "type": "array"
+    },
+    "not_run": {
+      "type": "array"
+    },
+    "blocked_code": {
+      "enum": [
+        "environment_unavailable",
+        null
+      ],
+      "description": "Machine-readable reason for a blocked result. environment_unavailable means SOLELY that the failing environment is unavailable to the session (reproduce role only); the task then waits for a trusted diagnosis."
+    },
+    "blocked_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "findings": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Review role: what the review found. A review without this field is NOT_RUN, never an approval."
+    },
+    "diff_digest": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Review role: SHA-256 of the diff the reviewer was shown (base_sha...resolved_sha)."
+    },
+    "reviewer": {
+      "enum": [
+        "session",
+        "copilot",
+        null
+      ]
+    }
+  },
+  "description": "A claim by a model. The controller stores it as a claim; it is never evidence."
+}

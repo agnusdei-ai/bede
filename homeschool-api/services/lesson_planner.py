@@ -43,7 +43,7 @@ mentions speed or falling behind — the same standing rule
 `_WORK_SCORING_NOTE` states for scoring.
 
 **A child never sees this.** Like the work ledger, the plan and its reasons
-are parent-facing only. A child shown "Bede put maths first because you
+are parent-facing only. A child shown "Bede put math first because you
 haven't done it in a while" has been told something about themselves that
 Bede has no standing to say.
 

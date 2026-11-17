@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RepairTask",
+  "type": "object",
+  "required": [
+    "kind",
+    "task_id",
+    "release_cycle_id",
+    "failure_id",
+    "assignment",
+    "revision",
+    "problem",
+    "budget"
+  ],
+  "properties": {
+    "kind": {
+      "const": "RepairTask"
+    },
+    "assignment": {
+      "type": "object",
+      "required": [
+        "agent_role",
+        "branch",
+        "lease_id",
+        "lease_generation"
+      ],
+      "properties": {
+        "agent_role": {
+          "enum": [
+            "triage",
+            "reproduce",
+            "repair",
+            "review",
+            null
+          ]
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^release-repair/[0-9a-z][0-9a-z-]*/[0-9a-z][0-9a-z-]*$"
+        }
+      }
+    },
+    "revision": {
+      "type": "object",
+      "required": [
+        "base_sha",
+        "policy_sha"
+      ],
+      "properties": {
+        "base_sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "required": [
+        "attempt",
+        "maximum_attempts"
+      ],
+      "properties": {
+        "maximum_attempts": {
+          "enum": [
+            1,
+            2
+          ]
+        }
+      }
+    }
+  }
+}

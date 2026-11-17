@@ -1,0 +1,102 @@
+{
+  "metadata_version": "1.0.0",
+  "kind": "BedePreReleaseRepairLoop",
+  "_note": "Policy for scripts/release_repair. Loaded only from a trusted, pinned revision of main. Default deny. See docs/release/REPAIR_LOOP.md.",
+  "execution": {
+    "model_in_ci": false,
+    "secrets_in_ci": false,
+    "deploy": false,
+    "merge": false
+  },
+  "budgets": {
+    "repair_attempts_per_task": 2,
+    "infrastructure_retries_per_job": 2,
+    "iterations_without_progress": 2
+  },
+  "lease_ttl_seconds": 21600,
+  "branch_pattern": "^release-repair/[0-9a-z][0-9a-z-]{0,62}/[0-9a-z][0-9a-z-]{0,62}$",
+  "protected_paths": [
+    ".github/**",
+    "scripts/release_repair/**",
+    "config/release-repair.json",
+    "config/acceptance/**",
+    "schemas/**",
+    "homeschool-api/constitution/**",
+    "homeschool-api/core/constitution.py",
+    "homeschool-api/core/security.py",
+    "homeschool-api/core/encryption.py",
+    "homeschool-api/core/identity.py",
+    "homeschool-api/core/elevation.py",
+    "homeschool-api/core/policy.py",
+    "homeschool-api/core/deps.py",
+    "homeschool-api/core/credential_hash.py",
+    "homeschool-api/core/parent_credential.py",
+    "homeschool-api/services/moderation.py",
+    "homeschool-api/services/adversarial_detection.py",
+    "homeschool-api/services/policy_engine.py"
+  ],
+  "sensitive_paths": [
+    "homeschool-api/routers/auth.py",
+    "homeschool-api/routers/mfa.py",
+    "homeschool-api/routers/recovery.py",
+    "homeschool-api/routers/consent.py",
+    "homeschool-api/core/consent.py",
+    "homeschool-api/services/mfa_service.py",
+    "homeschool-api/services/pilot_authz.py",
+    "homeschool-api/services/student_deletion.py",
+    "homeschool-api/services/pilot_learner_deletion.py",
+    "homeschool-api/core/learner_scope.py",
+    "homeschool-api/core/student_keys.py",
+    "homeschool-api/core/database.py",
+    "site/**",
+    "demo/**"
+  ],
+  "test_paths": [
+    "**/tests/**",
+    "**/test_*.py",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "scripts/qualification/browser_journeys/journeys.cjs"
+  ],
+  "existing_test_changes": {
+    "default": "require_authorization",
+    "never_allow_silently": [
+      "removed_acceptance_assertion",
+      "weakened_expected_result",
+      "new_skip_for_unresolved_failure",
+      "failure_relabelled_as_success"
+    ]
+  },
+  "failures": [
+    {
+      "key": "webkit-original-page-reload-crash",
+      "signature": {
+        "check": "*_webkit/reopen_after_restart",
+        "crash_frame": "WebCore::Navigation::initializeForNewWindow"
+      },
+      "disposition": "investigate",
+      "release_blocking": true,
+      "deduplicate": true,
+      "suppress_repair": false,
+      "root_cause": "unconfirmed",
+      "owner_approval_ref": null,
+      "known_evidence": [
+        "browser-journeys macOS desktop: reopen_after_restart ends in 'Page crashed' after the API restart; same on main",
+        "native report: release assertion in WebCore::Navigation::initializeForNewWindow while committing the reloaded page",
+        "CONTROL: a new page in the same context loads and completes a lesson turn",
+        "the retired service worker is ruled out (#829)"
+      ],
+      "trusted_diagnosis": {
+        "_note": "Owner ruling 2026-11-16, the versions are #848's rule: Node exactly v24.22.2; Playwright 1.56.0 (WebKit 26.0, the build that crashed) is the CONTROL; 1.63.0 (WebKit 26.6, the version main pins) is the COMPARISON; the browser is the one the pinned package installs. Only the trusted record job builds a diagnosis event, from a named run of this workflow.",
+        "workflow": ".github/workflows/webkit-reload-diagnosis.yml",
+        "artifact_prefix": "webkit-repro-minimal-",
+        "engine": "webkit",
+        "node": "v24.22.2",
+        "macos_min_major": 15,
+        "baseline": {"playwright": "1.56.0", "webkit": "26.0"},
+        "comparison": {"playwright": "1.63.0", "webkit": "26.6"}
+      }
+    }
+  ]
+}

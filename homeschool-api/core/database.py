@@ -62,8 +62,8 @@ def _build_engine():
     return create_async_engine(
         url,
         pool_pre_ping=True,   # verify connection health before each use
-        pool_size=5,
-        max_overflow=5,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
     )
 
 
@@ -1587,3 +1587,31 @@ async def get_db() -> AsyncIterator[AsyncSession]:
     """FastAPI dependency: yields a scoped async session."""
     async with AsyncSessionLocal() as session:
         yield session
+
+
+async def release_idle_connection(db) -> bool:
+    """Hand the session's pooled connection back before a long wait.
+
+    A session that has run any query holds one pool connection until its
+    transaction ends, and a request's session otherwise ends only when the
+    request does. A tutoring turn streams its reply for many seconds, so each
+    child in a turn kept a connection idle for the whole reply, and ten
+    children exhausted the default pool of 5 + 5 (docs/CAPACITY.md). Every
+    writer on that path commits its own write at once, so ending the open
+    transaction here writes nothing; the session simply checks a connection
+    out again on its next query.
+
+    Releases only when nothing is pending, so it can never make a staged
+    write durable early. Accepts a ``RevocationGatedSession`` too: with
+    nothing pending there is no write for its gate to refuse. Returns whether
+    it released a connection.
+    """
+    if db is None:
+        return False
+    session = getattr(db, "inner_session", db)
+    if not session.in_transaction():
+        return False
+    if session.new or session.dirty or session.deleted:
+        return False
+    await session.commit()
+    return True

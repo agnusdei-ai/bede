@@ -815,7 +815,7 @@ break every hour for every child, but it will not tell you that your
 
    **Text size is not in this panel, deliberately.** You already have it, and
    in a better form: the small **text-size button** (a **T** icon) in the top-right corner
-   of every screen. It scales the whole app (87.5% up to 175%), it is one tap from
+   of every screen. It scales the whole app (87.5% up to 200%), it is one tap from
    wherever your child is, and your child can reach it themselves. A
    per-student copy of it briefly existed here and was removed rather than
    left as a second, weaker control for the same thing. The evidence is written up in
@@ -1373,10 +1373,10 @@ covers and writes new questions.
 
 Before you print:
 
-- Maths answers say **Worked out**: Bede computed them. A picture question
+- Math answers say **Worked out**: Bede computed them. A picture question
   (a shaded fraction, a clock, a shape) is drawn by Bede, and its answer is
   counted off that same picture, so the two always agree.
-- Picture questions work in every subject, not only maths: things measured
+- Picture questions work in every subject, not only math: things measured
   on a ruler, coins to count, a thermometer, animals, plants and objects to
   name or count (when the answer choices are pictures, they are drawn too), a scene, a timeline, a Venn diagram, a
   table, the water cycle or another cycle, and the steps of a process. Check
@@ -1692,7 +1692,7 @@ schedule rather than about your child:
 - Morning Time opens the day.
 - Anything you left a "pick this up here" note on comes next — your own
   instruction outranks any preference of Bede's.
-- Subjects that ask for sustained attention (maths, Latin, Greek, logic,
+- Subjects that ask for sustained attention (math, Latin, Greek, logic,
   language arts) sit earlier, while the day is fresh.
 - Anything that hasn't come up in a couple of weeks gets nudged forward
   before it drifts further.
@@ -1927,7 +1927,7 @@ subjects relate to your curriculum resources differently: see §5.
 
 ## What your child works on in mathematics, year by year
 
-The maths scope now targets what an independent or classical preparatory
+The math scope now targets what an independent or classical preparatory
 school expects, which means **grade 8 is a full Algebra I year** rather than
 the lighter grade-8 scope a conventional curriculum sets. That has knock-on
 effects earlier:
@@ -2139,6 +2139,86 @@ sibling.
 Use it the way you'd use any record of completed work on a team: to spot
 that one of your children has finished something another is just starting,
 and ask the first to show the second. Your children never see either card.
+
+## Map practice (kindergarten to grade 2)
+
+During History, Nature Study or Living Books, Bede may offer a K-2 child a
+few minutes of map practice, at most once a session. There is nothing to
+turn on. Kindergarten practises position words and maps as pictures from
+above, grade 1 symbols, a key and the four directions, and grade 2 the
+compass rose, simple grids and land and water. Your child watches one,
+does two with hints, then does three alone by tapping.
+
+- Bede never asks for your street, address or neighbourhood, and the
+  practice maps name no real place.
+- The maps and their answers are made by Bede's own code, not by the AI.
+- There is no map score. Each question your child gets right alone appears
+  in the work ledger on the Progress page, and nothing else is kept.
+
+See `docs/MAP_PRACTICE.md` for the detail.
+
+## Sound Time: phonics practice (kindergarten to grade 2)
+
+During Language Arts or Living Books, on a day those subjects are in your
+child's plan, Bede may offer a few minutes of phonics practice, at most once
+a session. Your child watches one word, does two together (tapping a letter
+says its sound), then does three alone. Kindergarten starts with rhymes, grade 1 with
+blending simple words like *cat*, and grade 2 with blends and digraphs like
+*sh* and *ck*. As your child's phonics record shows a step is secure, the
+next practice moves on to the next one.
+
+**Choose what Bede may offer, per child.** In each K-2 student's card in
+Parent Setup, under **Practice Bede may offer**, pick one:
+
+- **Off**: Bede offers no practice. One tap.
+- **Only sets I approved**: Bede never chooses on its own. Practice made from
+  a quiz you uploaded still needs your approval before your child sees it.
+- **Today's subjects too** (the default): Bede may also offer a round, but
+  only in a subject already in today's plan, and only from its own fixed word
+  lists. It never makes up a word or a question.
+
+You see each offer: it appears in the conversation as a card ("Sound
+Time"). If your own lesson focus or a "where we left off" note points
+somewhere else, Bede follows your plan instead.
+
+What is kept:
+
+- Each question your child gets right alone adds one row to the work ledger
+  on the Progress page and counts toward the phonics picture at half the
+  weight of a live check. Right on the second try counts at a quarter. These
+  weights are product choices, not research findings. From a fresh record,
+  one right answer is never enough to mark a step secure; two right first
+  tries are.
+- Only the first round in each sign-in is recorded, at most three answers.
+  A round counts once its first answer is recorded, so opening a round and
+  leaving, or a round that would not load, does not use it up. "Another one"
+  still works and is practice only, and your Progress page says so. Your
+  child's screen looks the same either way.
+- Practice answers do not hurry the reading picture past its "still getting
+  to know your learner" stage; that stage follows Bede's own checks in
+  lessons. While it lasts, Progress shows the two counts separately, for
+  example "0 lesson check-ins so far, plus 3 practice answers".
+- If a round says it needs sound, turn on Bede's voice, or install a voice
+  for your language on the device (in its speech or accessibility
+  settings). Bede only speaks practice through a voice installed on the
+  device.
+- A child tapping at random still lands on the right answer within two tries
+  about half the time or more (56% with three choices, 44% with four). That is
+  why only one round a sign-in is recorded, and why the record only picks the
+  next practice step, never a placement or a label.
+- A question that ended with the answer shown records nothing. Saying "not
+  now" records nothing.
+- The words, pictures and answers come from Bede's own code, never the AI,
+  and nothing from a round is sent to any AI provider: the round is spoken
+  only by a voice installed on your device, never Bede's cloud voice or a
+  browser voice that works over the internet. On a device with no installed
+  voice for your child's language, or with Bede's voice turned off, the
+  round is shown without speech, and sight-word practice (which works only
+  by ear) waits until sound is on. Bede never judges how your child
+  pronounces a sound.
+
+The words are English phonics. In a Spanish session the instructions are in
+Spanish and the words stay English.
 
 ## The writing pad: drawings, and where they go
 

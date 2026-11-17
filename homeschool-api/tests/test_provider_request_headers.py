@@ -215,3 +215,68 @@ def test_a_key_is_never_sent_over_plain_http_except_to_this_machine():
     assert local.headers
     (plain,) = _servers({"name": "books", "url": "http://192.168.1.20:9000/mcp"})
     assert plain.headers == {}
+
+
+# ── The local model's own discovery carries them too ─────────────────────────
+# With LOCAL_LLM_MODEL unset, the local adapter first asks the server which
+# model it serves (GET /models) before the lesson's request. A self-hosted
+# model behind a gateway that needs its own header would fail at that first
+# request if the header reached only the chat call, so both are checked here,
+# through the real router, against a real local server.
+
+import asyncio
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+from services.adapters import openai_compatible_adapter as _local_adapter
+
+
+class _RecordingServer:
+    def __init__(self, model: str):
+        self.seen: list[tuple[str, str, dict]] = []
+        outer = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def _reply(self, payload: dict):
+                data = json.dumps(payload).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def do_GET(self):
+                outer.seen.append(("GET", self.path, {k.lower(): v for k, v in self.headers.items()}))
+                self._reply({"object": "list", "data": [{"id": model, "object": "model"}]})
+
+            def do_POST(self):
+                self.rfile.read(int(self.headers["Content-Length"]))
+                outer.seen.append(("POST", self.path, {k.lower(): v for k, v in self.headers.items()}))
+                self._reply({**_OPENAI_REPLY, "model": model})
+
+            def log_message(self, *args):
+                pass
+
+        self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        self.url = f"http://127.0.0.1:{self.httpd.server_address[1]}/v1"
+
+
+@pytest.fixture
+def recording_server():
+    _local_adapter._DISCOVERED_MODELS.clear()
+    server = _RecordingServer("granite3.3:8b")
+    yield server
+    server.httpd.shutdown()
+    _local_adapter._DISCOVERED_MODELS.clear()
+
+
+def test_local_model_discovery_and_the_lesson_request_both_carry_the_headers(recording_server):
+    s = _settings({"local": {"X-Gateway-Token": "gw-1"}},
+                  local_llm_base_url=recording_server.url, local_llm_model="")
+    client = router._build("local", s)
+    asyncio.run(client.messages.create(max_tokens=8, messages=[{"role": "user", "content": "hi"}]))
+    paths = [(m, p) for m, p, _ in recording_server.seen]
+    assert ("GET", "/v1/models") in paths and ("POST", "/v1/chat/completions") in paths
+    for method, path, headers in recording_server.seen:
+        assert headers.get("x-gateway-token") == "gw-1", f"{method} {path} went out without the header"

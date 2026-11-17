@@ -31,6 +31,15 @@ semantic code/test failures are BLOCKED for an authenticated coding agent
 to correct with a deterministic regression test and new commit. The CI runner
 uses read-only tokens and never edits code, commits, merges or deploys.
 
+Each test command runs under `--timeout` (900 s by default; the backend step in
+`test.yml` passes 1800 because the full suite takes about 14 minutes on a
+hosted runner). A command still running at `--warn-after` seconds (default:
+half the timeout) posts a GitHub warning annotation, so a suite creeping
+toward its limit shows up on a run that passes. A command stopped at the limit
+is reported as `timeout`, exit 124, with an error annotation and whatever it
+printed before the limit kept as evidence. It is still a failure, never
+`test_flakiness` and never a pass, and it is not retried.
+
 The pre-release repair loop (`docs/release/REPAIR_LOOP.md`,
 `scripts/release_repair/`) builds on this machinery rather than replacing it.
 Its isolated candidate job runs this selector and runner from a trusted

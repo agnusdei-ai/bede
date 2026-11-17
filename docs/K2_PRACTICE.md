@@ -327,7 +327,10 @@ expiry. If the in-memory attempt state disappears on restart, that lesson is
 refused and the visitor can start another round; attempts are never reset by
 rebuilding the lesson from an old id. This support does not enable
 `invite_practice` in demo tutoring turns or add any other practice area to the
-demo. Decision 40(g) records the approval and boundary.
+demo. Its UI and wire types are mirrored under `demo/src/` so the demo builds
+with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
+copies against the household implementation. Decision 40(g) records the
+approval and boundary.
 
 Which skill an answer counts for (owner ruling 2026-11-16, a product
 default): **a building question records counting only.** Putting the right

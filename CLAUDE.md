@@ -492,8 +492,10 @@ implemented count/compare/add/subtract/bond topics; it does not enable the
 model-driven `invite_practice` offer. Demo attempts are bounded, temporary,
 session-bound and explicitly unrecorded; they never read or write household
 configuration, learner keys, work ledger, mastery or demo progress/activity,
-and they make no model calls. Shared UI components remain configured by the
-demo's own build and locale dictionaries.
+and they make no model calls. The demo keeps local mirrors of
+`K2MathPractice`, `MathPieces`, `RoutineShell`, styles, and wire types, with
+parity guarded by `demo/src/k2MathParity.test.ts`; its runtime does not import
+household store or API modules.
 
 ### Backend (`homeschool-api/`)
 

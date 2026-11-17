@@ -312,6 +312,39 @@ def _failover_error_types() -> tuple:
     return _FAILOVER_ERRORS
 
 
+_REQUEST_ERRORS: tuple = ()
+
+
+def _request_error_types() -> tuple:
+    """400 "bad request" errors. These also move a turn to the next adapter,
+    because Anthropic reports an empty account ("Your credit balance is too
+    low") as a 400, so without this a Claude primary with no credit would end
+    every lesson without trying the backups.
+
+    Unlike _failover_error_types, these do NOT trip the circuit breaker. A 400
+    can be about one request (an oversized picture, a malformed message), and
+    marking the provider down for a minute would then refuse every other
+    child's turn too. The next request simply tries the provider again."""
+    global _REQUEST_ERRORS
+    if _REQUEST_ERRORS:
+        return _REQUEST_ERRORS
+    types: List[type] = []
+    try:
+        import anthropic
+
+        types.append(anthropic.BadRequestError)
+    except Exception:
+        pass
+    try:
+        import openai
+
+        types.append(openai.BadRequestError)
+    except Exception:
+        pass
+    _REQUEST_ERRORS = tuple(types)
+    return _REQUEST_ERRORS
+
+
 class _CircuitBreaker:
     """Per-adapter cooldown. After a provider fails, skip it for `cooldown_s`
     rather than paying its timeout on every subsequent request."""
@@ -418,6 +451,10 @@ class _FailoverStreamContext:
                 self._client._breaker.trip(name)
                 log.warning("Adapter %r failed to open stream: %s", name, exc)
                 continue
+            except _request_error_types() as exc:  # type: ignore[misc]
+                last_exc = exc
+                log.warning("Adapter %r refused the request (400), trying the next: %s", name, exc)
+                continue
             self._active_ctx = ctx
             self._client._breaker.reset(name)
             if primary is not None and name != primary:
@@ -453,6 +490,10 @@ class _FailoverMessages:
                 last_exc = exc
                 self._client._breaker.trip(name)
                 log.warning("Adapter %r failed on create: %s", name, exc)
+                continue
+            except _request_error_types() as exc:  # type: ignore[misc]
+                last_exc = exc
+                log.warning("Adapter %r refused the request (400), trying the next: %s", name, exc)
                 continue
             self._client._breaker.reset(name)
             if primary is not None and name != primary:

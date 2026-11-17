@@ -120,9 +120,17 @@ be enabled explicitly, e.g. `BEDE_ADAPTER_ORDER=local,openai,anthropic`.
 
 `router.resolve_with_failover()` returns a `FailoverClient` presenting the same
 `.messages` surface but trying each *configured* adapter in order, catching
-auth (401/403), rate-limit (429), and connection/timeout errors and falling
-through to the next. A short in-memory circuit breaker (per-adapter cooldown)
-keeps a downed provider from being retried on every request. Streaming fails
+auth (401/403), rate-limit (429), connection/timeout and "bad request" (400)
+errors and falling through to the next. A short in-memory circuit breaker
+(per-adapter cooldown) keeps a downed provider from being retried on every
+request. A 400 is the one exception to the cooldown: it moves the turn on but
+does not mark the provider down, because a 400 can be about one request (an
+oversized picture) rather than the provider, and a cooldown would then refuse
+every other child's turn too. It is on the list because Anthropic reports an
+empty account ("Your credit balance is too low") as a 400; before 2026-11-17 a
+Claude provider with no credit ended the turn instead of passing it on. Any
+other error (a bug in Bede's own code, for instance) still ends the turn rather
+than being hidden by trying another provider. Streaming fails
 over only *before* the first event is yielded (switching mid-stream to the child
 isn't safe). It is an opt-in helper, not the default `_client`, so the
 single-resolved-client contract the existing tests rely on stays intact. When a

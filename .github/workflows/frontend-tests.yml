@@ -59,6 +59,11 @@ on:
       - 'site/assets/offer.js'
       - 'site/privacy/index.html'
       - '.github/workflows/frontend-tests.yml'
+      # frontend-dependency-audit reads the allowlist through the gate script,
+      # so an edit to either must run it; without these, an allowlist change
+      # skipped the very check it changes (found on #864, 2026-11-17).
+      - '.github/audit-allowlist.json'
+      - 'scripts/npm_audit_gate.py'
   pull_request:
   workflow_dispatch:
 
@@ -110,7 +115,7 @@ jobs:
           # guard written for it — the same vacuous-coverage trap
           # test_decision_register.py documents for the backend filter.
           if git diff --name-only "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA" \
-               | grep -qE '^(homeschool-tutor/|demo/|license-server/|docs/LICENSE_SERVER_SETUP\.md|homeschool-api/core/licensing\.py|homeschool-api/core/tier_display\.py|homeschool-api/services/practice/upload_safety\.py|homeschool-api/models/practice\.py|homeschool-api/services/streaming_transcription\.py|homeschool-api/routers/voice\.py|homeschool-api/services/map_practice\.py|homeschool-api/services/k2_practice/phonics\.py|homeschool-api/services/k2_practice/practical_math\.py|homeschool-api/models/schemas\.py|site/assets/site\.css|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|\.github/workflows/frontend-tests\.yml)'; then
+               | grep -qE '^(homeschool-tutor/|demo/|license-server/|docs/LICENSE_SERVER_SETUP\.md|homeschool-api/core/licensing\.py|homeschool-api/core/tier_display\.py|homeschool-api/services/practice/upload_safety\.py|homeschool-api/models/practice\.py|homeschool-api/services/streaming_transcription\.py|homeschool-api/routers/voice\.py|homeschool-api/services/map_practice\.py|homeschool-api/services/k2_practice/phonics\.py|homeschool-api/services/k2_practice/practical_math\.py|homeschool-api/models/schemas\.py|site/assets/site\.css|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|\.github/workflows/frontend-tests\.yml|\.github/audit-allowlist\.json|scripts/npm_audit_gate\.py)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"

@@ -226,3 +226,32 @@ def test_the_gate_and_the_allowlist_are_in_the_api_change_filter() -> None:
             "pattern, so editing it skips api-tests and this guard never runs "
             f"for exactly that edit. Found: {sorted(a for a in alternatives if 'audit' in a or 'npm' in a)}"
         )
+
+
+def test_the_gate_and_the_allowlist_are_in_the_frontend_change_filter() -> None:
+    """An allowlist edit must run the audit it changes.
+
+    Until 2026-11-17 neither path was in frontend-tests.yml's filter, so #864
+    (a new picomatch entry) computed `relevant=false` and showed
+    frontend-dependency-audit as skipped: the gate that reads the allowlist
+    never ran on the change to the allowlist. Both places the filter is written
+    are checked: the push `paths:` list and the pull-request `grep -qE`
+    alternation, each path as a WHOLE alternative.
+    """
+    import re
+
+    workflow = _workflow()
+    # YAML 1.1 reads the bare key `on` as the boolean True.
+    push_paths = workflow.get("on", workflow.get(True))["push"]["paths"]
+    for needed in (".github/audit-allowlist.json", "scripts/npm_audit_gate.py"):
+        assert needed in push_paths, f"{needed} missing from frontend-tests.yml's push paths"
+
+    lines = [ln for ln in WORKFLOW.read_text(encoding="utf-8").splitlines() if "grep -qE" in ln]
+    assert lines, "frontend-tests.yml no longer has a `grep -qE` change filter"
+    alternatives: set[str] = set()
+    for line in lines:
+        group = re.search(r"\^\((.*?)\)'", line)
+        if group:
+            alternatives.update(p.strip() for p in group.group(1).split("|"))
+    for needed in (r"\.github/audit-allowlist\.json", r"scripts/npm_audit_gate\.py"):
+        assert needed in alternatives, f"{needed} is not its own alternative in frontend-tests.yml's filter"

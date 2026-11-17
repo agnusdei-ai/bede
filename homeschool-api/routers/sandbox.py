@@ -18,10 +18,14 @@ from models.schemas import SandboxChatRequest, SandboxDemoChatRequest
 from services import mcp_client
 from services.ai_service import (
     check_safeguarding,
+    ai_unavailable_response,
     demo_quota_response,
     SAFEGUARDING_RESPONSE,
     stream_sandbox_response,
 )
+
+from services.adapters import provider_errors
+from services.adapters import router as adapter_router
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +33,31 @@ router = APIRouter(prefix="/sandbox", tags=["sandbox"])
 
 _STALL_MESSAGE = "Sorry, that took too long to come through. Could you try sending that again?"
 _ERROR_MESSAGE = "Something went wrong on my end. Could you try sending that again?"
+
+
+def _failure_reasons(exc: BaseException) -> str:
+    """ " providers=openai:no_credit,..." for the audit detail, or "" when the
+    failure was not every provider refusing."""
+    refusals = adapter_router.provider_failures(exc)
+    return (" providers=" + ",".join(f"{n}:{c}" for n, c in refusals)) if refusals else ""
+
+
+def _failure_message(exc: BaseException, *, name_providers: bool, locale: str) -> str:
+    """What the adult sees when a turn fails. A signed-in parent or teacher is
+    told which provider refused and why, since they are the person who can fix
+    it; an anonymous demo visitor gets the plain notice, because a provider's
+    billing state is the operator's business and means nothing to them."""
+    refusals = adapter_router.provider_failures(exc)
+    if not refusals:
+        return _ERROR_MESSAGE
+    if not name_providers:
+        return ai_unavailable_response(locale)
+    lines = [f"- {name}: {provider_errors.message_for(code)}" for name, code in refusals]
+    return (
+        "None of Bede's AI providers could answer that.\n"
+        + "\n".join(lines)
+        + "\nYou can check them all from Setup, under AI Provider, with \"Check AI providers\"."
+    )
 
 
 @router.post("/educator-chat")
@@ -55,10 +84,11 @@ async def educator_chat(
         except asyncio.TimeoutError:
             yield json.dumps({"type": "text", "content": _STALL_MESSAGE})
             yield json.dumps({"type": "done"})
-        except Exception:
+        except Exception as exc:
             # Never log prompt text or a provider's exception payload.
-            log.warning("Educator planning service unavailable")
-            yield json.dumps({"type": "text", "content": _ERROR_MESSAGE})
+            log.warning("Educator planning service unavailable%s", _failure_reasons(exc))
+            yield json.dumps({"type": "text", "content": _failure_message(
+                exc, name_providers=True, locale=auth.get("locale", "en"))})
             yield json.dumps({"type": "done"})
     return EventSourceResponse(event_generator(), media_type="text/event-stream")
 
@@ -129,10 +159,11 @@ async def chat(
             log.exception("Sandbox stream failed mid-turn")
             log_event_nowait(
                 AuditEvent.AI_BACKEND_FAILURE, role="parent", success=False,
-                detail=f"cause=exception subject=sandbox error={type(exc).__name__}",
+                detail=f"cause=exception subject=sandbox error={type(exc).__name__}{_failure_reasons(exc)}",
                 **audit_from_request(request),
             )
-            yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
+            yield json.dumps({'type': 'text', 'content': _failure_message(
+                exc, name_providers=True, locale=auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
         finally:
             for server_client in external_clients.values():
@@ -216,10 +247,11 @@ async def demo_chat(
             log.exception("Sandbox demo stream failed mid-turn")
             log_event_nowait(
                 AuditEvent.AI_BACKEND_FAILURE, role="demo_code", success=False,
-                detail=f"cause=exception subject=sandbox_demo error={type(exc).__name__}",
+                detail=f"cause=exception subject=sandbox_demo error={type(exc).__name__}{_failure_reasons(exc)}",
                 **audit_from_request(request),
             )
-            yield json.dumps({'type': 'text', 'content': _ERROR_MESSAGE})
+            yield json.dumps({'type': 'text', 'content': _failure_message(
+                exc, name_providers=False, locale=auth.get("locale", "en"))})
             yield json.dumps({'type': 'done'})
 
     return EventSourceResponse(event_generator(), media_type="text/event-stream")

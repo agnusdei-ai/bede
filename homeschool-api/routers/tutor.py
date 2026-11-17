@@ -41,6 +41,7 @@ from services.ai_service import (
     _redact_credentials,
     _sanitize_parent_field,
     check_safeguarding,
+    ai_unavailable_response,
     demo_quota_response,
     generate_session_summary,
     moderation_redirect_response,
@@ -51,6 +52,7 @@ from services import content_screen, pilot_authz, safeguarding_alerts, turn_repl
 from services.adversarial_detection import build_signals
 from services.document_extraction import extract_narration_text, UnsupportedNarrationFileError
 from services.email_service import build_summary_email_html, send_email
+from services.adapters import router as adapter_router
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
 from services.voice_synthesis import AUDIO_MEDIA_TYPE, synthesis_configured, synthesize_speech
@@ -480,16 +482,30 @@ async def chat(
                 "Tutor stream failed mid-turn for %s: %s",
                 learner_ref(req.session_config.student_name), exc_summary(exc),
             )
+            # Every provider refused (no credit, a rate limit, a plan without
+            # the model): say so plainly and record each provider's reason,
+            # so the alert and the audit log name what to fix.
+            refusals = adapter_router.provider_failures(exc)
+            reasons = (
+                " providers=" + ",".join(f"{name}:{code}" for name, code in refusals)
+                if refusals else ""
+            )
             log_event_nowait(
                 AuditEvent.AI_BACKEND_FAILURE,
                 role=role, student_name=req.session_config.student_name,
                 success=False,
-                detail=f"cause=exception subject={req.current_subject.value} error={type(exc).__name__}",
+                detail=(
+                    f"cause=exception subject={req.current_subject.value} "
+                    f"error={type(exc).__name__}{reasons}"
+                ),
                 **audit_from_request(request),
             )
             yield json.dumps({
                 'type': 'text',
-                'content': "Something went wrong on my end. Could you try sending that again?",
+                'content': (
+                    ai_unavailable_response(auth.get("locale", "en")) if refusals
+                    else "Something went wrong on my end. Could you try sending that again?"
+                ),
             })
             yield json.dumps({'type': 'done'})
 

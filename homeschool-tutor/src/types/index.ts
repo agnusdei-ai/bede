@@ -553,6 +553,18 @@ export type AIProviderName = 'local' | 'openai' | 'mistral' | 'anthropic'
 // — DB value wins over env, live, no restart); `primary`/`secondary` are
 // always the adapters that would actually serve the next tutoring turn (and
 // its first failover), override or not.
+/** One provider's answer to the parent-run "Check AI providers" button
+ *  (POST /admin/ai-provider/check). `code` is one of the reasons in
+ *  homeschool-api/services/adapters/provider_errors.py; `message` is the
+ *  plain sentence for the parent and `detail` the provider's own words. */
+export interface AIProviderCheckResult {
+  provider: AIProviderName
+  ok: boolean
+  code: 'ok' | 'no_credit' | 'model_not_on_plan' | 'rate_limited' | 'bad_key' | 'unreachable' | 'refused' | 'unknown'
+  message: string
+  detail: string
+}
+
 export interface AIProviderStatus {
   known: AIProviderName[]
   configured: AIProviderName[]

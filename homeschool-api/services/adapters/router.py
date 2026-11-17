@@ -55,13 +55,14 @@ tutor. Operators add them explicitly, e.g. `BEDE_ADAPTER_ORDER=local,openai,anth
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.config import settings as _global_settings
 from core import provider_state
 from core.coppa_provider_policy import (approved_provider, enforcement_enabled,
                                         require_qualified_local_endpoint)
 from .anthropic_adapter import build_anthropic_client
+from .provider_errors import classify
 from .openai_compatible_adapter import OpenAICompatibleClient
 
 log = logging.getLogger(__name__)
@@ -345,6 +346,25 @@ def _request_error_types() -> tuple:
     return _REQUEST_ERRORS
 
 
+
+#: Attribute set on the exception raised when every provider failed, so the
+#: lesson's error handling can tell the child "no provider could answer"
+#: apart from a bug, and name each provider's reason in the audit record.
+PROVIDER_FAILURES_ATTR = "bede_provider_failures"
+
+
+def _attach_failures(exc: Exception, failures: List[Tuple[str, str]]) -> None:
+    try:
+        setattr(exc, PROVIDER_FAILURES_ATTR, tuple(failures))
+    except Exception:  # an exception type that refuses attributes keeps its old behaviour
+        pass
+
+
+def provider_failures(exc: BaseException) -> Tuple[Tuple[str, str], ...]:
+    """(provider, reason code) for each provider that refused, or () when the
+    exception did not come from every provider failing."""
+    return tuple(getattr(exc, PROVIDER_FAILURES_ATTR, ()) or ())
+
 class _CircuitBreaker:
     """Per-adapter cooldown. After a provider fails, skip it for `cooldown_s`
     rather than paying its timeout on every subsequent request."""
@@ -441,6 +461,7 @@ class _FailoverStreamContext:
         candidates = self._client._live_order()
         primary = candidates[0] if candidates else None
         last_exc: Optional[Exception] = None
+        failures: List[Tuple[str, str]] = []
         for name in candidates:
             adapter = self._client._adapter(name)
             ctx = adapter.messages.stream(**_kwargs_for(name, self._kwargs))
@@ -449,11 +470,13 @@ class _FailoverStreamContext:
             except errs as exc:  # type: ignore[misc]
                 last_exc = exc
                 self._client._breaker.trip(name)
-                log.warning("Adapter %r failed to open stream: %s", name, exc)
+                failures.append((name, classify(exc).code))
+                log.warning("Adapter %r failed to open stream: %s (reason: %s)", name, exc, failures[-1][1])
                 continue
             except _request_error_types() as exc:  # type: ignore[misc]
                 last_exc = exc
-                log.warning("Adapter %r refused the request (400), trying the next: %s", name, exc)
+                failures.append((name, classify(exc).code))
+                log.warning("Adapter %r refused the request (400), trying the next: %s (reason: %s)", name, exc, failures[-1][1])
                 continue
             self._active_ctx = ctx
             self._client._breaker.reset(name)
@@ -461,6 +484,7 @@ class _FailoverStreamContext:
                 await _best_effort_failover_alert(primary, name)
             return stream
         if last_exc is not None:
+            _attach_failures(last_exc, failures)
             raise last_exc
         raise RuntimeError("No configured Bede adapter available for streaming")
 
@@ -482,6 +506,7 @@ class _FailoverMessages:
         candidates = self._client._live_order()
         primary = candidates[0] if candidates else None
         last_exc: Optional[Exception] = None
+        failures: List[Tuple[str, str]] = []
         for name in candidates:
             adapter = self._client._adapter(name)
             try:
@@ -489,17 +514,20 @@ class _FailoverMessages:
             except errs as exc:  # type: ignore[misc]
                 last_exc = exc
                 self._client._breaker.trip(name)
-                log.warning("Adapter %r failed on create: %s", name, exc)
+                failures.append((name, classify(exc).code))
+                log.warning("Adapter %r failed on create: %s (reason: %s)", name, exc, failures[-1][1])
                 continue
             except _request_error_types() as exc:  # type: ignore[misc]
                 last_exc = exc
-                log.warning("Adapter %r refused the request (400), trying the next: %s", name, exc)
+                failures.append((name, classify(exc).code))
+                log.warning("Adapter %r refused the request (400), trying the next: %s (reason: %s)", name, exc, failures[-1][1])
                 continue
             self._client._breaker.reset(name)
             if primary is not None and name != primary:
                 await _best_effort_failover_alert(primary, name)
             return result
         if last_exc is not None:
+            _attach_failures(last_exc, failures)
             raise last_exc
         raise RuntimeError("No configured Bede adapter available for create")
 
@@ -576,3 +604,48 @@ def resolve_named(name: str, settings: Any = _global_settings) -> Any:
 
 def resolve_with_failover(settings: Any = _global_settings) -> FailoverClient:
     return FailoverClient(settings)
+
+
+# ── Parent-run check: does each configured provider actually answer? ─────────
+#
+# A backup nobody has seen answer is not a backup: on 2026-11-17 the demo's
+# Mistral and Claude backups were both unable to answer, and nothing showed it
+# until OpenAI ran out of credit. This sends each configured provider the
+# smallest possible request, on a parent's button press only (each call is a
+# real, billed request, so it never runs on a schedule), and says in plain
+# words what each answered. Fresh clients are built per check so it shares no
+# state, and no circuit-breaker trip, with the client real lessons use.
+
+CHECK_TIMEOUT_SECONDS = 20.0
+_CHECK_PROMPT = "Reply with the single word OK."
+
+
+async def check_providers(settings: Any = _global_settings) -> List[Dict[str, Any]]:
+    import asyncio
+
+    async def one(name: str) -> Dict[str, Any]:
+        try:
+            client = _build(name, settings)
+            await asyncio.wait_for(
+                client.messages.create(**_kwargs_for(name, {
+                    "model": settings.tutor_model,
+                    "max_tokens": 5,
+                    "messages": [{"role": "user", "content": _CHECK_PROMPT}],
+                })),
+                timeout=CHECK_TIMEOUT_SECONDS,
+            )
+        except Exception as exc:  # every failure is reported, none is raised
+            problem = classify(exc if not isinstance(exc, asyncio.TimeoutError) else TimeoutError())
+            log.warning("Provider check: %r failed (%s)", name, problem.code)
+            return {"provider": name, "ok": False, "code": problem.code,
+                    "message": problem.message, "detail": problem.detail}
+        return {"provider": name, "ok": True, "code": "ok",
+                "message": _provider_ok_message(), "detail": ""}
+
+    names = configured_adapters(settings)
+    return list(await asyncio.gather(*(one(n) for n in names)))
+
+
+def _provider_ok_message() -> str:
+    from .provider_errors import message_for
+    return message_for("ok")

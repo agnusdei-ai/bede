@@ -1631,6 +1631,36 @@ Setting up a second provider in the first place is a one-time, technical
 step (see `docs/PROVIDER_ADAPTERS.md`). This card only lets you choose
 among providers that are already set up, it doesn't add a new one.
 
+### Checking that each provider actually answers
+
+A backup only helps if it can answer. The **AI Provider** card has a
+**Check AI providers** button (it also appears when only one provider is set
+up). Press it and Bede sends each provider one very small request, then tells
+you, in plain words, which ones answered and why any others did not:
+
+- **Out of credit or billing is not set up.** Add credit in that provider's
+  billing settings.
+- **Your plan does not include the model Bede asks for.** Upgrade the plan, or
+  set that provider's model setting to one your plan includes.
+- **Refusing because of a rate limit.** Your plan allows too few requests or
+  too little text per minute. A higher plan raises the limit.
+- **The API key was rejected.** Check the key, or create a new one.
+- **Could not be reached.** The provider may be down, or the address may be
+  wrong.
+
+Under each reason you also see the provider's own words, which is what to
+quote if you contact them. Each check is a real request and costs a tiny
+amount on each provider's bill, so Bede allows one every 30 seconds. It is
+worth pressing after you add credit, change a plan or paste a new key, rather
+than finding out during a lesson.
+
+**If no provider can answer during a lesson,** your child sees: "I can't reach
+my thinking right now, so I can't answer yet. This isn't anything you did.
+Please let a grown-up know, and we can try again a little later." That is your
+cue to press **Check AI providers**. In **Ask Bede** you see the same reasons
+as the check, provider by provider. Bede's log and the backend-failure alert
+also record each provider's reason.
+
 ## 11. Managing devices
 
 Every tablet or computer that has ever logged in as a parent or a child

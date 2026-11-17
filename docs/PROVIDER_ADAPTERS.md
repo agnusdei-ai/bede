@@ -137,6 +137,41 @@ single-resolved-client contract the existing tests rely on stays intact. When a
 non-primary adapter is used, it best-effort emails the operator
 (`PARENT_EMAIL`/Resend, via the existing `services/email_service.py`) as an FYI.
 
+## When a provider refuses: the reason, in plain words
+
+`services/adapters/provider_errors.py`'s `classify()` turns a provider's
+refusal into one code and a sentence a parent can act on: `no_credit`,
+`model_not_on_plan`, `rate_limited`, `bad_key`, `unreachable`, `refused` or
+`unknown`. It reads the exception's class, status and the provider's own
+message, never the request. Billing words are checked before the status code,
+because OpenAI reports "no credits" as a 429 and Anthropic reports an empty
+balance as a 400.
+
+- **The switch** logs each provider's reason as it moves on, and when every
+  provider refused it attaches `(provider, code)` pairs to the exception it
+  raises (`router.provider_failures(exc)`).
+- **A lesson** whose providers all refused tells the child, in their language,
+  that Bede can't reach its thinking and to let a grown-up know
+  (`ai_unavailable_response`), instead of "Something went wrong on my end",
+  which invited a retry that would fail the same way. The child never sees a
+  provider name or a billing word. The `AI_BACKEND_FAILURE` audit detail gains
+  `providers=openai:no_credit,...`. A failure that did not come from every
+  provider refusing (a bug in Bede) keeps the old message.
+- **Ask Bede** tells a signed-in parent or teacher which provider refused and
+  why. The anonymous demo gets the child's plain notice instead, since the
+  operator's billing state is not a visitor's business.
+- **`POST /admin/ai-provider/check`** (parent) sends each configured provider
+  the fixed prompt "Reply with the single word OK." with `max_tokens` 5 and
+  returns each result. Fresh clients per check, so it never trips the circuit
+  breaker real lessons use. One check per 30 seconds per server, since every
+  check is billed. `AIProviderSettings.tsx` shows it as **Check AI providers**.
+  It runs only on a press, never on a schedule.
+
+Tests: `tests/test_provider_refusal_messages.py` (the classifier against the
+exact errors of 2026-11-17, the real switch, a real `/tutor/chat` turn in both
+languages, Ask Bede for a parent and for the demo, the check and its limit)
+and `src/components/AIProviderCheck.test.tsx`.
+
 ## Live, in-app provider switching (no .env edit, no restart)
 
 `BEDE_ADAPTER_ORDER`/`BEDE_FORCE_ADAPTER` above are read once at process

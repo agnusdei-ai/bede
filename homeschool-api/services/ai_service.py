@@ -1235,6 +1235,32 @@ def demo_quota_response(locale: str = "en") -> str:
     return _DEMO_QUOTA_RESPONSES.get(locale, _DEMO_QUOTA_RESPONSES["en"])
 
 
+
+# When every AI provider refused a turn (no credit, a rate limit, a plan that
+# leaves out the model). Before this the child saw "Something went wrong on my
+# end. Could you try sending that again?", which invites the same retry that
+# will fail the same way and tells the grown-up nothing. This says it is not
+# the child's doing, that trying again right away will not help, and who can
+# fix it, without naming a provider or billing, which mean nothing to a child.
+_AI_UNAVAILABLE_RESPONSES = {
+    "en": (
+        "I can't reach my thinking right now, so I can't answer yet. "
+        "This isn't anything you did. Please let a grown-up know, and we can "
+        "try again a little later."
+    ),
+    "es": (
+        "Ahora mismo no puedo pensar mi respuesta, así que todavía no puedo "
+        "contestar. No es nada que hayas hecho tú. Por favor, avísale a un "
+        "adulto y lo intentamos de nuevo un poco más tarde."
+    ),
+}
+
+
+def ai_unavailable_response(locale: str = "en") -> str:
+    """Localized notice for a turn no AI provider could answer — same fallback
+    contract as safeguarding_response()/demo_quota_response()."""
+    return _AI_UNAVAILABLE_RESPONSES.get(locale, _AI_UNAVAILABLE_RESPONSES["en"])
+
 _GRADE_DESCRIPTORS = {
     "K": "a Kindergarten student", "0": "a Kindergarten student",
     "1": "a first-grade student", "2": "a second-grade student", "3": "a third-grade student",

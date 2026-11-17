@@ -68,8 +68,11 @@ describe('AIProviderSettings — exactly one configured', () => {
     expect(screen.getByText(/Only one AI provider is configured/)).toBeTruthy()
     expect(screen.getByText(/PROVIDER_ADAPTERS\.md/)).toBeTruthy()
     // The full switcher's interactive elements must not be present — this
-    // is a passive nudge, not a picker with nothing to pick between.
-    expect(screen.queryByRole('button')).toBeNull()
+    // is a nudge, not a picker with nothing to pick between. The one button
+    // allowed is "Check AI providers", which switches nothing: a single
+    // provider is exactly the case where knowing whether it answers matters.
+    const buttons = screen.queryAllByRole('button')
+    expect(buttons.map((b) => b.textContent?.trim())).toEqual(['Check AI providers'])
   })
 
   it('never calls the status-mutating endpoints for a single-provider deployment', async () => {

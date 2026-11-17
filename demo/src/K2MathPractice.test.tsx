@@ -129,6 +129,47 @@ describe('K2MathPractice', () => {
     expect(document.body.textContent ?? '').not.toMatch(/\d+\s*(\/|of|out of)\s*\d+/)
   })
 
+  it('completes a Spanish round with correction, reveal, retry, and another round', async () => {
+    reduceMotion = true
+    await i18n.changeLanguage('es')
+    const { onSpeak, onClose } = await open()
+
+    expect(screen.getByText('Mira').getAttribute('aria-current')).toBe('step')
+    expect(onSpeak).toHaveBeenCalledWith('Aquí hay 4. Mira cómo pongo 2 más. Ahora hay 6.')
+    fireEvent.click(screen.getByRole('button', { name: 'Probemos una' }))
+    expect(screen.getByText('Juntos').getAttribute('aria-current')).toBe('step')
+    fireEvent.click(screen.getByRole('button', { name: 'Poner una ficha en la casilla 4' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Poner una ficha' }))
+    answerMathTask.mockRejectedValueOnce(new Error('request failed'))
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    await screen.findByText('No se pudo revisar esa respuesta. Intenta de nuevo.')
+    answerMathTask.mockResolvedValueOnce({ understood: true, correct: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Revisar' }))
+    await screen.findByText('¡Sí, esa es!')
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+
+    answerMathTask.mockResolvedValueOnce({ understood: true, correct: false, reveal: { choice: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: '9' }))
+    await screen.findByText('Aquí está. Toca Siguiente cuando estés listo.')
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(screen.getByText('Te toca').getAttribute('aria-current')).toBe('step')
+    expect(screen.getByRole('img', { name: 'Un marco de diez con fichas' })).toBeTruthy()
+    answerMathTask.mockResolvedValueOnce({ understood: true, correct: false, tries_left: 1 })
+    fireEvent.click(screen.getByRole('button', { name: '6' }))
+    await screen.findByText('Miremos otra vez. Intenta una vez más.')
+    answerMathTask.mockResolvedValueOnce({ understood: true, correct: true, recorded: false, demo: true })
+    fireEvent.click(screen.getByRole('button', { name: '7' }))
+    await screen.findByText('¡Sí, esa es!')
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await screen.findByText('¡Terminaste la Hora de los Números!')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Jugar otra vez' }))
+    await screen.findByText('Mira')
+    expect(fetchMathLesson).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a la conversación' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('lets the demo topic picker wrap at narrow text-scaled widths', async () => {
     const topicLesson = { ...lesson(), available_topics: ['count', 'compare', 'add', 'subtract', 'bond'] }
     render(

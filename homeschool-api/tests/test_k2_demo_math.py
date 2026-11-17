@@ -121,11 +121,27 @@ def test_missing_or_forged_demo_math_credentials_are_refused(client):
     assert response.status_code == 404
 
 
-def test_lesson_id_cannot_cross_from_household_math_domain(client):
+@pytest.mark.parametrize("role", ["parent", "child", "educator"])
+def test_household_and_educator_tokens_cannot_open_demo_math(client, role):
+    from core.security import create_access_token
+
+    token = create_access_token({"sub": role, "role": role})
+    response = client.get(
+        "/k2-practice/demo/math/lesson",
+        headers={"Authorization": "Bearer " + token},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("area", "domain"),
+    [("math", "count"), ("phonics", "phonological_awareness")],
+)
+def test_lesson_id_cannot_cross_from_household_practice_domains(client, area, domain):
     from routers.k2_practice import mint_lesson_id
 
     _, headers = _session(client, grade="K")
-    family_id = mint_lesson_id("Same Name", "K", "count", 1, area="math")
+    family_id = mint_lesson_id("Same Name", "K", domain, 1, area=area)
     response = _answer(client, headers, family_id, choice="0")
     assert response.status_code == 404
 
@@ -236,18 +252,29 @@ def test_expired_demo_code_cannot_use_an_existing_lesson(client, demo_db):
     assert response.status_code == 401
 
 
-def test_malformed_demo_answer_is_refused(client):
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"phase": "watch"},
+        {"index": 10},
+        {"choice": "not-a-choice"},
+        {"submission_id": "short"},
+    ],
+)
+def test_malformed_demo_answer_is_refused(client, override):
     _, headers = _session(client, grade="K")
     lesson = _lesson(client, headers).json()
+    answer = {
+        "phase": "your_turn",
+        "index": 0,
+        "choice": "not-a-choice",
+        "submission_id": "submission_malformed_001",
+    }
+    answer.update(override)
     response = client.post(
         f"/k2-practice/demo/math/lessons/{lesson['lesson_id']}/answers",
         headers=headers,
-        json={
-            "phase": "your_turn",
-            "index": 0,
-            "choice": "not-a-choice",
-            "submission_id": "short",
-        },
+        json=answer,
     )
     assert response.status_code == 422
 

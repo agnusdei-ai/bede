@@ -84,6 +84,11 @@ services:
       # invisible to that override, exactly as before.
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Only for an ORGANIZATION-level Anthropic key, which is refused ("not
+      # scoped to a workspace") unless each request names the workspace to
+      # bill. A key created inside a workspace needs nothing here.
+      - key: ANTHROPIC_WORKSPACE_ID
+        sync: false
       # Doubles as both OpenAI TTS (services/voice_synthesis.py) and the
       # OpenAI chat adapter (services/adapters/openai_compatible_adapter.py)
       # now that BEDE_ADAPTER_ORDER includes "openai" below — same key, two

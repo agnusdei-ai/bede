@@ -85,6 +85,7 @@ All in `homeschool-api/core/config.py` (env vars via `.env`):
 | `LOCAL_LLM_MODEL` | `Qwen/Qwen3-Coder-30B-A3B-Instruct` | Model name the local server serves. |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Chat model for the OpenAI adapter (reuses `OPENAI_API_KEY`). |
 | `MISTRAL_API_KEY` / `MISTRAL_MODEL` | *(empty)* / `mistral-large-latest` | Mistral secondary. |
+| `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for an **organization-level** Anthropic key. Sent as the `anthropic-workspace-id` header on every Claude request, naming the workspace to bill. Without it such a key is refused with "API key is not scoped to a workspace" (seen on the demo, 2026-11-17). A key created inside a workspace needs nothing here, and sending the header with one is harmless. Checked at boot: letters, digits, `_` and `-` only, since it becomes a header value. `tests/test_anthropic_workspace_header.py` reads the header off the wire. |
 
 An adapter is **"configured"** when the credentials it needs are present:
 `local` needs `LOCAL_LLM_BASE_URL`; `anthropic` needs `ANTHROPIC_API_KEY`;

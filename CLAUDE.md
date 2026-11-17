@@ -1225,7 +1225,7 @@ Which model actually serves a tutor turn now depends on `services/adapters/` (se
 above) — the first *configured* adapter in `BEDE_ADAPTER_ORDER` wins, and each
 adapter has its own model setting in `core/config.py`:
 
-- **Anthropic** (`tutor_model`/`session_model`) — `claude-sonnet-4-6` (streaming,
+- **Anthropic** (`tutor_model`/`session_model`; `ANTHROPIC_WORKSPACE_ID` is sent as the `anthropic-workspace-id` header when set, which an organization-level key requires, `services/adapters/anthropic_adapter.py`) — `claude-sonnet-4-6` (streaming,
   `max_tokens: 400`, tight for Mater Amabilis brevity) /
   `claude-haiku-4-5-20251001` (non-streaming, `max_tokens: 600`, end-of-session
   parent report). This is the model pair a self-hosted deployment gets when

@@ -126,7 +126,9 @@ def _build(name: str, settings: Any) -> Any:
     if not approved_provider(name):
         raise PermissionError("COPPA provider qualification required")
     if name == "anthropic":
-        return build_anthropic_client(settings.anthropic_api_key)
+        return build_anthropic_client(
+            settings.anthropic_api_key, getattr(settings, "anthropic_workspace_id", "")
+        )
     if name == "local":
         require_qualified_local_endpoint(settings.local_llm_base_url)
         return OpenAICompatibleClient(
@@ -269,7 +271,9 @@ def get_default_client(settings: Any = _global_settings) -> Any:
         # closed rather than constructing an unqualified cloud client.
         if not approved_provider("anthropic"):
             raise PermissionError("COPPA provider qualification required")
-        return build_anthropic_client(settings.anthropic_api_key)
+        return build_anthropic_client(
+            settings.anthropic_api_key, getattr(settings, "anthropic_workspace_id", "")
+        )
 
 
 # ── Phase 6: failover router with a short in-memory circuit breaker ───────────

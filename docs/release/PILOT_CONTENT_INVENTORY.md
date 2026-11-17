@@ -1,14 +1,32 @@
 # Bede v1.0 pilot content inventory
 
-**Content revision:** `pilot-content/2026-11-15` (recommender `pilot-recommender/2`,
+**Content revision:** `pilot-content/2026-11-17` (recommender `pilot-recommender/2`,
 official-record proposals `canonical-review-2026-11-15`).
 **Scope:** the teacher-only Valor pilot. Household and demo content is not
 part of this inventory and is not reviewed here.
 **What this is:** a record of what a teacher sees or prints in the pilot,
-what was checked, and what is still owed. It is not a claim that an
-educator has signed off. Every review below was done by reading the code,
-running it, and looking at the printed result in one working session; the
-"reviewer" line says so.
+what was checked, and what remains unverified. It is not educator, human,
+counsel, or school-administrator certification.
+
+## Agent review record
+
+- `security-review` agent, session
+  `0991951b-2452-47e8-907b-0aba3f86ef97`, reviewed PR #837 at
+  `60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`. It recommended HOLD and
+  identified deployment-security and operations gaps. Model identity was
+  unavailable. The review was read-only and did not run tests or inspect a
+  customer installation.
+- `code-review` agent, session
+  `b861f920-7cf8-46f3-a452-247d42f8fa07`, reviewed the same SHA and found
+  that the official-record printout omitted its rationale. Model identity
+  was unavailable. The implementation and regression tests are present in
+  the current working tree, but their targeted suites could not run because
+  `pytest` and the frontend `vitest` executable are unavailable here. A
+  follow-up review of the revised committed source is still needed.
+
+These are agent reviews, not human or educator certification. No external
+educator review is required. Counsel and school-administrator authorization
+remain separate obligations before real learner data is used.
 
 Statuses are `accepted`, `needs_revision` and `excluded_from_pilot`.
 Nothing required is excluded here. Two items that ship on the teacher desk
@@ -19,11 +37,11 @@ decisions**, not excluded.
 
 | Item | Required | Status | Still owed |
 | --- | --- | --- | --- |
-| `g2-suggestion-wording` | yes | accepted | educator read-through |
-| `official-record-proposal-wording` | yes | accepted | educator read-through |
-| `teacher-plan-sheet` | yes | accepted | print from a real Mac and Safari |
+| `g2-suggestion-wording` | yes | accepted | exact-candidate qualification |
+| `official-record-proposal-wording` | yes | needs_revision | exact-candidate API and print checks |
+| `teacher-plan-sheet` | yes | needs_revision | exact-candidate print checks; pilot Mac/Safari |
 | `assessment-framework-catalog` | yes | accepted | check against the publisher's guide |
-| `teacher-screen-copy` | yes | accepted | educator read-through; Spanish scope decision |
+| `teacher-screen-copy` | yes | accepted | Spanish scope decision |
 | `school-data-notice` | yes | accepted for sample data | counsel review before any real learner data |
 | `valor-sample-records` | yes | accepted | none |
 | `teacher-quiz-studio` | owner to decide | accepted | scope decision |
@@ -52,9 +70,15 @@ decisions**, not excluded.
    It stays a proposal so the teacher can still record a decision.
 6. **"Print teacher material" printed the whole teacher screen.** It now
    prints one sheet: learner, approval line, the plan, the reasons, lined
-   space for notes, and the "not an official score" line.
+   space for notes, and the "not an official score" line. The official-record
+   artifact path omitted those reasons; the approved artifact now reads them
+   from its linked proposal and passes them to the same escaped print section.
 7. **The suggestion journey had no print at all.** Approved guidance now
    has "Print this plan", shown only after approval.
+8. **The official-record print omitted its evidence basis.** The artifact
+   now returns the linked proposal rationale and the teacher form passes it
+   through `basedOn`. API and component regressions were added, but could not
+   run in this environment because `pytest` and `vitest` are unavailable.
 
 ## Records
 
@@ -65,7 +89,7 @@ content_item:
   pilot_required: true
   audience: {grade_or_stage: "K-8 (DIBELS 8 measures), all grades (classical observations)", subject: reading and classical observations, topic: suggested next focus from entered evidence}
   review:
-    instructional_accuracy: checked against the measure definitions; educator read-through not done
+    instructional_accuracy: checked against the measure definitions; the cited automated checks do not certify instructional suitability
     classical_socratic_fit: wording describes instruction, never the child; tested
     age_appropriateness: teacher-only text; no learner sees it
     source_and_usage_rights: uses measure names only; no test items, norms or cut points
@@ -79,11 +103,11 @@ content_item:
     paper_output_usable: yes, after approval only
   result:
     status: accepted
-    reviewer: automated review in a working session; no educator review
+    reviewer: automated checks; see the agent review record above for read-only review scope and limitations
     evidence_refs:
       - homeschool-api/tests/test_valor_pilot_g2_journey.py
       - homeschool-api/services/pilot_recommender.py
-    blocking_findings: [educator read-through of the focus wording is outstanding]
+    blocking_findings: [exact-candidate qualification remains outstanding]
 ```
 
 ```yaml
@@ -101,17 +125,17 @@ content_item:
     printable_layout: printed through teacher-plan-sheet
     language_review_if_in_scope: English only
   teacher_workflow:
-    evidence_basis_visible: yes, each printed label is listed as a reason
+    evidence_basis_visible: yes in the artifact response and print path; regression tests added but not run here
     suggestion_distinct_from_decision: yes, `is_approval` is always false on a proposal
     approve_edit_reject_supported: yes
     paper_output_usable: yes, after a plan is recorded
   result:
-    status: accepted
-    reviewer: automated review in a working session; no educator review
+    status: needs_revision
+    reviewer: code-review agent found the omitted evidence basis at SHA 60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a; the proposed fix is unverified
     evidence_refs:
       - homeschool-api/tests/test_canonical_proposal_wording.py
       - homeschool-api/tests/test_canonical_assessment_api.py
-    blocking_findings: [educator read-through is outstanding]
+    blocking_findings: [API and print regression tests could not run in this environment]
 ```
 
 ```yaml
@@ -126,21 +150,21 @@ content_item:
     age_appropriateness: teacher-only sheet, marked for teacher use
     source_and_usage_rights: the teacher's own approved text
     answer_key_accuracy: not applicable
-    printable_layout: one page for a short plan, four for a very long one, nothing clipped, in headless Chromium
+    printable_layout: prior headless Chromium renders showed one page for a short plan and four for a very long one, with nothing clipped; rerun after the rationale fix
     language_review_if_in_scope: English only
   teacher_workflow:
-    evidence_basis_visible: yes, the reasons print under the plan
+    evidence_basis_visible: yes for the suggestion path; the official-record path fix is pending verification
     suggestion_distinct_from_decision: yes, the sheet carries the approval line and exists only after approval
     approve_edit_reject_supported: not applicable
-    paper_output_usable: yes in Chromium; Safari on a Mac not checked
+    paper_output_usable: prior Chromium check only; Safari on the pilot Mac not checked
   result:
-    status: accepted
-    reviewer: automated review in a working session
+    status: needs_revision
+    reviewer: prior Chromium check; code-review agent identified a missing evidence basis in the official-record path
     evidence_refs:
       - homeschool-tutor/src/utils/printTeacherPlan.test.ts
       - homeschool-tutor/src/components/PilotTeacherJourney.test.tsx
       - PDF renders made in the session (not archived)
-    blocking_findings: [print from Safari on the pilot Mac is outstanding]
+    blocking_findings: [targeted API/UI suites unavailable here; print from Safari on the pilot Mac remains unrun]
 ```
 
 ```yaml
@@ -164,7 +188,7 @@ content_item:
     paper_output_usable: not applicable
   result:
     status: accepted
-    reviewer: automated review in a working session
+    reviewer: automated checks; not compared line by line with the publisher's guide
     evidence_refs:
       - homeschool-api/services/assessment_interop.py
       - homeschool-api/tests/test_assessment_interop.py
@@ -192,7 +216,7 @@ content_item:
     paper_output_usable: yes
   result:
     status: accepted
-    reviewer: automated review in a working session
+    reviewer: automated checks; see the agent review record above for read-only review scope and limitations
     evidence_refs:
       - homeschool-tutor/src/components/PilotTeacherJourney.test.tsx
       - homeschool-api/tests/test_pilot_teacher_review_contract.py
@@ -248,7 +272,7 @@ content_item:
     paper_output_usable: not applicable
   result:
     status: accepted
-    reviewer: automated review in a working session
+    reviewer: automated checks using sample records
     evidence_refs: [homeschool-api/tests/valor_sample_fixture.py]
     blocking_findings: []
 ```
@@ -274,12 +298,12 @@ content_item:
     paper_output_usable: yes
   result:
     status: accepted
-    reviewer: automated review in a working session
+    reviewer: automated checks; see the agent review record above for read-only review scope and limitations
     evidence_refs:
       - homeschool-api/tests/test_teacher_quiz.py
       - homeschool-tutor/src/components/TeacherQuizStudio.test.tsx
       - homeschool-tutor/src/utils/printDocument.test.ts
-    blocking_findings: [owner to say whether this is in the pilot]
+    blocking_findings: [owner scope decision; recommendation is to defer from this teacher-review pilot]
 ```
 
 ```yaml
@@ -303,11 +327,11 @@ content_item:
     paper_output_usable: yes
   result:
     status: needs_revision
-    reviewer: automated review in a working session
+    reviewer: automated checks; see the agent review record above for read-only review scope and limitations
     evidence_refs: [homeschool-api/tests/test_practice_quiz_generation.py]
     blocking_findings:
-      - owner to say whether this is in the pilot
-      - if it is, a set of drafts from the pilot's actual local model has to be read by an educator first
+      - owner to say whether this is in the pilot; recommendation is to defer
+      - if included later, qualify the actual approved local model and its generated output
 ```
 
 ## How to change this file
@@ -315,5 +339,7 @@ content_item:
 Change a wording, then change its version here and in the code
 (`POLICY_VERSION` in `services/pilot_recommender.py` or
 `services/canonical_assessment.py`), and move the content revision at the
-top. A status moves to `accepted` on someone's review, with their role and
-the date in `reviewer`.
+top. `accepted` records the cited automated checks only; it is not legal,
+school, educator, or human certification. Keep agent role, session, reviewed
+SHA, and limitations in the review record, and use `needs_revision` until
+required checks run on the selected candidate.

@@ -878,6 +878,7 @@ def test_teacher_artifact_and_post_lesson_observation_are_scoped_and_append_only
     assert art.status_code == 200, art.text
     body = art.json()
     assert body["plan_text"] == "Teacher approved sample phonics activity"
+    assert body["based_on"] == prop["rationale"]
     assert body["assessment_snapshot_sha256"]
     assert body["status"] == "teacher_approved_for_offline_use"
     assert body["campus_id"] == world.campus_one

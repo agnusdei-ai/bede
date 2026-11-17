@@ -10,9 +10,11 @@ const api = vi.hoisted(() => ({
   decideOfficialProposal: vi.fn(), recordOfficialPlan: vi.fn(),
   fetchTeacherArtifact: vi.fn(), fetchTeacherFollowUps: vi.fn(), recordTeacherFollowUp: vi.fn(),
 }))
+const print = vi.hoisted(() => ({ printTeacherPlan: vi.fn() }))
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(), ...api,
 }))
+vi.mock('../utils/printTeacherPlan', () => print)
 
 const CID = '11111111-1111-4111-8111-111111111111'
 const LID = '22222222-2222-4222-8222-222222222222'
@@ -37,6 +39,7 @@ beforeEach(() => {
   api.fetchOfficialDataDay.mockResolvedValue(packet)
   api.enterOfficialScores.mockResolvedValue(record)
   api.recordOfficialObservation.mockResolvedValue({ evidence_id: 'sample' })
+  print.printTeacherPlan.mockResolvedValue(true)
 })
 afterEach(cleanup)
 
@@ -70,6 +73,7 @@ describe('pilot official assessment two-panel workflow', () => {
       status: 'teacher_approved_for_offline_use',
       campus_id: CID, learner_id: LID, assessment_id: AID, plan_id: planId,
       approval_action: 'approve', plan_text: 'Sample teacher-approved handout',
+      based_on: ['PSF, 2026-10-17: the source report lists Some Support.'],
       disclaimer: 'Teacher material, not an official report',
     })
     api.recordTeacherFollowUp.mockResolvedValue({ follow_up_id: 'sample-follow-up' })
@@ -81,6 +85,9 @@ describe('pilot official assessment two-panel workflow', () => {
     expect(await screen.findByText('Sample teacher-approved handout')).toBeTruthy()
     expect(api.fetchTeacherArtifact).toHaveBeenCalledWith('sample-token', CID, LID, AID, planId)
     expect(screen.getByText(/not an official report/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Print teacher material' }))
+    await waitFor(() => expect(print.printTeacherPlan).toHaveBeenCalledWith(
+      expect.objectContaining({ basedOn: ['PSF, 2026-10-17: the source report lists Some Support.'] })))
     fireEvent.change(screen.getByLabelText('What you observed'), {
       target: { value: 'Sample teacher observation' },
     })

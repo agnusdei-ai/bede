@@ -535,6 +535,7 @@ export default function PilotOfficialAssessmentForm({
                   learnerName,
                   approvalLine: `${artifact.approval_action === 'edit' ? 'Edited and approved' : 'Approved'} by the teacher · prepared ${artifact.prepared_at.slice(0, 10)} · for teacher use, offline`,
                   planText: artifact.plan_text,
+                  basedOn: artifact.based_on,
                   disclaimer: artifact.disclaimer,
                 }).then(started => { if (!started) setMessage('Printing did not start. Try again.') })}>
                 Print teacher material</button>

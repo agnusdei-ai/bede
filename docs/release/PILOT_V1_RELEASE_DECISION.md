@@ -1,104 +1,163 @@
-# Bede v1.0 pilot release decision packet
+# Bede v1.0 production pilot release-candidate packet
 
-**Decision: HOLD.** This packet names the candidate, what was checked and
-what still blocks a release. It does not approve anything. Scope is frozen
-to the existing pilot agreement
+**Recommendation: HOLD. Deployment is not authorized.** This packet records
+the current evidence and the remaining owner decisions for a customer-
+environment pilot release candidate (RC). It is neither a release nor a
+customer-installation approval. A sample-only qualification is useful
+evidence, but does not complete the requested customer-environment endpoint.
+Real learner data remains blocked until applicable school authorization and
+legal obligations are met.
+
+The teacher-review capabilities remain bounded by the existing pilot
+agreement
 ([VALOR_TEACHER_REVIEW_CONTRACT](../institutional/VALOR_TEACHER_REVIEW_CONTRACT.md))
-and release contract
+and evidence checklist
 ([PILOT_RELEASE_EVIDENCE_CHECKLIST](../institutional/PILOT_RELEASE_EVIDENCE_CHECKLIST.md)).
+This packet does not treat unrelated practice features as included.
 
 ```yaml
 release:
   name: Bede
   version: "1.0"
-  target: pilot
+  target: production pilot RC for customer-environment implementation
 candidate:
-  source_sha: the merge commit of the pull request that adds this file (base d7c99b1f)
-  content_revision: pilot-content/2026-11-15
-  package_digest: none; no operator package has been built from this candidate
+  source_sha: null
+  source_sha_reason: owner has not selected a candidate; working tree is not a candidate
+  target_platform: unknown; owner confirmation required
+  target_architecture: unknown; owner confirmation required
+  package_digest: null
+  package_status: not built
+  qualification_manifest: null
 gates:
-  required_content: reviewed, with open sign-offs (see below)
-  teacher_journey: passes in automated checks; not run on the pilot Mac
-  automated_qualification: not met on this candidate
-  required_mac_verification: not run
-  independent_review: not done
-blockers: listed below
+  agent_review: prior read-only reviews recorded; follow-up of proposed print fix pending
+  automated_qualification: not run on a selected candidate
+  customer_installation: not run
+  physical_mac_safari_acceptance: NOT_RUN; owner-operated
+  real_learner_data: not authorized by this packet
+  production_rc_ready: false
+  deployment_authorized: false
 decision:
   status: HOLD
-  owner_approval_ref: none
+  owner_approval_ref: null
 ```
 
-## Gates
+## Current evidence
 
-**Required content.** Every required item is inventoried in
-[PILOT_CONTENT_INVENTORY](PILOT_CONTENT_INVENTORY.md). Seven wording and
-print findings were fixed in content revision `pilot-content/2026-11-15`.
-All required items are `accepted` on an automated review. No educator has
-read the wording, so this gate is not signed off.
+**Source and dependencies.** The reviewed PR #837 tree is
+`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a`; it is not current `main` and
+is not an immutable candidate selected by the owner. Current `main` was
+`30c9f3231a561be626109dfd1269a122021ba840` when these states were checked.
+PRs #857 and #864 were merged; #824, #851, and #865 remained open, and #862
+has an explicit owner hold. No PR was merged for this packet. Reconcile
+required dependencies on a deliberate integration tree; do not silently
+package the older reviewed SHA.
 
-**Teacher journey.** Evidence, suggestion, approve / edit / reject, the
-approved plan, its print, and the same state on reopening are covered by:
+**Agent reviews.** The `security-review` agent session
+`0991951b-2452-47e8-907b-0aba3f86ef97` recommended HOLD and identified
+deployment-security and operations gaps. The `code-review` agent session
+`b861f920-7cf8-46f3-a452-247d42f8fa07` found that the official-record
+printout omitted the proposal rationale. Both reviewed the PR #837 tree
+above; neither model identity was exposed. Their reviews were read-only and
+are not educator, human, counsel, school-administrator, or installed-build
+certification. The proposed rationale fix is in the current working tree;
+its API and frontend tests could not run because this checkout has neither
+`pytest` nor `vitest`. A follow-up review of the revised committed source
+remains required.
 
-- `homeschool-api/tests/test_valor_pilot_g2_journey.py` and
-  `test_valor_release_journeys.py` (suggestion journey, ledger, denial cases)
-- `homeschool-api/tests/test_canonical_assessment_api.py` (official record
-  to proposal, decision, plan, over real HTTP)
-- `homeschool-tutor/src/components/PilotTeacherJourney.test.tsx` (a decision
-  already on the server is shown on open, with its print; no print before
-  approval; no delivery claim)
-- a print to PDF in headless Chromium: one sheet, plan only, nothing clipped
+**WebKit evidence.** The controlled diagnosis run `43757437010` reported
+macOS 15.8.2 arm64, Node 24.22.2, Playwright 1.56.0/WebKit 26.0, with
+variants B, F, G, and I crashing 3/3. The same variants had zero crashes
+in three attempts each on Playwright 1.63.0/WebKit 26.6. Product browser
+run `44161273052` tested
+PR #857 head `e581b077fd171b42ffb953843eef3e362a70dd0e` on the latter
+Playwright/WebKit version and passed 36/36 checks, including the journey
+that restarts the API during a tutor turn and reloads the child page. The
+relevant journey/runtime source matched current `main` except for
+`.github/audit-allowlist.json`. This narrows the known failure to the older
+WebKit/Playwright stack; it does not establish real Safari or physical Mac
+acceptance, and it is not evidence on a selected final candidate.
 
-Delivery stays `NOT_REQUESTED` throughout. Not yet done: the same journey by
-hand on the pilot Mac (G3-04, G3-05).
+**Print finding.** The proposed fix returns the rationale from the proposal
+linked by the approved teacher decision and passes it to the existing
+escaped “Based on” print section. It also checks the proposal's assessment,
+campus, and learner association. The targeted API and UI tests were added
+but not run here. Until they run on the selected integrated candidate, the
+official-record print gate is not met.
 
-**Automated qualification.** Sample qualification last passed on
-`d6d8bbf3` (run 247), which is not this candidate. It has to pass on the
-candidate SHA. The cross-platform browser journeys were still failing on
-their latest run (run 35, `d6d8bbf3`); see the WebKit blocker.
+## Owner decisions required
 
-**Required Mac verification.** Every row of
-[MAC_G3_CERTIFICATION_RECORD](../institutional/MAC_G3_CERTIFICATION_RECORD.md)
-is NOT RUN.
+Please answer these before selecting a candidate. Recommendations are
+included to make each choice concrete, not to make it on the owner's behalf.
 
-**Independent review.** None recorded.
+1. **Actual deployment target and topology:** provide the host OS, exact
+   hardware/chip and architecture, and whether the teacher uses the same
+   machine or a second LAN client. Available records do not establish the
+   customer's actual target. Recommendation: use the simplest topology that
+   satisfies the agreed pilot, and do not infer arm64 from prior runner
+   evidence.
+2. **Inference and data flow:** name the permitted provider, exact model,
+   runtime and endpoint; specify whether any learner message, assessment
+   record, or other learner data may leave the customer network; and state
+   credential provisioning. Recommendation: keep educator pilot inference
+   local-only with no cloud fallback unless the owner explicitly approves
+   the provider and corresponding data flow. No model download or paid call
+   is authorized here.
+3. **Learner-data scope:** state whether the initial customer environment
+   will use sample records or real learner data. The current school notice
+   is sample-data scoped. Real data requires applicable school-administrator
+   authorization and counsel's review of the notice; this packet cannot
+   waive either.
+4. **Teacher-facing language and feature scope:** confirm English-only or
+   Spanish teacher screens. Recommendation: keep this RC English-only unless
+   Spanish use is required by the customer. Decide whether Teacher Quiz
+   Studio and model-drafted quizzes are in scope; recommendation: defer both
+   because neither is in the stated agreement. Model-drafted quizzes would
+   additionally require qualification against the approved local model.
+5. **Number Time boundary:** Decision 40(g) permits the already-built,
+   direct-entry public-demo activity only. It does not authorize tutoring
+   invitations or other practice areas. Recommend deferring it from the
+   teacher-only pilot; decisions 40(c)-(f) remain outside this RC and should
+   be explicitly deferred, not decided by implementation.
+6. **Exact workflow approvals:** after source and target are selected,
+   authorize or decline any exact workflow/ref/SHA/inputs needed for
+   platform packaging or WebKit diagnosis. No workflow dispatch, package
+   publication, or release/deployment workflow is authorized by this
+   packet.
 
-## Blockers
+## Engineering and qualification blockers
 
-1. **Physical Mac acceptance (G3-01 to G3-11) is not run.** Needs the pilot
-   Mac, a built operator package with its digest, and a real passkey.
-2. **The release checklist's evidence record is empty.** The mandatory
-   order (backup and restore, WebAuthn, isolation, installer) has no dated
-   row with a SHA and result.
-3. **WebKit page crash on reload after an API restart, macOS runner.** With
-   its current owner. No terminal result has come back. Last known state:
-   it fails on `main` and on every macOS run since run 20; the crash report
-   points at `WebCore::Navigation::initializeForNewWindow`; the service
-   worker is ruled out; it has not been tried in real Safari. A finished
-   content review does not change this: the required browser check is
-   failing, so it counts as failing. The owner of that work is asked for
-   one of: reproduced (with variant, environment and stack comparison), not
-   reproduced under the tested variants, or blocked on a named prerequisite.
-4. **Sample qualification has not run on this candidate SHA.**
-5. **No educator has read the teacher-facing wording.**
-6. **Print from Safari on the pilot Mac is not checked.**
-7. **Counsel has not reviewed the school data notice.** This blocks real
-   learner data, not a sample-data pilot.
-8. **Two scope decisions for the owner:** whether Teacher Quiz Studio and
-   model-drafted quizzes are in the pilot. Both are on the teacher desk and
-   neither is named in the pilot agreement. Drafted quizzes cannot be
-   accepted as content without an educator reading drafts from the pilot's
-   own local model.
-9. **No operator package, so no package digest.**
+Each item has an accountable role, next action, and evidence required to
+close it:
+
+| Blocker | Accountable role and next action | Closure evidence |
+| --- | --- | --- |
+| Candidate source and open dependencies | Owner selects the source scope; integration engineer reconciles required PRs without merging on the owner's behalf. Preserve #862's hold. | One committed, clean, full 40-character SHA with a reviewed dependency list. |
+| Customer OS, architecture, topology, provider/model, and data scope | Owner supplies the choices above; release engineer records them without inference. | Approved scope record tied to the candidate. |
+| Database runtime privilege | Deployment engineer separates the API's runtime database role from the Postgres bootstrap superuser and checks the actual grants. | Packaged-deployment test proves the API role has only required application/schema privileges and cannot create roles or databases. |
+| Production recovery | Deployment engineer provides encrypted backup, key custody, offsite policy if required, and a destructive restore rehearsal. | Dated backup/restore evidence with measured RTO/RPO on the selected deployment. |
+| Package and provenance | Release engineer finds an authorized compatible runner and an approved packaging route. The existing operator image build downloads faster-whisper `base` weights and publishes to GHCR; that path is not authorized here. | Customer-installable package, exact source and target provenance inside/alongside it where supported, SHA-256 from final bytes, and a separate verifier report. No model download or publication without separate approval. |
+| Installed-build security and access | Release engineer qualifies TLS, passkey setup, teacher/campus/learner isolation, persistence, provider connectivity, health, diagnostics, and rollback on the selected topology. | Requirement-mapped results tied to exact candidate and artifact; failures resolved or explicitly left blocking. |
+| Functional and language qualification | Qualification engineer runs the required teacher journeys and isolation/recovery cases, including synthetic Spanish E2E only if Spanish is approved. | Complete exact-candidate matrix and evidence manifest. Synthetic tutor results must be labeled synthetic. |
+| Physical Mac and Safari | Owner alone operates the pilot Mac; engineering prepares one bounded session and exact install/rollback steps. | Actual owner-recorded results. Until then every physical row remains `NOT_RUN`. |
+| School data authorization and notice | School administrator supplies required authorization; counsel reviews the school notice before real learner data. | Current notice hash and required authorization/review evidence; no wording here claims those occurred. |
+
+These are not a permanent stop list: each names the person or role who can
+act and what evidence closes the gap. If a prerequisite needs a workflow
+permission or runner, request the exact workflow, ref, SHA, inputs, and
+approval rather than claiming delivery.
 
 ## Not reopened
 
-#834 (ending a lesson turn when the chat screen goes away) is merged and
-its regression tests are kept. Nothing here changes it.
+#834 (ending a lesson turn when the chat screen goes away) is merged and its
+regression tests remain. This packet does not claim that it changes or closes
+the separate physical-browser acceptance requirement.
 
-## What would move this to a decision
+## Readiness decision
 
-Build the operator package from the candidate SHA and record its digest;
-run sample qualification on that SHA; run the G3 rows on the pilot Mac
-including the teacher journey and a Safari print; get the WebKit result;
-record the educator and counsel reviews; then the owner records GO or HOLD
-with a dated reference in `owner_approval_ref`.
+The evidence supports **HOLD**, not `PRODUCTION PILOT RC READY`. No final
+candidate, customer platform, production configuration, installable
+artifact, artifact digest, or exact-candidate qualification exists. Resolve
+the owner choices, integrate only the approved scope, and complete the
+evidence table before the owner makes a dated readiness decision. A future
+`PRODUCTION PILOT RC READY` finding will still be distinct from
+`DEPLOYMENT AUTHORIZED`; only the owner may authorize customer installation.

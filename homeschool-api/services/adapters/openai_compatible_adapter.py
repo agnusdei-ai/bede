@@ -362,6 +362,7 @@ class OpenAICompatibleClient:
     def __init__(
         self, *, base_url: str = "", api_key: str = "", model: str = "",
         strict_local_transport: bool = False,
+        default_headers: Optional[Dict[str, str]] = None,
     ) -> None:
         # Enforce at the adapter construction boundary too, not just the
         # router. A direct caller must not bypass school-pilot egress policy
@@ -383,6 +384,10 @@ class OpenAICompatibleClient:
         client_kwargs: Dict[str, Any] = {"api_key": api_key or "not-needed"}
         if base_url:
             client_kwargs["base_url"] = base_url
+        if default_headers:
+            # AI_PROVIDER_HEADERS, already checked by core/request_headers.py:
+            # e.g. OpenAI-Organization/OpenAI-Project, or a gateway's header.
+            client_kwargs["default_headers"] = dict(default_headers)
         if strict_local_transport:
             # The SDK's default HTTP client can inherit HTTP(S)_PROXY and
             # follow server redirects. Both defeat an address-only local

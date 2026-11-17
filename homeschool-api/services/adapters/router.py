@@ -70,7 +70,9 @@ log = logging.getLogger(__name__)
 # default); vLLM/local uses whatever LOCAL_LLM_BASE_URL points at.
 _MISTRAL_BASE_URL = "https://api.mistral.ai/v1"
 
-_KNOWN_ADAPTERS = ("local", "openai", "mistral", "anthropic")
+from core.request_headers import PROVIDER_ADAPTERS, parse_provider_headers
+
+_KNOWN_ADAPTERS = PROVIDER_ADAPTERS
 
 # Public alias — routers/admin.py's AI-provider switcher needs the known-name
 # list and a "what's actually configured right now" helper without reaching
@@ -117,6 +119,11 @@ def _is_configured(name: str, settings: Any) -> bool:
     return False
 
 
+def _headers_for(name: str, settings: Any) -> dict:
+    """Configured extra headers for one provider (AI_PROVIDER_HEADERS)."""
+    return parse_provider_headers(getattr(settings, "ai_provider_headers", "") or "").get(name, {})
+
+
 def _build(name: str, settings: Any) -> Any:
     if getattr(settings, "bede_offline_installation", False):
         if name != "local":
@@ -127,7 +134,7 @@ def _build(name: str, settings: Any) -> Any:
         raise PermissionError("COPPA provider qualification required")
     if name == "anthropic":
         return build_anthropic_client(
-            settings.anthropic_api_key, getattr(settings, "anthropic_workspace_id", "")
+            settings.anthropic_api_key, _headers_for("anthropic", settings)
         )
     if name == "local":
         require_qualified_local_endpoint(settings.local_llm_base_url)
@@ -136,18 +143,21 @@ def _build(name: str, settings: Any) -> Any:
             api_key=settings.local_llm_api_key,
             model=settings.local_llm_model,
             strict_local_transport=enforcement_enabled() or getattr(settings, "bede_offline_installation", False),
+            default_headers=_headers_for("local", settings),
         )
     if name == "openai":
         return OpenAICompatibleClient(
             base_url="",  # SDK default → api.openai.com
             api_key=settings.openai_api_key,
             model=settings.openai_model,
+            default_headers=_headers_for("openai", settings),
         )
     if name == "mistral":
         return OpenAICompatibleClient(
             base_url=_MISTRAL_BASE_URL,
             api_key=settings.mistral_api_key,
             model=settings.mistral_model,
+            default_headers=_headers_for("mistral", settings),
         )
     raise ValueError(f"Unknown adapter {name!r} — expected one of {_KNOWN_ADAPTERS}")
 
@@ -272,7 +282,7 @@ def get_default_client(settings: Any = _global_settings) -> Any:
         if not approved_provider("anthropic"):
             raise PermissionError("COPPA provider qualification required")
         return build_anthropic_client(
-            settings.anthropic_api_key, getattr(settings, "anthropic_workspace_id", "")
+            settings.anthropic_api_key, _headers_for("anthropic", settings)
         )
 
 

@@ -193,6 +193,25 @@ Each server needs a name (letters, numbers, dashes, underscores) and an
 http(s) URL the Bede container can reach. Bede speaks the Streamable HTTP
 transport; it never launches a program on your server for this.
 
+A server that needs a key or any other header can be given one per server:
+
+```
+MCP_EXTERNAL_SERVERS=[{"name":"books","url":"https://books.example/mcp","headers":{"Authorization":"Bearer ..."}}]
+```
+
+The same checks as `AI_PROVIDER_HEADERS` apply (`core/request_headers.py`):
+valid header names, no line breaks or control characters in a value, at most
+16, and nothing Bede's own client or the MCP protocol sets (`Host`,
+`Content-Type`, `Mcp-Session-Id`, ...). Unlike a provider, an MCP server has
+no key setting of its own, so `Authorization` is allowed here. A server with
+headers must use `https://`, unless it runs on this same machine
+(`localhost`), since a key sent over plain http is readable on the way. The
+headers are never written to a log: a printed server config leaves them out.
+
+The proposed private mode ([`PRIVATE_INFERENCE.md`](PRIVATE_INFERENCE.md))
+would turn external MCP off even here, in the parent's own workspace; that is
+not built yet.
+
 ### Where it can and cannot be used
 
 **Only in your own sandbox.** Not in any child's tutoring session, and not in

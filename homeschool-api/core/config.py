@@ -80,32 +80,26 @@ def role_is_exempt_from_provider_requirement(role: str) -> bool:
     return role == PROCESS_ROLE_LOCUTO_IPC
 
 
-_WORKSPACE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
-
-
 class Settings(BaseSettings):
     # Opt-in only for offline school/family installations, never the hosted demo.
     bede_offline_installation: bool = False
     # ── AI models ──────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
-    # Only for a key created at the ORGANIZATION level in the Anthropic
-    # Console: such a key is refused ("not scoped to a workspace") unless each
-    # request names the workspace to bill, sent as the anthropic-workspace-id
-    # header. A key created inside a workspace needs nothing here. Not a
-    # secret, but it is checked (letters, digits, "_" and "-" only) because it
-    # becomes an HTTP header value. See docs/PROVIDER_ADAPTERS.md.
-    anthropic_workspace_id: str = ""
+    # Extra headers for each AI provider's requests, as JSON keyed by
+    # provider: {"anthropic": {"anthropic-workspace-id": "wrkspc_..."},
+    # "openai": {"OpenAI-Project": "proj_..."}}. For whatever a provider or
+    # gateway needs beyond the API key: an organization-level Anthropic key is
+    # refused ("not scoped to a workspace") without the workspace header.
+    # Checked at boot by core/request_headers.py; the key itself stays in the
+    # provider's own key setting. See docs/PROVIDER_ADAPTERS.md.
+    ai_provider_headers: str = ""
 
-    @field_validator("anthropic_workspace_id", mode="before")
+    @field_validator("ai_provider_headers", mode="after")
     @classmethod
-    def _workspace_id_is_a_plain_token(cls, value):
-        text = str(value or "").strip()
-        if text and not _WORKSPACE_ID_PATTERN.match(text):
-            raise ValueError(
-                "ANTHROPIC_WORKSPACE_ID may contain only letters, digits, '_' and '-'. "
-                "Copy the workspace ID from the Anthropic Console's workspace settings."
-            )
-        return text
+    def _provider_headers_are_well_formed(cls, value):
+        from core.request_headers import parse_provider_headers
+        parse_provider_headers(value)  # raises a plain-words error at boot
+        return value
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 
@@ -1041,6 +1035,10 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         extra = "ignore"
+        # A boot error must not print what was typed: these settings hold API
+        # keys and, in AI_PROVIDER_HEADERS, values a provider may treat as
+        # private. The error still names the setting and says what is wrong.
+        hide_input_in_errors = True
 
 
 settings = Settings()

@@ -92,7 +92,7 @@ services:
       # setup.sh/setup-gui write exactly one of these blocks based on which
       # provider you picked. See docs/PROVIDER_ADAPTERS.md.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - ANTHROPIC_WORKSPACE_ID=${ANTHROPIC_WORKSPACE_ID:-}
+      - AI_PROVIDER_HEADERS=${AI_PROVIDER_HEADERS:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
       - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}

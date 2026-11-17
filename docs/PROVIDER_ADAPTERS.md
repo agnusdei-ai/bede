@@ -85,7 +85,7 @@ All in `homeschool-api/core/config.py` (env vars via `.env`):
 | `LOCAL_LLM_MODEL` | `Qwen/Qwen3-Coder-30B-A3B-Instruct` | Model name the local server serves. |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Chat model for the OpenAI adapter (reuses `OPENAI_API_KEY`). |
 | `MISTRAL_API_KEY` / `MISTRAL_MODEL` | *(empty)* / `mistral-large-latest` | Mistral secondary. |
-| `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for an **organization-level** Anthropic key. Sent as the `anthropic-workspace-id` header on every Claude request, naming the workspace to bill. Without it such a key is refused with "API key is not scoped to a workspace" (seen on the demo, 2026-11-17). A key created inside a workspace needs nothing here, and sending the header with one is harmless. Checked at boot: letters, digits, `_` and `-` only, since it becomes a header value. `tests/test_anthropic_workspace_header.py` reads the header off the wire. |
+| `AI_PROVIDER_HEADERS` | *(empty)* | Extra request headers per provider, as JSON keyed by provider (`anthropic`, `openai`, `mistral`, `local`). See "Extra request headers" below. |
 
 An adapter is **"configured"** when the credentials it needs are present:
 `local` needs `LOCAL_LLM_BASE_URL`; `anthropic` needs `ANTHROPIC_API_KEY`;
@@ -93,6 +93,46 @@ An adapter is **"configured"** when the credentials it needs are present:
 adapter in the order and **skips the rest** — and never raises at import time
 even if nothing is configured (construction is lazy; only a real request would
 surface a misconfiguration), so the app always boots.
+
+## Extra request headers (`AI_PROVIDER_HEADERS`)
+
+Some providers, and some gateways in front of a local model, will not answer
+until a request carries a header of their own. Rather than a named setting
+for each one, there is a single setting, a JSON object keyed by provider:
+
+```
+AI_PROVIDER_HEADERS={"anthropic":{"anthropic-workspace-id":"wrkspc_..."},"openai":{"OpenAI-Project":"proj_..."}}
+```
+
+- **Claude with an organization-level key** is the case that prompted it: such
+  a key is refused with "API key is not scoped to a workspace" (the demo's
+  backup, 2026-11-17) unless every request names the workspace to bill. A key
+  created inside a workspace needs nothing.
+- **OpenAI** organizations and projects (`OpenAI-Organization`,
+  `OpenAI-Project`), and any gateway's own header for `local`, go the same way.
+- **Checked when Bede starts** (`core/request_headers.py`), so a mistake stops
+  boot with a plain sentence rather than refusing a lesson later: a provider
+  that does not exist, a header name that is not a valid HTTP token, a value
+  with a line break or control character (which could otherwise start a second
+  header), more than 16 headers, or a header the HTTP client owns (`Host`,
+  `Content-Type`, `Cookie`, ...). Error messages never repeat a value.
+- **The key stays in the provider's own key setting.** `Authorization`,
+  `x-api-key` and `api-key` are refused here: two places holding a key is how
+  the wrong one gets sent.
+- Without the setting, every provider's client is built exactly as before.
+
+`tests/test_provider_request_headers.py` sends a real request through each
+provider's real SDK client into a mock transport and reads the headers off the
+wire, on both the direct and failover paths. External MCP servers take the same
+checks per server; see `docs/MCP.md`.
+
+## Private inference (proposed)
+
+Whether a family's or school's data may leave their boundary at all, and how
+that would be enforced, is set out as a proposed target in
+[`PRIVATE_INFERENCE.md`](PRIVATE_INFERENCE.md) (decision register entry 43).
+Today, outside school mode, a configured cloud key is a live fallback for a
+failed local model.
 
 ## Why the default is `local,anthropic` — the account-closure scenario
 

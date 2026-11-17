@@ -84,10 +84,12 @@ services:
       # invisible to that override, exactly as before.
       - key: ANTHROPIC_API_KEY
         sync: false
-      # Only for an ORGANIZATION-level Anthropic key, which is refused ("not
-      # scoped to a workspace") unless each request names the workspace to
-      # bill. A key created inside a workspace needs nothing here.
-      - key: ANTHROPIC_WORKSPACE_ID
+      # Extra request headers per AI provider, as JSON keyed by provider.
+      # For whatever a provider needs beyond its key: an ORGANIZATION-level
+      # Anthropic key is refused ("not scoped to a workspace") without
+      #   {"anthropic": {"anthropic-workspace-id": "wrkspc_..."}}
+      # Checked at boot (core/request_headers.py). See docs/PROVIDER_ADAPTERS.md.
+      - key: AI_PROVIDER_HEADERS
         sync: false
       # Doubles as both OpenAI TTS (services/voice_synthesis.py) and the
       # OpenAI chat adapter (services/adapters/openai_compatible_adapter.py)

@@ -14,24 +14,22 @@ patching a genuine SDK client exactly as they did before this refactor.
 
 from __future__ import annotations
 
+from typing import Mapping, Optional
+
 import anthropic
 
 
-def build_anthropic_client(api_key: str, workspace_id: str = "") -> anthropic.AsyncAnthropic:
+def build_anthropic_client(api_key: str, headers: Optional[Mapping[str, str]] = None) -> anthropic.AsyncAnthropic:
     # Guard the factory itself: a direct caller must not bypass the router's
     # institutional pilot provider policy. Check before constructing an SDK
     # client so a denied request cannot instantiate a cloud transport.
     from core.coppa_provider_policy import approved_provider
     if not approved_provider("anthropic"):
         raise PermissionError("COPPA provider qualification required")
-    # An organization-level key is refused unless every request names the
-    # workspace to bill ("API key is not scoped to a workspace"). Sending the
-    # header with a workspace-scoped key is harmless, so it goes on whenever
-    # one is configured. core/config.py has already checked it is a plain
-    # token, since it becomes an HTTP header value.
-    # Without one, the call is byte-for-byte what it always was.
-    if workspace_id:
-        return anthropic.AsyncAnthropic(
-            api_key=api_key, default_headers={"anthropic-workspace-id": workspace_id},
-        )
+    # Extra headers from AI_PROVIDER_HEADERS (already checked by
+    # core/request_headers.py), e.g. anthropic-workspace-id, which an
+    # organization-level key needs. Without any, the call is byte-for-byte
+    # what it always was.
+    if headers:
+        return anthropic.AsyncAnthropic(api_key=api_key, default_headers=dict(headers))
     return anthropic.AsyncAnthropic(api_key=api_key)

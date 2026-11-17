@@ -2466,3 +2466,38 @@ handwriting style, word lists, a K-2 spelling skill, poems, the demo) are
 separate: (a) and (b) were ruled the same day, and (c) to (h) are still open. So are the checklist's own pre-enrollment decisions:
 supported devices and assistive technology, the final collected fields and
 vendors, and the pilot's learning objectives.
+
+## 43. `[PRODUCT]` Private inference: a no-export, no-training mode for families and schools
+
+**Status:** open · needs: the owner's ruling on the private-mode policy in [`PRIVATE_INFERENCE.md`](PRIVATE_INFERENCE.md), and its numbered reference list
+
+The owner's 2026-11-17 assessment separates three promises that are easy to
+blur: no use for model training, no provider retention, and no transfer
+outside the family or school. Zero data retention at a provider answers the
+second, never the third, so "data never leaves" can only be said of
+customer-controlled inference behind network-enforced egress.
+
+It proposes one private mode for ordinary homeschool and school operation:
+the privacy policy filters the eligible providers before the adapter order is
+read, a failed local model means unavailable rather than a cloud fallback,
+external MCP is off even in the parent workspace, every modality (speech,
+OCR, moderation, quiz extraction, retries) is covered, and the boundary is
+enforced at the network as well as in Python. The offline installation keeps
+its own topology, and cloud drafting for public or sample material is a
+separate, narrow exception.
+
+**Owner ruling, 2026-11-17:** a local model is trained only under the
+supervision of Agnus Dei Technologies' authorized team. Bede never trains a
+model on its own, and no family, school or setting can start training. Which
+data such supervised training may use is not decided by this ruling; learner
+data stays out of training unless a later decision says otherwise, and the
+accepted consent notices describe no such use.
+
+None of it is built. The document records it as a target with its acceptance
+checks, and maps it to what the code does today: ordinary homeschool fails
+over to any configured cloud provider and sends speech to OpenAI whenever a
+key is set; school mode already refuses every cloud model, OpenAI speech and
+the teacher's external tools. The assessment adds no release blocker on its
+own; a release decision compares measured behaviour with the promises that
+release actually makes.
+

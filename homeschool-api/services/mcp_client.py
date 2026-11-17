@@ -73,10 +73,13 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Mapping, Optional
+from urllib.parse import urlsplit
 
 import httpx
+
+from core.request_headers import HeaderConfigError, check_headers
 
 log = logging.getLogger(__name__)
 
@@ -109,6 +112,10 @@ class MCPConfigError(ValueError):
 class MCPServerConfig:
     name: str
     url: str
+    # Optional per-server headers (core/request_headers.py), e.g. the
+    # Authorization a server needs for its key. repr=False so a config printed
+    # in a log or traceback never shows a credential.
+    headers: Mapping[str, str] = field(default_factory=dict, repr=False)
 
 
 @dataclass(frozen=True)
@@ -184,8 +191,23 @@ def parse_servers(raw: str) -> List[MCPServerConfig]:
             raise MCPConfigError(f"MCP server {name!r} url must be http(s).")
         if name in seen:
             raise MCPConfigError(f"Duplicate MCP server name {name!r}.")
+        try:
+            headers = check_headers(
+                entry.get("headers"), where=f"MCP server {name!r} headers",
+                allow_credentials=True,  # an MCP server has no key setting of its own
+            )
+        except HeaderConfigError as exc:
+            raise MCPConfigError(str(exc)) from None
+        if headers and not url.startswith("https://") and (
+            urlsplit(url).hostname not in ("localhost", "127.0.0.1", "::1")
+        ):
+            # A key sent over plain http is readable by anything on the path;
+            # only this machine itself is exempt.
+            raise MCPConfigError(
+                f"MCP server {name!r} has headers but an http:// url; use https://."
+            )
         seen.add(name)
-        servers.append(MCPServerConfig(name=name, url=url))
+        servers.append(MCPServerConfig(name=name, url=url, headers=headers))
     return servers
 
 
@@ -241,7 +263,10 @@ class MCPServerClient:
         return self._request_id
 
     def _headers(self) -> Dict[str, str]:
+        # Configured headers first; the protocol's own come after and so can
+        # never be replaced (check_headers also refuses those names).
         headers = {
+            **self.config.headers,
             "Content-Type": "application/json",
             "Accept": "application/json, text/event-stream",
             "MCP-Protocol-Version": MCP_PROTOCOL_VERSION,

@@ -65,6 +65,13 @@
       "fix_version": "7.29.1",
       "reason": "Same dependency path and remediation reasoning as the GHSA-rfgv-xxqx-mfg5 entry above (undici via @cloudflare/vitest-pool-workers -> miniflare; dev/test only; workerd is the production runtime; retires on the next miniflare/pool undici bump).",
       "added": "2026-10-10"
+    },
+    {
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "fix_version": null,
+      "reason": "There is no version of picomatch that fixes this. The advisory range is <=4.0.7, and 4.0.7 IS the latest published release (2026-08-24), so the only remedies npm offers are major upgrades of the tools that depend on it, which still resolve to a vulnerable picomatch. The advisory is a regular-expression denial of service triggered by a glob pattern with a single-branch repeated extglob. picomatch reaches this repository only at BUILD, DEV and TEST time: every copy in homeschool-tutor/, demo/ and license-server/ lockfiles is marked dev, pulled in by vite, vitest, tinyglobby, fdir, micromatch, anymatch and readdirp (Vite's file globbing and watching, Tailwind's content scanning, Vitest's test discovery). It is in no shipped browser bundle and not in the Worker bundle, so no visitor, child or parent can reach it at runtime. The patterns it compiles are the ones written in our own vite, vitest and tailwind configuration; an attacker would need to edit this repository's build configuration to supply a malicious pattern, at which point the glob matcher is not the problem. Revisit when picomatch publishes a fix (a lockfile refresh) -- this file's stale-exemption notice will then flag the entry for deletion.",
+      "added": "2026-11-17"
     }
   ]
 }

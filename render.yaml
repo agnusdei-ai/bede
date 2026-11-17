@@ -94,6 +94,14 @@ services:
       # key at console.mistral.ai (La Plateforme) -> API Keys.
       - key: MISTRAL_API_KEY
         sync: false
+      # The code default (core/config.py) is mistral-large-latest, which this
+      # account's Mistral plan refuses with "403 - This model is not available
+      # in your subscription tier". That stayed hidden while OpenAI answered
+      # every turn, and surfaced on 2026-11-17 when OpenAI ran out of credit
+      # and the failover had nothing to fall back to. mistral-small-latest was
+      # confirmed to answer on this plan the same day.
+      - key: MISTRAL_MODEL
+        value: mistral-small-latest
       # Cloud-first boot order for this Render demo/dev deployment: OpenAI
       # primary, Mistral the DEFAULT failover, Anthropic a third, optional
       # candidate — present in the order so it's a legitimate choice for

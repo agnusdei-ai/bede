@@ -291,6 +291,27 @@ in `OPENAI_API_KEY` and `MISTRAL_API_KEY` from Render's dashboard (both
 `sync: false`, per docs/DEMO_HOSTING.md's setup walkthrough) —
 `ANTHROPIC_API_KEY` is left declared but optional/unused by default here.
 
+`render.yaml` also sets `MISTRAL_MODEL=mistral-small-latest`. The default,
+`mistral-large-latest`, is refused by the demo account's Mistral plan ("403 -
+This model is not available in your subscription tier"). Nothing showed it
+while OpenAI answered every turn; on 2026-11-17 OpenAI ran out of credit and
+every lesson failed, because the backup could not answer either. **A backup
+you have never seen answer is not a backup.** After changing a key or plan,
+send one test request per provider (see the curl check below) rather than
+waiting for an outage to find out.
+
+To check a model without sending your key anywhere but Mistral:
+
+```
+curl -s https://api.mistral.ai/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_MISTRAL_KEY" -H "Content-Type: application/json" \
+  -d '{"model":"mistral-small-latest","messages":[{"role":"user","content":"hi"}],"max_tokens":5}'
+```
+
+A reply with text means the plan allows the model; a 403 means it does not.
+Do not rely on `/v1/models` for this, which can list models a plan still
+refuses.
+
 **This is live failover, not just a boot-time preference.**
 `services/ai_service.py`'s `_client` is resolved via
 `router.resolve_with_failover()` (Phase 6), which wraps every adapter in

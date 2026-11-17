@@ -48,7 +48,7 @@ without changing the older dirty website/demo checkout.
   screen. Consent was not bypassed for that screenshot; selection/start
   behavior was checked by component and backend tests above.
 
-Tests used synthetic data and isolated SQLite fixtures, not a production
+Tests used sample data and isolated SQLite fixtures, not a production
 database or live model requests. Python 3.13 Nix dependencies were supplied
 through process-local `PYTHONPATH`; missing WebAuthn, SSE, and PDF parser test
 imports were installed as environment dependencies, without changing upstream

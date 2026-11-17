@@ -152,7 +152,7 @@ class FactsTheScriptCopies(unittest.TestCase):
 
     def test_wizard_form_fields_still_exist(self):
         wizard = (ROOT / "scripts" / "setup_wizard" / "wizard.py").read_text()
-        for field in ("provider", "local_base_url", "db_choice", "parent_password", "child_pin",
+        for field in ("provider", "local_base_url", "local_model", "db_choice", "parent_password", "child_pin",
                       "license_key", "location_id"):
             self.assertIn(f"{field}=", self.script)
             self.assertIn(f'"{field}"', wizard)

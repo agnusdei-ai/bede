@@ -70,25 +70,67 @@ The one thing this installer decides FOR the family, once they've said
 "run AI on this computer": which model. `Setup-Bede.ps1`'s
 `Get-RecommendedOllamaModel` checks GPU VRAM via `nvidia-smi` (falling back
 to system RAM as a rough proxy when there's no usable NVIDIA GPU) and picks
-accordingly:
+from `$OllamaModelTiers` accordingly:
 
-| VRAM (or RAM, no GPU) | Model | Approximate download |
-|---|---|---|
-| ≥20GB VRAM | `qwen3:32b` | ~20GB |
-| ≥10GB VRAM | `qwen3:14b` | ~9GB |
-| ≥5GB VRAM | `qwen3:8b` | ~5GB |
-| GPU present but <5GB VRAM | `qwen3:4b` | ~2.5GB |
-| No usable GPU, ≥16GB RAM | `qwen3:4b` | ~2.5GB |
-| No usable GPU, <16GB RAM | `qwen3:1.7b` | ~1.4GB |
+**Default lineup** (docs/DECISIONS.md entry 43: developers based outside
+China, permissive licences, native tool calling in Ollama):
 
-Download sizes are current as of this writing, not pinned — Ollama's
-library can update a tag's actual weights over time, and this installer
-always pulls whatever `ollama pull qwen3:<tag>` currently resolves to.
+| VRAM (or RAM, no GPU) | Model | Developer, licence | Approximate download |
+|---|---|---|---|
+| ≥20GB VRAM | `mistral-small3.2:24b` | Mistral AI, Apache-2.0 | ~15GB |
+| ≥10GB VRAM | `ministral-3:14b` | Mistral AI, Apache-2.0 | ~9.1GB |
+| ≥5GB VRAM | `granite3.3:8b` | IBM, Apache-2.0 | ~4.9GB |
+| GPU present but <5GB VRAM | `ministral-3:3b` | Mistral AI, Apache-2.0 | ~3.0GB |
+| No usable GPU, ≥16GB RAM | `ministral-3:3b` | Mistral AI, Apache-2.0 | ~3.0GB |
+| No usable GPU, <16GB RAM | `granite3.3:2b` | IBM, Apache-2.0 | ~1.5GB |
 
-This is the exact same reasoning a developer would do by hand (see the
-"Ollama vs OpenAI/Claude" conversation this installer feature grew out of —
-a 6GB GTX 1060 lands on `qwen3:8b` here too) — just automated so a
+**Qwen lineup (optional)**, chosen only when asked for (see "Choosing the
+Qwen models" below). Same tiers as before entry 43:
+
+| VRAM (or RAM, no GPU) | Model | Developer, licence | Approximate download |
+|---|---|---|---|
+| ≥20GB VRAM | `qwen3:32b` | Alibaba (Qwen team), Apache-2.0 | ~20GB |
+| ≥10GB VRAM | `qwen3:14b` | Alibaba (Qwen team), Apache-2.0 | ~9GB |
+| ≥5GB VRAM | `qwen3:8b` | Alibaba (Qwen team), Apache-2.0 | ~5GB |
+| GPU present but <5GB VRAM | `qwen3:4b` | Alibaba (Qwen team), Apache-2.0 | ~2.5GB |
+| No usable GPU, ≥16GB RAM | `qwen3:4b` | Alibaba (Qwen team), Apache-2.0 | ~2.5GB |
+| No usable GPU, <16GB RAM | `qwen3:1.7b` | Alibaba (Qwen team), Apache-2.0 | ~1.4GB |
+
+Download sizes are Ollama's quantised builds as of this writing, not
+pinned: Ollama's library can update a tag's actual weights over time, and
+the installer pulls whatever the tag currently resolves to. The
+`ministral-3` models need Ollama 0.13.1 or later. A fresh install gets the
+current Ollama; on an older Ollama the download stops with Ollama's own
+"needs a newer version" message, and the installer tells you to update
+Ollama and run it again.
+
+**Spanish.** Every default model lists Spanish among its languages except
+that Ollama's page for `mistral-small3.2` lists none (Mistral's own card for
+Mistral Small 3.1, the model 3.2 updates, lists Spanish). Nobody has yet run
+these models through Bede's Spanish tutoring prompts on real hardware:
+`homeschool-api/scripts/spanish_local_model_probe.py` is the check for that,
+and entry 43 records its result as not run until someone runs it.
+
+This is the exact same reasoning a developer would do by hand (a 6GB
+GTX 1060 lands on `granite3.3:8b` here too) — just automated so a
 non-technical family never sees VRAM numbers or model names at all.
+
+**An existing installation keeps its model.** Running the installer again
+(to update Bede, or after changing your mind) does not switch a family to the
+new lineup. If `.env` already names a `LOCAL_LLM_MODEL` that Ollama still has,
+the installer keeps it, pulls nothing and deletes nothing. Updating Bede
+(`git pull`, `make update`) never touches the model either. Only an explicit
+model-family choice (below) picks from a lineup again.
+
+**Choosing the Qwen models.** The Qwen lineup stays available. Run the setup
+script with `-ModelFamily qwen` (or set `BEDE_MODEL_FAMILY=qwen` first):
+
+```powershell
+powershell -NoLogo -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Bede\Setup-Bede.ps1" -ModelFamily qwen
+```
+
+`-ModelFamily default` (or leaving it out) uses the default lineup. Any
+other value is refused before the script changes anything.
 
 **How the choice reaches the wizard without asking twice:** `Set-LocalAI`
 installs Ollama if needed (Ollama's own Windows installer happens to also
@@ -98,7 +140,7 @@ installs per-user too), pulls the chosen model, then writes
 `%LOCALAPPDATA%\Bede\app\local-ai.json`:
 
 ```json
-{"base_url": "http://host.docker.internal:11434/v1", "model": "qwen3:8b"}
+{"base_url": "http://host.docker.internal:11434/v1", "model": "granite3.3:8b"}
 ```
 
 `host.docker.internal` is Docker Desktop's own DNS name for the host
@@ -248,13 +290,18 @@ bg.save("packaging/windows/assets/bede-wizard-small.bmp")
   repo's CI actually runs the PowerShell script end to end on a real Windows
   machine — Docker Desktop/Ollama installs, hardware detection, and the
   wizard handoff are reviewed carefully but not exercised by an automated
-  test. If you're the first to run this for real, please report back
+  test. The one exception is the script's `local-model-tiers` region (the
+  model table, hardware tiers and keep-the-existing-model logic), which
+  `homeschool-api/tests/test_local_model_default.py` runs under `pwsh` on
+  Linux. If you're the first to run this for real, please report back
   anything that doesn't match this doc.
-- **Ollama model tag names.** `qwen3:8b` etc. are current Ollama library tags
-  as of this writing — if Ollama's library renames or retires a tag,
+- **Ollama model tag names.** `granite3.3:8b` etc. are current Ollama library
+  tags as of this writing — if Ollama's library renames or retires a tag,
   `ollama pull` will just fail with their own error message (surfaced
   as-is by `Set-LocalAI`'s exit-code check) rather than silently doing
-  nothing; update `Get-RecommendedOllamaModel` if that happens.
+  nothing; update `$OllamaModelTiers` (and `install.sh`'s
+  `ollama_model_for_tier`, plus the tables above) if that happens.
+  `homeschool-api/tests/test_local_model_default.py` fails until they agree.
 - **Branding assets are placeholders** — see "Branding assets" above.
 
 ## Relationship to the existing installers

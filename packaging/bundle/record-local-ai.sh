@@ -14,10 +14,14 @@
 # This writes the SAME marker in the SAME format, so the wizard's existing,
 # validated consumption logic is reused rather than duplicated. It pulls
 # nothing: it records a model that is already present. Selection mirrors
-# packaging/unix/install.sh's recommended_ollama_model() for a Mac (no
-# NVIDIA GPU): qwen3:4b at 16 GB or more, else qwen3:1.7b. When that model
-# is not installed, a single installed model is used; with none, or several
-# and no recommended one, no marker is written and the wizard's ordinary
+# packaging/unix/install.sh's ollama_model_for_tier() for a Mac (no NVIDIA
+# GPU, so the RAM tiers): ministral-3:3b at 16 GB or more, else
+# granite3.3:2b (docs/DECISIONS.md entry 43). BEDE_MODEL_FAMILY=qwen prefers
+# the Qwen 3 tier instead (qwen3:4b, else qwen3:1.7b). When the preferred
+# family's model is not installed but the other family's model for this Mac
+# is, that one is recorded, so a Mac that already runs a Qwen model keeps
+# it. Otherwise a single installed model is used; with none, or several and
+# no recommended one, no marker is written and the wizard's ordinary
 # provider choices are shown. Any stale marker is removed first, so a model
 # that has since gone away is never recorded.
 #
@@ -47,11 +51,21 @@ else
   ram_bytes="$(sysctl -n hw.memsize 2>/dev/null || echo 0)"
 fi
 ram_gb=$(( (ram_bytes + 536870912) / 1073741824 ))
-if [ "$ram_gb" -ge 16 ]; then recommended="qwen3:4b"; else recommended="qwen3:1.7b"; fi
+if [ "$ram_gb" -ge 16 ]; then
+  default_pick="ministral-3:3b"; qwen_pick="qwen3:4b"
+else
+  default_pick="granite3.3:2b"; qwen_pick="qwen3:1.7b"
+fi
+case "${BEDE_MODEL_FAMILY:-}" in
+  qwen) preferred="$qwen_pick"; other="$default_pick" ;;
+  *)    preferred="$default_pick"; other="$qwen_pick" ;;
+esac
 
 model=""
-if printf '%s\n' "$names" | grep -qxF "$recommended"; then
-  model="$recommended"
+if printf '%s\n' "$names" | grep -qxF "$preferred"; then
+  model="$preferred"
+elif printf '%s\n' "$names" | grep -qxF "$other"; then
+  model="$other"
 elif [ "$(printf '%s\n' "$names" | wc -l | tr -d ' ')" = 1 ]; then
   model="$names"
 fi

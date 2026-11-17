@@ -42,8 +42,8 @@ from models.schemas import (
     LoginRequest,
     TokenResponse,
     SessionConfig,
-    VALID_GRADES,
-    grade_to_stage,
+    VALID_DEMO_GRADES,
+    demo_grade_to_stage,
 )
 from services import mfa_service
 from services.ai_service import _sanitize_parent_field
@@ -69,7 +69,7 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     same as before. student_name and current_unit are sanitized here (HTML/
     prompt-injection stripping, same as a parent's lesson_focus/
     faith_emphasis notes) since they're free text an anonymous visitor puts
-    in front of the model; grade is checked against VALID_GRADES rather than
+    in front of the model; grade is checked against VALID_DEMO_GRADES rather than
     sanitized, since anything outside that small allowlist is silently
     ignored (falls back to the operator's configured DEMO_GRADE) rather than
     trusted as text.
@@ -92,7 +92,7 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
 
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
-    grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_GRADES else None
+    grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_DEMO_GRADES else None
     current_unit = _sanitize_parent_field(req.current_unit if req else None, max_len=200)
     faith_tradition = _sanitize_parent_field(req.faith_tradition if req else None, max_len=60)
 
@@ -176,7 +176,7 @@ async def set_demo_parent_config(
         validated = SessionConfig(
             student_name=student_name or settings.demo_student_name,
             grade=grade,
-            grade_stage=grade_to_stage(grade),
+            grade_stage=demo_grade_to_stage(grade),
             **({"subjects": req.subjects} if req.subjects else {}),
             **({"companion_mode": req.companion_mode} if req.companion_mode else {}),
             **({"bible_translation": req.bible_translation} if req.bible_translation else {}),

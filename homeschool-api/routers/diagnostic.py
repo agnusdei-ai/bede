@@ -9,7 +9,7 @@ from core.database import get_db
 from core.demo_code_session import get_personalization
 from core.deps import require_demo_preview, require_parent
 from core.diagnostic_preview_quota import has_quota, record_use
-from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
+from models.schemas import DEMO_UPPER_GRADES, DiagnosticChatRequest, MasteryProfileSummary
 from services.diagnostic import get_mastery_summary
 from services.diagnostic.composition import get_composition_summary
 from services.diagnostic.phonics import get_phonics_summary
@@ -51,6 +51,12 @@ async def _require_diagnostic_quota(request: Request, auth: dict = Depends(requi
     """
     ip = audit_from_request(request)["ip"]
     code = auth.get("code", "")
+    _, grade = await get_personalization(code)
+    if grade in DEMO_UPPER_GRADES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Upper-school tutoring is available; a Grades 9-12 mastery diagnostic is not yet supported.",
+        )
     if not await has_quota(ip, code):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,

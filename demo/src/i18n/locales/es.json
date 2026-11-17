@@ -10,6 +10,7 @@
     "gradeDefault": "Usar el valor predeterminado (grado 4)",
     "kindergarten": "Preescolar",
     "gradeN": "Grado {{n}}",
+    "gradeHelp": "Los grados 9–12 ofrecen práctica interactiva, no cursos completos de un año.",
     "currentUnit": "¿Continuando una lección de casa?",
     "currentUnitPlaceholder": "p. ej. leyendo Farmer Boy juntos, nuestra propia unidad sobre el Antiguo Egipto",
     "faithTradition": "¿La tradición religiosa de su familia?",

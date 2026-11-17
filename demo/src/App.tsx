@@ -239,12 +239,13 @@ const FAITH_STORAGE_KEY = 'bede-demo-faith-tradition'
 // here, same lifetime as the name/grade keys above.
 const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 
-// The stage bands the backend's grade_to_stage() uses, mirrored here so the
+// The stage envelopes the backend's demo_grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
 // demo default (no grade picked) is grade 4, hence the '3-5' fallback.
+// Upper-school practice uses the older-learner ruling, not a K-8 learning target.
 function demoGradeStage(grade: string): string {
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
-  if (grade === '6' || grade === '7' || grade === '8') return '6-8'
+  if (['6', '7', '8', '9', '10', '11', '12'].includes(grade)) return '6-8'
   return '3-5'
 }
 
@@ -448,6 +449,7 @@ export function CodeScreen({ onLoggedIn }: {
             </label>
             <select
               id="student-grade"
+              aria-describedby="demo-grade-help"
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy-400"
@@ -457,6 +459,9 @@ export function CodeScreen({ onLoggedIn }: {
                 <option key={g} value={g}>{g === 'K' ? t('codeScreen.kindergarten') : t('codeScreen.gradeN', { n: g })}</option>
               ))}
             </select>
+            <p id="demo-grade-help" className="text-xs text-gray-500 mt-1">
+              {t('codeScreen.gradeHelp')}
+            </p>
           </div>
           {/* Optional — the "outside the built-in curriculum" note behind
               the Continuing Mastery card (ChatScreen below): a book or unit
@@ -3234,13 +3239,13 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
             >
               <FlaskConical size={12} /> {t('header.askBede')}
             </button>
-            <button
+            {!['9', '10', '11', '12'].includes(config.grade) && <button
               onClick={onOpenDiagnostic}
               title={t('header.masteryPreviewTooltip')}
               className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
               <GraduationCap size={12} /> {t('header.masteryPreview')}
-            </button>
+            </button>}
             {feedbackEnabled && (
               <button
                 onClick={() => setShowFeedback(true)}

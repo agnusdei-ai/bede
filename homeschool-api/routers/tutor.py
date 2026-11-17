@@ -28,7 +28,7 @@ from core.sse_utils import STREAM_STALL_TIMEOUT_SECONDS, with_stall_timeout
 from models.schemas import (
     CompanionMode,
     EmailSummaryRequest,
-    grade_to_stage,
+    demo_grade_to_stage,
     GradeStage,
     NarrationUploadRequest,
     SessionConfig,
@@ -146,7 +146,7 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     return SessionConfig(
         student_name=student_name or settings.demo_student_name,
         grade=grade or settings.demo_grade,
-        grade_stage=grade_to_stage(grade) if grade else GradeStage(settings.demo_grade_stage),
+        grade_stage=demo_grade_to_stage(grade) if grade else GradeStage(settings.demo_grade_stage),
         subjects=subjects,
         voice_required=False,
         term_schedule=TermSchedule.quarterly,

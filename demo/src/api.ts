@@ -440,9 +440,8 @@ export function decodeExpiry(token: string): number | null {
  * via loginWithCode — the caller never needs to show a separate "enter your
  * code" screen.
  */
-/** Grades a visitor can pick at login — mirrors the backend's VALID_GRADES
- *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
-export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
+/** Demo-only choices; mirrors VALID_DEMO_GRADES, not full-year approval. */
+export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const
 
 export async function generateDemoCode(
   studentName?: string, grade?: string, currentUnit?: string, faithTradition?: string,

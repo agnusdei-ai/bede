@@ -43,7 +43,7 @@ const apiCall = (pg, p, method = 'GET', body) => pg.evaluate(async ([p, method, 
 }, [p, method, body]);
 const { replies, inputReady, sendChat, passIntro, childLogin, stillInLesson } = require('./child_steps.cjs')(F);
 async function parentLogin(p) {
-  await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
+  await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(process.env.JOURNEY_PARENT_PASSWORD);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
 }
 // Diagnostic only (the macOS WebKit reload crash): what each page holds just

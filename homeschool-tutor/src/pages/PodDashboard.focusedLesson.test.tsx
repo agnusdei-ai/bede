@@ -16,6 +16,8 @@ vi.mock('../services/api', async (importOriginal) => {
   return { ...actual, fetchNarrationAssessments, fetchLearnerProfile }
 })
 
+vi.mock('../hooks/useParentName', () => ({ useParentName: () => ['Adult'] }))
+
 const student: SessionConfig = {
   student_name: 'Alex',
   grade: '4',
@@ -43,6 +45,14 @@ afterEach(() => {
 })
 
 describe('real parent-led classical lesson invocation', () => {
+  it('shows the adult greeting and learner preferred name together', () => {
+    act(() => useSessionStore.getState().setPodStudents([{ ...student, preferred_name: 'Lex' }]))
+    render(<MemoryRouter><PodDashboard /></MemoryRouter>)
+    expect(screen.getByText('Welcome back, Adult.')).toBeTruthy()
+    expect(screen.getByText('Lex')).toBeTruthy()
+    expect(useSessionStore.getState().podStudents[0].student_name).toBe('Alex')
+  })
+
   it('starts a single approved topic in the real tutoring store while leaving the family schedule alone', async () => {
     render(
       <MemoryRouter initialEntries={['/pod']}>

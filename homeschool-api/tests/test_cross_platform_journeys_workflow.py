@@ -66,6 +66,15 @@ def test_evidence_is_about_one_fixed_sha():
     assert "is not the candidate" in RUNNER.read_text(encoding="utf-8")
 
 
+def test_parent_password_is_not_written_to_the_fixture():
+    runner = RUNNER.read_text(encoding="utf-8")
+    journeys = JOURNEYS.read_text(encoding="utf-8")
+
+    assert '"parent_password": parent_password' not in runner
+    assert 'JOURNEY_PARENT_PASSWORD=parent_password' in runner
+    assert "process.env.JOURNEY_PARENT_PASSWORD" in journeys
+
+
 def test_the_journeys_launch_the_installed_branded_browsers():
     js = JOURNEYS.read_text(encoding="utf-8")
     assert "chromium.launch({ channel: name })" in js

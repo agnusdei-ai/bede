@@ -560,7 +560,7 @@ export type AIProviderName = 'local' | 'openai' | 'mistral' | 'anthropic'
 export interface AIProviderCheckResult {
   provider: AIProviderName
   ok: boolean
-  code: 'ok' | 'no_credit' | 'model_not_on_plan' | 'rate_limited' | 'bad_key' | 'unreachable' | 'refused' | 'unknown'
+  code: 'ok' | 'no_credit' | 'model_not_on_plan' | 'rate_limited' | 'bad_key' | 'needs_workspace' | 'unreachable' | 'refused' | 'unknown'
   message: string
   detail: string
 }

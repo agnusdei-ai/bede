@@ -37,6 +37,11 @@ _MESSAGES = {
         "per minute for your plan. A higher plan raises the limit."
     ),
     "bad_key": "The API key was rejected. Check the key, or create a new one.",
+    "needs_workspace": (
+        "This key belongs to the whole organization, so the provider needs to know "
+        "which workspace to bill. Set ANTHROPIC_WORKSPACE_ID to the workspace's ID, "
+        "or use a key created inside a workspace."
+    ),
     "unreachable": "Could not be reached. It may be down, or the address may be wrong.",
     "refused": "Refused the request. The provider's own message is below.",
     "unknown": "Failed for a reason Bede does not recognise. The provider's own message is below.",
@@ -84,6 +89,8 @@ def classify(exc: BaseException) -> ProviderProblem:
     # "credit balance is too low" as a 400, so the status alone would misfile both.
     if any(word in lowered for word in _CREDIT_WORDS):
         return problem("no_credit")
+    if "scoped to a workspace" in lowered or "anthropic-workspace-id" in lowered:
+        return problem("needs_workspace")
     if any(word in lowered for word in _PLAN_WORDS):
         return problem("model_not_on_plan")
     if status == 429 or name == "RateLimitError":

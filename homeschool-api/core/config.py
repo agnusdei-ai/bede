@@ -1,3 +1,4 @@
+import re
 import hmac
 from pydantic_settings import BaseSettings
 from pydantic import Field, field_validator, model_validator
@@ -79,11 +80,32 @@ def role_is_exempt_from_provider_requirement(role: str) -> bool:
     return role == PROCESS_ROLE_LOCUTO_IPC
 
 
+_WORKSPACE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
+
+
 class Settings(BaseSettings):
     # Opt-in only for offline school/family installations, never the hosted demo.
     bede_offline_installation: bool = False
     # ── AI models ──────────────────────────────────────────────────────────────
     anthropic_api_key: str = ""
+    # Only for a key created at the ORGANIZATION level in the Anthropic
+    # Console: such a key is refused ("not scoped to a workspace") unless each
+    # request names the workspace to bill, sent as the anthropic-workspace-id
+    # header. A key created inside a workspace needs nothing here. Not a
+    # secret, but it is checked (letters, digits, "_" and "-" only) because it
+    # becomes an HTTP header value. See docs/PROVIDER_ADAPTERS.md.
+    anthropic_workspace_id: str = ""
+
+    @field_validator("anthropic_workspace_id", mode="before")
+    @classmethod
+    def _workspace_id_is_a_plain_token(cls, value):
+        text = str(value or "").strip()
+        if text and not _WORKSPACE_ID_PATTERN.match(text):
+            raise ValueError(
+                "ANTHROPIC_WORKSPACE_ID may contain only letters, digits, '_' and '-'. "
+                "Copy the workspace ID from the Anthropic Console's workspace settings."
+            )
+        return text
     tutor_model: str = "claude-sonnet-4-6"
     session_model: str = "claude-haiku-4-5-20251001"
 

@@ -1645,6 +1645,11 @@ you, in plain words, which ones answered and why any others did not:
 - **Refusing because of a rate limit.** Your plan allows too few requests or
   too little text per minute. A higher plan raises the limit.
 - **The API key was rejected.** Check the key, or create a new one.
+- **This key belongs to the whole organization.** Claude keys made at the
+  organization level (rather than inside a workspace) need to say which
+  workspace to bill. Copy the workspace's ID from the Anthropic Console's
+  workspace settings into `ANTHROPIC_WORKSPACE_ID`, or create a new key inside
+  a workspace and use that instead.
 - **Could not be reached.** The provider may be down, or the address may be
   wrong.
 

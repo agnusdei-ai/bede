@@ -1,6 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    '../homeschool-tutor/src/components/K2MathPractice.tsx',
+    '../homeschool-tutor/src/components/MathPieces.tsx',
+    '../homeschool-tutor/src/components/practiceStyles.ts',
+    '../homeschool-tutor/src/components/routine/RoutineShell.tsx',
+  ],
   theme: {
     extend: {
       // Mirrors homeschool-tutor's tailwind.config.js — see that file's own

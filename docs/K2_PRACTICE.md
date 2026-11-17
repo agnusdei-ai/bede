@@ -3,9 +3,11 @@
 **Status: steps 1 and 3 built; the rest is specification.** Step 1 of §9 (the
 shared `invite_practice` invitation, the per-child setting, and phonics) and the
 first part of step 3 (practical math's counters, ten-frame and number bonds) are
-built. Step 3 was built before step 2, handwriting, because handwriting waits on
-decision 40(c), the handwriting style, which is still open. The rest of the
-first wave is not built. Map reading, from the second wave, shipped in
+built. Number Time is also available as a direct, temporary activity in the
+public demo; its limits are described in §5.3. Step 3 was built before step 2,
+handwriting, because handwriting waits on decision 40(c), the handwriting
+style, which is still open. The rest of the first wave is not built. Map
+reading, from the second wave, shipped in
 #830 (`docs/MAP_PRACTICE.md`) and set the pattern this spec follows. The
 decisions this spec cannot make for itself are `docs/DECISIONS.md` entry 40;
 (a) and (b) were ruled by the owner on 2026-11-16, and (c) to (h) are open.
@@ -43,7 +45,7 @@ the code.
 | The routine screen | `homeschool-tutor/src/components/routine/RoutineShell.tsx` | The Watch, Together, Your turn frame for every area. It holds no lesson logic. |
 | Lessons built by code and rebuilt from a signed id | `homeschool-api/services/map_practice.py`, `routers/map_practice.py` | The model for every area's builder and routes. Nothing about a lesson is stored. |
 | Spoken answers matched only to offered choices | `map_practice.match_spoken` | Voice answers in every area. |
-| Practice pictures, drawn as SVG from numbers and short labels | `services/practice/diagrams.py`, `components/Diagram.tsx` | Clock, money, ruler, number line, base-ten, array and picture groups for practical math. |
+| Practice pictures, drawn as SVG from numbers and short labels | `services/practice/diagrams.py`, `components/Diagram.tsx` | Existing clock, money, ruler, number line, base-ten, array and picture-group pictures. Practical math's counters and ten-frames use the separate `PieceDiagram` vocabulary and `MathPieces.tsx`. |
 | Exact arithmetic | the math practice pack (`services/practice/packs/math/`) | Working out every math answer. |
 | The work ledger | `services/diagnostic/activity.py`, `SkillActivityLog` | Recording what the child did. |
 | K-2 phonics record | `services/diagnostic/phonics.py` (six domains, below) | Phonics evidence. |
@@ -97,7 +99,8 @@ whether an offer is allowed; the model only chooses the moment. Allowed when:
 **Limits, checked when the prompt is built and again when the tool is
 dispatched**, the way `_map_practice_allowed` does it:
 
-- K-2 only (`GradeStage.foundations`), never in the public demo.
+- K-2 only (`GradeStage.foundations`). The lesson invitation remains unavailable
+  in the public demo; Number Time has its own direct demo action (§5.3).
 - Only in the subjects that area belongs to (§5), and only if the parent scheduled that subject today. A parent's own lesson focus comes first.
 - At most one offer per area per session. Never when too little time is left on the block to finish a round (`time_remaining_seconds`, the same budget `services/action_governance.py` uses).
 - It is an invitation ("Shall I show you with the counters?"). The child can say not now, the lesson carries on, and declining records nothing.
@@ -304,12 +307,27 @@ Map practice still speaks through the server path, the known gap §7 names.
 The three new pictures are `counters`, `ten_frame` and `number_bond`
 (`models/practice.py`'s `PieceDiagram`, drawn by `components/MathPieces.tsx`):
 numbers and two counter colors only, a red counter solid and a yellow one a
-ring. They are a sibling vocabulary rather than members of `Diagram`, on
-purpose: `Diagram` is what a quiz reader or drafter may emit, and every kind in
-it must be drawn by `Diagram.tsx`, which the public demo mirrors byte for byte,
-so adding them there would change the demo. Moving them in later is one line
-plus the renderer copied into `Diagram.tsx` and its demo mirror, with the
-owner's sign-off.
+ring. They are a sibling vocabulary rather than members of `Diagram`:
+`Diagram` is what a quiz reader or drafter may emit, and every kind in it must
+be drawn by `Diagram.tsx`, whose app/demo copies stay mirrored. Number Time
+uses `MathPieces.tsx` in both the app and public demo, so this practice activity
+does not add kinds to that separate contract.
+
+**Public demo.** A demo visitor can open Number Time from its own action and
+select any implemented topic, without a learner profile or a claim about saved
+mastery. The server resolves the level from the live demo session's validated
+K-2 grade (or its configured K-2 default); the visitor cannot override it.
+The demo uses the same authored builders, pictures, and deterministic answer
+checks as the family activity. Every answer response says `demo=true` and
+`recorded=false`: answers and attempts are temporary, with no writes to
+household `StudentConfig`, learner keys, work-ledger, mastery, or demo
+progress/activity stores, and no AI/model calls. Demo lesson ids are separate
+from family practice ids, bound to the live sign-in and no longer than its
+expiry. If the in-memory attempt state disappears on restart, that lesson is
+refused and the visitor can start another round; attempts are never reset by
+rebuilding the lesson from an old id. This support does not enable
+`invite_practice` in demo tutoring turns or add any other practice area to the
+demo. Decision 40(g) records the approval and boundary.
 
 Which skill an answer counts for (owner ruling 2026-11-16, a product
 default): **a building question records counting only.** Putting the right
@@ -363,7 +381,8 @@ are outlined, since the boxes below the target start full and an outline of
 empty boxes would show nothing.
 
 Not built yet, and next: clock hands, coins and bills, number-line hops, the
-ruler, base-ten blocks, equal groups and everyday stories. `oa.fact_fluency_20`
+ruler, base-ten blocks, equal groups and everyday stories. These activities
+are not part of the public demo. `oa.fact_fluency_20`
 is deliberately not recorded: fluency means recalling a fact quickly, and a
 round has no timer and must not have one (§6), so a right answer here says
 nothing about speed. The spoken-forms table already covers clock times, so the
@@ -477,12 +496,16 @@ the docs updated in the same PR.
 6. **The parent "5-minute practice" button**, and browser-journey checks for touch dragging and 200% text on every area.
 7. **Memory work** (§8), once decision 40(f) is settled.
 
-Each step needs no new database table: rounds rebuild from signed ids, and
-records go to the existing work ledger and evidence paths.
+Each step needs no new database table: household rounds rebuild from signed
+ids, and records go to the existing work ledger and evidence paths. Demo
+Number Time uses a separate bounded in-memory attempt store and records
+nothing.
 
 ## 10. Not in scope
 
-- The public demo. Changes there need the owner's sign-off (decision 40(g)).
+- Practice areas beyond Number Time in the public demo. Demo Number Time's
+  direct entry point is the approved exception in decision 40(g); the
+  `invite_practice` offer and other practice areas remain out of scope.
 - Grade 3 and up, which have their own reading and spelling record (`services/diagnostic/literacy.py`).
 - Any score of handwriting quality, recitation, or a child's response to art, music or faith.
 - Any model-written practice item, or a model judging a child's answer.
@@ -502,5 +525,5 @@ with a recommendation for each:
 - **(d)** how parents approve word lists;
 - **(e)** whether K-2 spelling gets a measured skill;
 - **(f)** whether poems in memory work record anything;
-- **(g)** whether the demo gets practice;
+- **(g)** whether the demo gets practice (decided 2026-11-17; see entry 40).
 - **(h)** whether an item that ends with the answer shown records weak negative evidence (recommended; a small separate PR).

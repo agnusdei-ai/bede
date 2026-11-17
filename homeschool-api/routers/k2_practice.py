@@ -48,14 +48,20 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core import consent, student_keys
 from core.config import settings
 from core.database import StudentConfig, get_db
-from core.deps import require_family_data_write, require_learner_access, require_real_user
+from core.demo_code_session import get_personalization
+from core.deps import (
+    require_demo_practice_preview,
+    require_family_data_write,
+    require_learner_access,
+    require_real_user,
+)
 from core.encryption import decrypt_json
 from core.log_redaction import learner_ref
 from models.schemas import GradeStage, SessionConfig
@@ -63,6 +69,7 @@ from services import diagnostic as math_record
 from services.diagnostic import phonics as phonics_record
 from services.diagnostic.activity import record_activity
 from services.k2_practice import phonics, practical_math
+from services.k2_practice import demo_math
 from services.practice.evidence import QUIZ_EVIDENCE_WEIGHT
 
 log = logging.getLogger("sage.k2_practice")
@@ -359,6 +366,58 @@ async def _settle(db, student_name: str, lesson_id: str, body: "PhonicsAnswer", 
 # ── Practical math (docs/K2_PRACTICE.md §5.3) ────────────────────────────────
 
 MATH_AREA = "math"
+
+
+async def _demo_math_level(auth: dict) -> str:
+    """Resolve the public-demo grade from its live, server-held session data."""
+    code = auth.get("code")
+    if not isinstance(code, str) or not code:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    _name, grade = await get_personalization(code)
+    level = practical_math.level_for_grade(grade or settings.demo_grade)
+    if level is None:
+        raise HTTPException(status_code=404, detail=NOT_FOUND)
+    return level
+
+
+class DemoMathAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    phase: Literal["together", "your_turn"]
+    index: int = Field(ge=0, le=9)
+    choice: str = Field(min_length=1, max_length=24)
+    submission_id: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+
+
+# Register fixed demo paths before household paths with a leading
+# {student_name}; otherwise FastAPI routes /demo/... through the family guard.
+@router.get("/demo/math/lesson")
+async def new_demo_math_lesson(
+    topic: Optional[str] = Query(default=None, min_length=1, max_length=16),
+    auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """Build a temporary, deterministic Number Time round for a live demo."""
+    level = await _demo_math_level(auth)
+    return demo_math.create_lesson(auth, level, topic)
+
+
+@router.post("/demo/math/lessons/{lesson_id}/answers")
+async def answer_demo_math(
+    lesson_id: str,
+    body: DemoMathAnswer,
+    auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """Check a demo answer without reading or writing learner records."""
+    level = await _demo_math_level(auth)
+    return demo_math.answer(
+        auth,
+        lesson_id,
+        body.phase,
+        body.index,
+        body.choice,
+        body.submission_id,
+        current_level=level,
+    )
 
 
 async def _saved_math_vector(db: AsyncSession, student_name: str) -> Optional[dict]:

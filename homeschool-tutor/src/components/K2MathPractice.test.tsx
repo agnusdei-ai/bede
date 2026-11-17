@@ -125,6 +125,23 @@ describe('K2MathPractice', () => {
     expect(document.body.textContent ?? '').not.toMatch(/\d+\s*(\/|of|out of)\s*\d+/)
   })
 
+  it('lets the demo topic picker wrap at narrow text-scaled widths', async () => {
+    const topicLesson = { ...lesson(), available_topics: ['count', 'compare', 'add', 'subtract', 'bond'] }
+    render(
+      <K2MathPractice
+        onClose={vi.fn()}
+        showTopicPicker
+        transport={{
+          load: vi.fn().mockResolvedValue(topicLesson),
+          answer: vi.fn(),
+        }}
+      />,
+    )
+    const picker = await screen.findByRole('combobox')
+    expect(picker.className).toContain('max-w-full')
+    expect(picker.parentElement?.className).toContain('flex-wrap')
+  })
+
   it('offers nothing to type at any step: an answer is a tap, a count on the frame, or speech', async () => {
     reduceMotion = true
     await open()

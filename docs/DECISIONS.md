@@ -2412,7 +2412,8 @@ Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (h) stay open 
 practice for kindergarten to grade 2: phonics, handwriting, practical math,
 spelling and copying a sentence first, then memory work. Map reading, from the
 same design, shipped in #830. The specification cannot settle these, and each
-changes what gets built:
+changes what gets built. Items (a), (b), and (g) are decided above; (c) to (f)
+and (h) remain open:
 
 - **(a) The per-child setting's default.** *Decided above.*
 - **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Decided above.*
@@ -2420,8 +2421,8 @@ changes what gets built:
 - **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
 - **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
+- **(g) The public demo.** **Decided (2026-11-17, owner):** include the already-built Number Time activity for counting, comparison, addition, subtraction and number bonds, entered through a direct demo action. Visitors may select among those authored topics; the server resolves level from the live demo session's validated K-2 grade. Attempts stay temporary and return `recorded=false`; demo math does not read or write household configuration, keys, ledger or mastery, demo progress/activity stores, or make model calls. This approves Number Time only, not the tutoring invitation or other practice areas, and does not imply saved learner progress.
 - **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849.
-- **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.
 
 ## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
 

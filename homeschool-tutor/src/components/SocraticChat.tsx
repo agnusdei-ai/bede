@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, ImagePlus, X, Sparkles } from 'lucide-react'
-import { streamTutorChat, updateVoiceNarrationPreference, extractNarrationText, ParentalConsentRequiredError } from '../services/api'
+import {
+  streamTutorChat, updateVoiceNarrationPreference, extractNarrationText,
+  ParentalConsentRequiredError, fetchMathLesson, answerMathTask,
+} from '../services/api'
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
@@ -1243,8 +1246,11 @@ export default function SocraticChat({
           on the device only, nothing sent to an AI provider. */}
       {showMath && token && sessionConfig?.student_name && (
         <K2MathPractice
-          token={token}
-          studentName={sessionConfig.student_name}
+          transport={{
+            load: (audio) => fetchMathLesson(token, sessionConfig.student_name, audio),
+            answer: (lessonId, phase, index, choice) =>
+              answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
+          }}
           onClose={() => { stopOnDeviceSpeech(); setShowMath(false) }}
           onSpeak={ttsEnabled ? speakOnDevice : undefined}
           canSpeak={ttsEnabled ? deviceVoice : false}

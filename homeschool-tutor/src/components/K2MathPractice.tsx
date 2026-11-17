@@ -2,10 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Volume2 } from 'lucide-react'
-import { answerMathTask, fetchMathLesson, type MathLesson, type MathTask } from '../services/api'
+import {
+  answerMathTask, fetchMathLesson,
+  type MathLesson, type MathTask,
+} from '../services/api'
 import RoutineShell, { type RoutineStep } from './routine/RoutineShell'
 import { Counter, MathPicture, TenFrameBuilder } from './MathPieces'
-import { PRIMARY, TARGET } from './K2PhonicsPractice'
+import { PRACTICE_PRIMARY as PRIMARY, PRACTICE_TARGET as TARGET } from './practiceStyles'
 
 /**
  * Practical math for K-2: Watch, Together, Your turn with counters, a
@@ -48,17 +51,39 @@ type Feedback =
   | { kind: 'shown'; choice: string }
   | { kind: 'trouble' }
 
+export interface MathPracticeAnswer {
+  understood: boolean
+  correct: boolean
+  reveal?: { choice: string }
+}
+
+export interface MathPracticeTransport {
+  load: (audio: boolean, topic?: string) => Promise<MathLesson>
+  answer: (
+    lessonId: string,
+    phase: 'together' | 'your_turn',
+    index: number,
+    choice: string,
+    submissionId: string,
+  ) => Promise<MathPracticeAnswer>
+}
+
 export default function K2MathPractice({
-  token, studentName, onClose, onSpeak, canSpeak,
+  onClose, onSpeak, canSpeak, transport, token, studentName, showTopicPicker = false,
 }: {
-  token: string
-  studentName: string
   onClose: () => void
   /** Reads a line aloud, on the device only. Every instruction is spoken as well as shown. */
   onSpeak?: (text: string) => void
   /** Whether this device can speak the round (null while checking). No math
    * question works only by ear, so this only decides what the server is told. */
   canSpeak?: boolean | null
+  /** Demo sessions supply their own isolated, temporary transport. */
+  transport?: MathPracticeTransport
+  /** Existing household callers may use the built-in authenticated transport. */
+  token?: string
+  studentName?: string
+  /** Let demo visitors inspect built topics without implying saved mastery. */
+  showTopicPicker?: boolean
 }) {
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<MathLesson | null>(null)
@@ -72,18 +97,33 @@ export default function K2MathPractice({
   // set on: a new question starts from its own counters on its very first
   // frame, never from the last question's count.
   const [builtFor, setBuiltFor] = useState<{ task: MathTask | null; n: number }>({ task: null, n: 0 })
+  const [selectedTopic, setSelectedTopic] = useState<string>()
+  const selectedTopicRef = useRef<string | undefined>(undefined)
   const loadId = useRef(0)
   const reduced = useRef(prefersReducedMotion())
+  const pendingSubmission = useRef<{ fingerprint: string; id: string } | null>(null)
+  const defaultTransport: MathPracticeTransport = {
+    load: (speak) => {
+      if (!token || !studentName) return Promise.reject(new Error('Practice is unavailable.'))
+      return fetchMathLesson(token, studentName, speak)
+    },
+    answer: (lessonId, phase, taskIndex, choice) => {
+      if (!token || !studentName) return Promise.reject(new Error('Practice is unavailable.'))
+      return answerMathTask(token, studentName, lessonId, phase, taskIndex, { choice })
+    },
+  }
+  const transportRef = useRef(transport ?? defaultTransport)
+  transportRef.current = transport ?? defaultTransport
 
   const audio = canSpeak === undefined ? !!onSpeak : canSpeak
-  const load = useCallback(() => {
+  const load = useCallback((topic = selectedTopicRef.current) => {
     if (audio === null) return
     const mine = ++loadId.current
     setLesson(null); setFailed(false); setStep('watch'); setIndex(0); setDone(false); setFeedback(null)
-    fetchMathLesson(token, studentName, audio)
+    transportRef.current.load(audio, topic ?? selectedTopic)
       .then((l) => { if (mine === loadId.current) setLesson(l) })
       .catch(() => { if (mine === loadId.current) setFailed(true) })
-  }, [token, studentName, audio])
+  }, [audio])
 
   useEffect(() => { load(); return () => { loadId.current += 1 } }, [load])
 
@@ -132,9 +172,19 @@ export default function K2MathPractice({
 
   const send = async (choice: string) => {
     if (!lesson || !task || busy || settled || watching) return
+    const fingerprint = JSON.stringify([lesson.lesson_id, step, index, choice])
+    const submissionId = pendingSubmission.current?.fingerprint === fingerprint
+      ? pendingSubmission.current.id
+      : typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    pendingSubmission.current = { fingerprint, id: submissionId }
     setBusy(true)
     try {
-      const result = await answerMathTask(token, studentName, lesson.lesson_id, step, index, { choice })
+      const result = await transportRef.current.answer(
+        lesson.lesson_id, step as 'together' | 'your_turn', index, choice, submissionId,
+      )
+      pendingSubmission.current = null
       if (result.correct) { setFeedback({ kind: 'right' }); speakRef.current?.(t('k2Math.right')) }
       else if (result.reveal) {
         setFeedback({ kind: 'shown', choice: result.reveal.choice })
@@ -150,12 +200,32 @@ export default function K2MathPractice({
   }
 
   const title = t('k2Math.title')
+  const topicPicker = showTopicPicker && lesson?.available_topics && (
+    <label className="flex max-w-full flex-wrap items-center justify-center gap-2 text-sm text-gray-700">
+      <span>{t('k2Math.chooseTopic')}</span>
+      <select
+        value={selectedTopic ?? lesson.topic}
+        onChange={(event) => {
+          const value = event.currentTarget.value
+          selectedTopicRef.current = value
+          setSelectedTopic(value)
+          load(value)
+        }}
+        className="min-h-11 max-w-full rounded-lg border border-sage-300 bg-white px-3 text-base"
+      >
+        {lesson.available_topics.map((topic) => (
+          <option key={topic} value={topic}>{t(`k2Math.topic.${topic}`)}</option>
+        ))}
+      </select>
+    </label>
+  )
 
   if (failed) {
     return (
       <RoutineShell title={title} step="watch" onClose={onClose}>
         <p role="alert" className="text-lg text-gray-700 text-center">{t('k2Math.loadTrouble')}</p>
-        <button type="button" onClick={load} className={PRIMARY}>{t('k2Math.tryAgain')}</button>
+        <button type="button" onClick={() => load()} className={PRIMARY}>{t('k2Math.tryAgain')}</button>
+        {topicPicker}
       </RoutineShell>
     )
   }
@@ -170,9 +240,10 @@ export default function K2MathPractice({
     return (
       <RoutineShell title={title} step="your_turn" done onClose={onClose}>
         <p className="text-xl font-semibold text-navy-700 text-center">{t('k2Math.finished')}</p>
+        {topicPicker}
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={onClose} className={PRIMARY}>{t('k2Math.backToBede')}</button>
-          <button type="button" onClick={load} className={SECONDARY}>{t('k2Math.another')}</button>
+          <button type="button" onClick={() => load()} className={SECONDARY}>{t('k2Math.another')}</button>
         </div>
       </RoutineShell>
     )
@@ -186,6 +257,7 @@ export default function K2MathPractice({
 
   return (
     <RoutineShell title={title} step={step} onClose={onClose}>
+      {topicPicker}
       <p className="text-base text-gray-600 text-center">{t(`k2Math.lead.${step}`)}</p>
       <div className="flex flex-wrap items-center justify-center gap-2">
         <p className="text-xl font-medium text-navy-700 text-center" data-testid="math-line">{line}</p>

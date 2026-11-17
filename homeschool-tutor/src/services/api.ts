@@ -2513,6 +2513,7 @@ export interface MathLesson {
   topic: string
   skill: string
   your_turn_tries: number
+  available_topics?: string[]
   audio?: boolean
   needs_audio?: boolean
   watch: (MathTask & { answer: { choice: string } }) | null

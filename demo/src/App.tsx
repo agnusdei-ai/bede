@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { BookOpenCheck, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
+import { BookOpenCheck, Calculator, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -17,7 +17,7 @@ import {
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
 import { useTranscriptWords } from './useTranscriptWords'
-import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
+import { useTextToSpeech, unlockSpeechForSession, resolveVoice } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import DebugOverlay from './DebugOverlay'
 import { logDebug } from './debugBus'
@@ -48,6 +48,8 @@ import ConsentModal from './ConsentModal'
 import { dismissKeyboard } from './dismissKeyboard'
 import DemoPracticeCoach from './DemoPracticeCoach'
 import DemoPracticeDelivery from './DemoPracticeDelivery'
+import K2MathPractice from '../../homeschool-tutor/src/components/K2MathPractice'
+import { demoMathTransport } from './api'
 
 interface DisplayMessage {
   id: string
@@ -989,6 +991,7 @@ const MAX_CONSECUTIVE_SILENT_TURNS = 3
 export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   const [showPracticeCoach, setShowPracticeCoach] = useState(false)
+  const [showNumberTime, setShowNumberTime] = useState(false)
   const [approvedPractice, setApprovedPractice] = useState<DemoPracticeDeliveryItem[]>([])
   const [practiceRun, setPracticeRun] = useState(0)
   // Read once, on mount, before any state below initializes from it — a
@@ -1167,6 +1170,26 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const consecutiveAutoContinues = useRef(0)
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
+  const localSpeechGeneration = useRef(0)
+  const speakNumberTime = useCallback((text: string) => {
+    if (!('speechSynthesis' in window)) return
+    const generation = ++localSpeechGeneration.current
+    const lang = i18n.language === 'es' ? 'es' : 'en'
+    resolveVoice(lang).then((voice) => {
+      if (generation !== localSpeechGeneration.current || !voice) return
+      const utterance = new SpeechSynthesisUtterance(text)
+      utterance.lang = lang === 'es' ? 'es-MX' : 'en-GB'
+      utterance.voice = voice
+      utterance.rate = 0.88
+      utterance.pitch = 0.92
+      window.speechSynthesis.cancel()
+      window.speechSynthesis.speak(utterance)
+    }).catch(() => { /* Speech is optional; the written activity remains usable. */ })
+  }, [i18n.language])
+  const stopNumberTimeSpeech = useCallback(() => {
+    localSpeechGeneration.current += 1
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+  }, [])
 
   // ── Voice input: tap to speak ─────────────────────────────────────────────
   // One tap starts listening for a single utterance; a finished transcript
@@ -1367,7 +1390,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const holdHandlers = holdHandlersRef.current
 
   const awaitingChildTurn =
-    !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
+    !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing && !showNumberTime
 
   // Open the microphone BEFORE the child presses, not at the press — see
   // useVoiceRecorder.ts's own prewarm() comment for why a cold getUserMedia()
@@ -1578,7 +1601,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
       // Awaiting here used to mean the send button, mic, and text input all
       // sat blocked/spinning for the full duration of every TTS attempt;
       // homeschool-tutor's SocraticChat.tsx never had this coupling.
-      if (ttsEnabled && speechSegments.length) speak(speechSegments.join(' '))
+      if (ttsEnabled && !showNumberTime && speechSegments.length) speak(speechSegments.join(' '))
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {
@@ -1602,7 +1625,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
       // advancing while Bede's own transition line is still playing would
       // cut it off mid-sentence.
     }
-  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid, t])
+  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, showNumberTime, speak, stopSpeech, stopListening, onSessionInvalid, t])
 
   // Fires once when a turn's text AND speech have both genuinely finished
   // (not just the text) — see the fire-and-forget speak() comment above for
@@ -1648,22 +1671,22 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   // (not as effect dependencies) so a child mid-typing or mid-drawing is
   // never interrupted — those are exactly the moments this must stay quiet.
   useEffect(() => {
-    if (isStreaming || isSpeaking || sessionPaused) return
+    if (isStreaming || isSpeaking || sessionPaused || showNumberTime) return
     if (consecutiveAutoContinues.current >= MAX_CONSECUTIVE_AUTO_CONTINUES) return
     const id = setTimeout(() => {
-      if (inputRef.current.trim() || showCanvas) return  // actively composing or drawing — leave them be
+      if (inputRef.current.trim() || showCanvas || showNumberTime) return  // actively composing, drawing or practicing — leave them be
       consecutiveAutoContinues.current += 1
       runStream(IDLE_CONTINUE_SENTINEL, null)
     }, IDLE_CONTINUE_MS)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused])
+  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused, showNumberTime])
 
   const send = (overrideMsg?: string) => {
     // overrideMsg lets dictation mode send a transcript directly, without a
     // setInput()-then-read round trip through React state.
     const msg = (overrideMsg ?? input).trim()
-    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused) return
+    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused || showNumberTime) return
     stopSpeech()
     stopListening()
     setInput('')
@@ -1777,6 +1800,23 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
           >
             <BookOpenCheck size={16} /><span className="hidden sm:inline">{t('demoPractice.title')}</span>
           </button>
+          {['K', '1', '2'].includes(grade) && (
+            <button
+              type="button"
+              onClick={() => {
+                stopSpeech()
+                stopListening()
+                stopNumberTimeSpeech()
+                setShowNumberTime(true)
+              }}
+              disabled={isStreaming}
+              title={t('k2Math.open')}
+              aria-label={t('k2Math.open')}
+              className="flex min-h-[44px] items-center gap-1 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1.5 text-xs font-semibold text-navy-800 disabled:opacity-40"
+            >
+              <Calculator size={16} /><span className="hidden sm:inline">{t('k2Math.open')}</span>
+            </button>
+          )}
           {/* Parent controls — the header's upper right, next to where the
               appearance picker lives, under the fixed text-size control:
               the familiar corner for settings. Stays visible when the
@@ -1866,6 +1906,18 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             setApprovedPractice(items)
             setPracticeRun((run) => run + 1)
           }}
+        />
+      )}
+      {showNumberTime && (
+        <K2MathPractice
+          transport={demoMathTransport(token)}
+          showTopicPicker
+          onClose={() => {
+            stopNumberTimeSpeech()
+            setShowNumberTime(false)
+          }}
+          onSpeak={ttsEnabled ? speakNumberTime : undefined}
+          canSpeak={ttsEnabled && 'speechSynthesis' in window}
         />
       )}
 

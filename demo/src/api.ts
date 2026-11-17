@@ -10,6 +10,8 @@ import type { DiagramSpec } from './Diagram'
 
 import { logDebug } from './debugBus'
 import { isNetworkFailure, StreamTruncatedError } from './networkFailure'
+import type { MathLesson } from '../../homeschool-tutor/src/services/api'
+import type { MathPracticeAnswer, MathPracticeTransport } from '../../homeschool-tutor/src/components/K2MathPractice'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
 
@@ -182,6 +184,37 @@ async function demoPracticeFetch<T>(token: string, path: string, body?: unknown)
     throw new Error(typeof detail === 'string' ? detail : 'The demo practice could not complete that step.')
   }
   return res.json()
+}
+
+async function demoMathFetch<T>(token: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}/k2-practice/demo/math${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    throw new Error(typeof detail === 'string' ? detail : 'Number Time could not complete that step.')
+  }
+  return res.json()
+}
+
+export function demoMathTransport(token: string): MathPracticeTransport {
+  return {
+    load: (_audio, topic) => {
+      const params = new URLSearchParams()
+      if (topic) params.set('topic', topic)
+      const query = params.size ? `?${params}` : ''
+      return demoMathFetch<MathLesson>(token, `/lesson${query}`)
+    },
+    answer: (lessonId, phase, index, choice, submissionId) =>
+      demoMathFetch<MathPracticeAnswer>(
+        token,
+        `/lessons/${encodeURIComponent(lessonId)}/answers`,
+        { phase, index, choice, submission_id: submissionId },
+      ),
+  }
 }
 
 export const fetchDemoPracticePacks = (token: string) =>

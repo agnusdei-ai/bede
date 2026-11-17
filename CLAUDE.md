@@ -484,6 +484,17 @@ bundles always ship; the toggle switches live).
 
 ## Architecture
 
+**Public-demo Number Time (`services/k2_practice/demo_math.py`,
+`routers/k2_practice.py`, `demo/src/`)** reuses the authored K-2 math
+builders, deterministic checking, `K2MathPractice` and `MathPieces` UI through
+dedicated demo-authenticated endpoints. Its direct demo action supports the
+implemented count/compare/add/subtract/bond topics; it does not enable the
+model-driven `invite_practice` offer. Demo attempts are bounded, temporary,
+session-bound and explicitly unrecorded; they never read or write household
+configuration, learner keys, work ledger, mastery or demo progress/activity,
+and they make no model calls. Shared UI components remain configured by the
+demo's own build and locale dictionaries.
+
 ### Backend (`homeschool-api/`)
 
 ```

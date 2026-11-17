@@ -10,6 +10,7 @@
     "gradeDefault": "Usar el valor predeterminado (grado 4)",
     "kindergarten": "Preescolar",
     "gradeN": "Grado {{n}}",
+    "gradeHelp": "Los grados 9–12 ofrecen práctica interactiva, no cursos completos de un año.",
     "currentUnit": "¿Continuando una lección de casa?",
     "currentUnitPlaceholder": "p. ej. leyendo Farmer Boy juntos, nuestra propia unidad sobre el Antiguo Egipto",
     "faithTradition": "¿La tradición religiosa de su familia?",
@@ -601,5 +602,90 @@
     "name": "Nombre",
     "date": "Fecha",
     "failed": "No se pudo imprimir. Inténtalo de nuevo."
+  },
+  "routine": {
+    "steps": "Pasos de la práctica",
+    "step": { "watch": "Mira", "together": "Juntos", "your_turn": "Te toca" },
+    "back": "Volver a la conversación"
+  },
+  "k2Math": {
+    "title": "Hora de los Números",
+    "open": "Probar la Hora de los Números",
+    "chooseTopic": "Elige un tema",
+    "topic": {
+      "count": "Contar",
+      "compare": "Comparar",
+      "add": "Sumar",
+      "subtract": "Restar",
+      "bond": "Enlaces numéricos"
+    },
+    "loading": "Preparando las fichas…",
+    "loadTrouble": "No se pudo cargar la práctica.",
+    "tryAgain": "Intentar de nuevo",
+    "finished": "¡Terminaste la Hora de los Números!",
+    "backToBede": "Volver con Bede",
+    "another": "Jugar otra vez",
+    "letsTry": "Probemos una",
+    "next": "Siguiente",
+    "check": "Revisar",
+    "hearAgain": "Oírlo otra vez",
+    "pickAnAnswer": "Elige una respuesta",
+    "thisOne": "Esta",
+    "right": "¡Sí, esa es!",
+    "again": "Miremos otra vez. Intenta una vez más.",
+    "shown": "Aquí está. Toca Siguiente cuando estés listo.",
+    "checkTrouble": "No se pudo revisar esa respuesta. Intenta de nuevo.",
+    "addOne": "Poner una ficha",
+    "takeOne": "Quitar una",
+    "trayCounter": "Una ficha para poner",
+    "dragHint": "Arrastra una ficha al marco, o toca una casilla.",
+    "putInBox": "Poner una ficha en la casilla {{n}}",
+    "takeFromBox": "Quitar la ficha de la casilla {{n}}",
+    "frameLabel": "Un marco de diez con {{count}} fichas, {{crossed}} tachadas",
+    "frameQuiet": "Un marco de diez con fichas",
+    "buildLabel": "Tu marco de diez, con {{count}} fichas ahora",
+    "takeAwayBox": "Quita esta ficha, casilla {{n}}",
+    "rowQuiet": {
+      "red": "Una fila de fichas rojas",
+      "yellow": "Una fila de fichas amarillas"
+    },
+    "bondLabel": "Un enlace numérico: {{whole}} es {{a}} y {{b}}",
+    "rowOf": {
+      "red": "{{count}} fichas rojas",
+      "yellow": "{{count}} fichas amarillas"
+    },
+    "choice": { "red": "Rojas", "yellow": "Amarillas", "same": "Iguales" },
+    "compareResult": {
+      "red": "Algunas rojas no tienen pareja, así que hay más rojas.",
+      "yellow": "Algunas amarillas no tienen pareja, así que hay más amarillas.",
+      "same": "Cada ficha tiene pareja, así que son iguales."
+    },
+    "lead": {
+      "watch": "Mira y escucha.",
+      "together": "Ahora lo hacemos juntos.",
+      "your_turn": "Te toca a ti."
+    },
+    "prompt": {
+      "count_how_many": "¿Cuántas fichas hay?",
+      "count_build": "Pon {{n}} fichas en el marco de diez.",
+      "compare_more": "¿Hay más rojas o más amarillas? ¿O son iguales?",
+      "add_how_many": "{{a}} rojas y {{b}} amarillas. ¿Cuántas hay en total?",
+      "add_build": "Aquí hay {{a}}. Pon {{b}} más.",
+      "subtract_how_many": "Había {{a}}. {{b}} están tachadas. ¿Cuántas quedan?",
+      "subtract_build": "Aquí hay {{a}}. Quita {{b}}.",
+      "bond_missing": "{{whole}} es {{part}} y ¿cuánto más?",
+      "bond_build": "Aquí hay {{part}}. Pon más hasta que haya {{whole}}."
+    },
+    "watch": {
+      "count_how_many": "Mira cómo cuento. Toco cada una, y el último número que digo es cuántas hay: {{answer}}.",
+      "count_build": "Mira cómo pongo fichas, una por una. Ahora hay {{n}}.",
+      "compare_more": "Mira cómo junto cada ficha roja con una amarilla. {{result}}",
+      "add_how_many": "{{a}} rojas y {{b}} amarillas. Las cuento todas: {{answer}}.",
+      "add_build": "Aquí hay {{a}}. Mira cómo pongo {{b}} más. Ahora hay {{answer}}.",
+      "subtract_how_many": "Había {{a}}. Tacho {{b}}. Cuento las que quedan: {{answer}}.",
+      "subtract_build": "Aquí hay {{a}}. Mira cómo quito {{b}}. Ahora hay {{answer}}.",
+      "bond_missing": "{{whole}} es {{part}} y {{answer}}. Juntos hacen {{whole}}.",
+      "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}."
+    }
   }
 }

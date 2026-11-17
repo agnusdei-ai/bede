@@ -109,9 +109,11 @@ def test_the_card_and_the_screen_carry_one_name(locale):
     assert title in screen["open"] and title in screen["finished"]
 
 
-@pytest.mark.parametrize("area", [a for a in k2_practice.AREAS if a != "phonics"])
+@pytest.mark.parametrize("area", [a for a in k2_practice.AREAS if a not in k2_practice.ENABLED_AREAS])
 def test_an_area_not_built_has_no_card(area):
-    assert k2_practice.ENABLED_AREAS == {"phonics"}
+    # Phonics (step 1) and practical math (step 3) are built; math is offered
+    # in Mathematics and its own invitation tests are test_k2_math_invitation.py.
+    assert k2_practice.ENABLED_AREAS == {"phonics", "math"}
     assert ai_service._process_tool_use("invite_practice", {"area": area}, "en") == ""
 
 
@@ -138,12 +140,16 @@ _REFUSALS = {
     "demo": dict(demo_code="DEMO42"),
     "not_scheduled_today": dict(config=dict(subjects=[Subject.morning_time, Subject.living_books]),
                                 subject=Subject.language_arts),
-    "not_its_subject": dict(config=dict(subjects=[Subject.mathematics, Subject.language_arts]),
-                            subject=Subject.mathematics),
+    # Phonics belongs to Language Arts and Living Books, never History. (Not
+    # Mathematics: that subject now offers its own area, math.)
+    "not_its_subject": dict(config=dict(subjects=[Subject.history, Subject.language_arts]),
+                            subject=Subject.history),
     "low_time": dict(time_remaining_seconds=MIN_SECONDS_FOR_LONG_FORM_TASK - 1),
     "setting_off": dict(config=dict(practice_offers="off")),
     "approved_only": dict(config=dict(practice_offers="approved_only")),
-    **{f"area_{a}": dict(area=a) for a in k2_practice.AREAS if a != "phonics"},
+    **{f"area_{a}": dict(area=a) for a in k2_practice.AREAS if a not in k2_practice.ENABLED_AREAS},
+    # Math is built, but belongs to Mathematics: never offered in Language Arts.
+    "area_math_in_language_arts": dict(area="math"),
     "area_invented": dict(area="dragons"),
 }
 

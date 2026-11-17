@@ -9,7 +9,7 @@ from core.database import get_db
 from core.demo_code_session import get_personalization
 from core.deps import require_demo_preview, require_parent
 from core.diagnostic_preview_quota import has_quota, record_use
-from models.schemas import DiagnosticChatRequest, MasteryProfileSummary
+from models.schemas import DEMO_UPPER_GRADES, DiagnosticChatRequest, MasteryProfileSummary
 from services.diagnostic import get_mastery_summary
 from services.diagnostic.composition import get_composition_summary
 from services.diagnostic.phonics import get_phonics_summary
@@ -51,6 +51,12 @@ async def _require_diagnostic_quota(request: Request, auth: dict = Depends(requi
     """
     ip = audit_from_request(request)["ip"]
     code = auth.get("code", "")
+    _, grade = await get_personalization(code)
+    if grade in DEMO_UPPER_GRADES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Upper-school tutoring is available; a Grades 9-12 mastery diagnostic is not yet supported.",
+        )
     if not await has_quota(ip, code):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -146,8 +152,22 @@ async def get_diagnostic_summary(
     return MasteryProfileSummary(**summary)
 
 
+async def get_math_summary(db: AsyncSession, student_name: str):
+    """The math engine's summary, plus how many recorded K-2 practice answers
+    (routers/k2_practice.py's math round) moved it. Those answers are not
+    Bede's check-ins and are not counted in evidence_count (owner ruling
+    2026-11-16), so they are reported apart, the same as phonics, and a
+    "still getting to know" line never reads as though nothing was recorded."""
+    summary = await get_mastery_summary(db, student_name)
+    if summary is None:
+        return None
+    from services.diagnostic.activity import count_from_source
+    summary["practice_answers"] = await count_from_source(db, student_name, "mathematics", "practice_round")
+    return summary
+
+
 _SUMMARY_BUILDERS = {
-    "mathematics": get_mastery_summary,
+    "mathematics": get_math_summary,
     "composition": get_composition_summary,
     "phonics": get_phonics_summary,
     "language_exposure": get_language_summary,
@@ -438,7 +458,8 @@ async def get_student_mastery_summary(
     `_SUMMARY_BUILDERS` above rather than this list, so the two cannot drift:
 
     * "mathematics" — services.diagnostic.get_mastery_summary, the full
-      CDM/IRT/KST engine.
+      CDM/IRT/KST engine, with K-2 practice answers counted apart
+      (get_math_summary above).
     * "composition" — a rollup over assess_narration's own rubric.
     * "phonics" — K-2 reading foundations.
     * "literacy" — reading and spelling for grades 3-8, the complement of

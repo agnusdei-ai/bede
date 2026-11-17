@@ -2404,11 +2404,16 @@ In Bede as built, a wrongly tapped choice stays tappable on the second try (the 
 
 Built in step 1 of [`K2_PRACTICE.md`](K2_PRACTICE.md) §9. (c) to (h) stay open below.
 
+**Applied to math in step 3 (2026-11-16, owner brief).** The same weights and the same three rulings above (no early-evidence boost, outside the early-evidence window, one recorded round per area per sign-in) apply to the practical-math round: a right first try is an observation for the topic's existing K-2 skill at `confidence` 0.5 through `services/diagnostic`'s `process_evidence`, a right second try at 0.25, an answer shown nothing. That function gained the two keyword-only flags phonics' has, passed only by the practice route, so Bede's own check-ins and marked quizzes behave exactly as before. Step 3 was built before step 2 because step 2, handwriting, waits on (c). The random-tap table above applies to the number and compare questions (three choices for kindergarten and grade 1, four for grade 2); a building question offers every count the frame holds, so a random answer is right far less often. `oa.fact_fluency_20` is not recorded, since a round is untimed and fluency is recall speed.
+
+**Building questions record counting only (owner ruling 2026-11-16, a product default).** A right Your turn answer to a question where the child puts counters on a ten-frame (count_build, add_build, subtract_build, bond_build, or any building question) is evidence for `cc.count_objects_20` alone, at the same weights and with the same no-boost and outside-the-window flags. It never updates the addition, subtraction, comparison or number-bond estimate the question was framed in, because the frame does the arithmetic for anyone who counts the boxes. A question where the child picks the answer still records the topic's own skill. Watch and Together record nothing, an answer that was shown records nothing, a retried answer records once, and with `RETAIN_MASTERY_PROFILES` off only the ledger row is written, naming counting. Built in #857 (`practical_math.recorded_skill`).
+
 [`K2_PRACTICE.md`](K2_PRACTICE.md) specifies short Watch, Together, Your turn
 practice for kindergarten to grade 2: phonics, handwriting, practical math,
 spelling and copying a sentence first, then memory work. Map reading, from the
 same design, shipped in #830. The specification cannot settle these, and each
-changes what gets built:
+changes what gets built. Items (a), (b), and (g) are decided above; (c) to (f)
+and (h) remain open:
 
 - **(a) The per-child setting's default.** *Decided above.*
 - **(b) How much a Your turn answer counts toward the phonics and math estimates.** *Decided above.*
@@ -2416,8 +2421,8 @@ changes what gets built:
 - **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
 - **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
+- **(g) The public demo.** **Decided (2026-11-17, owner):** include the already-built Number Time activity for counting, comparison, addition, subtraction and number bonds, entered through a direct demo action. Visitors may select among those authored topics; the server resolves level from the live demo session's validated K-2 grade. Attempts stay temporary and return `recorded=false`; demo math does not read or write household configuration, keys, ledger or mastery, demo progress/activity stores, or make model calls. This approves Number Time only, not the tutoring invitation or other practice areas, and does not imply saved learner progress.
 - **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849.
-- **(g) The public demo.** *Recommended:* not in the first build; revisit once a family-facing version is qualified.
 
 ## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
 

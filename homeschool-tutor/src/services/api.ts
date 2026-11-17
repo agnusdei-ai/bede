@@ -1,6 +1,10 @@
 import type { DiagramSpec } from '../components/Diagram'
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
+import type { MathLesson } from './k2MathTypes'
+export type {
+  CounterColor, CountersPiece, MathLesson, MathPiece, MathTask, NumberBondPiece, TenFramePiece,
+} from './k2MathTypes'
 import { logDebug } from '../hooks/debugBus'
 import { getOrCreateDeviceId } from '../utils/deviceId'
 import { isNetworkFailure, StreamTruncatedError } from '../utils/networkFailure'
@@ -2474,5 +2478,21 @@ export const answerPhonicsTask = (
   answer: { choice: string } | { spoken: string },
 ) => phonicsFetch<PhonicsAnswerResult>(
   token, `/${encodeURIComponent(studentName)}/phonics/lessons/${encodeURIComponent(lessonId)}/answers`,
+  { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
+)
+
+/** `audio: false` tells the server this device cannot speak the round. No
+ * math question works only by ear, so the lesson is the same either way. */
+export const fetchMathLesson = (token: string, studentName: string, audio = true) =>
+  phonicsFetch<MathLesson>(
+    token, `/${encodeURIComponent(studentName)}/math/lesson${audio ? '' : '?audio=false'}`,
+  )
+
+export const answerMathTask = (
+  token: string, studentName: string, lessonId: string,
+  phase: 'together' | 'your_turn', index: number,
+  answer: { choice: string } | { spoken: string },
+) => phonicsFetch<PhonicsAnswerResult>(
+  token, `/${encodeURIComponent(studentName)}/math/lessons/${encodeURIComponent(lessonId)}/answers`,
   { method: 'POST', body: JSON.stringify({ phase, index, ...answer }) },
 )

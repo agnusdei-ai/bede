@@ -50,11 +50,13 @@ from models.schemas import (
     SessionSummaryRequest,
     PUBLIC_DOMAIN_BIBLE_TRANSLATIONS,
     VALID_GRADES,
+    DEMO_UPPER_GRADES,
 )
 from core.audit import AuditEvent, log_event_nowait
 from core.config import settings, SUPPORTED_LOCALES
 from core.log_redaction import exc_summary, exc_text, learner_ref
 from core.constitution import get_constitution
+from services.demo_upper_school import upper_school_guidance
 
 log = logging.getLogger(__name__)
 
@@ -1262,6 +1264,8 @@ _GRADE_DESCRIPTORS = {
     "1": "a first-grade student", "2": "a second-grade student", "3": "a third-grade student",
     "4": "a fourth-grade student", "5": "a fifth-grade student", "6": "a sixth-grade student",
     "7": "a seventh-grade student", "8": "an eighth-grade student",
+    "9": "a ninth-grade student", "10": "a tenth-grade student",
+    "11": "an eleventh-grade student", "12": "a twelfth-grade student",
 }
 
 
@@ -1359,18 +1363,22 @@ mistake is stopping a lesson that didn't need to stop, not continuing one that d
 # exactly; a parent wanting the encyclical's precise wording should read it
 # directly rather than take Bede's summary as the primary source.
 #
-# This app only models grades K-8 (see models.schemas.VALID_GRADES /
-# GradeStage) — there is no grade 9-12 "high school" band to hang the
-# user's literal "ages 14+" cutoff on. Grade 8 (the oldest grade this app
-# teaches, typically age 13-14) is used as the closest available bridge
-# toward that cutoff rather than inventing high-school grade support this
-# was never asked to add.
+# Upper-school demo practice does not extend the approved full-year catalog
+# or certify a high-school diagnostic.
 def _ai_literacy_guardrails(config: SessionConfig) -> str:
     is_oldest_grade = config.grade.strip().upper() == "8"
-    if config.grade_stage == GradeStage.independent:
+    if config.grade.strip() in DEMO_UPPER_GRADES:
+        stage_rule = (
+            "Grades 9-12: examine AI claims, bias, source provenance, uncertainty, and privacy "
+            "through a learner's own evidence-based critique. First ask for the learner's reasoning, "
+            "then discuss a clearly labeled hypothetical AI example if useful. Never use AI to write "
+            "their assignment, solve their assigned problem, or replace their judgment."
+        )
+        loop_section = ""
+    elif config.grade_stage == GradeStage.independent:
         if is_oldest_grade:
             stage_rule = (
-                "Grade 8 specifically, the oldest students this app currently teaches: this is the bridge "
+                "Grade 8 specifically: this is the bridge "
                 "toward the real high-school-level (ages 14+) critical evaluation Catholic classical education "
                 f"calls for. When a conversation naturally turns to AI or a specific AI-generated example comes "
                 f"up, you may run the Adaptive Continuous Learning Loop below — always framed as evaluating AI's "
@@ -2122,7 +2130,7 @@ follow just one of them — the most promising thread — rather than trying to 
 treat two consecutive follow-up questions probing the very same idea as your outer limit: if it hasn't landed by \
 then, that is the moment to simplify, offer a hint, or move on, not to go a layer deeper.
 
-{_STAGE_GUIDANCE[config.grade_stage]}
+{upper_school_guidance(config) or _STAGE_GUIDANCE[config.grade_stage]}
 </persona>
 
 <sacred_rules>
@@ -2293,6 +2301,12 @@ def _diagnostic_guidance(config: SessionConfig) -> str:
     included in the static prompt (see _build_static_prompt). Depends only
     on config.student_name, already part of the cached static block, so
     including it doesn't change per-turn cache safety."""
+    if config.grade.strip() in DEMO_UPPER_GRADES:
+        return (
+            "\n<diagnostic_guidance>Upper-school practice has no validated high-school "
+            "skill registry. Do not call diagnostic evidence tools, issue mastery scores, "
+            "or describe K-8 probes as high-school assessment.</diagnostic_guidance>\n"
+        )
     return f"""
 <diagnostic_guidance>
 As you tutor, you quietly notice how well {config.display_name} grasps specific math skills. When a
@@ -2888,7 +2902,7 @@ def _practice_allowed(
     Refused: an area not built yet; the public demo (its screen has no
     practice to open); any setting but "todays_subjects" (with "off" Bede
     offers nothing, and with "approved_only" it never chooses on its own:
-    step 1 has no approved phonics sets); outside K-2; a subject the area does
+    no approved phonics or math sets exist yet); outside K-2; a subject the area does
     not belong to, or one not in this child's routine today; too little time
     left in the block to finish a round; and a second offer of the same area
     in one session.
@@ -2913,6 +2927,18 @@ def _practice_allowed(
     return not any(m.role == "assistant" and prefix in (m.content or "") for m in (history or []))
 
 
+#: What the app shows in each area's round, and the moment to offer it, as
+#: the <practice> note words them. Only the areas offered on a turn are named.
+_PRACTICE_NOTE_ITEMS = {
+    "phonics": "words and pictures",
+    "math": "counters, ten-frames and number bonds",
+}
+_PRACTICE_NOTE_MOMENTS = {
+    "phonics": "after reading or talking about words",
+    "math": "after working with numbers or counting something",
+}
+
+
 def _practice_note(
     config: SessionConfig, subject: Subject, demo_code: Optional[str],
     history: Optional[List[ChatMessage]], *,
@@ -2926,17 +2952,18 @@ def _practice_note(
     )]
     if not areas:
         return ""
+    items = "; ".join(f"{_PRACTICE_NOTE_ITEMS[a]} for {a}" for a in areas)
+    moments = "; ".join(f"{_PRACTICE_NOTE_MOMENTS[a]} for {a}" for a in areas)
     return f"""
 
 <practice>
-This child may be offered a short practice round in: {", ".join(areas)}. For phonics the app
-shows words and pictures, says every instruction, and checks every answer; you send only the
-area. The parent's own plan comes first: if today's lesson focus or the note on where this
-subject left off points somewhere else, do not offer practice; follow the parent's plan. Otherwise
-offer it once, by calling `invite_practice`, at a natural pause after reading or talking about
-words, never in the middle of an activity. It is an invitation: if the child would rather not,
-carry on with the lesson. Do not use it to fill time, and do not mention that anything is
-recorded.
+This child may be offered a short practice round in: {", ".join(areas)}. The app shows the
+{items}, says every instruction, and checks every answer; you send only the area. The parent's
+own plan comes first: if today's lesson focus or the note on where this subject left off points
+somewhere else, do not offer practice; follow the parent's plan. Otherwise offer it once, by
+calling `invite_practice`, at a natural pause ({moments}), never in the middle of an activity.
+It is an invitation: if the child would rather not, carry on with the lesson. Do not use it to
+fill time, and do not mention that anything is recorded.
 </practice>"""
 
 
@@ -3199,7 +3226,7 @@ async def _diagnostic_context(
     session had 1-4 pieces of evidence (non-empty vector, but still
     genuinely calibrating by every other measure in the system).
     """
-    if subject != Subject.mathematics:
+    if subject != Subject.mathematics or config.grade.strip() in DEMO_UPPER_GRADES:
         return ""
     try:
         from services.diagnostic.mastery import CALIBRATION_THRESHOLD, new_vector
@@ -3442,6 +3469,20 @@ async def _build_subject_prompt(
     faith_note = f"\nToday's faith focus: {faith_raw}" if faith_raw else ""
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
+    if config.grade.strip() in DEMO_UPPER_GRADES:
+        # Do not inherit K-8 catalogs, probe IDs, or term/mastery targets
+        # through the compatibility stage used by existing session tools.
+        return (
+            f"CURRENT SUBJECT: {subject_label(subject, locale)}\n"
+            f"{upper_school_guidance(config)}{faith_note}{lesson_note}{unit_note}"
+            f"{_faith_tradition_note(config, subject)}"
+            f"{_bible_translation_note(config, subject)}"
+            f"{_lesson_resume_note(config, subject, locale)}"
+            f"{_subject_transition_note(previous_subject, subject, config.display_name, locale)}"
+            f"{_time_of_day_note(time_of_day, already_greeted=previous_subject is not None)}"
+            f"{_pacing_note(history, config.grade_stage)}"
+            f"{_time_remaining_note(time_remaining_seconds)}"
+        )
     resume_note = _lesson_resume_note(config, subject, locale)
     # A parent's explicit lesson_resume note is a strictly more authoritative
     # "where we left off" signal than Bede's own auto-generated bookmark (see
@@ -3622,6 +3663,8 @@ _CARD_PHRASES = {
         "map_body": "Let's read a map together. Watch first, then we'll do one together, then it's your turn.",
         "practice_phonics_title": "Sound Time",
         "practice_phonics_body": "Let's play with sounds and words. Watch first, then we'll do two together, then it's your turn.",
+        "practice_math_title": "Number Time",
+        "practice_math_body": "Let's play with counters and numbers. Watch first, then we'll do two together, then it's your turn.",
         "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
         "hint_plain": "Let me ask it this way: {hint}",
     },
@@ -3632,6 +3675,8 @@ _CARD_PHRASES = {
         "map_body": "Vamos a leer un mapa juntos. Primero mira, luego hacemos uno juntos y después te toca a ti.",
         "practice_phonics_title": "Hora de los Sonidos",
         "practice_phonics_body": "Vamos a jugar con sonidos y palabras. Primero mira, luego hacemos dos juntos y después te toca a ti.",
+        "practice_math_title": "Hora de los Números",
+        "practice_math_body": "Vamos a jugar con fichas y números. Primero mira, luego hacemos dos juntos y después te toca a ti.",
         "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
         "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
     },
@@ -4442,7 +4487,7 @@ async def _record_skill_evidence(
     _save_assessment, which this mirrors: a diagnostic hiccup must never
     break the child's tutoring turn.
     """
-    if subject != Subject.mathematics:
+    if subject != Subject.mathematics or config.grade.strip() in DEMO_UPPER_GRADES:
         return False
     try:
         from models.schemas import RecordSkillEvidenceInput
@@ -4667,7 +4712,11 @@ async def _record_literacy_evidence(
     """
     if db is None and demo_code is None:
         return False
-    if subject not in _LITERACY_CHECKIN_SUBJECTS or config.grade_stage not in _LITERACY_STAGES:
+    if (
+        subject not in _LITERACY_CHECKIN_SUBJECTS
+        or config.grade_stage not in _LITERACY_STAGES
+        or config.grade.strip() in DEMO_UPPER_GRADES
+    ):
         return False
     try:
         from models.schemas import RecordLiteracyEvidenceInput
@@ -4714,7 +4763,7 @@ async def _record_music_evidence(
     """
     if db is None and demo_code is None:
         return False
-    if subject not in _MUSIC_CHECKIN_SUBJECTS:
+    if subject not in _MUSIC_CHECKIN_SUBJECTS or config.grade.strip() in DEMO_UPPER_GRADES:
         return False
     try:
         from models.schemas import RecordMusicEvidenceInput
@@ -4808,6 +4857,8 @@ async def _record_language_evidence(
     legitimately in play.
     """
     if db is None and demo_code is None:
+        return False
+    if config.grade.strip() in DEMO_UPPER_GRADES:
         return False
     if subject not in _CLASSICAL_LANGUAGE_SUBJECTS and subject not in _LANGUAGE_CHECKIN_SUBJECTS:
         return False

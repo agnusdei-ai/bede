@@ -16,6 +16,7 @@ describe('RoutineShell', () => {
     const onClose = vi.fn()
     render(<RoutineShell title="Practice" step="together" onClose={onClose}><p>inside</p></RoutineShell>)
     expect(screen.getByText('Together').getAttribute('aria-current')).toBe('step')
+    expect(screen.getByRole('list').className).toContain('flex-wrap')
     const back = screen.getByRole('button', { name: 'Back to Bede' })
     expect(back.className).toContain('min-h-14')
     expect(back.className).toContain('min-w-14')

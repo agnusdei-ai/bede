@@ -426,13 +426,13 @@
     "frequentBreaksTooltip": "Normally offered only to K-3; this offers the same pause at any age, and your child can always wave it off. It cannot change or skip the required hourly break. Removing an age limit on a choice that is yours to make, not a claim that more breaks improve attention.",
     "trialLicense": "Trial",
     "practiceOffersLabel": "Practice Bede may offer (K-2)",
-    "practiceOffersHelp": "Short sound-and-word practice in Language Arts and Living Books, only on days those subjects are in the plan. You will see each offer in the conversation.",
+    "practiceOffersHelp": "Short practice rounds: sounds and words in Language Arts and Living Books, and counters and numbers in Mathematics, only on days those subjects are in the plan. You will see each offer in the conversation.",
     "practiceOffers_off": "Off",
     "practiceOffers_offHelp": "Bede offers no practice.",
     "practiceOffers_approved_only": "Only sets I approved",
     "practiceOffers_approved_onlyHelp": "Bede never chooses on its own. Practice made from a quiz you uploaded still needs your approval.",
     "practiceOffers_todays_subjects": "Today’s subjects too",
-    "practiceOffers_todays_subjectsHelp": "Bede may also offer a round from today’s subjects, using only its own word lists."
+    "practiceOffers_todays_subjectsHelp": "Bede may also offer a round from today’s subjects, using only its own word lists and number problems."
   },
   "parentGreeting": {
     "title": "What should Bede call you? (optional)",
@@ -447,6 +447,7 @@
   },
   "progress": {
     "soundTimeRecordNote": "Sound Time keeps one round per sign-in: the first round your child answers. Any extra rounds your child played were practice only: they are not in the work record or the reading picture.",
+    "numberTimeRecordNote": "Number Time keeps one round per sign-in too: the first round your child answers. Any extra rounds your child played were practice only: they are not in the work record or the math picture.",
     "advance": "Advance",
     "repeat": "Repeat",
     "review": "Review",
@@ -1424,6 +1425,82 @@
       "first_sound_choice": "{{word}} starts with the sound {{sound}}. We write that sound {{letter}}.",
       "read_word_choice": "Listen: {{sounds}}. Put the sounds together: {{word}}!",
       "sight_word_choice": "This word is {{word}}. We know it by sight."
+    }
+  },
+  "k2Math": {
+    "title": "Number Time",
+    "open": "Start Number Time",
+    "loading": "Getting the counters ready…",
+    "loadTrouble": "The practice could not be loaded.",
+    "tryAgain": "Try again",
+    "finished": "You finished Number Time!",
+    "backToBede": "Back to Bede",
+    "another": "Play again",
+    "letsTry": "Let’s try one",
+    "next": "Next",
+    "check": "Check",
+    "hearAgain": "Hear it again",
+    "pickAnAnswer": "Pick an answer",
+    "thisOne": "This one",
+    "right": "Yes, that’s it!",
+    "again": "Let’s look again. Try once more.",
+    "shown": "Here it is. Tap Next when you are ready.",
+    "checkTrouble": "That answer could not be checked. Try again.",
+    "addOne": "Put in a counter",
+    "takeOne": "Take one out",
+    "trayCounter": "A counter to put in",
+    "dragHint": "Drag a counter onto the frame, or tap a box.",
+    "putInBox": "Put a counter in box {{n}}",
+    "takeFromBox": "Take the counter out of box {{n}}",
+    "frameLabel": "A ten-frame with {{count}} counters, {{crossed}} crossed out",
+    "frameQuiet": "A ten-frame with counters",
+    "buildLabel": "Your ten-frame, with {{count}} counters on it now",
+    "takeAwayBox": "Take this counter away, box {{n}}",
+    "rowQuiet": {
+      "red": "A row of red counters",
+      "yellow": "A row of yellow counters"
+    },
+    "bondLabel": "A number bond: {{whole}} is {{a}} and {{b}}",
+    "rowOf": {
+      "red": "{{count}} red counters",
+      "yellow": "{{count}} yellow counters"
+    },
+    "choice": {
+      "red": "Red",
+      "yellow": "Yellow",
+      "same": "The same"
+    },
+    "compareResult": {
+      "red": "Some red ones have no partner, so there are more red.",
+      "yellow": "Some yellow ones have no partner, so there are more yellow.",
+      "same": "Every counter has a partner, so they are the same."
+    },
+    "lead": {
+      "watch": "Watch and listen.",
+      "together": "Now we do it together.",
+      "your_turn": "Your turn."
+    },
+    "prompt": {
+      "count_how_many": "How many counters are there?",
+      "count_build": "Put {{n}} counters in the ten-frame.",
+      "compare_more": "Are there more red or more yellow? Or are they the same?",
+      "add_how_many": "{{a}} red and {{b}} yellow. How many in all?",
+      "add_build": "Here are {{a}}. Put in {{b}} more.",
+      "subtract_how_many": "There were {{a}}. {{b}} are crossed out. How many are left?",
+      "subtract_build": "Here are {{a}}. Take {{b}} away.",
+      "bond_missing": "{{whole}} is {{part}} and what?",
+      "bond_build": "Here are {{part}}. Put in more until there are {{whole}}."
+    },
+    "watch": {
+      "count_how_many": "Watch me count. I touch each one, and the last number I say is how many: {{answer}}.",
+      "count_build": "Watch me put in counters, one at a time. Now there are {{n}}.",
+      "compare_more": "Watch me match each red counter with a yellow one. {{result}}",
+      "add_how_many": "{{a}} red and {{b}} yellow. I count them all: {{answer}}.",
+      "add_build": "Here are {{a}}. Watch me put in {{b}} more. Now there are {{answer}}.",
+      "subtract_how_many": "There were {{a}}. I cross out {{b}}. I count what is left: {{answer}}.",
+      "subtract_build": "Here are {{a}}. Watch me take {{b}} away. Now there are {{answer}}.",
+      "bond_missing": "{{whole}} is {{part}} and {{answer}}. Together they make {{whole}}.",
+      "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}."
     }
   }
 }

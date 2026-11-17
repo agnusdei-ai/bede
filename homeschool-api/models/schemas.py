@@ -14,6 +14,11 @@ class GradeStage(str, Enum):
 # services/ai_service.py's _GRADE_DESCRIPTORS keys.
 VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 
+# Interactive demo scope is wider than the approved full-year curriculum.
+# Do not widen enrollment, diagnostic skill bands, or curriculum promotion.
+DEMO_UPPER_GRADES = ("9", "10", "11", "12")
+VALID_DEMO_GRADES = [*VALID_GRADES, *DEMO_UPPER_GRADES]
+
 # Bible translations a parent can pick for SessionConfig.bible_translation,
 # in display order — deliberately spans both Protestant and Catholic
 # editions (see docs/CONSTITUTION.md's non-negotiable rule that Bede never
@@ -151,6 +156,17 @@ def grade_to_stage(grade: str) -> GradeStage:
     if g in ("6", "7", "8"):
         return GradeStage.independent
     return GradeStage.foundations
+
+
+def demo_grade_to_stage(grade: str) -> GradeStage:
+    """Use the existing older-learner UI envelope, not a new skill registry.
+
+    Upper-school teaching complexity comes from the exact grade in the
+    tutor prompt. This does not certify a 9-12 diagnostic or full-year course.
+    """
+    if grade.strip() in DEMO_UPPER_GRADES:
+        return GradeStage.independent
+    return grade_to_stage(grade)
 
 
 class TermSchedule(str, Enum):
@@ -1224,7 +1240,7 @@ class MasteryProfileSummary(BaseModel):
     subject_area:   str = "mathematics"
     evidence_count: int
     calibration:    bool                       # still in cold-start widening phase
-    # Recorded K-2 practice answers in this area (phonics only). They move the
+    # Recorded K-2 practice answers in this area (phonics and math). They move the
     # estimate but are not counted in evidence_count; 0 everywhere else.
     practice_answers: int = 0
     domains:        List[DomainMasteryView]

@@ -10,6 +10,7 @@ import type { DiagramSpec } from './Diagram'
 
 import { logDebug } from './debugBus'
 import { isNetworkFailure, StreamTruncatedError } from './networkFailure'
+import type { MathLesson, MathPracticeAnswer, MathPracticeTransport } from './k2MathTypes'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
 
@@ -182,6 +183,37 @@ async function demoPracticeFetch<T>(token: string, path: string, body?: unknown)
     throw new Error(typeof detail === 'string' ? detail : 'The demo practice could not complete that step.')
   }
   return res.json()
+}
+
+async function demoMathFetch<T>(token: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}/k2-practice/demo/math${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    throw new Error(typeof detail === 'string' ? detail : 'Number Time could not complete that step.')
+  }
+  return res.json()
+}
+
+export function demoMathTransport(token: string): MathPracticeTransport {
+  return {
+    load: (_audio, topic) => {
+      const params = new URLSearchParams()
+      if (topic) params.set('topic', topic)
+      const query = params.size ? `?${params}` : ''
+      return demoMathFetch<MathLesson>(token, `/lesson${query}`)
+    },
+    answer: (lessonId, phase, index, choice, submissionId) =>
+      demoMathFetch<MathPracticeAnswer>(
+        token,
+        `/lessons/${encodeURIComponent(lessonId)}/answers`,
+        { phase, index, choice, submission_id: submissionId },
+      ),
+  }
 }
 
 export const fetchDemoPracticePacks = (token: string) =>
@@ -408,9 +440,8 @@ export function decodeExpiry(token: string): number | null {
  * via loginWithCode — the caller never needs to show a separate "enter your
  * code" screen.
  */
-/** Grades a visitor can pick at login — mirrors the backend's VALID_GRADES
- *  allowlist (models/schemas.py); anything else is silently ignored server-side. */
-export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8'] as const
+/** Demo-only choices; mirrors VALID_DEMO_GRADES, not full-year approval. */
+export const DEMO_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const
 
 export async function generateDemoCode(
   studentName?: string, grade?: string, currentUnit?: string, faithTradition?: string,

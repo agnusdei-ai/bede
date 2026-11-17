@@ -120,6 +120,13 @@ described in `docs/RETENTION_POLICY.md`'s changelog and
 `demo/public/privacy.html`, where the notice previously named the wrong
 vendor entirely).
 
+**No China-hosted AI API (owner rule, 2026-11-16).** None of the vendors
+above is hosted in China, and none may be added. This is a review rule for
+the designated individual (§2), not a technical block: the code ships
+adapters only for the vendors in this table plus a self-hosted model, and
+`docs/SECURITY.md`'s "Local model files and network" section says what is
+enforced and what is not.
+
 ## 6. Operational access control
 
 This is currently a small operation with a single individual (§2) holding

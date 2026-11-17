@@ -99,7 +99,7 @@ services:
       - MISTRAL_MODEL=${MISTRAL_MODEL:-mistral-large-latest}
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-}
       - LOCAL_LLM_API_KEY=${LOCAL_LLM_API_KEY:-not-needed}
-      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-}
       - BEDE_OFFLINE_INSTALLATION=${BEDE_OFFLINE_INSTALLATION:-false}
       - BEDE_ADAPTER_ORDER=${BEDE_ADAPTER_ORDER:-local,anthropic}
       - BEDE_FORCE_ADAPTER=${BEDE_FORCE_ADAPTER:-}
@@ -346,7 +346,7 @@ services:
       # never passed to this service at all.
       - LOCAL_LLM_BASE_URL=${LOCAL_LLM_BASE_URL:-}
       - LOCAL_LLM_API_KEY=${LOCAL_LLM_API_KEY:-not-needed}
-      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-}
       # Says which process this is, so core/config.py's production
       # validation applies the rules that are actually true of it. Exactly
       # one differs: `api` must have an AI provider configured, and this

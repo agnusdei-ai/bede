@@ -314,6 +314,35 @@ async def _periodic_license_refresh():
 _LOCAL_HEALTH_CHECK_INTERVAL_SECONDS = 10 * 60  # every 10 minutes
 
 
+async def _discover_local_model_at_startup() -> None:
+    """Once at startup: if the local adapter is configured but LOCAL_LLM_MODEL
+    is not set, ask the local server which model it serves now, so the
+    finding (or the configuration error) is in the log before a child's
+    first turn rather than during it. docs/DECISIONS.md entry 43: one served
+    model is used and logged; several, none, or an unreachable server is an
+    error naming LOCAL_LLM_MODEL, logged and recorded as AI_BACKEND_FAILURE.
+    It only lists models (GET /models): nothing is downloaded, replaced or
+    deleted."""
+    from services.adapters.openai_compatible_adapter import (
+        LocalModelNotConfiguredError, backend_failure_detail,
+    )
+    from services.adapters.router import resolve_local_only
+
+    if not settings.local_llm_base_url or settings.local_llm_model.strip():
+        return
+    try:
+        client = resolve_local_only(settings)
+        await client._resolved_model()
+    except LocalModelNotConfiguredError as exc:
+        await log_event(
+            AuditEvent.AI_BACKEND_FAILURE, success=False,
+            detail=f"cause=startup adapter=local {backend_failure_detail(exc)}",
+        )
+    except Exception as exc:  # a policy refusal or a bad URL: reported elsewhere
+        from core.log_redaction import exc_summary
+        log.warning("Local model check at startup skipped: %s", exc_summary(exc))
+
+
 async def _periodic_local_health_check():
     """
     Proactively catches a dead/never-started local (self-hosted vLLM/Ollama)
@@ -523,6 +552,11 @@ async def lifespan(app: FastAPI):
     # function's own docstring and CLAUDE.md's "AI backend failure
     # alerting" section.
     local_health_check_task = _start_background(_periodic_local_health_check(), "local-ai-health-check")
+    # An unset LOCAL_LLM_MODEL: find the server's one model, or log the
+    # configuration error naming the setting (docs/DECISIONS.md entry 43).
+    local_model_task = _start_background(
+        _discover_local_model_at_startup(), "local-model-discovery", one_shot=True,
+    )
     # Makes an expiry actually take effect on a long-running instance, which
     # nothing did before: license_state.current() is cached and refresh() ran
     # only at startup and on a pasted key. Load-bearing for any short-dated
@@ -546,6 +580,7 @@ async def lifespan(app: FastAPI):
     credentials_refresh_task.cancel()
     device_refresh_task.cancel()
     local_health_check_task.cancel()
+    local_model_task.cancel()
     license_refresh_task.cancel()
     if heartbeat_task is not None:
         heartbeat_task.cancel()

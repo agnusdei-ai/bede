@@ -43,9 +43,12 @@ homeschool-api/services/adapters/
 `/v1/chat/completions` — which is nearly everything that isn't Anthropic:
 
 - **OpenAI** itself (no `base_url` override needed)
-- a **self-hosted vLLM** server running `Qwen/Qwen3-Coder-30B-A3B-Instruct`
-  (start vLLM with `--tool-call-parser qwen3_coder` so it emits tool calls in
-  the OpenAI `tool_calls` shape the adapter reads back)
+- a **self-hosted vLLM** server running
+  `mistralai/Mistral-Small-3.2-24B-Instruct-2506` (start vLLM with
+  `--tool-call-parser mistral --enable-auto-tool-choice` so it emits tool
+  calls in the OpenAI `tool_calls` shape the adapter reads back)
+- **Ollama** on the family's own computer, which is what the installers set
+  up (`docs/WINDOWS_INSTALLER.md`, `docs/UNIX_INSTALLER.md`)
 - **Mistral**'s API
 - any other OpenAI-compatible or HF Inference endpoint (Together, LM Studio, TGI…)
 
@@ -63,10 +66,13 @@ It translates symmetrically:
 
 **The image translation needs a vision-capable model on the far end.** OpenAI's
 default (`gpt-4.1-mini`) is vision-capable, so a child's handwriting/drawing
-submission (`invite_handwriting`) reaches it intact. `Qwen/Qwen3-Coder-30B-A3B-Instruct`
-(the local adapter's default) is a code model, not a vision one, and Mistral's
-default `mistral-large-latest` is text-only — configuring either as primary
-means a drawing submission may be rejected or ignored by that backend rather
+submission (`invite_handwriting`) reaches it intact. The recommended vLLM
+model, Mistral Small 3.2, accepts images, and so do the
+`ministral-3` and `mistral-small3.2` Ollama models the installers pull on
+most tiers. The `granite3.3` Ollama models are text-only, and Mistral's API
+default `mistral-large-latest` is text-only — configuring one of those as
+primary means a drawing submission may be rejected or ignored by that
+backend rather
 than silently dropped the way it was before this translation existed. If a
 non-vision model is your primary, `BEDE_ADAPTER_ORDER` should still list a
 vision-capable adapter (Anthropic or OpenAI) as a fallback so handwriting
@@ -82,7 +88,7 @@ All in `homeschool-api/core/config.py` (env vars via `.env`):
 | `BEDE_FORCE_ADAPTER` | *(empty)* | Pin to one adapter, skipping order/failover. |
 | `LOCAL_LLM_BASE_URL` | *(empty)* | vLLM/OpenAI-compatible `/v1` endpoint. Empty ⇒ local adapter skipped. |
 | `LOCAL_LLM_API_KEY` | `not-needed` | Placeholder; vLLM's OpenAI server has no built-in auth. |
-| `LOCAL_LLM_MODEL` | `Qwen/Qwen3-Coder-30B-A3B-Instruct` | Model name the local server serves. |
+| `LOCAL_LLM_MODEL` | *(not set)* | Model name the local server serves. Written by every installer and by setup. Not set: the server's only model, or an error naming this setting (see "When `LOCAL_LLM_MODEL` is not set" below). Recommended for vLLM: `mistralai/Mistral-Small-3.2-24B-Instruct-2506`. |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Chat model for the OpenAI adapter (reuses `OPENAI_API_KEY`). |
 | `MISTRAL_API_KEY` / `MISTRAL_MODEL` | *(empty)* / `mistral-large-latest` | Mistral secondary. |
 | `AI_PROVIDER_HEADERS` | *(empty)* | Extra request headers per provider, as JSON keyed by provider (`anthropic`, `openai`, `mistral`, `local`). See "Extra request headers" below. |
@@ -130,7 +136,7 @@ checks per server; see `docs/MCP.md`.
 
 Whether a family's or school's data may leave their boundary at all, and how
 that would be enforced, is set out as a proposed target in
-[`PRIVATE_INFERENCE.md`](PRIVATE_INFERENCE.md) (decision register entry 43).
+[`PRIVATE_INFERENCE.md`](PRIVATE_INFERENCE.md) (decision register entry 44).
 Today, outside school mode, a configured cloud key is a live fallback for a
 failed local model.
 
@@ -140,7 +146,7 @@ This refactor exists precisely for the case where **Anthropic access is gone**
 (account closed or denied). So the default order deliberately does **not** put
 Anthropic first:
 
-- **`local`** — a self-hosted vLLM/Qwen3-Coder server — is the practical
+- **`local`** — a self-hosted model server (Ollama or vLLM) — is the practical
   primary. A deployment that has lost Anthropic sets `LOCAL_LLM_BASE_URL`, and
   `local` wins.
 - **`anthropic`** is kept in the code and last in the order so access can be
@@ -245,7 +251,7 @@ credentials populated in `.env` at all times —
 
 ```bash
 LOCAL_LLM_BASE_URL=http://localhost:11434/v1
-LOCAL_LLM_MODEL=qwen3:8b
+LOCAL_LLM_MODEL=granite3.3:8b
 MISTRAL_API_KEY=your-key
 BEDE_ADAPTER_ORDER=local,mistral
 ```
@@ -256,8 +262,8 @@ card and select Mistral. No SSH access to the server needed for that switch.
 ## Infrastructure note — the local model needs a GPU, and Render has none
 
 The backend is deployed on **Render**, which has **no GPU instance types**. The
-local vLLM adapter running Qwen3-Coder-30B-A3B-Instruct therefore **CANNOT run
-inside the Render web service container**. It must run on separate GPU hardware:
+local vLLM adapter running Mistral Small 3.2 therefore **CANNOT run inside the
+Render web service container**. It must run on separate GPU hardware:
 
 - a home/office GPU box or a LAN server, or
 - a rented GPU instance (RunPod, Lambda, Vast.ai, etc.).
@@ -274,7 +280,7 @@ the public internet.
 Neither `packaging/unix/install.sh` nor `packaging/windows/Setup-Bede.ps1`
 (nor the browser wizard, `scripts/setup_wizard/wizard.py`) adds any
 checksum or signature verification of its own on top of `ollama pull
-qwen3:<tag>` — it's a plain call into Ollama's own pull mechanism.
+<tag>` — it's a plain call into Ollama's own pull mechanism.
 This isn't an unverified download: Ollama's own protocol is
 content-addressed (each model layer is fetched and checked against a
 SHA256 digest named in its manifest, the same scheme container registries
@@ -284,11 +290,18 @@ takes toward `apt`/`pip`/`npm`. It just isn't independently re-verified by
 Bede, and until now that delegation wasn't written down anywhere.
 
 For a self-hosted vLLM deployment (the "rented/home GPU box" path above),
-model sourcing is entirely the deployer's own choice — this codebase has
-no opinion on where those weights come from, which is inherent to a
+model sourcing is the deployer's own choice, which is inherent to a
 bring-your-own-model architecture rather than something a checksum in
-this repo could enforce. See `docs/OWASP_LLM_TOP10.md`'s LLM04 section
-for the fuller reasoning.
+this repo could enforce. The rules this project sets for it (GGUF or
+safetensors only, never pickle-based weights, never `trust_remote_code`)
+are in `docs/SECURITY.md`'s "Local model files and network" section,
+which also says which of them Bede enforces and which it only
+recommends. See `docs/OWASP_LLM_TOP10.md`'s LLM04 section for the fuller
+reasoning.
+
+**Which models the installers pull, and why.** The default lineup, its
+developers and licences, and the selection criteria are `docs/DECISIONS.md`
+entry 43. The Qwen lineup is still offered as an explicit installer choice.
 
 ## Setup guide — configuring and installing each adapter
 
@@ -342,34 +355,46 @@ no restart or key removal needed. A short in-memory circuit breaker then
 skips OpenAI on subsequent calls for ~60s rather than re-paying its timeout
 every time, and resets once a call to it succeeds again.
 
-### Local self-hosted vLLM + Qwen3-Coder-30B-A3B-Instruct (needs a GPU)
+### Local self-hosted vLLM + Mistral Small 3.2 (needs a large GPU)
+
+The recommended vLLM model (`core/config.py`'s `LOCAL_LLM_DEFAULT_MODEL`,
+which `setup.sh` offers and writes) is
+`mistralai/Mistral-Small-3.2-24B-Instruct-2506` (Mistral AI, Apache-2.0),
+the full-precision build. **It needs about 55 GB of GPU memory and vLLM
+0.9.1 or later**, both from Mistral's model card for the bf16/fp16 weights.
+The ~15GB figure in the installer tables is Ollama's quantised build of the
+same model, which is a different file. A household that does not have that
+much GPU memory uses the Ollama path the installers set up instead.
 
 **Hardware — vLLM is Linux/CUDA-only.** It does not run on Raspberry Pi (no
 discrete GPU/CUDA) or on Apple Silicon Macs (no native vLLM support). It needs
-an NVIDIA GPU on Linux (bare metal or WSL2):
+NVIDIA GPUs on Linux (bare metal or WSL2):
 
-| Tier | GPU VRAM | System RAM | Storage | Notes |
-|------|----------|------------|---------|-------|
-| Minimum | 16 GB (RTX 4060 Ti 16GB+) | 32 GB | ~30-45 GB SSD | 4-bit AWQ/GPTQ quant |
-| Recommended | 24 GB (RTX 3090/4090) | 64 GB | 45+ GB SSD | Full quality Q4/Q5, better throughput/longer context |
+| Tier | GPU memory | Notes |
+|------|------------|-------|
+| Recommended model | about 55 GB in total (one 80 GB card, or two 32 GB+ cards with `--tensor-parallel-size 2`) | Full precision, the model card's figure |
+| Less GPU memory | — | Use the Ollama path (quantised GGUF builds, see the installer tables) |
 
 If your household hardware is a laptop/tablet/Raspberry Pi without a suitable
-GPU, skip this adapter and rely on `openai`/`mistral` (or `anthropic` if/when
-restored) instead — that's exactly what the adapter design is for. The
+GPU, skip this adapter and rely on Ollama, `openai`/`mistral` (or `anthropic`
+if/when restored) instead — that's exactly what the adapter design is for. The
 parent-facing version of this same decision (plus what modest hardware does and
 doesn't affect elsewhere — voice transcription, encryption) is
 `docs/PARENT_SETUP.md`'s "Choosing your server machine".
 
-**Install/run** (on the separate GPU machine, not on Render):
+**Install/run** (on the separate GPU machine, not on Render). Use a vLLM
+image at 0.9.1 or later; the `--load_format mistral` flag loads Mistral's
+own safetensors file, and the command deliberately has no
+`--trust-remote-code`:
 
 ```bash
 docker run --gpus all -p 8000:8000 \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   vllm/vllm-openai:latest \
-  --model Qwen/Qwen3-Coder-30B-A3B-Instruct \
-  --tool-call-parser qwen3_coder \
-  --enable-auto-tool-choice \
-  --max-model-len 131072
+  --model mistralai/Mistral-Small-3.2-24B-Instruct-2506 \
+  --tokenizer_mode mistral --config_format mistral --load_format mistral \
+  --tool-call-parser mistral --enable-auto-tool-choice \
+  --tensor-parallel-size 2
 ```
 
 Then on the Bede backend (wherever it runs — laptop/Pi/tablet or Render), set:
@@ -377,9 +402,39 @@ Then on the Bede backend (wherever it runs — laptop/Pi/tablet or Render), set:
 ```bash
 LOCAL_LLM_BASE_URL=http://your-gpu-box.lan:8000/v1
 LOCAL_LLM_API_KEY=not-needed
-LOCAL_LLM_MODEL=Qwen/Qwen3-Coder-30B-A3B-Instruct
+LOCAL_LLM_MODEL=mistralai/Mistral-Small-3.2-24B-Instruct-2506
 BEDE_ADAPTER_ORDER=local,anthropic
 ```
+
+**Qwen is still a choice.** `Qwen/Qwen3-Coder-30B-A3B-Instruct` (the vLLM
+default before `docs/DECISIONS.md` entry 43) still works: serve it with
+`--tool-call-parser qwen3_coder --enable-auto-tool-choice` and set
+`LOCAL_LLM_MODEL` to its name. A deployment that already sets
+`LOCAL_LLM_MODEL` keeps whatever it set.
+
+**When `LOCAL_LLM_MODEL` is not set.** It has no default model name. An
+explicitly set `LOCAL_LLM_MODEL` is always used unchanged. When it is not
+set (absent or empty), Bede asks the local server which models it serves
+(`GET /models`, which only lists; nothing is downloaded, replaced or
+deleted) at startup and again when a lesson first needs the model:
+
+- **Exactly one model:** Bede uses it and logs once which model it found,
+  with the line to add to `.env` to make it explicit. This is how an older
+  setup that left the name blank (for example a vLLM server running
+  `Qwen/Qwen3-Coder-30B-A3B-Instruct`, set up before this change) keeps
+  working after an update, with no edit.
+- **Several models, none, or the server cannot be reached:** Bede does not
+  guess. The local adapter fails with a configuration error that names the
+  fix, `add LOCAL_LLM_MODEL=<the model your server serves> to .env and
+  restart Bede`, in the log and in the `AI_BACKEND_FAILURE` audit detail
+  (so the parent's backend-failure alert names it too). An unreachable
+  server still fails over to a configured backup provider exactly as it did
+  before.
+
+The installers, `setup.sh` and the browser wizard all write
+`LOCAL_LLM_MODEL`, so a new installation never relies on this. The same
+rule applies to every process that uses the local model, including the
+Locuto listener.
 
 Put the vLLM server behind a tunnel/VPN (Tailscale, WireGuard) or an
 authenticating reverse proxy before exposing it beyond your LAN — its OpenAI

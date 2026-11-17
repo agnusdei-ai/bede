@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from services.adapters.openai_compatible_adapter import backend_failure_detail
 from core.audit import AuditEvent, audit_from_request, log_event, log_event_nowait
 from core.log_redaction import exc_summary, learner_ref
 from core.config import settings
@@ -501,7 +502,7 @@ async def chat(
                 AuditEvent.AI_BACKEND_FAILURE,
                 role=role, student_name=req.session_config.student_name,
                 success=False,
-                detail=f"cause=exception subject={req.current_subject.value} error={type(exc).__name__}",
+                detail=f"cause=exception subject={req.current_subject.value} {backend_failure_detail(exc)}",
                 **audit_from_request(request),
             )
             yield json.dumps({

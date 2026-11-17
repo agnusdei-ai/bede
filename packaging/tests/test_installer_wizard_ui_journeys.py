@@ -127,6 +127,7 @@ def run():
                 page.goto(base)
                 page.locator('input[name="provider"][value="local"]').check()
                 page.locator('[name="local_base_url"]').fill("http://127.0.0.1:8999/v1")
+                page.locator('[name="local_model"]').fill("ministral-3:3b")
                 page.locator('[name="parent_password"]').fill("sample-recovery-credential-4619")
                 page.locator('[name="child_pin"]').fill(wizard.SUGGESTED_CHILD_PIN)
                 page.locator('[name="license_key"]').fill(sample_license("valid", "homeschool"))
@@ -135,6 +136,7 @@ def run():
                 body = Path(wizard.ENV_PATH).read_text(encoding="utf-8")
                 assert "BEDE_ADAPTER_ORDER=local" in body
                 assert "LOCAL_LLM_BASE_URL=http://127.0.0.1:8999/v1" in body
+                assert "LOCAL_LLM_MODEL=ministral-3:3b" in body
                 assert "WEBAUTHN_ORIGIN=https://localhost" in body
                 assert 'href="https://localhost"' not in page.content()
                 outcomes.append("sample local-model setup and safe native handoff")

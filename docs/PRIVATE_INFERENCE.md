@@ -4,7 +4,7 @@
 > assessment (2026-11-17), recorded as the plan of record for private
 > inference. Every requirement below is a recommendation, not a completed
 > change or a release approval. It is tracked as `docs/DECISIONS.md`
-> entry 43. "What the code does today" at the end maps it to the current
+> entry 44. "What the code does today" at the end maps it to the current
 > implementation.
 >
 > **References owed.** The assessment cites its sources as [1]–[25]. The

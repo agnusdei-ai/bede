@@ -326,9 +326,6 @@ jobs:
             exit 1
           }
           ( cd "$RUNNER_TEMP" && shasum -a 256 "Bede-Engineering-Mac-arm64.dmg" > "Bede-Engineering-Mac-arm64.dmg.sha256" )
-          # Provenance beside the DMG, as the Intel DMG has it, so package
-          # evidence can bind this file to its source SHA and architecture.
-          test -s "$RUNNER_TEMP/native/Bede Installer.app/Contents/Resources/bede-operator/RELEASE_PROVENANCE.json"
           MACOS_VERSION="$(sw_vers -productVersion)" python3 - <<'PY'
           import json, os
           from pathlib import Path

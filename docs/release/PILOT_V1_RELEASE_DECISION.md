@@ -52,6 +52,19 @@ has an explicit owner hold. No PR was merged for this packet. Reconcile
 required dependencies on a deliberate integration tree; do not silently
 package the older reviewed SHA.
 
+**Current PR checks.** The latest PR #837 browser-journey run,
+`44158031812`, and sample-qualification run, `44158031588`, both target
+`60dff17f19cdcb9ed4f42fa55c2efaec11e7d30a` and report
+`action_required` with zero jobs. They provide no test result; no failed-job
+logs exist for either run. The available record does not identify which
+approval is required. The owner must authorize the exact workflow run or
+provide an approved compatible route before these checks can close. The
+separate browser run `44161273052` passed 36/36 checks on PR #857's
+`e581b077fd171b42ffb953843eef3e362a70dd0e`, including the restart/reopen
+journey on macOS 15.8.2 arm64 with Playwright 1.63.0/WebKit 26.6. It is
+useful evidence about that stack and journey, not qualification of this
+candidate or of real Safari.
+
 **Agent reviews.** The `security-review` agent session
 `0991951b-2452-47e8-907b-0aba3f86ef97` recommended HOLD and identified
 deployment-security and operations gaps. The `code-review` agent session

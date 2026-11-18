@@ -26,6 +26,22 @@ describe('demo Number Time mirrors', () => {
     expect(source(demo, 'k2MathTypes.ts')).toBe(source(app, 'services/k2MathTypes.ts'))
   })
 
+  it("speaks Number Time in Bede's own voice in both apps, with no other voice as a default", () => {
+    // Owner direction 2026-11-18. Both apps hand the round Bede's chat voice
+    // (useTextToSpeech's speak), never an on-device or browser default voice.
+    const chat = source(app, 'components/SocraticChat.tsx')
+    const mathBlock = chat.slice(chat.indexOf('<K2MathPractice'), chat.indexOf('/>', chat.indexOf('<K2MathPractice')))
+    expect(mathBlock).toContain('onSpeak={ttsEnabled ? speakInBedesVoice : undefined}')
+    expect(mathBlock).not.toContain('speakOnDevice')
+    expect(chat).toMatch(/const speakInBedesVoice = useCallback\(\(text: string\) => \{ stopSpeech\(\); speak\(text\) \}/)
+
+    const demoApp = source(demo, 'App.tsx')
+    expect(demoApp).toMatch(/const speakNumberTime = useCallback\(\(text: string\) => \{ stopSpeech\(\); speak\(text\) \}/)
+    expect(demoApp).not.toContain('SpeechSynthesisUtterance')
+    const demoBlock = demoApp.slice(demoApp.indexOf('<K2MathPractice'), demoApp.indexOf('/>', demoApp.indexOf('<K2MathPractice')))
+    expect(demoBlock).toContain('onSpeak={ttsEnabled ? speakNumberTime : undefined}')
+  })
+
   it('keeps runtime code independent of household source imports', () => {
     const runtime = [
       source(demo, 'App.tsx'),

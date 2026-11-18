@@ -17,7 +17,7 @@ import {
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
 import { useTranscriptWords } from './useTranscriptWords'
-import { useTextToSpeech, unlockSpeechForSession, resolveVoice } from './useTextToSpeech'
+import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
 import { renderEmphasis } from './renderEmphasis'
 import DebugOverlay from './DebugOverlay'
 import { logDebug } from './debugBus'
@@ -1175,26 +1175,11 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const consecutiveAutoContinues = useRef(0)
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
-  const localSpeechGeneration = useRef(0)
-  const speakNumberTime = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return
-    const generation = ++localSpeechGeneration.current
-    const lang = i18n.language === 'es' ? 'es' : 'en'
-    resolveVoice(lang).then((voice) => {
-      if (generation !== localSpeechGeneration.current || !voice) return
-      const utterance = new SpeechSynthesisUtterance(text)
-      utterance.lang = lang === 'es' ? 'es-MX' : 'en-GB'
-      utterance.voice = voice
-      utterance.rate = 0.88
-      utterance.pitch = 0.92
-      window.speechSynthesis.cancel()
-      window.speechSynthesis.speak(utterance)
-    }).catch(() => { /* Speech is optional; the written activity remains usable. */ })
-  }, [i18n.language])
-  const stopNumberTimeSpeech = useCallback(() => {
-    localSpeechGeneration.current += 1
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
-  }, [])
+  // Number Time speaks in Bede's own voice, the same voice as the chat (owner
+  // direction 2026-11-18), with no other voice as a default. Each line
+  // replaces the one before it, so a tapped answer's reply is heard at once.
+  const speakNumberTime = useCallback((text: string) => { stopSpeech(); speak(text) }, [stopSpeech, speak])
+  const stopNumberTimeSpeech = stopSpeech
 
   // ── Voice input: tap to speak ─────────────────────────────────────────────
   // One tap starts listening for a single utterance; a finished transcript
@@ -1922,7 +1907,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             setShowNumberTime(false)
           }}
           onSpeak={ttsEnabled ? speakNumberTime : undefined}
-          canSpeak={ttsEnabled && 'speechSynthesis' in window}
+          canSpeak={ttsEnabled}
         />
       )}
 

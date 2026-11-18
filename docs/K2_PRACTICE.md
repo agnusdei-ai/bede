@@ -447,7 +447,7 @@ already keeps for the tab only.
 - **The parent decides.** Parents approve word lists and practice sets before a child sees them, choose the setting in §4, and see every ledger row on Progress. A child never sees a record of their own practice.
 - **What helps this child applies.** A child's `learning_support` and reading settings carry into the round. For example, tiles instead of writing for a child who answers better that way, and the letter and line spacing the parent set.
 - **Accessible.** 56 px touch targets, 64 px for the main action, 8 px apart; usable at 200% text; every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
-- **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing from a round goes to any AI provider.
+- **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing the child gives in a round goes to any AI provider. Number Time's own fixed lines are spoken in Bede's voice, which sends that text to the configured speech provider (§7).
 - **Reliable.** A lesson rebuilds from its signed id, a reload resumes it, a retried answer counts once, and every check runs without an AI call.
 - **Never faith.** No area records anything about prayer, Scripture or devotional text. See §8.
 
@@ -460,7 +460,21 @@ disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
-like the map practice card, and spoken only through a voice installed on the
+like the map practice card.
+
+**Number Time speaks in Bede's own voice (owner direction 2026-11-18).** The
+on-device voice below sounded unlike Bede, so a child heard one voice in the
+chat and a different one in the round. Number Time now speaks through the same
+`useTextToSpeech` path as a chat reply, in both the app and the demo, with the
+same rules: a browser voice only when no speech provider is configured at all,
+and silence rather than another voice when one is configured but a line fails.
+It defaults to no other voice. What this sends to the speech provider is the
+round's fixed, server-written lines: the instruction, the worked example, and
+"That's it" or "Let's look again". It never sends the child's taps or spoken
+answers, but the feedback line spoken does show whether an answer was right.
+`SocraticChat.k2Practice.test.tsx` and the demo's `k2MathParity.test.ts` pin it.
+
+**Sound Time** speaks only through a voice installed on the
 device, in the session's language (`utils/onDeviceSpeech.ts`): never through
 `/tutor/speak`, which forwards text to a cloud speech provider, and never with a
 browser network voice (`localService === false`, such as Chrome's "Google"
@@ -472,8 +486,8 @@ Bede's chat voice does not read the turn over a round it opened. A spoken answer
 by the existing voice pipeline and counts only when it matches one of the item's
 own choices, and never when the spoken instruction already said the answer (a
 sight word), since repeating it is an echo rather than a reading. So nothing
-from a round reaches an AI provider. Map practice (`MapPractice.tsx`) still
-speaks through the server path and is a known gap, left for the owner.
+from a Sound Time round reaches an AI provider. Map practice (`MapPractice.tsx`)
+speaks through the server path, as Number Time now does.
 
 ## 8. Second wave
 

@@ -47,6 +47,11 @@ const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
   if (String(url).includes('/tutor/chat')) {
     return sse([{ type: 'tool', tool: 'invite_practice', area, content: area === 'math' ? MATH_CARD : CARD }, { type: 'done' }])
   }
+  if (String(url).includes('/tutor/speak')) {
+    // Bede's voice is configured; the call returns no audio, so the hook
+    // stays silent rather than switching to another voice.
+    return new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
+  }
   if (String(url).includes('/k2-practice/') && String(url).includes('/math/')) {
     return new Response(JSON.stringify(MATH_LESSON), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
@@ -159,13 +164,15 @@ describe('the invite_practice card', () => {
     expect(await screen.findByRole('dialog', { name: 'Number Time' })).toBeTruthy()
   })
 
-  it('speaks the math round on the device, never through /tutor/speak, and Bede stays quiet', async () => {
-    const spoken: string[] = []
+  it("speaks the math round in Bede's own voice, never an on-device or default voice", async () => {
+    // Owner direction 2026-11-18: Number Time speaks in Bede's natural voice,
+    // the same /tutor/speak path the chat uses, and defaults to nothing else.
+    const deviceSpoken: string[] = []
     class Utterance { text: string; lang = ''; voice: unknown = null; rate = 1; pitch = 1
       constructor(text: string) { this.text = text } }
     vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
     vi.stubGlobal('speechSynthesis', {
-      speak: (u: Utterance) => spoken.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+      speak: (u: Utterance) => deviceSpoken.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
       getVoices: () => [{ name: 'Daniel', lang: 'en-GB', localService: true }],
       addEventListener: vi.fn(), removeEventListener: vi.fn(), speaking: false, pending: false,
     })
@@ -173,9 +180,12 @@ describe('the invite_practice card', () => {
     render(<SocraticChat />)
     await screen.findByRole('dialog', { name: 'Number Time' })
     const watchLine = '5 red and 3 yellow. I count them all: 8.'
-    await waitFor(() => expect(spoken).toContain(watchLine))
+    const spokenByBede = () => fetchMock.mock.calls
+      .filter(([u]) => String(u).includes('/tutor/speak'))
+      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).text)
+    await waitFor(() => expect(spokenByBede()).toContain(watchLine))
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/tutor/speak'))).toEqual([])
+    expect(deviceSpoken).toEqual([])
   })
 
   it('reopens the right round from a stored card by the card prefix the server writes', () => {

@@ -2271,9 +2271,12 @@ Bede's lesson check-ins and the practice answers as two separate counts.
 
 Every number and every answer comes from Bede's own code, worked out twice
 (once from the sum and once by counting the picture), never by the AI.
-Nothing from a round is sent to any AI provider: like Sound Time, it is spoken
-only through a voice installed on your device. Every Number Time question can
-be answered from the picture on screen, so it works without sound too.
+Number Time speaks in Bede's own voice, the same one your child hears in the
+chat. To do that, the round's fixed lines (the question, the worked example,
+and "That's it" or "Let's look again") go to the same speech service that
+voices Bede's chat replies. Your child's answers never do. Turning Bede's voice
+off in the chat turns it off here too. Every Number Time question can be
+answered from the picture on screen, so it works without sound too.
 
 ## The writing pad: drawings, and where they go
 

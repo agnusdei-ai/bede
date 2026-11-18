@@ -21,7 +21,9 @@ export async function sourceContent(page) {
   return content;
 }
 
-const compact = value => value.normalize("NFKC").toLowerCase().replace(/[\s\u00ad\-•]/gu, "");
+// Poppler versions differ in whether a CSS line-break hyphen is retained as
+// U+2010 (or nonbreaking U+2011) instead of ASCII "-". Keep full-block matching.
+const compact = value => value.normalize("NFKC").toLowerCase().replace(/[\s\u00ad\u2010\u2011\-•]/gu, "");
 export function includesContent(value, source) {
   const variants = Array.isArray(value) ? value : [value];
   const texts = variants.map(compact);

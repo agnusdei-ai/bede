@@ -1,6 +1,6 @@
 import { after, before, test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
@@ -113,6 +113,9 @@ test("native PDF contains every answer without clipping or page chrome; afterpri
     // columns. Every full block must exist in at least one genuine extraction.
     const variants = [[], ["-raw"], ["-layout"]].map(options =>
       execFileSync("pdftotext", [...options, path, "-"], { encoding: "utf8" }));
+    for (const [index, text] of variants.entries()) {
+      await writeFile(`${output}/faq-${cycle}-${["normal", "raw", "layout"][index]}.txt`, text);
+    }
     includesContent(variants, source);
     for (const excluded of ["Copy or print all answers", "Complete FAQ copied",
       "Automatic copying is unavailable", "Back to home", "Privacy Policy"]) {

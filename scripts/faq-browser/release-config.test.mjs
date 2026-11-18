@@ -32,6 +32,15 @@ test("every engine uses the same complete-block export assertion; missing caveat
   assert.throws(() => includesContent("A closed answer. Reading Grades K–8", source), /Export missing/);
 });
 
+test("complete PDF blocks tolerate typographic line-break hyphens, not missing prose", () => {
+  const source = { blocks: ["Write an explanation, consider another cause, and revise the conclusion if needed."], subjects: [], facts: [] };
+  for (const hyphen of ["-", "\u00ad", "\u2010", "\u2011"]) {
+    assert.doesNotThrow(() => includesContent(
+      `Write an expla${hyphen}\nnation, consider another cause, and revise the conclusion if needed.`, source));
+  }
+  assert.throws(() => includesContent("Write an explanation and revise the conclusion if needed.", source), /Export missing/);
+});
+
 test("portable npm lock pins the dependency and Chromium-owning packages to one version", () => {
   const pkg = JSON.parse(readFileSync(new URL("package.json", import.meta.url)));
   const lock = JSON.parse(readFileSync(new URL("package-lock.json", import.meta.url)));

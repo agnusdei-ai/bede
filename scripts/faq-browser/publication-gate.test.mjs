@@ -132,3 +132,13 @@ test("existing build runs the guard before dependencies, output removal and asse
   assert.match(source, /set -euo pipefail/);
   assert.doesNotMatch(source.slice(guard, source.indexOf("echo \"Building demo")), /\|\| true|SKIP|BYPASS/);
 });
+
+test("Wrangler itself invokes the guard without changing the Worker or static assets", () => {
+  const source = readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8");
+  const config = JSON.parse(source.replace(/^\s*\/\/.*$/gm, ""));
+  assert.deepEqual(config, {
+    name: "bede", compatibility_date: "2026-07-01",
+    build: { command: "node scripts/faq-browser/publication-gate.mjs" },
+    assets: { directory: "./publish" },
+  });
+});

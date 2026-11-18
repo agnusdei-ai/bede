@@ -16,6 +16,10 @@
   // custom domain).
   "name": "bede",
   "compatibility_date": "2026-07-01",
+  // Enforce the same evidence boundary even when CI invokes Wrangler directly.
+  "build": {
+    "command": "node scripts/faq-browser/publication-gate.mjs"
+  },
   "assets": {
     "directory": "./publish"
   }

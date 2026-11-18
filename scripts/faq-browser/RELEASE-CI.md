@@ -25,6 +25,15 @@ run, missing checks and API errors block the build. A local JSON record captures
 the accepted run and evidence expiry. No deployment token or new release
 workflow is introduced.
 
+The same command is also configured in Wrangler's repository-owned
+`build.command` hook. This protects the normal `wrangler deploy` command even
+if an external CI job bypasses the website assembly script. Worker identity,
+compatibility date, asset directory and routes are unchanged. Wrangler's
+custom build hook also runs during `wrangler dev`; use the existing website
+preview server for local content review rather than bypassing the release
+guard. Commands that deliberately skip custom builds or use a different
+configuration are not an approved publication path.
+
 ## Files needed in an approved canonical release
 
 The canonical checkout has no pnpm workspace or Canvas artifact. Include:
@@ -36,7 +45,7 @@ The canonical checkout has no pnpm workspace or Canvas artifact. Include:
 - `scripts/faq-browser/release-check.mjs`, `release-config.mjs`, and `release-config.test.mjs`
 - `scripts/faq-browser/package.json` and `package-lock.json`
 - `scripts/faq-browser/publication-gate.mjs`, `publication-gate.test.mjs`,
-  and the guard invocation in `scripts/build_pages_site.sh`
+  and the guard invocations in `scripts/build_pages_site.sh` and `wrangler.jsonc`
 - The reviewed print-only change in `site/assets/faq-reader.css`. Keep `site/faq/index.html`,
   `site/assets/faq-reader.js`, and `site/assets/faq-topics.js` from canonical `main`
   rather than overwriting them with workspace copies. Test against the canonical content.
@@ -85,10 +94,11 @@ revisions. GitHub API outages or rate limiting block a release; retry later,
 never bypass the guard or substitute a cached success. Main moving while checks
 are pending blocks the older build; build the new main instead.
 
-The repository cannot prove that the external CI executes this build script
-or lacks an alternate direct deploy path. Before activation, use the existing
-pipeline's configuration or logs to verify that dependency and confirm a
-failed/unchecked revision never reaches Wrangler. Audit other
+The repository cannot prove that external CI lacks an alternate deployment
+configuration or deliberately skips custom builds. The normal Wrangler path
+has its own guard as well as the assembly guard. Before activation, confirm
+its dry-run refuses a branch revision and inspect the corresponding Workers
+build result. Audit other
 production-capable jobs/manual triggers as well. Do not infer those controls
 from the GitHub check alone. Any needed remote or hosting changes require
 separate explicit approval.

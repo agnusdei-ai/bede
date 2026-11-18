@@ -509,3 +509,30 @@ def test_status_functions_appear_only_in_if_conditions(workflow):
     cross-platform matrix, and a YAML parse reported nothing wrong."""
     bad = list(_status_functions_outside_if(yaml.safe_load(workflow.read_text())))
     assert not bad, f"{workflow.name}: status function outside `if:` at {bad}"
+
+
+def _fixture_keys() -> set[str]:
+    """The keys run_journeys.py writes into fixture.json, read from its source."""
+    src = (HARNESS / "run_journeys.py").read_text()
+    m = re.search(r"\n    fixture = \{(.*?)\}\n", src, re.S)
+    assert m, "run_journeys.py no longer builds `fixture = {...}`"
+    return set(re.findall(r'"([a-z_]+)":', m.group(1)))
+
+
+def test_every_fixture_field_the_journeys_read_is_written():
+    # #824 moved the parent password out of fixture.json (it is uploaded as an
+    # artifact) and changed one of its three readers. The other two typed
+    # `undefined` into the sign-in form and every boundary run failed with
+    # "expected string, got undefined", naming no cause. A field read from F
+    # that run_journeys.py never writes is that defect, whatever it is called.
+    written = _fixture_keys()
+    for js in sorted(HARNESS.glob("*.cjs")):
+        read = set(re.findall(r"\bF\.([a-z_]+)", js.read_text()))
+        assert read <= written, f"{js.name} reads {sorted(read - written)} from the fixture, which never has them"
+
+
+def test_the_parent_password_stays_out_of_the_uploaded_fixture():
+    assert not any("password" in k for k in _fixture_keys())
+    src = JOURNEYS.read_text()
+    assert "process.env.JOURNEY_PARENT_PASSWORD" in src
+    assert "JOURNEY_PARENT_PASSWORD=parent_password" in (HARNESS / "run_journeys.py").read_text()

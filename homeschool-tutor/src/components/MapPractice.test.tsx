@@ -149,7 +149,7 @@ describe('MapPractice', () => {
     const onSpeak = vi.fn()
     await open(vi.fn(), onSpeak)
     await waitFor(() => expect(onSpeak).toHaveBeenCalledTimes(1))
-    expect(onSpeak).toHaveBeenCalledWith('Tap what is north of the house.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Tap what is north of the house.'))
   })
 
   it('draws only known symbols', async () => {

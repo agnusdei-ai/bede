@@ -17,10 +17,6 @@ Two things here are specific to this document and worth a guard of their own:
   the sentence nobody re-checks when the weights change. The two copies of one
   fact are checked against each other rather than trusted.
 
-docs/DECISIONS.md does not yet point at this document, because entry 40 was
-being changed by another pull request when this one was written; the guard
-below checks the link in the other direction until that pointer is added.
-
 Note .github/workflows/test.yml's change filter names this document, for the
 reason the siblings document: without it a research-only edit computes
 relevant=false, skips api-tests, and never runs this file.
@@ -197,12 +193,40 @@ def test_the_guess_rate_table_matches_the_arithmetic():
 
 
 def test_the_document_links_to_the_decision_and_the_spec():
-    """The register carries state, this document the argument. Until entry 40
-    points here, the link is checked in this direction."""
+    """The register carries state, this document the argument."""
     body, _ = _split()
     assert "(DECISIONS.md)" in body and "entry 40" in body
     assert "(K2_PRACTICE.md)" in body
     assert "40(h)" in body, f"{_RESEARCH} no longer points at open decision 40(h)."
+
+
+def _entry_40() -> str:
+    register = (_ROOT / "docs" / "DECISIONS.md").read_text()
+    match = re.search(r"^## 40\..*?(?=^## 41\.)", register, re.S | re.M)
+    assert match, "Could not find entry 40 in docs/DECISIONS.md."
+    return match.group(0)
+
+
+def test_entry_40_points_at_this_document():
+    """The other direction: a reader of the register must be able to reach the
+    argument behind ruling (b) and open item (h)."""
+    assert "(K2_PRACTICE_RESEARCH.md)" in _entry_40(), (
+        "docs/DECISIONS.md entry 40 no longer links to K2_PRACTICE_RESEARCH.md."
+    )
+
+
+def test_entry_40_says_the_notice_check_is_outstanding_while_it_is():
+    """While this document says editorial notices were not checked, entry 40
+    must say so too, so the research is never used to close (h) on an
+    unchecked corpus."""
+    body, _ = _split()
+    if "Editorial notices were not checked" not in body:
+        return
+    entry = _entry_40()
+    assert "editorial-notice check" in entry and "has not been done" in entry, (
+        "K2_PRACTICE_RESEARCH.md still says editorial notices were not checked, "
+        "but entry 40 no longer says the check is outstanding."
+    )
 
 
 def test_the_research_document_is_named_in_the_ci_change_filter():

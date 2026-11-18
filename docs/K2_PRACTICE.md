@@ -463,13 +463,18 @@ like the map practice card.
 **Every round speaks in Bede's own voice (owner direction 2026-11-18).** Rounds
 used to speak through a voice installed on the device, so that nothing from a
 round reached a provider. That voice sounded unlike Bede, so a child heard one
-voice in the chat and a different one in the round. Sound Time and Number Time
-now speak through the same `useTextToSpeech` path as a chat reply, in the app
-and in the demo, with the chat's rules: a browser voice only when no speech
+voice in the chat and a different one in the round. Sound Time, Number Time
+and Map Practice now speak through the same `useTextToSpeech` path as a chat
+reply, in the app and in the demo, and stop speaking when the child closes
+them, with the chat's rules: a browser voice only when no speech
 provider is configured at all, and silence rather than another voice when one
 is configured but a line fails. They default to no other voice, and no shipped
-file outside `useTextToSpeech` may speak through the browser directly
-(`bedesVoiceOnly.test.ts`).
+file outside `useTextToSpeech` may speak through the browser directly or
+request `/tutor/speak` itself (`bedesVoiceOnly.test.ts`). The rule holds for
+every feature, including ones added later (Practice Coach speaks nothing
+today; if it ever does, it speaks in Bede's voice): in the chat, every
+practice screen that speaks is handed the one Bede-voice callback, and the
+same test fails if a screen is wired to anything else.
 
 What this sends to the speech provider is the round's fixed, server-written
 lines: the instruction, the worked example, a letter's sound when it is tapped,

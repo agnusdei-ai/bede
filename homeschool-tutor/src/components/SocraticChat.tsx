@@ -1215,8 +1215,8 @@ export default function SocraticChat({
         <MapPractice
           token={token}
           studentName={sessionConfig.student_name}
-          onClose={() => setShowMapPractice(false)}
-          onSpeak={speak}
+          onClose={() => { stopSpeech(); setShowMapPractice(false) }}
+          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
         />
       )}
 

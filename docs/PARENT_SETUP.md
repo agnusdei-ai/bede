@@ -2161,6 +2161,8 @@ does two with hints, then does three alone by tapping.
 - The maps and their answers are made by Bede's own code, not by the AI.
 - There is no map score. Each question your child gets right alone appears
   in the work ledger on the Progress page, and nothing else is kept.
+- Each question is read aloud in Bede's own voice, the same one your child
+  hears in the chat. Turning Bede's voice off turns the reading off too.
 
 See `docs/MAP_PRACTICE.md` for the detail.
 

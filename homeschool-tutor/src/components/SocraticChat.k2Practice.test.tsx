@@ -61,6 +61,13 @@ const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
   return new Response('{}', { status: 404 })
 })
 
+/** The lines sent to Bede's own voice (`/tutor/speak`), in order. */
+function spokenByBede(): string[] {
+  return fetchMock.mock.calls
+    .filter(([u]) => String(u).includes('/tutor/speak'))
+    .map(([, init]) => JSON.parse(String((init as RequestInit).body)).text)
+}
+
 beforeEach(() => {
   i18n.changeLanguage('en')
   sessionStorage.clear()
@@ -90,62 +97,48 @@ describe('the invite_practice card', () => {
     expect(await screen.findByRole('dialog', { name: 'Sound Time' })).toBeTruthy()
   })
 
-  it('speaks the round on the device and never through /tutor/speak', async () => {
-    // Nothing from a round may reach an AI provider: /tutor/speak forwards
-    // text to a cloud speech service, so a round must use the browser's own.
-    const spoken: { text: string; lang: string; voice: string }[] = []
+  it("speaks the phonics round in Bede's own voice, never an on-device or default voice", async () => {
+    // Owner direction 2026-11-18: every feature uses Bede's voice, the same
+    // /tutor/speak path as the chat, with no other voice as a default.
+    const deviceSpoken: string[] = []
     class Utterance { text: string; lang = ''; voice: unknown = null; rate = 1; pitch = 1
       constructor(text: string) { this.text = text } }
     vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
     vi.stubGlobal('speechSynthesis', {
-      speak: (u: Utterance) => spoken.push({ text: u.text, lang: u.lang, voice: (u.voice as { name?: string } | null)?.name ?? '' }),
-      cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
-      getVoices: () => [{ name: 'Google UK English Male', lang: 'en-GB', localService: false }, { name: 'Daniel', lang: 'en-GB', localService: true }],
-      addEventListener: vi.fn(), removeEventListener: vi.fn(),
-      speaking: false, pending: false,
+      speak: (u: Utterance) => deviceSpoken.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+      getVoices: () => [{ name: 'Daniel', lang: 'en-GB', localService: true }],
+      addEventListener: vi.fn(), removeEventListener: vi.fn(), speaking: false, pending: false,
     })
     area = 'phonics'
     render(<SocraticChat />)
     await screen.findByRole('dialog', { name: 'Sound Time' })
     const watchLine = 'Listen: kuh, ah, tuh. Put the sounds together: cat!'
-    await waitFor(() => expect(spoken.map((s) => s.text)).toContain(watchLine))
-    expect(spoken.find((s) => s.text === watchLine)?.lang).toBe('en-GB')
-    // An installed voice, never the network one listed first.
-    expect(spoken.filter((s) => s.text === watchLine).every((s) => s.voice === 'Daniel')).toBe(true)
+    await waitFor(() => expect(spokenByBede()).toContain(watchLine))
     fireEvent.click(screen.getByRole('button', { name: 'Hear it again' }))
-    await waitFor(() => expect(spoken.filter((s) => s.text === watchLine).length).toBe(2))
-    const speakCalls = fetchMock.mock.calls.filter(([u]) => String(u).includes('/tutor/speak'))
-    for (const [, init] of speakCalls) {
-      const body = String((init as RequestInit | undefined)?.body ?? '')
-      expect(body).not.toContain('Listen:')
-      expect(body).not.toContain('kuh')
-    }
+    await waitFor(() => expect(spokenByBede().filter((s) => s === watchLine).length).toBe(2))
+    expect(deviceSpoken).toEqual([])
   })
 
   it('does not read the turn aloud in Bede’s voice after the round opens', async () => {
     // The stream finishes AFTER the round has opened: the end-of-turn speech
-    // must not then start Bede's cloud voice over the round.
+    // must not then read the card over the round. Only the round's own lines
+    // are spoken.
     area = 'phonics'
     render(<SocraticChat />)
     await screen.findByRole('dialog', { name: 'Sound Time' })
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('/tutor/speak'))).toEqual([])
+    expect(spokenByBede().some((s) => s.includes('play with sounds'))).toBe(false)
   })
 
-  it('asks for a lesson without ear-only questions when the device has no installed voice', async () => {
-    class Utterance { text: string; constructor(text: string) { this.text = text } }
-    vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
-    vi.stubGlobal('speechSynthesis', {
-      speak: vi.fn(), cancel: vi.fn(),
-      getVoices: () => [{ name: 'Google UK English Male', lang: 'en-GB', localService: false }],
-      addEventListener: vi.fn(), removeEventListener: vi.fn(),
-    })
+  it('asks for a lesson without ear-only questions when Bede’s voice is off', async () => {
+    act(() => { useSessionStore.getState().setSessionConfig({ ...CONFIG, voice_narration_enabled: false } as SessionConfig) })
     area = 'phonics'
     render(<SocraticChat />)
     await screen.findByRole('dialog', { name: 'Sound Time' })
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/k2-practice/'))).toBe(true))
     const lessonUrls = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/phonics/lesson'))
     expect(lessonUrls.every((u) => u.endsWith('/phonics/lesson?audio=false'))).toBe(true)
+    expect(spokenByBede()).toEqual([])
   })
 
   it('opens the math round for area "math", which loads its lesson from the math route', async () => {
@@ -180,9 +173,6 @@ describe('the invite_practice card', () => {
     render(<SocraticChat />)
     await screen.findByRole('dialog', { name: 'Number Time' })
     const watchLine = '5 red and 3 yellow. I count them all: 8.'
-    const spokenByBede = () => fetchMock.mock.calls
-      .filter(([u]) => String(u).includes('/tutor/speak'))
-      .map(([, init]) => JSON.parse(String((init as RequestInit).body)).text)
     await waitFor(() => expect(spokenByBede()).toContain(watchLine))
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
     expect(deviceSpoken).toEqual([])

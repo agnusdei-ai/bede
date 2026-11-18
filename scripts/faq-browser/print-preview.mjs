@@ -53,10 +53,17 @@ export async function cancelPrintPreview(browser) {
     await expect.poll(async () => (await cdp.send("Target.getTargets")).targetInfos.some(info =>
       info.url.startsWith("chrome-untrusted://print/") && info.url.endsWith("/print.pdf")),
     { timeout: 15000, message: "Native preview generated its PDF" }).toBe(true);
-    await evaluate(`document.querySelector('print-preview-app').shadowRoot
-      .querySelector('print-preview-sidebar').shadowRoot
-      .querySelector('print-preview-button-strip').shadowRoot
-      .querySelector('.cancel-button').click()`);
+    // Clicking Cancel closes the dialog, and a reply racing that close can be
+    // lost. So the click is scheduled after this command answers, and what is
+    // asserted is the dialog closing (below), never the reply.
+    await evaluate(`(() => {
+      const cancel = document.querySelector('print-preview-app').shadowRoot
+        .querySelector('print-preview-sidebar').shadowRoot
+        .querySelector('print-preview-button-strip').shadowRoot
+        .querySelector('.cancel-button');
+      setTimeout(() => cancel.click(), 0);
+      return true;
+    })()`);
     await expect.poll(async () => (await cdp.send("Target.getTargets")).targetInfos
       .some(info => info.targetId === target.targetId)).toBe(false);
   } finally {

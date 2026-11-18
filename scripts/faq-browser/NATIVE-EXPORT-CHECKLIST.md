@@ -57,5 +57,5 @@ Use the owner-approved staging build of the actual static FAQ.
 
 Mark each item **passed**, **failed**, **blocked**, or **not supported on this
 platform**, with evidence. Never convert a blocked/unsupported item to passed
-or substitute synthetic print events, a stubbed clipboard, or a Chromium PDF.
+or substitute mock print events, a stubbed clipboard, or a Chromium PDF.
 Keep failures and native screenshots/PDFs in the release evidence, outside Git.

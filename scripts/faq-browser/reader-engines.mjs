@@ -25,7 +25,7 @@ for (const name of names) describe(`${name}: FAQ exports`, { concurrency: false 
       browserIdentity: name === "webkit" ? "Playwright WebKit, not branded Safari or iOS Safari" : "Playwright Firefox",
       automated: ["native clipboard write and keyboard paste", "real insecure-context manual-copy fallback", "print-media visibility and restoration"],
       notAutomated: ["native print/PDF output", "native print dialog Cancel", "native beforeprint/afterprint restoration"],
-      caveat: "Print media emulation checks styles and matchMedia, not a native print transaction. No synthetic print events or clipboard replacements.",
+      caveat: "Print media emulation checks styles and matchMedia, not a native print transaction. No mock print events or clipboard replacements.",
     }, null, 2));
   });
   after(async () => { await browser?.close(); await site?.close(); });

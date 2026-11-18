@@ -67,7 +67,7 @@ Coverage:
 The native dialog is a separate DevTools target; `print-preview.mjs` reaches its
 shadow-DOM Cancel control because Playwright does not expose it as a normal
 page. Chromium internal markup changes deliberately fail the test, rather than
-silently substituting synthetic cancellation.
+silently substituting mock cancellation.
 
 Evidence is written to `generated-artifacts/faq-reader/` (ignored by Git and
 deployment): `faq-1.pdf`, `faq-2.pdf`, and `clipboard-denied.png`.
@@ -149,7 +149,7 @@ Each engine must pass three real-browser cases:
    and every FAQ caveat remains visible, and restore the exact mixed reading
    state twice when leaving print media. These are CSS and `matchMedia` checks,
    not native print transactions. Native print events are observed and must
-   remain absent; none are synthetically dispatched.
+   remain absent; none are dispatched by the test.
 
 The CI workflow has separate, fail-closed Firefox and WebKit matrix jobs,
 installs each pinned browser with its system dependencies, and retains each

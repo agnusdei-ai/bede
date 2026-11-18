@@ -2594,3 +2594,39 @@ which of these Bede enforces and which it only recommends.
 **Related:** entry 20 (whether any local model is good enough to be Bede,
 still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
 `docs/PROVIDER_ADAPTERS.md`, `docs/PARENT_SETUP.md`.
+
+## 45. `[PRODUCT]` Stability code freeze for pilot v1.0
+
+**Status:** closed
+
+**Decided (2026-11-17).** The owner asked for the open pull requests to be
+merged or closed and then reconciled under one stability code freeze, with the
+build session deciding any tie and the owner authorizing implementation. This
+entry is that freeze.
+
+- **Scope.** Every merge to `main`, in every directory.
+- **Baseline.** `065e82d5b02a49cf354a7d3b6c818bda3264b5fc`, `main` after #865,
+  #851 and #867 landed. Anything already on `main` at that commit is inside the
+  freeze; anything later must qualify as an exception.
+- **What may still merge.** Only a change that fits one of these, and its pull
+  request says which on a line of its own (`Freeze exception: <n>`):
+  1. A security fix: a dependency patch, an audit allowlist entry with its
+     reasoning, or a pull request opened by `security-patch.yml`.
+  2. A fix for a red `main`, or for a gate that failed because of something the
+     world did rather than something a contributor did.
+  3. A fix for a defect that sample qualification or the repair loop found,
+     with the WebKit reload crash first.
+  4. Documentation or register text describing the system as it already is.
+  5. A revert.
+- **What it does not change.** `site/` and `demo/` changes still need the
+  owner's explicit sign-off, exception or not. #862 stays on the owner's hold,
+  and the pilot work on #837 lands only when the owner says so; the freeze
+  decides neither.
+- **Exit.** The owner's GO or NO-GO in the pilot v1.0 release decision packet
+  (which is on #837 and not yet on `main`), or the owner lifting the freeze in
+  writing. Review it on 2026-12-18 if neither has happened.
+
+**Why it is recorded and not enforced.** Nothing makes a merge to `main`
+impossible (entry 41), so a test could only check that this text exists, not
+that the freeze held. The exception line in each pull request is what a
+reviewer checks.

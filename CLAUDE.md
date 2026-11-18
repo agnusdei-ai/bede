@@ -2544,6 +2544,17 @@ after.
 This is a standing rule for this repo across sessions, not a one-off for
 whichever task prompted it.
 
+## Standing Workflow: Stability Code Freeze
+
+**`main` is frozen for pilot v1.0 (`docs/DECISIONS.md` entry 45).** From the
+baseline that entry names, a pull request merges only if it fits one of the
+entry's five exceptions (security fixes, a red `main` or world-caused gate
+failure, qualification and repair-loop defects, docs describing the system as it
+is, reverts), and its body says which on a line of its own:
+`Freeze exception: <n>`. `site/` and `demo/` still need the owner's sign-off.
+The freeze ends with the owner's GO or NO-GO in the pilot v1.0 release
+decision packet (on #837, not yet on `main`) or the owner lifting it.
+
 ## Standing Workflow: Banned Nomenclature
 
 **No tracked file may use the three words `scripts/check_nomenclature.sh`

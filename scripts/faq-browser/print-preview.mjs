@@ -19,7 +19,7 @@ export async function cancelPrintPreview(browser) {
     const response = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         cdp.off("Target.receivedMessageFromTarget", onMessage);
-        reject(new Error("Print-preview command timed out"));
+        reject(new Error("Inspecting native print-preview controls timed out"));
       }, 10000);
       function onMessage(event) {
         if (event.sessionId !== sessionId) return;
@@ -50,15 +50,30 @@ export async function cancelPrintPreview(browser) {
       const cancel = strip?.shadowRoot?.querySelector('.cancel-button');
       return !!cancel && !cancel.disabled;
     })()`), { timeout: 20000, message: "Print preview renders before Cancel" }).toBe(true);
+    console.log("Native print-preview Cancel control is ready.");
     await expect.poll(async () => (await cdp.send("Target.getTargets")).targetInfos.some(info =>
       info.url.startsWith("chrome-untrusted://print/") && info.url.endsWith("/print.pdf")),
     { timeout: 15000, message: "Native preview generated its PDF" }).toBe(true);
-    await evaluate(`document.querySelector('print-preview-app').shadowRoot
+    console.log("Native print-preview PDF is ready.");
+    // Cancel destroys this target. Its Runtime.evaluate reply can disappear
+    // with it, so do not wait for a value from a destroyed execution context.
+    // The transport send must succeed; then independently require the actual
+    // target to close. The caller also verifies real afterprint and FAQ state.
+    const cancel = `document.querySelector('print-preview-app').shadowRoot
       .querySelector('print-preview-sidebar').shadowRoot
       .querySelector('print-preview-button-strip').shadowRoot
-      .querySelector('.cancel-button').click()`);
+      .querySelector('.cancel-button').click()`;
+    await cdp.send("Target.sendMessageToTarget", {
+      sessionId,
+      message: JSON.stringify({
+        id: ++sequence, method: "Runtime.evaluate",
+        params: { expression: cancel, returnByValue: true },
+      }),
+    });
+    console.log("Clicked the native print-preview Cancel button.");
     await expect.poll(async () => (await cdp.send("Target.getTargets")).targetInfos
       .some(info => info.targetId === target.targetId)).toBe(false);
+    console.log("Native print-preview target closed.");
   } finally {
     await cdp.detach();
   }

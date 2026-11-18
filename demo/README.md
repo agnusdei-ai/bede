@@ -24,8 +24,8 @@ transcripts, voice enrollment, admin) — the handful of ephemeral, per-request
 endpoints it *can* reach (chat, voice output, the one-time diagnostic email,
 and the sandbox preview below) use `require_auth` directly instead. Nothing
 is persisted (`db=None` in `routers/tutor.py`). Voice output uses OpenAI TTS
-when the backend has it configured; without it Bede is silent, and the
-browser's own speech is never used.
+if the backend has it configured, falling back to the browser's own speech
+otherwise.
 
 An **"Ask Bede"** button during the session previews the parent-only sandbox
 from the real app — direct answers instead of Socratic, free

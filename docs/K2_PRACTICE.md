@@ -467,7 +467,10 @@ voice in the chat and a different one in the round. Sound Time, Number Time
 and Map Practice now speak through the same `useTextToSpeech` path as a chat
 reply, in the app and in the demo, and stop speaking when the child closes
 them, with the chat's rules: silence rather than another voice when no voice
-is configured or a line fails, and never the browser's own voice. They default
+is configured or a line fails, and never the browser's own voice. In installed
+Bede that voice is Piper only; when `GET /tutor/voice` says it is not
+available, the chat gives the round no voice at all, so it is served without
+the ear-only items and continues on screen. They default
 to no other voice: no shipped file in either app may speak through the
 browser's voice, or request `/tutor/speak` except through `useTextToSpeech`
 (`bedesVoiceOnly.test.ts`). The rule holds for

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, ImagePlus, X, Sparkles } from 'lucide-react'
 import {
   streamTutorChat, updateVoiceNarrationPreference, extractNarrationText,
-  ParentalConsentRequiredError, fetchMathLesson, answerMathTask,
+  ParentalConsentRequiredError, fetchMathLesson, answerMathTask, fetchVoiceStatus,
 } from '../services/api'
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
@@ -223,6 +223,19 @@ export default function SocraticChat({
   // is heard when it is tapped. With Bede's voice off the round is shown
   // without speech and the server leaves out questions that work only by ear.
   const speakInBedesVoice = useCallback((text: string) => { stopSpeech(); speak(text) }, [stopSpeech, speak])
+  // Whether Bede can actually speak right now (GET /tutor/voice). Installed
+  // Bede speaks only in its local Piper voice; when Piper is not set up or is
+  // down, a round is served without the items that work only by ear and goes
+  // on with everything on screen, and nothing else is used in Piper's place
+  // (docs/DECISIONS.md entry 46). Unknown (an older server) counts as able.
+  const [voiceAvailable, setVoiceAvailable] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!token) return
+    let live = true
+    fetchVoiceStatus(token).then((s) => { if (live) setVoiceAvailable(s ? s.available !== false : null) })
+    return () => { live = false }
+  }, [token])
+  const voiceOn = ttsEnabled && voiceAvailable !== false
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -1216,7 +1229,7 @@ export default function SocraticChat({
           token={token}
           studentName={sessionConfig.student_name}
           onClose={() => { stopSpeech(); setShowMapPractice(false) }}
-          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
+          onSpeak={voiceOn ? speakInBedesVoice : undefined}
         />
       )}
 
@@ -1227,8 +1240,8 @@ export default function SocraticChat({
           token={token}
           studentName={sessionConfig.student_name}
           onClose={() => { stopSpeech(); setShowPhonics(false) }}
-          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
-          canSpeak={ttsEnabled}
+          onSpeak={voiceOn ? speakInBedesVoice : undefined}
+          canSpeak={voiceOn}
         />
       )}
 
@@ -1244,8 +1257,8 @@ export default function SocraticChat({
               answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
           }}
           onClose={() => { stopSpeech(); setShowMath(false) }}
-          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
-          canSpeak={ttsEnabled}
+          onSpeak={voiceOn ? speakInBedesVoice : undefined}
+          canSpeak={voiceOn}
         />
       )}
 

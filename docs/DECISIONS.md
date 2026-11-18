@@ -2608,17 +2608,29 @@ still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
    process: `voice-service/`, its own container, reached by the API only over
    HTTP (`LOCAL_TTS_URL`), with a distribution review before it ships.
 3. **Never a cloud voice by default once a local voice is set up**, and never
-   as a fallback when a local line fails. `TTS_PROVIDER=openai` is the only way
-   to choose the cloud voice while a local one is configured.
+   as a fallback when a local line fails.
 4. **Silence instead of the browser's voice.** With no voice configured, or a
    line that fails, Bede is silent and Parent Setup says why. The browser's own
-   speechSynthesis is no longer used anywhere.
+   speechSynthesis is no longer used in the installed app.
+
+**Amended (2026-11-18, owner, same day).** For installed Bede only, Piper is
+the voice to qualify, and there is no other: if Piper is unavailable, fails,
+or no voice is configured, Bede continues without narration, keeps every
+prompt and piece of feedback on screen, shows a clear voice status in Parent
+Setup, and falls back to neither OpenAI's voice nor the browser's. **The demo
+is left unchanged**: it keeps OpenAI's voice and its own browser path.
+Verification makes no paid provider call and downloads no model, and physical
+acceptance on the pilot Mac is the owner's alone.
 
 **How it is built.**
 
-- `services/voice_synthesis.py`'s `active_provider()` picks the voice:
-  `TTS_PROVIDER` empty means local when `LOCAL_TTS_URL` is set, otherwise
-  OpenAI when `OPENAI_API_KEY` is set, otherwise none. `core/voice_url.py`
+- `services/voice_synthesis.py`'s `active_provider()` picks the voice.
+  Installed Bede is `docker-compose.yml`, which pins `TTS_PROVIDER=local`:
+  Piper at `LOCAL_TTS_URL`, or none, never OpenAI even with a key present.
+  `config.py`'s empty default (local if set, otherwise OpenAI) is what the
+  demo (`render.yaml`, not compose) relies on, so the demo is unchanged; the
+  divergence is named in `tests/test_compose_settings_passthrough.py`.
+  `TTS_PROVIDER=local` with no URL boots and is silent. `core/voice_url.py`
   holds `LOCAL_TTS_URL` to this computer or its private network, judged from
   the literal text, and a bad value stops Bede at boot.
 - `voice-service/server.py` is Bede's own server around Piper's library. It
@@ -2629,12 +2641,38 @@ still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
   language's voice. Its dependencies are hash-locked.
 - The `voice` compose service (profile `local-voice`, off by default) sits on
   an internal network with no internet access and publishes no port.
-- Both frontends' `useTextToSpeech` no longer contain a browser-voice path,
-  and `bedesVoiceOnly.test.ts` fails if any file in either app speaks through
-  the browser's voice, requests `/tutor/speak` outside the hook, or hands a
-  chat practice screen anything but Bede's voice.
-- `GET /tutor/voice` and Parent Setup's **Bede's voice** card say whether Bede
-  speaks on this computer and whether the voice is local or cloud.
+- The installed app's `useTextToSpeech` no longer contains a browser-voice
+  path. `bedesVoiceOnly.test.ts` fails if any app file speaks through the
+  browser's voice, if anything in the demo but its own unchanged hook does,
+  if anything outside the hooks requests `/tutor/speak`, or if a chat
+  practice screen is handed anything but Bede's voice.
+- `GET /tutor/voice` reports `configured`, `where` and `available` (the local
+  voice's `/health`, no text sent, a voice for the session's language). The
+  chat passes a round Bede's voice only when it is available, so with Piper
+  down or absent a round is served without the items that work only by ear
+  and continues on screen. Parent Setup's **Bede's voice** card shows one of
+  four states: local, cloud, set up but not responding, or none.
+- Piper logs pieces of the text it speaks (`Missing phoneme from id map:`),
+  so the voice server keeps only Piper's errors.
+
+**Verified (2026-11-18)** by `scripts/qualification/local_voice/run_local_voice_check.py`,
+run by hand: the real API on SQLite with `TTS_PROVIDER=local`, a loopback
+model stub, a sample OpenAI key in reach, and an HTTP(S) proxy that refuses
+and records every outbound connection; real Piper in `voice-service/server.py`
+with sample voices built from code (`make_sample_voice.py`: a real ONNX model
+with Piper's interface that emits a tone, plus a variant that loads and then
+fails every line); and one Sound Time round plus a chat reply in real
+Chromium. All three cases passed with zero outbound attempts: **works** (13
+lines returned as `audio/wav` and played), **fails** (every line silent, the
+round and the chat went on with prompts and feedback on screen), **none**
+(the round was served without ear-only items and went on). In every case the
+browser's own voice was never called and no spoken line appeared in any log.
+Three deliberate breaks each failed the check: the old browser-fallback hook
+(the browser voice spoke the reply), OpenAI as a fallback after a failed Piper
+line (28 refused attempts to `api.openai.com`), and the compose pin removed
+(`/tutor/voice` reported a cloud voice and the API tried OpenAI). This proves
+the plumbing, not how a real voice sounds; that, with a real voice whose
+licence is recorded, is the owner's acceptance on the pilot Mac.
 
 **What the review must settle.**
 
@@ -2650,9 +2688,10 @@ still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
 - Then: installers that fetch and verify the chosen voices, and set
   `COMPOSE_PROFILES=local-voice` and `LOCAL_TTS_URL` by default.
 
-**What changes for families now.** A deployment with no voice configured is
-now silent instead of speaking in the browser's voice; the demo and any
-family with `OPENAI_API_KEY` set hear exactly what they heard before.
+**What changes for families now.** Installed Bede with no local voice set up
+is silent instead of speaking in OpenAI's voice or the browser's, including a
+family with `OPENAI_API_KEY` set for tutoring; the card in Parent Setup says
+so. The demo hears exactly what it heard before.
 
 **Related:** entry 40(g), `docs/VOICE_SETUP.md`, `docs/K2_PRACTICE.md` §7,
 `voice-service/README.md`.

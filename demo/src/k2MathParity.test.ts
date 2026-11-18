@@ -31,7 +31,9 @@ describe('demo Number Time mirrors', () => {
     // (useTextToSpeech's speak), never an on-device or browser default voice.
     const chat = source(app, 'components/SocraticChat.tsx')
     const mathBlock = chat.slice(chat.indexOf('<K2MathPractice'), chat.indexOf('/>', chat.indexOf('<K2MathPractice')))
-    expect(mathBlock).toContain('onSpeak={ttsEnabled ? speakInBedesVoice : undefined}')
+    // Installed Bede gives the round its voice only when Piper can speak
+    // (GET /tutor/voice), so the app's switch is voiceOn, not ttsEnabled.
+    expect(mathBlock).toContain('onSpeak={voiceOn ? speakInBedesVoice : undefined}')
     expect(mathBlock).not.toContain('speakOnDevice')
     expect(chat).toMatch(/const speakInBedesVoice = useCallback\(\(text: string\) => \{ stopSpeech\(\); speak\(text\) \}/)
 

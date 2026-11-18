@@ -103,13 +103,14 @@ services:
       - BEDE_ADAPTER_ORDER=${BEDE_ADAPTER_ORDER:-local,anthropic}
       - BEDE_FORCE_ADAPTER=${BEDE_FORCE_ADAPTER:-}
       # Bede's spoken voice (services/voice_synthesis.py, docs/VOICE_SETUP.md,
-      # docs/DECISIONS.md entry 46). TTS_PROVIDER empty means: the local voice
-      # when LOCAL_TTS_URL is set (the `voice` service below,
-      # http://voice:5000), otherwise OpenAI's voice when OPENAI_API_KEY is
-      # set, otherwise none. A configured local voice never falls back to a
-      # cloud one, and with no voice Bede is silent rather than using the
-      # browser's.
-      - TTS_PROVIDER=${TTS_PROVIDER:-}
+      # docs/DECISIONS.md entry 46). Installed Bede speaks only in its local
+      # Piper voice (the `voice` service below, LOCAL_TTS_URL=
+      # http://voice:5000) or not at all: if Piper is not set up, is down, or
+      # fails a line, Bede continues without narration. It never falls back
+      # to OpenAI's voice or the browser's. This default deliberately differs
+      # from core/config.py's empty one, which the public demo (render.yaml)
+      # relies on to keep its OpenAI voice.
+      - TTS_PROVIDER=${TTS_PROVIDER:-local}
       - LOCAL_TTS_URL=${LOCAL_TTS_URL:-}
       # OpenAI TTS: a separate, unrelated use of OPENAI_API_KEY above.
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}

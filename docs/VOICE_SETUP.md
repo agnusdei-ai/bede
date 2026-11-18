@@ -1,27 +1,37 @@
 # Setting up Bede's spoken voice
 
 Every feature speaks in Bede's own voice and in no other (owner decisions
-2026-11-18, `docs/DECISIONS.md` entry 46). Bede's voice comes from exactly one
-place on a deployment:
+2026-11-18, `docs/DECISIONS.md` entry 46).
 
-- **A local voice on this computer** (Piper, `voice-service/`). Nothing Bede
-  says aloud leaves the computer. While it is set up, a cloud voice is never
-  used, not by default and not when a line fails. Not yet offered to families:
-  see "Bede's local voice" below.
-- **OpenAI TTS** (`gpt-4o-mini-tts`), a cloud service with a small
-  per-character cost, used when no local voice is set up.
-- **None.** Bede is silent. Words appear on screen without being spoken, and
-  Parent Setup says so. **The browser's own built-in voice is never used**: it
-  is not Bede's voice, and a child hearing a different voice is worse than a
-  line that is shown but not spoken. `homeschool-tutor/src/bedesVoiceOnly.test.ts`
-  fails if any file in the app or the demo speaks through it.
+**Installed Bede** (`docker-compose.yml`, every installer) speaks only in its
+**local Piper voice** (`voice-service/`), so nothing Bede says aloud leaves the
+computer. If Piper is not set up, is not responding, or fails a line, Bede
+**continues without narration**: every prompt and piece of feedback stays on
+screen, a practice round leaves out the items that only work by ear, and
+Parent Setup's **Bede's voice** card says which of these it is. It never falls
+back to OpenAI's voice, even with `OPENAI_API_KEY` set for tutoring, and never
+to the browser's own built-in voice. Compose pins this with
+`TTS_PROVIDER=local`. The local voice is not yet offered to families: see
+"Bede's local voice" below.
 
-`TTS_PROVIDER` picks between them: empty (the default) means the local voice
-when `LOCAL_TTS_URL` is set, otherwise OpenAI when `OPENAI_API_KEY` is set,
-otherwise none; `local`, `openai` or `none` forces one. An unknown value, a
-`LOCAL_TTS_URL` that is not this computer or its own network, or
-`TTS_PROVIDER=local` without `LOCAL_TTS_URL` stops Bede from starting, with
-the reason.
+**The public demo is unchanged.** It is not run from compose: with
+`TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI TTS
+(`gpt-4o-mini-tts`) when `OPENAI_API_KEY` is set, and its own frontend keeps
+its browser path.
+
+`TTS_PROVIDER` values: `local` (Piper or nothing), empty (local if set,
+otherwise OpenAI, otherwise nothing), `openai`, `none`. An unknown value or a
+`LOCAL_TTS_URL` that is not this computer or its own network stops Bede from
+starting, with the reason; `local` with no URL starts and is silent.
+`homeschool-tutor/src/bedesVoiceOnly.test.ts` fails if any file in the
+installed app speaks through the browser's voice.
+
+**Checking it end to end.** `scripts/qualification/local_voice/run_local_voice_check.py`
+runs the three cases (Piper works; Piper set up but failing; no voice) against
+the real API, real Piper with sample voices built from code, and one Sound Time
+round in real Chromium, with every outbound connection refused and recorded.
+It makes no paid call and downloads nothing; see `voice-service/README.md`.
+It proves the plumbing, not how a real voice sounds.
 
 ## Bede's local voice
 
@@ -56,7 +66,9 @@ BEDE_VOICE_ES=/voices/<spanish voice>.onnx
 The tests are `homeschool-api/tests/test_local_voice.py`, which drive the
 real server over HTTP with a stand-in voice.
 
-## Setting up OpenAI TTS
+## Setting up OpenAI TTS (the demo, or `TTS_PROVIDER` empty)
+
+Installed Bede never uses this (see the top of this file).
 
 Get an API key from [platform.openai.com](https://platform.openai.com/), then
 set in `.env`:

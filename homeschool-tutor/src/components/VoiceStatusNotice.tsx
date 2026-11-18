@@ -6,9 +6,10 @@ import { fetchVoiceStatus, type VoiceStatus } from '../services/api'
 /**
  * Tells a parent whether Bede speaks aloud on this computer, and where Bede's
  * voice runs. Every feature speaks only in Bede's own voice; with none set
- * up, Bede is silent rather than using the browser's voice (owner decisions
- * 2026-11-18, docs/DECISIONS.md entry 46), and this is where a parent learns
- * why. Shows nothing when the status cannot be read.
+ * up, or Piper set up but not responding, Bede continues without narration
+ * and never uses another voice (owner decisions 2026-11-18, docs/DECISIONS.md
+ * entry 46), and this is where a parent learns why. Shows nothing when the
+ * status cannot be read.
  */
 export default function VoiceStatusNotice({ token }: { token: string }) {
   const { t } = useTranslation()
@@ -21,8 +22,10 @@ export default function VoiceStatusNotice({ token }: { token: string }) {
   }, [token])
 
   if (!status) return null
-  const key = !status.configured ? 'none' : status.where === 'local' ? 'local' : 'cloud'
-  const Icon = status.configured ? Volume2 : VolumeX
+  const key = !status.configured ? 'none'
+    : status.available === false ? 'down'
+      : status.where === 'local' ? 'local' : 'cloud'
+  const Icon = key === 'local' || key === 'cloud' ? Volume2 : VolumeX
   return (
     <section
       data-testid="voice-status"

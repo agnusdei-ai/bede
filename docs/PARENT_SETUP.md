@@ -1522,14 +1522,17 @@ email) so they land straight on their own login screen.
 
 ## 7. *(Optional)* Giving Bede a real voice
 
-Bede speaks only in Bede's own voice, never in your browser's built-in one.
-That voice comes from OpenAI (a small per-use cost; each line Bede speaks is
-sent to it), or, once it is offered, from a voice that runs on your own
-computer so nothing Bede says aloud leaves it. See `docs/VOICE_SETUP.md`.
+Bede speaks only in Bede's own voice. On your computer that is a voice that
+runs on the computer itself, so nothing Bede says aloud leaves it. It is not
+offered yet; until it is, Bede is silent. See `docs/VOICE_SETUP.md`.
 
-If you set up neither, everything still works, but Bede is silent: words
-appear on screen without being spoken. The **Bede's voice** card in Parent
-Setup tells you which of these your computer has.
+Bede never uses another voice in its place: not your browser's built-in voice
+and not an online voice service, even if you use one for tutoring. If the
+voice is not set up, stops responding, or fails a line, everything still
+works: every question, answer and piece of feedback stays on screen, and
+practice rounds leave out the questions that only work by listening. The
+**Bede's voice** card in Parent Setup tells you which of these your computer
+has.
 
 ## 8. Handing off to your child: what to actually tell them
 

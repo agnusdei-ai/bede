@@ -16,6 +16,8 @@ describe('VoiceStatusNotice', () => {
     [{ configured: true, where: 'local' }, 'local'],
     [{ configured: true, where: 'cloud' }, 'cloud'],
     [{ configured: false, where: null }, 'none'],
+    [{ configured: true, where: 'local', available: false }, 'down'],
+    [{ configured: true, where: 'local', available: true }, 'local'],
   ] as const)('explains where Bede speaks: %o', async (body, key) => {
     answer(body)
     render(<VoiceStatusNotice token="tok" />)
@@ -25,10 +27,15 @@ describe('VoiceStatusNotice', () => {
     expect(fetch).toHaveBeenCalledWith('/api/tutor/voice', expect.anything())
   })
 
-  it('tells a parent with no voice that the browser voice is never used', async () => {
-    answer({ configured: false, where: null })
+  it.each([
+    [{ configured: false, where: null }],
+    [{ configured: true, where: 'local', available: false }],
+  ])('tells a parent Bede goes on without speaking and never uses another voice: %o', async (body) => {
+    answer(body)
     render(<VoiceStatusNotice token="tok" />)
-    expect((await screen.findByTestId('voice-status')).textContent).toMatch(/never uses your browser/)
+    const text = (await screen.findByTestId('voice-status')).textContent ?? ''
+    expect(text).toMatch(/never uses another voice/)
+    expect(text).toMatch(/on screen/)
   })
 
   it('shows nothing when the status cannot be read', async () => {
@@ -39,7 +46,7 @@ describe('VoiceStatusNotice', () => {
   })
 
   it('has every line in Spanish too', () => {
-    for (const k of ['title', 'local', 'cloud', 'none'] as const) {
+    for (const k of ['title', 'local', 'cloud', 'none', 'down'] as const) {
       expect(es.voiceStatus[k]).toBeTruthy()
       expect(es.voiceStatus[k]).not.toBe(en.voiceStatus[k])
     }

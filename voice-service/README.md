@@ -50,3 +50,14 @@ profile, on a network with no internet access. The API reaches it at
 
 Tests: `homeschool-api/tests/test_local_voice.py` drives this server over real
 HTTP with a stand-in synthesizer, so it needs no voice model.
+
+**End to end, with real Piper and no download.**
+`scripts/qualification/local_voice/run_local_voice_check.py` builds sample
+voices from code (`make_sample_voice.py`: a real ONNX model with Piper's
+interface that emits a tone, and one that loads then fails every line), then
+runs the real API, this server with real Piper, and a Sound Time round in real
+Chromium for three cases: Piper works, Piper fails, no voice. Every outbound
+connection is refused and recorded, so a pass also shows nothing left the
+machine and no paid call was made. Needs a Python with
+`requirements.lock.txt` plus `onnx` for `--voice-python`, the API's own
+requirements for the script itself, and `npm run build` in `homeschool-tutor`.

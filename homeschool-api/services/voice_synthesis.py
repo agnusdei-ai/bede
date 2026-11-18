@@ -85,6 +85,7 @@ LOCAL_AUDIO_MEDIA_TYPE = "audio/wav"
 # A local voice runs on the family's own CPU, where a long line can take a
 # few seconds to synthesize; this bounds a hung server, not a slow sentence.
 _LOCAL_REQUEST_TIMEOUT_SECONDS = 30.0
+_HEALTH_TIMEOUT_SECONDS = 2.0
 
 
 class SpokenAudio(NamedTuple):
@@ -165,7 +166,7 @@ def active_provider() -> Optional[str]:
     if choice == "none":
         return None
     if choice == "local":
-        return "local"
+        return "local" if settings.local_tts_url else None
     if choice == "openai":
         return "openai" if settings.openai_api_key else None
     if settings.local_tts_url:
@@ -176,6 +177,28 @@ def active_provider() -> Optional[str]:
 def synthesis_configured() -> bool:
     """Whether Bede has a voice at all on this deployment."""
     return active_provider() is not None
+
+
+async def voice_available(locale: str) -> bool:
+    """Whether Bede can speak right now in this language, so a screen can
+    choose not to serve items that only work by ear. For the local voice this
+    asks its /health (no text is sent) and needs a voice for the language;
+    a down or slow server answers False. For the cloud voice it answers
+    whether one is configured, since checking would itself be a billed call."""
+    provider = active_provider()
+    if provider == "openai":
+        return True
+    if provider != "local":
+        return False
+    from core.voice_url import parse_voice_url
+    base = parse_voice_url(settings.local_tts_url)
+    try:
+        resp = await _get_http_client().get(f"{base}/health", timeout=_HEALTH_TIMEOUT_SECONDS)
+        resp.raise_for_status()
+        voices = resp.json().get("voices", [])
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return False
+    return (locale or "en").split("-", 1)[0].lower() in voices
 
 
 async def _synthesize_local(text: str, locale: str) -> Optional[bytes]:

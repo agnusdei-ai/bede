@@ -46,6 +46,7 @@ Synthesizer = Callable[[str], bytes]
 def piper_synthesizer(model_path: str) -> Synthesizer:
     from piper import PiperVoice  # imported here so tests need no Piper
 
+    quiet_piper()
     voice = PiperVoice.load(model_path)
     lock = threading.Lock()  # one synthesis at a time per voice
 
@@ -65,6 +66,13 @@ def load_voices(env: Dict[str, str], factory: Callable[[str], Synthesizer] = pip
         if path:
             voices[locale] = factory(path)
     return voices
+
+
+def quiet_piper() -> None:
+    """Piper logs pieces of the text it is speaking, such as
+    "Missing phoneme from id map: <phoneme>" at WARNING. Only its errors are
+    kept, which carry no text."""
+    logging.getLogger("piper").setLevel(logging.ERROR)
 
 
 def make_handler(voices: Dict[str, Synthesizer]) -> type:
@@ -139,6 +147,7 @@ def serve(host: str, port: int, voices: Dict[str, Synthesizer]) -> ThreadingHTTP
 def main(env: Optional[Dict[str, str]] = None) -> None:
     env = dict(os.environ if env is None else env)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    quiet_piper()
     voices = load_voices(env)
     if not voices:
         raise SystemExit("No voice configured: set BEDE_VOICE_EN and/or BEDE_VOICE_ES to a Piper .onnx file")

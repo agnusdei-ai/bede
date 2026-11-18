@@ -1507,6 +1507,7 @@
     "title": "La voz de Bede",
     "local": "La voz de Bede funciona en esta computadora. Nada de lo que Bede dice en voz alta sale de ella.",
     "cloud": "La voz de Bede la produce un servicio de voz en la nube, que recibe cada frase que Bede dice. Consulte el aviso de privacidad para saber cuál.",
-    "none": "Bede no tiene una voz configurada en esta computadora, así que sus palabras aparecen en pantalla sin decirse en voz alta. Bede nunca usa en su lugar la voz propia del navegador."
+    "none": "Bede no tiene una voz configurada en esta computadora, así que sus palabras aparecen en pantalla sin decirse en voz alta. Bede nunca usa otra voz en su lugar.",
+    "down": "La voz de Bede está configurada en esta computadora, pero ahora no responde, así que Bede continúa sin hablar. Todo sigue apareciendo en pantalla. Bede nunca usa otra voz en su lugar."
   }
 }

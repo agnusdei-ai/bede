@@ -180,7 +180,6 @@ def test_anything_that_could_leave_the_family_s_network_is_refused(url):
 
 @pytest.mark.parametrize("env,message", [
     ({"TTS_PROVIDER": "browser"}, "TTS_PROVIDER"),
-    ({"TTS_PROVIDER": "local"}, "LOCAL_TTS_URL"),
     ({"LOCAL_TTS_URL": "https://tts.example.com"}, "LOCAL_TTS_URL"),
 ])
 def test_bad_voice_settings_are_refused_at_boot(monkeypatch, env, message):
@@ -190,6 +189,15 @@ def test_bad_voice_settings_are_refused_at_boot(monkeypatch, env, message):
         Settings()
 
 
+def test_installed_bede_with_no_voice_set_up_boots_and_is_silent(monkeypatch):
+    # TTS_PROVIDER=local is what docker-compose.yml pins; with no LOCAL_TTS_URL
+    # that is installed Bede before Piper is set up, which must start and stay
+    # silent rather than refuse to boot or reach for another voice.
+    monkeypatch.setenv("TTS_PROVIDER", "local")
+    monkeypatch.delenv("LOCAL_TTS_URL", raising=False)
+    assert Settings().tts_provider == "local"
+
+
 # ── 3. Never a cloud voice when a local one is configured ───────────────────
 
 @pytest.mark.parametrize("provider,local,key,expected", [
@@ -197,6 +205,7 @@ def test_bad_voice_settings_are_refused_at_boot(monkeypatch, env, message):
     ("", "", "sk-test", "openai"),                   # the demo, and families with no local voice
     ("", "", "", None),                              # no voice: silence
     ("local", "http://voice:5000", "sk-test", "local"),
+    ("local", "", "sk-test", None),                  # installed Bede, Piper not set up: silence, never OpenAI
     ("openai", "http://voice:5000", "sk-test", "openai"),  # the explicit opt-in
     ("openai", "", "", None),
     ("none", "http://voice:5000", "sk-test", None),
@@ -292,7 +301,8 @@ def test_the_voice_container_is_isolated_and_off_by_default():
     # so no family gets the local voice until it is deliberately installed.
     api_env = compose["services"]["api"]["environment"]
     assert "LOCAL_TTS_URL=${LOCAL_TTS_URL:-}" in api_env
-    assert "TTS_PROVIDER=${TTS_PROVIDER:-}" in api_env
+    # Installed Bede is Piper or silence: compose pins the provider to local.
+    assert "TTS_PROVIDER=${TTS_PROVIDER:-local}" in api_env
 
 
 def test_the_voice_image_installs_only_hash_locked_packages():
@@ -309,14 +319,53 @@ def test_an_edit_to_the_voice_server_alone_still_runs_these_tests():
 
 
 @pytest.mark.parametrize("local,key,expected", [
-    ("http://voice:5000", "sk-test", {"configured": True, "where": "local"}),
-    ("", "sk-test", {"configured": True, "where": "cloud"}),
-    ("", "", {"configured": False, "where": None}),
+    ("", "sk-test", {"configured": True, "where": "cloud", "available": True}),
+    ("", "", {"configured": False, "where": None, "available": False}),
+    ("http://127.0.0.1:9", "", {"configured": True, "where": "local", "available": False}),  # Piper down
 ])
-def test_the_voice_status_route_says_whether_and_where_bede_speaks(monkeypatch, local, key, expected):
+def test_the_voice_status_route_says_whether_where_and_if_bede_can_speak(monkeypatch, local, key, expected):
     from routers.tutor import voice_status
 
     monkeypatch.setattr(settings, "tts_provider", "")
     monkeypatch.setattr(settings, "local_tts_url", local)
     monkeypatch.setattr(settings, "openai_api_key", key)
-    assert asyncio.run(voice_status(auth={"role": "parent"})) == expected
+    vs._http_client = None
+    try:
+        assert asyncio.run(voice_status(auth={"role": "parent", "locale": "en"})) == expected
+    finally:
+        asyncio.run(vs.aclose_http_client())
+
+
+def test_a_running_local_voice_is_available_only_in_languages_it_has(local_voice):
+    from routers.tutor import voice_status
+
+    local_voice({"en": _Fake(b"en")})
+    assert asyncio.run(voice_status(auth={"role": "child", "locale": "en"}))["available"] is True
+    assert asyncio.run(voice_status(auth={"role": "child", "locale": "es"}))["available"] is False
+
+
+def test_checking_availability_sends_no_text_and_never_asks_the_cloud(local_voice, monkeypatch):
+    calls = []
+    real_get = vs._get_http_client().get
+
+    async def spy_get(url, **kw):
+        calls.append(url)
+        return await real_get(url, **kw)
+
+    local_voice({"en": _Fake(b"en")})
+    monkeypatch.setattr(vs._get_http_client(), "get", spy_get)
+    asyncio.run(vs.voice_available("en"))
+    assert len(calls) == 1 and calls[0].endswith("/health")
+
+
+def test_the_voice_server_keeps_piper_s_text_bearing_logs_out():
+    # Piper logs "Missing phoneme from id map: <phoneme>" at WARNING, a piece
+    # of the line being spoken. The server keeps only Piper's errors.
+    mod = _load_server()
+    logging.getLogger("piper").setLevel(logging.NOTSET)
+    mod.quiet_piper()
+    assert logging.getLogger("piper").getEffectiveLevel() == logging.ERROR
+    assert logging.getLogger("piper.phoneme_ids").getEffectiveLevel() == logging.ERROR
+    src = SERVER_PY.read_text()
+    assert "quiet_piper()\n    voice = PiperVoice.load" in src
+    assert "    quiet_piper()\n    voices = load_voices(env)" in src

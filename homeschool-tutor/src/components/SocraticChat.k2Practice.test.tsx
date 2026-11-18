@@ -43,14 +43,20 @@ function sse(chunks: object[]): Response {
 }
 
 let area: string | undefined
+// What GET /tutor/voice answers; undefined = an older server without it (404).
+let voiceStatus: { configured: boolean; where: string | null; available: boolean } | undefined
+let speakAnswer: () => Response = () => new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
 const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
+  if (String(url).includes('/tutor/voice') && voiceStatus) {
+    return new Response(JSON.stringify(voiceStatus), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  }
   if (String(url).includes('/tutor/chat')) {
     return sse([{ type: 'tool', tool: 'invite_practice', area, content: area === 'math' ? MATH_CARD : CARD }, { type: 'done' }])
   }
   if (String(url).includes('/tutor/speak')) {
-    // Bede's voice is configured; the call returns no audio, so the hook
-    // stays silent rather than switching to another voice.
-    return new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
+    // By default Bede's voice is configured and the call returns no audio, so
+    // the hook stays silent rather than switching to another voice.
+    return speakAnswer()
   }
   if (String(url).includes('/k2-practice/') && String(url).includes('/math/')) {
     return new Response(JSON.stringify(MATH_LESSON), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -72,6 +78,8 @@ beforeEach(() => {
   i18n.changeLanguage('en')
   sessionStorage.clear()
   fetchMock.mockClear()
+  voiceStatus = undefined
+  speakAnswer = () => new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
   vi.stubGlobal('fetch', fetchMock)
   Element.prototype.scrollIntoView = vi.fn()
   act(() => {
@@ -197,5 +205,59 @@ describe('the invite_practice card', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
     expect(screen.queryByRole('dialog', { name: 'Sound Time' })).toBeNull()
     expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/k2-practice/'))).toBe(false)
+  })
+})
+
+describe('installed Bede with no working voice: the round goes on, on screen, in silence', () => {
+  // Owner ruling 2026-11-18: Piper or nothing. Not set up, down, or failing a
+  // line, Bede continues without narration, keeps every prompt and feedback
+  // on screen, and never uses OpenAI's voice or the browser's.
+  function watchTheBrowserVoice(): string[] {
+    const deviceSpoken: string[] = []
+    class Utterance { text: string; constructor(text: string) { this.text = text } }
+    vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
+    vi.stubGlobal('speechSynthesis', {
+      speak: (u: Utterance) => deviceSpoken.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+      getVoices: () => [], addEventListener: vi.fn(), removeEventListener: vi.fn(), speaking: false, pending: false,
+    })
+    return deviceSpoken
+  }
+  const noCloud = () => fetchMock.mock.calls.every(([u]) => !/openai|api\.openai\.com/.test(String(u)))
+
+  it.each([
+    ['Piper is set up but not reachable', { configured: true, where: 'local', available: false }],
+    ['no voice is configured', { configured: false, where: null, available: false }],
+  ])('%s: the round asks for on-screen items only, speaks nothing, and continues', async (_, status) => {
+    const deviceSpoken = watchTheBrowserVoice()
+    voiceStatus = status
+    area = 'phonics'
+    render(<SocraticChat />)
+    await screen.findByRole('dialog', { name: 'Sound Time' })
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/phonics/lesson'))).toBe(true))
+    const lessonUrls = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/phonics/lesson'))
+    expect(lessonUrls.every((u) => u.endsWith('/phonics/lesson?audio=false'))).toBe(true)
+    // The prompt is on screen and the round moves on.
+    await waitFor(() => expect(screen.getByTestId('phonics-line').textContent).toBe('Listen: kuh, ah, tuh. Put the sounds together: cat!'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Let’s try one' }))
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(spokenByBede()).toEqual([])
+    expect(deviceSpoken).toEqual([])
+    expect(noCloud()).toBe(true)
+  })
+
+  it('Piper is reachable but fails every line: the round continues in silence, never another voice', async () => {
+    const deviceSpoken = watchTheBrowserVoice()
+    voiceStatus = { configured: true, where: 'local', available: true }
+    speakAnswer = () => new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
+    area = 'math'
+    render(<SocraticChat />)
+    await screen.findByRole('dialog', { name: 'Number Time' })
+    const watchLine = '5 red and 3 yellow. I count them all: 8.'
+    // Bede tried to say it (and Piper failed); it is still on screen.
+    await waitFor(() => expect(spokenByBede()).toContain(watchLine))
+    expect(screen.getByTestId('math-line').textContent).toBe(watchLine)
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    expect(deviceSpoken).toEqual([])
+    expect(noCloud()).toBe(true)
   })
 })

@@ -2082,10 +2082,10 @@ async function practiceFetch<T>(token: string, path: string, init?: RequestInit)
   return res.json()
 }
 
-export type VoiceStatus = { configured: boolean; where: 'local' | 'cloud' | null }
+export type VoiceStatus = { configured: boolean; where: 'local' | 'cloud' | null; available?: boolean }
 
-/** Whether Bede has a voice on this deployment, and where it runs
- *  (GET /tutor/voice). Null when it cannot be told, including an older server
+/** Whether Bede has a voice on this deployment, where it runs, and whether
+ *  it can speak right now in this session's language (GET /tutor/voice). Null when it cannot be told, including an older server
  *  without the route, so the notice simply does not show. */
 export async function fetchVoiceStatus(token: string): Promise<VoiceStatus | null> {
   try {
@@ -2093,7 +2093,11 @@ export async function fetchVoiceStatus(token: string): Promise<VoiceStatus | nul
     if (!res.ok) return null
     const data = await res.json()
     if (typeof data?.configured !== 'boolean') return null
-    return { configured: data.configured, where: data.where === 'local' || data.where === 'cloud' ? data.where : null }
+    return {
+      configured: data.configured,
+      where: data.where === 'local' || data.where === 'cloud' ? data.where : null,
+      ...(typeof data.available === 'boolean' ? { available: data.available } : {}),
+    }
   } catch {
     return null
   }

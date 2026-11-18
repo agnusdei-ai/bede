@@ -5,9 +5,12 @@
  * Bede's voice is the server's /tutor/speak, reached through `useTextToSpeech`
  * (in the demo, through the `api.ts` helper that hook calls). So:
  *
- * - no shipped file in the app or the demo may speak through the browser's own
- *   speechSynthesis, the hook included: with no voice configured, or a failed
- *   line, Bede is silent rather than speaking in a voice that is not his;
+ * - in the app (installed Bede) no shipped file may speak through the browser's
+ *   own speechSynthesis, the hook included: with Piper not set up, down, or
+ *   failing a line, Bede continues without narration rather than speaking in a
+ *   voice that is not his. The demo is deliberately unchanged by that ruling:
+ *   its own useTextToSpeech keeps its browser path, and nothing else in the
+ *   demo may speak through the browser;
  * - nothing but the hook (and the demo's api.ts) may request /tutor/speak;
  * - in the chat, every practice screen that speaks (Map Practice, Sound Time,
  *   Number Time, and any added later) is handed the one Bede-voice callback.
@@ -16,7 +19,9 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const ROOTS = [resolve(__dirname), resolve(__dirname, '../../demo/src')]
+const APP = resolve(__dirname)
+const DEMO = resolve(__dirname, '../../demo/src')
+const ROOTS = [APP, DEMO]
 const VOICE_HOOK = new Set(['useTextToSpeech.ts', join('hooks', 'useTextToSpeech.ts')])
 const DIRECT_SPEECH = /new\s+SpeechSynthesisUtterance|speechSynthesis\.speak\s*\(/
 // The voice request itself: the app's hook, and the demo's api.ts that its hook calls.
@@ -32,8 +37,9 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("Bede's voice is the only voice", () => {
-  it('no shipped file, the voice hook included, speaks through the browser voice', () => {
+  it('installed Bede never speaks through the browser voice, and the demo only in its own hook', () => {
     const offenders = ROOTS.flatMap((root) => sourceFiles(root)
+      .filter((path) => !(root === DEMO && VOICE_HOOK.has(relative(root, path))))
       .filter((path) => DIRECT_SPEECH.test(readFileSync(path, 'utf8')))
       .map((path) => relative(resolve(__dirname, '../..'), path)))
     expect(offenders).toEqual([])
@@ -43,7 +49,7 @@ describe("Bede's voice is the only voice", () => {
     for (const root of ROOTS) {
       const hook = sourceFiles(root).find((path) => VOICE_HOOK.has(relative(root, path)))
       expect(hook, `no useTextToSpeech.ts under ${root}`).toBeTruthy()
-      expect(SPEAK_ROUTE.test(readFileSync(hook!, 'utf8')) || root.endsWith('demo/src')).toBe(true)
+      expect(SPEAK_ROUTE.test(readFileSync(hook!, 'utf8')) || root === DEMO).toBe(true)
     }
     expect(DIRECT_SPEECH.test('window.speechSynthesis.speak(u)')).toBe(true)
     expect(DIRECT_SPEECH.test('new SpeechSynthesisUtterance(text)')).toBe(true)
@@ -62,6 +68,6 @@ describe("Bede's voice is the only voice", () => {
     const chat = readFileSync(resolve(__dirname, 'components/SocraticChat.tsx'), 'utf8')
     const props = [...chat.matchAll(/onSpeak=\{([^}]*)\}/g)].map((m) => m[1].trim())
     expect(props.length).toBeGreaterThanOrEqual(3)
-    for (const value of props) expect(value).toBe('ttsEnabled ? speakInBedesVoice : undefined')
+    for (const value of props) expect(value).toBe('voiceOn ? speakInBedesVoice : undefined')
   })
 })

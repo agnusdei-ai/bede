@@ -207,7 +207,9 @@ class Settings(BaseSettings):
     #            otherwise OpenAI's voice when OPENAI_API_KEY is set, otherwise
     #            none. With a local voice configured, auto NEVER uses a cloud
     #            voice, not even when a line fails.
-    #   "local"  the local voice only; LOCAL_TTS_URL is then required.
+    #   "local"  the local voice only, and nothing else ever: with no
+    #            LOCAL_TTS_URL, or the voice down, Bede is silent. Installed
+    #            Bede (docker-compose.yml) is pinned to this.
     #   "openai" OpenAI's voice only: the explicit opt-in to a cloud voice.
     #   "none"   no voice; Bede is silent.
     # With no voice configured Bede is silent: the browser's own voice is never
@@ -954,16 +956,15 @@ class Settings(BaseSettings):
     def reject_unknown_or_non_local_voice(self) -> "Settings":
         """Bede's voice settings are refused at boot rather than at the first
         line spoken: an unknown TTS_PROVIDER, a LOCAL_TTS_URL that is not this
-        machine or its network, or TTS_PROVIDER=local with no LOCAL_TTS_URL."""
+        machine or its network. TTS_PROVIDER=local with no LOCAL_TTS_URL is
+        allowed: that is installed Bede with no voice set up, which is silent."""
         provider = (self.tts_provider or "").strip().lower()
         if provider not in TTS_PROVIDERS:
             raise ValueError(f"TTS_PROVIDER must be one of {sorted(p or '(empty)' for p in TTS_PROVIDERS)}")
         try:
-            url = parse_voice_url(self.local_tts_url)
+            parse_voice_url(self.local_tts_url)
         except VoiceUrlRefused as exc:
             raise ValueError(f"LOCAL_TTS_URL: {exc}") from exc
-        if provider == "local" and not url:
-            raise ValueError("TTS_PROVIDER=local needs LOCAL_TTS_URL, the address of Bede's local voice")
         self.tts_provider = provider
         return self
 

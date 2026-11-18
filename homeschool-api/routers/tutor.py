@@ -54,7 +54,7 @@ from services.document_extraction import extract_narration_text, UnsupportedNarr
 from services.email_service import build_summary_email_html, send_email
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
-from services.voice_synthesis import active_provider, synthesis_configured, synthesize_speech
+from services.voice_synthesis import active_provider, synthesis_configured, synthesize_speech, voice_available
 
 log = logging.getLogger(__name__)
 
@@ -545,14 +545,18 @@ async def extract_narration(req: NarrationUploadRequest, auth: dict = Depends(re
 
 @router.get("/voice")
 async def voice_status(auth: dict = Depends(require_auth)) -> dict:
-    """Whether Bede has a voice on this deployment, and whether it runs on
-    this computer ("local") or a cloud service ("cloud"). Parent Setup uses it
-    to explain a silent Bede: with no voice configured nothing is spoken,
-    since the browser's own voice is never used (docs/DECISIONS.md entry 46).
-    Names no provider, credential or address."""
+    """Whether Bede has a voice on this deployment, whether it runs on this
+    computer ("local") or a cloud service ("cloud"), and whether it can speak
+    right now in the session's language ("available"). Parent Setup shows it;
+    the chat uses "available" so a practice round serves only items a child
+    can do on screen when Bede cannot speak. With no voice, or a voice that is
+    down, Bede continues without narration and never uses the browser's own
+    voice (docs/DECISIONS.md entry 46). Names no provider, credential or
+    address, and sends no text anywhere."""
     provider = active_provider()
     return {"configured": provider is not None,
-            "where": {"local": "local", "openai": "cloud"}.get(provider or "")}
+            "where": {"local": "local", "openai": "cloud"}.get(provider or ""),
+            "available": await voice_available(auth.get("locale") or settings.locale)}
 
 
 @router.post("/speak")

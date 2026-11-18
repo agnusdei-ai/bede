@@ -145,8 +145,17 @@ def _mid_request(w, monkeypatch, action):
 
 
 def _revoked_in_flight(w):
+    """Every AUTHZ_REVOKED_IN_FLIGHT row, read only after the fire-and-forget
+    audit writes already scheduled on this loop have finished: the event is
+    written by log_event_nowait, so reading straight after the response raced
+    it and failed on a busy runner (#868's G1 run). The same drain as
+    g1_harness's audit_events()."""
     async def read():
-        from core.audit import read_audit_log
+        import asyncio
+        from core.audit import _background_tasks, read_audit_log
+        loop = asyncio.get_running_loop()
+        while pending := tuple(t for t in _background_tasks if t.get_loop() is loop and not t.done()):
+            await asyncio.gather(*pending, return_exceptions=True)
         async with w.client.db_factory() as s:
             return await read_audit_log(s, limit=500)
     return [e for e in w.client.portal.call(read)

@@ -9,9 +9,9 @@ specific wording, subjects, or behavior may have moved on since.
 
 - One click gets you in — "Generate my code" mints a one-time 6-digit code (no key
   ever pasted into the browser), no message cap, no time limit.
-- Voice output can use OpenAI TTS (see `docs/VOICE_SETUP.md` in the main repo) if the
-  backend has it configured, falling back to the browser's own voice automatically if
-  not.
+- Voice output uses OpenAI TTS (see `docs/VOICE_SETUP.md` in the main repo) when the
+  backend has it configured. Without it Bede is silent: the browser's own voice is
+  never used, since it is not Bede's.
 - Every grade K-8 now has real curated curriculum content (books, math scope,
   composer/artist/poet study) — pick whichever grade fits your audience.
 - Know your audience: a parent evaluating this for their own family will care about

@@ -1,13 +1,62 @@
 # Setting up Bede's spoken voice
 
-Bede's voice output is entirely optional. If you don't configure anything
-below, the tablet's browser speaks Bede's lines using its own built-in voice.
-On top of that, Bede supports one cloud backend: **OpenAI TTS**, using the
-`gpt-4o-mini-tts` model — a small per-character cost, meaningfully more
-natural than a browser's default voice. Confirmed against real listening
-feedback that this is what it takes to get past "sounds computerized."
+Every feature speaks in Bede's own voice and in no other (owner decisions
+2026-11-18, `docs/DECISIONS.md` entry 46). Bede's voice comes from exactly one
+place on a deployment:
 
-## Setup
+- **A local voice on this computer** (Piper, `voice-service/`). Nothing Bede
+  says aloud leaves the computer. While it is set up, a cloud voice is never
+  used, not by default and not when a line fails. Not yet offered to families:
+  see "Bede's local voice" below.
+- **OpenAI TTS** (`gpt-4o-mini-tts`), a cloud service with a small
+  per-character cost, used when no local voice is set up.
+- **None.** Bede is silent. Words appear on screen without being spoken, and
+  Parent Setup says so. **The browser's own built-in voice is never used**: it
+  is not Bede's voice, and a child hearing a different voice is worse than a
+  line that is shown but not spoken. `homeschool-tutor/src/bedesVoiceOnly.test.ts`
+  fails if any file in the app or the demo speaks through it.
+
+`TTS_PROVIDER` picks between them: empty (the default) means the local voice
+when `LOCAL_TTS_URL` is set, otherwise OpenAI when `OPENAI_API_KEY` is set,
+otherwise none; `local`, `openai` or `none` forces one. An unknown value, a
+`LOCAL_TTS_URL` that is not this computer or its own network, or
+`TTS_PROVIDER=local` without `LOCAL_TTS_URL` stops Bede from starting, with
+the reason.
+
+## Bede's local voice
+
+The `voice` service in `docker-compose.yml` (profile `local-voice`) runs
+[Piper](https://github.com/OHF-Voice/piper1-gpl) behind Bede's own small
+server, `voice-service/server.py`. Piper is GPL-3.0-or-later, so the server
+is a separate program in its own container, and Bede's API reaches it only
+over HTTP at `LOCAL_TTS_URL=http://voice:5000`. The container is on a network
+with no internet access and publishes no port; it reads voices from
+`./voices`, read-only, and downloads nothing.
+
+It does not use Piper's bundled HTTP server, which keeps the last sentence it
+spoke in memory and shows it at `/info`, and can download voices at
+`/download`. Bede's server logs only the method and path, keeps nothing once a
+line is spoken, and has no route but `/synthesize` and `/health`. A language
+with no voice is silent; it is never read in another language's voice.
+
+**Not yet offered to families.** The installers do not set it up until the
+distribution review in `docs/DECISIONS.md` entry 46 clears: how Piper's GPL
+applies to the way Bede is distributed, and which English and Spanish voices
+to use (each voice has its own licence, read and recorded before it is
+chosen). To try it by hand:
+
+```bash
+# put a Piper voice (.onnx and .onnx.json) in ./voices, then in .env:
+COMPOSE_PROFILES=local-voice
+LOCAL_TTS_URL=http://voice:5000
+BEDE_VOICE_EN=/voices/<english voice>.onnx
+BEDE_VOICE_ES=/voices/<spanish voice>.onnx
+```
+
+The tests are `homeschool-api/tests/test_local_voice.py`, which drive the
+real server over HTTP with a stand-in voice.
+
+## Setting up OpenAI TTS
 
 Get an API key from [platform.openai.com](https://platform.openai.com/), then
 set in `.env`:
@@ -127,8 +176,10 @@ browser-speech fallback entirely.
 Both `homeschool-tutor` and `demo` now reuse a single, pre-blessed `<audio>`
 element across every turn instead of constructing a new one per line
 (`useTextToSpeech.ts`'s `getSharedAudioElement()`), and treat a rejected
-`play()` as a genuine playback failure rather than a success — falling back
-to the browser's own voice instead of staying silent. If a family reports
+`play()` as a genuine playback failure rather than a success. (It then fell
+back to the browser's own voice; it now stays silent for that line and
+re-tries on the next tap, since the browser's voice is never used — see the
+top of this file.) If a family reports
 persistent silence after the first line despite this, confirm they're on a
 current app build first; this class of autoplay restriction has historically
 gotten stricter across browser versions, not looser, so a stale deployment
@@ -1321,6 +1372,10 @@ separate change.
 
 ## Troubleshooting: in a Spanish session, Bede's fallback voice reads Spanish with an English accent
 
+**Superseded (2026-11-18).** The browser's own voice is no longer used at
+all, so this cannot happen: with no voice configured Bede is silent. Kept for
+the record.
+
 **Symptom.** With backend TTS unconfigured (or on a deployment relying on the
 browser's own `speechSynthesis`), a Spanish session reads Spanish text in an
 audibly English voice.
@@ -1399,10 +1454,9 @@ no fallback to the browser's default voice for this case at all** — real
 audio that was fetched but blocked from playing just stays silent for
 that one line; see the autoplay-block section below for the actual fix
 (a self-healing retry), which is what makes staying silent an acceptable
-trade rather than a real loss. The *only* remaining fallback case is the
-genuinely different one: TTS was never configured on this deployment at
-all (no `OPENAI_API_KEY`), where the browser's own voice is a reasonable
-zero-config default rather than a mid-session bait-and-switch.
+trade rather than a real loss. The one case that still fell back, TTS never
+configured on the deployment at all, was removed on 2026-11-18: with no voice
+configured, Bede is now silent too, and Parent Setup says why.
 
 Two related things were also fixed in the process, both still true today:
 

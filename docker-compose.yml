@@ -102,10 +102,16 @@ services:
       - BEDE_OFFLINE_INSTALLATION=${BEDE_OFFLINE_INSTALLATION:-false}
       - BEDE_ADAPTER_ORDER=${BEDE_ADAPTER_ORDER:-local,anthropic}
       - BEDE_FORCE_ADAPTER=${BEDE_FORCE_ADAPTER:-}
-      # OpenAI TTS (Bede's spoken voice) — a separate, unrelated use of
-      # OPENAI_API_KEY above (services/voice_synthesis.py). Optional either
-      # way; leave unset to skip cloud voice entirely — the browser's own
-      # built-in speech takes over automatically. See docs/VOICE_SETUP.md.
+      # Bede's spoken voice (services/voice_synthesis.py, docs/VOICE_SETUP.md,
+      # docs/DECISIONS.md entry 46). TTS_PROVIDER empty means: the local voice
+      # when LOCAL_TTS_URL is set (the `voice` service below,
+      # http://voice:5000), otherwise OpenAI's voice when OPENAI_API_KEY is
+      # set, otherwise none. A configured local voice never falls back to a
+      # cloud one, and with no voice Bede is silent rather than using the
+      # browser's.
+      - TTS_PROVIDER=${TTS_PROVIDER:-}
+      - LOCAL_TTS_URL=${LOCAL_TTS_URL:-}
+      # OpenAI TTS: a separate, unrelated use of OPENAI_API_KEY above.
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
       - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-fable}
       - OPENAI_TTS_SPEED=${OPENAI_TTS_SPEED:-0.9}
@@ -282,6 +288,39 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - internal
+      - voice
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  # ── Bede's local voice (voice-service/) ─────────────────────────────────
+  # Piper (GPL-3.0-or-later) behind Bede's own small server, in its own
+  # container and its own process: the API reaches it only over HTTP at
+  # LOCAL_TTS_URL=http://voice:5000. Off by default (profile `local-voice`)
+  # and not installed for families until docs/DECISIONS.md entry 46's
+  # distribution review clears. It is on the `voice` network only, which
+  # has no route to the internet: it is sent every line Bede speaks and
+  # never needs to reach anything. No port is published. Voices are read
+  # from ./voices, read-only; nothing is downloaded at run time.
+  voice:
+    profiles: ["local-voice"]
+    build:
+      context: ./voice-service
+    environment:
+      - BEDE_VOICE_EN=${BEDE_VOICE_EN:-}
+      - BEDE_VOICE_ES=${BEDE_VOICE_ES:-}
+    volumes:
+      - ./voices:/voices:ro
+    # See `api`'s own mem_limit comment above. One small Piper voice per
+    # language held in memory, plus onnxruntime.
+    mem_limit: ${VOICE_MEM_LIMIT:-512m}
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    networks:
+      - voice
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -559,3 +598,6 @@ networks:
   internal:
     driver: bridge
     internal: false    # api needs outbound for Claude API + managed DB
+  voice:
+    driver: bridge
+    internal: true     # Bede's local voice: api <-> voice only, no internet

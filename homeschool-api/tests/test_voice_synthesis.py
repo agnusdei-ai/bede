@@ -1,8 +1,8 @@
 """
-Regression tests for services/voice_synthesis.py — the OpenAI TTS voice
-backend. No self-hosted fallback model is used; when OpenAI isn't
-configured, synthesis is simply unavailable and the caller falls back to
-the browser's own speechSynthesis.
+Regression tests for services/voice_synthesis.py's OpenAI TTS path. The
+local voice, and how the two are chosen between, are in test_local_voice.py.
+With no voice configured synthesis is unavailable and Bede is silent: the
+frontends never fall back to the browser's own voice.
 """
 import asyncio
 
@@ -28,7 +28,10 @@ def _no_real_sleep(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _reset_fake_client():
+def _reset_fake_client(monkeypatch):
+    # These tests are about the OpenAI path, so no local voice is configured.
+    monkeypatch.setattr(settings, "local_tts_url", "")
+    monkeypatch.setattr(settings, "tts_provider", "")
     # The module's shared httpx client is a lazily-created singleton (see
     # _get_http_client) — reset it to None both before and after so every
     # test's monkeypatched httpx.AsyncClient constructor actually gets
@@ -148,7 +151,7 @@ def test_synthesize_speech_prefers_openai_when_configured(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
 
     result = asyncio.run(vs.synthesize_speech("hello"))
-    assert result == b"FAKEWAVDATA"
+    assert result == vs.SpokenAudio(b"FAKEWAVDATA", vs.AUDIO_MEDIA_TYPE)
 
 
 def test_synthesize_speech_returns_none_when_openai_fails(monkeypatch):
@@ -218,7 +221,7 @@ def test_retries_a_transient_rate_limit_and_succeeds(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", _FakeAsyncClient)
 
     result = asyncio.run(vs.synthesize_speech("hello"))
-    assert result == b"FAKEWAVDATA"
+    assert result == vs.SpokenAudio(b"FAKEWAVDATA", vs.AUDIO_MEDIA_TYPE)
     assert _FakeAsyncClient.call_count == 2
 
 
@@ -259,7 +262,7 @@ def test_retries_a_network_level_error_not_just_a_bad_status(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", _FlakyThenOkClient)
 
     result = asyncio.run(vs.synthesize_speech("hello"))
-    assert result == b"FAKEWAVDATA"
+    assert result == vs.SpokenAudio(b"FAKEWAVDATA", vs.AUDIO_MEDIA_TYPE)
     assert _FakeAsyncClient.call_count == 2
 
 

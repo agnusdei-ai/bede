@@ -1,27 +1,27 @@
 /**
- * Every feature speaks in Bede's own voice (owner direction 2026-11-18).
+ * Every feature speaks in Bede's own voice and in no other (owner decisions
+ * 2026-11-18, docs/DECISIONS.md entry 46).
  *
- * Bede's voice is `useTextToSpeech`: the server's /tutor/speak, and the
- * browser's own speech only when no speech provider is configured at all.
- * A feature that builds its own SpeechSynthesisUtterance speaks in some other
- * voice, which is what made Number Time and Sound Time sound unlike Bede. So
- * outside the hook itself, in both the app and the demo, no shipped file may
- * call the browser's speech engine directly, or call /tutor/speak itself.
+ * Bede's voice is the server's /tutor/speak, reached through `useTextToSpeech`
+ * (in the demo, through the `api.ts` helper that hook calls). So:
  *
- * And in the chat, every practice screen that speaks (Map Practice, Sound
- * Time, Number Time, and any added later) is handed the one Bede-voice
- * callback, so a new screen cannot be wired to a different one by accident.
+ * - no shipped file in the app or the demo may speak through the browser's own
+ *   speechSynthesis, the hook included: with no voice configured, or a failed
+ *   line, Bede is silent rather than speaking in a voice that is not his;
+ * - nothing but the hook (and the demo's api.ts) may request /tutor/speak;
+ * - in the chat, every practice screen that speaks (Map Practice, Sound Time,
+ *   Number Time, and any added later) is handed the one Bede-voice callback.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const ROOTS = [resolve(__dirname), resolve(__dirname, '../../demo/src')]
-const ALLOWED = new Set(['useTextToSpeech.ts', join('hooks', 'useTextToSpeech.ts')])
+const VOICE_HOOK = new Set(['useTextToSpeech.ts', join('hooks', 'useTextToSpeech.ts')])
 const DIRECT_SPEECH = /new\s+SpeechSynthesisUtterance|speechSynthesis\.speak\s*\(/
 // The voice request itself: the app's hook, and the demo's api.ts that its hook calls.
 const SPEAK_ROUTE = /['"`][^'"`]*\/tutor\/speak['"`]/
-const SPEAK_ROUTE_ALLOWED = new Set([...ALLOWED, 'api.ts'])
+const SPEAK_ROUTE_ALLOWED = new Set([...VOICE_HOOK, 'api.ts'])
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -32,20 +32,22 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("Bede's voice is the only voice", () => {
-  it('no shipped file outside useTextToSpeech speaks through the browser directly', () => {
+  it('no shipped file, the voice hook included, speaks through the browser voice', () => {
     const offenders = ROOTS.flatMap((root) => sourceFiles(root)
-      .filter((path) => !ALLOWED.has(relative(root, path)))
       .filter((path) => DIRECT_SPEECH.test(readFileSync(path, 'utf8')))
       .map((path) => relative(resolve(__dirname, '../..'), path)))
     expect(offenders).toEqual([])
   })
 
-  it('still finds the one place that is allowed, so the scan is not vacuous', () => {
+  it('the scans are not vacuous: they see both voice hooks and recognize what they forbid', () => {
     for (const root of ROOTS) {
-      const hook = sourceFiles(root).find((path) => ALLOWED.has(relative(root, path)))
+      const hook = sourceFiles(root).find((path) => VOICE_HOOK.has(relative(root, path)))
       expect(hook, `no useTextToSpeech.ts under ${root}`).toBeTruthy()
-      expect(DIRECT_SPEECH.test(readFileSync(hook!, 'utf8'))).toBe(true)
+      expect(SPEAK_ROUTE.test(readFileSync(hook!, 'utf8')) || root.endsWith('demo/src')).toBe(true)
     }
+    expect(DIRECT_SPEECH.test('window.speechSynthesis.speak(u)')).toBe(true)
+    expect(DIRECT_SPEECH.test('new SpeechSynthesisUtterance(text)')).toBe(true)
+    expect(SPEAK_ROUTE.test("fetch('/api/tutor/speak')")).toBe(true)
   })
 
   it('only the voice hook (and the demo api it calls) requests /tutor/speak', () => {

@@ -466,11 +466,11 @@ round reached a provider. That voice sounded unlike Bede, so a child heard one
 voice in the chat and a different one in the round. Sound Time, Number Time
 and Map Practice now speak through the same `useTextToSpeech` path as a chat
 reply, in the app and in the demo, and stop speaking when the child closes
-them, with the chat's rules: a browser voice only when no speech
-provider is configured at all, and silence rather than another voice when one
-is configured but a line fails. They default to no other voice, and no shipped
-file outside `useTextToSpeech` may speak through the browser directly or
-request `/tutor/speak` itself (`bedesVoiceOnly.test.ts`). The rule holds for
+them, with the chat's rules: silence rather than another voice when no voice
+is configured or a line fails, and never the browser's own voice. They default
+to no other voice: no shipped file in either app may speak through the
+browser's voice, or request `/tutor/speak` except through `useTextToSpeech`
+(`bedesVoiceOnly.test.ts`). The rule holds for
 every feature, including ones added later (Practice Coach speaks nothing
 today; if it ever does, it speaks in Bede's voice): in the chat, every
 practice screen that speaks is handed the one Bede-voice callback, and the

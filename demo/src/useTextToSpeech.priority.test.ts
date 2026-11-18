@@ -1,11 +1,8 @@
 /**
- * Regression coverage for speak()'s priority order: Bede's configured
- * backend voice (OpenAI TTS, "fable" — core/config.py's openai_tts_voice)
- * must always win over the browser's speechSynthesis fallback whenever the
- * backend is configured and the call succeeds. The browser voice is only
- * ever a last resort — see useTextToSpeech.ts's own comments on why a
- * configured-but-failed call stays silent rather than degrading to a
- * different voice mid-conversation.
+ * Regression coverage for speak(): Bede's voice comes only from the server's
+ * /tutor/speak, and a line that cannot be spoken in it is SILENT. The
+ * browser's own speechSynthesis is stubbed here only so every test can prove
+ * it is never called (owner decision 2026-11-18, docs/DECISIONS.md entry 46).
  *
  * This exercises the REAL speakViaBackend() (from ./api) against a mocked
  * global fetch, not a mocked ./api module — so it proves the actual
@@ -14,7 +11,7 @@
  */
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { pickBestVoice, useTextToSpeech } from './useTextToSpeech'
+import { useTextToSpeech } from './useTextToSpeech'
 
 describe('useTextToSpeech — backend (Fable) voice priority', () => {
   let browserSpeakSpy: ReturnType<typeof vi.fn>
@@ -77,7 +74,6 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     expect(result.current.isSpeaking).toBe(true)
     act(() => result.current.stop())
     expect(window.HTMLMediaElement.prototype.pause).toHaveBeenCalledTimes(1)
-    expect(window.speechSynthesis.cancel).toHaveBeenCalled()
     expect(result.current.isSpeaking).toBe(false)
     act(() => { void result.current.speak('Sample next utterance.') })
     await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2))
@@ -135,7 +131,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     expect(browserSpeakSpy).not.toHaveBeenCalled()
   })
 
-  it('falls back to the browser voice only when the backend reports TTS is not configured at all', async () => {
+  it('stays silent, never the browser voice, when no voice is configured on this deployment', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       status: 204,
       headers: new Headers({ 'X-TTS-Configured': 'False' }),
@@ -148,7 +144,8 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
       await result.current.speak('Good morning, dear one.')
     })
 
-    expect(browserSpeakSpy).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
     expect(window.HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
   })
 
@@ -225,50 +222,6 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     })
 
     expect(fetch).not.toHaveBeenCalled()
-    expect(browserSpeakSpy).toHaveBeenCalledTimes(1)
-  })
-})
-
-
-describe('pickBestVoice — language', () => {
-  const withVoices = (voices: Array<{ name: string; lang: string }>) => {
-    ;(window as any).speechSynthesis = { getVoices: () => voices }
-  }
-
-  it('picks a Spanish voice for a Spanish session, never an English one', () => {
-    withVoices([
-      { name: 'Microsoft David - English (United States)', lang: 'en-US' },
-      { name: 'Jorge', lang: 'es-MX' },
-    ])
-    expect(pickBestVoice('es')?.name).toBe('Jorge')
-  })
-
-  it('prefers a known Spanish male voice over other Spanish voices', () => {
-    withVoices([
-      { name: 'Paulina', lang: 'es-MX' },
-      { name: 'Diego', lang: 'es-AR' },
-    ])
-    expect(pickBestVoice('es')?.name).toBe('Diego')
-  })
-
-  it('returns null rather than an English voice when no Spanish voice exists', () => {
-    // Reading Spanish text aloud in an English voice is worse than leaving
-    // utterance.voice unset and letting the engine choose from utterance.lang.
-    withVoices([{ name: 'Microsoft David - English (United States)', lang: 'en-US' }])
-    expect(pickBestVoice('es')).toBeNull()
-  })
-
-  it('still falls back to any available voice for English', () => {
-    // Long-standing behaviour for English, deliberately preserved.
-    withVoices([{ name: 'Something Unlabelled', lang: 'fr-FR' }])
-    expect(pickBestVoice('en')?.name).toBe('Something Unlabelled')
-  })
-
-  it('defaults to English when no language is given', () => {
-    withVoices([
-      { name: 'Jorge', lang: 'es-MX' },
-      { name: 'Daniel', lang: 'en-GB' },
-    ])
-    expect(pickBestVoice()?.name).toBe('Daniel')
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
   })
 })

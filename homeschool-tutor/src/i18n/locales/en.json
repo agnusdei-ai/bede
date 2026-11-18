@@ -1502,5 +1502,11 @@
       "bond_missing": "{{whole}} is {{part}} and {{answer}}. Together they make {{whole}}.",
       "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}."
     }
+  },
+  "voiceStatus": {
+    "title": "Bede's voice",
+    "local": "Bede's voice runs on this computer. Nothing Bede says aloud leaves it.",
+    "cloud": "Bede's voice is made by a cloud speech service, which receives each line Bede speaks. See the privacy notice for which service.",
+    "none": "Bede has no voice set up on this computer, so Bede's words appear on screen without being spoken. Bede never uses your browser's own voice instead."
   }
 }

@@ -2594,3 +2594,65 @@ which of these Bede enforces and which it only recommends.
 **Related:** entry 20 (whether any local model is good enough to be Bede,
 still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
 `docs/PROVIDER_ADAPTERS.md`, `docs/PARENT_SETUP.md`.
+
+## 46. `[PRODUCT]` Every feature speaks in Bede's own voice; installed Bede's voice is local
+
+**Status:** open · needs: a distribution review of Piper (GPL-3.0-or-later) as Bede ships it, and a recorded licence for each English and Spanish voice chosen. The decisions below are made and built; only shipping the local voice to families waits on this.
+
+**Decided (2026-11-18, owner).**
+
+1. **Bede's voice only.** Sound Time, Number Time, Map Practice, Practice
+   Coach and any feature added later speak in Bede's own voice, the same one
+   as the chat, and default to no other.
+2. **The engine for installed Bede is Piper**, run as a separate local
+   process: `voice-service/`, its own container, reached by the API only over
+   HTTP (`LOCAL_TTS_URL`), with a distribution review before it ships.
+3. **Never a cloud voice by default once a local voice is set up**, and never
+   as a fallback when a local line fails. `TTS_PROVIDER=openai` is the only way
+   to choose the cloud voice while a local one is configured.
+4. **Silence instead of the browser's voice.** With no voice configured, or a
+   line that fails, Bede is silent and Parent Setup says why. The browser's own
+   speechSynthesis is no longer used anywhere.
+
+**How it is built.**
+
+- `services/voice_synthesis.py`'s `active_provider()` picks the voice:
+  `TTS_PROVIDER` empty means local when `LOCAL_TTS_URL` is set, otherwise
+  OpenAI when `OPENAI_API_KEY` is set, otherwise none. `core/voice_url.py`
+  holds `LOCAL_TTS_URL` to this computer or its private network, judged from
+  the literal text, and a bad value stops Bede at boot.
+- `voice-service/server.py` is Bede's own server around Piper's library. It
+  does not use Piper's bundled `piper.http_server`, which keeps the last
+  sentence it spoke in memory, shows it at `/info`, and downloads voices at
+  `/download`. This one logs no text, keeps nothing after a request, has only
+  `/synthesize` and `/health`, and never reads one language in another
+  language's voice. Its dependencies are hash-locked.
+- The `voice` compose service (profile `local-voice`, off by default) sits on
+  an internal network with no internet access and publishes no port.
+- Both frontends' `useTextToSpeech` no longer contain a browser-voice path,
+  and `bedesVoiceOnly.test.ts` fails if any file in either app speaks through
+  the browser's voice, requests `/tutor/speak` outside the hook, or hands a
+  chat practice screen anything but Bede's voice.
+- `GET /tutor/voice` and Parent Setup's **Bede's voice** card say whether Bede
+  speaks on this computer and whether the voice is local or cloud.
+
+**What the review must settle.**
+
+- Whether running Piper as a separate program in its own container, licensed
+  GPL-3.0-or-later (`voice-service/COPYING`) and talking to Bede only over
+  HTTP, is sufficient for how Bede is distributed: the installers, the Mac
+  bundle, and any image that ships both. This is for counsel.
+- Which voices. Each Piper voice is a separate model under its own licence,
+  and some are trained on datasets with research-only terms. Choose an English
+  and a Spanish (Mexican) voice only after reading each voice's model card and
+  recording its licence here. This could not be checked from the build
+  environment, which cannot reach the voice repository.
+- Then: installers that fetch and verify the chosen voices, and set
+  `COMPOSE_PROFILES=local-voice` and `LOCAL_TTS_URL` by default.
+
+**What changes for families now.** A deployment with no voice configured is
+now silent instead of speaking in the browser's voice; the demo and any
+family with `OPENAI_API_KEY` set hear exactly what they heard before.
+
+**Related:** entry 40(g), `docs/VOICE_SETUP.md`, `docs/K2_PRACTICE.md` §7,
+`voice-service/README.md`.

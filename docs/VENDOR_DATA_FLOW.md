@@ -94,7 +94,11 @@ on a setting:
   are sent to `https://api.openai.com/v1/audio/speech` (model
   `gpt-4o-mini-tts` by default, configurable voice/instructions) to
   synthesize the audio the child hears. Nothing the child said is ever
-  part of this payload.
+  part of this payload. **Not when a local voice is set up**
+  (`LOCAL_TTS_URL`, `voice-service/`): then every line goes only to that
+  server on the family's own computer or network, and never to OpenAI, not
+  even when a line fails (`docs/DECISIONS.md` entry 46). With no voice set up
+  Bede is silent; the browser's own voice is never used.
 - **Speech-to-text (`services/transcription.py`) — local by default, a
   real API call only if you ask for it.** This is what turns a child's
   microphone audio into the text Bede answers. On the default

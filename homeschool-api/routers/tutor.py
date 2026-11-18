@@ -54,7 +54,7 @@ from services.document_extraction import extract_narration_text, UnsupportedNarr
 from services.email_service import build_summary_email_html, send_email
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
-from services.voice_synthesis import AUDIO_MEDIA_TYPE, synthesis_configured, synthesize_speech
+from services.voice_synthesis import active_provider, synthesis_configured, synthesize_speech
 
 log = logging.getLogger(__name__)
 
@@ -543,29 +543,40 @@ async def extract_narration(req: NarrationUploadRequest, auth: dict = Depends(re
     return {"text": _sanitize_parent_field(text, max_len=2000) or ""}
 
 
+@router.get("/voice")
+async def voice_status(auth: dict = Depends(require_auth)) -> dict:
+    """Whether Bede has a voice on this deployment, and whether it runs on
+    this computer ("local") or a cloud service ("cloud"). Parent Setup uses it
+    to explain a silent Bede: with no voice configured nothing is spoken,
+    since the browser's own voice is never used (docs/DECISIONS.md entry 46).
+    Names no provider, credential or address."""
+    provider = active_provider()
+    return {"configured": provider is not None,
+            "where": {"local": "local", "openai": "cloud"}.get(provider or "")}
+
+
 @router.post("/speak")
 async def speak(req: SpeakRequest, auth: dict = Depends(require_auth)):
     """
-    Synthesize Bede's spoken voice — OpenAI TTS if configured, else nothing
-    (see services/voice_synthesis.py). Returns 204 with no body when
-    synthesis fails or nothing is configured.
+    Synthesize Bede's spoken voice: the local voice, or OpenAI's, whichever
+    this deployment is set to (services/voice_synthesis.py). Returns 204 with
+    no body when synthesis fails or no voice is configured, and the frontend
+    stays silent: it never substitutes the browser's own voice.
 
-    The X-TTS-Configured header tells the frontend whether SOME backend TTS
-    is set up at all, so it can tell "nothing configured — the browser's own
-    speech is a reasonable zero-config default" apart from "configured but
-    this call failed — stay silent rather than degrading to a different,
-    lower-quality voice mid-conversation" (see useTextToSpeech's speak()).
+    The X-TTS-Configured header says whether Bede has a voice at all here,
+    so the frontend can tell "no voice on this deployment" from "this line
+    failed". The line is spoken in the session's own locale (the JWT's).
 
     Uses require_auth (not require_real_user) so the scoped demo role can
     reach this too — unlike catalog/pod/narration/transcripts/voice, this
     endpoint reads no student data and writes nothing; it's the same
     ephemeral speak-this-line trade the demo already makes for /chat.
     """
-    audio = await synthesize_speech(req.text)
+    spoken = await synthesize_speech(req.text, locale=auth.get("locale") or settings.locale)
     headers = {"X-TTS-Configured": str(synthesis_configured())}
-    if audio is None:
+    if spoken is None:
         return Response(status_code=204, headers=headers)
-    return Response(content=audio, media_type=AUDIO_MEDIA_TYPE, headers=headers)
+    return Response(content=spoken.audio, media_type=spoken.media_type, headers=headers)
 
 
 @router.post("/summary")

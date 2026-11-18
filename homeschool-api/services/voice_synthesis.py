@@ -1,26 +1,28 @@
 """
-Server-side text-to-speech for Bede's spoken voice.
+Server-side text-to-speech: Bede's spoken voice.
 
-OpenAI TTS (_synthesize_openai below) — used when OPENAI_API_KEY is set. A
-full cloud model; gpt-4o-mini-tts's `instructions` parameter lets us steer
-delivery/character in plain English, which is the main lever for actually
-sounding like a specific persona rather than a generic preset voice.
+Owner decisions 2026-11-18 (docs/DECISIONS.md entry 46): every feature speaks
+in Bede's voice and never in another. Bede's voice comes from exactly one
+place per deployment, chosen by `active_provider()`:
 
-Returns None on any failure or when unconfigured. Both frontends
-(homeschool-tutor's and the demo's own useTextToSpeech.ts) deliberately do
-NOT fall back to the browser's speechSynthesis when TTS is configured but
-one call fails — that line just stays silent rather than audibly switching
-voices mid-conversation (see either frontend's own comment on this). That
-makes a transient failure here more costly than it looks: it isn't
-"degrade gracefully to a different voice," it's "this turn has no spoken
-narration at all." _synthesize_openai retries transient failures (a
-timeout, a rate limit, a 5xx) a couple of times before giving up, since a
-brief network hiccup or momentary rate-limit shouldn't cost a whole turn's
-narration when a second attempt would likely succeed.
+- **local** (`_synthesize_local`): Bede's own voice server on the family's
+  machine, `voice-service/` (Piper, run as a separate process). Nothing leaves
+  the machine or its network. When a local voice is configured, a cloud voice
+  is NEVER used, not as a default and not when a line fails.
+- **openai** (`_synthesize_openai`): OpenAI's TTS, when no local voice is
+  configured and OPENAI_API_KEY is set, or when TTS_PROVIDER=openai opts in.
+- **none**: no voice. Bede is silent; neither frontend substitutes the
+  browser's own voice, because it is not Bede's.
+
+Returns None on any failure or when unconfigured, and the line stays silent
+rather than switching voice. A transient failure therefore costs that line's
+narration, so each provider retries transient failures once.
+
+No text is logged and nothing is kept after the request, on either path.
 """
 import asyncio
 import logging
-from typing import Optional
+from typing import NamedTuple, Optional
 
 import httpx
 
@@ -77,6 +79,17 @@ _OPENAI_TTS_URL = "https://api.openai.com/v1/audio/speech"
 # media type is derived here rather than restated.
 AUDIO_FORMAT = "aac"
 AUDIO_MEDIA_TYPE = "audio/aac"
+# The local voice server answers with WAV: it runs on the same machine or
+# network, so the size that made AAC worth it over the internet costs little.
+LOCAL_AUDIO_MEDIA_TYPE = "audio/wav"
+# A local voice runs on the family's own CPU, where a long line can take a
+# few seconds to synthesize; this bounds a hung server, not a slow sentence.
+_LOCAL_REQUEST_TIMEOUT_SECONDS = 30.0
+
+
+class SpokenAudio(NamedTuple):
+    audio: bytes
+    media_type: str
 
 # Retried: a rate limit or transient server error is worth a second try.
 # NOT retried: 400 (bad request — e.g. text too long) and 401/403 (bad key)
@@ -139,16 +152,65 @@ async def aclose_http_client() -> None:
 
 
 async def preload() -> None:
-    """No-op placeholder — kept so main.py's startup warm-up call site
-    doesn't need to change if a local model is ever reintroduced. OpenAI
-    TTS is a live API call with nothing to pre-load locally."""
+    """No-op: neither voice loads anything inside this process. The local
+    voice's model lives in its own process (voice-service/)."""
     return None
 
 
+def active_provider() -> Optional[str]:
+    """"local", "openai" or None. See the module docstring and
+    Settings.tts_provider; the config validator has already refused an
+    unknown provider or a non-local LOCAL_TTS_URL."""
+    choice = (settings.tts_provider or "").strip().lower()
+    if choice == "none":
+        return None
+    if choice == "local":
+        return "local"
+    if choice == "openai":
+        return "openai" if settings.openai_api_key else None
+    if settings.local_tts_url:
+        return "local"
+    return "openai" if settings.openai_api_key else None
+
+
 def synthesis_configured() -> bool:
-    """Whether backend TTS is usable at all — currently just whether
-    OPENAI_API_KEY is set."""
-    return bool(settings.openai_api_key)
+    """Whether Bede has a voice at all on this deployment."""
+    return active_provider() is not None
+
+
+async def _synthesize_local(text: str, locale: str) -> Optional[bytes]:
+    """Bede's local voice: POST the line to voice-service/'s /synthesize and
+    get WAV back. Never falls back to another voice. The text goes only to
+    LOCAL_TTS_URL, which core/voice_url.py has already held to this machine or
+    its private network, and is never logged."""
+    from core.voice_url import parse_voice_url
+    base = parse_voice_url(settings.local_tts_url)
+    if not base:
+        return None
+    client = _get_http_client()
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            resp = await client.post(
+                f"{base}/synthesize",
+                json={"text": text, "locale": locale},
+                timeout=_LOCAL_REQUEST_TIMEOUT_SECONDS,
+            )
+            resp.raise_for_status()
+            if not resp.content:
+                log.warning("Local voice returned no audio")
+                return None
+            return resp.content
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code not in _RETRYABLE_STATUS_CODES:
+                log.warning("Local voice request failed with a non-retryable status: %s", exc.response.status_code)
+                return None
+            log.warning("Local voice request failed with status %s (attempt %d/%d)", exc.response.status_code, attempt + 1, _MAX_ATTEMPTS)
+        except httpx.HTTPError as exc:
+            log.warning("Local voice request failed (attempt %d/%d): %s", attempt + 1, _MAX_ATTEMPTS, type(exc).__name__)
+        if attempt < _MAX_ATTEMPTS - 1:
+            await asyncio.sleep(_RETRY_BACKOFF_SECONDS[attempt])
+    log.error("Local voice failed after %d attempts; this line will be silent", _MAX_ATTEMPTS)
+    return None
 
 
 async def _synthesize_openai(text: str) -> Optional[bytes]:
@@ -196,11 +258,15 @@ async def _synthesize_openai(text: str) -> Optional[bytes]:
     return None
 
 
-async def synthesize_speech(text: str) -> Optional[bytes]:
-    """Convert text to spoken audio (AAC bytes — see AUDIO_FORMAT) using
-    Bede's configured voice. None when OpenAI TTS isn't configured or every retry attempt
-    fails — the caller stays silent for that line rather than degrading to
-    a different, lower-quality voice mid-conversation."""
-    if not settings.openai_api_key:
-        return None
-    return await _synthesize_openai(text)
+async def synthesize_speech(text: str, locale: str = "en") -> Optional[SpokenAudio]:
+    """Speak `text` in Bede's voice. None when no voice is configured or the
+    configured one fails: the caller stays silent for that line rather than
+    switching to another voice."""
+    provider = active_provider()
+    if provider == "local":
+        audio = await _synthesize_local(text, locale)
+        return SpokenAudio(audio, LOCAL_AUDIO_MEDIA_TYPE) if audio else None
+    if provider == "openai":
+        audio = await _synthesize_openai(text)
+        return SpokenAudio(audio, AUDIO_MEDIA_TYPE) if audio else None
+    return None

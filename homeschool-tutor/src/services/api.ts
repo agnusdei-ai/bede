@@ -2082,6 +2082,23 @@ async function practiceFetch<T>(token: string, path: string, init?: RequestInit)
   return res.json()
 }
 
+export type VoiceStatus = { configured: boolean; where: 'local' | 'cloud' | null }
+
+/** Whether Bede has a voice on this deployment, and where it runs
+ *  (GET /tutor/voice). Null when it cannot be told, including an older server
+ *  without the route, so the notice simply does not show. */
+export async function fetchVoiceStatus(token: string): Promise<VoiceStatus | null> {
+  try {
+    const res = await fetch(`${BASE}/tutor/voice`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (typeof data?.configured !== 'boolean') return null
+    return { configured: data.configured, where: data.where === 'local' || data.where === 'cloud' ? data.where : null }
+  } catch {
+    return null
+  }
+}
+
 /** Whether Practice Coach is on for this installation (PRACTICE_COACH_ENABLED).
  *  Its cards are shown only on a clear yes. A server too old to have this
  *  route (404) always had Coach on, so it reads as on; any other failure

@@ -242,7 +242,7 @@ body.bede-theme #faq-reader-status {
   body.bede-theme footer,
   body.bede-theme nav,
   body.bede-theme .faq-reader-tools,
-  body.bede-theme .fineprint,
+  body.bede-theme .fineprint:not(main .faq .fineprint),
   body.bede-theme .cta,
   body.bede-theme .cta-sub,
   body.bede-theme .classical-actions,

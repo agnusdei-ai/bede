@@ -1,10 +1,47 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { EventEmitter } from "node:events";
 import { assertNoSkippedTests, evidenceFiles, exportEngines, validatePrerequisites } from "./release-config.mjs";
 import { includesContent } from "./reader-contract.mjs";
+import { cancelPrintPreview } from "./print-preview.mjs";
 
 const valid = { pinned: "1.64.1", installed: "1.64.1", display: ":99", ci: true, customChromium: undefined, executableExists: true };
+
+test("Cancel transport observes target closure when the destroyed target cannot reply", { timeout: 2000 }, async () => {
+  // Protocol-only regression. Actual native UI and afterprint are separately
+  // required by reader.mjs; this fixture does not stand in for that evidence.
+  const cdp = new EventEmitter();
+  let open = true;
+  let detached = false;
+  const messages = [];
+  cdp.send = async (method, params) => {
+    if (method === "Target.getTargets") return { targetInfos: open ? [
+      { targetId: "preview", url: "chrome://print/" },
+      { targetId: "pdf", url: "chrome-untrusted://print/1/print.pdf" },
+    ] : [] };
+    if (method === "Target.attachToTarget") return { sessionId: "preview-session" };
+    assert.equal(method, "Target.sendMessageToTarget");
+    const message = JSON.parse(params.message);
+    messages.push(message);
+    if (message.params.expression.includes(".click()")) {
+      open = false; // Real Cancel can destroy the target before its inner reply.
+    } else {
+      queueMicrotask(() => cdp.emit("Target.receivedMessageFromTarget", {
+        sessionId: params.sessionId,
+        message: JSON.stringify({ id: message.id, result: { result: { value: true } } }),
+      }));
+    }
+    return {};
+  };
+  cdp.detach = async () => { detached = true; };
+  await cancelPrintPreview({ newBrowserCDPSession: async () => cdp });
+  assert.equal(open, false);
+  assert.equal(detached, true);
+  assert.equal(messages.filter(message => message.params.expression.includes(".click()")).length, 1);
+  assert.match(messages.at(-1).params.expression, /querySelector\('\.cancel-button'\)\.click\(\)/);
+});
+
 test("release prerequisites fail closed rather than substituting or skipping native checks", () => {
   assert.doesNotThrow(() => validatePrerequisites(valid));
   for (const change of [

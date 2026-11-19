@@ -1127,8 +1127,11 @@ practice never marks a skill secure (two right first tries can), and any "K-12"
 (the product is kindergarten to grade 8). The new FAQ block is deliberately NOT
 a `bede-curriculum-entry`, which `scripts/bede-production.test.mjs` pins at 14
 cards and 42 facts. Number Time is in the public demo only for kindergarten,
-grade 1 and grade 2 visitors, and the demo has no phonics or map round, so the
-copy says exactly that.
+grade 1 and grade 2 visitors, and the demo has no phonics or map round yet, so
+the copy says exactly that and that the other areas will join the demo as each
+is finished (entry 40(g), amended 2026-11-19). The day the demo gains a round,
+the guard fails until the copy changes in the same commit. `site/llms.txt` is
+held to the same facts: no page may say an adult can switch Map Practice.
 
 **Music is taught inside Art & Music, not as a subject of its own.** The
 `music_knowledge` diagnostic area is a tracked area, not a timetable block:

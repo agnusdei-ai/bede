@@ -244,7 +244,7 @@ const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 // The stage envelopes the backend's demo_grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
 // demo default (no grade picked) is grade 4, hence the '3-5' fallback.
-// Upper-school practice uses the older-learner ruling, not a K-8 learning target.
+// Upper-school practice uses the older-learner ruling, not a lower-grade learning target.
 function demoGradeStage(grade: string): string {
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
   if (['6', '7', '8', '9', '10', '11', '12'].includes(grade)) return '6-8'

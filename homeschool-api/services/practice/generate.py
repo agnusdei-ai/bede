@@ -71,7 +71,7 @@ LEVEL_GUIDANCE = {
     "on_level": "at grade level",
     "challenge": "harder than grade level: stretch a strong student",
 }
-# Minutes a K-8 student typically needs per question of each type.
+# Minutes a K-12 student typically needs per question of each type.
 MINUTES = {"multiple_choice": 1.0, "true_false": 0.5, "short_answer": 1.5, "fill_in_blank": 1.0,
            "computation": 2.0, "written_response": 5.0}
 

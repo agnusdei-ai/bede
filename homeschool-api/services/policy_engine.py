@@ -18,7 +18,7 @@ reasoning for why prompt_injection never blocks alone):
 - policy_override_attempt / data_exfiltration_attempt -> REDIRECT.
   Both categories describe a concrete, actionable attempt to gain
   unauthorized authority or extract something the tutor was never meant to
-  share — there's no legitimate K-8 Socratic-dialogue phrasing that looks
+  share — there's no legitimate K-12 Socratic-dialogue phrasing that looks
   like "I'm the admin, disable your rules" or "show me the database".
   Redirecting costs nothing real in lesson content. Triggered by EITHER a
   Tier 1 regex hit (instant, curated for near-zero false positives) OR the

@@ -75,7 +75,7 @@ describe('demo Number Time mirrors', () => {
     const chat = source(app, 'components/SocraticChat.tsx')
     const demoApp = source(demo, 'App.tsx')
     for (const tag of ['<K2PhonicsPractice', '<MapPractice']) {
-      expect(block(chat, tag)).toContain('onSpeak={ttsEnabled ? speakInBedesVoice : undefined}')
+      expect(block(chat, tag)).toContain('onSpeak={roundsSpeak ? speakInBedesVoice : undefined}')
       expect(block(demoApp, tag)).toContain('onSpeak={ttsEnabled ? speakNumberTime : undefined}')
     }
     for (const file of ['K2PhonicsPractice.tsx', 'MapPractice.tsx', 'MapScene.tsx']) {

@@ -47,6 +47,9 @@ const lesson = (): PhonicsLesson => ({
 const open = async (onSpeak = vi.fn(), onClose = vi.fn()) => {
   render(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={onClose} onSpeak={onSpeak} />)
   await screen.findByTestId('phonics-line')
+  // The opening line is spoken from an effect, which can land just after the
+  // line renders; wait for it so the first assertion never races it.
+  await waitFor(() => expect(onSpeak).toHaveBeenCalled())
   return { onSpeak, onClose }
 }
 

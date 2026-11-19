@@ -1,6 +1,6 @@
 # K-2 school year: numbers, phonics and maps
 
-A 36-week plan for each grade, with one skill a week in each area. Each skill is practised in Bede's five-minute Watch, Together, Your turn round, five days a week. English phonics carries a sight-word strand, and Spanish (Mexico) has its own native phonics year. This is a plan: none of the new skills are built yet. Data file: [`K2_SCHOOL_YEAR_PLAN.csv`](K2_SCHOOL_YEAR_PLAN.csv) (432 rows: numbers, English phonics, maps and Spanish phonics for every week).
+A 36-week plan for each grade, with one skill a week in each area. Each skill is practiced in Bede's five-minute Watch, Together, Your turn round, five days a week. English phonics carries a sight-word strand, and Spanish (Mexico) has its own native phonics year. This is a plan: none of the new skills are built yet. Data file: [`K2_SCHOOL_YEAR_PLAN.csv`](K2_SCHOOL_YEAR_PLAN.csv) (432 rows: numbers, English phonics, maps and Spanish phonics for every week).
 
 ## How to read it
 
@@ -27,10 +27,10 @@ Even `B` phonics weeks need more words. A week of daily rounds uses about 30 wor
 
 The full review is in [`K2_DYSLEXIA_RESEARCH.md`](K2_DYSLEXIA_RESEARCH.md). How mastery is scored is in [`K2_PRACTICE_RESEARCH.md`](K2_PRACTICE_RESEARCH.md). In short:
 
-- Systematic phonics is the only dyslexia approach with a confirmed effect in randomised trials, and it works best when it starts in K or grade 1 ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900); [Ehri et al., 2001](https://journals.sagepub.com/doi/10.3102/00346543071003393)).
+- Systematic phonics is the only dyslexia approach with a confirmed effect in randomized trials, and it works best when it starts in K or grade 1 ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900); [Ehri et al., 2001](https://journals.sagepub.com/doi/10.3102/00346543071003393)).
 - In Spanish, dyslexia shows up mainly as slow reading rather than errors, so the Spanish year needs a fluency strand ([IDA definition](https://dyslexiaida.org/definition-of-dyslexia/); [Serrano and Defior, 2008](https://pubmed.ncbi.nlm.nih.gov/18483868/)).
 - Phonics apps only work well when an adult is involved ([McTigue et al., 2020](https://eric.ed.gov/?id=EJ1238280)). Keep the parent in the "Together" step.
-- Reading and maths difficulties often go together, so number work never depends on the child's reading. Story problems are read aloud ([Frontiers in Psychology, 2025](https://www.frontiersin.org/articles/10.3389/fpsyg.2025.1664437/full)).
+- Reading and math difficulties often go together, so number work never depends on the child's reading. Story problems are read aloud ([Frontiers in Psychology, 2025](https://www.frontiersin.org/articles/10.3389/fpsyg.2025.1664437/full)).
 - Bede never labels a child. When practice shows risk signs, it can suggest that the parent talk to a reading specialist.
 
 ## Kindergarten
@@ -128,16 +128,16 @@ The full review is in [`K2_DYSLEXIA_RESEARCH.md`](K2_DYSLEXIA_RESEARCH.md). How 
 | 7 | Subtract by breaking apart a ten `E` | ea as short e (bread, head) `E` | 6 (142) | Map scale: one square stands for... `N` |
 | 8 | Two-step story problems `N` | oo two ways (moon, book) `E` | 6 (148) | Measure a distance with the scale `N` |
 | 9 | Centimetres and metres `E` | ou and ow (cloud, cow) `N` | 6 (154) | Review: continents `N` |
-| 10 | Inches and feet (US); kilograms and litres (Mexico) `E` | oi and oy (coin, boy) `N` | 6 (160) | Review: oceans `N` |
+| 10 | Inches and feet (US); kilograms and liters (Mexico) `E` | oi and oy (coin, boy) `N` | 6 (160) | Review: oceans `N` |
 | 11 | Estimate a length `N` | au and aw (sauce, saw) `N` | 6 (166) | Equator, North Pole, South Pole `N` |
 | 12 | Line plots `E` | ew and ue (new, blue) `E` | 6 (172) | Northern and southern halves `N` |
 | 13 | The number line to 100 `N` | Review: ar and or `N` | 6 (178) | Town, state, country: places inside places `N` |
 | 14 | Add on a number line `N` | er, ir, ur, ear (earth) `N` | 6 (184) | Our country on a map (parent's choice: US by default, Mexico in Spanish) `N` |
-| 15 | Subtract on a number line `N` | air, are, ear (chair, care, bear) `N` | 6 (190) | Our country's neighbours `N` |
+| 15 | Subtract on a number line `N` | air, are, ear (chair, care, bear) `N` | 6 (190) | Our country's neighbors `N` |
 | 16 | Hundreds, tens and ones `E` | Sight-word review: all words so far `E` | 6 (196) | Mountains, plains and deserts `N` |
 | 17 | Read and write numbers to 1,000 `E` | Silent letters: kn, wr, mb `N` | 6 (202) | Rivers run to the sea `N` |
 | 18 | Compare three-digit numbers `E` | Two closed syllables (napkin) `N` | 6 (208) | Lakes, bays and gulfs `N` |
-| 19 | Skip count by 5s, 10s and 100s `E` | Open syllables (ti-ger) `N` | 6 (214) | Colour keys on a map `N` |
+| 19 | Skip count by 5s, 10s and 100s `E` | Open syllables (ti-ger) `N` | 6 (214) | Color keys on a map `N` |
 | 20 | Shapes by sides and corners `E` | Consonant + le (ta-ble) `N` | 6 (220) | High ground and low ground `N` |
 | 21 | Halves, thirds and fourths `N` | Silent-e syllables (cup-cake) `N` | 5 (225) | Follow the roads on a road map `E` |
 | 22 | Time to five minutes `E` | -er and -est (bigger, biggest) `N` | 5 (230) | Choose the shortest route `E` |
@@ -160,7 +160,7 @@ The full review is in [`K2_DYSLEXIA_RESEARCH.md`](K2_DYSLEXIA_RESEARCH.md). How 
 
 ## Spanish phonics (Mexico)
 
-Spanish is taught as its own native phonics year, not as a translation of the English one. Grade names follow Mexico: K is 3° de preescolar. A daily one-minute reread of known syllables and words starts in late K, because speed is the main warning sign in Spanish. Spanish frequent words are taught inside phonics; Spanish spelling is regular enough that no separate memorisation list is needed. Voices: Bede's Piper `es_MX` voices.
+Spanish is taught as its own native phonics year, not as a translation of the English one. Grade names follow Mexico: K is 3° de preescolar. A daily one-minute reread of known syllables and words starts in late K, because speed is the main warning sign in Spanish. Spanish frequent words are taught inside phonics; Spanish spelling is regular enough that no separate memorization list is needed. Voices: Bede's Piper `es_MX` voices.
 
 | Semana | K (3° de preescolar) | 1° de primaria | 2° de primaria |
 |---|---|---|---|
@@ -214,9 +214,9 @@ Any country works; the default is the United States, and Spanish defaults to Mex
 
 | Skill | United States | Mexico | Other countries |
 |---|---|---|---|
-| Find our continent; our country on a map; our neighbours | North America; US outline | North America; Mexico outline | Any Natural Earth outline |
+| Find our continent; our country on a map; our neighbors | North America; US outline | North America; Mexico outline | Any Natural Earth outline |
 | Coins of our country | Penny, nickel, dime, quarter | 50 centavos, 1, 2, 5 and 10 pesos ([Banxico coins](https://www.banxico.org.mx/servicios/d/%7BFF6A6013-D06A-CEC9-A6FD-D62C3DBA417C%7D.pdf)) | Added later; US coins until then |
-| Measuring | Inches and feet | Kilograms and litres | Metric |
+| Measuring | Inches and feet | Kilograms and liters | Metric |
 
 Bede never asks for a child's real address. Kindergarten "Home, street and town" uses a made-up town.
 
@@ -237,4 +237,4 @@ Bede never asks for a child's real address. Kindergarten "Home, street and town"
 
 ## One open choice
 
-**Timing reading speed.** Bede's guide says never to time a child. The research says speed is the main warning sign in Spanish, and timed practice is well supported in maths. One option that keeps the promise to the child is for Bede to record reading speed silently and show it only to the parent, with no timer on screen. Should Bede do this?
+**Timing reading speed.** Bede's guide says never to time a child. The research says speed is the main warning sign in Spanish, and timed practice is well supported in math. One option that keeps the promise to the child is for Bede to record reading speed silently and show it only to the parent, with no timer on screen. Should Bede do this?

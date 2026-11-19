@@ -323,7 +323,7 @@ K,36,fonetica_es,lectura,Repaso: frases cortas,N,,
 2,9,phonics,diphthongs,"ou and ow (cloud, cow)",N,6,154
 2,9,maps,world,Review: continents,N,,
 2,9,fonetica_es,acentuacion,"Palabras agudas (café, reloj)",N,,
-2,10,numbers,U3,Inches and feet (US); kilograms and litres (Mexico),E,,
+2,10,numbers,U3,Inches and feet (US); kilograms and liters (Mexico),E,,
 2,10,phonics,diphthongs,"oi and oy (coin, boy)",N,6,160
 2,10,maps,world,Review: oceans,N,,
 2,10,fonetica_es,acentuacion,"Palabras graves (mesa, árbol)",N,,
@@ -345,7 +345,7 @@ K,36,fonetica_es,lectura,Repaso: frases cortas,N,,
 2,14,fonetica_es,silabas_directas,"x con sonido de j (México, Oaxaca)",N,,
 2,15,numbers,U4,Subtract on a number line,N,,
 2,15,phonics,r_controlled,"air, are, ear (chair, care, bear)",N,6,190
-2,15,maps,world,Our country's neighbours,N,,
+2,15,maps,world,Our country's neighbors,N,,
 2,15,fonetica_es,ortografia,b o v: ¿cuál se escribe?,N,,
 2,16,numbers,U5,"Hundreds, tens and ones",E,,
 2,16,phonics,sight_words,Sight-word review: all words so far,E,6,196
@@ -361,7 +361,7 @@ K,36,fonetica_es,lectura,Repaso: frases cortas,N,,
 2,18,fonetica_es,ortografia,ll o y: ¿cuál se escribe?,N,,
 2,19,numbers,U5,"Skip count by 5s, 10s and 100s",E,,
 2,19,phonics,syllables,Open syllables (ti-ger),N,6,214
-2,19,maps,symbols_and_key,Colour keys on a map,N,,
+2,19,maps,symbols_and_key,Color keys on a map,N,,
 2,19,fonetica_es,ortografia,h muda: ¿lleva h?,N,,
 2,20,numbers,U6,Shapes by sides and corners,E,,
 2,20,phonics,syllables,Consonant + le (ta-ble),N,6,220

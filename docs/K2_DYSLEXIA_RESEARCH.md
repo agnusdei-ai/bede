@@ -1,17 +1,17 @@
 # Research foundations for Bede's K-2 plan, with a focus on dyslexia
 
-This review checks Bede's 36-week K-2 plan ([`K2_SCHOOL_YEAR_PLAN.md`](K2_SCHOOL_YEAR_PLAN.md)) (numbers, English phonics, native Mexican Spanish phonics, sight words and maps) against the academic evidence, especially the evidence on dyslexia. It favours meta-analyses, randomised trials, U.S. Institute of Education Sciences (IES) practice guides and the International Dyslexia Association (IDA) definition. Single studies are used only where no synthesis exists.
+This review checks Bede's 36-week K-2 plan ([`K2_SCHOOL_YEAR_PLAN.md`](K2_SCHOOL_YEAR_PLAN.md)) (numbers, English phonics, native Mexican Spanish phonics, sight words and maps) against the academic evidence, especially the evidence on dyslexia. It favors meta-analyzes, randomized trials, U.S. Institute of Education Sciences (IES) practice guides and the International Dyslexia Association (IDA) definition. Single studies are used only where no synthesis exists.
 
 ## Summary
 
-- **The plan is built on the strongest finding in the field.** Explicit, systematic phonics is the one dyslexia treatment whose effect has been statistically confirmed in randomised trials. It works best when it starts in kindergarten or first grade.
+- **The plan is built on the strongest finding in the field.** Explicit, systematic phonics is the one dyslexia treatment whose effect has been statistically confirmed in randomized trials. It works best when it starts in kindergarten or first grade.
 - **Dyslexia looks different in Spanish.** In English it shows up as both errors and slowness. In Spanish, which is spelled consistently, it shows up mainly as slow, effortful reading. Spanish practice therefore has to build reading speed and track it, not just accuracy.
 - **Sight words should be learned through their sounds, not memorised as shapes.** Most high-frequency words are regular. Irregular words are learned better when the child spells them or corrects the pronunciation than when they just look and say.
 - **An app alone is not enough.** Computer-assisted word reading has a moderate average effect. But the best-known phonics game, GraphoGame, had about zero effect overall and a meaningful effect only where adults were closely involved. Bede's parent-in-the-loop design is the part to protect.
-- **Reading and maths difficulties often come together.** Number work must not depend on the child's reading. Number lines and linear board games are among the best-supported early number tools.
-- **Several popular dyslexia features have no support:** dyslexia fonts, coloured overlays, Orton-Gillingham as a brand, and spelling by memorisation alone. Bede already leaves out dyslexia fonts and offers letter spacing, which does have experimental support.
+- **Reading and math difficulties often come together.** Number work must not depend on the child's reading. Number lines and linear board games are among the best-supported early number tools.
+- **Several popular dyslexia features have no support:** dyslexia fonts, colored overlays, Orton-Gillingham as a brand, and spelling by memorization alone. Bede already leaves out dyslexia fonts and offers letter spacing, which does have experimental support.
 
-![Average effects from meta-analyses relevant to K-2](images/k2-dyslexia-effect-sizes.png)
+![Average effects from meta-analyzes relevant to K-2](images/k2-dyslexia-effect-sizes.png)
 
 ## What dyslexia is, by the current definition
 
@@ -31,7 +31,7 @@ For Bede, this supports a firm product rule: watch for risk signs and tell the p
 
 The National Reading Panel's meta-analysis pooled 66 comparisons from 38 experiments. Systematic phonics beat every comparison condition, including whole language, with an average effect of d = 0.41 ([Ehri et al., 2001](https://journals.sagepub.com/doi/10.3102/00346543071003393)). The effect was larger when instruction began early (d = 0.55) than after first grade (d = 0.27). It helped younger children at risk of reading disability and older children with one. Small-group and whole-class teaching were "not less effective than tutoring" ([Ehri et al., 2001](https://journals.sagepub.com/doi/10.3102/00346543071003393)).
 
-A meta-analysis limited to randomised trials with children who have reading disabilities is the most dyslexia-specific evidence. It covered 22 RCTs and 49 comparisons. Phonics was the only approach with a statistically confirmed effect on reading: g = 0.32, or 0.42 with standardised measures only ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900)). The comparison approaches included fluency training, auditory training, coloured overlays or lenses, and medical treatments ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900)).
+A meta-analysis limited to randomized trials with children who have reading disabilities is the most dyslexia-specific evidence. It covered 22 RCTs and 49 comparisons. Phonics was the only approach with a statistically confirmed effect on reading: g = 0.32, or 0.42 with standardized measures only ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900)). The comparison approaches included fluency training, auditory training, colored overlays or lenses, and medical treatments ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900)).
 
 Phonemic awareness (PA) training had a large effect on PA itself (d = 0.86) and moderate effects on reading (d = 0.53) and spelling (d = 0.59). It worked better under four conditions ([Ehri et al., 2001, PA](https://ila.onlinelibrary.wiley.com/doi/10.1598/RRQ.36.3.2)):
 
@@ -61,7 +61,7 @@ A meta-analysis of intensive early reading interventions (K-3, 25 studies) found
 
 ### Orthographic mapping, not shape memory
 
-Ehri's account of orthographic mapping explains how a word becomes a "sight word": letter-sound connections bind the spelling, pronunciation and meaning of a specific word in memory ([Ehri, 2014](http://www.tandfonline.com/doi/abs/10.1080/10888438.2013.819356)). Sight words are learned through phonics, not around it. A 2024 analysis of the Dolch list found "overwhelming regularity" in its letter-sound patterns. The authors argue that memorising high-frequency words without attention to those patterns ignores how words are stored ([Reading Psychology, 2024](https://www.tandfonline.com/doi/full/10.1080/02702711.2024.2379255)).
+Ehri's account of orthographic mapping explains how a word becomes a "sight word": letter-sound connections bind the spelling, pronunciation and meaning of a specific word in memory ([Ehri, 2014](http://www.tandfonline.com/doi/abs/10.1080/10888438.2013.819356)). Sight words are learned through phonics, not around it. A 2024 analysis of the Dolch list found "overwhelming regularity" in its letter-sound patterns. The authors argue that memorizing high-frequency words without attention to those patterns ignores how words are stored ([Reading Psychology, 2024](https://www.tandfonline.com/doi/full/10.1080/02702711.2024.2379255)).
 
 ### Irregular words: spell them or correct them
 
@@ -71,7 +71,7 @@ The evidence on irregular words comes from three studies:
 - **Heart words versus mispronunciation correction.** A 2026 study with 60 Year 1 children found both methods beat look-and-say for reading and spelling, with no difference between them ([Scientific Studies of Reading, 2026](https://www.tandfonline.com/doi/full/10.1080/10888438.2026.2671171)). Heart words mark the part of the word that breaks the rule.
 - **Cluster RCT with struggling readers.** A trial with 273 struggling readers in grades 2–3 added mispronunciation-correction training to phonics. It produced large gains comparable to adding morphology, including on irregular words ([Journal of Learning Disabilities, 2024](https://journals.sagepub.com/doi/10.1177/00222194241297058)).
 
-For spelling, a meta-analysis of 34 controlled trials with learners with dyslexia found moderate to high effects for phonics, spelling-rule and morphology instruction. A benefit from memorisation strategies "could not be confirmed" ([Galuschka et al., 2020](https://www.tandfonline.com/doi/full/10.1080/00461520.2019.1659794)). The IES guide says the same thing in practical terms. Regular high-frequency words are decoded first and then practised until fast. Irregular ones are taught within the phonics sequence, flagged as "rule-breakers", and spelled aloud to draw attention to the middle sounds ([IES Foundational Skills guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/wwc_found_reading_summary_051517.pdf)).
+For spelling, a meta-analysis of 34 controlled trials with learners with dyslexia found moderate to high effects for phonics, spelling-rule and morphology instruction. A benefit from memorization strategies "could not be confirmed" ([Galuschka et al., 2020](https://www.tandfonline.com/doi/full/10.1080/00461520.2019.1659794)). The IES guide says the same thing in practical terms. Regular high-frequency words are decoded first and then practiced until fast. Irregular ones are taught within the phonics sequence, flagged as "rule-breakers", and spelled aloud to draw attention to the middle sounds ([IES Foundational Skills guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/wwc_found_reading_summary_051517.pdf)).
 
 ### What the plan does with this
 
@@ -90,7 +90,7 @@ Cross-language studies agree on three points:
 
 - **Phonological awareness predicts less in transparent orthographies.** In a five-language study of 1,265 second graders, PA was the strongest correlate of reading in most languages. Its influence grew as spelling became less transparent ([Ziegler et al., 2010](https://sapientia.ualg.pt/server/api/core/bitstreams/377e33c9-52f0-4ad1-b888-d4ee44dd4cfc/content)).
 - **Rapid naming predicts reading speed in every orthography.** A longitudinal study of 1,120 children in five orthographies found RAN was a consistent predictor of later reading fluency ([Landerl et al., 2019](https://acuresearchbank.acu.edu.au/download/baf77f811457fc9d00dcc2a94dbb59b4e0f67b73f22efded099dec4231b98083/1379004/OA_Landerl_2019_Phonological_awareness_and_rapid_automatized_naming.pdf)). The PA-reading relationship there was two-way and language-specific. A meta-analysis of 137 studies put the RAN-reading correlation at r = .43 overall, and r = .48 for fluency in transparent orthographies ([Araújo et al., 2015](https://pure.mpg.de/rest/items/item_2067377_4/component/file_2182190/content)). RAN means rapid automatized naming: naming familiar items quickly.
-- **Spanish dyslexia is mostly a speed problem.** Spanish children with dyslexia showed deficits on every task, "more clearly when performance time was considered" ([Serrano and Defior, 2008](https://pubmed.ncbi.nlm.nih.gov/18483868/)). Spanish dyslexic readers were slowed mainly by word length, which points to letter-by-letter or syllable-by-syllable decoding. Typical readers were influenced by age of acquisition, a whole-word variable ([Annals of Dyslexia, 2011](https://link.springer.com/article/10.1007/s11881-011-0064-y)). A Spanish fluency programme for dyslexia is built on the same reasoning. It combines syllable, word and text reading, repeated reading and faster reading, because "reading-speed measures are more informative than accuracy" in Spanish ([Escritos de Psicología, 2011](https://scielo.isciii.es/scielo.php?script=sci_arttext&pid=S1989-38092011000200008&lng=pt&nrm=iss&tlng=es)).
+- **Spanish dyslexia is mostly a speed problem.** Spanish children with dyslexia showed deficits on every task, "more clearly when performance time was considered" ([Serrano and Defior, 2008](https://pubmed.ncbi.nlm.nih.gov/18483868/)). Spanish dyslexic readers were slowed mainly by word length, which points to letter-by-letter or syllable-by-syllable decoding. Typical readers were influenced by age of acquisition, a whole-word variable ([Annals of Dyslexia, 2011](https://link.springer.com/article/10.1007/s11881-011-0064-y)). A Spanish fluency program for dyslexia is built on the same reasoning. It combines syllable, word and text reading, repeated reading and faster reading, because "reading-speed measures are more informative than accuracy" in Spanish ([Escritos de Psicología, 2011](https://scielo.isciii.es/scielo.php?script=sci_arttext&pid=S1989-38092011000200008&lng=pt&nrm=iss&tlng=es)).
 
 ### Evidence for a syllable-based order
 
@@ -104,7 +104,7 @@ The método silábico used in Mexico has research support on several points:
 
   Effects included d = 0.73 on phonological awareness, 0.85 on word attack, 0.55 on passage comprehension and 0.58–0.75 on fluency ([Journal of Learning Disabilities, 2006](https://journals.sagepub.com/doi/10.1177/00222194060390010601)).
 - **Simple syllables are easier to store.** New words with simple syllable structures, and without context-dependent letters such as c/qu or g/gu, were easier to form memory representations for ([Journal of Child Language](https://www.cambridge.org/core/journals/journal-of-child-language/article/abs/role-of-sublexical-variables-in-reading-fluency-development-among-spanish-children/EACAB5EE233B1C9B268A66192491FC9F)). This supports the plan's order: vowels, then consonant-vowel syllables, then context-dependent spellings, then blends.
-- **Common syllables help.** Spanish-speaking second and fifth graders recognised words with high-frequency first syllables faster ([Literatura y Lingüística, 2019](https://www.scielo.cl/scielo.php?pid=S0718-48832019000200165&script=sci_arttext)). Early words should use common syllables.
+- **Common syllables help.** Spanish-speaking second and fifth graders recognized words with high-frequency first syllables faster ([Literatura y Lingüística, 2019](https://www.scielo.cl/scielo.php?pid=S0718-48832019000200165&script=sci_arttext)). Early words should use common syllables.
 - **Blends, diphthongs, accents and length are hard.** In California, 1,000+ bilingual first and second graders found longer items hardest, and blends, diphthongs and written accents also raised difficulty ([Reading and Writing, 2026](https://link.springer.com/10.1007/s11145-026-10818-0)). This supports placing trabadas late in grade 1 and diphthongs and tildes in grade 2.
 
 ### Bilingual children
@@ -113,14 +113,14 @@ For 251 Spanish-speaking English learners from K to grade 2, transfer from Spani
 
 ### What the plan does with this
 
-- **Kindergarten (Spanish) now starts letters sooner.** The first draft had six weeks of sound-only work before any vowel. The revised order teaches rimas and syllable clapping in weeks 1–2 and vowels in weeks 3–7. Syllable blending, syllable segmenting and words in a sentence are spread among the first consonant weeks, so PA is practised with letters.
+- **Kindergarten (Spanish) now starts letters sooner.** The first draft had six weeks of sound-only work before any vowel. The revised order teaches rimas and syllable clapping in weeks 1–2 and vowels in weeks 3–7. Syllable blending, syllable segmenting and words in a sentence are spread among the first consonant weeks, so PA is practiced with letters.
 - **Phoneme segmenting has been added.** Kindergarten week 31 is now "Separar una sílaba en sonidos (m-a, ma)", following the Vaughn et al. content.
 - **Fluency is a daily strand from late kindergarten.** It is a one-minute reread of syllables and words already taught. A kindergarten week 34 "Leer sílabas conocidas con soltura" introduces it.
-- **Spanish frequent words stay inside phonics.** Spanish spelling is transparent, so the plan does not add a separate Spanish memorisation list.
+- **Spanish frequent words stay inside phonics.** Spanish spelling is transparent, so the plan does not add a separate Spanish memorization list.
 
 ## Review and spacing
 
-A meta-analysis of 29 studies found spaced retrieval practice beat massed practice for retention: g = 1.01, or 0.74 after correcting for publication bias ([Latimier et al.](http://www.lscp.net/persons/ramus/docs/EPR20.pdf)). Expanding schedules were no better than evenly spaced ones (g = 0.03). Most of those studies involved adults, but one preschool study was included ([Latimier et al.](http://www.lscp.net/persons/ramus/docs/EPR20.pdf)). The IES maths guide also recommends mixing earlier and new material within and across lessons ([IES maths intervention guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/WWC-PraxGuide-Elementary-Math-Summary-508c.pdf)).
+A meta-analysis of 29 studies found spaced retrieval practice beat massed practice for retention: g = 1.01, or 0.74 after correcting for publication bias ([Latimier et al.](http://www.lscp.net/persons/ramus/docs/EPR20.pdf)). Expanding schedules were no better than evenly spaced ones (g = 0.03). Most of those studies involved adults, but one preschool study was included ([Latimier et al.](http://www.lscp.net/persons/ramus/docs/EPR20.pdf)). The IES math guide also recommends mixing earlier and new material within and across lessons ([IES math intervention guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/WWC-PraxGuide-Elementary-Math-Summary-508c.pdf)).
 
 For the plan, a simple rule is enough. Each day's round includes a few items from earlier weeks, and the four review weeks at the end of each year stay. A complex adaptive spacing algorithm is not justified by the evidence, which fits the instruction to keep the implementation simple.
 
@@ -134,7 +134,7 @@ On texts, interventions using only decodable texts and those using only ordinary
 
 Three syntheses frame Bede's role:
 
-- **Computer-assisted word reading.** In grades 1–6 (67 studies, 10,734 children), the average effect was 0.36. Effects were similar for accuracy, speed and spelling. Supplementary alphabetics programmes did best (0.42) and fluency-only programmes worst (0.26) ([Verhoeven et al., 2022](https://repository.ubn.ru.nl/bitstream/handle/2066/284886/284886.pdf?sequence=1)).
+- **Computer-assisted word reading.** In grades 1–6 (67 studies, 10,734 children), the average effect was 0.36. Effects were similar for accuracy, speed and spelling. Supplementary alphabetics programs did best (0.42) and fluency-only programs worst (0.26) ([Verhoeven et al., 2022](https://repository.ubn.ru.nl/bitstream/handle/2066/284886/284886.pdf?sequence=1)).
 - **Core digital reading instruction.** Across 72 studies the effect was g = 0.37. Game elements and adaptivity "made little difference" ([British Journal of Educational Technology](https://onlinelibrary.wiley.com/doi/10.1111/bjet.13351)).
 - **GraphoGame.** A review of 28 studies found an overall word-reading effect of g = −0.02. Studies with high adult interaction averaged g = 0.48 ([McTigue et al., 2020](https://eric.ed.gov/?id=EJ1238280)). A Dutch cluster RCT found gains in letter-sound knowledge from short daily play ([Frontiers / PMC, 2023](https://pmc.ncbi.nlm.nih.gov/articles/PMC10399564/)). In Spanish, poor readers in grade 2 had made slower progress in the game in kindergarten and grade 1, which suggests progress data can be an early warning ([Child Language Teaching and Therapy, 2022](http://journals.sagepub.com/doi/10.1177/02656590221139232)).
 
@@ -154,11 +154,11 @@ Bede does not need a screener to be useful. It already records how much help eac
 
 Bede would never label the child or show the note to them.
 
-## Numbers: reading and maths difficulties overlap
+## Numbers: reading and math difficulties overlap
 
-In a population sample of 691 Spanish fifth and sixth graders, 48.3% of children at risk for dyscalculia also had reading difficulties. Of those at risk for dyslexia, 23.7% had maths difficulties. The overlap was well above chance (2.0% observed vs. 0.36% expected) ([Frontiers in Psychology, 2025](https://www.frontiersin.org/articles/10.3389/fpsyg.2025.1664437/full)). For the numbers strand, two things follow. Story problems should always be read aloud, and number skills should never be blocked by a reading skill.
+In a population sample of 691 Spanish fifth and sixth graders, 48.3% of children at risk for dyscalculia also had reading difficulties. Of those at risk for dyslexia, 23.7% had math difficulties. The overlap was well above chance (2.0% observed vs. 0.36% expected) ([Frontiers in Psychology, 2025](https://www.frontiersin.org/articles/10.3389/fpsyg.2025.1664437/full)). For the numbers strand, two things follow. Story problems should always be read aloud, and number skills should never be blocked by a reading skill.
 
-Early numeracy interventions from preschool to grade 1 had an average effect of g = 0.64 across 34 studies. They were larger when they included counting with one-to-one correspondence and when they lasted 8 weeks or less ([Nelson and McMaster, 2019](https://psycnet.apa.org/record/2018-63406-001)). Low-income preschoolers who played a linear number board game for about an hour improved more in number-line estimation and magnitude comparison than children who played a circular game. They also learned arithmetic better later ([Siegler and Ramani, 2009](https://eric.ed.gov/?id=EJ861180)). The IES maths intervention guide rates six practices as strong evidence ([IES maths intervention guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/WWC-PraxGuide-Elementary-Math-Summary-508c.pdf)):
+Early numeracy interventions from preschool to grade 1 had an average effect of g = 0.64 across 34 studies. They were larger when they included counting with one-to-one correspondence and when they lasted 8 weeks or less ([Nelson and McMaster, 2019](https://psycnet.apa.org/record/2018-63406-001)). Low-income preschoolers who played a linear number board game for about an hour improved more in number-line estimation and magnitude comparison than children who played a circular game. They also learned arithmetic better later ([Siegler and Ramani, 2009](https://eric.ed.gov/?id=EJ861180)). The IES math intervention guide rates six practices as strong evidence ([IES math intervention guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/WWC-PraxGuide-Elementary-Math-Summary-508c.pdf)):
 
 - systematic instruction;
 - precise mathematical language;
@@ -196,20 +196,20 @@ Text-to-speech and read-aloud tools improved reading comprehension for students 
 
 | Approach | Finding | Implication for Bede |
 |---|---|---|
-| Orton-Gillingham as a programme | Foundational skills effect 0.22, p = .40, not significant ([Stevens et al., 2021](https://journals.sagepub.com/doi/10.1177/0014402921993406)) | Describe Bede as explicit, systematic phonics, not "Orton-Gillingham" |
+| Orton-Gillingham as a program | Foundational skills effect 0.22, p = .40, not significant ([Stevens et al., 2021](https://journals.sagepub.com/doi/10.1177/0014402921993406)) | Describe Bede as explicit, systematic phonics, not "Orton-Gillingham" |
 | Dyslexia fonts | g = −0.04 across 15 studies ([Annals of Dyslexia, 2026](https://link.springer.com/article/10.1007/s11881-026-00389-8)) | Keep not offering one |
-| Coloured overlays or lenses | Tested in 4 RCT comparisons; only phonics had a confirmed effect ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900)) | Do not add |
+| Colored overlays or lenses | Tested in 4 RCT comparisons; only phonics had a confirmed effect ([Galuschka et al., 2014](https://dx.plos.org/10.1371/journal.pone.0089900)) | Do not add |
 | Memorising spellings by sight | No confirmed effect ([Galuschka et al., 2020](https://www.tandfonline.com/doi/full/10.1080/00461520.2019.1659794)) | Teach heart words through sounds and spelling |
 | Game features as the active ingredient | Little difference to effects ([BJET](https://onlinelibrary.wiley.com/doi/10.1111/bjet.13351)) | Spend effort on content and parent involvement, not rewards |
 
 ## One decision the evidence raises
 
-Bede's guidance says it will "never hurry your child, time them, or mention pace to them". The evidence on Spanish dyslexia makes speed the main sign to track. The IES maths guide also rates timed fluency activities as strong evidence ([IES maths intervention guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/WWC-PraxGuide-Elementary-Math-Summary-508c.pdf)). One option that keeps the child-facing promise is to record reading rate silently from read-aloud turns and show it only to the parent, with no timer on the child's screen. A further option is an optional "beat your own time" game the parent can turn on.
+Bede's guidance says it will "never hurry your child, time them, or mention pace to them". The evidence on Spanish dyslexia makes speed the main sign to track. The IES math guide also rates timed fluency activities as strong evidence ([IES math intervention guide](https://ies.ed.gov/ncee/wwc/Docs/PracticeGuide/WWC-PraxGuide-Elementary-Math-Summary-508c.pdf)). One option that keeps the child-facing promise is to record reading rate silently from read-aloud turns and show it only to the parent, with no timer on the child's screen. A further option is an optional "beat your own time" game the parent can turn on.
 
 ## Gaps and limits
 
-- Few randomised trials test full K-2 phonics sequences for Spanish dyslexia specifically. Most Spanish evidence is correlational or comes from bilingual U.S. samples.
+- Few randomized trials test full K-2 phonics sequences for Spanish dyslexia specifically. Most Spanish evidence is correlational or comes from bilingual U.S. samples.
 - No study was found that sets a research-based number of sight words per grade. The 25/100/300 targets are practice benchmarks, not research results.
 - No study was found linking map-skill instruction to dyslexia. The map evidence is general child spatial development.
-- Several effect sizes come from abstracts because the full texts were paywalled, including the National Reading Panel analyses, Stevens et al. and Nelson and McMaster.
-- Average effects from different meta-analyses use different outcomes and metrics. They show direction and rough size, not a ranking.
+- Several effect sizes come from abstracts because the full texts were paywalled, including the National Reading Panel analyzes, Stevens et al. and Nelson and McMaster.
+- Average effects from different meta-analyzes use different outcomes and metrics. They show direction and rough size, not a ranking.

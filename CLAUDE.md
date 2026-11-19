@@ -497,6 +497,19 @@ and they make no model calls. The demo keeps local mirrors of
 parity guarded by `demo/src/k2MathParity.test.ts`; its runtime does not import
 household store or API modules.
 
+**Public-demo Sound Time and Map Practice
+(`services/k2_practice/demo_rounds.py`, `routers/k2_practice.py`'s
+`/k2-practice/demo/phonics|maps` routes, `demo/src/`)** follow the same
+boundary: the household builders and checks, bounded process-local attempts
+keyed to the live demo session (no longer than its expiry, at most 15 minutes),
+`demo=true` and `recorded=false` on every answer, and no model calls. The
+`K2PhonicsPractice` and `MapPractice` screens take a `transport` prop like
+`K2MathPractice`; the household transports live in
+`services/practiceTransports.ts`, the demo's in `demo/src/api.ts`. The demo
+mirrors those screens, `MapScene` and the wire types, and the same parity test
+checks them and that every round speaks only in Bede's voice
+(`useTextToSpeech`'s `speak`), never the browser's or an on-device voice.
+
 ### Backend (`homeschool-api/`)
 
 ```
@@ -1111,6 +1124,31 @@ whenever the "complete family curriculum" section is open, which replaced
 the earlier hover-and-toggle reveal. `curriculumColors.test.ts` accepts a
 card with extra classes but still counts every card, since each one takes an
 `nth-child` colour slot.
+
+**The kindergarten-to-grade-2 practice copy is checked against the code too
+(`tests/test_site_k2_practice_claims.py`).** `site/homeschool/index.html`'s
+"Sounds, numbers, and maps" section, the FAQ's `#early-years-practice` detail,
+the home page's pointer and `site/llms.txt` tell a family what Sound Time,
+Number Time and Map Practice are, when Bede offers them and what is kept. The
+guard binds each claim to its source: only the built areas are named
+(`ENABLED_AREAS`, never handwriting, spelling or copying a sentence), each is
+offered in the subjects the code says (`AREA_SUBJECTS`, `_MAP_PRACTICE_SUBJECTS`,
+so the copy says "History & Geography", the product's name), the recorded-answer
+limit is `MAX_RECORDED_ANSWERS`, and Map Practice reads no parent setting (the
+FAQ says it has none, so the guard fails if `_map_practice_allowed` ever reads
+`practice_offers`). It also refuses two overreaches: any mention of a spoken
+voice (how a round is spoken is still changing, entry 46), any claim that
+practice never marks a skill secure (two right first tries can). The grade
+range is deliberately not asserted here: the owner ruled on 2026-11-19 that the
+product is K-12 (see the separate site copy change), so a guard fixing it at
+kindergarten to grade 8 was removed. The new FAQ block is deliberately NOT
+a `bede-curriculum-entry`, which `scripts/bede-production.test.mjs` pins at 14
+cards and 42 facts. Sound Time, Number Time and Map Practice are in the public
+demo for kindergarten, grade 1 and grade 2 visitors, so the copy says exactly
+that and that other areas will join the demo as each is finished (entry
+40(g)). The guard checks the demo's buttons against the copy, so the copy
+changes in the same commit as each demo addition. `site/llms.txt` is
+held to the same facts: no page may say an adult can switch Map Practice.
 
 **Music is taught inside Art & Music, not as a subject of its own.** The
 `music_knowledge` diagnostic area is a tracked area, not a timetable block:

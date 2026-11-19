@@ -150,6 +150,10 @@ GUARDS = {
     # Public-demo Number Time uses the demo identity and remains temporary.
     ('GET', '/k2-practice/demo/math/lesson'): 'require_demo_practice_preview',
     ('POST', '/k2-practice/demo/math/lessons/{lesson_id}/answers'): 'require_demo_practice_preview',
+    ('GET', '/k2-practice/demo/phonics/lesson'): 'require_demo_practice_preview',
+    ('POST', '/k2-practice/demo/phonics/lessons/{lesson_id}/answers'): 'require_demo_practice_preview',
+    ('GET', '/k2-practice/demo/maps/lesson'): 'require_demo_practice_preview',
+    ('POST', '/k2-practice/demo/maps/lessons/{lesson_id}/answers'): 'require_demo_practice_preview',
     ('POST', '/pilot/me/learners/{learner_id}/tutoring/chat'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/tutoring/history'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',

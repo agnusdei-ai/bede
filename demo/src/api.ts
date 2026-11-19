@@ -11,6 +11,8 @@ import type { DiagramSpec } from './Diagram'
 import { logDebug } from './debugBus'
 import { isNetworkFailure, StreamTruncatedError } from './networkFailure'
 import type { MathLesson, MathPracticeAnswer, MathPracticeTransport } from './k2MathTypes'
+import type { PhonicsAnswerResult, PhonicsLesson, PhonicsPracticeTransport } from './k2PhonicsTypes'
+import type { MapAnswerResult, MapLesson, MapPracticeTransport } from './mapPracticeTypes'
 
 export type GradeStage = 'K-2' | '3-5' | '6-8'
 
@@ -213,6 +215,39 @@ export function demoMathTransport(token: string): MathPracticeTransport {
         `/lessons/${encodeURIComponent(lessonId)}/answers`,
         { phase, index, choice, submission_id: submissionId },
       ),
+  }
+}
+
+// Sound Time and Map Practice in the public demo: the same rounds and checks
+// as the household app, held briefly on the server for this demo session only.
+// Nothing is recorded, and no model is called.
+async function demoRoundFetch<T>(token: string, area: 'phonics' | 'maps', path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${apiBase()}/k2-practice/demo/${area}${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  })
+  if (!res.ok) {
+    let detail: unknown = null
+    try { detail = (await res.json())?.detail } catch { /* not json */ }
+    throw new Error(typeof detail === 'string' ? detail : 'That practice step could not finish.')
+  }
+  return res.json()
+}
+
+export function demoPhonicsTransport(token: string): PhonicsPracticeTransport {
+  return {
+    load: (audio) => demoRoundFetch<PhonicsLesson>(token, 'phonics', `/lesson?audio=${audio ? 'true' : 'false'}`),
+    answer: (lessonId, phase, index, choice) =>
+      demoRoundFetch<PhonicsAnswerResult>(token, 'phonics', `/lessons/${encodeURIComponent(lessonId)}/answers`, { phase, index, choice }),
+  }
+}
+
+export function demoMapTransport(token: string): MapPracticeTransport {
+  return {
+    load: () => demoRoundFetch<MapLesson>(token, 'maps', '/lesson'),
+    answer: (lessonId, phase, index, answer) =>
+      demoRoundFetch<MapAnswerResult>(token, 'maps', `/lessons/${encodeURIComponent(lessonId)}/answers`, { phase, index, ...answer }),
   }
 }
 

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import {
-  answerMapTask, fetchMapLesson,
-  type MapCell, type MapLesson, type MapReveal, type MapTask,
-} from '../services/api'
+import type { MapCell, MapLesson, MapPracticeTransport, MapReveal, MapTask } from '../services/mapPracticeTypes'
 import MapScene, { KNOWN_SYMBOLS, SideView, cellLabel } from './MapScene'
 import RoutineShell, { type RoutineStep } from './routine/RoutineShell'
 
@@ -49,13 +46,13 @@ type Feedback =
   | { kind: 'trouble' }
 
 export default function MapPractice({
-  token, studentName, onClose, onSpeak,
+  onClose, onSpeak, transport,
 }: {
-  token: string
-  studentName: string
   onClose: () => void
-  /** Reads a question aloud, when the session has Bede's voice on. */
+  /** Reads a question aloud in Bede's own voice, when the session has it on. */
   onSpeak?: (text: string) => void
+  /** The caller supplies its authenticated transport and data boundary. */
+  transport: MapPracticeTransport
 }) {
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<MapLesson | null>(null)
@@ -68,15 +65,17 @@ export default function MapPractice({
   const [busy, setBusy] = useState(false)
   const [flat, setFlat] = useState(false)
   const loadId = useRef(0)
+  const transportRef = useRef(transport)
+  transportRef.current = transport
 
   const load = useCallback(() => {
     const mine = ++loadId.current
     setLesson(null); setFailed(false); setStep('watch'); setIndex(0); setDone(false)
     setFeedback(null); setPicked(undefined); setFlat(false)
-    fetchMapLesson(token, studentName)
+    transportRef.current.load()
       .then((l) => { if (mine === loadId.current) setLesson(l) })
       .catch(() => { if (mine === loadId.current) setFailed(true) })
-  }, [token, studentName])
+  }, [])
 
   useEffect(() => { load(); return () => { loadId.current += 1 } }, [load])
 
@@ -114,7 +113,7 @@ export default function MapPractice({
     setBusy(true)
     if ('cell' in answer) setPicked(answer.cell)
     try {
-      const result = await answerMapTask(token, studentName, lesson.lesson_id, step, index, answer)
+      const result = await transportRef.current.answer(lesson.lesson_id, step, index, answer)
       if (result.correct) setFeedback({ kind: 'right' })
       else if (result.reveal) setFeedback({ kind: 'shown', reveal: result.reveal })
       else setFeedback({ kind: 'again' })

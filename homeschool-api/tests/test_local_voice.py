@@ -157,9 +157,10 @@ def test_voices_come_only_from_the_configured_paths():
     loaded = []
     voices = mod.load_voices({"BEDE_VOICE_EN": "/voices/en.onnx", "BEDE_VOICE_ES": " "},
                              factory=lambda p: loaded.append(p) or _Fake(b"x"))
-    assert loaded == ["/voices/en.onnx"] and sorted(voices) == ["en"]
-    with pytest.raises(SystemExit):
-        mod.main({})
+    # One file loaded; Spanish is read in that same voice (owner ruling
+    # 2026-11-19). Running with no voice at all is covered in section 6.
+    assert loaded == ["/voices/en.onnx"] and sorted(voices) == ["en", "es"]
+    assert voices["es"] is voices["en"]
 
 
 # ── 2. Where the voice may live, refused at boot ────────────────────────────
@@ -284,23 +285,22 @@ def test_the_speak_route_is_silent_with_no_voice(monkeypatch):
     assert resp.status_code == 204 and resp.headers["X-TTS-Configured"] == "False"
 
 
-# ── 5. The container: off by default, no internet, no published port ──────
+# ── 5. The container: on by default, no internet, no published port ───────
 
-def test_the_voice_container_is_isolated_and_off_by_default():
+def test_the_voice_container_runs_by_default_and_is_isolated():
     import yaml
 
     compose = yaml.safe_load((REPO / "docker-compose.yml").read_text())
     voice = compose["services"]["voice"]
-    assert voice["profiles"] == ["local-voice"]
+    # Bede's voice ships with the model (owner ruling 2026-11-19): no profile.
+    assert "profiles" not in voice
     assert "ports" not in voice and voice["networks"] == ["voice"]
     assert compose["networks"]["voice"]["internal"] is True
     assert "voice" in compose["services"]["api"]["networks"]
     assert voice["read_only"] is True and voice["cap_drop"] == ["ALL"]
     assert all(v.endswith(":ro") for v in voice["volumes"])
-    # The API passes the voice settings through; nothing sets a default URL,
-    # so no family gets the local voice until it is deliberately installed.
     api_env = compose["services"]["api"]["environment"]
-    assert "LOCAL_TTS_URL=${LOCAL_TTS_URL:-}" in api_env
+    assert "LOCAL_TTS_URL=${LOCAL_TTS_URL:-http://voice:5000}" in api_env
     # Installed Bede is Piper or silence: compose pins the provider to local.
     assert "TTS_PROVIDER=${TTS_PROVIDER:-local}" in api_env
 
@@ -369,3 +369,137 @@ def test_the_voice_server_keeps_piper_s_text_bearing_logs_out():
     src = SERVER_PY.read_text()
     assert "quiet_piper()\n    voice = PiperVoice.load" in src
     assert "    quiet_piper()\n    voices = load_voices(env)" in src
+
+
+# ── 6. Bede's voice ships in the image, verified, or not at all ─────────────
+
+FETCH_PY = REPO / "voice-service" / "fetch_voice.py"
+MANIFEST = REPO / "voice-service" / "bede-voice.json"
+
+
+def _load_fetch():
+    spec = importlib.util.spec_from_file_location("bede_fetch_voice", FETCH_PY)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _Resp:
+    def __init__(self, data):
+        self.data = data
+
+    def read(self):
+        return self.data
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _manifest(tmp_path, blobs, pin=True, wrong=None):
+    import hashlib
+    files = {}
+    for name, data in blobs.items():
+        digest = hashlib.sha256(data).hexdigest() if pin else ""
+        if name == wrong:
+            digest = "0" * 64
+        files[name] = {"path": f"{name}.bin", "url": f"https://voices.invalid/{name}", "sha256": digest}
+    path = tmp_path / "bede-voice.json"
+    path.write_text(json.dumps({"name": "sample", "files": files}))
+    return path
+
+
+def _opener(blobs, fail=None):
+    def open_(url, timeout=None):
+        name = url.rsplit("/", 1)[1]
+        if name == fail:
+            raise OSError("unreachable")
+        return _Resp(blobs[name])
+    return open_
+
+
+BLOBS = {"model": b"onnx-bytes", "config": b"{}", "model_card": b"card"}
+
+
+def test_the_voice_is_kept_when_every_hash_matches(tmp_path):
+    out = tmp_path / "voices"
+    assert _load_fetch().fetch(str(_manifest(tmp_path, BLOBS)), str(out), opener=_opener(BLOBS)) is True
+    assert sorted(p.name for p in out.iterdir()) == ["config.bin", "model.bin", "model_card.bin"]
+
+
+@pytest.mark.parametrize("case", ["unpinned", "mismatch", "download_fails"])
+def test_otherwise_no_voice_is_kept_and_the_build_goes_on(tmp_path, case, capsys):
+    out = tmp_path / "voices"
+    manifest = _manifest(tmp_path, BLOBS, pin=case != "unpinned", wrong="config" if case == "mismatch" else None)
+    ok = _load_fetch().fetch(str(manifest), str(out),
+                             opener=_opener(BLOBS, fail="config" if case == "download_fails" else None))
+    assert ok is False
+    # Nothing unverified is left behind, not even a file that did match.
+    assert list(out.iterdir()) == []
+    assert "text-first" in capsys.readouterr().out
+
+
+def test_the_fetch_never_fails_the_build():
+    text = FETCH_PY.read_text()
+    assert "sys.exit(0)" in text
+    dockerfile = (REPO / "voice-service" / "Dockerfile").read_text()
+    assert "RUN python -I fetch_voice.py bede-voice.json /app/voices" in dockerfile
+    assert "bede-voice.json fetch_voice.py" in dockerfile
+
+
+def test_the_shipped_voice_is_the_one_the_owner_chose():
+    manifest = json.loads(MANIFEST.read_text())
+    assert manifest["name"] == "en_GB-alan-medium"
+    for spec in manifest["files"].values():
+        assert spec["url"].startswith("https://huggingface.co/rhasspy/piper-voices/resolve/")
+        assert "/en/en_GB/alan/medium/" in spec["url"]
+        assert spec["sha256"] == "" or len(spec["sha256"]) == 64
+
+
+def test_spanish_is_read_in_bedes_english_voice_unless_a_spanish_one_is_given():
+    mod = _load_server()
+    made = []
+
+    def factory(path):
+        made.append(path)
+        return _Fake(path.encode())
+
+    voices = mod.load_voices({"BEDE_VOICE_EN": "/v/en.onnx"}, factory=factory)
+    assert voices["es"] is voices["en"] and made == ["/v/en.onnx"]
+    voices = mod.load_voices({"BEDE_VOICE_EN": "/v/en.onnx", "BEDE_VOICE_ES": "/v/es.onnx"}, factory=factory)
+    assert voices["es"] is not voices["en"]
+
+
+def test_with_no_path_the_built_in_voice_is_used(tmp_path):
+    mod = _load_server()
+    (tmp_path / "en_GB-alan-medium.onnx").write_bytes(b"x")
+    (tmp_path / "en_GB-alan-medium.onnx.json").write_text("{}")
+    path = mod.builtin_voice(str(MANIFEST), str(tmp_path))
+    assert path.endswith("en_GB-alan-medium.onnx")
+    voices = mod.load_voices({}, factory=lambda p: _Fake(p.encode()), default_en=path)
+    assert set(voices) == {"en", "es"}
+    assert mod.builtin_voice(str(MANIFEST), str(tmp_path / "missing")) == ""
+
+
+def test_with_no_voice_at_all_it_keeps_running_and_reports_none(monkeypatch):
+    """Exiting would make a container that restarts forever; an empty
+    /health is what makes the API text-first."""
+    mod = _load_server()
+    served = []
+    monkeypatch.setattr(mod, "load_voices", lambda env: {})
+    monkeypatch.setattr(mod, "serve", lambda h, p, v: served.append(v) or type("S", (), {"serve_forever": lambda self: None})())
+    mod.main({})
+    assert served == [{}]
+
+
+def test_a_pinned_voice_has_its_license_on_record():
+    """Shipping a voice means its license, training lineage and
+    redistribution terms were read from its own model card and recorded
+    (docs/DECISIONS.md entry 46). Pinning a hash without them fails here."""
+    manifest = json.loads(MANIFEST.read_text())
+    if any(spec["sha256"] for spec in manifest["files"].values()):
+        assert all(spec["sha256"] for spec in manifest["files"].values()), "pin every file, not some"
+        for field in ("license", "training_lineage", "redistribution"):
+            assert manifest[field].strip(), f"bede-voice.json: record {field} from the MODEL_CARD"

@@ -1514,8 +1514,8 @@
       "next": "Nothing to do right away: Bede checks again within a minute. If it lasts, restart Bede on this computer. The voice setup guide has more."
     },
     "none": {
-      "what": "Bede's voice isn't set up on this computer, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede never uses another voice in its place.",
-      "next": "To give Bede its voice, follow the voice setup guide for this computer, then restart Bede."
+      "what": "Bede's voice isn't installed on this computer, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede never uses another voice in its place.",
+      "next": "Bede's voice comes with Bede. Update Bede on this computer to install it; if this card still shows, the voice setup guide explains why."
     },
     "cloud": {
       "what": "Bede's voice on this installation comes from a cloud speech service, which receives each line Bede speaks. Installed Bede is meant to use its own voice on this computer instead.",

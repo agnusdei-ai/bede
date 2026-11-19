@@ -12,8 +12,9 @@ screen, a practice round leaves out the items that only work by ear, and
 Parent Setup's **Bede's voice** card says which of these it is. It never falls
 back to OpenAI's voice, even with `OPENAI_API_KEY` set for tutoring, and never
 to the browser's own built-in voice. Compose pins this with
-`TTS_PROVIDER=local`. The local voice is not yet offered to families: see
-"Bede's local voice" below.
+`TTS_PROVIDER=local`. **Bede's voice ships with Bede** (owner ruling
+2026-11-19): English, male, a distinctive monk persona, `en_GB-alan-medium`.
+Spanish lessons are read in the same voice. See "Bede's local voice" below.
 
 **The public demo uses OpenAI's voice, or silence.** It is not run from
 compose: with `TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI
@@ -56,32 +57,45 @@ It proves the plumbing, not how a real voice sounds.
 
 ## Bede's local voice
 
-The `voice` service in `docker-compose.yml` (profile `local-voice`) runs
-[Piper](https://github.com/OHF-Voice/piper1-gpl) behind Bede's own small
-server, `voice-service/server.py`. Piper is GPL-3.0-or-later, so the server
-is a separate program in its own container, and Bede's API reaches it only
-over HTTP at `LOCAL_TTS_URL=http://voice:5000`. The container is on a network
-with no internet access and publishes no port; it reads voices from
-`./voices`, read-only, and downloads nothing.
+The `voice` service in `docker-compose.yml` runs by default. It is
+[Piper](https://github.com/OHF-Voice/piper1-gpl), the open-source engine the
+Open Home Foundation maintains under GPL-3.0-or-later, behind Bede's own
+small server, `voice-service/server.py`. The server is a separate program in
+its own container, and Bede's API reaches it only over HTTP at
+`LOCAL_TTS_URL=http://voice:5000`. The container is on a network with no
+internet access and publishes no port, and it downloads nothing at run time.
 
 It does not use Piper's bundled HTTP server, which keeps the last sentence it
 spoke in memory and shows it at `/info`, and can download voices at
 `/download`. Bede's server logs only the method and path, keeps nothing once a
-line is spoken, and has no route but `/synthesize` and `/health`. A language
-with no voice is silent; it is never read in another language's voice.
+line is spoken, and has no route but `/synthesize` and `/health`.
 
-**Not yet offered to families.** The installers do not set it up until the
-distribution review in `docs/DECISIONS.md` entry 46 clears: how Piper's GPL
-applies to the way Bede is distributed, and which English and Spanish voices
-to use (each voice has its own license, read and recorded before it is
-chosen). To try it by hand:
+**The voice ships in the image, verified, or not at all.** The voice is named
+in `voice-service/bede-voice.json`: `en_GB-alan-medium`, an English male
+voice chosen for Bede's monk persona. When the image is built,
+`fetch_voice.py` downloads its model, its config and its model card, and keeps
+them only if every file's pinned SHA-256 matches. If a hash is not pinned yet,
+the download fails, or a hash differs, it keeps nothing and the build carries
+on: the voice server then runs with no voice and Bede is text-first. It never
+speaks from a file nobody verified. Spanish is read in the same voice unless a
+Spanish one is given (owner ruling 2026-11-19).
+
+**Pinning the voice.** On a machine that can reach huggingface.co, run
+`python3 scripts/voice/pin_bede_voice.py`. It prints each file's SHA-256 and
+the full model card; `--write` stores the hashes. Then record `license`,
+`training_lineage` and `redistribution` in `bede-voice.json` from that card.
+`homeschool-api/tests/test_local_voice.py` fails while a hash is pinned and
+those fields are empty. The voice's license is separate from Piper's GPL, and
+a voice that can be downloaded publicly is not necessarily licensed for
+commercial use or redistribution, so the card of the exact file shipped is
+what counts (docs/DECISIONS.md entry 46).
+
+**Another voice** can be put in `./voices` (read-only to the container) and
+named in `.env`:
 
 ```bash
-# put a Piper voice (.onnx and .onnx.json) in ./voices, then in .env:
-COMPOSE_PROFILES=local-voice
-LOCAL_TTS_URL=http://voice:5000
 BEDE_VOICE_EN=/voices/<english voice>.onnx
-BEDE_VOICE_ES=/voices/<spanish voice>.onnx
+BEDE_VOICE_ES=/voices/<spanish voice>.onnx   # optional; otherwise the English voice reads Spanish
 ```
 
 The tests are `homeschool-api/tests/test_local_voice.py`, which drive the

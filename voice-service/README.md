@@ -6,22 +6,28 @@ on the family's own computer. Nothing it is asked to say leaves that computer.
 **License.** Piper is GPL-3.0-or-later, and so is this directory (`COPYING`).
 It is a separate program in its own container. Bede's API, which is under the
 repository's own license, talks to it only over HTTP and includes none of its
-code. Whether that separation is enough for how Bede is distributed is the
-distribution review recorded in `docs/DECISIONS.md` entry 46, and **this voice
-is not installed for families until that review clears.**
+code. How that applies to the way Bede is distributed is recorded in
+`docs/DECISIONS.md` entry 46.
 
-**Voices.** Each Piper voice is a separate model with its own license, separate
-from Piper's. No voice file is in this repository. Which English and Spanish
-voices Bede uses is part of the same review, and is chosen only from voices
-whose license has been read and recorded.
+**Bede's voice.** `bede-voice.json` names it: `en_GB-alan-medium`, English and
+male, chosen by the owner for Bede's monk persona. Each Piper voice is a
+separate model with its own license, separate from Piper's GPL. No voice file
+is in this repository: `fetch_voice.py` downloads it while the image is built
+and keeps it only if every pinned SHA-256 matches, otherwise none (Bede is
+then text-first). Before the hashes are pinned, its license, training lineage
+and redistribution terms are read from its own model card and recorded in
+`bede-voice.json` (`scripts/voice/pin_bede_voice.py`).
 
 ## What it does
 
 - `POST /synthesize` with `{"text": "...", "locale": "en"}` returns `audio/wav`.
   Text is limited to 2000 characters, as in the API.
 - `GET /health` returns `{"voices": ["en", "es"]}` for the languages it has.
-- A language with no voice gets `404 no_voice_for_locale`. It is never spoken
-  in another language's voice.
+- Spanish is read in the English voice unless a Spanish one is given (owner
+  ruling 2026-11-19). A language with no voice at all gets
+  `404 no_voice_for_locale`.
+- With no voice at all it still runs and reports none, so Bede is text-first
+  rather than a container that restarts forever.
 
 ## What it does not do
 
@@ -31,18 +37,19 @@ from the internet at `/download`. This server:
 
 - logs only the method and path, never the text;
 - keeps nothing once a response is sent;
-- reads voices only from the paths it was started with, and downloads nothing.
+- reads voices only from the image or the paths it was started with, and
+  downloads nothing at run time.
 
 ## Running it
 
-In `docker-compose.yml` it is the `voice` service, under the `local-voice`
-profile, on a network with no internet access. The API reaches it at
+In `docker-compose.yml` it is the `voice` service, which runs by default, on
+a network with no internet access. The API reaches it at
 `LOCAL_TTS_URL=http://voice:5000`.
 
 | Variable | Meaning |
 | --- | --- |
-| `BEDE_VOICE_EN` | Path to the English Piper `.onnx` (its `.onnx.json` beside it) |
-| `BEDE_VOICE_ES` | Path to the Spanish Piper `.onnx` |
+| `BEDE_VOICE_EN` | Path to an English Piper `.onnx` (its `.onnx.json` beside it); empty means the built-in voice |
+| `BEDE_VOICE_ES` | Path to a Spanish Piper `.onnx`; empty means the English voice reads Spanish |
 | `BEDE_VOICE_HOST`, `BEDE_VOICE_PORT` | Where to listen (default `0.0.0.0:5000`) |
 
 `requirements.lock.txt` is hash-locked. After editing `requirements.in`, run

@@ -111,7 +111,7 @@ services:
       # from core/config.py's empty one, which the public demo (render.yaml)
       # relies on to keep its OpenAI voice.
       - TTS_PROVIDER=${TTS_PROVIDER:-local}
-      - LOCAL_TTS_URL=${LOCAL_TTS_URL:-}
+      - LOCAL_TTS_URL=${LOCAL_TTS_URL:-http://voice:5000}
       # OpenAI TTS: a separate, unrelated use of OPENAI_API_KEY above.
       - OPENAI_TTS_MODEL=${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
       - OPENAI_TTS_VOICE=${OPENAI_TTS_VOICE:-fable}
@@ -299,14 +299,16 @@ services:
   # ── Bede's local voice (voice-service/) ─────────────────────────────────
   # Piper (GPL-3.0-or-later) behind Bede's own small server, in its own
   # container and its own process: the API reaches it only over HTTP at
-  # LOCAL_TTS_URL=http://voice:5000. Off by default (profile `local-voice`)
-  # and not installed for families until docs/DECISIONS.md entry 46's
-  # distribution review clears. It is on the `voice` network only, which
-  # has no route to the internet: it is sent every line Bede speaks and
-  # never needs to reach anything. No port is published. Voices are read
-  # from ./voices, read-only; nothing is downloaded at run time.
+  # LOCAL_TTS_URL=http://voice:5000. Runs by default (owner ruling
+  # 2026-11-19, docs/DECISIONS.md entry 46: Bede's voice ships with the
+  # model). Its image carries Bede's voice, fetched at build time and kept
+  # only if its pinned SHA-256 matched (voice-service/bede-voice.json);
+  # without one it runs with no voice and Bede is text-first. It is on the
+  # `voice` network only, which has no route to the internet: it is sent
+  # every line Bede speaks and never needs to reach anything. No port is
+  # published. Another voice can be put in ./voices (read-only) and named by
+  # BEDE_VOICE_EN / BEDE_VOICE_ES; nothing is downloaded at run time.
   voice:
-    profiles: ["local-voice"]
     build:
       context: ./voice-service
     environment:

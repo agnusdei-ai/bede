@@ -58,7 +58,7 @@ describe('VoiceStatusNotice', () => {
 
   it('"not set up" and "not answering right now" read differently, each with its own next step', () => {
     expect(en.voiceStatus.none.what).not.toBe(en.voiceStatus.down.what)
-    expect(en.voiceStatus.none.next).toMatch(/voice setup guide/)
+    expect(en.voiceStatus.none.next).toMatch(/comes with Bede/)
     expect(en.voiceStatus.down.next).toMatch(/checks again/)
   })
 })

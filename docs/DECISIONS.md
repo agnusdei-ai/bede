@@ -2597,7 +2597,7 @@ still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
 
 ## 46. `[PRODUCT]` Every feature speaks in Bede's own voice; installed Bede's voice is local
 
-**Status:** open · needs: a distribution review of Piper (GPL-3.0-or-later) as Bede ships it, and a recorded license for each English and Spanish voice chosen. The decisions below are made and built; only shipping the local voice to families waits on this.
+**Status:** open · needs: the voice's SHA-256 hashes pinned and its license, training lineage and redistribution terms recorded from its own MODEL_CARD (`scripts/voice/pin_bede_voice.py`, which needs access to huggingface.co), and the owner's acceptance on the pilot Mac. The decisions below are made and built; until the hashes are pinned, installed Bede is text-first.
 
 **Decided (2026-11-18, owner).**
 
@@ -2666,6 +2666,35 @@ training chain. Any Mexican Spanish candidate is checked against that.
 Neither the guidance nor any voice's model card was read from this build
 environment: that repository is outside this session's access, and the
 voice repository is unreachable from it.
+
+**Amended (2026-11-19, owner, latest): Piper ships now, with the voice.**
+The owner overruled parking Piper for the beta: Bede's voice ships with the
+model. It is English, male and distinctive, a monk persona, and that is what
+must be maintained. The owner chose **`en_GB-alan-medium`**. Spanish lessons
+are read in that same voice (one voice for both languages). This supersedes
+the "parked for the beta" amendment above; the GPL distribution review is no
+longer a precondition for shipping.
+
+How it ships (`voice-service/`):
+
+- `bede-voice.json` names the voice and pins the SHA-256 of its model, its
+  config and its model card. `fetch_voice.py` downloads them while the voice
+  image is built and keeps them only if every hash matches. If a hash is not
+  pinned yet, the download fails, or a hash differs, it keeps nothing and the
+  build carries on: Bede is then text-first, never speaking from bytes nobody
+  verified. A family's install never fails because of the voice.
+- The `voice` service runs by default (no compose profile), and compose
+  points the API at it (`LOCAL_TTS_URL=http://voice:5000`). The server uses
+  the built-in voice unless `BEDE_VOICE_EN` names another, reads Spanish in
+  the English voice unless `BEDE_VOICE_ES` names one, and with no voice at all
+  keeps running and reports none, rather than restarting forever.
+- **The hashes are not pinned yet**: huggingface.co is unreachable from the
+  build environment, so the voice's model card has not been read here either.
+  `scripts/voice/pin_bede_voice.py`, run where it is reachable, prints each
+  hash and the full card and writes the hashes; the license, training lineage
+  and redistribution fields are then recorded from that card by hand.
+  `tests/test_local_voice.py` fails while any hash is pinned and those fields
+  are empty, so the voice cannot be pinned without its license on record.
 
 **What has actually been tested.** No real Piper voice has been tested in
 this repository. Every check here used sample voices built from code by

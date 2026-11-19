@@ -1,0 +1,24 @@
+{
+  "_note": "Bede's voice, chosen by the owner 2026-11-19 (docs/DECISIONS.md entry 46): English, male, a distinctive monk persona. The voice image downloads these three files at build time and keeps them only if every SHA-256 matches; with any sha256 empty, or any mismatch or download failure, it keeps none and Bede is text-first. Fill the hashes and the license fields with scripts/voice/pin_bede_voice.py on a machine that can reach huggingface.co. Spanish lessons are read in this same voice (owner ruling 2026-11-19).",
+  "name": "en_GB-alan-medium",
+  "files": {
+    "model": {
+      "path": "en_GB-alan-medium.onnx",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx",
+      "sha256": ""
+    },
+    "config": {
+      "path": "en_GB-alan-medium.onnx.json",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json",
+      "sha256": ""
+    },
+    "model_card": {
+      "path": "MODEL_CARD",
+      "url": "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/MODEL_CARD",
+      "sha256": ""
+    }
+  },
+  "license": "",
+  "training_lineage": "",
+  "redistribution": ""
+}

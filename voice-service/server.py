@@ -5,8 +5,7 @@ Bede's local voice: a small HTTP server that speaks a line with Piper.
 This program uses Piper (GPL-3.0-or-later) and is distributed under the same
 license, as its own program in its own container (`voice-service/`). Bede's
 API talks to it only over HTTP and links none of its code. See
-voice-service/README.md and docs/DECISIONS.md entry 46, whose distribution
-review must clear before this ships to families.
+voice-service/README.md and docs/DECISIONS.md entry 46.
 
 It deliberately does NOT use Piper's bundled `piper.http_server`, which keeps
 the most recent sentence it spoke in memory and serves it back at /info, and
@@ -19,7 +18,13 @@ which has a /download route that fetches voices from the internet. Here:
   when it returns. (Python cannot scrub freed memory; nothing here holds a
   reference to it.)
 - Voices are read from fixed paths given at start-up (BEDE_VOICE_EN,
-  BEDE_VOICE_ES) and never downloaded.
+  BEDE_VOICE_ES) and never downloaded at run time. With no path given, the
+  English voice is the one built into the image (fetch_voice.py, from
+  bede-voice.json, kept only if its hashes matched).
+- Spanish is read in the English voice when no Spanish voice is given (owner
+  ruling 2026-11-19: Bede has one voice, English, male, a monk persona).
+- With no voice at all it still runs and reports none, so Bede is
+  text-first rather than a container that restarts forever.
 """
 from __future__ import annotations
 
@@ -59,12 +64,33 @@ def piper_synthesizer(model_path: str) -> Synthesizer:
     return speak
 
 
-def load_voices(env: Dict[str, str], factory: Callable[[str], Synthesizer] = piper_synthesizer) -> Dict[str, Synthesizer]:
+BUILTIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voices")
+MANIFEST = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bede-voice.json")
+
+
+def builtin_voice(manifest: str = MANIFEST, directory: str = BUILTIN_DIR) -> str:
+    """The voice built into the image, or "" when none was kept."""
+    try:
+        with open(manifest, encoding="utf-8") as fh:
+            path = json.load(fh)["files"]["model"]["path"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+    candidate = os.path.join(directory, os.path.basename(path))
+    return candidate if os.path.isfile(candidate) and os.path.isfile(candidate + ".json") else ""
+
+
+def load_voices(env: Dict[str, str], factory: Callable[[str], Synthesizer] = piper_synthesizer,
+                default_en: Optional[str] = None) -> Dict[str, Synthesizer]:
     voices: Dict[str, Synthesizer] = {}
+    paths = {locale: env.get(f"BEDE_VOICE_{locale.upper()}", "").strip() for locale in LOCALES}
+    if not paths["en"]:
+        paths["en"] = builtin_voice() if default_en is None else default_en
     for locale in LOCALES:
-        path = env.get(f"BEDE_VOICE_{locale.upper()}", "").strip()
-        if path:
-            voices[locale] = factory(path)
+        if paths[locale]:
+            voices[locale] = factory(paths[locale])
+    # One voice for both languages unless a Spanish one is given.
+    if "es" not in voices and "en" in voices:
+        voices["es"] = voices["en"]
     return voices
 
 
@@ -150,10 +176,12 @@ def main(env: Optional[Dict[str, str]] = None) -> None:
     quiet_piper()
     voices = load_voices(env)
     if not voices:
-        raise SystemExit("No voice configured: set BEDE_VOICE_EN and/or BEDE_VOICE_ES to a Piper .onnx file")
+        # Not an error to exit on: the API reads an empty /health as "no
+        # voice" and lessons are text-first.
+        log.warning("No voice installed; Bede will be text-first. See bede-voice.json.")
     host = env.get("BEDE_VOICE_HOST", "0.0.0.0")
     port = int(env.get("BEDE_VOICE_PORT", "5000"))
-    log.info("Bede's voice listening on %s:%d with voices %s", host, port, ", ".join(sorted(voices)))
+    log.info("Bede's voice listening on %s:%d with voices %s", host, port, ", ".join(sorted(voices)) or "none")
     serve(host, port, voices).serve_forever()
 
 

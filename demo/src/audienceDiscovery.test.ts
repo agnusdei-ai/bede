@@ -38,8 +38,8 @@ describe('audience discovery and source-backed descriptions', () => {
     const intro = route === 'educators'
       ? main.querySelector('.page-head .lede')!
       : doc.querySelector('.classical-hero-copy > p:not(.classical-kicker)')!
-    expect(intro.textContent).toContain('K–8')
-    expect(intro.textContent).toContain('5–15')
+    expect(intro.textContent).toContain('K–12')
+    expect(intro.textContent).toContain('5–18')
     expect(intro.textContent).toMatch(/parent|famil|educator|adult/i)
     expect(main.querySelector('.audience-evidence-links a[href="/bede/tour/"]')).not.toBeNull()
     expect(main.querySelector('.audience-evidence-links a[href="/research/"]')).not.toBeNull()
@@ -55,7 +55,7 @@ describe('audience discovery and source-backed descriptions', () => {
   })
 
   it('offers firsthand feedback while distinguishing teaching research from Bede trials', () => {
-    expect(read('site/llms.txt')).toContain('learners ages 5–15')
+    expect(read('site/llms.txt')).toContain('learners ages 5–18')
     const doc = new DOMParser().parseFromString(read('site/research/index.html'), 'text/html')
     const section = doc.querySelector('[aria-labelledby="family-practice"]')!
     expect(section.querySelector('a[href="/bede/tour/"]')).not.toBeNull()

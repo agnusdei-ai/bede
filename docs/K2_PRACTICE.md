@@ -3,8 +3,8 @@
 **Status: steps 1 and 3 built; the rest is specification.** Step 1 of §9 (the
 shared `invite_practice` invitation, the per-child setting, and phonics) and the
 first part of step 3 (practical math's counters, ten-frame and number bonds) are
-built. Number Time is also available as a direct, temporary activity in the
-public demo; its limits are described in §5.3. Step 3 was built before step 2,
+built. Number Time, Sound Time and Map Practice are also available as direct,
+temporary activities in the public demo; their limits are described in §5.3. Step 3 was built before step 2,
 handwriting, because handwriting waits on decision 40(c), the handwriting
 style, which is still open. The rest of the first wave is not built. Map
 reading, from the second wave, shipped in
@@ -100,7 +100,8 @@ whether an offer is allowed; the model only chooses the moment. Allowed when:
 dispatched**, the way `_map_practice_allowed` does it:
 
 - K-2 only (`GradeStage.foundations`). The lesson invitation remains unavailable
-  in the public demo; Number Time has its own direct demo action (§5.3).
+  in the public demo; Number Time, Sound Time and Map Practice have their own
+  direct demo actions (§5.3).
 - Only in the subjects that area belongs to (§5), and only if the parent scheduled that subject today. A parent's own lesson focus comes first.
 - At most one offer per area per session. Never when too little time is left on the block to finish a round (`time_remaining_seconds`, the same budget `services/action_governance.py` uses).
 - It is an invitation ("Shall I show you with the counters?"). The child can say not now, the lesson carries on, and declining records nothing.
@@ -324,9 +325,18 @@ from family practice ids, bound to the live sign-in and no longer than its
 expiry. If the in-memory attempt state disappears on restart, that lesson is
 refused and the visitor can start another round; attempts are never reset by
 rebuilding the lesson from an old id. This support does not enable
-`invite_practice` in demo tutoring turns or add any other practice area to the
-demo. Its UI and wire types are mirrored under `demo/src/` so the demo builds
-with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
+`invite_practice` in demo tutoring turns.
+
+Sound Time and Map Practice joined the demo on 2026-11-19 at the owner's
+request, under the same boundary (`services/k2_practice/demo_rounds.py`): the
+household builders and checks, level from the live demo session's K-2 grade,
+attempts held in a bounded in-memory store for no longer than the sign-in (at
+most 15 minutes), `demo=true` and `recorded=false` on every answer, and no
+model calls. Every round speaks only in Bede's own voice, the chat's
+text-to-speech path, never the browser's or an on-device voice.
+
+The demo's screens and wire types are mirrored under `demo/src/` so the demo
+builds with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
 copies against the household implementation. Decision 40(g) records the
 approval and boundary.
 
@@ -516,14 +526,14 @@ the docs updated in the same PR.
 
 Each step needs no new database table: household rounds rebuild from signed
 ids, and records go to the existing work ledger and evidence paths. Demo
-Number Time uses a separate bounded in-memory attempt store and records
-nothing.
+Number Time, Sound Time and Map Practice use separate bounded in-memory
+attempt stores and record nothing.
 
 ## 10. Not in scope
 
-- Practice areas beyond Number Time in the public demo. Demo Number Time's
-  direct entry point is the approved exception in decision 40(g); the
-  `invite_practice` offer and other practice areas remain out of scope.
+- The `invite_practice` offer in the public demo. Demo Number Time, Sound
+  Time and Map Practice open from their own actions (decision 40(g)); other
+  areas join the demo as each is built.
 - Grade 3 and up, which have their own reading and spelling record (`services/diagnostic/literacy.py`).
 - Any score of handwriting quality, recitation, or a child's response to art, music or faith.
 - Any model-written practice item, or a model judging a child's answer.

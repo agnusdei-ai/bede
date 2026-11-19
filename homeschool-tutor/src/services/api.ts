@@ -2,6 +2,8 @@ import type { DiagramSpec } from '../components/Diagram'
 import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import type { MathLesson } from './k2MathTypes'
+import type { MapCell, MapLesson, MapAnswerResult } from './mapPracticeTypes'
+import type { PhonicsLesson, PhonicsAnswerResult } from './k2PhonicsTypes'
 export type {
   CounterColor, CountersPiece, MathLesson, MathPiece, MathTask, NumberBondPiece, TenFramePiece,
 } from './k2MathTypes'
@@ -2345,52 +2347,7 @@ export const finalizeTeacherQuiz = (
 // The server draws every map and checks every answer. Nothing typed is sent:
 // an answer is a tapped square, one of the offered choices, or spoken words.
 
-export type MapCell = [number, number]
-
-export interface MapScene {
-  cols: number
-  rows: number
-  style: 'picture' | 'map'
-  items: { symbol: string; col: number; row: number }[]
-  water: MapCell[]
-  path: MapCell[]
-  compass: 'none' | 'north_only' | 'labeled'
-  grid_labels: boolean
-  key: boolean
-}
-
-export interface MapTask {
-  phase?: 'together' | 'your_turn'
-  index?: number
-  scene: MapScene
-  prompt: { key: string; args: Record<string, string | number | number[]> }
-  answer_kind: 'tap' | 'choice' | 'scene_choice'
-  choices?: string[]
-  options?: MapScene[]
-  side_view?: string[]
-  marked?: MapCell
-  guide_cells?: MapCell[]
-}
-
-export interface MapReveal { cell?: MapCell; choice?: string }
-
-export interface MapLesson {
-  lesson_id: string
-  level: 'K' | '1' | '2'
-  skill: string
-  your_turn_tries: number
-  watch: MapTask & { answer: MapReveal }
-  together: MapTask[]
-  your_turn: MapTask[]
-}
-
-export interface MapAnswerResult {
-  understood: boolean
-  correct: boolean
-  tries_left?: number
-  reveal?: MapReveal
-  recorded?: boolean
-}
+export type { MapCell, MapScene, MapTask, MapReveal, MapLesson, MapAnswerResult } from './mapPracticeTypes'
 
 async function mapPracticeFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/map-practice${path}`, {
@@ -2417,44 +2374,7 @@ export const answerMapTask = (
 // The server builds every word and checks every answer; nothing a child types
 // or says is kept, and nothing here reaches an AI provider.
 
-export interface PhonicsGrapheme { text: string; sound?: string; silent?: boolean }
-
-export interface PhonicsTask {
-  phase?: 'together' | 'your_turn'
-  index?: number
-  prompt: { key: string; args: Record<string, string> }
-  /** A picture to hear, a word to read, or a word to listen for. In "Your
-   * turn", a word to read carries no sounds and no spoken word. */
-  display: { kind: 'picture' | 'word' | 'listen'; icon?: string; word?: string; graphemes?: PhonicsGrapheme[] }
-  choice_kind: 'picture' | 'letter' | 'word'
-  choices: string[]
-  /** Sounds for tapping a letter choice. Never sent in "Your turn". */
-  choice_sounds?: Record<string, string>
-}
-
-export interface PhonicsLesson {
-  lesson_id: string
-  area: 'phonics'
-  level: 'K' | '1' | '2'
-  domain: string
-  your_turn_tries: number
-  /** Whether the lesson was built for a device that can speak it. */
-  audio?: boolean
-  /** The child's practice works only by ear and the device cannot speak, so
-   * the lesson has no questions (sight words). Nothing can be recorded. */
-  needs_audio?: boolean
-  watch: (PhonicsTask & { answer: { choice: string } }) | null
-  together: PhonicsTask[]
-  your_turn: PhonicsTask[]
-}
-
-export interface PhonicsAnswerResult {
-  understood: boolean
-  correct: boolean
-  tries_left?: number
-  reveal?: { choice: string }
-  recorded?: boolean
-}
+export type { PhonicsGrapheme, PhonicsTask, PhonicsLesson, PhonicsAnswerResult } from './k2PhonicsTypes'
 
 async function phonicsFetch<T>(token: string, path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/k2-practice${path}`, {

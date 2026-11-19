@@ -3,8 +3,8 @@
 **Status: steps 1 and 3 built; the rest is specification.** Step 1 of §9 (the
 shared `invite_practice` invitation, the per-child setting, and phonics) and the
 first part of step 3 (practical math's counters, ten-frame and number bonds) are
-built. Number Time is also available as a direct, temporary activity in the
-public demo; its limits are described in §5.3. Step 3 was built before step 2,
+built. Number Time, Sound Time and Map Practice are also available as direct,
+temporary activities in the public demo; their limits are described in §5.3. Step 3 was built before step 2,
 handwriting, because handwriting waits on decision 40(c), the handwriting
 style, which is still open. The rest of the first wave is not built. Map
 reading, from the second wave, shipped in
@@ -52,7 +52,7 @@ the code.
 | K-2 math skills | `services/diagnostic/skill_map.py` (24 K-2 skills, below) | Practical math evidence. |
 | Spelling practice | `services/practice/packs/spelling/` (look-say-cover-write-check, `item_bank/patterns.json`) | The spelling routine and its words, after the K-2 additions in §5.4. |
 | Writing canvas | `components/HandwritingCanvas.tsx` | Handwriting and copying a sentence: composition ruling, finger and stylus. |
-| Speech | the browser's own speech (`utils/onDeviceSpeech.ts`), never the server's `/tutor/speak` | Speaking every instruction on the device, so nothing from a round reaches a speech provider. |
+| Speech | Bede's own voice (`useTextToSpeech`, the server's `/tutor/speak`), the same as the chat | Every instruction is spoken in the voice the child already knows (owner direction 2026-11-18). |
 | The invitation pattern | `invite_map_practice` in `services/ai_service.py` and `services/tool_registry.py` | How Bede offers a round (§4). |
 
 ## 3. The routine
@@ -100,7 +100,8 @@ whether an offer is allowed; the model only chooses the moment. Allowed when:
 dispatched**, the way `_map_practice_allowed` does it:
 
 - K-2 only (`GradeStage.foundations`). The lesson invitation remains unavailable
-  in the public demo; Number Time has its own direct demo action (§5.3).
+  in the public demo; Number Time, Sound Time and Map Practice have their own
+  direct demo actions (§5.3).
 - Only in the subjects that area belongs to (§5), and only if the parent scheduled that subject today. A parent's own lesson focus comes first.
 - At most one offer per area per session. Never when too little time is left on the block to finish a round (`time_remaining_seconds`, the same budget `services/action_governance.py` uses).
 - It is an invitation ("Shall I show you with the counters?"). The child can say not now, the lesson carries on, and declining records nothing.
@@ -297,12 +298,10 @@ instruction says its own answer ("Put 7 counters in the ten-frame") takes no
 spoken answer. Answering by voice inside the screen is not built, as for
 phonics; the server accepts a spoken answer.
 
-Speech is exactly as for phonics (§7): every line is shown and spoken only
-through a voice installed on the device (`utils/onDeviceSpeech.ts`), never
-`/tutor/speak`, a network voice or an unchecked default, and Bede's chat voice
-does not read the turn over a round it opened. No math question works only by
-ear, so a device that cannot speak gets the same lesson, shown without speech.
-Map practice still speaks through the server path, the known gap §7 names.
+Speech is exactly as for phonics (§7): every line is shown and spoken in
+Bede's own voice, and Bede's chat voice does not read the turn over a round it
+opened. No math question works only by ear, so with Bede's voice off the child
+gets the same lesson, shown without speech.
 
 The three new pictures are `counters`, `ten_frame` and `number_bond`
 (`models/practice.py`'s `PieceDiagram`, drawn by `components/MathPieces.tsx`):
@@ -326,9 +325,18 @@ from family practice ids, bound to the live sign-in and no longer than its
 expiry. If the in-memory attempt state disappears on restart, that lesson is
 refused and the visitor can start another round; attempts are never reset by
 rebuilding the lesson from an old id. This support does not enable
-`invite_practice` in demo tutoring turns or add any other practice area to the
-demo. Its UI and wire types are mirrored under `demo/src/` so the demo builds
-with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
+`invite_practice` in demo tutoring turns.
+
+Sound Time and Map Practice joined the demo on 2026-11-19 at the owner's
+request, under the same boundary (`services/k2_practice/demo_rounds.py`): the
+household builders and checks, level from the live demo session's K-2 grade,
+attempts held in a bounded in-memory store for no longer than the sign-in (at
+most 15 minutes), `demo=true` and `recorded=false` on every answer, and no
+model calls. Every round speaks only in Bede's own voice, the chat's
+text-to-speech path, never the browser's or an on-device voice.
+
+The demo's screens and wire types are mirrored under `demo/src/` so the demo
+builds with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
 copies against the household implementation. Decision 40(g) records the
 approval and boundary. Its 2026-11-19 amendment records the owner's direction
 that every area in this specification joins the demo, in Bede's voice, as it
@@ -449,7 +457,7 @@ already keeps for the tab only.
 - **The parent decides.** Parents approve word lists and practice sets before a child sees them, choose the setting in §4, and see every ledger row on Progress. A child never sees a record of their own practice.
 - **What helps this child applies.** A child's `learning_support` and reading settings carry into the round. For example, tiles instead of writing for a child who answers better that way, and the letter and line spacing the parent set.
 - **Accessible.** 56 px touch targets, 64 px for the main action, 8 px apart; usable at 200% text; every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
-- **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing from a round goes to any AI provider.
+- **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing the child gives in a round goes to any AI provider. A round's own fixed lines are spoken in Bede's voice, which sends that text to the configured speech provider (§7).
 - **Reliable.** A lesson rebuilds from its signed id, a reload resumes it, a retried answer counts once, and every check runs without an AI call.
 - **Never faith.** No area records anything about prayer, Scripture or devotional text. See §8.
 
@@ -462,20 +470,37 @@ disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
-like the map practice card, and spoken only through a voice installed on the
-device, in the session's language (`utils/onDeviceSpeech.ts`): never through
-`/tutor/speak`, which forwards text to a cloud speech provider, and never with a
-browser network voice (`localService === false`, such as Chrome's "Google"
-voices) or an unchecked default voice. On a device with no installed voice for
-the language, or with Bede's voice turned off, the round is shown without
-speech, and the items that only work by ear (sight words) are not served or
-recorded; a child whose practice is sight words is told it needs sound.
-Bede's chat voice does not read the turn over a round it opened. A spoken answer is transcribed
-by the existing voice pipeline and counts only when it matches one of the item's
-own choices, and never when the spoken instruction already said the answer (a
-sight word), since repeating it is an echo rather than a reading. So nothing
-from a round reaches an AI provider. Map practice (`MapPractice.tsx`) still
-speaks through the server path and is a known gap, left for the owner.
+like the map practice card.
+
+**Every round speaks in Bede's own voice (owner direction 2026-11-18).** Rounds
+used to speak through a voice installed on the device, so that nothing from a
+round reached a provider. That voice sounded unlike Bede, so a child heard one
+voice in the chat and a different one in the round. Sound Time, Number Time
+and Map Practice now speak through the same `useTextToSpeech` path as a chat
+reply, in the app and in the demo, and stop speaking when the child closes
+them, with the chat's rules: a browser voice only when no speech
+provider is configured at all, and silence rather than another voice when one
+is configured but a line fails. They default to no other voice, and no shipped
+file outside `useTextToSpeech` may speak through the browser directly or
+request `/tutor/speak` itself (`bedesVoiceOnly.test.ts`). The rule holds for
+every feature, including ones added later (Practice Coach speaks nothing
+today; if it ever does, it speaks in Bede's voice): in the chat, every
+practice screen that speaks is handed the one Bede-voice callback, and the
+same test fails if a screen is wired to anything else.
+
+What this sends to the speech provider is the round's fixed, server-written
+lines: the instruction, the worked example, a letter's sound when it is tapped,
+and "That's it" or "Let's look again". It never sends the child's taps or
+spoken answers, but the feedback line spoken does show whether an answer was
+right. With Bede's voice turned off, the round is shown without speech, and the
+items that only work by ear (sight words) are not served or recorded; a child
+whose practice is sight words is told it needs sound. Bede's chat voice does
+not read the turn over a round it opened. A spoken answer is transcribed by the
+existing voice pipeline and counts only when it matches one of the item's own
+choices, and never when the spoken instruction already said the answer (a sight
+word), since repeating it is an echo rather than a reading.
+`SocraticChat.k2Practice.test.tsx` and the demo's `k2MathParity.test.ts` pin the
+wiring.
 
 ## 8. Second wave
 
@@ -503,14 +528,14 @@ the docs updated in the same PR.
 
 Each step needs no new database table: household rounds rebuild from signed
 ids, and records go to the existing work ledger and evidence paths. Demo
-Number Time uses a separate bounded in-memory attempt store and records
-nothing.
+Number Time, Sound Time and Map Practice use separate bounded in-memory
+attempt stores and record nothing.
 
 ## 10. Not in scope
 
-- Practice areas beyond Number Time in the public demo. Demo Number Time's
-  direct entry point is the approved exception in decision 40(g); the
-  `invite_practice` offer and other practice areas remain out of scope.
+- The `invite_practice` offer in the public demo. Demo Number Time, Sound
+  Time and Map Practice open from their own actions (decision 40(g)); other
+  areas join the demo as each is built.
 - Grade 3 and up, which have their own reading and spelling record (`services/diagnostic/literacy.py`).
 - Any score of handwriting quality, recitation, or a child's response to art, music or faith.
 - Any model-written practice item, or a model judging a child's answer.

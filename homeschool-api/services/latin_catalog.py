@@ -1,7 +1,7 @@
 """
 Latin & Christian Foundations — the verbatim content behind Subject.latin.
 
-WHAT THIS IS. A K-12 Latin strand whose spine is the shared Christian
+WHAT THIS IS. A K-8 Latin strand whose spine is the shared Christian
 vocabulary every Christian tradition holds in common — Fides, Spes,
 Caritas, Sapientia, Veritas, Ora et Labora — anchored in the Vulgate, and
 centered on Christ's own summary of the whole moral law:

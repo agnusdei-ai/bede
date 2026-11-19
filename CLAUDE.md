@@ -1121,10 +1121,12 @@ offered in the subjects the code says (`AREA_SUBJECTS`, `_MAP_PRACTICE_SUBJECTS`
 so the copy says "History & Geography", the product's name), the recorded-answer
 limit is `MAX_RECORDED_ANSWERS`, and Map Practice reads no parent setting (the
 FAQ says it has none, so the guard fails if `_map_practice_allowed` ever reads
-`practice_offers`). It also refuses three overreaches: any mention of a spoken
+`practice_offers`). It also refuses two overreaches: any mention of a spoken
 voice (how a round is spoken is still changing, entry 46), any claim that
-practice never marks a skill secure (two right first tries can), and any "K-12"
-(the product is kindergarten to grade 8). The new FAQ block is deliberately NOT
+practice never marks a skill secure (two right first tries can). The grade
+range is deliberately not asserted here: the owner ruled on 2026-11-19 that the
+product is K-12 (see the separate site copy change), so a guard fixing it at
+kindergarten to grade 8 was removed. The new FAQ block is deliberately NOT
 a `bede-curriculum-entry`, which `scripts/bede-production.test.mjs` pins at 14
 cards and 42 facts. Number Time is in the public demo only for kindergarten,
 grade 1 and grade 2 visitors, and the demo has no phonics or map round yet, so

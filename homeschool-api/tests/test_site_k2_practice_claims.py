@@ -6,9 +6,8 @@ adult controls and what is kept. A static page is where such text goes stale
 silently, so each claim is held against the code that decides it.
 
 What is enforced is agreement between the copy and the code, never whether the
-copy is persuasive. It also refuses the two ways this copy can overreach: naming
-a practice area that is not built, and saying the product serves grades it does
-not (it is kindergarten to grade 8).
+copy is persuasive. It also refuses naming a practice
+area that is not built.
 """
 import html
 import inspect
@@ -116,13 +115,6 @@ def test_the_copy_says_nothing_about_narration():
     page promises a voice. Every Number Time question works from the picture."""
     for word in ("spoken", "narrat", "voice", "aloud", "hear "):
         assert word not in BOTH.lower(), f"the K-2 copy mentions {word!r}"
-
-
-def test_the_product_is_kindergarten_to_grade_8_never_k_12():
-    for page in ("site/index.html", "site/homeschool/index.html", "site/faq/index.html",
-                 "site/educators/index.html", "site/schools/index.html", "site/llms.txt"):
-        text = (ROOT / page).read_text()
-        assert not re.search(r"\bK[-–]?12\b", text), f"{page} says K-12; Bede serves kindergarten to grade 8"
 
 
 def test_the_demo_claim_matches_the_demo():

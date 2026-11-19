@@ -11,7 +11,7 @@ exists separately:
 
 1. **The manuscript question is sidestepped, not answered.** Every anchor
    was chosen because the Textus Receptus and the critical text read
-   identically at the phrase quoted. That is what keeps a K-8 subject out
+   identically at the phrase quoted. That is what keeps a K-12 subject out
    of the KJV-only debate, and it is asserted rather than trusted.
 2. **Transliteration is mandatory.** A child who cannot yet read the
    alphabet must never be handed bare Greek. Latin has no equivalent
@@ -147,7 +147,7 @@ def test_block_requires_transliteration_alongside_any_greek(stage):
 def test_block_refuses_to_adjudicate_the_manuscript_tradition(stage):
     """
     Greek has a live, denominationally charged textual divide that Latin
-    does not (Textus Receptus vs. the critical text). A K-8 tutoring
+    does not (Textus Receptus vs. the critical text). A K-12 tutoring
     subject must not pick a side.
     """
     note = greek_note(None, stage).lower()

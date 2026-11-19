@@ -9,7 +9,7 @@ audio. That exercises the real path end to end (Piper's phonemizer and
 espeak-ng data, onnxruntime, the WAV writer, voice-service/server.py, the
 API's /tutor/speak, the browser's <audio>), and says nothing about how a
 real voice sounds: that is the owner's acceptance on the pilot Mac, with a
-real voice whose licence is recorded (docs/DECISIONS.md entry 46).
+real voice whose license is recorded (docs/DECISIONS.md entry 46).
 
 `failing=True` builds a voice that loads normally and then fails on every
 line (its output cannot be reshaped), which is how "Piper is set up but

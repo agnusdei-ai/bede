@@ -3,17 +3,17 @@
 A small HTTP server that speaks Bede's lines with [Piper](https://github.com/OHF-Voice/piper1-gpl),
 on the family's own computer. Nothing it is asked to say leaves that computer.
 
-**Licence.** Piper is GPL-3.0-or-later, and so is this directory (`COPYING`).
+**License.** Piper is GPL-3.0-or-later, and so is this directory (`COPYING`).
 It is a separate program in its own container. Bede's API, which is under the
-repository's own licence, talks to it only over HTTP and includes none of its
+repository's own license, talks to it only over HTTP and includes none of its
 code. Whether that separation is enough for how Bede is distributed is the
 distribution review recorded in `docs/DECISIONS.md` entry 46, and **this voice
 is not installed for families until that review clears.**
 
-**Voices.** Each Piper voice is a separate model with its own licence, separate
+**Voices.** Each Piper voice is a separate model with its own license, separate
 from Piper's. No voice file is in this repository. Which English and Spanish
 voices Bede uses is part of the same review, and is chosen only from voices
-whose licence has been read and recorded.
+whose license has been read and recorded.
 
 ## What it does
 

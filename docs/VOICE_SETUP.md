@@ -73,7 +73,7 @@ with no voice is silent; it is never read in another language's voice.
 **Not yet offered to families.** The installers do not set it up until the
 distribution review in `docs/DECISIONS.md` entry 46 clears: how Piper's GPL
 applies to the way Bede is distributed, and which English and Spanish voices
-to use (each voice has its own licence, read and recorded before it is
+to use (each voice has its own license, read and recorded before it is
 chosen). To try it by hand:
 
 ```bash

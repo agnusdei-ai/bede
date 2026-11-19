@@ -28,7 +28,7 @@ made and no model is downloaded: the sample voices are built from code
 (make_sample_voice.py).
 
 This proves the plumbing, not how a real voice sounds. Physical acceptance on
-the pilot Mac, with a real voice whose licence is recorded, is the owner's.
+the pilot Mac, with a real voice whose license is recorded, is the owner's.
 
 Run from the repo root after `npm run build` in homeschool-tutor:
   python scripts/qualification/local_voice/run_local_voice_check.py \

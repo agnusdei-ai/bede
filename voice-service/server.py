@@ -3,7 +3,7 @@
 Bede's local voice: a small HTTP server that speaks a line with Piper.
 
 This program uses Piper (GPL-3.0-or-later) and is distributed under the same
-licence, as its own program in its own container (`voice-service/`). Bede's
+license, as its own program in its own container (`voice-service/`). Bede's
 API talks to it only over HTTP and links none of its code. See
 voice-service/README.md and docs/DECISIONS.md entry 46, whose distribution
 review must clear before this ships to families.

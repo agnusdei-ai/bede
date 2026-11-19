@@ -2597,7 +2597,7 @@ still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
 
 ## 46. `[PRODUCT]` Every feature speaks in Bede's own voice; installed Bede's voice is local
 
-**Status:** open · needs: a distribution review of Piper (GPL-3.0-or-later) as Bede ships it, and a recorded licence for each English and Spanish voice chosen. The decisions below are made and built; only shipping the local voice to families waits on this.
+**Status:** open · needs: a distribution review of Piper (GPL-3.0-or-later) as Bede ships it, and a recorded license for each English and Spanish voice chosen. The decisions below are made and built; only shipping the local voice to families waits on this.
 
 **Decided (2026-11-18, owner).**
 
@@ -2637,9 +2637,42 @@ same day:
   up" apart from "set up but not answering right now", with a next step for
   each. Screen readers and other assistive technology are untouched.
 
-Still open, as above: the distribution review and the per-voice licences.
+Still open, as above: the distribution review and the per-voice licenses.
 Until they clear, installed Bede ships text-first, which is the product
 behaving as decided, not a fault.
+
+**Amended (2026-11-19, owner, later the same day): Piper stays parked for the
+beta.** Piper is the product's voice, and nothing ships to customers until
+these are recorded here:
+
+1. **The engine and its exact version.** Piper's engine is open source,
+   maintained by the Open Home Foundation (OHF-Voice/piper1-gpl) under
+   GPL-3.0-or-later. Bede pins `piper-tts==1.8.0`, hash-locked in
+   `voice-service/requirements.lock.txt`. The GPL's distribution obligations
+   are the counsel question above.
+2. **The exact voice: its version and file hash**, for every English and
+   Spanish voice. Voice models are separate from the engine, and Piper's GPL
+   does not cover them. A voice that can be downloaded publicly is not
+   necessarily licensed for commercial use or redistribution.
+3. **For each voice, separately from the engine's GPL obligations:** its
+   license, its training lineage, and its redistribution terms, read from
+   the `MODEL_CARD` that came with that exact file. A newer listing or model
+   card does not change the training history of a copy already in hand.
+
+The owner cited Piper's November 2026 licensing guidance
+(OHF-Voice/piper1-gpl commit 31c3011), which flags older `es_MX-ald` builds:
+they were fine-tuned from an earlier `davefx` model with a restricted
+training chain. Any Mexican Spanish candidate is checked against that.
+Neither the guidance nor any voice's model card was read from this build
+environment: that repository is outside this session's access, and the
+voice repository is unreachable from it.
+
+**What has actually been tested.** No real Piper voice has been tested in
+this repository. Every check here used sample voices built from code by
+`make_sample_voice.py`, which have no license or lineage to review. The first
+real voice to be reviewed is whichever copy the owner chooses; no download is
+needed to start that review if the tested copy and its model card are
+already in hand.
 
 **How it is built.**
 
@@ -2691,7 +2724,7 @@ Three deliberate breaks each failed the check: the old browser-fallback hook
 line (28 refused attempts to `api.openai.com`), and the compose pin removed
 (`/tutor/voice` reported a cloud voice and the API tried OpenAI). This proves
 the plumbing, not how a real voice sounds; that, with a real voice whose
-licence is recorded, is the owner's acceptance on the pilot Mac.
+license is recorded, is the owner's acceptance on the pilot Mac.
 
 **Verified again (2026-11-19)**, after the amendment, by the same check with
 two more cases and stricter judgement: it now also records the text of every
@@ -2721,10 +2754,10 @@ the child's choice, and a round told it can speak before the answer is known.
   GPL-3.0-or-later (`voice-service/COPYING`) and talking to Bede only over
   HTTP, is sufficient for how Bede is distributed: the installers, the Mac
   bundle, and any image that ships both. This is for counsel.
-- Which voices. Each Piper voice is a separate model under its own licence,
+- Which voices. Each Piper voice is a separate model under its own license,
   and some are trained on datasets with research-only terms. Choose an English
   and a Spanish (Mexican) voice only after reading each voice's model card and
-  recording its licence here. This could not be checked from the build
+  recording its license here. This could not be checked from the build
   environment, which cannot reach the voice repository.
 - Then: installers that fetch and verify the chosen voices, and set
   `COMPOSE_PROFILES=local-voice` and `LOCAL_TTS_URL` by default.

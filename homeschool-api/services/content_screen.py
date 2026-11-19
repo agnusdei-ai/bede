@@ -114,7 +114,7 @@ class ScreeningUnavailable(Exception):
     """The check could not run, so the picture is refused, never read."""
 
 
-_SHARED_RULES = """You check pictures before a K-8 school app uses them. Look at every picture.
+_SHARED_RULES = """You check pictures before a K-12 school app uses them. Look at every picture.
 Judge what a picture shows in any style: a photo, a drawing, a cartoon, an animation frame,
 a sticker or a meme is refused for the same things a photo would be.
 Refuse if ANY picture shows:

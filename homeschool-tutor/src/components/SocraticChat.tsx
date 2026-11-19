@@ -3,12 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { Send, Loader2, Mic, Radio, Volume2, VolumeX, PenLine, FileUp, ImagePlus, X, Sparkles } from 'lucide-react'
 import {
   streamTutorChat, updateVoiceNarrationPreference, extractNarrationText,
-  ParentalConsentRequiredError, fetchMathLesson, answerMathTask, fetchVoiceStatus,
+  ParentalConsentRequiredError, fetchMathLesson, answerMathTask,
 } from '../services/api'
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
-import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { useTextToSpeech, voiceSpeaks } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import K2MathPractice from './K2MathPractice'
@@ -223,19 +223,21 @@ export default function SocraticChat({
   // is heard when it is tapped. With Bede's voice off the round is shown
   // without speech and the server leaves out questions that work only by ear.
   const speakInBedesVoice = useCallback((text: string) => { stopSpeech(); speak(text) }, [stopSpeech, speak])
-  // Whether Bede can actually speak right now (GET /tutor/voice). Installed
-  // Bede speaks only in its local Piper voice; when Piper is not set up or is
-  // down, a round is served without the items that work only by ear and goes
-  // on with everything on screen, and nothing else is used in Piper's place
-  // (docs/DECISIONS.md entry 46). Unknown (an older server) counts as able.
-  const [voiceAvailable, setVoiceAvailable] = useState<boolean | null>(null)
+  // Whether Bede's voice can speak right now (GET /tutor/voice, the same
+  // answer the voice hook reads). Installed Bede speaks only in its local
+  // Piper voice; with none set up, or Piper not answering, a round waits for
+  // this answer, is served without the items that work only by ear, and goes
+  // on with everything on screen. Nothing is used in Piper's place, and
+  // nothing about it is ever shown to the child (docs/DECISIONS.md entry 46).
+  const [voiceCanSpeak, setVoiceCanSpeak] = useState<boolean | null>(null)
   useEffect(() => {
-    if (!token) return
+    if (!token) { setVoiceCanSpeak(false); return }
     let live = true
-    fetchVoiceStatus(token).then((s) => { if (live) setVoiceAvailable(s ? s.available !== false : null) })
+    voiceSpeaks(token).then((ok) => { if (live) setVoiceCanSpeak(ok) })
     return () => { live = false }
   }, [token])
-  const voiceOn = ttsEnabled && voiceAvailable !== false
+  const roundsSpeak = ttsEnabled && voiceCanSpeak === true
+  const roundCanSpeak = !ttsEnabled ? false : voiceCanSpeak
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -1229,7 +1231,7 @@ export default function SocraticChat({
           token={token}
           studentName={sessionConfig.student_name}
           onClose={() => { stopSpeech(); setShowMapPractice(false) }}
-          onSpeak={voiceOn ? speakInBedesVoice : undefined}
+          onSpeak={roundsSpeak ? speakInBedesVoice : undefined}
         />
       )}
 
@@ -1240,8 +1242,8 @@ export default function SocraticChat({
           token={token}
           studentName={sessionConfig.student_name}
           onClose={() => { stopSpeech(); setShowPhonics(false) }}
-          onSpeak={voiceOn ? speakInBedesVoice : undefined}
-          canSpeak={voiceOn}
+          onSpeak={roundsSpeak ? speakInBedesVoice : undefined}
+          canSpeak={roundCanSpeak}
         />
       )}
 
@@ -1257,8 +1259,8 @@ export default function SocraticChat({
               answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
           }}
           onClose={() => { stopSpeech(); setShowMath(false) }}
-          onSpeak={voiceOn ? speakInBedesVoice : undefined}
-          canSpeak={voiceOn}
+          onSpeak={roundsSpeak ? speakInBedesVoice : undefined}
+          canSpeak={roundCanSpeak}
         />
       )}
 

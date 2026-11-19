@@ -11,6 +11,7 @@ import i18n from '../i18n'
 import { useSessionStore } from '../store/sessionStore'
 import type { SessionConfig } from '../types'
 import SocraticChat from './SocraticChat'
+import { resetVoiceGateForTests } from '../hooks/useTextToSpeech'
 
 const CONFIG = {
   student_name: 'Ada', grade: '1', grade_stage: 'K-2', subjects: ['language_arts'],
@@ -43,26 +44,35 @@ function sse(chunks: object[]): Response {
 }
 
 let area: string | undefined
-// What GET /tutor/voice answers; undefined = an older server without it (404).
-let voiceStatus: { configured: boolean; where: string | null; available: boolean } | undefined
-let speakAnswer: () => Response = () => new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
+/** What GET /tutor/voice answers ('fail' = the request itself fails). */
+let voiceStatus: { configured: boolean; where: string | null; available: boolean } | 'fail' = { configured: true, where: 'local', available: true }
+/** How /tutor/speak answers: 204 = Bede's voice is set up but the line
+ *  failed; 'hang' = it never answers. */
+let speakAnswer: 204 | 'hang' = 204
+/** A phonics lesson with a Together step, so a child actually answers. */
+let lessonFor: () => object = () => LESSON
 const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
-  if (String(url).includes('/tutor/voice') && voiceStatus) {
-    return new Response(JSON.stringify(voiceStatus), { status: 200, headers: { 'Content-Type': 'application/json' } })
-  }
   if (String(url).includes('/tutor/chat')) {
     return sse([{ type: 'tool', tool: 'invite_practice', area, content: area === 'math' ? MATH_CARD : CARD }, { type: 'done' }])
   }
+  if (String(url).includes('/tutor/voice')) {
+    if (voiceStatus === 'fail') throw new TypeError('Load failed')
+    return new Response(JSON.stringify(voiceStatus), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  }
   if (String(url).includes('/tutor/speak')) {
-    // By default Bede's voice is configured and the call returns no audio, so
-    // the hook stays silent rather than switching to another voice.
-    return speakAnswer()
+    if (speakAnswer === 'hang') return new Promise<Response>(() => {})
+    // Bede's voice is configured; the call returns no audio, so the hook
+    // stays silent rather than switching to another voice.
+    return new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
+  }
+  if (String(url).includes('/answers')) {
+    return new Response(JSON.stringify({ understood: true, correct: true }), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
   if (String(url).includes('/k2-practice/') && String(url).includes('/math/')) {
     return new Response(JSON.stringify(MATH_LESSON), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
   if (String(url).includes('/k2-practice/')) {
-    return new Response(JSON.stringify(LESSON), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    return new Response(JSON.stringify(lessonFor()), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }
   return new Response('{}', { status: 404 })
 })
@@ -78,9 +88,11 @@ beforeEach(() => {
   i18n.changeLanguage('en')
   sessionStorage.clear()
   fetchMock.mockClear()
-  voiceStatus = undefined
-  speakAnswer = () => new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
   vi.stubGlobal('fetch', fetchMock)
+  resetVoiceGateForTests()
+  voiceStatus = { configured: true, where: 'local', available: true }
+  speakAnswer = 204
+  lessonFor = () => LESSON
   Element.prototype.scrollIntoView = vi.fn()
   act(() => {
     useSessionStore.getState().logout()
@@ -208,56 +220,116 @@ describe('the invite_practice card', () => {
   })
 })
 
-describe('installed Bede with no working voice: the round goes on, on screen, in silence', () => {
-  // Owner ruling 2026-11-18: Piper or nothing. Not set up, down, or failing a
-  // line, Bede continues without narration, keeps every prompt and feedback
-  // on screen, and never uses OpenAI's voice or the browser's.
-  function watchTheBrowserVoice(): string[] {
-    const deviceSpoken: string[] = []
-    class Utterance { text: string; constructor(text: string) { this.text = text } }
-    vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
-    vi.stubGlobal('speechSynthesis', {
-      speak: (u: Utterance) => deviceSpoken.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
-      getVoices: () => [], addEventListener: vi.fn(), removeEventListener: vi.fn(), speaking: false, pending: false,
-    })
-    return deviceSpoken
-  }
-  const noCloud = () => fetchMock.mock.calls.every(([u]) => !/openai|api\.openai\.com/.test(String(u)))
+// ── Installed Bede with no working voice: text-first, never another voice ──
 
+const TOGETHER_LESSON = {
+  ...LESSON,
+  together: [{
+    phase: 'together', index: 0, prompt: { key: 'read_word_choice', args: {} },
+    display: { kind: 'word', word: 'sun', graphemes: [{ text: 's', sound: 'sss' }, { text: 'u', sound: 'uh' }, { text: 'n', sound: 'nnn' }] },
+    choice_kind: 'picture', choices: ['sun', 'pig'],
+  }],
+}
+
+/** Everything the browser's own speech engine was asked to say. */
+function trapBrowserSpeech(): string[] {
+  const said: string[] = []
+  class Utterance { text: string; constructor(text: string) { this.text = text } }
+  vi.stubGlobal('SpeechSynthesisUtterance', Utterance)
+  vi.stubGlobal('speechSynthesis', {
+    speak: (u: Utterance) => said.push(u.text), cancel: vi.fn(), pause: vi.fn(), resume: vi.fn(),
+    getVoices: () => [{ name: 'Daniel', lang: 'en-GB', localService: true }],
+    addEventListener: vi.fn(), removeEventListener: vi.fn(), speaking: false, pending: false,
+  })
+  return said
+}
+
+/** Plays Sound Time through Watch and one Together answer, as a child would. */
+async function playOneAnswer() {
+  await screen.findByRole('dialog', { name: 'Sound Time' })
+  fireEvent.click(await screen.findByRole('button', { name: 'Let’s try one' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'sun' }))
+  expect(await screen.findByText('Yes, that’s it!')).toBeTruthy()
+}
+
+/** Nothing on screen tells the child about the voice, a provider or a key. */
+function expectNoVoiceErrorShown() {
+  const VOICE_TROUBLE = /OpenAI|API key|speech service|voice (is )?(unavailable|not (set up|configured))|couldn.t (speak|play)|narration/i
+  expect(document.body.textContent ?? '').not.toMatch(VOICE_TROUBLE)
+  for (const alert of screen.queryAllByRole('alert')) expect(alert.textContent ?? '').not.toMatch(VOICE_TROUBLE)
+}
+
+describe("installed Bede with no working voice", () => {
   it.each([
-    ['Piper is set up but not reachable', { configured: true, where: 'local', available: false }],
-    ['no voice is configured', { configured: false, where: null, available: false }],
-  ])('%s: the round asks for on-screen items only, speaks nothing, and continues', async (_, status) => {
-    const deviceSpoken = watchTheBrowserVoice()
+    ['no voice set up', { configured: false, where: null, available: false }],
+    ['Piper set up but not answering', { configured: true, where: 'local', available: false }],
+  ] as const)('%s: the round and chat carry on, nothing is spoken, nothing is sent', async (_name, status) => {
     voiceStatus = status
+    lessonFor = () => TOGETHER_LESSON
+    const browser = trapBrowserSpeech()
     area = 'phonics'
     render(<SocraticChat />)
-    await screen.findByRole('dialog', { name: 'Sound Time' })
-    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/phonics/lesson'))).toBe(true))
-    const lessonUrls = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/phonics/lesson'))
-    expect(lessonUrls.every((u) => u.endsWith('/phonics/lesson?audio=false'))).toBe(true)
-    // The prompt is on screen and the round moves on.
-    await waitFor(() => expect(screen.getByTestId('phonics-line').textContent).toBe('Listen: kuh, ah, tuh. Put the sounds together: cat!'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Let’s try one' }))
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
+    await playOneAnswer()
+    // Without a voice the round asks for no ear-only questions.
+    const lessonUrls = fetchMock.mock.calls.map(([u]) => String(u)).filter((u) => u.includes('/phonics/lesson?'))
+    expect(lessonUrls.length).toBeGreaterThan(0)
+    expect(lessonUrls).toEqual(lessonUrls.map(() => expect.stringMatching(/audio=false$/)))
+    // Back to the chat, which still works.
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Bede' }))
+    expect(screen.queryByRole('dialog', { name: 'Sound Time' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Start Sound Time' })).toBeTruthy()
     expect(spokenByBede()).toEqual([])
-    expect(deviceSpoken).toEqual([])
-    expect(noCloud()).toBe(true)
+    expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/tutor/speak'))).toBe(false)
+    expect(browser).toEqual([])
+    expectNoVoiceErrorShown()
   })
 
-  it('Piper is reachable but fails every line: the round continues in silence, never another voice', async () => {
-    const deviceSpoken = watchTheBrowserVoice()
-    voiceStatus = { configured: true, where: 'local', available: true }
-    speakAnswer = () => new Response(null, { status: 204, headers: { 'X-TTS-Configured': 'True' } })
-    area = 'math'
+  it('a status check that fails is silent too, never the browser voice', async () => {
+    voiceStatus = 'fail'
+    lessonFor = () => TOGETHER_LESSON
+    const browser = trapBrowserSpeech()
+    area = 'phonics'
     render(<SocraticChat />)
-    await screen.findByRole('dialog', { name: 'Number Time' })
-    const watchLine = '5 red and 3 yellow. I count them all: 8.'
-    // Bede tried to say it (and Piper failed); it is still on screen.
-    await waitFor(() => expect(spokenByBede()).toContain(watchLine))
-    expect(screen.getByTestId('math-line').textContent).toBe(watchLine)
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(deviceSpoken).toEqual([])
-    expect(noCloud()).toBe(true)
+    await playOneAnswer()
+    expect(spokenByBede()).toEqual([])
+    expect(browser).toEqual([])
+    expectNoVoiceErrorShown()
+  })
+
+  it('a provider error: lines are tried in Bede’s voice, fail quietly, and the round goes on', async () => {
+    lessonFor = () => TOGETHER_LESSON
+    const browser = trapBrowserSpeech()
+    area = 'phonics'
+    render(<SocraticChat />)
+    await playOneAnswer()
+    await waitFor(() => expect(spokenByBede().length).toBeGreaterThan(0))
+    expect(browser).toEqual([])
+    expectNoVoiceErrorShown()
+  })
+
+  it('a line that never comes back does not hold the round up', async () => {
+    speakAnswer = 'hang'
+    lessonFor = () => TOGETHER_LESSON
+    const browser = trapBrowserSpeech()
+    area = 'phonics'
+    render(<SocraticChat />)
+    await playOneAnswer()
+    expect(browser).toEqual([])
+    expectNoVoiceErrorShown()
+  })
+
+  it('only the round’s own fixed lines go to Bede’s voice, never what the child chose', async () => {
+    lessonFor = () => TOGETHER_LESSON
+    area = 'phonics'
+    render(<SocraticChat />)
+    await playOneAnswer()
+    await waitFor(() => expect(spokenByBede()).toContain('Yes, that’s it!'))
+    const fixed = new Set([
+      'Listen: kuh, ah, tuh. Put the sounds together: cat!', // Watch
+      'Read the word. Tap its picture.', // Together prompt
+      'Yes, that’s it!', // feedback
+    ])
+    for (const line of spokenByBede()) expect(fixed.has(line), `unexpected line sent: ${line}`).toBe(true)
+    expect(spokenByBede()).not.toContain('sun')
   })
 })

@@ -2,16 +2,21 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { logDebug } from './debugBus'
 
 /**
- * Bede's spoken voice, and the only voice anything in this app speaks with
- * (owner decisions 2026-11-18, docs/DECISIONS.md entry 46).
+ * Bede's spoken voice, and the only voice anything in this app speaks with:
+ * the chat, Sound Time, Number Time and Map Practice (docs/DECISIONS.md
+ * entry 46).
  *
- * Every line goes to the server's /tutor/speak, which speaks it in Bede's
- * voice: the family's local voice when one is installed, otherwise the
- * configured cloud voice. When no voice is configured, or a line fails, or
- * the browser blocks playback, the line is SILENT. The browser's own
- * speechSynthesis is never used: it is not Bede's voice, and a child hearing
- * a different voice is worse than a line that is shown but not spoken.
- * (`bedesVoiceOnly.test.ts` fails if anything speaks through it.)
+ * Every line goes to the server's /tutor/speak. In installed Bede that is
+ * Bede's own Piper voice on the family's computer; cloud speech is never
+ * used there. When no voice is set up, or Bede's voice is not answering
+ * (asked once, then again after VOICE_RECHECK_MS), no line is requested at
+ * all. When a line fails or times out, or the browser blocks playback, the
+ * line is SILENT and everything on screen carries on. The browser's own
+ * speechSynthesis is never used: it is not Bede's voice, and a child
+ * hearing a different voice is worse than a line that is shown but not
+ * spoken. (`bedesVoiceOnly.test.ts` fails if anything speaks through it.)
+ * Nothing here touches a screen reader, which reads the page on its own
+ * terms.
  */
 
 // One <audio> element, reused for every turn's backend TTS playback rather
@@ -109,6 +114,54 @@ export function unlockSpeechForSession() {
 // survive remounts of the hook within the same tab, same as resolvedVoice above.
 let lastKnownTtsConfigured = false
 
+/** How long one line may take to come back from /tutor/speak before it is
+ *  given up and left silent. Longer than any real line takes. */
+export const SPEAK_REQUEST_TIMEOUT_MS = 20_000
+
+// Whether Bede's voice can speak right now (GET /tutor/voice: a voice is set
+// up and answering in this session's language). A "yes" is remembered for
+// the sign-in. A "no" is remembered for VOICE_RECHECK_MS only, so a voice that
+// comes back is picked up within a lesson, while an install with no voice
+// still sends no line to /tutor/speak. A failed ASK is not remembered at
+// all: it says nothing about the voice, so the next line asks again (and is
+// silent meanwhile).
+let voiceGate: { token: string; at: number; speaks: Promise<boolean> } | null = null
+
+/** How long a "Bede's voice can't speak right now" answer is trusted. */
+export const VOICE_RECHECK_MS = 60_000
+
+/** Test seam: forget the remembered answer. */
+export function resetVoiceGateForTests() { voiceGate = null }
+
+async function askWhetherVoiceSpeaks(token: string): Promise<boolean> {
+  try {
+    const res = await fetch('/api/tutor/voice', { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) throw new Error(`status ${res.status}`)
+    const body = await res.json()
+    return body?.configured === true && body?.available === true
+  } catch (err) {
+    if (voiceGate?.token === token) voiceGate = null
+    logDebug(`TTS voice status unknown, staying silent for now: ${err instanceof Error ? err.message : String(err)}`)
+    return false
+  }
+}
+
+/** Whether Bede's voice can speak for this sign-in. Shared by the hook and
+ *  the lesson screen, so both read one answer from one request. */
+export function voiceSpeaks(token: string): Promise<boolean> {
+  const now = Date.now()
+  if (!voiceGate || voiceGate.token !== token) {
+    voiceGate = { token, at: now, speaks: askWhetherVoiceSpeaks(token) }
+    return voiceGate.speaks
+  }
+  const gate = voiceGate
+  return gate.speaks.then((speaks) => {
+    if (speaks || Date.now() - gate.at < VOICE_RECHECK_MS || voiceGate !== gate) return voiceGate?.speaks ?? speaks
+    voiceGate = { token, at: Date.now(), speaks: askWhetherVoiceSpeaks(token) }
+    return voiceGate.speaks
+  })
+}
+
 export function useTextToSpeech(token: string | null = null, initialEnabled: boolean = true) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [enabled, setEnabled] = useState(initialEnabled)
@@ -142,16 +195,23 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
    *  three, not just whether this one call succeeded. */
   const speakViaBackend = useCallback(async (text: string, myGeneration: number): Promise<{ spoke: boolean; configured: boolean; fetchedAudio: boolean }> => {
     if (!token) return { spoke: false, configured: false, fetchedAudio: false }
+    // A provider that never answers must not leave Bede "speaking" forever:
+    // isSpeaking holds the mic back in continuous voice mode. The line is
+    // given up and stays silent; the lesson goes on.
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), SPEAK_REQUEST_TIMEOUT_MS)
     try {
       const res = await fetch('/api/tutor/speak', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text }),
+        signal: controller.signal,
       })
       const configured = res.headers.get('X-TTS-Configured') === 'True'
       lastKnownTtsConfigured = configured
       if (res.status !== 200) return { spoke: false, configured, fetchedAudio: false } // 204 = synthesis unavailable
       const blob = await res.blob()
+      clearTimeout(timer)
       // A newer stop() has superseded this call while we were fetching —
       // see generationRef's own comment for why stoppedRef alone can't
       // catch this. Nothing between here and audio.play() below awaits
@@ -192,6 +252,8 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       return { spoke: played, configured, fetchedAudio: true }
     } catch {
       return { spoke: false, configured: lastKnownTtsConfigured, fetchedAudio: false }
+    } finally {
+      clearTimeout(timer)
     }
   }, [token])
 
@@ -210,7 +272,14 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
 
     logDebug(`TTS processQueue start gen=${myGeneration} remaining=${queueRef.current.length} text="${ttsPreview(cleanText)}"`)
 
-    if (cleanText.trim() && !stoppedRef.current) {
+    // No voice configured, or cloud speech not permitted here: the line is
+    // shown, not spoken, and no speech request is made.
+    const allowed = !!token && cleanText.trim() !== '' && !stoppedRef.current && await voiceSpeaks(token)
+    if (!allowed && generationRef.current === myGeneration && cleanText.trim()) {
+      logDebug('TTS voice not available on this deployment: line shown, not spoken')
+    }
+
+    if (allowed && !stoppedRef.current && generationRef.current === myGeneration) {
       const { spoke, configured, fetchedAudio } = await speakViaBackend(cleanText, myGeneration)
       // A stop() while this call was in flight (fetching, or actually
       // mid-playback — see stop()'s own onended-firing comment) bumps
@@ -245,7 +314,7 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
       setIsSpeaking(false)
       processQueue()
     }
-  }, [speakViaBackend])
+  }, [speakViaBackend, token])
 
   const speak = useCallback((text: string) => {
     if (!enabled || !text.trim()) return

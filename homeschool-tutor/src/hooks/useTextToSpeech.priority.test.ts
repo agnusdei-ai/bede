@@ -11,12 +11,27 @@
  */
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { useTextToSpeech } from './useTextToSpeech'
+import { resetVoiceGateForTests, SPEAK_REQUEST_TIMEOUT_MS, VOICE_RECHECK_MS, useTextToSpeech } from './useTextToSpeech'
+
+/** Installs `speakMock` for /tutor/speak and answers the voice-status ask
+ *  with `speaks` (true unless a test says otherwise). */
+function stubFetch(speakMock: (...args: any[]) => any, speaks = true) {
+  const all = vi.fn((url: string, init?: RequestInit) => String(url).includes('/tutor/voice')
+    ? Promise.resolve({ ok: true, json: async () => (speaks ? { configured: true, where: 'local', available: true } : { configured: false, where: null, available: false }) })
+    : speakMock(url, init))
+  vi.stubGlobal('fetch', all)
+  return all
+}
+
+/** How many lines were sent to /tutor/speak. */
+const speakRequests = () => (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls
+  .filter(([u]) => String(u).includes('/tutor/speak')).length
 
 describe('useTextToSpeech — backend (Fable) voice priority', () => {
   let browserSpeakSpy: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    resetVoiceGateForTests()
     browserSpeakSpy = vi.fn((utterance: SpeechSynthesisUtterance) => {
       queueMicrotask(() => utterance.onend?.(new Event('end') as any))
     })
@@ -56,7 +71,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
       audio = this
       return Promise.resolve()
     })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    stubFetch(vi.fn().mockResolvedValue({
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['sample-audio'], { type: 'audio/wav' }),
@@ -88,7 +103,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     const fetchMock = vi.fn()
       .mockImplementationOnce(() => new Promise((resolve) => { finishOldFetch = resolve }))
       .mockResolvedValue(response)
-    vi.stubGlobal('fetch', fetchMock)
+    stubFetch(fetchMock)
     window.HTMLMediaElement.prototype.play = vi.fn(function (this: HTMLAudioElement) {
       audio = this
       return Promise.resolve()
@@ -107,7 +122,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
   })
 
   it('plays the backend voice and never touches the browser fallback when TTS is configured and the call succeeds', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    stubFetch(vi.fn().mockResolvedValue({
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['fake-audio'], { type: 'audio/wav' }),
@@ -117,12 +132,12 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     act(() => result.current.speak('Good morning, dear one.'))
 
     await waitFor(() => expect(window.HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1))
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(speakRequests()).toBe(1)
     expect(browserSpeakSpy).not.toHaveBeenCalled()
   })
 
   it('stays silent, never the browser voice, when no voice is configured on this deployment', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    stubFetch(vi.fn().mockResolvedValue({
       status: 204,
       headers: new Headers({ 'X-TTS-Configured': 'False' }),
       blob: async () => new Blob(),
@@ -131,14 +146,14 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     const { result } = renderHook(() => useTextToSpeech('fake-token'))
     act(() => result.current.speak('Good morning, dear one.'))
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(speakRequests()).toBe(1))
     await waitFor(() => expect(result.current.isSpeaking).toBe(false))
     expect(browserSpeakSpy).not.toHaveBeenCalled()
     expect(window.HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
   })
 
   it('stays silent — does NOT fall back to the browser voice — when TTS is configured but this one call fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    stubFetch(vi.fn().mockResolvedValue({
       status: 500,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(),
@@ -158,7 +173,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
     // for the whole session. Real Bede audio existing but being blocked
     // from playing must stay silent for that one line, never fall back.
     window.HTMLMediaElement.prototype.play = vi.fn(() => Promise.reject(new Error('NotAllowedError')))
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    stubFetch(vi.fn().mockResolvedValue({
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['fake-audio'], { type: 'audio/wav' }),
@@ -176,7 +191,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
       .mockImplementationOnce(() => Promise.reject(new Error('NotAllowedError'))) // the real blocked turn
       .mockImplementation(() => Promise.resolve()) // the self-healing re-prime attempt, and anything after
     window.HTMLMediaElement.prototype.play = playSpy
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    stubFetch(vi.fn().mockResolvedValue({
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['fake-audio'], { type: 'audio/wav' }),
@@ -192,13 +207,104 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
   })
 
   it('never calls the backend at all without a token (not logged in yet)', async () => {
-    vi.stubGlobal('fetch', vi.fn())
+    stubFetch(vi.fn())
 
     const { result } = renderHook(() => useTextToSpeech(null))
     act(() => result.current.speak('Good morning, dear one.'))
 
     await waitFor(() => expect(result.current.isSpeaking).toBe(false))
     expect(fetch).not.toHaveBeenCalled()
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
+  })
+
+  // ── An install where Bede's voice cannot speak: text-first, nothing sent ──
+
+  it('sends no line at all when no voice is configured or cloud speech is not permitted', async () => {
+    const speakMock = vi.fn()
+    stubFetch(speakMock, false)
+    const { result } = renderHook(() => useTextToSpeech('fake-token'))
+    act(() => { result.current.speak('Good morning, dear one.') })
+    act(() => { result.current.speak('Here are 4.') })
+    await waitFor(() => expect(result.current.isSpeaking).toBe(false))
+    expect(speakMock).not.toHaveBeenCalled()
+    expect(speakRequests()).toBe(0)
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
+    expect(window.HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  })
+
+  it('asks whether the voice can speak once per sign-in, not once per line', async () => {
+    const all = stubFetch(vi.fn().mockResolvedValue({
+      status: 200, headers: new Headers({ 'X-TTS-Configured': 'True' }), blob: async () => new Blob(['a']),
+    }))
+    const { result } = renderHook(() => useTextToSpeech('fake-token'))
+    act(() => { result.current.speak('One.') })
+    await waitFor(() => expect(speakRequests()).toBe(1))
+    await waitFor(() => expect(result.current.isSpeaking).toBe(false))
+    act(() => { result.current.speak('Two.') })
+    await waitFor(() => expect(speakRequests()).toBe(2))
+    expect(all.mock.calls.filter(([u]) => String(u).includes('/tutor/voice'))).toHaveLength(1)
+  })
+
+  it('a status check that fails is silent and is asked again, never treated as an answer', async () => {
+    let fail = true
+    const all = vi.fn((url: string) => {
+      if (String(url).includes('/tutor/voice')) {
+        return fail ? Promise.reject(new TypeError('Load failed'))
+          : Promise.resolve({ ok: true, json: async () => ({ configured: true, where: 'local', available: true }) })
+      }
+      return Promise.resolve({ status: 200, headers: new Headers({ 'X-TTS-Configured': 'True' }), blob: async () => new Blob(['a']) })
+    })
+    vi.stubGlobal('fetch', all)
+    const { result } = renderHook(() => useTextToSpeech('fake-token'))
+    act(() => { result.current.speak('One.') })
+    await waitFor(() => expect(result.current.isSpeaking).toBe(false))
+    expect(speakRequests()).toBe(0)
+    fail = false
+    act(() => { result.current.speak('Two.') })
+    await waitFor(() => expect(speakRequests()).toBe(1))
+    expect(browserSpeakSpy).not.toHaveBeenCalled()
+  })
+
+  it('a line the speech service never answers is given up, silent, and Bede stops "speaking"', async () => {
+    vi.useFakeTimers()
+    try {
+      stubFetch((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      }))
+      const { result } = renderHook(() => useTextToSpeech('fake-token'))
+      act(() => { result.current.speak('Here are 4.') })
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      expect(result.current.isSpeaking).toBe(true)
+      expect(speakRequests()).toBe(1)
+      await act(async () => { await vi.advanceTimersByTimeAsync(SPEAK_REQUEST_TIMEOUT_MS + 1) })
+      expect(result.current.isSpeaking).toBe(false)
+      expect(browserSpeakSpy).not.toHaveBeenCalled()
+      expect(window.HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('when Piper is not answering, nothing is requested; once it is back, Bede speaks again', async () => {
+    let up = false
+    const speakMock = vi.fn().mockResolvedValue({
+      status: 200, headers: new Headers({ 'X-TTS-Configured': 'True' }), blob: async () => new Blob(['a']),
+    })
+    vi.stubGlobal('fetch', vi.fn((url: string, init?: RequestInit) => String(url).includes('/tutor/voice')
+      ? Promise.resolve({ ok: true, json: async () => ({ configured: true, where: 'local', available: up }) })
+      : speakMock(url, init)))
+    const t0 = Date.now()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(t0)
+    const { result } = renderHook(() => useTextToSpeech('fake-token'))
+    act(() => { result.current.speak('One.') })
+    await waitFor(() => expect(result.current.isSpeaking).toBe(false))
+    up = true
+    act(() => { result.current.speak('Two.') })
+    await waitFor(() => expect(result.current.isSpeaking).toBe(false))
+    expect(speakMock).not.toHaveBeenCalled()
+    now.mockReturnValue(t0 + VOICE_RECHECK_MS + 1)
+    act(() => { result.current.speak('Three.') })
+    await waitFor(() => expect(speakMock).toHaveBeenCalledTimes(1))
     expect(browserSpeakSpy).not.toHaveBeenCalled()
   })
 })

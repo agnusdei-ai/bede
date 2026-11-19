@@ -1530,9 +1530,15 @@ Bede never uses another voice in its place: not your browser's built-in voice
 and not an online voice service, even if you use one for tutoring. If the
 voice is not set up, stops responding, or fails a line, everything still
 works: every question, answer and piece of feedback stays on screen, and
-practice rounds leave out the questions that only work by listening. The
-**Bede's voice** card in Parent Setup tells you which of these your computer
-has.
+practice rounds leave out the questions that only work by listening. Your
+child is never shown a voice error. The **Bede's voice** card in Parent Setup
+tells you which of these your computer has, and what to do:
+
+- **Speaking in its own voice:** nothing to do.
+- **Set up but not answering right now:** nothing to do straight away; Bede
+  checks again within a minute. If it lasts, restart Bede.
+- **Not set up:** lessons are on screen only. The voice setup guide shows how
+  to add Bede's voice.
 
 ## 8. Handing off to your child: what to actually tell them
 

@@ -23,7 +23,8 @@ describe('VoiceStatusNotice', () => {
     render(<VoiceStatusNotice token="tok" />)
     const card = await screen.findByTestId('voice-status')
     expect(card.dataset.voice).toBe(key)
-    expect(card.textContent).toContain(en.voiceStatus[key])
+    expect(card.textContent).toContain(en.voiceStatus[key].what)
+    expect(card.textContent).toContain(en.voiceStatus[key].next)
     expect(fetch).toHaveBeenCalledWith('/api/tutor/voice', expect.anything())
   })
 
@@ -46,9 +47,18 @@ describe('VoiceStatusNotice', () => {
   })
 
   it('has every line in Spanish too', () => {
-    for (const k of ['title', 'local', 'cloud', 'none', 'down'] as const) {
-      expect(es.voiceStatus[k]).toBeTruthy()
-      expect(es.voiceStatus[k]).not.toBe(en.voiceStatus[k])
+    expect(es.voiceStatus.title).not.toBe(en.voiceStatus.title)
+    for (const k of ['local', 'cloud', 'none', 'down'] as const) {
+      for (const part of ['what', 'next'] as const) {
+        expect(es.voiceStatus[k][part]).toBeTruthy()
+        expect(es.voiceStatus[k][part]).not.toBe(en.voiceStatus[k][part])
+      }
     }
+  })
+
+  it('"not set up" and "not answering right now" read differently, each with its own next step', () => {
+    expect(en.voiceStatus.none.what).not.toBe(en.voiceStatus.down.what)
+    expect(en.voiceStatus.none.next).toMatch(/voice setup guide/)
+    expect(en.voiceStatus.down.next).toMatch(/checks again/)
   })
 })

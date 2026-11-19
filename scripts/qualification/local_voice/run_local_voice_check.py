@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
-"""Installed Bede's voice, checked in the three cases the owner named (sample only).
+"""Installed Bede's voice, checked as a child experiences it (sample only).
 
-Owner ruling 2026-11-18 (docs/DECISIONS.md entry 46): installed Bede speaks only
-in its local Piper voice. When Piper is unavailable, fails, or no voice is set
-up, a round continues without narration with every prompt and piece of
-feedback on screen, and neither OpenAI's voice nor the browser's own voice is
-used.
+Owner rulings 2026-11-18 and 2026-11-19 (docs/DECISIONS.md entry 46):
+installed Bede speaks only in its local Piper voice, and cloud speech is never
+used in the product. When Piper is not set up, switched off, failing or not
+answering, a round and the chat continue without narration with every prompt
+and piece of feedback on screen, and neither OpenAI's voice nor the browser's
+own voice is used. Where Bede's voice cannot speak at all, the page makes no
+speech request.
 
 For each case this starts the real pieces on loopback and plays one Sound Time
-round in real Chromium (check_round.cjs):
+round, then one chat turn, in real Chromium (check_round.cjs):
 
-  works  voice-service/server.py with real Piper and a sample voice built here
-  fails  the same server and Piper with a voice that loads and fails every line
-  none   no voice at all (LOCAL_TTS_URL empty)
+  works     voice-service/server.py with real Piper and a sample voice built here
+  fails     the same server and Piper with a voice that loads and fails every line
+  none      no voice at all (LOCAL_TTS_URL empty)
+  disabled  TTS_PROVIDER=none, with a Piper URL and an OpenAI key both present
+  hang      a voice server whose health check answers and whose lines never do
 
 The API is the real `uvicorn main:app` on a throwaway SQLite database, with
 TTS_PROVIDER=local as docker-compose.yml pins it, a loopback model stub for the
@@ -56,7 +60,28 @@ API_DIR, UI_DIR = REPO / "homeschool-api", REPO / "homeschool-tutor"
 API, UI, STUB, VOICE, PROXY = 18502, 18500, 18501, 18503, 18504
 NAME = "Sample Learner Wren"
 LINE = "Here are four counters, sample line for the voice check."
-CASES = ("works", "fails", "none")
+CASES = ("works", "fails", "none", "disabled", "hang")
+REPLY = "STUB-TUTOR Let us try some sounds together."
+
+
+class HangingVoice(BaseHTTPRequestHandler):
+    """A voice server that says it is healthy and then never answers a line."""
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        body = json.dumps({"voices": ["en", "es"]}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        time.sleep(90)
 
 
 class Recorder(BaseHTTPRequestHandler):
@@ -114,8 +139,11 @@ def strong_pin() -> str:
 def run_case(case: str, a, out: Path, voices: Path) -> dict:
     d = out / case
     d.mkdir(parents=True, exist_ok=True)
-    voice = None
-    if case != "none":
+    voice = hanging = None
+    if case == "hang":
+        hanging = ThreadingHTTPServer(("127.0.0.1", VOICE), HangingVoice)
+        threading.Thread(target=hanging.serve_forever, daemon=True).start()
+    elif case not in ("none",):
         model = voices / ("sample-en.onnx" if case == "works" else "failing-en.onnx")
         venv = {k: v for k, v in os.environ.items() if not k.endswith("_PROXY") and not k.endswith("_proxy")}
         venv.update(BEDE_VOICE_EN=str(model), BEDE_VOICE_HOST="127.0.0.1", BEDE_VOICE_PORT=str(VOICE))
@@ -135,7 +163,8 @@ def run_case(case: str, a, out: Path, voices: Path) -> dict:
         MCP_EXTERNAL_ENABLED="false", LOCUTO_IPC_ENABLED="false",
         CORS_ORIGINS=f"http://127.0.0.1:{UI}", PYTHONUTF8="1",
         # Installed Bede, as docker-compose.yml pins it: Piper or nothing.
-        TTS_PROVIDER="local", LOCAL_TTS_URL="" if case == "none" else f"http://127.0.0.1:{VOICE}",
+        TTS_PROVIDER="none" if case == "disabled" else "local",
+        LOCAL_TTS_URL="" if case == "none" else f"http://127.0.0.1:{VOICE}",
         # Present, so that "never OpenAI" is tested with a key in reach. It is
         # a sample value, and the proxy below would refuse it anyway.
         OPENAI_API_KEY="sk-sample-never-used",
@@ -163,7 +192,7 @@ def run_case(case: str, a, out: Path, voices: Path) -> dict:
         child = c.post("/auth/login", json={"role": "child", "credential": pin, "student_name": NAME}).json()["access_token"]
         ch = {"Authorization": f"Bearer {child}"}
         status = c.get("/tutor/voice", headers=ch).json()
-        r = c.post("/tutor/speak", json={"text": LINE}, headers=ch)
+        r = c.post("/tutor/speak", json={"text": LINE}, headers=ch, timeout=120)
         speak = {"status": r.status_code, "type": r.headers.get("content-type"),
                  "configured": r.headers.get("x-tts-configured"), "bytes": len(r.content)}
         if r.status_code == 200:
@@ -182,6 +211,9 @@ def run_case(case: str, a, out: Path, voices: Path) -> dict:
         browser = json.loads(res.stdout.strip().splitlines()[-1]) if res.stdout.strip() else {"error": res.stderr[-500:]}
     finally:
         stop(preview, api, voice)
+        if hanging:
+            hanging.shutdown()
+            hanging.server_close()
     logs = "".join((d / f).read_text(errors="replace") for f in ("api.log", "voice.log") if (d / f).exists())
     return {"case": case, "voice_status": status, "speak": speak, "browser": browser,
             "line_in_logs": LINE in logs or "sample line for the voice check" in logs}
@@ -209,6 +241,16 @@ def judge(r: dict) -> list[str]:
         bad.append(f"the page reached outside the machine: {outside[:3]}")
     if r["line_in_logs"]:
         bad.append("a spoken line appeared in the API or voice logs")
+    texts = b.get("speakTexts", [])
+    tapped = {t for t in b.get("tapped", []) if t}
+    for text in texts:
+        if text in tapped:
+            bad.append(f"what the child chose was sent to Bede's voice: {text!r}")
+    if r["case"] in ("none", "disabled"):
+        if texts:
+            bad.append(f"the page asked for speech {len(texts)} time(s) where Bede's voice cannot speak")
+    elif r["case"] == "works" and REPLY not in texts:
+        bad.append("Bede's chat reply was not sent to Bede's voice")
     if r["case"] == "works":
         if v != {"configured": True, "where": "local", "available": True}:
             bad.append(f"/tutor/voice said {v}")
@@ -219,7 +261,7 @@ def judge(r: dict) -> list[str]:
         if not any(p.get("ok") and p["src"].startswith("blob:") for p in b.get("plays", [])):
             bad.append("no Piper audio played in the page")
     else:
-        want = {"configured": True, "where": "local", "available": True} if r["case"] == "fails" \
+        want = {"configured": True, "where": "local", "available": True} if r["case"] in ("fails", "hang") \
             else {"configured": False, "where": None, "available": False}
         if v != want:
             bad.append(f"/tutor/voice said {v}, expected {want}")

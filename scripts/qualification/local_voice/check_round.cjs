@@ -11,7 +11,7 @@ const pw = require('playwright');
 const F = JSON.parse(process.env.ROUND_FIXTURE);
 
 (async () => {
-  const out = { requests: [], speak: [], plays: [], browserVoice: [], lines: [], feedback: [], steps: [] };
+  const out = { requests: [], speak: [], speakTexts: [], plays: [], browserVoice: [], lines: [], feedback: [], steps: [], tapped: [] };
   const browser = await pw.chromium.launch();
   const page = await (await browser.newContext({ viewport: { width: 1024, height: 900 } })).newPage();
   await page.addInitScript(() => {
@@ -32,6 +32,9 @@ const F = JSON.parse(process.env.ROUND_FIXTURE);
   });
   // blob: and data: URLs are the page's own memory, not the network.
   page.on('request', (r) => { const u = r.url(); if (/^(blob|data):/.test(u)) return;
+    // The exact text of every line sent to Bede's voice, so the check can
+    // show it is only the round's fixed lines and Bede's own reply.
+    if (u.includes('/api/tutor/speak')) { try { out.speakTexts.push(JSON.parse(r.postData() || '{}').text); } catch { out.speakTexts.push('<unreadable>'); } }
     const p = new URL(u); out.requests.push(p.host + ' ' + r.method() + ' ' + p.pathname); });
   page.on('response', async (r) => {
     if (!r.url().includes('/api/tutor/speak')) return;
@@ -73,6 +76,9 @@ const F = JSON.parse(process.env.ROUND_FIXTURE);
       const l = await line(); if (l && out.lines[out.lines.length - 1] !== l) out.lines.push(l);
       const choice = round.getByRole('group').getByRole('button', { disabled: false });
       if (await choice.count()) {
+        // What the child chose, so the check can show it was never spoken.
+        out.tapped.push(((await choice.first().getAttribute('aria-label').catch(() => null))
+          || (await choice.first().innerText().catch(() => '')) || '').trim());
         await choice.first().click({ timeout: 5000 }).catch(() => {});
         await page.waitForFunction((fb) => fb.some((f) => document.body.innerText.includes(f)), FEEDBACK, { timeout: 15000 }).catch(() => {});
         const after = await round.innerText().catch(() => '');

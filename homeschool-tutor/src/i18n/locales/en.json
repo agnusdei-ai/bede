@@ -1505,9 +1505,21 @@
   },
   "voiceStatus": {
     "title": "Bede's voice",
-    "local": "Bede's voice runs on this computer. Nothing Bede says aloud leaves it.",
-    "cloud": "Bede's voice is made by a cloud speech service, which receives each line Bede speaks. See the privacy notice for which service.",
-    "none": "Bede has no voice set up on this computer, so Bede's words appear on screen without being spoken. Bede never uses another voice in its place.",
-    "down": "Bede's voice is set up on this computer but isn't responding right now, so Bede continues without speaking. Everything still appears on screen. Bede never uses another voice in its place."
+    "local": {
+      "what": "Bede reads lessons aloud in its own voice, which runs on this computer. Nothing Bede says aloud leaves it.",
+      "next": "Nothing to do. To keep lessons on screen only, turn Bede's voice off during a lesson."
+    },
+    "down": {
+      "what": "Bede's voice is set up on this computer, but it isn't answering right now. Lessons carry on with everything shown on screen; your child is not told about it, and Bede never uses another voice in its place.",
+      "next": "Nothing to do right away: Bede checks again within a minute. If it lasts, restart Bede on this computer. The voice setup guide has more."
+    },
+    "none": {
+      "what": "Bede's voice isn't set up on this computer, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede never uses another voice in its place.",
+      "next": "To give Bede its voice, follow the voice setup guide for this computer, then restart Bede."
+    },
+    "cloud": {
+      "what": "Bede's voice on this installation comes from a cloud speech service, which receives each line Bede speaks. Installed Bede is meant to use its own voice on this computer instead.",
+      "next": "Ask whoever set up this installation to switch Bede to its own voice. The voice setup guide shows how."
+    }
   }
 }

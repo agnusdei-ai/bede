@@ -2622,6 +2622,25 @@ is left unchanged**: it keeps OpenAI's voice and its own browser path.
 Verification makes no paid provider call and downloads no model, and physical
 acceptance on the pilot Mac is the owner's alone.
 
+**Amended (2026-11-19, owner).** Cloud speech is not permitted in the
+product: installed Bede's voice is Piper, the distinctive and recognizable
+Bede voice, or none. The demo uses OpenAI's voice. This replaces, the same
+day, a proposal to use OpenAI's voice in installed Bede for the beta, which
+was not built. Two further rules, from the owner's verification brief of the
+same day:
+
+- **No browser voice anywhere**, the demo included. A demo line that fails or
+  times out is silent, as in the app. (The 2026-11-18 note that the demo
+  "keeps its own browser path" is superseded.)
+- **Where Bede's voice cannot speak, nothing is requested**, and the learner
+  sees no voice error, key prompt or interruption; Parent Setup tells "not set
+  up" apart from "set up but not answering right now", with a next step for
+  each. Screen readers and other assistive technology are untouched.
+
+Still open, as above: the distribution review and the per-voice licences.
+Until they clear, installed Bede ships text-first, which is the product
+behaving as decided, not a fault.
+
 **How it is built.**
 
 - `services/voice_synthesis.py`'s `active_provider()` picks the voice.
@@ -2673,6 +2692,28 @@ line (28 refused attempts to `api.openai.com`), and the compose pin removed
 (`/tutor/voice` reported a cloud voice and the API tried OpenAI). This proves
 the plumbing, not how a real voice sounds; that, with a real voice whose
 licence is recorded, is the owner's acceptance on the pilot Mac.
+
+**Verified again (2026-11-19)**, after the amendment, by the same check with
+two more cases and stricter judgement: it now also records the text of every
+line the page sends and what the child tapped. Five cases, zero outbound
+attempts:
+
+| Case | Lines the page sent | Played | Browser voice | Round and chat |
+| --- | --- | --- | --- | --- |
+| works | 14 (6 distinct) | 13, as Piper audio | never | finished; reply spoken |
+| fails | 14 | none | never | finished; chat went on |
+| none | **0** | none | never | finished; chat went on |
+| disabled (`TTS_PROVIDER=none`, a Piper URL and an OpenAI key present) | **0** | none | never | finished; chat went on |
+| hang (health answers, lines never do) | 15 | none | never | through Together and Your turn; chat went on |
+
+The six distinct lines in **works** were the round's Watch line, its prompt,
+three pieces of feedback and Bede's chat reply; none was a word the child
+tapped. In **hang** the check's step budget ran out before the finish screen,
+with every piece of feedback shown; each line was given up by the 20-second
+client timeout. Six deliberate breaks each failed the unit tests: speaking
+without asking whether the voice can speak, no line timeout, a failed status
+check read as "yes", the browser voice put back in the demo, a round speaking
+the child's choice, and a round told it can speak before the answer is known.
 
 **What the review must settle.**
 

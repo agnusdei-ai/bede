@@ -1505,9 +1505,21 @@
   },
   "voiceStatus": {
     "title": "La voz de Bede",
-    "local": "La voz de Bede funciona en esta computadora. Nada de lo que Bede dice en voz alta sale de ella.",
-    "cloud": "La voz de Bede la produce un servicio de voz en la nube, que recibe cada frase que Bede dice. Consulte el aviso de privacidad para saber cuál.",
-    "none": "Bede no tiene una voz configurada en esta computadora, así que sus palabras aparecen en pantalla sin decirse en voz alta. Bede nunca usa otra voz en su lugar.",
-    "down": "La voz de Bede está configurada en esta computadora, pero ahora no responde, así que Bede continúa sin hablar. Todo sigue apareciendo en pantalla. Bede nunca usa otra voz en su lugar."
+    "local": {
+      "what": "Bede lee las lecciones en voz alta con su propia voz, que funciona en esta computadora. Nada de lo que Bede dice en voz alta sale de ella.",
+      "next": "No hace falta hacer nada. Para que las lecciones sean solo en pantalla, desactiva la voz de Bede durante una lección."
+    },
+    "down": {
+      "what": "La voz de Bede está instalada en esta computadora, pero ahora no responde. Las lecciones continúan con todo en pantalla; a tu hijo no se le avisa y Bede nunca usa otra voz en su lugar.",
+      "next": "Por ahora no hace falta hacer nada: Bede vuelve a comprobarlo en menos de un minuto. Si sigue así, reinicia Bede en esta computadora. La guía de configuración de voz tiene más detalles."
+    },
+    "none": {
+      "what": "La voz de Bede no está instalada en esta computadora, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede nunca usa otra voz en su lugar.",
+      "next": "Para darle su voz a Bede, sigue la guía de configuración de voz para esta computadora y luego reinicia Bede."
+    },
+    "cloud": {
+      "what": "En esta instalación, la voz de Bede viene de un servicio de voz en la nube, que recibe cada frase que dice Bede. Bede instalado debería usar su propia voz en esta computadora.",
+      "next": "Pide a quien configuró esta instalación que cambie Bede a su propia voz. La guía de configuración de voz explica cómo."
+    }
   }
 }

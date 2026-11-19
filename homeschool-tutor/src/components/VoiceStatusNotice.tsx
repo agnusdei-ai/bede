@@ -4,8 +4,10 @@ import { Volume2, VolumeX } from 'lucide-react'
 import { fetchVoiceStatus, type VoiceStatus } from '../services/api'
 
 /**
- * Tells a parent whether Bede speaks aloud on this computer, and where Bede's
- * voice runs. Every feature speaks only in Bede's own voice; with none set
+ * Parent Setup only. Tells a parent whether Bede speaks aloud on this
+ * computer, and if not, whether the voice isn't set up or is set up but not
+ * answering right now, with the next step for each. A child never sees any
+ * of this: in a lesson an unspoken line is simply shown, with no error. Every feature speaks only in Bede's own voice; with none set
  * up, or Piper set up but not responding, Bede continues without narration
  * and never uses another voice (owner decisions 2026-11-18, docs/DECISIONS.md
  * entry 46), and this is where a parent learns why. Shows nothing when the
@@ -36,7 +38,8 @@ export default function VoiceStatusNotice({ token }: { token: string }) {
         <Icon className="h-4 w-4" aria-hidden="true" />
         {t('voiceStatus.title')}
       </h2>
-      <p className="mt-1">{t(`voiceStatus.${key}`)}</p>
+      <p className="mt-1">{t(`voiceStatus.${key}.what`)}</p>
+      <p className="mt-1 text-navy-600">{t(`voiceStatus.${key}.next`)}</p>
     </section>
   )
 }

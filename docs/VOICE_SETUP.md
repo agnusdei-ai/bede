@@ -1,7 +1,8 @@
 # Setting up Bede's spoken voice
 
 Every feature speaks in Bede's own voice and in no other (owner decisions
-2026-11-18, `docs/DECISIONS.md` entry 46).
+2026-11-18 and 2026-11-19, `docs/DECISIONS.md` entry 46). Cloud speech is
+never used in the product; the demo uses OpenAI's voice.
 
 **Installed Bede** (`docker-compose.yml`, every installer) speaks only in its
 **local Piper voice** (`voice-service/`), so nothing Bede says aloud leaves the
@@ -14,22 +15,42 @@ to the browser's own built-in voice. Compose pins this with
 `TTS_PROVIDER=local`. The local voice is not yet offered to families: see
 "Bede's local voice" below.
 
-**The public demo is unchanged.** It is not run from compose: with
-`TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI TTS
-(`gpt-4o-mini-tts`) when `OPENAI_API_KEY` is set, and its own frontend keeps
-its browser path.
+**The public demo uses OpenAI's voice, or silence.** It is not run from
+compose: with `TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI
+TTS (`gpt-4o-mini-tts`) when `OPENAI_API_KEY` is set. Its frontend no longer
+has a browser-voice path either (2026-11-19): a line that fails or times out
+is silent, and the visitor reads on.
+
+**What the app does when Bede's voice cannot speak.** The app asks
+`GET /tutor/voice` once per sign-in, before the first line. If no voice is
+set up, it is switched off (`TTS_PROVIDER=none`), or Piper is not answering
+its health check, **no line is sent to `/tutor/speak` at all**; a "not
+answering" result is asked again after a minute, so a voice that comes back
+is picked up within the lesson. A status request that itself fails is not
+remembered and is silent meanwhile. A line that is sent but takes longer
+than 20 seconds is given up and left silent (`SPEAK_REQUEST_TIMEOUT_MS`, in
+both apps), so a hung voice never holds Bede in a "speaking" state that would
+keep the microphone from listening. Nothing about any of this is ever shown
+to the child: no error, no key prompt, no interruption to a round. Screen
+readers are untouched; they read the page on their own terms.
 
 `TTS_PROVIDER` values: `local` (Piper or nothing), empty (local if set,
 otherwise OpenAI, otherwise nothing), `openai`, `none`. An unknown value or a
 `LOCAL_TTS_URL` that is not this computer or its own network stops Bede from
 starting, with the reason; `local` with no URL starts and is silent.
-`homeschool-tutor/src/bedesVoiceOnly.test.ts` fails if any file in the
-installed app speaks through the browser's voice.
+`homeschool-tutor/src/bedesVoiceOnly.test.ts` fails if any shipped file in
+either app, the voice hooks included, speaks through the browser's voice, and
+if a round could hand anything but its own fixed lines to Bede's voice.
 
 **Checking it end to end.** `scripts/qualification/local_voice/run_local_voice_check.py`
-runs the three cases (Piper works; Piper set up but failing; no voice) against
-the real API, real Piper with sample voices built from code, and one Sound Time
-round in real Chromium, with every outbound connection refused and recorded.
+runs five cases (Piper works; Piper set up but failing; no voice; voice
+switched off with `TTS_PROVIDER=none`; a voice that answers its health check
+and never answers a line) against the real API, real Piper with sample voices
+built from code, and one Sound Time round plus a chat turn in real Chromium,
+with every outbound connection refused and recorded. It also records the text
+of every line the page sends, so it shows only the round's fixed lines and
+Bede's reply are spoken, never what the child chose, and that a page that
+cannot speak sends nothing.
 It makes no paid call and downloads nothing; see `voice-service/README.md`.
 It proves the plumbing, not how a real voice sounds.
 

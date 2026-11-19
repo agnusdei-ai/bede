@@ -540,15 +540,23 @@ export async function logout(token: string): Promise<void> {
 // though every other request that same session succeeded fine.
 let lastKnownTtsConfigured = false
 
+/** Same limit as the app's useTextToSpeech: longer than any real line. */
+export const SPEAK_REQUEST_TIMEOUT_MS = 20_000
+
 export async function speakViaBackend(
   token: string,
   text: string,
 ): Promise<{ audio: Blob | null; configured: boolean }> {
+  // A speech service that never answers must not leave Bede "speaking":
+  // the line is given up and stays silent, and the visitor carries on.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), SPEAK_REQUEST_TIMEOUT_MS)
   try {
     const res = await fetch(`${apiBase()}/tutor/speak`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ text }),
+      signal: controller.signal,
     })
     const configured = res.headers.get('X-TTS-Configured') === 'True'
     lastKnownTtsConfigured = configured
@@ -556,6 +564,8 @@ export async function speakViaBackend(
     return { audio: await res.blob(), configured }
   } catch {
     return { audio: null, configured: lastKnownTtsConfigured }
+  } finally {
+    clearTimeout(timer)
   }
 }
 

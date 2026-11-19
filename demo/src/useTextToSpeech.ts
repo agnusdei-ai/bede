@@ -1,186 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { speakViaBackend } from './api'
 import { logDebug } from './debugBus'
-import i18n from './i18n'
 
-// Tries the backend's OpenAI TTS voice first (same one production uses) —
-// both demo tiers always supply a real token, since both are
-// backend-mediated. Falls back to browser speech ONLY when TTS is
-// genuinely unconfigured on this deployment — a reasonable zero-config
-// default in that case. Real Bede audio that was fetched but blocked from
-// playing by the browser's own autoplay policy deliberately does NOT fall
-// back: a real report showed a browser that kept blocking audio.play()
-// swapping to the jarring, robotic browser default voice on every single
-// turn for the whole session — worse than staying silent for that one
-// line while armAutoReUnlock (below) self-heals the block on the next
-// real tap. Bede's persona is historically male — voice selection prefers
-// a male voice, never gender-ambiguous or female.
-
-// Confirmed-female voices that carry no gender word in their name at all
-// — the exact case priority 4 below ("not explicitly labeled female") was
-// meant to guard against, and exactly where that heuristic used to fail.
-// "Google US English" is Chrome's own default English voice on desktop
-// (and often the ONLY English voice available at all on Linux/ChromeOS
-// Chrome installs with no extra OS voices) — a name that reads as
-// gender-neutral but is an audibly female voice, so it used to sail
-// through priority 4's "not explicitly female" check as a false "safe
-// pick." This is the confirmed, reported cause of voice output reverting
-// to a woman's voice specifically on Chrome even though every prior
-// priority was already trying not to pick one.
-const KNOWN_FEMALE_VOICE_NAMES = new Set([
-  'Google US English',
-  'Google UK English Female',
-  'Samantha', 'Victoria', 'Karen', 'Moira', 'Tessa', 'Fiona', 'Kate',
-  'Microsoft Zira - English (United States)',
-  'Microsoft Jenny - English (United States)',
-  'Microsoft Aria - English (United States)',
-  'Microsoft Hazel - English (United Kingdom)',
-  'Microsoft Susan - English (United Kingdom)',
-])
-
-// A name containing "female" also contains "male" as a literal substring
-// ("fe-MALE") — naively checking name.includes('male') alone matches female
-// voices too. Every male check below excludes isFemale() explicitly to
-// avoid this exact bug (a real, confirmed cause of picking a female voice
-// on at least one Android/Chrome device that labels voices "...Female").
-export function isFemaleVoiceName(name: string): boolean {
-  return name.toLowerCase().includes('female') || KNOWN_FEMALE_VOICE_NAMES.has(name)
-}
-export function isMaleVoiceName(name: string): boolean {
-  return name.toLowerCase().includes('male') && !isFemaleVoiceName(name)
-}
-
-// Exact names confirmed male across common desktop/mobile TTS engines that
-// don't label voices "male"/"female" in the first place (Safari/macOS/iOS
-// give plain first names; Windows/Edge give "Microsoft <Name> - ...").
-// Checked before any substring heuristics since exact names are unambiguous.
-//
-// Deliberately excludes "Fred" — a real, confirmed-bad pick reported on
-// Safari/macOS/iOS: it's a decades-old novelty voice (the classic
-// "Stephen Hawking"/"Speak & Spell" robotic sound), not a lower-quality-
-// but-acceptable one like the others here. Lumping it into this same
-// top-priority tier meant Array.find() below picked whichever name
-// happened to come first in that platform's own getVoices() ordering —
-// unspecified and not something this code controls — so the SAME device
-// could resolve to Fred in one tab/session and Daniel or Alex (both
-// genuinely good, natural-sounding voices on the exact same platform) in
-// another. Every other name here is a reasonable voice; Fred never is.
-const KNOWN_MALE_VOICE_NAMES = new Set([
-  'Daniel', 'Oliver', 'Arthur', 'Alex', 'Aaron', 'Gordon',
-  'Microsoft David - English (United States)',
-  'Microsoft Mark - English (United States)',
-  'Microsoft Guy - English (United States)',
-  'Microsoft Ryan - English (United Kingdom)',
-  'Microsoft George - English (United Kingdom)',
-  'Google UK English Male',
-  'Google US English Male',
-])
-
-// Spanish TTS engines almost never put "male"/"female" in a voice name, so
-// the substring heuristics above find nothing to work with. These are exact
-// names shipped by common engines for Spanish male voices — the same
-// approach KNOWN_MALE_VOICE_NAMES takes for English, kept deliberately
-// short and conservative rather than guessing at every OEM's catalogue.
-const KNOWN_SPANISH_MALE_VOICE_NAMES = new Set([
-  'Jorge', 'Diego', 'Juan', 'Carlos', 'Javier',
-  'Microsoft Pablo - Spanish (Spain)',
-  'Microsoft Raul - Spanish (Mexico)',
-  'Microsoft Jorge - Spanish (Spain)',
-  'Google español',
-  'Google español de Estados Unidos',
-])
-
-/**
- * Pick Bede's browser-fallback voice for a given language.
- *
- * `langPrefix` was previously hardcoded to English throughout, which meant a
- * Spanish session fell back to an English voice reading Spanish text —
- * audibly wrong, and the reason this takes a parameter now. Pass the
- * session's own locale (i18n.language), not the device's.
- */
-export function pickBestVoice(langPrefix = 'en'): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices()
-  if (!voices.length) return null
-  const inLang = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().startsWith(langPrefix)
-  const priorities = [
-    (v: SpeechSynthesisVoice) => langPrefix === 'en' && KNOWN_MALE_VOICE_NAMES.has(v.name),
-    (v: SpeechSynthesisVoice) => langPrefix === 'es' && KNOWN_SPANISH_MALE_VOICE_NAMES.has(v.name),
-    (v: SpeechSynthesisVoice) => langPrefix === 'en' && v.lang.startsWith('en-GB') && isMaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => inLang(v) && isMaleVoiceName(v.name),
-    // Many Android/OEM TTS engines (Samsung's included) expose English
-    // voices with no gender word in the name at all — nothing above can
-    // match those. Rather than falling straight through to "just take the
-    // first English voice" (which might be the one explicitly labeled
-    // female), prefer any voice that ISN'T explicitly female first — an
-    // unlabeled voice is a better bet than a confirmed-wrong one.
-    (v: SpeechSynthesisVoice) => inLang(v) && !isFemaleVoiceName(v.name),
-    (v: SpeechSynthesisVoice) => inLang(v),
-  ]
-  for (const check of priorities) {
-    const match = voices.find(check)
-    if (match) return match
-  }
-  // English keeps its old last-resort "any voice at all" — that behaviour is
-  // long-standing and safe for English text. For any other language a
-  // wrong-language voice is worse than none: returning null leaves
-  // utterance.voice unset, so the engine picks from utterance.lang itself
-  // rather than reading Spanish aloud in an English voice.
-  return langPrefix === 'en' ? (voices[0] ?? null) : null
-}
-
-// Chrome — especially on Android — returns an EMPTY array from getVoices()
-// on the very first call after page load; the real list only populates
-// asynchronously via 'voiceschanged', sometimes after Bede's very first
-// line already wants to speak. Picking synchronously before that fires
-// silently falls back to whatever voice the OS/engine defaults to, which is
-// why the chosen voice could vary between sessions on the exact same
-// device.
-//
-// Only READINESS is cached module-scoped (so the whole tab pays the async
-// wait at most once) — never the SpeechSynthesisVoice object itself.
-// Microsoft Edge fires 'voiceschanged' MORE THAN ONCE per session as it
-// lazy-loads its online/neural voices well after the initial local list,
-// and each firing can reissue brand-new SpeechSynthesisVoice object
-// instances for what is logically the same voice. A voice object resolved
-// once and reused on every later utterance goes stale the moment that
-// happens: Edge doesn't error, it silently ignores the now-unrecognized
-// object and falls back to its OWN current default voice instead — a
-// female neural voice on Windows/Edge. This is the confirmed mechanism
-// behind Bede's voice reverting to a woman's specifically on Edge, several
-// turns into a session, even though every priority in pickBestVoice()
-// above was already trying not to pick one. Calling pickBestVoice() fresh
-// on every speak() (instead of returning a long-cached object) means
-// there's never a stale reference left around to go bad.
-let voicesReadyPromise: Promise<void> | null = null
-
-function waitForVoicesReady(): Promise<void> {
-  if (voicesReadyPromise) return voicesReadyPromise
-
-  voicesReadyPromise = new Promise((resolve) => {
-    if (window.speechSynthesis.getVoices().length) { resolve(); return }
-
-    const handler = () => {
-      if (window.speechSynthesis.getVoices().length) {
-        window.speechSynthesis.removeEventListener('voiceschanged', handler)
-        clearTimeout(timeoutId)
-        resolve()
-      }
-    }
-    window.speechSynthesis.addEventListener('voiceschanged', handler)
-
-    // Some engines never fire voiceschanged at all — don't wait forever.
-    const timeoutId = setTimeout(() => {
-      window.speechSynthesis.removeEventListener('voiceschanged', handler)
-      resolve()
-    }, 1000)
-  })
-
-  return voicesReadyPromise
-}
-
-export function resolveVoice(langPrefix = 'en'): Promise<SpeechSynthesisVoice | null> {
-  return waitForVoicesReady().then(() => pickBestVoice(langPrefix))
-}
+// Bede's spoken voice in the demo, and the only voice the demo speaks with:
+// the chat and Number Time (docs/DECISIONS.md, the beta voice decision).
+// Every line goes to the server's /tutor/speak. When a line fails, times
+// out, or the browser blocks playback, the line is SILENT and the visitor
+// carries on reading: the browser's own speechSynthesis is never used, since
+// it is not Bede's voice. Nothing here touches a screen reader.
 
 // One <audio> element, reused for every turn's backend TTS playback rather
 // than a fresh `new Audio()` per call — module-scoped so it survives hook
@@ -254,15 +81,6 @@ function armAutoReUnlock() {
  * isn't blocked.
  */
 export function unlockSpeechForSession() {
-  if ('speechSynthesis' in window) {
-    try {
-      const u = new SpeechSynthesisUtterance(' ')
-      u.volume = 0
-      window.speechSynthesis.speak(u)
-    } catch {
-      // best-effort — never block the actual form submission on this
-    }
-  }
   try {
     const audio = getSharedAudioElement()
     audio.src = SILENT_WAV_DATA_URI
@@ -338,32 +156,6 @@ export function useTextToSpeech(speakToken: string | null = null) {
     return { spoke: played, configured, fetchedAudio: true }
   }, [speakToken])
 
-  const speakViaBrowser = useCallback((text: string, myGeneration: number): Promise<void> => {
-    return new Promise((resolve) => {
-      if (!('speechSynthesis' in window)) { resolve(); return }
-      // The session's locale, not the device's — same rule the speech
-      // recognition language already follows (see SocraticChat/App).
-      const langPrefix = i18n.language === 'es' ? 'es' : 'en'
-      resolveVoice(langPrefix).then((voice) => {
-        if (generationRef.current !== myGeneration) { resolve(); return }
-        // A STARTED here while a backend clip is still playing is the
-        // two-different-voices-at-once case, directly.
-        logDebug(`TTS browser fallback STARTED gen=${myGeneration} voice=${voice?.name ?? 'default'}`)
-        const utterance = new SpeechSynthesisUtterance(text)
-        // Always set, even when no voice matched: it is what lets the
-        // engine choose a Spanish voice of its own rather than reading
-        // Spanish text with whatever default it would otherwise use.
-        utterance.lang = langPrefix === 'es' ? 'es-MX' : 'en-GB'
-        if (voice) utterance.voice = voice
-        utterance.rate = 0.88
-        utterance.pitch = 0.92
-        utterance.onend = () => resolve()
-        utterance.onerror = () => resolve()
-        window.speechSynthesis.speak(utterance)
-      })
-    })
-  }, [])
-
   const stop = useCallback(() => {
     generationRef.current += 1
     if (audioRef.current) {
@@ -383,7 +175,6 @@ export function useTextToSpeech(speakToken: string | null = null) {
       el.onerror = null
       audioRef.current = null
     }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     logDebug(`TTS stop() gen=${generationRef.current}`)
     setIsSpeaking(false)
   }, [])
@@ -402,29 +193,15 @@ export function useTextToSpeech(speakToken: string | null = null) {
     logDebug(`TTS speak() gen=${myGeneration} text="${ttsPreview(clean)}"`)
     setIsSpeaking(true)
     const { spoke, configured, fetchedAudio } = await playBackendVoice(clean, myGeneration)
-    // Bede's voice has no fallback to the browser's own default voice when
-    // real audio bytes actually came back — real report: on a browser that
-    // keeps blocking audio.play() (autoplay policy), that fallback meant
-    // every single turn audibly swapped to a jarring, robotic-sounding
-    // default voice, over and over, for the whole session — worse than the
-    // rare total silence it was meant to avoid. fetchedAudio true means
-    // Bede's real voice line exists and was simply blocked from playing
-    // this once; armAutoReUnlock (called from playBackendVoice's own
-    // play() rejection handler above) is the actual fix for THAT —
-    // self-healing on the next real tap, not swapping voices. The one case
-    // that still falls back is the genuinely different one: TTS was never
-    // configured at all, where the browser's own voice is a reasonable
-    // zero-config default rather than a mid-session bait-and-switch.
-    if (generationRef.current === myGeneration) {
-      if (!spoke && !configured) {
-        logDebug(`TTS falling back to browser voice: spoke=${spoke} configured=${configured} fetchedAudio=${fetchedAudio}`)
-        await speakViaBrowser(clean, myGeneration)
-      } else if (!spoke && fetchedAudio) {
-        logDebug(`TTS blocked but configured — staying silent for this line rather than falling back: fetchedAudio=${fetchedAudio}`)
-      }
+    // A line that did not play stays silent, whatever the reason: no voice
+    // configured, a failed or timed-out line, or a browser that blocked
+    // playback (armAutoReUnlock self-heals that on the next real tap). Bede
+    // never switches to the browser's own voice.
+    if (generationRef.current === myGeneration && !spoke) {
+      logDebug(`TTS line not spoken, staying silent: configured=${configured} fetchedAudio=${fetchedAudio}`)
     }
     if (generationRef.current === myGeneration) setIsSpeaking(false)
-  }, [playBackendVoice, speakViaBrowser])
+  }, [playBackendVoice])
 
   // Unmount cleanup — a screen switch (e.g. main chat -> Mastery preview)
   // unmounts this hook's owning component; without this, any audio that
@@ -442,7 +219,6 @@ export function useTextToSpeech(speakToken: string | null = null) {
         el.onerror = null
         audioRef.current = null
       }
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     }
   }, [])
 

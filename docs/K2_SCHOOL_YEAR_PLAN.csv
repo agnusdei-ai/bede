@@ -1,0 +1,433 @@
+grade,week,area,group,skill,status,new_sight_words,sight_words_total
+K,1,numbers,U1,See small amounts at a glance (up to 5),N,,
+K,1,phonics,phonological_awareness,Hear a rhyme,B,0,0
+K,1,maps,position_words,Above and below,B,,
+K,1,fonetica_es,conciencia_fonologica,"Rimas (gato, pato)",E,,
+K,2,numbers,U1,Count objects to 5,B,,
+K,2,phonics,phonological_awareness,Odd one out: which word does not rhyme?,E,0,0
+K,2,maps,position_words,Left and right,B,,
+K,2,fonetica_es,conciencia_fonologica,Contar sílabas con palmadas,E,,
+K,3,numbers,U1,Count objects to 10,B,,
+K,3,phonics,phonological_awareness,Clap the syllables,E,0,0
+K,3,maps,position_words,Near and far,N,,
+K,3,fonetica_es,vocales,La a,N,,
+K,4,numbers,U1,Are there enough? Match one to one,E,,
+K,4,phonics,phonological_awareness,Hear the first sound,B,0,0
+K,4,maps,position_words,In front of and behind,N,,
+K,4,fonetica_es,vocales,La e,N,,
+K,5,numbers,U2,Count out a given number (to 10),E,,
+K,5,phonics,letter_sound,"Letter sounds s, a, t",E,1,1
+K,5,maps,position_words,Next to and between,N,,
+K,5,fonetica_es,vocales,La i,N,,
+K,6,numbers,U2,"More, fewer or the same",B,,
+K,6,phonics,letter_sound,"Letter sounds m, p, i",E,1,2
+K,6,maps,birds_eye,"Photo, tilted view, then from above: one room three ways",E,,
+K,6,fonetica_es,vocales,La o,N,,
+K,7,numbers,U2,Read numerals 0-10 and match to amounts,E,,
+K,7,phonics,letter_sound,"Letter sounds n, d, o",E,1,3
+K,7,maps,birds_eye,Match a thing to its view from above,B,,
+K,7,fonetica_es,vocales,La u,N,,
+K,8,numbers,U2,Compare two numbers to 10,E,,
+K,8,phonics,letter_sound,"Letter sounds c, k, g",E,1,4
+K,8,maps,birds_eye,A map of a room,E,,
+K,8,fonetica_es,conciencia_fonologica,Sonido inicial (con las vocales),E,,
+K,9,numbers,U2,Count aloud to 20,E,,
+K,9,phonics,letter_sound,"Letter sounds h, e",E,1,5
+K,9,maps,follow_path,Follow a path,B,,
+K,9,fonetica_es,vocales,Repaso: las cinco vocales,N,,
+K,10,numbers,U3,"Name flat shapes: circle, square, triangle, rectangle",N,,
+K,10,phonics,letter_sound,"Letter sounds b, f",E,1,6
+K,10,maps,follow_path,Follow a path with turns,E,,
+K,10,fonetica_es,silabas_directas,"m: ma, me, mi, mo, mu",N,,
+K,11,numbers,U3,Describe shapes: sides and corners,N,,
+K,11,phonics,letter_sound,"Letter sounds l, r",E,1,7
+K,11,maps,follow_path,Count the steps along a path,E,,
+K,11,fonetica_es,silabas_directas,"p: pa, pe, pi, po, pu",N,,
+K,12,numbers,U3,Find shapes in everyday things,N,,
+K,12,phonics,letter_sound,"Letter sounds u, w",E,1,8
+K,12,maps,symbols,"Picture symbols: house, tree, pond",E,,
+K,12,fonetica_es,conciencia_fonologica,"Unir sílabas (ma-no, mano)",N,,
+K,13,numbers,U3,Put shapes together to make new shapes,N,,
+K,13,phonics,letter_sound,"Letter sounds j, v",E,1,9
+K,13,maps,symbols,Find a symbol on a map,E,,
+K,13,fonetica_es,silabas_directas,"s: sa, se, si, so, su",N,,
+K,14,numbers,U4,Adding is putting together,B,,
+K,14,phonics,letter_sound,"Letter sounds x, y, z, qu",E,1,10
+K,14,maps,follow_path,Make a path between two places,E,,
+K,14,fonetica_es,silabas_directas,"l: la, le, li, lo, lu",N,,
+K,15,numbers,U4,Subtracting is taking away,B,,
+K,15,phonics,sight_words,Sight-word review: all words so far,B,1,11
+K,15,maps,birds_eye,A map of a garden,E,,
+K,15,fonetica_es,conciencia_fonologica,Separar palabras en sílabas,N,,
+K,16,numbers,U4,Add-to story problems within 10,E,,
+K,16,phonics,phonological_awareness,Blend by ear: c-at,E,1,12
+K,16,maps,land_and_water,Land and water,E,,
+K,16,fonetica_es,silabas_directas,"t: ta, te, ti, to, tu",N,,
+K,17,numbers,U4,Take-from story problems within 10,E,,
+K,17,phonics,phonological_awareness,Blend three sounds by ear: c-a-t,E,1,13
+K,17,maps,land_and_water,Big and small water: lake or puddle,N,,
+K,17,fonetica_es,silabas_directas,"Repaso: palabras con m, p, s, l, t",N,,
+K,18,numbers,U4,"Plus, minus and equals signs",N,,
+K,18,phonics,cvc_blending,"Read short a words (cat, map)",B,1,14
+K,18,maps,globe,A globe is a model of the Earth,N,,
+K,18,fonetica_es,silabas_directas,"n: na, ne, ni, no, nu",N,,
+K,19,numbers,U5,Number bonds to 5,B,,
+K,19,phonics,cvc_blending,"Read short i words (pig, sit)",E,1,15
+K,19,maps,globe,Land and water on a globe,N,,
+K,19,fonetica_es,silabas_directas,"d: da, de, di, do, du",N,,
+K,20,numbers,U5,Number bonds to 10,B,,
+K,20,phonics,cvc_blending,"Read short o words (dog, hop)",E,1,16
+K,20,maps,globe,Hot and cold places on a globe,N,,
+K,20,fonetica_es,conciencia_fonologica,¿Cuántas palabras tiene la oración?,N,,
+K,21,numbers,U5,Make 10 on a ten-frame,B,,
+K,21,phonics,cvc_blending,"Read short u words (sun, bug)",E,1,17
+K,21,maps,community,"Home, street and town (a made-up town)",N,,
+K,21,fonetica_es,conciencia_fonologica,Misma sílaba inicial (Pepe Pecas pica papas),N,,
+K,22,numbers,U5,"Ways to make 6, 7, 8 and 9",B,,
+K,22,phonics,cvc_blending,"Read short e words (bed, hen)",E,1,18
+K,22,maps,community,"Places in a town: church, school, shop, park",N,,
+K,22,fonetica_es,conciencia_fonologica,"Cambiar una sílaba hace otra palabra (mesa, masa)",N,,
+K,23,numbers,U5,Add and subtract within 5 quickly,E,,
+K,23,phonics,cvc_blending,Read mixed short-vowel words,E,1,19
+K,23,maps,follow_path,The shortest path,E,,
+K,23,fonetica_es,lectura,"Leer palabras de dos sílabas (mamá, mesa)",N,,
+K,24,numbers,U6,Teen numbers are ten and some more,E,,
+K,24,phonics,sight_words,Sight-word review: all words so far,E,1,20
+K,24,maps,follow_path,Go around: paths past a pond or a wall,E,,
+K,24,fonetica_es,lectura,"Leer palabras de tres sílabas (maleta, tomate)",N,,
+K,25,numbers,U6,Count objects to 20,B,,
+K,25,phonics,phonological_awareness,Hear the last sound,N,1,21
+K,25,maps,follow_path,"First, next, last along a path",E,,
+K,25,fonetica_es,palabras_frecuentes,"el, la, los, las",N,,
+K,26,numbers,U6,Read numerals to 20,E,,
+K,26,phonics,phonological_awareness,Hear the middle sound,N,1,22
+K,26,maps,story_map,Retrace a story character's journey,N,,
+K,26,fonetica_es,palabras_frecuentes,"y, en, un, una",N,,
+K,27,numbers,U6,Compare numbers to 20,E,,
+K,27,phonics,letter_sound,Match capital and small letters,N,1,23
+K,27,maps,birds_eye,A map of a farm,E,,
+K,27,fonetica_es,conciencia_fonologica,Sonido final,N,,
+K,28,numbers,U6,Count to 100 by tens,E,,
+K,28,phonics,cvc_blending,Add -s for more than one (cats),N,1,24
+K,28,maps,birds_eye,A map of a park,E,,
+K,28,fonetica_es,vocales,Mayúsculas y minúsculas,N,,
+K,29,numbers,U7,"Name solid shapes: cube, ball, cone, cylinder",N,,
+K,29,phonics,sight_words,Sight-word review: all words so far,E,1,25
+K,29,maps,birds_eye,Top and bottom of a map,N,,
+K,29,fonetica_es,lectura,Leer frases cortas (mi mamá me mima),N,,
+K,30,numbers,U7,Flat or solid?,N,,
+K,30,phonics,cvc_blending,"Word families -at, -an, -ig",E,0,25
+K,30,maps,birds_eye,Which map matches the picture?,E,,
+K,30,fonetica_es,palabras_frecuentes,"es, de, con, mi",N,,
+K,31,numbers,U8,Longer or shorter,E,,
+K,31,phonics,cvc_blending,"Word families -op, -ug, -et",E,0,25
+K,31,maps,landforms,Mountains and hills,N,,
+K,31,fonetica_es,conciencia_fonologica,"Separar una sílaba en sonidos (m-a, ma)",N,,
+K,32,numbers,U8,Heavier or lighter; holds more or less,N,,
+K,32,phonics,sight_words,Sight-word review: all words so far,B,0,25
+K,32,maps,landforms,Rivers and lakes,N,,
+K,32,fonetica_es,silabas_directas,"Repaso: m, p, s, l, t, n, d",N,,
+K,33,numbers,U8,Review: counting to 20,B,,
+K,33,phonics,letter_sound,Review: all letter sounds,E,0,25
+K,33,maps,landforms,Islands,N,,
+K,33,fonetica_es,lectura,Leer nombres de personas y lugares,N,,
+K,34,numbers,U8,Review: adding and subtracting within 10,B,,
+K,34,phonics,cvc_blending,Review: short vowels,E,0,25
+K,34,maps,position_words,Review: position words,B,,
+K,34,fonetica_es,lectura,Leer sílabas conocidas con soltura,N,,
+K,35,numbers,U8,Review: number bonds to 10,B,,
+K,35,phonics,cvc_blending,Read two-word phrases (big cat),N,0,25
+K,35,maps,follow_path,Review: following paths,B,,
+K,35,fonetica_es,lectura,Repaso: palabras de dos y tres sílabas,N,,
+K,36,numbers,U8,Review: flat and solid shapes,N,,
+K,36,phonics,sight_words,Sight-word review: all words so far,E,0,25
+K,36,maps,land_and_water,Review: land and water,E,,
+K,36,fonetica_es,lectura,Repaso: frases cortas,N,,
+1,1,numbers,U1,Add within 10,B,,
+1,1,phonics,cvc_blending,Review: short-vowel words,B,3,28
+1,1,maps,birds_eye,Review: a map is a view from above,B,,
+1,1,fonetica_es,silabas_directas,"Repaso: vocales y m, p, s, l, t, n, d",N,,
+1,2,numbers,U1,Subtract within 10,B,,
+1,2,phonics,blends_digraphs,"sh (ship, fish)",B,3,31
+1,2,maps,symbols_and_key,Symbols and a map key,B,,
+1,2,fonetica_es,silabas_directas,"r suave (pera, loro)",N,,
+1,3,numbers,U1,Sort and count things into groups,N,,
+1,3,phonics,blends_digraphs,"ch (chip, lunch)",E,3,34
+1,3,maps,symbols_and_key,Choose the right key,E,,
+1,3,fonetica_es,silabas_directas,"r fuerte y rr (rata, perro)",N,,
+1,4,numbers,U1,Read a picture graph,E,,
+1,4,phonics,blends_digraphs,"th (thin, bath)",E,2,36
+1,4,maps,four_directions,"North, south, east, west",B,,
+1,4,fonetica_es,silabas_directas,"c con a, o, u (casa, coco, cuna)",N,,
+1,5,numbers,U2,Add-to and take-from story problems,E,,
+1,5,phonics,blends_digraphs,"wh and ph (whip, phone)",E,2,38
+1,5,maps,four_directions,Move on a map by directions,E,,
+1,5,fonetica_es,silabas_directas,"b (bote, lobo)",N,,
+1,6,numbers,U2,Put-together and take-apart story problems,E,,
+1,6,phonics,blends_digraphs,"-ck (duck, sock)",B,2,40
+1,6,maps,place_on_map,Place a thing on a map,B,,
+1,6,fonetica_es,silabas_directas,"v (vaso, uva)",N,,
+1,7,numbers,U2,Compare story problems: how many more?,E,,
+1,7,phonics,blends_digraphs,"-ff, -ll, -ss, -zz (hill, bell)",N,2,42
+1,7,maps,compass_rose,The compass rose,E,,
+1,7,fonetica_es,silabas_directas,"f (foca, sofá)",N,,
+1,8,numbers,U2,Find the missing number (3 + ? = 7),N,,
+1,8,phonics,blends_digraphs,"-ng and -nk (ring, sink)",N,2,44
+1,8,maps,place_on_map,A neighbourhood map,E,,
+1,8,fonetica_es,silabas_directas,"g con a, o, u (gato, lago)",N,,
+1,9,numbers,U2,Review: number bonds to 10,B,,
+1,9,phonics,blends_digraphs,"l-blends: bl, cl, fl, pl, sl",E,2,46
+1,9,maps,four_directions,Routes using directions,E,,
+1,9,fonetica_es,silabas_directas,"j (jarra, ojo)",N,,
+1,10,numbers,U3,Facts within 10 quickly,E,,
+1,10,phonics,blends_digraphs,"r-blends: br, cr, dr, fr, gr, tr",B,2,48
+1,10,maps,place_on_map,A map of a school or church grounds,E,,
+1,10,fonetica_es,silabas_directas,"ge, gi (gema, gigante)",N,,
+1,11,numbers,U3,Make a ten to add (8 + 5),B,,
+1,11,phonics,blends_digraphs,"s-blends: st, sp, sn, sm, sw",E,2,50
+1,11,maps,landforms,"Mountain, hill and valley",N,,
+1,11,fonetica_es,digrafos,"ll (llave, pollo)",N,,
+1,12,numbers,U3,Add within 20,B,,
+1,12,phonics,blends_digraphs,"Ending blends: -st, -nd, -mp, -nt",E,2,52
+1,12,maps,landforms,"River, lake and ocean",N,,
+1,12,fonetica_es,silabas_directas,"y (yoyo, mayo)",N,,
+1,13,numbers,U3,Subtract within 20,B,,
+1,13,phonics,sight_words,Sight-word review: all words so far,B,2,54
+1,13,maps,landforms,Island and peninsula,N,,
+1,13,fonetica_es,silabas_directas,"ñ (niño, piña)",N,,
+1,14,numbers,U3,Doubles and near doubles,N,,
+1,14,phonics,long_vowel_patterns,Silent e with a (cake),B,2,56
+1,14,maps,globe,Globe or flat map?,N,,
+1,14,fonetica_es,digrafos,"ch (chivo, leche)",N,,
+1,15,numbers,U3,The equals sign: true or false?,N,,
+1,15,phonics,long_vowel_patterns,Silent e with i (kite),E,2,58
+1,15,maps,world,The seven continents,N,,
+1,15,fonetica_es,silabas_directas,z (zapato),N,,
+1,16,numbers,U4,Bundles of ten,E,,
+1,16,phonics,long_vowel_patterns,Silent e with o (bone),B,2,60
+1,16,maps,world,The five oceans,N,,
+1,16,fonetica_es,silabas_directas,"ce, ci (cena, cielo)",N,,
+1,17,numbers,U4,Tens and ones to 99,E,,
+1,17,phonics,long_vowel_patterns,"Silent e with u and e (cube, Pete)",B,2,62
+1,17,maps,world,Find our continent (from the parent's country),N,,
+1,17,fonetica_es,digrafos,"que, qui (queso, quince)",N,,
+1,18,numbers,U4,Compare two-digit numbers,E,,
+1,18,phonics,long_vowel_patterns,"Open syllables: he, go, hi",N,2,64
+1,18,maps,land_and_water,Review: land and water,B,,
+1,18,fonetica_es,digrafos,"gue, gui (guitarra, guerra)",N,,
+1,19,numbers,U4,Count by tens from any number,E,,
+1,19,phonics,word_endings,"-s and -es (cats, boxes)",N,2,66
+1,19,maps,grid_squares,Rows and columns,E,,
+1,19,fonetica_es,digrafos,"güe, güi (pingüino)",N,,
+1,20,numbers,U4,Different ways to make a number (tens and ones),E,,
+1,20,phonics,word_endings,-ing (jumping),N,2,68
+1,20,maps,grid_squares,Find a thing by its square,E,,
+1,20,fonetica_es,silabas_directas,"h muda (hoja, búho)",N,,
+1,21,numbers,U5,Add tens to a two-digit number,E,,
+1,21,phonics,word_endings,"-ed (jumped, played, wanted)",N,2,70
+1,21,maps,distance,How far? Count the squares,N,,
+1,21,fonetica_es,silabas_directas,"k, x, w (kilo, taxi, kiwi)",N,,
+1,22,numbers,U5,Add a one-digit number to a two-digit number,E,,
+1,22,phonics,sight_words,Sight-word review: all words so far,E,2,72
+1,22,maps,distance,Nearer and farther,N,,
+1,22,fonetica_es,silabas_complejas,"Sílabas inversas (árbol, isla)",N,,
+1,23,numbers,U5,Add within 100 by making a ten,E,,
+1,23,phonics,long_vowel_patterns,"ai and ay (rain, play)",E,2,74
+1,23,maps,symbols_and_key,A map's title and labels,N,,
+1,23,fonetica_es,silabas_complejas,"Sílabas mixtas (sol, mar, pan)",N,,
+1,24,numbers,U5,10 more and 10 less,E,,
+1,24,phonics,long_vowel_patterns,"ee and ea (tree, leaf)",E,2,76
+1,24,maps,place_on_map,A town's main street,E,,
+1,24,fonetica_es,silabas_complejas,"Trabadas con l: bl, cl, fl, gl, pl",N,,
+1,25,numbers,U6,Compare lengths side by side,E,,
+1,25,phonics,long_vowel_patterns,"oa and ow (boat, snow)",E,2,78
+1,25,maps,birds_eye,A city block from above,E,,
+1,25,fonetica_es,silabas_complejas,"Trabadas con r: br, cr, dr, fr, gr, pr, tr",N,,
+1,26,numbers,U6,Order three things by length,E,,
+1,26,phonics,long_vowel_patterns,"igh and y (light, cry)",E,2,80
+1,26,maps,story_map,A story map from a history lesson,N,,
+1,26,fonetica_es,palabras_frecuentes,"que, por, para, pero",N,,
+1,27,numbers,U6,Measure with same-size units,E,,
+1,27,phonics,long_vowel_patterns,y as long e (happy),N,2,82
+1,27,maps,globe,Real map or picture map?,N,,
+1,27,fonetica_es,morfologia,Plurales con -s y -es (flores),N,,
+1,28,numbers,U6,Length story problems,E,,
+1,28,phonics,r_controlled,"ar (car, star)",N,2,84
+1,28,maps,globe,Equator and the poles,N,,
+1,28,fonetica_es,morfologia,"Diminutivos -ito, -ita (gatito)",N,,
+1,29,numbers,U7,Flat and solid shapes by their features,E,,
+1,29,phonics,r_controlled,"or and ore (fork, store)",N,2,86
+1,29,maps,globe,Hot and cold parts of the Earth,N,,
+1,29,fonetica_es,lectura,Mayúscula al inicio y punto final,N,,
+1,30,numbers,U7,Halves and quarters,N,,
+1,30,phonics,r_controlled,"er, ir, ur (her, bird, turn)",N,2,88
+1,30,maps,symbols_and_key,Follow a route using the key,E,,
+1,30,fonetica_es,lectura,Signos ¿? y ¡!,N,,
+1,31,numbers,U7,Tell time to the hour,E,,
+1,31,phonics,syllables,Compound words (sunset),N,2,90
+1,31,maps,four_directions,Plan a route step by step,E,,
+1,31,fonetica_es,lectura,Leer oraciones con trabadas,N,,
+1,32,numbers,U7,Tell time to the half hour,E,,
+1,32,phonics,syllables,Two-syllable words (rabbit),N,2,92
+1,32,maps,four_directions,Which way to turn?,E,,
+1,32,fonetica_es,palabras_frecuentes,"muy, también, porque",N,,
+1,33,numbers,U8,Review: facts within 20,E,,
+1,33,phonics,sight_words,Sight-word review: all words so far,E,2,94
+1,33,maps,world,Review: continents,N,,
+1,33,fonetica_es,silabas_directas,"Repaso: c, qu, k (mismo sonido)",N,,
+1,34,numbers,U8,Review: story problems,E,,
+1,34,phonics,word_endings,"Contractions: can't, it's, I'm",N,2,96
+1,34,maps,world,Review: oceans,N,,
+1,34,fonetica_es,silabas_directas,Repaso: g y j,N,,
+1,35,numbers,U8,"Count, read and write to 120",E,,
+1,35,phonics,long_vowel_patterns,Review: vowel teams,E,2,98
+1,35,maps,symbols_and_key,Review: symbols and key,B,,
+1,35,fonetica_es,silabas_complejas,Repaso: trabadas,N,,
+1,36,numbers,U8,Review: tens and ones,E,,
+1,36,phonics,r_controlled,Review: r-controlled vowels,N,2,100
+1,36,maps,four_directions,Review: four directions,B,,
+1,36,fonetica_es,lectura,Repaso: leer un cuento corto,N,,
+2,1,numbers,U1,Facts within 20 quickly,E,,
+2,1,phonics,blends_digraphs,Review: digraphs and blends,B,6,106
+2,1,maps,four_directions,Review: four directions,B,,
+2,1,fonetica_es,digrafos,"Repaso: ch, ll, rr, qu, gu",N,,
+2,2,numbers,U1,Picture graphs,E,,
+2,2,phonics,blends_digraphs,"Three-letter blends: scr, spl, str",E,6,112
+2,2,maps,compass_rose,The compass rose,B,,
+2,2,fonetica_es,silabas_complejas,Repaso: trabadas,N,,
+2,3,numbers,U1,Bar graphs,E,,
+2,3,phonics,blends_digraphs,"-tch and -dge (catch, bridge)",N,6,118
+2,3,maps,compass_rose,"In-between directions: NE, NW, SE, SW",N,,
+2,3,fonetica_es,diptongos,"Diptongos ai, ei, oi (aire, peine)",N,,
+2,4,numbers,U1,Compare using bar graphs and diagrams,E,,
+2,4,phonics,blends_digraphs,"Soft c (city, face)",N,6,124
+2,4,maps,grid_squares,Grid squares,B,,
+2,4,fonetica_es,diptongos,"Diptongos au, eu (auto)",N,,
+2,5,numbers,U2,Add within 100,E,,
+2,5,phonics,blends_digraphs,"Soft g (gem, cage)",N,6,130
+2,5,maps,grid_squares,Letter-number squares (B3),E,,
+2,5,fonetica_es,diptongos,"Diptongos ia, ie, io (piano, tierra)",N,,
+2,6,numbers,U2,Subtract within 100,E,,
+2,6,phonics,long_vowel_patterns,Review: silent e,B,6,136
+2,6,maps,land_and_water,Land and water,B,,
+2,6,fonetica_es,diptongos,"Diptongos ua, ue, ui (agua, huevo)",N,,
+2,7,numbers,U2,Subtract by breaking apart a ten,E,,
+2,7,phonics,long_vowel_patterns,"ea as short e (bread, head)",E,6,142
+2,7,maps,scale,Map scale: one square stands for...,N,,
+2,7,fonetica_es,diptongos,"Hiato (tía, río)",N,,
+2,8,numbers,U2,Two-step story problems,N,,
+2,8,phonics,long_vowel_patterns,"oo two ways (moon, book)",E,6,148
+2,8,maps,scale,Measure a distance with the scale,N,,
+2,8,fonetica_es,acentuacion,La sílaba que suena más fuerte,N,,
+2,9,numbers,U3,Centimetres and metres,E,,
+2,9,phonics,diphthongs,"ou and ow (cloud, cow)",N,6,154
+2,9,maps,world,Review: continents,N,,
+2,9,fonetica_es,acentuacion,"Palabras agudas (café, reloj)",N,,
+2,10,numbers,U3,Inches and feet (US); kilograms and litres (Mexico),E,,
+2,10,phonics,diphthongs,"oi and oy (coin, boy)",N,6,160
+2,10,maps,world,Review: oceans,N,,
+2,10,fonetica_es,acentuacion,"Palabras graves (mesa, árbol)",N,,
+2,11,numbers,U3,Estimate a length,N,,
+2,11,phonics,diphthongs,"au and aw (sauce, saw)",N,6,166
+2,11,maps,globe,"Equator, North Pole, South Pole",N,,
+2,11,fonetica_es,acentuacion,"Palabras esdrújulas (pájaro, música)",N,,
+2,12,numbers,U3,Line plots,E,,
+2,12,phonics,long_vowel_patterns,"ew and ue (new, blue)",E,6,172
+2,12,maps,globe,Northern and southern halves,N,,
+2,12,fonetica_es,acentuacion,"La tilde cambia la palabra (papa, papá)",N,,
+2,13,numbers,U4,The number line to 100,N,,
+2,13,phonics,r_controlled,Review: ar and or,N,6,178
+2,13,maps,world,"Town, state, country: places inside places",N,,
+2,13,fonetica_es,silabas_complejas,Separar palabras largas en sílabas,N,,
+2,14,numbers,U4,Add on a number line,N,,
+2,14,phonics,r_controlled,"er, ir, ur, ear (earth)",N,6,184
+2,14,maps,world,"Our country on a map (parent's choice: US by default, Mexico in Spanish)",N,,
+2,14,fonetica_es,silabas_directas,"x con sonido de j (México, Oaxaca)",N,,
+2,15,numbers,U4,Subtract on a number line,N,,
+2,15,phonics,r_controlled,"air, are, ear (chair, care, bear)",N,6,190
+2,15,maps,world,Our country's neighbours,N,,
+2,15,fonetica_es,ortografia,b o v: ¿cuál se escribe?,N,,
+2,16,numbers,U5,"Hundreds, tens and ones",E,,
+2,16,phonics,sight_words,Sight-word review: all words so far,E,6,196
+2,16,maps,landforms,"Mountains, plains and deserts",N,,
+2,16,fonetica_es,ortografia,"c, s o z: ¿cuál se escribe?",N,,
+2,17,numbers,U5,"Read and write numbers to 1,000",E,,
+2,17,phonics,blends_digraphs,"Silent letters: kn, wr, mb",N,6,202
+2,17,maps,landforms,Rivers run to the sea,N,,
+2,17,fonetica_es,ortografia,"g o j ante e, i",N,,
+2,18,numbers,U5,Compare three-digit numbers,E,,
+2,18,phonics,syllables,Two closed syllables (napkin),N,6,208
+2,18,maps,landforms,"Lakes, bays and gulfs",N,,
+2,18,fonetica_es,ortografia,ll o y: ¿cuál se escribe?,N,,
+2,19,numbers,U5,"Skip count by 5s, 10s and 100s",E,,
+2,19,phonics,syllables,Open syllables (ti-ger),N,6,214
+2,19,maps,symbols_and_key,Colour keys on a map,N,,
+2,19,fonetica_es,ortografia,h muda: ¿lleva h?,N,,
+2,20,numbers,U6,Shapes by sides and corners,E,,
+2,20,phonics,syllables,Consonant + le (ta-ble),N,6,220
+2,20,maps,landforms,High ground and low ground,N,,
+2,20,fonetica_es,ortografia,"r o rr entre vocales (caro, carro)",N,,
+2,21,numbers,U6,"Halves, thirds and fourths",N,,
+2,21,phonics,syllables,Silent-e syllables (cup-cake),N,5,225
+2,21,maps,follow_path,Follow the roads on a road map,E,,
+2,21,fonetica_es,ortografia,"mp y mb (campo, hombre)",N,,
+2,22,numbers,U6,Time to five minutes,E,,
+2,22,phonics,word_endings,"-er and -est (bigger, biggest)",N,5,230
+2,22,maps,follow_path,Choose the shortest route,E,,
+2,22,fonetica_es,morfologia,"Prefijos des-, re-, in-",N,,
+2,23,numbers,U6,a.m. and p.m.,N,,
+2,23,phonics,word_endings,"-ful, -less, -ly",N,5,235
+2,23,maps,follow_path,Routes with direction and distance,E,,
+2,23,fonetica_es,morfologia,"Sufijos -ero, -era (panadero)",N,,
+2,24,numbers,U6,Coins of our country (US: penny to quarter; Mexico: 50 centavos to 10 pesos),E,,
+2,24,phonics,word_endings,un- and re-,N,5,240
+2,24,maps,place_on_map,Landmarks on a city map,E,,
+2,24,fonetica_es,morfologia,"Sufijos -dor, -dora (nadador)",N,,
+2,25,numbers,U6,Count money; money story problems,E,,
+2,25,phonics,word_endings,Double before -ing and -ed (hopping),N,5,245
+2,25,maps,story_map,Historic places from history lessons,N,,
+2,25,fonetica_es,morfologia,"Aumentativos -ote, -ón",N,,
+2,26,numbers,U7,"Add within 1,000 without regrouping",N,,
+2,26,phonics,word_endings,Drop the e before -ing (making),N,5,250
+2,26,maps,story_map,Old maps and new maps,N,,
+2,26,fonetica_es,morfologia,"Palabras compuestas (paraguas, sacapuntas)",N,,
+2,27,numbers,U7,"Add within 1,000 with regrouping",N,,
+2,27,phonics,word_endings,Change y to i (cries),N,5,255
+2,27,maps,story_map,Travel by river and sea,N,,
+2,27,fonetica_es,morfologia,"Familias de palabras (pan, panadero, panadería)",N,,
+2,28,numbers,U7,"Subtract within 1,000 without regrouping",N,,
+2,28,phonics,word_endings,"Irregular plurals (mice, feet)",N,5,260
+2,28,maps,story_map,"Map a journey, such as a pilgrimage",N,,
+2,28,fonetica_es,morfologia,"Plurales con -ces (lápiz, lápices)",N,,
+2,29,numbers,U7,"Subtract within 1,000 with regrouping",N,,
+2,29,phonics,word_endings,"Sound-alike words (to, too, two)",N,5,265
+2,29,maps,symbols_and_key,Make a map: pick the symbols and key,N,,
+2,29,fonetica_es,morfologia,El y la; -o y -a,N,,
+2,30,numbers,U7,"10 more, 10 less, 100 more, 100 less",N,,
+2,30,phonics,sight_words,Sight-word review: all words so far,E,5,270
+2,30,maps,place_on_map,Draw a map of a room (not scored),N,,
+2,30,fonetica_es,morfologia,"Terminaciones del pasado -aba, -ía",N,,
+2,31,numbers,U8,Odd and even,E,,
+2,31,phonics,syllables,"The lazy vowel (about, sofa)",N,5,275
+2,31,maps,globe,Directions on a globe,N,,
+2,31,fonetica_es,lectura,Mayúsculas en nombres de personas y lugares,N,,
+2,32,numbers,U8,Equal groups,E,,
+2,32,phonics,blends_digraphs,"ph and gh as f (phone, laugh)",N,5,280
+2,32,maps,compass_rose,Review: all eight directions,E,,
+2,32,fonetica_es,palabras_frecuentes,"después, siempre, entonces",N,,
+2,33,numbers,U8,Rectangular arrays,E,,
+2,33,phonics,word_endings,Contractions with not and will,N,5,285
+2,33,maps,scale,Review: grid and scale,E,,
+2,33,fonetica_es,lectura,La coma en una lista,N,,
+2,34,numbers,U9,Review: facts within 20 and measuring,E,,
+2,34,phonics,diphthongs,"Review: vowel teams and ou, oi, au",N,5,290
+2,34,maps,world,Review: continents and oceans,N,,
+2,34,fonetica_es,diptongos,Repaso: diptongos y tildes,N,,
+2,35,numbers,U9,"Review: numbers to 1,000",E,,
+2,35,phonics,word_endings,Review: prefixes and suffixes,N,5,295
+2,35,maps,landforms,Review: landforms and water,N,,
+2,35,fonetica_es,ortografia,"Repaso: b/v, c/s/z, g/j",N,,
+2,36,numbers,U9,"Review: adding and subtracting within 1,000",N,,
+2,36,phonics,syllables,Review: longer words,N,5,300
+2,36,maps,world,"Review: town, state, country",N,,
+2,36,fonetica_es,lectura,Repaso: leer un cuento con fluidez,N,,

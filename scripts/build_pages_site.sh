@@ -18,6 +18,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# Workers Builds runs independently of GitHub merge checks. Refuse to assemble
+# a publish directory until this exact main commit has passed the FAQ workflow.
+# This has no browser/system dependencies and uses the public GitHub read API.
+node scripts/faq-browser/publication-gate.mjs
+
 echo "Building demo..."
 (cd demo && npm ci && npm run build)
 (cd demo && ./node_modules/.bin/vite build --config vite.tour.config.ts)

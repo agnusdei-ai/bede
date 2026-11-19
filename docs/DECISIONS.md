@@ -2432,22 +2432,24 @@ demo shows the whole K-2 foundation, not Number Time alone. Each area in
 `docs/K2_PRACTICE.md` is to appear in the public demo, taught in Bede's own
 voice, once it is **completed and developed**:
 
-- phonics and blending (Sound Time);
-- practical math (Number Time, already there);
-- map reading (Map Practice, built for the app and not yet in the demo);
+- phonics and blending (Sound Time, in the demo since #883);
+- practical math (Number Time, in the demo since #857);
+- map reading (Map Practice, in the demo since #883);
 - and, as each is built: handwriting (letter formation), spelling, copying a
   sentence, and memory work and recitation.
 
 What this does and does not do:
 
-- **It builds and approves nothing by itself.** Today only Number Time is in
-  the demo (for kindergarten, grade 1 and grade 2 visitors). Sound Time and
-  Map Practice are built for the family app, and the rest are specified, not
+- **It builds and approves nothing by itself.** Sound Time, Number Time and
+  Map Practice are in the demo today (for kindergarten, grade 1 and grade 2
+  visitors); the owner asked for Sound Time and Map Practice on 2026-11-19,
+  and #883 added them under this boundary. The rest are specified, not
   built. "Completed and developed" means no area is added before it is built
   and has passed its own review. Each demo addition is its own change, and
   the owner signs off on it, as for every change under `demo/` and `site/`.
-- **Bede's voice means Bede's voice in the demo too**: OpenAI's voice there,
-  as entry 46 records, and never the browser's. Only each round's fixed lines
+- **Bede's voice means Bede's voice in the demo too**: the chat's
+  text-to-speech path, through the speech provider the demo's Privacy Notice
+  names, and never the browser's or an on-device voice. Only each round's fixed lines
   are spoken, never what a visitor chooses or says.
 - **The 2026-11-17 boundary carries over to every area until the owner changes
   it.** Attempts are temporary and tied to the visitor's session, and answer

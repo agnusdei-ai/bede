@@ -256,7 +256,7 @@ SUBJECT_DURATIONS = {
     # Same 10 minutes as Latin, and for the same reason — a few words or
     # letters met properly, not a class period. A family running both gets
     # 20 minutes of classical language a day, which is already more than
-    # most K-8 homeschool days give it.
+    # most K-12 homeschool days give it.
     Subject.greek: 10,
     # Longer than the language blocks: a single argument judged properly
     # needs the student to reason out loud, be wrong, and be walked back

@@ -253,7 +253,7 @@ constitution rather than becoming an unrestricted assistant); encryption
 key material; and license/business-logic integrity — plus, for the
 public demo specifically, pseudonymous visitor data and the operator's
 AI-provider budget. `CLAUDE.md`'s opening section states the intended use
-context precisely (self-hosted, LAN-deployed, K-8 homeschool tutoring,
+context precisely (self-hosted, LAN-deployed, K-12 homeschool tutoring,
 parent-configured, child-facing) — a narrower, better-understood context
 than "general-purpose assistant," which is itself a risk-reducing
 decision documented as such (see `docs/SECURITY.md`'s AIUC-1 Society-

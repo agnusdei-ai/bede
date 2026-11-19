@@ -34,7 +34,7 @@ cover: it still works during a classifier outage (moderation.py fails
 open — Tier 1 is the only signal left in that window), and it's instant/
 free for the phrasings blunt enough to enumerate safely. It is
 deliberately narrow: every pattern here is curated for very low false-
-positive risk against ordinary K-8 Socratic dialogue, unlike a classifier
+positive risk against ordinary K-12 Socratic dialogue, unlike a classifier
 that reasons about ambiguous intent. See services/policy_engine.py for
 what actually happens with a Tier 1 or Tier 2 hit — detection and policy
 are kept separate so either can change without the other.
@@ -44,7 +44,7 @@ from dataclasses import dataclass, field
 
 
 # Blunt, low-ambiguity "unrestricted alter-ego" framing — near-zero
-# legitimate use in a K-8 Socratic-tutor conversation (contrast with
+# legitimate use in a K-12 Socratic-tutor conversation (contrast with
 # jailbreak-FLAVORED creative writing, e.g. "pretend you're a dragon with
 # no rules *in the story*", which this deliberately does NOT match).
 _JAILBREAK_PATTERN = re.compile(

@@ -200,6 +200,20 @@ job, which blocks the merge; this one proposes the fix. Written after
 only because someone looked. See docs/DECISIONS.md entry 12's 2026-10-01
 amendment and entry 17.
 
+**That per-PR job keeps "the audit did not complete" apart from both answers.**
+pip-audit exits 1 for a vulnerability AND for "could not reach PyPI", so the
+exit code cannot say which; the JSON report can, because only a completed
+audit writes one. `scripts/pip_audit_gate.py` runs pip-audit on both
+lockfiles and reports one of three outcomes: clean (exit 0), an advisory not
+in `.github/audit-allowlist.json` (exit 1, never retried, since asking again
+cannot change an answer), or **audit unavailable** (exit 3). Only a transient
+network failure (a timeout, a refused or reset connection, a failed lookup, a
+5xx or 429) is retried, three attempts with 20 s and 60 s between. A timeout
+is neither an advisory nor evidence the dependencies are clean, and a missing
+report, an unreadable allowlist or a missing pip-audit is never "clean".
+Written after 2026-11-18, when two unrelated pull requests went red on a
+PyPI `ReadTimeout` with no advisory read. `tests/test_pip_audit_gate.py`.
+
 **Linux CI runners are pinned, for the same reason the lockfile refresh is
 attended.** Every `runs-on:` is `ubuntu-24.04`, never `ubuntu-latest`
 (`tests/test_runner_pins.py`). GitHub repoints that label to a new major

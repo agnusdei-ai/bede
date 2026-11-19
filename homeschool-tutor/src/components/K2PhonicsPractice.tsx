@@ -77,9 +77,8 @@ export default function K2PhonicsPractice({
   onClose: () => void
   /** Reads a line aloud. Every instruction is spoken as well as shown. */
   onSpeak?: (text: string) => void
-  /** Whether this device can actually speak the round: false with no installed
-   * voice for the language or with Bede's voice off, null while still
-   * checking. Defaults to whether `onSpeak` was given. */
+  /** Whether the round can be spoken: false with Bede's voice off, null while
+   * still checking. Defaults to whether `onSpeak` was given. */
   canSpeak?: boolean | null
 }) {
   const { t } = useTranslation()

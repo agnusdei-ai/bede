@@ -52,7 +52,7 @@ the code.
 | K-2 math skills | `services/diagnostic/skill_map.py` (24 K-2 skills, below) | Practical math evidence. |
 | Spelling practice | `services/practice/packs/spelling/` (look-say-cover-write-check, `item_bank/patterns.json`) | The spelling routine and its words, after the K-2 additions in §5.4. |
 | Writing canvas | `components/HandwritingCanvas.tsx` | Handwriting and copying a sentence: composition ruling, finger and stylus. |
-| Speech | the browser's own speech (`utils/onDeviceSpeech.ts`), never the server's `/tutor/speak` | Speaking every instruction on the device, so nothing from a round reaches a speech provider. |
+| Speech | Bede's own voice (`useTextToSpeech`, the server's `/tutor/speak`), the same as the chat | Every instruction is spoken in the voice the child already knows (owner direction 2026-11-18). |
 | The invitation pattern | `invite_map_practice` in `services/ai_service.py` and `services/tool_registry.py` | How Bede offers a round (§4). |
 
 ## 3. The routine
@@ -297,12 +297,10 @@ instruction says its own answer ("Put 7 counters in the ten-frame") takes no
 spoken answer. Answering by voice inside the screen is not built, as for
 phonics; the server accepts a spoken answer.
 
-Speech is exactly as for phonics (§7): every line is shown and spoken only
-through a voice installed on the device (`utils/onDeviceSpeech.ts`), never
-`/tutor/speak`, a network voice or an unchecked default, and Bede's chat voice
-does not read the turn over a round it opened. No math question works only by
-ear, so a device that cannot speak gets the same lesson, shown without speech.
-Map practice still speaks through the server path, the known gap §7 names.
+Speech is exactly as for phonics (§7): every line is shown and spoken in
+Bede's own voice, and Bede's chat voice does not read the turn over a round it
+opened. No math question works only by ear, so with Bede's voice off the child
+gets the same lesson, shown without speech.
 
 The three new pictures are `counters`, `ten_frame` and `number_bond`
 (`models/practice.py`'s `PieceDiagram`, drawn by `components/MathPieces.tsx`):
@@ -447,7 +445,7 @@ already keeps for the tab only.
 - **The parent decides.** Parents approve word lists and practice sets before a child sees them, choose the setting in §4, and see every ledger row on Progress. A child never sees a record of their own practice.
 - **What helps this child applies.** A child's `learning_support` and reading settings carry into the round. For example, tiles instead of writing for a child who answers better that way, and the letter and line spacing the parent set.
 - **Accessible.** 56 px touch targets, 64 px for the main action, 8 px apart; usable at 200% text; every instruction spoken and shown, motion that respects `prefers-reduced-motion`, and English and Spanish from the start, with the same keys in both locale files.
-- **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing from a round goes to any AI provider.
+- **Private.** No real places, as map practice already rules. No free text is kept from a round. Nothing the child gives in a round goes to any AI provider. A round's own fixed lines are spoken in Bede's voice, which sends that text to the configured speech provider (§7).
 - **Reliable.** A lesson rebuilds from its signed id, a reload resumes it, a retried answer counts once, and every check runs without an AI call.
 - **Never faith.** No area records anything about prayer, Scripture or devotional text. See §8.
 
@@ -460,20 +458,37 @@ disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
-like the map practice card, and spoken only through a voice installed on the
-device, in the session's language (`utils/onDeviceSpeech.ts`): never through
-`/tutor/speak`, which forwards text to a cloud speech provider, and never with a
-browser network voice (`localService === false`, such as Chrome's "Google"
-voices) or an unchecked default voice. On a device with no installed voice for
-the language, or with Bede's voice turned off, the round is shown without
-speech, and the items that only work by ear (sight words) are not served or
-recorded; a child whose practice is sight words is told it needs sound.
-Bede's chat voice does not read the turn over a round it opened. A spoken answer is transcribed
-by the existing voice pipeline and counts only when it matches one of the item's
-own choices, and never when the spoken instruction already said the answer (a
-sight word), since repeating it is an echo rather than a reading. So nothing
-from a round reaches an AI provider. Map practice (`MapPractice.tsx`) still
-speaks through the server path and is a known gap, left for the owner.
+like the map practice card.
+
+**Every round speaks in Bede's own voice (owner direction 2026-11-18).** Rounds
+used to speak through a voice installed on the device, so that nothing from a
+round reached a provider. That voice sounded unlike Bede, so a child heard one
+voice in the chat and a different one in the round. Sound Time, Number Time
+and Map Practice now speak through the same `useTextToSpeech` path as a chat
+reply, in the app and in the demo, and stop speaking when the child closes
+them, with the chat's rules: a browser voice only when no speech
+provider is configured at all, and silence rather than another voice when one
+is configured but a line fails. They default to no other voice, and no shipped
+file outside `useTextToSpeech` may speak through the browser directly or
+request `/tutor/speak` itself (`bedesVoiceOnly.test.ts`). The rule holds for
+every feature, including ones added later (Practice Coach speaks nothing
+today; if it ever does, it speaks in Bede's voice): in the chat, every
+practice screen that speaks is handed the one Bede-voice callback, and the
+same test fails if a screen is wired to anything else.
+
+What this sends to the speech provider is the round's fixed, server-written
+lines: the instruction, the worked example, a letter's sound when it is tapped,
+and "That's it" or "Let's look again". It never sends the child's taps or
+spoken answers, but the feedback line spoken does show whether an answer was
+right. With Bede's voice turned off, the round is shown without speech, and the
+items that only work by ear (sight words) are not served or recorded; a child
+whose practice is sight words is told it needs sound. Bede's chat voice does
+not read the turn over a round it opened. A spoken answer is transcribed by the
+existing voice pipeline and counts only when it matches one of the item's own
+choices, and never when the spoken instruction already said the answer (a sight
+word), since repeating it is an echo rather than a reading.
+`SocraticChat.k2Practice.test.tsx` and the demo's `k2MathParity.test.ts` pin the
+wiring.
 
 ## 8. Second wave
 

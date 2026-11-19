@@ -12,7 +12,6 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import K2MathPractice from './K2MathPractice'
-import { hasLocalVoice, speakOnDevice, stopOnDeviceSpeech } from '../utils/onDeviceSpeech'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -214,20 +213,16 @@ export default function SocraticChat({
     speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
     enabled: ttsEnabled, isSupported: ttsSupported,
   } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
-  // A phonics or math round speaks on the device; Bede's chat voice stops
-  // when it opens, so two voices never talk over each other.
+  // Bede's chat voice stops when a round opens, so two voices never talk
+  // over each other.
   useEffect(() => { if (practiceOpen) stopSpeech() }, [practiceOpen, stopSpeech])
-  // Whether this device has an installed voice for the session's language.
-  // Without one (or with Bede's voice off) the round is shown without speech
-  // and the server leaves out questions that work only by ear.
-  const [deviceVoice, setDeviceVoice] = useState<boolean | null>(null)
-  useEffect(() => {
-    if (!practiceOpen) return
-    let live = true
-    setDeviceVoice(null)
-    hasLocalVoice().then((ok) => { if (live) setDeviceVoice(ok) })
-    return () => { live = false }
-  }, [practiceOpen])
+  // Every feature speaks in Bede's own voice, the same voice as the chat
+  // (owner direction 2026-11-18), with no other voice as a default: a
+  // practice round goes through useTextToSpeech exactly as a chat reply does.
+  // Each line replaces the one before it, so a tapped answer's "That's it!"
+  // is heard when it is tapped. With Bede's voice off the round is shown
+  // without speech and the server leaves out questions that work only by ear.
+  const speakInBedesVoice = useCallback((text: string) => { stopSpeech(); speak(text) }, [stopSpeech, speak])
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -1220,30 +1215,27 @@ export default function SocraticChat({
         <MapPractice
           token={token}
           studentName={sessionConfig.student_name}
-          onClose={() => setShowMapPractice(false)}
-          onSpeak={speak}
+          onClose={() => { stopSpeech(); setShowMapPractice(false) }}
+          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
         />
       )}
 
       {/* K-2 phonics practice overlay. Built and checked by the server, nothing
-          sent to an AI provider, nothing kept after it closes. */}
+          kept after it closes. Spoken in Bede's own voice, like the chat. */}
       {showPhonics && token && sessionConfig?.student_name && (
         <K2PhonicsPractice
           token={token}
           studentName={sessionConfig.student_name}
-          onClose={() => { stopOnDeviceSpeech(); setShowPhonics(false) }}
-          // On-device speech only: nothing from a round may reach an AI
-          // provider, and Bede's ordinary voice goes through /tutor/speak to
-          // a cloud speech service (docs/K2_PRACTICE.md §6). Silent, as the
-          // chat is, when the narration toggle is off.
-          onSpeak={ttsEnabled ? speakOnDevice : undefined}
-          canSpeak={ttsEnabled ? deviceVoice : false}
+          onClose={() => { stopSpeech(); setShowPhonics(false) }}
+          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
+          canSpeak={ttsEnabled}
         />
       )}
 
       {/* K-2 practical math overlay: counters, a ten-frame, a number bond.
-          The same rules as phonics: built and checked by the server, spoken
-          on the device only, nothing sent to an AI provider. */}
+          Built and checked by the server. Spoken in Bede's own voice, like the
+          chat: only the round's fixed, server-written lines are spoken, never
+          anything the child gives (docs/K2_PRACTICE.md §7). */}
       {showMath && token && sessionConfig?.student_name && (
         <K2MathPractice
           transport={{
@@ -1251,9 +1243,9 @@ export default function SocraticChat({
             answer: (lessonId, phase, index, choice, _submissionId) =>
               answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
           }}
-          onClose={() => { stopOnDeviceSpeech(); setShowMath(false) }}
-          onSpeak={ttsEnabled ? speakOnDevice : undefined}
-          canSpeak={ttsEnabled ? deviceVoice : false}
+          onClose={() => { stopSpeech(); setShowMath(false) }}
+          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
+          canSpeak={ttsEnabled}
         />
       )}
 

@@ -5,6 +5,13 @@ out *why* each miss happened, and drafts a short practice set and a follow-up
 re-check. **The parent reviews and approves everything before the child sees
 it.** The ruling behind each design choice is `docs/DECISIONS.md` entry 39.
 
+## Voice
+
+Practice Coach shows its work on screen and reads nothing aloud today. Every
+feature that speaks uses Bede's own voice, the same one as the chat (owner
+direction 2026-11-18), so if Practice Coach ever speaks it will be in that
+voice; see `docs/K2_PRACTICE.md` §7.
+
 ## Turning it on or off
 
 Practice Coach is on by default. The setup wizard and `setup.sh` ask about it

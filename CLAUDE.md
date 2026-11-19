@@ -1110,6 +1110,26 @@ the earlier hover-and-toggle reveal. `curriculumColors.test.ts` accepts a
 card with extra classes but still counts every card, since each one takes an
 `nth-child` colour slot.
 
+**The kindergarten-to-grade-2 practice copy is checked against the code too
+(`tests/test_site_k2_practice_claims.py`).** `site/homeschool/index.html`'s
+"Sounds, numbers, and maps" section, the FAQ's `#early-years-practice` detail,
+the home page's pointer and `site/llms.txt` tell a family what Sound Time,
+Number Time and Map Practice are, when Bede offers them and what is kept. The
+guard binds each claim to its source: only the built areas are named
+(`ENABLED_AREAS`, never handwriting, spelling or copying a sentence), each is
+offered in the subjects the code says (`AREA_SUBJECTS`, `_MAP_PRACTICE_SUBJECTS`,
+so the copy says "History & Geography", the product's name), the recorded-answer
+limit is `MAX_RECORDED_ANSWERS`, and Map Practice reads no parent setting (the
+FAQ says it has none, so the guard fails if `_map_practice_allowed` ever reads
+`practice_offers`). It also refuses three overreaches: any mention of a spoken
+voice (how a round is spoken is still changing, entry 46), any claim that
+practice never marks a skill secure (two right first tries can), and any "K-12"
+(the product is kindergarten to grade 8). The new FAQ block is deliberately NOT
+a `bede-curriculum-entry`, which `scripts/bede-production.test.mjs` pins at 14
+cards and 42 facts. Number Time is in the public demo only for kindergarten,
+grade 1 and grade 2 visitors, and the demo has no phonics or map round, so the
+copy says exactly that.
+
 **Music is taught inside Art & Music, not as a subject of its own.** The
 `music_knowledge` diagnostic area is a tracked area, not a timetable block:
 `Subject.art_music` stays one subject covering picture study and composer

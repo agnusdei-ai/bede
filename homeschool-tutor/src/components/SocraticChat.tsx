@@ -12,6 +12,7 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import K2MathPractice from './K2MathPractice'
+import { mapTransport, phonicsTransport } from '../services/practiceTransports'
 import { useChatTheme } from '../hooks/useChatTheme'
 import { useVoiceModePreference } from '../hooks/useVoiceModePreference'
 import { isDuplicateUtterance } from '../utils/dedupe'
@@ -1213,8 +1214,7 @@ export default function SocraticChat({
       {/* Map practice overlay (K-2). Nothing in it is kept after it closes. */}
       {showMapPractice && token && sessionConfig?.student_name && (
         <MapPractice
-          token={token}
-          studentName={sessionConfig.student_name}
+          transport={mapTransport(token, sessionConfig.student_name)}
           onClose={() => { stopSpeech(); setShowMapPractice(false) }}
           onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
         />
@@ -1224,8 +1224,7 @@ export default function SocraticChat({
           kept after it closes. Spoken in Bede's own voice, like the chat. */}
       {showPhonics && token && sessionConfig?.student_name && (
         <K2PhonicsPractice
-          token={token}
-          studentName={sessionConfig.student_name}
+          transport={phonicsTransport(token, sessionConfig.student_name)}
           onClose={() => { stopSpeech(); setShowPhonics(false) }}
           onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
           canSpeak={ttsEnabled}

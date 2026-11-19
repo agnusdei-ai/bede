@@ -497,6 +497,19 @@ and they make no model calls. The demo keeps local mirrors of
 parity guarded by `demo/src/k2MathParity.test.ts`; its runtime does not import
 household store or API modules.
 
+**Public-demo Sound Time and Map Practice
+(`services/k2_practice/demo_rounds.py`, `routers/k2_practice.py`'s
+`/k2-practice/demo/phonics|maps` routes, `demo/src/`)** follow the same
+boundary: the household builders and checks, bounded process-local attempts
+keyed to the live demo session (no longer than its expiry, at most 15 minutes),
+`demo=true` and `recorded=false` on every answer, and no model calls. The
+`K2PhonicsPractice` and `MapPractice` screens take a `transport` prop like
+`K2MathPractice`; the household transports live in
+`services/practiceTransports.ts`, the demo's in `demo/src/api.ts`. The demo
+mirrors those screens, `MapScene` and the wire types, and the same parity test
+checks them and that every round speaks only in Bede's voice
+(`useTextToSpeech`'s `speak`), never the browser's or an on-device voice.
+
 ### Backend (`homeschool-api/`)
 
 ```
@@ -1128,11 +1141,11 @@ range is deliberately not asserted here: the owner ruled on 2026-11-19 that the
 product is K-12 (see the separate site copy change), so a guard fixing it at
 kindergarten to grade 8 was removed. The new FAQ block is deliberately NOT
 a `bede-curriculum-entry`, which `scripts/bede-production.test.mjs` pins at 14
-cards and 42 facts. Number Time is in the public demo only for kindergarten,
-grade 1 and grade 2 visitors, and the demo has no phonics or map round yet, so
-the copy says exactly that and that the other areas will join the demo as each
-is finished (entry 40(g), amended 2026-11-19). The day the demo gains a round,
-the guard fails until the copy changes in the same commit. `site/llms.txt` is
+cards and 42 facts. Sound Time, Number Time and Map Practice are in the public
+demo for kindergarten, grade 1 and grade 2 visitors, so the copy says exactly
+that and that other areas will join the demo as each is finished (entry
+40(g)). The guard checks the demo's buttons against the copy, so the copy
+changes in the same commit as each demo addition. `site/llms.txt` is
 held to the same facts: no page may say an adult can switch Map Practice.
 
 **Music is taught inside Art & Music, not as a subject of its own.** The

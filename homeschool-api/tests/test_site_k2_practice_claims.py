@@ -118,22 +118,21 @@ def test_the_copy_says_nothing_about_narration():
 
 
 def test_the_demo_claim_matches_the_demo():
-    """The copy says Number Time is in the public demo today, for kindergarten,
-    grade 1 or grade 2, and that the other areas will join it as each is
-    finished (docs/DECISIONS.md entry 40(g), amended 2026-11-19). The demo's
-    own button is shown only for those grades, and the demo has no phonics or
-    map round yet. The day it does, this fails, and the copy must change in the
-    same commit: a page may not say "will join" about something already there,
-    nor omit something that is."""
+    """The copy says Sound Time, Number Time and Map Practice are in the public
+    demo today, for kindergarten, grade 1 or grade 2, and that other areas
+    will join as each is finished (docs/DECISIONS.md entry 40(g)). The demo's
+    own buttons are shown only for those grades. A page may not say "will
+    join" about something already there, nor omit something that is."""
     demo = (ROOT / "demo/src/App.tsx").read_text()
     assert "['K', '1', '2'].includes(grade)" in demo
-    assert "setShowNumberTime(true)" in demo
-    assert "Sound Time" not in demo and "Map Practice" not in demo
-    assert "Number Time is in the public demo today" in PRACTICE_FAQ
+    for opener in ("setShowNumberTime(true)", "setShowSoundTime(true)", "setShowMapPractice(true)"):
+        assert opener in demo, opener
+    claim = "Sound Time, Number Time, and Map Practice are in the public demo today"
+    assert claim in PRACTICE_FAQ
     assert "kindergarten, grade 1, or grade 2" in PRACTICE_FAQ
     assert "will join the demo as each is finished" in PRACTICE_FAQ
-    assert "Number Time is in the public demo today" in EARLY_YEARS
-    assert "will join it as each is finished" in EARLY_YEARS
+    assert claim in EARLY_YEARS
+    assert "will join them as each is finished" in EARLY_YEARS
 
 
 def test_llms_txt_matches_what_an_adult_can_switch():
@@ -141,7 +140,7 @@ def test_llms_txt_matches_what_an_adult_can_switch():
     text = (ROOT / "site/llms.txt").read_text()
     assert "an adult can switch off phonics and math practice" in text
     assert "switch on or off" not in text
-    assert "Number Time today" in text
+    assert "Sound Time, Number Time, and Map Practice today" in text
 
 
 def test_the_site_links_resolve_to_the_new_detail():

@@ -1,4 +1,4 @@
-"""Synthetic regression tests; no claim to subject-review correctness."""
+"""Mock regression tests; no claim to subject-review correctness."""
 import copy
 import tempfile
 from pathlib import Path
@@ -15,13 +15,13 @@ class ReviewGateTests(unittest.TestCase):
         for name in set().union(*SUBJECTS.values()) | {"reviews/report.md"}:
             path = self.root / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text("Synthetic evidence\n")
+            path.write_text("Mock evidence\n")
         self.records = [{
             "subject": subject, "agent_id": "test-reviewer",
             "agent_version": "not exposed by platform",
             "review_run": "review-run", "authoring_run": "author-run",
-            "date": "2026-11-11", "scope": "Synthetic test scope",
-            "methods": "Synthetic fixture", "evidence": "Synthetic report",
+            "date": "2026-11-11", "scope": "Mock test scope",
+            "methods": "Mock fixture", "evidence": "Mock report",
             "conditions": "Recorded scope only", "disagreements": "None recorded",
             "status": "agent-reviewed", "open_findings": [],
             "source_hashes": {name: digest(self.root / name) for name in names},

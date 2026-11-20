@@ -21,7 +21,7 @@
 - Publisher history headings checked for Mediterranean/Persia/Indus and South Asia (§5.4). D'Ooge contents checked for second declension (IX–X) and present *sum* (XVIII); only taught forms are assessed.
 - Latin passage/key internally checked for case, number, verb agreement and vocabulary; the nine-sentence demonstration has explicit parsing guidance. This is not independent human-specialist review; the instructor sign-off remains a pre-use gate.
 - Two literal Python teaching snippets and missing/all-missing/zero cases run in the validator. Existing project fixture tests remain separate; held-out recipe uses the loader's actual schema.
-- Weeks6/8 have detailed supervised procedures and labeled synthetic alternatives; weeks5/7 are design/model/data work, not physical experiments. Week9 revisits safe observation without adding a designated ledger investigation.
+- Weeks6/8 have detailed supervised procedures and labeled example-data alternatives; weeks5/7 are design/model/data work, not physical experiments. Week9 revisits safe observation without adding a designated ledger investigation.
 - Prerequisite/assessment/access matrix and a no-double-counting timetable are in document04. Mathematical worked answers and biological denominators were checked; automated text coverage is not evidence of educational validity.
 
 ## Not established by these checks

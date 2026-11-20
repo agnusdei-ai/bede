@@ -29,7 +29,7 @@ The stale program inclusion statement is also corrected at `01-program-and-deliv
 
 ### B1 — closed by exclusion/replacement, not by physical-method approval
 
-`06-biology-labs.md:35–41` now specifies **paper/accessibly presented synthetic descriptions only**, no liquids/food/heat/chemical handling and no adult-demonstration bypass. This removes the unspecified-product exposure path reviewed under B1. The coded descriptions are explicitly invented: A purple/purple, B pink/pink, C blue/blue-green.
+`06-biology-labs.md:35–41` now specifies **paper/accessibly presented example descriptions only**, no liquids/food/heat/chemical handling and no adult-demonstration bypass. This removes the unspecified-product exposure path reviewed under B1. The coded descriptions are explicitly invented: A purple/purple, B pink/pink, C blue/blue-green.
 
 Independent interpretation: A and B have matching within-sample repeat descriptions; C has differing descriptions. Neither the coded labels nor color words alone supply an indicator identity, calibration, chemical identity, exact pH or safety determination. The new document06 key correctly says no acid/base identity is established. Read-aloud words/tactile labeled tokens preserve the evidence-reasoning objective without making color discrimination a graded requirement.
 
@@ -37,7 +37,7 @@ Independent interpretation: A and B have matching within-sample repeat descripti
 
 ### B2 — closed by exclusion/replacement, not by mold-disposal approval
 
-`06-biology-labs.md:83,90` excludes seeds, containers, damp materials, mold inspection/handling/disposal and daily growing time. The new paper comparison is in the existing90m slot; there is no biological waste or hidden after-hours inspection. `03-scope-and-sequence.md:216` aligns with synthetic counts and no growing/mold handling.
+`06-biology-labs.md:83,90` excludes seeds, containers, damp materials, mold inspection/handling/disposal and daily growing time. The new paper comparison is in the existing90m slot; there is no biological waste or hidden after-hours inspection. `03-scope-and-sequence.md:216` aligns with example counts and no growing/mold handling.
 
 Independently recomputed the hypothetical day7 outcomes:
 
@@ -50,7 +50,7 @@ The revised categorization at `06-biology-labs.md:9` is internally consistent: *
 
 ### B4 — open, instructional alignment correction required
 
-`04-starter-lessons.md:141`, immediately after the revised paper-only week2 agenda, still says: **“See investigation2 for no-hot-liquid student procedure.”** There is now no liquid procedure in investigation2; it is expressly excluded. The same key's unqualified statement about relative acid/base behavior can also be misapplied to coded, uncalibrated synthetic descriptions, although document06 correctly disallows that inference.
+`04-starter-lessons.md:141`, immediately after the revised paper-only week2 agenda, still says: **“See investigation2 for no-hot-liquid student procedure.”** There is now no liquid procedure in investigation2; it is expressly excluded. The same key's unqualified statement about relative acid/base behavior can also be misapplied to coded, uncalibrated example descriptions, although document06 correctly disallows that inference.
 
 This does **not** negate the explicit no-handling prohibition or mean a physical lab has been approved. It is nevertheless an incorrect learner/teacher cross-reference in the actual authored key, not a concern that can be closed by test success. Required closure: replace the obsolete liquid-procedure reference with the paper-only interpretation and its limits; clarify that these coded descriptions establish neither acid/base identity nor numerical pH without calibration/reference information. Retain the explicit physical exclusion. Re-read that key against document06 and rehash document04 after correction. No new chemical recipe or mold-containment method is requested.
 
@@ -123,7 +123,7 @@ Relative to `curriculum/grade-9/` except the explicitly marked policy path. Hash
 
 Reviewer: **grade9-algebra-biology-computing-review**; version **not exposed by platform**. Independent review run: **delegated final B4 paragraph recheck after main Replit Agent correction, 2026-11-12**; authoring run: **main Replit Agent correction run; original author identity unavailable**. These descriptive identities are not invented platform job IDs.
 
-Read the corrected actual week2 key at `04-starter-lessons.md:141` against the paper-only agenda and document06 investigation2. It now states that coded, uncalibrated synthetic descriptions establish neither acid/base identity nor exact pH; A/B agree across repeats while C differs; calibration and controls are absent; investigation2 is paper-only; no chemical preparation, handling or physical demonstration is authorized. This matches the actual synthetic evidence and removes the obsolete liquid-procedure reference. **B4 is closed.** Earlier B4 findings and the earlier biology status above are preserved as historical dispositions, not current open findings.
+Read the corrected actual week2 key at `04-starter-lessons.md:141` against the paper-only agenda and document06 investigation2. It now states that coded, uncalibrated example descriptions establish neither acid/base identity nor exact pH; A/B agree across repeats while C differs; calibration and controls are absent; investigation2 is paper-only; no chemical preparation, handling or physical demonstration is authorized. This matches the actual example evidence and removes the obsolete liquid-procedure reference. **B4 is closed.** Earlier B4 findings and the earlier biology status above are preserved as historical dispositions, not current open findings.
 
 **Change-isolation evidence:** in memory, replaced this single new paragraph with the exact previous paragraph and SHA256-hashed the reconstructed document04. Result `49bddcc0fae61a2328415c5cac2dbfa595f968194c958665fa094e0daee9c572` exactly matches the prior reviewed bytes. Thus this paragraph is the **sole document04 content change** since the recheck, not an assumption from a repository-wide diff. All other source hashes in the three domain records remain unchanged. No broader subject re-review is claimed or needed for this isolated correction.
 

@@ -43,7 +43,7 @@ python3 project/leaf_baseline.py project/observations.csv
 python3 -m unittest discover -s project -p 'test_*.py'
 ```
 
-All included records are **fictional teaching records**, not actual scientific observations. Do not relabel them as a field study. The test table deliberately includes a recording error and an incomplete observation. Expected initial result: among5 known-label test cases,3 correct,1 mistaken classification and1 abstention;4/5 receive a known prediction;1 additional unknown-reference row is handled separately. Small artificial data cannot establish real-world accuracy.
+All included records are **fictional teaching records**, not actual scientific observations. Do not relabel them as a field study. The test table deliberately includes a recording error and an incomplete observation. Expected initial result: among5 known-label test cases,3 correct,1 mistaken classification and1 abstention;4/5 receive a known prediction;1 additional unknown-reference row is handled separately. Small example datasets cannot establish real-world accuracy.
 
 ### Starter rule
 
@@ -75,11 +75,11 @@ Report:
 
 - Known-reference test cases =5.
 - Correct known predictions =3; wrong known predictions=1; unknown/abstentions=1.
-- Known-case accuracy including abstentions =3/5=60% on this artificial table.
+- Known-case accuracy including abstentions =3/5=60% on this example table.
 - Coverage=4/5=80%; correctness among covered cases=3/4=75%.
 - Unknown-reference cases=1, not evidence for species accuracy and not included in known-label denominators.
 
-Never advertise these synthetic percentages as Bede efficacy or scientific validation. When using real learner data, results will differ.
+Never advertise these example percentages as Bede efficacy or scientific validation. When using real learner data, results will differ.
 
 ## Teacher-only no-AI verification exercise
 

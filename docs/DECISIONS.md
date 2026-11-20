@@ -2670,3 +2670,31 @@ entry is that freeze.
 impossible (entry 41), so a test could only check that this text exists, not
 that the freeze held. The exception line in each pull request is what a
 reviewer checks.
+
+**Amendment, 2026-11-19: a sixth, standing exception for K-12.** The owner
+ruled that Bede is K-12 and that the work to make it so is not held by the
+freeze. This exception stands until the owner declares K-12 complete in writing.
+
+  6. **K-12 completion.** A change whose purpose is to make Bede serve
+     kindergarten through grade 12: accepting every grade K-12 in the server
+     and the apps, and the content the upper grades need, which the owner has
+     said is coming: grade 9-12 year plans and catalogs, the math, reading and
+     other skill maps and their bands, DIBELS coverage for the upper grades,
+     and the site, docs and tests that state or pin the grade range.
+
+What it does not change, and what each pull request must still do:
+- **No guardrail is relaxed.** The constitution, safeguarding and moderation,
+  consent, privacy, security and the standing refusal to measure a child's
+  faith apply to every grade exactly as they do to K-8.
+- **`site/` and `demo/` still need the owner's explicit sign-off.**
+- **A K-8 instrument is not stretched to cover an upper grade by renaming it.**
+  Until its 9-12 content exists, it declines for those grades (the
+  `DEMO_UPPER_GRADES` paths) rather than reporting K-8 results as high-school
+  mastery; the pull request that adds the content removes that decline and its
+  test in the same change.
+- **The line is `Freeze exception: 6`** on its own line in the pull request,
+  like the other five, and the pull request says which part of K-12 it
+  completes.
+
+The exception ends when the owner declares K-12 complete, or lifts it in
+writing. The freeze's own exit (above) is unchanged.

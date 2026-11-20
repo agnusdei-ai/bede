@@ -4,12 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EducatorDesk from './EducatorDesk'
 
 const { fetchInstructorRoster, fetchInstructorFrameworks,
-  fetchInstructorDibelsProgress, fetchInstructorActivity, setSessionConfig, startSession,
+  fetchInstructorDibelsProgress, fetchInstructorActivity, saveInstructorAssessment, setSessionConfig, startSession,
   navigate, logout } = vi.hoisted(() => ({
   fetchInstructorRoster: vi.fn(),
   fetchInstructorFrameworks: vi.fn(),
   fetchInstructorDibelsProgress: vi.fn(),
   fetchInstructorActivity: vi.fn(),
+  saveInstructorAssessment: vi.fn(),
   setSessionConfig: vi.fn(),
   startSession: vi.fn(),
   navigate: vi.fn(),
@@ -19,7 +20,7 @@ const { fetchInstructorRoster, fetchInstructorFrameworks,
 vi.mock('../services/api', async (original) => ({
   ...await original<typeof import('../services/api')>(),
   fetchInstructorRoster, fetchInstructorFrameworks,
-  fetchInstructorDibelsProgress, fetchInstructorActivity,
+  fetchInstructorDibelsProgress, fetchInstructorActivity, saveInstructorAssessment,
 }))
 vi.mock('../store/sessionStore', () => ({
   useSessionStore: () => ({
@@ -66,10 +67,12 @@ describe('authenticated educator-to-learner journey', () => {
     expect(screen.getByText(/Transcribe an independently administered assessment report/i)).toBeTruthy()
   })
 
-  it('does not put a grade 9-12 learner into the K-8 DIBELS grade choice', async () => {
-    fetchInstructorRoster.mockResolvedValue([{
-      student_name: 'Learner B', grade: '10', grade_stage: '6-8', subjects: ['mathematics'],
-    }])
+  it('never carries a report grade from one learner to the next', async () => {
+    fetchInstructorRoster.mockResolvedValue([
+      { student_name: 'Learner A', grade: '4', grade_stage: '3-5', subjects: ['mathematics'] },
+      { student_name: 'Learner B', grade: '10', grade_stage: '6-8', subjects: ['mathematics'] },
+      { student_name: 'Learner C', grade: '2', grade_stage: '0-2', subjects: ['mathematics'] },
+    ])
     fetchInstructorFrameworks.mockResolvedValue([{
       id: 'dibels8', supported_measures: ['ORF'], measure_units: { ORF: 'words_correct_per_minute' },
       grades: ['K', '1', '2', '3', '4', '5', '6', '7', '8'], windows: ['beginning'],
@@ -77,9 +80,31 @@ describe('authenticated educator-to-learner journey', () => {
     render(<MemoryRouter><EducatorDesk /></MemoryRouter>)
     await waitFor(() => expect(fetchInstructorRoster).toHaveBeenCalled())
     fireEvent.click(screen.getByRole('button', { name: /See progress/i }))
-    expect(await screen.findByTestId('dibels-upper-school-note')).toBeTruthy()
-    const select = screen.getByLabelText(/Assessed grade/i) as HTMLSelectElement
-    expect(Array.from(select.options).map((o) => o.value)).not.toContain('10')
-    expect(select.value).toBe('4')
+    const grade = () => screen.getByTestId('dibels-report-grade') as HTMLSelectElement
+    const learner = screen.getByLabelText(/Select learner/i)
+    await waitFor(() => expect(grade().value).toBe('4'))
+
+    // The teacher picks another grade for Learner A and starts typing a report.
+    fireEvent.change(grade(), { target: { value: '6' } })
+    fireEvent.change(screen.getByLabelText(/Reported numeric score/i), { target: { value: '88' } })
+
+    // A grade 9-12 learner: nothing from Learner A survives, and the grade
+    // is not one of the K-8 choices, so the teacher must choose it.
+    fireEvent.change(learner, { target: { value: 'Learner B' } })
+    await waitFor(() => expect(grade().value).toBe(''))
+    expect(Array.from(grade().options).map((o) => o.value)).not.toContain('10')
+    expect((screen.getByLabelText(/Reported numeric score/i) as HTMLInputElement).value).toBe('')
+    expect(screen.getByTestId('dibels-grade-range').textContent)
+      .toMatch(/kindergarten through grade 8.*Choose it before saving/)
+
+    // Saving without choosing is refused and nothing is sent.
+    fireEvent.change(screen.getByLabelText(/Reported numeric score/i), { target: { value: '70' } })
+    fireEvent.change(screen.getByLabelText(/Source/i), { target: { value: 'Sample report' } })
+    fireEvent.click(screen.getByRole('button', { name: /Record|Save/i }))
+    expect(saveInstructorAssessment).not.toHaveBeenCalled()
+
+    // Back to a K-8 learner: defaults to that learner's own grade.
+    fireEvent.change(learner, { target: { value: 'Learner C' } })
+    await waitFor(() => expect(grade().value).toBe('2'))
   })
 })

@@ -22,6 +22,12 @@ import type {
   DibelsWindow, EducatorAssessmentBand,
 } from '../services/api'
 
+function gradeRange(grades: string[]): string {
+  if (grades.length === 0) return 'kindergarten through grade 8'
+  const label = (g: string) => (g === 'K' ? 'kindergarten' : `grade ${g}`)
+  return `${label(grades[0])} through ${label(grades[grades.length - 1])}`
+}
+
 const DIBELS_GRADES: DibelsGrade[] = ['K', '1', '2', '3', '4', '5', '6', '7', '8']
 
 const TODAY = () => {
@@ -43,7 +49,9 @@ export default function EducatorDesk() {
   const [workTotal, setWorkTotal] = useState<number | null>(null)
   const [catalog, setCatalog] = useState<AssessmentFrameworkMetadata[]>([])
   const [measure, setMeasure] = useState('ORF_WC')
-  const [grade, setGrade] = useState<DibelsGrade>('4')
+  // '' means "not chosen yet": a report grade is never carried over from
+  // another learner, so it can only be one the teacher picked for this one.
+  const [grade, setGrade] = useState<DibelsGrade | ''>('')
   const [windowName, setWindowName] = useState<DibelsWindow>('middle_of_year')
   const [assessedOn, setAssessedOn] = useState(TODAY())
   const [score, setScore] = useState('')
@@ -106,10 +114,15 @@ export default function EducatorDesk() {
   useEffect(() => {
     if (!activeConfig) return
     setSubject(activeConfig.subjects[0] ?? 'mathematics')
-    // DIBELS 8 covers K-8. A grade 9-12 learner is not a DIBELS grade, so
-    // keep the current choice (the grade printed on the report being
-    // entered) instead of putting an invalid value in the select.
-    if (DIBELS_GRADES.includes(activeConfig.grade as DibelsGrade)) setGrade(activeConfig.grade as DibelsGrade)
+    // A different learner starts a new report: nothing typed or chosen for the
+    // previous learner may be saved against this one. DIBELS 8 covers K-8, so a
+    // K-8 learner defaults to their own grade and anyone else (grades 9-12)
+    // must choose the grade printed on the report; it is never inherited.
+    setGrade(DIBELS_GRADES.includes(activeConfig.grade as DibelsGrade) ? activeConfig.grade as DibelsGrade : '')
+    setScore('')
+    setSource('')
+    setBand('not_reported')
+    setMessage('')
   }, [activeConfig?.student_name, activeConfig?.grade])
 
   const refreshProgress = async (name: string) => {
@@ -150,7 +163,7 @@ export default function EducatorDesk() {
 
   const saveDibels = async () => {
     if (!token || !activeConfig || !dibels || !unit || !score.trim()
-        || !source.trim() || busy || !grade || !windowName) {
+        || !source.trim() || busy || !grade || !(dibels.grades ?? []).includes(grade) || !windowName) {
       setMessage('Complete the independent assessment report fields')
       return
     }
@@ -322,15 +335,16 @@ export default function EducatorDesk() {
                   <p className="mt-2 text-sm text-gray-700">{unit.replaceAll('_', ' ') || 'Not available'}</p>
                 </label>
                 <label className="text-sm">Assessed grade
-                  <select className={field + ' mt-1'} value={grade}
+                  <select className={field + ' mt-1'} value={grade} required
+                    data-testid="dibels-report-grade"
                     onChange={e => setGrade(e.target.value as DibelsGrade)}>
+                    {grade === '' && <option value="" disabled>Choose the report grade</option>}
                     {(dibels?.grades ?? []).map(value => <option key={value} value={value}>{value}</option>)}
                   </select>
-                  {activeConfig && isUpperSchoolGrade(activeConfig.grade) && (
-                    <span className="mt-1 block text-xs text-gray-500" data-testid="dibels-upper-school-note">
-                      DIBELS 8 covers kindergarten through grade 8. Choose the grade printed on the report you are entering.
-                    </span>
-                  )}
+                  <span className="mt-1 block text-xs text-gray-500" data-testid="dibels-grade-range">
+                    DIBELS 8 covers {gradeRange(dibels?.grades ?? [])}. This is the grade printed on the report you are entering, not necessarily {activeConfig?.student_name ?? 'the learner'}&rsquo;s enrolled grade.
+                    {activeConfig && isUpperSchoolGrade(activeConfig.grade) && ' Choose it before saving.'}
+                  </span>
                 </label>
                 <label className="text-sm">Testing window
                   <select className={field + ' mt-1'} value={windowName}

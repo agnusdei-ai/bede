@@ -19,8 +19,8 @@ function parseRoster(text: string): SessionConfig[] {
       throw new Error(`Line ${index + 1}: use Name,Grade (optional third field: M/F)`)
     }
     const [student_name, grade, sex] = parts
-    if (!student_name || student_name.length > 50 || !/^(K|[1-8])$/.test(grade)) {
-      throw new Error(`Line ${index + 1}: enter a learner name and grade K–8`)
+    if (!student_name || student_name.length > 50 || !/^(K|[1-9]|1[0-2])$/.test(grade)) {
+      throw new Error(`Line ${index + 1}: enter a learner name and grade K–12`)
     }
     if (sex && !['M', 'F'].includes(sex.toUpperCase())) {
       throw new Error(`Line ${index + 1}: optional sex must be M or F`)

@@ -42,6 +42,10 @@ written by the server, not the model. The server refuses the tool outside
 K-2, outside those three subjects, a second time in one session, and in the
 public demo. The child can close it at any time and reopen it from the card.
 
+Each question is read aloud in Bede's own voice, the same one as the chat,
+and the reading stops when the child closes the practice. With Bede's voice
+turned off, nothing is read aloud. See `docs/K2_PRACTICE.md` §7.
+
 ## Three rules
 
 1. **No real places.** Bede never asks for a child's street, address or

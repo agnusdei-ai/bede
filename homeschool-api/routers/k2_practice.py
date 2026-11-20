@@ -69,7 +69,7 @@ from services import diagnostic as math_record
 from services.diagnostic import phonics as phonics_record
 from services.diagnostic.activity import record_activity
 from services.k2_practice import phonics, practical_math
-from services.k2_practice import demo_math
+from services.k2_practice import demo_math, demo_rounds
 from services.practice.evidence import QUIZ_EVIDENCE_WEIGHT
 
 log = logging.getLogger("sage.k2_practice")
@@ -222,6 +222,67 @@ async def _saved_phonics_vector(db: AsyncSession, student_name: str) -> Optional
     if not summary:
         return None
     return {d["skills"][0]["skill_id"].split(".", 1)[1]: d["average_probability"] for d in summary["domains"]}
+
+
+# Demo Sound Time and Map Practice (decision 40(g) as amended 2026-11-19).
+# Fixed /demo/... paths come before the household /{student_name}/phonics/...
+# paths, which would otherwise catch them.
+class DemoRoundAnswer(BaseModel):
+    """One demo Sound Time or Map Practice answer: a tapped choice or, on a
+    map, a tapped square. Nothing typed or spoken is accepted."""
+    model_config = ConfigDict(extra="forbid")
+
+    phase: Literal["together", "your_turn"]
+    index: int = Field(ge=0, le=9)
+    choice: Optional[str] = Field(default=None, min_length=1, max_length=24)
+    cell: Optional[tuple[int, int]] = None
+
+    @model_validator(mode="after")
+    def _one_answer(self) -> "DemoRoundAnswer":
+        if (self.choice is None) == (self.cell is None):
+            raise ValueError("send exactly one of choice or cell")
+        return self
+
+
+@router.get("/demo/phonics/lesson")
+async def new_demo_phonics_lesson(
+    audio: bool = True,
+    auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """A temporary Sound Time round for a live demo. Nothing is recorded."""
+    level = await _demo_math_level(auth)
+    return demo_rounds.create_lesson(auth, "phonics", level, audio=audio)
+
+
+@router.get("/demo/maps/lesson")
+async def new_demo_map_lesson(auth: dict = Depends(require_demo_practice_preview)) -> dict:
+    """A temporary Map Practice round for a live demo. Nothing is recorded."""
+    level = await _demo_math_level(auth)
+    return demo_rounds.create_lesson(auth, "maps", level)
+
+
+async def _demo_answer(area: str, lesson_id: str, body: DemoRoundAnswer, auth: dict) -> dict:
+    level = await _demo_math_level(auth)
+    return demo_rounds.answer(
+        auth, area, lesson_id, body.phase, body.index,
+        current_level=level, choice=body.choice, cell=body.cell,
+    )
+
+
+@router.post("/demo/phonics/lessons/{lesson_id}/answers")
+async def answer_demo_phonics(
+    lesson_id: str, body: DemoRoundAnswer, auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """Check a demo Sound Time answer without reading or writing learner records."""
+    return await _demo_answer("phonics", lesson_id, body, auth)
+
+
+@router.post("/demo/maps/lessons/{lesson_id}/answers")
+async def answer_demo_map(
+    lesson_id: str, body: DemoRoundAnswer, auth: dict = Depends(require_demo_practice_preview),
+) -> dict:
+    """Check a demo Map Practice answer without reading or writing learner records."""
+    return await _demo_answer("maps", lesson_id, body, auth)
 
 
 @router.get("/{student_name}/phonics/lesson")

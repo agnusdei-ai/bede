@@ -130,3 +130,23 @@ and the final result. The workflow must stay red on missing system tools,
 browser/display problems, incomplete content, clipping, skipped tests, or a
 native print-dialog change. Never replace native cancellation with mocked
 events to obtain a green check.
+
+## Branch builds and superseded commits (2026-11-19)
+
+Workers Builds runs the publication gate on every build. Two cases used to show
+as a red "Workers Builds: bede" check although nothing was broken:
+
+- **A branch build** (a pull request) is never the head of `main`, so the gate
+  always refused it. `WORKERS_CI_BRANCH`, which Workers Builds sets to the branch
+  it builds, now makes the gate print that nothing is published from a branch
+  and exit 0. Only a named branch other than `main` skips: an absent, blank or
+  `main` value runs the full gate unchanged, so a missing variable cannot turn
+  the gate off. Both build entry points still call the gate unconditionally; the
+  decision lives inside it (`isBranchBuild`).
+- **A superseded `main` commit** (a newer commit landed while this one waited for
+  evidence) is still refused and still exits 1, with a message saying it was
+  superseded and that the newer commit's build publishes.
+
+A branch build now continues past the gate and may produce a preview. Whether
+previews exist is a dashboard setting (Settings, Build, Branch control); the gate
+no longer decides it.

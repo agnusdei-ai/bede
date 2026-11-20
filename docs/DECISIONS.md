@@ -2698,3 +2698,25 @@ What it does not change, and what each pull request must still do:
 
 The exception ends when the owner declares K-12 complete, or lifts it in
 writing. The freeze's own exit (above) is unchanged.
+
+**Amendment, 2026-11-20: the freeze is lifted.** The owner lifted the freeze in
+writing ("lift the freeze first instead of continuing to build freeze
+exceptions"), which is the exit this entry names. From this entry's merge,
+`main` takes ordinary pull requests again and no pull request needs a
+`Freeze exception:` line; exceptions 1-6, including the K-12 exception, are
+retired with it because there is nothing left to except from.
+
+What survives the lift, because it was never the freeze's:
+- **`site/` and `demo/` still need the owner's explicit sign-off** before
+  merge (the standing carve-out in `CLAUDE.md`'s Root-Cause Fixes workflow).
+- **Held pull requests stay held.** #862 and the pilot work on #837 land only
+  when the owner says so; lifting the freeze decides neither.
+- **K-12 rules stand as ordinary rules.** The server accepts K-12, and a K-8
+  instrument declines for grades 9-12 (the `DEMO_UPPER_GRADES` paths) until its
+  upper-grade content exists; the pull request that adds the content removes
+  the decline and its test in the same change (`CLAUDE.md`, "Grades: the server
+  accepts K-12").
+- **No guardrail changed.** The constitution, safeguarding, consent, privacy,
+  security and the refusal to measure a child's faith were never relaxed by the
+  exceptions and are not by the lift.
+- The 2026-12-18 review date no longer applies.

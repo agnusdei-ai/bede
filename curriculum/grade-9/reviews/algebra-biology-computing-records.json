@@ -1,0 +1,82 @@
+[
+  {
+    "subject": "algebra",
+    "agent_id": "grade9-replacement-stem-review",
+    "agent_version": "unavailable; not exposed by platform",
+    "review_run": "grade9-replacement-stem-review final M28 recheck, 2026-11-12",
+    "authoring_run": "grade9-rights-replacement-author:45; subsequent M28 corrective revision",
+    "date": "2026-11-12",
+    "scope": "Affected M26/M28 selection corrections, original square-root keys and prior recorded replacement/Q1 mathematics; no unrelated repeat review or later authored-lesson claim.",
+    "methods": "Retained prior independent edition/selection checks; read actual final register M28 original identity/examples/three checks and03 locator, independently expanded/substituted every new key and inspected actual9.3 odd1-15 practice compatibility. Compared all prior source hashes. No curriculum/test/gate edits.",
+    "evidence": "R-M1 retained closed; R-M2 now closed through exclusion of erroneous460/461 and correct original replacement. New identity,49/4,25/36,roots1/-7 and checks25,9/4,5/-1 independently agree. Practice completions225/324/225/4/1/4 and item9 roots5/11 agree;11/13/15 have no real solutions. Nonmonic leading-coefficient division is explicit; later educator preparation remains required.",
+    "conditions": "Recorded source/selection and authored Q1 scope only. Preserve real-domain/sign/equal-operation limits, nonmonic teacher preparation, actual-file attribution/asset boundaries. No actual access/accessibility/site/local-credit/full-year readiness or publication approval. Re-review changed hashes.",
+    "disagreements": "No specific replacement Algebra finding remains open. R-M1/R-M2 history preserved in report; erroneous external examples closed by exclusion, not declared correct. The original input is not a claim of complete later nonmonic lessons or complex-number instruction.",
+    "status": "agent-reviewed",
+    "open_findings": [],
+    "source_hashes": {
+      "01-program-and-delivery.md": "8f541df0b770f31783e8a88156f6b42895ab9672651c491fee0d564fc88e2855",
+      "02-resources.md": "2b0c845e415f25bc2fff832886cf3331732b7eb1fc4a84b0ed8dac7ca793d02d",
+      "03-scope-and-sequence.md": "6fb186ad1e6b84ae54f11cd7e098096157dcdf5eb6695486bd15e012e30d824a",
+      "04-starter-lessons.md": "773f524ab5ee4be961bbbb082dac663b441d6ed3626f7ffcb22c5489ab9cf427",
+      "05-assessments.md": "fdb360e5f77e4375411fca33165362886a6f22ea364838bbc17b38bbb4407e47",
+      "resources/REPLACEMENT-REGISTER.md": "bb6e270ed772a8a8e87ca85832f825187ba8860ecc6eaaa3879facb05a1c51dc"
+    },
+    "report": "reviews/replacement-stem.md",
+    "report_sha256": "e8ed97c732eaaef4bb75d36d83feadd81e4365a8a005587e729371b60dee3b89"
+  },
+  {
+    "subject": "biology-safety",
+    "agent_id": "grade9-replacement-stem-review",
+    "agent_version": "unavailable; not exposed by platform",
+    "review_run": "grade9-replacement-stem-review final M28 recheck, 2026-11-12",
+    "authoring_run": "grade9-rights-replacement-author:45; subsequent M28 corrective revision",
+    "date": "2026-11-12",
+    "scope": "Affected B02/B05/B10/B19/B20/B26 original models/checks, S13-S19 support/license boundaries, revised Q1 water instruction and retained authored physical-safety/exclusion freshness. Not full-year or site approval.",
+    "methods": "Prior corrective review read actual notes/register/02-04 and freshly inspected11 supporting source URLs/licenses and model keys. Final M28 freshness check found only03/register changed; inspected Algebra-only corrections and retained unchanged biology-note/06 hashes. No new biology/source audit falsely claimed. No OpenStax or curriculum/test/gate edits.",
+    "evidence": "R-B1/B2 closed: actual partial-charge/bond/pH input replaces missing W2 explanation; EPA and exact water/enzyme/meiosis/CDAO/fern/SEER/NHLBI prose now support identified mechanisms. Actual XML and publisher notices corroborate article-specific CC BY4.0/3.0/2.0, not hosting-wide licenses. B20 narrows to fern/flowering comparison. Profile barriers8/4 and endpoint-6; cube areas6/24 and separate-cube48/volume8 agree. No new physical method introduced.",
+    "conditions": "Approval limited to recorded corrected original-note/reference and retained authored procedure scope. Keep source media/clinical/match-method exclusions, original-expression attribution boundaries, paper-only indicator/germination and existing safety/site controls. Research retrieval is not actual learner access/accessibility; no full-year lessons/exams, real-site approval, lab certification, credit or publication is established. Re-review changed hashes.",
+    "disagreements": "Original R-B1/R-B2 findings preserved but superseded by independently checked corrections. No remaining specific defect in this affected biology scope; broader access/site/accessibility/full-year exclusions remain unapproved, not silently closed.",
+    "status": "agent-reviewed",
+    "open_findings": [],
+    "source_hashes": {
+      "02-resources.md": "2b0c845e415f25bc2fff832886cf3331732b7eb1fc4a84b0ed8dac7ca793d02d",
+      "03-scope-and-sequence.md": "6fb186ad1e6b84ae54f11cd7e098096157dcdf5eb6695486bd15e012e30d824a",
+      "04-starter-lessons.md": "773f524ab5ee4be961bbbb082dac663b441d6ed3626f7ffcb22c5489ab9cf427",
+      "05-assessments.md": "fdb360e5f77e4375411fca33165362886a6f22ea364838bbc17b38bbb4407e47",
+      "06-biology-labs.md": "5b1e8a1cd8beffae9450edaed13417b283678236983b13b7b76d4033b184b0d8",
+      "resources/REPLACEMENT-REGISTER.md": "bb6e270ed772a8a8e87ca85832f825187ba8860ecc6eaaa3879facb05a1c51dc",
+      "resources/biology-reference-notes.md": "0e5b2780560ed538ed14b63f1cf394ac00ee2baa5651a8e908b3990ad0c7347c"
+    },
+    "report": "reviews/replacement-stem.md",
+    "report_sha256": "e8ed97c732eaaef4bb75d36d83feadd81e4365a8a005587e729371b60dee3b89"
+  },
+  {
+    "subject": "computing",
+    "agent_id": "grade9-replacement-stem-review",
+    "agent_version": "unavailable; not exposed by platform",
+    "review_run": "grade9-replacement-stem-review final M28 recheck, 2026-11-12",
+    "authoring_run": "grade9-rights-replacement-author:45; subsequent M28 corrective revision",
+    "date": "2026-11-12",
+    "scope": "Affected shared resource/biological model freshness and retained authored computing contract; previous actual code/test/snippet results retained, no unrelated full audit.",
+    "methods": "Matched07,05 and project hashes to independently tested revision; prior recheck inspected changed shared inputs and biological broad-form boundaries. Final recheck found only03/register changed and inspected Algebra-only original replacement, not changed computing behavior. No app/workflow or curriculum/test/gate edits.",
+    "evidence": "Computing code/tests/fixture/07/05 unchanged. Prior13 passing tests, literal outputs30 6/4.8 and actual fixture metrics.6/.8/.75 remain bound to unchanged executable sources. Corrected B19/B20 retain unknown/no-species/no-new-collection boundaries; new source references add no service, dependency or learner data.",
+    "conditions": "Scoped authored contract only. Retain synthetic provenance, held-out retirement, privacy/no-account and no-species restrictions. No actual learner access/accessibility, site approval, scientific efficacy, full-year lessons or public-upload security claim. Re-review changed hashes.",
+    "disagreements": "No new computing defect found in affected correction scope; Algebra source errata do not imply changed code behavior. Previous tests retained as unchanged-source evidence, not falsely represented as a newly repeated broad review.",
+    "status": "agent-reviewed",
+    "open_findings": [],
+    "source_hashes": {
+      "02-resources.md": "2b0c845e415f25bc2fff832886cf3331732b7eb1fc4a84b0ed8dac7ca793d02d",
+      "03-scope-and-sequence.md": "6fb186ad1e6b84ae54f11cd7e098096157dcdf5eb6695486bd15e012e30d824a",
+      "04-starter-lessons.md": "773f524ab5ee4be961bbbb082dac663b441d6ed3626f7ffcb22c5489ab9cf427",
+      "05-assessments.md": "fdb360e5f77e4375411fca33165362886a6f22ea364838bbc17b38bbb4407e47",
+      "07-computing-project.md": "19fdab8384b71f1f45b3de51aa5ee8516e4113bd3aead66af231224d5ea47365",
+      "project/leaf_baseline.py": "c5163e54b9ed550135e1b6819603a818d8c96c555876dc586a030b6a0f8392bb",
+      "project/test_leaf_baseline.py": "62eb4731c283b8cadcb913b8a55f58cbbb6cb7a32d71838bd0a96161354dd2ca",
+      "project/observations.csv": "6496972cad93fe740003dd3adab8cb8d79265a671904f2e0b9dc423094865092",
+      "resources/REPLACEMENT-REGISTER.md": "bb6e270ed772a8a8e87ca85832f825187ba8860ecc6eaaa3879facb05a1c51dc",
+      "resources/biology-reference-notes.md": "0e5b2780560ed538ed14b63f1cf394ac00ee2baa5651a8e908b3990ad0c7347c"
+    },
+    "report": "reviews/replacement-stem.md",
+    "report_sha256": "e8ed97c732eaaef4bb75d36d83feadd81e4365a8a005587e729371b60dee3b89"
+  }
+]

@@ -28,7 +28,7 @@ READING = {"subject": "history", "sections": [{
     {"number": 4, "prompt": "On which continent is Egypt?", "student_response": "Africa", "teacher_mark": "correct"}]}]}
 # The opening words of content_screen's rules; tests/test_qualification_workflow.py
 # checks they still match the real prompt.
-SCREEN_MARK = "You check pictures before a K-8 school app"
+SCREEN_MARK = "You check pictures before a K-12 school app"
 
 
 def _range(name, default):

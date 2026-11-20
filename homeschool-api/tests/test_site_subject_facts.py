@@ -52,12 +52,12 @@ def test_session_length_is_the_planned_one(subject):
 
 @pytest.mark.parametrize("subject", list(Subject), ids=lambda s: s.value)
 def test_grades(subject):
-    want = "3–8" if subject in STAGE_GATED_FROM_GRADE_3 else "K–8"
+    want = "3–12" if subject in STAGE_GATED_FROM_GRADE_3 else "K–12"
     assert BY_SUBJECT[subject]["Grades"] == want
 
 
 def test_logic_is_really_gated_from_grade_3():
-    """The card's '3–8' rests on SessionConfig dropping Logic for K-2."""
+    """The card's "3–12" rests on SessionConfig dropping Logic for K-2."""
     from models.schemas import GradeStage, SessionConfig  # noqa: E402
     cfg = SessionConfig(student_name="A", grade="1", grade_stage=GradeStage.foundations, subjects=[Subject.logic, Subject.mathematics])
     assert Subject.logic not in cfg.subjects

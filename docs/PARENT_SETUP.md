@@ -2161,6 +2161,8 @@ does two with hints, then does three alone by tapping.
 - The maps and their answers are made by Bede's own code, not by the AI.
 - There is no map score. Each question your child gets right alone appears
   in the work ledger on the Progress page, and nothing else is kept.
+- Each question is read aloud in Bede's own voice, the same one your child
+  hears in the chat. Turning Bede's voice off turns the reading off too.
 
 See `docs/MAP_PRACTICE.md` for the detail.
 
@@ -2206,24 +2208,21 @@ What is kept:
   to know your learner" stage; that stage follows Bede's own checks in
   lessons. While it lasts, Progress shows the two counts separately, for
   example "0 lesson check-ins so far, plus 3 practice answers".
-- If a round says it needs sound, turn on Bede's voice, or install a voice
-  for your language on the device (in its speech or accessibility
-  settings). Bede only speaks practice through a voice installed on the
-  device.
+- If a round says it needs sound, turn on Bede's voice. Practice is spoken
+  in Bede's own voice, the same one your child hears in the chat.
 - A child tapping at random still lands on the right answer within two tries
   about half the time or more (56% with three choices, 44% with four). That is
   why only one round a sign-in is recorded, and why the record only picks the
   next practice step, never a placement or a label.
 - A question that ended with the answer shown records nothing. Saying "not
   now" records nothing.
-- The words, pictures and answers come from Bede's own code, never the AI,
-  and nothing from a round is sent to any AI provider: the round is spoken
-  only by a voice installed on your device, never Bede's cloud voice or a
-  browser voice that works over the internet. On a device with no installed
-  voice for your child's language, or with Bede's voice turned off, the
-  round is shown without speech, and sight-word practice (which works only
-  by ear) waits until sound is on. Bede never judges how your child
-  pronounces a sound.
+- The words, pictures and answers come from Bede's own code, never the AI.
+  To speak in Bede's voice, the round's fixed lines (the instruction, the
+  example, a letter's sound, and "That's it" or "Let's look again") go to
+  the same speech service that voices Bede's chat replies. Your child's
+  answers never do. With Bede's voice turned off, the round is shown without
+  speech, and sight-word practice (which works only by ear) waits until
+  sound is on. Bede never judges how your child pronounces a sound.
 
 The words are English phonics. In a Spanish session the instructions are in
 Spanish and the words stay English.
@@ -2271,9 +2270,12 @@ Bede's lesson check-ins and the practice answers as two separate counts.
 
 Every number and every answer comes from Bede's own code, worked out twice
 (once from the sum and once by counting the picture), never by the AI.
-Nothing from a round is sent to any AI provider: like Sound Time, it is spoken
-only through a voice installed on your device. Every Number Time question can
-be answered from the picture on screen, so it works without sound too.
+Number Time speaks in Bede's own voice, the same one your child hears in the
+chat. To do that, the round's fixed lines (the question, the worked example,
+and "That's it" or "Let's look again") go to the same speech service that
+voices Bede's chat replies. Your child's answers never do. Turning Bede's voice
+off in the chat turns it off here too. Every Number Time question can be
+answered from the picture on screen, so it works without sound too.
 
 ## The writing pad: drawings, and where they go
 

@@ -2423,8 +2423,48 @@ and (h) remain open:
 - **(d) How word lists are approved.** Each list, or a pattern once. *Recommended:* approve a list when it comes from the parent or a quiz; approve a pattern once for the built-in bank.
 - **(e) A measured K-2 spelling skill.** *Recommended:* the work ledger only for now, and a K-2 spelling skill later as its own reviewed change, since a skill id is permanent once stored.
 - **(f) Poems in memory work.** Record a ledger row, or nothing. Devotional text records nothing either way. *Recommended:* a ledger row that a poem was practised, never whether it was said right.
-- **(g) The public demo.** **Decided (2026-11-17, owner):** include the already-built Number Time activity for counting, comparison, addition, subtraction and number bonds, entered through a direct demo action. Visitors may select among those authored topics; the server resolves level from the live demo session's validated K-2 grade. Attempts stay temporary and return `recorded=false`; demo math does not read or write household configuration, keys, ledger or mastery, demo progress/activity stores, or make model calls. This approves Number Time only, not the tutoring invitation or other practice areas, and does not imply saved learner progress.
+- **(g) The public demo.** **Decided (2026-11-17, owner):** include the already-built Number Time activity for counting, comparison, addition, subtraction and number bonds, entered through a direct demo action. Visitors may select among those authored topics; the server resolves level from the live demo session's validated K-2 grade. Attempts stay temporary and return `recorded=false`; demo math does not read or write household configuration, keys, ledger or mastery, demo progress/activity stores, or make model calls. This approves Number Time only, not the tutoring invitation or other practice areas, and does not imply saved learner progress. **Amended 2026-11-18 (owner):** Number Time speaks in Bede's own voice, in the demo as in the app, through the same text-to-speech path as the chat, with no other voice as a default. So the round's fixed lines (never the visitor's answers) now go to the configured speech provider, which the demo's Privacy Notice already names for Bede's spoken voice.
 - **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849. The guess-rate arithmetic behind it is in [`K2_PRACTICE_RESEARCH.md`](K2_PRACTICE_RESEARCH.md).
+
+**Amendment to (g) (2026-11-19, owner): every K-2 foundation area joins the
+public demo, with Bede's voice, as it is completed.** The direction is that the
+demo shows the whole K-2 foundation, not Number Time alone. Each area in
+`docs/K2_PRACTICE.md` is to appear in the public demo, taught in Bede's own
+voice, once it is **completed and developed**:
+
+- phonics and blending (Sound Time, in the demo since #883);
+- practical math (Number Time, in the demo since #857);
+- map reading (Map Practice, in the demo since #883);
+- and, as each is built: handwriting (letter formation), spelling, copying a
+  sentence, and memory work and recitation.
+
+What this does and does not do:
+
+- **It builds and approves nothing by itself.** Sound Time, Number Time and
+  Map Practice are in the demo today (for kindergarten, grade 1 and grade 2
+  visitors); the owner asked for Sound Time and Map Practice on 2026-11-19,
+  and #883 added them under this boundary. The rest are specified, not
+  built. "Completed and developed" means no area is added before it is built
+  and has passed its own review. Each demo addition is its own change, and
+  the owner signs off on it, as for every change under `demo/` and `site/`.
+- **Bede's voice means Bede's voice in the demo too**: the chat's
+  text-to-speech path, through the speech provider the demo's Privacy Notice
+  names, and never the browser's or an on-device voice. Only each round's fixed lines
+  are spoken, never what a visitor chooses or says.
+- **The 2026-11-17 boundary carries over to every area until the owner changes
+  it.** Attempts are temporary and tied to the visitor's session, and answer
+  responses say `recorded=false`. A demo round never reads or writes household
+  configuration, learner keys, the work ledger, mastery, or the demo's own
+  progress and activity stores, and it makes no model call. Level comes from
+  the visitor's validated K-2 grade. The demo keeps its own copies of each
+  screen and its wire types, with a parity test against the family app's.
+- **The tutoring invitation is a separate decision, not made here.** A round
+  still opens from the demo's own action, not from `invite_practice` in a
+  demo tutoring turn, until the owner rules on that.
+- **The public copy follows each addition.** `site/` says exactly what the
+  demo offers today and is updated in the same change as each addition. The
+  demo's Privacy Notice and `docs/RETENTION_POLICY.md` are checked against what
+  each added round stores and sends before it ships.
 
 ## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
 

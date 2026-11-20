@@ -52,7 +52,7 @@ export default function K2MathPractice({
   onClose, onSpeak, canSpeak, transport, showTopicPicker = false,
 }: {
   onClose: () => void
-  /** Reads a line aloud, on the device only. Every instruction is spoken as well as shown. */
+  /** Reads a line aloud in Bede's own voice. Every instruction is spoken as well as shown. */
   onSpeak?: (text: string) => void
   /** Whether this device can speak the round (null while checking). No math
    * question works only by ear, so this only decides what the server is told. */

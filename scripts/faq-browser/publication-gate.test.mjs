@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { publicationEvidence } from "./publication-gate.mjs";
+import { spawnSync } from "node:child_process";
+import { publicationEvidence, isBranchBuild, SUPERSEDED } from "./publication-gate.mjs";
 
 const sha = "a".repeat(40);
 const names = ["FAQ copy, PDF and native print cancellation", "FAQ export parity (firefox)", "FAQ export parity (webkit)"];
@@ -141,4 +142,47 @@ test("Wrangler itself invokes the guard without changing the Worker or static as
     build: { command: "node scripts/faq-browser/publication-gate.mjs" },
     assets: { directory: "./publish" },
   });
+});
+
+test("a superseded main commit is refused with its own message, never published", async () => {
+  const f = fixture();
+  f.main = "b".repeat(40);
+  await assert.rejects(publicationEvidence(sha, f.options), /superseded by a newer main commit/);
+  assert.match(SUPERSEDED, /Nothing from this build is published/);
+});
+
+test("only a named branch other than main is a branch build; absent, blank and main run the full gate", () => {
+  assert.equal(isBranchBuild({ WORKERS_CI_BRANCH: "claude/some-feature" }), true);
+  assert.equal(isBranchBuild({ WORKERS_CI_BRANCH: " feature " }), true);
+  for (const value of [undefined, "", "   ", "main", " main "]) {
+    assert.equal(isBranchBuild({ WORKERS_CI_BRANCH: value }), false, JSON.stringify(value));
+  }
+  assert.equal(isBranchBuild({}), false);
+});
+
+test("the real command skips a branch build with exit 0 and runs the full gate otherwise", () => {
+  const script = new URL("./publication-gate.mjs", import.meta.url).pathname;
+  const run = branch => spawnSync(process.execPath, [script], {
+    encoding: "utf8", timeout: 15000,
+    env: { ...process.env, ...(branch === undefined ? {} : { WORKERS_CI_BRANCH: branch }) },
+  });
+  const skipped = run("claude/some-feature");
+  assert.equal(skipped.status, 0);
+  assert.match(skipped.stdout, /branch build; nothing is published from a branch/);
+  // main, blank and unset must NOT take the skip path (they reach the real
+  // gate, which may fail or still be waiting when the timeout kills it).
+  for (const branch of ["main", "", undefined]) {
+    const result = run(branch);
+    assert.doesNotMatch(result.stdout ?? "", /branch build; nothing is published/, String(branch));
+    // The real gate ran: it passed, was blocked, or was still waiting for
+    // evidence when the timeout stopped it. Which one depends on the network and
+    // on whether this checkout is main's head, so only the fact it ran is asserted.
+    assert.match(`${result.stdout}${result.stderr}`, /FAQ publication gate (passed|blocked)|Waiting for FAQ Actions evidence/, String(branch));
+  }
+});
+
+test("both build entry points still invoke the gate unconditionally; the skip lives inside it", () => {
+  const script = readFileSync(new URL("../build_pages_site.sh", import.meta.url), "utf8");
+  assert.doesNotMatch(script, /WORKERS_CI_BRANCH/);
+  assert.doesNotMatch(readFileSync(new URL("../../wrangler.jsonc", import.meta.url), "utf8"), /WORKERS_CI_BRANCH/);
 });

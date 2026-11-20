@@ -324,10 +324,13 @@ said there is ever saved: no transcript, no student record. Leave
 ## 5. Setting up each student
 
 1. Log in with the **parent password** → you land on **Setup**.
-2. Add each student: name and grade. Grade is free text: use `K` for
-   Kindergarten, or a number like `4` or `8`. The grade *stage* buttons (K–2 / 3–5 /
-   6–8) set Bede's tone; the grade itself determines which curriculum content
-   (books, math scope, composer/artist study) Bede draws from.
+2. Add each student: name, then pick their grade from the list (Kindergarten
+   through Grade 12). Choosing a grade also selects the matching *stage* button
+   (K–2 / 3–5 / 6–12), which sets Bede's tone; you can still change the stage by
+   hand. The grade itself determines which curriculum content (books, composer
+   and artist study) Bede draws from. Grades 9–12 are accepted everywhere; some
+   tools that are built for K–8 (the math skill map, year plans) are not yet
+   available for those grades and say so rather than guessing.
 3. Choose **how you'd like to start with Bede**. This is a starting point, not
    a lock, and every part of it stays editable afterward:
    - **Book Companion**: the lightest touch. Bede joins whatever books your
@@ -2161,6 +2164,8 @@ does two with hints, then does three alone by tapping.
 - The maps and their answers are made by Bede's own code, not by the AI.
 - There is no map score. Each question your child gets right alone appears
   in the work ledger on the Progress page, and nothing else is kept.
+- Each question is read aloud in Bede's own voice, the same one your child
+  hears in the chat. Turning Bede's voice off turns the reading off too.
 
 See `docs/MAP_PRACTICE.md` for the detail.
 
@@ -2206,24 +2211,21 @@ What is kept:
   to know your learner" stage; that stage follows Bede's own checks in
   lessons. While it lasts, Progress shows the two counts separately, for
   example "0 lesson check-ins so far, plus 3 practice answers".
-- If a round says it needs sound, turn on Bede's voice, or install a voice
-  for your language on the device (in its speech or accessibility
-  settings). Bede only speaks practice through a voice installed on the
-  device.
+- If a round says it needs sound, turn on Bede's voice. Practice is spoken
+  in Bede's own voice, the same one your child hears in the chat.
 - A child tapping at random still lands on the right answer within two tries
   about half the time or more (56% with three choices, 44% with four). That is
   why only one round a sign-in is recorded, and why the record only picks the
   next practice step, never a placement or a label.
 - A question that ended with the answer shown records nothing. Saying "not
   now" records nothing.
-- The words, pictures and answers come from Bede's own code, never the AI,
-  and nothing from a round is sent to any AI provider: the round is spoken
-  only by a voice installed on your device, never Bede's cloud voice or a
-  browser voice that works over the internet. On a device with no installed
-  voice for your child's language, or with Bede's voice turned off, the
-  round is shown without speech, and sight-word practice (which works only
-  by ear) waits until sound is on. Bede never judges how your child
-  pronounces a sound.
+- The words, pictures and answers come from Bede's own code, never the AI.
+  To speak in Bede's voice, the round's fixed lines (the instruction, the
+  example, a letter's sound, and "That's it" or "Let's look again") go to
+  the same speech service that voices Bede's chat replies. Your child's
+  answers never do. With Bede's voice turned off, the round is shown without
+  speech, and sight-word practice (which works only by ear) waits until
+  sound is on. Bede never judges how your child pronounces a sound.
 
 The words are English phonics. In a Spanish session the instructions are in
 Spanish and the words stay English.
@@ -2271,9 +2273,12 @@ Bede's lesson check-ins and the practice answers as two separate counts.
 
 Every number and every answer comes from Bede's own code, worked out twice
 (once from the sum and once by counting the picture), never by the AI.
-Nothing from a round is sent to any AI provider: like Sound Time, it is spoken
-only through a voice installed on your device. Every Number Time question can
-be answered from the picture on screen, so it works without sound too.
+Number Time speaks in Bede's own voice, the same one your child hears in the
+chat. To do that, the round's fixed lines (the question, the worked example,
+and "That's it" or "Let's look again") go to the same speech service that
+voices Bede's chat replies. Your child's answers never do. Turning Bede's voice
+off in the chat turns it off here too. Every Number Time question can be
+answered from the picture on screen, so it works without sound too.
 
 ## The writing pad: drawings, and where they go
 
@@ -2321,3 +2326,16 @@ limit, Bede says so plainly, in words, while the drawing is still on the
 screen: this page can't be kept, save it to your device if you want it, then
 start a fresh page. The drawing is never taken away mid-sentence, and it is
 never silently truncated into half a picture.
+
+### Grades 9-12 on the Progress page
+
+Bede tutors every grade from kindergarten through 12. The math skill map and
+the reading and spelling engine behind two of the Progress page's mastery
+rows are kindergarten-through-grade-8 instruments, so for a learner in grades
+9-12 Progress says so in one sentence and leaves those two rows out instead
+of showing rows that can never fill. Everything else on the page works as it
+does for any grade: narration history, the writing row, subject coverage, the
+work you can see Bede noticed, and the pod view. On the educator's assessment
+screen, DIBELS 8 also covers only kindergarten through grade 8, so for a
+learner in grades 9-12 you choose the grade printed on the report you are
+entering.

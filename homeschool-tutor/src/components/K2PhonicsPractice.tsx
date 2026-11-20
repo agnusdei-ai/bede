@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Volume2 } from 'lucide-react'
-import {
-  answerPhonicsTask, fetchPhonicsLesson,
-  type PhonicsLesson, type PhonicsTask,
-} from '../services/api'
+import type { PhonicsLesson, PhonicsPracticeTransport, PhonicsTask } from '../services/k2PhonicsTypes'
 import { ICONS } from './Diagram'
 import RoutineShell, { type RoutineStep } from './routine/RoutineShell'
 import { PRACTICE_PRIMARY, PRACTICE_TARGET } from './practiceStyles'
@@ -70,17 +67,16 @@ type Feedback =
   | { kind: 'trouble' }
 
 export default function K2PhonicsPractice({
-  token, studentName, onClose, onSpeak, canSpeak,
+  onClose, onSpeak, canSpeak, transport,
 }: {
-  token: string
-  studentName: string
   onClose: () => void
   /** Reads a line aloud. Every instruction is spoken as well as shown. */
   onSpeak?: (text: string) => void
-  /** Whether this device can actually speak the round: false with no installed
-   * voice for the language or with Bede's voice off, null while still
-   * checking. Defaults to whether `onSpeak` was given. */
+  /** Whether the round can be spoken: false with Bede's voice off, null while
+   * still checking. Defaults to whether `onSpeak` was given. */
   canSpeak?: boolean | null
+  /** The caller supplies its authenticated transport and data boundary. */
+  transport: PhonicsPracticeTransport
 }) {
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<PhonicsLesson | null>(null)
@@ -93,6 +89,8 @@ export default function K2PhonicsPractice({
   const [lit, setLit] = useState(0)
   const loadId = useRef(0)
   const reduced = useRef(prefersReducedMotion())
+  const transportRef = useRef(transport)
+  transportRef.current = transport
 
   // A round the device cannot speak asks for a lesson without the questions
   // that only work by ear; until that is known, nothing is fetched.
@@ -101,10 +99,10 @@ export default function K2PhonicsPractice({
     if (audio === null) return
     const mine = ++loadId.current
     setLesson(null); setFailed(false); setStep('watch'); setIndex(0); setDone(false); setFeedback(null)
-    fetchPhonicsLesson(token, studentName, audio)
+    transportRef.current.load(audio)
       .then((l) => { if (mine === loadId.current) setLesson(l) })
       .catch(() => { if (mine === loadId.current) setFailed(true) })
-  }, [token, studentName, audio])
+  }, [audio])
 
   useEffect(() => { load(); return () => { loadId.current += 1 } }, [load])
 
@@ -155,7 +153,7 @@ export default function K2PhonicsPractice({
     if (sound) speakRef.current?.(sound)
     setBusy(true)
     try {
-      const result = await answerPhonicsTask(token, studentName, lesson.lesson_id, step, index, { choice })
+      const result = await transportRef.current.answer(lesson.lesson_id, step, index, choice)
       if (result.correct) { setFeedback({ kind: 'right' }); speakRef.current?.(t('k2Phonics.right')) }
       else if (result.reveal) { setFeedback({ kind: 'shown', choice: result.reveal.choice }); speakRef.current?.(t('k2Phonics.shown')) }
       else { setFeedback({ kind: 'again' }); speakRef.current?.(t('k2Phonics.again')) }

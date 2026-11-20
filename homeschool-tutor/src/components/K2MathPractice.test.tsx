@@ -57,6 +57,9 @@ const lesson = (): MathLesson => ({
 const open = async (onSpeak = vi.fn(), onClose = vi.fn()) => {
   render(<K2MathPractice transport={transport} onClose={onClose} onSpeak={onSpeak} />)
   await screen.findByTestId('math-line')
+  // The opening line is spoken from an effect, which can land just after the
+  // line renders; wait for it so the first assertion never races it.
+  await waitFor(() => expect(onSpeak).toHaveBeenCalled())
   return { onSpeak, onClose }
 }
 

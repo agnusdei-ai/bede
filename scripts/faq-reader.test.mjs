@@ -7,6 +7,10 @@ const script = readFileSync(new URL("../site/assets/faq-reader.js", import.meta.
 const css = readFileSync(new URL("../site/assets/faq-reader.css", import.meta.url), "utf8");
 const html = readFileSync(new URL("../site/faq/index.html", import.meta.url), "utf8");
 
+test("FAQ caveats remain visible in print", () => {
+  assert.match(css, /\.fineprint:not\(main \.faq \.fineprint\)/);
+});
+
 function fixture({ blocked = false, missingClipboard = false, printThrows = false, loading = false } = {}) {
   const handlers = {};
   const details = [{ open: false }, { open: true }];

@@ -324,10 +324,13 @@ said there is ever saved: no transcript, no student record. Leave
 ## 5. Setting up each student
 
 1. Log in with the **parent password** → you land on **Setup**.
-2. Add each student: name and grade. Grade is free text: use `K` for
-   Kindergarten, or a number like `4` or `8`. The grade *stage* buttons (K–2 / 3–5 /
-   6–8) set Bede's tone; the grade itself determines which curriculum content
-   (books, math scope, composer/artist study) Bede draws from.
+2. Add each student: name, then pick their grade from the list (Kindergarten
+   through Grade 12). Choosing a grade also selects the matching *stage* button
+   (K–2 / 3–5 / 6–12), which sets Bede's tone; you can still change the stage by
+   hand. The grade itself determines which curriculum content (books, composer
+   and artist study) Bede draws from. Grades 9–12 are accepted everywhere; some
+   tools that are built for K–8 (the math skill map, year plans) are not yet
+   available for those grades and say so rather than guessing.
 3. Choose **how you'd like to start with Bede**. This is a starting point, not
    a lock, and every part of it stays editable afterward:
    - **Book Companion**: the lightest touch. Bede joins whatever books your

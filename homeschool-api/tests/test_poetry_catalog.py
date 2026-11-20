@@ -13,7 +13,7 @@ from datetime import date
 
 import pytest
 
-from models.schemas import GradeStage, VALID_GRADES
+from models.schemas import GradeStage, CURATED_GRADES
 from services.poetry_catalog import _COLLECTION, current_week, poem_for_week, poetry_note
 
 pytestmark = pytest.mark.asyncio
@@ -25,7 +25,7 @@ async def test_every_grade_stage_has_at_least_one_poem():
 
 
 async def test_every_individual_grade_has_at_least_one_poem():
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         assert any(grade in e["grades"] for e in _COLLECTION), grade
 
 
@@ -51,7 +51,7 @@ async def test_current_week_is_the_iso_week_number():
 
 
 async def test_poem_for_week_with_a_grade_only_returns_entries_tagged_for_that_grade():
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         for week in range(1, 53):
             entry = poem_for_week(grade, GradeStage.foundations, today=date.fromisocalendar(2026, week, 1))
             assert grade in entry["grades"]
@@ -73,7 +73,7 @@ async def test_poem_for_week_changes_across_the_calendar_year():
     """The whole point of the fix — confirms the rotation actually reaches
     more than one poem across a school year, unlike the old current_term
     default that silently pinned every session to the same poet forever."""
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         titles = {
             poem_for_week(grade, GradeStage.foundations, today=date.fromisocalendar(2026, week, 1))["title"]
             for week in range(1, 53)

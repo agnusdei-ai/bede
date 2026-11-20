@@ -377,6 +377,22 @@ before diagnosing unrelated annotations; that failure was a missing
 
 The API requires a live PostgreSQL connection (`DATABASE_URL`) on startup — it runs `CREATE TABLE IF NOT EXISTS` and initialises AES key material from the DB. There is no in-memory fallback.
 
+## Grades: the server accepts K-12 (standing rule)
+
+Owner ruling 2026-11-19: Bede is K-12, so every server path that takes a grade
+accepts K through 12 inclusive. `models/schemas.py`: `VALID_GRADES` is K-12,
+`CURATED_GRADES` is K-8 (the grades with grade-specific catalog, poetry, prayer
+and picture-study curation, which fall back to the stage band for 9-12),
+`grade_to_stage` files 9-12 under the independent stage, and `QuizGrade`
+(`models/practice.py`) and `GET /practice/status`'s grade list are K-12. The
+**instruments that really are K-8 stay K-8 and decline for grades 9-12 through
+`DEMO_UPPER_GRADES`** instead of reporting K-8 results as high-school mastery:
+the math skill map and its diagnostic bands, the year plans, and the DIBELS 8
+assessment grades (`services/assessment_interop.py`,
+`services/canonical_assessment.py`). Adding a grade 9-12 year plan or skill band
+is content work; accepting the grade is not. `test_demo_upper_school.py` pins
+all of it.
+
 ## Required Environment Variables
 
 All from `.env` (gitignored — never commit) — see `.env.example` for the

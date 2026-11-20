@@ -1,9 +1,23 @@
 # Engineering Rules v1.0 — Bede
 
-Status: proposed repository engineering contract; changes to branch protection or CI are separate implementation work.
+Status: proposed repository engineering contract; changes to branch protection or CI are separate implementation work. The sample-only wording below is superseded by the 2026-11-17 pilot RC amendment.
+
+### 2026-11-17 pilot RC amendment
+
+The requested pilot endpoint is a production release candidate for
+implementation in the selected customer environment. Sample-only checks are
+useful qualification evidence, not the final endpoint or authorization to
+use real learner data. Keep Pilot HOLD until the customer platform, provider
+and data scope are evidenced, the customer-installable artifact and
+requirement-mapped qualification are verified, and the owner records a
+readiness decision. Only the owner may authorize customer installation.
+Applicable school-administrator authorization and counsel review remain
+separate requirements before real learner data is used. Agent reviews must be
+identified as agent reviews and must not be represented as human, educator,
+or counsel certification.
 
 ## Purpose
-Optimize for correct, maintainable, secure code with the fewest useful checks. Automate routine engineering; preserve explicit owner and school-administrator Pilot GO authorization and sample-only HOLD.
+Optimize for correct, maintainable, secure code with the fewest useful checks. Automate routine engineering; preserve explicit owner Pilot GO authorization, required school authorization before real learner data, and the production pilot RC HOLD until evidence is complete.
 
 1. **Dependency-aware PRs.** Declare stacked PR dependencies and review only the incremental changes against their parent. Merge parent before child, revalidate the final integrated head, and never merge a draft without meeting its acceptance criteria.
 2. **One dependency resolution.** Coordinate changes to the same lockfiles and dependency manifests. Resolve to a single compatible set on current main, retain hashes, and run one applicable dependency/security audit on the final resolution.

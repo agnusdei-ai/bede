@@ -13,6 +13,7 @@ import type {
 } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
 import { SchoolAuthorizationRequiredError } from '../services/api'
+import { printTeacherPlan } from '../utils/printTeacherPlan'
 
 /** Separate official record and teacher interpretation; never renders DIBELS test items. */
 const input = 'block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm'
@@ -528,7 +529,15 @@ export default function PilotOfficialAssessmentForm({
               <p className="text-xs">Learner: {learnerName} · Approved decision: {artifact.approval_action} · Offline only</p>
               <p className="text-sm whitespace-pre-wrap">{artifact.plan_text}</p>
               <p className="text-xs text-slate-600">{artifact.disclaimer}</p>
-              <button type="button" className="border rounded-lg px-3 py-2 text-xs" onClick={() => document.defaultView?.print()}>
+              <button type="button" className="border rounded-lg px-3 py-2 text-xs min-h-[44px]"
+                onClick={() => void printTeacherPlan({
+                  title: 'Teacher instructional plan',
+                  learnerName,
+                  approvalLine: `${artifact.approval_action === 'edit' ? 'Edited and approved' : 'Approved'} by the teacher · prepared ${artifact.prepared_at.slice(0, 10)} · for teacher use, offline`,
+                  planText: artifact.plan_text,
+                  basedOn: artifact.based_on,
+                  disclaimer: artifact.disclaimer,
+                }).then(started => { if (!started) setMessage('Printing did not start. Try again.') })}>
                 Print teacher material</button>
             </article>}
             <div className="border-t pt-3 space-y-2">

@@ -35,7 +35,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from services.assessment_interop import DIBELS_MEASURES, DIBELS_UNITS
 
-POLICY_VERSION = "canonical-review-2026-10-16"
+# 2026-11-15: a composite printed with a label calling for support is no
+# longer answered with "continue current instruction", and a record with no
+# printed label at all gets a proposal that suggests no focus.
+POLICY_VERSION = "canonical-review-2026-11-15"
 
 AdministrationPurpose = Literal[
     "benchmark", "progress_monitoring", "instructional_check", "teacher_observation",
@@ -534,10 +537,30 @@ def propose(scores: list[dict], next_cycle: Optional[Cycle]) -> Proposal:
         f"{s['measure']}: printed label {s.get('benchmark_label') or s.get('support_label')}"
         for s in scored if s.get("benchmark_label") or s.get("support_label")
     ]
-    if flagged:
+    composite_flagged = any(
+        s.get("is_composite")
+        and (s.get("benchmark_label") in _ATTENTION_LABELS
+             or s.get("support_label") in _ATTENTION_LABELS)
+        for s in scored)
+    if not rationale:
+        # Scores with no printed label say nothing this policy may act on, so
+        # it suggests no focus. It stays a proposal (not an abstention) so the
+        # teacher can still record a decision and a plan for this record.
+        text = ("Proposed: no focus is suggested from this record, because it was "
+                "entered without a benchmark or support label. The teacher reviews "
+                "the scores and chooses the next step.")
+        rationale.append("No benchmark or support label was entered for any measure.")
+    elif flagged:
         text = ("Proposed: targeted practice on " + ", ".join(flagged)
                 + " with the teacher's chosen materials, and progress monitoring on "
                   "those measures before the next Data Day.")
+    elif composite_flagged:
+        # The composite calls for support but no single measure does (or none
+        # was entered), so there is no skill to name. Never "continue".
+        text = ("Proposed: the composite on this report was printed with a label calling "
+                "for additional support, but no individual measure was. The teacher "
+                "reviews the measure scores and chooses the focus; progress monitoring "
+                "before the next Data Day.")
     else:
         text = ("Proposed: continue current instruction; no measure on this report "
                 "was printed with a label calling for additional support.")

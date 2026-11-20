@@ -338,7 +338,9 @@ text-to-speech path, never the browser's or an on-device voice.
 The demo's screens and wire types are mirrored under `demo/src/` so the demo
 builds with its own dependency tree; `demo/src/k2MathParity.test.ts` checks those
 copies against the household implementation. Decision 40(g) records the
-approval and boundary.
+approval and boundary. Its 2026-11-19 amendment records the owner's direction
+that every area in this specification joins the demo, in Bede's voice, as it
+is completed; none is added before it is built and reviewed.
 
 Which skill an answer counts for (owner ruling 2026-11-16, a product
 default): **a building question records counting only.** Putting the right

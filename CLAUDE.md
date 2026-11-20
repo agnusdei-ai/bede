@@ -2582,6 +2582,21 @@ after.
 This is a standing rule for this repo across sessions, not a one-off for
 whichever task prompted it.
 
+## Standing Workflow: Stability Code Freeze
+
+**`main` is frozen for pilot v1.0 (`docs/DECISIONS.md` entry 45).** From the
+baseline that entry names, a pull request merges only if it fits one of the
+entry's six exceptions (security fixes, a red `main` or world-caused gate
+failure, qualification and repair-loop defects, docs describing the system as it
+is, reverts, and, standing until the owner declares K-12 complete, **6: K-12
+completion**: grades 9-12 acceptance and content, the skill maps, DIBELS upper
+grades, year plans and the copy and tests that state the grade range), and its
+body says which on a line of its own: `Freeze exception: <n>`. No guardrail is
+relaxed by exception 6, and a K-8 instrument declines for grades 9-12 until its
+content exists. `site/` and `demo/` still need the owner's sign-off.
+The freeze ends with the owner's GO or NO-GO in the pilot v1.0 release
+decision packet (on #837, not yet on `main`) or the owner lifting it.
+
 ## Standing Workflow: Banned Nomenclature
 
 **No tracked file may use the three words `scripts/check_nomenclature.sh`

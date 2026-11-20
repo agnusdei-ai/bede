@@ -391,7 +391,11 @@ the math skill map and its diagnostic bands, the year plans, and the DIBELS 8
 assessment grades (`services/assessment_interop.py`,
 `services/canonical_assessment.py`). Adding a grade 9-12 year plan or skill band
 is content work; accepting the grade is not. `test_demo_upper_school.py` pins
-all of it.
+all of it. The parent side says so rather than showing empty rows: Progress
+(`isUpperSchoolGrade`, `utils/gradeStage.ts`) leaves the math and reading rows
+out for grades 9-12 with one sentence and does not request them, and the
+educator's DIBELS screen never puts a 9-12 grade in its K-8 grade choice
+(`Progress.upperSchool.test.tsx`, `EducatorDesk.journey.test.tsx`).
 
 ## Required Environment Variables
 

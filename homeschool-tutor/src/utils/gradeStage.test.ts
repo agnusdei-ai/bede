@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FAMILY_GRADES, stageForGrade } from './gradeStage'
+import { FAMILY_GRADES, isUpperSchoolGrade, stageForGrade } from './gradeStage'
 
 describe('stageForGrade', () => {
   it('maps every K-12 grade to the stage the server uses', () => {
@@ -12,5 +12,12 @@ describe('stageForGrade', () => {
   })
   it('leaves older free text and out-of-range values alone', () => {
     for (const g of ['', '4th', 'kindergarten', '0', '13', '4.5']) expect(stageForGrade(g)).toBeNull()
+  })
+})
+
+describe('isUpperSchoolGrade', () => {
+  it('is true for 9 through 12 only', () => {
+    for (const g of ['9', '10', '11', '12']) expect(isUpperSchoolGrade(g)).toBe(true)
+    for (const g of ['K', '1', '8', '13', '', 'ten']) expect(isUpperSchoolGrade(g)).toBe(false)
   })
 })

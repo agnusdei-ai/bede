@@ -2326,3 +2326,16 @@ limit, Bede says so plainly, in words, while the drawing is still on the
 screen: this page can't be kept, save it to your device if you want it, then
 start a fresh page. The drawing is never taken away mid-sentence, and it is
 never silently truncated into half a picture.
+
+### Grades 9-12 on the Progress page
+
+Bede tutors every grade from kindergarten through 12. The math skill map and
+the reading and spelling engine behind two of the Progress page's mastery
+rows are kindergarten-through-grade-8 instruments, so for a learner in grades
+9-12 Progress says so in one sentence and leaves those two rows out instead
+of showing rows that can never fill. Everything else on the page works as it
+does for any grade: narration history, the writing row, subject coverage, the
+work you can see Bede noticed, and the pod view. On the educator's assessment
+screen, DIBELS 8 also covers only kindergarten through grade 8, so for a
+learner in grades 9-12 you choose the grade printed on the report you are
+entering.

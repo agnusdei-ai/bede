@@ -32,7 +32,7 @@ from tests.test_teacher_quiz import APPROVED
 pytestmark = pytest.mark.real_content_screen
 
 DEMO = {"role": "demo_code", "code": "sample-demo"}
-SCREEN_MARK = "You check pictures before a K-8 school app"
+SCREEN_MARK = "You check pictures before a K-12 school app"
 READING = json.dumps(GOLDEN["assessment"])
 
 

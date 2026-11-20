@@ -2082,7 +2082,7 @@ Three details worth keeping:
   to re-derive that.
 - **The touch target was raised to a 44px floor** (Apple HIG minimum) from
   roughly 38px. Capture makes drift harmless, but a larger target means less
-  drift to begin with, and this button is aimed at K-8 hands.
+  drift to begin with, and this button is aimed at K-12 hands.
 
 `touch-action: none` was already correctly set on this button (Tailwind's
 `touch-none`), so scroll-gesture `pointercancel` was never part of this

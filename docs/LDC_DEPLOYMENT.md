@@ -633,7 +633,9 @@ Stated here rather than discovered in the field:
    with one parent credential. A parish server serving several families is
    `docs/DECISIONS.md` entry 21, and is **not** reachable by adding students to
    one pod — that would put each family's records in reach of the others.
-5. **Local text-to-speech.** Installed Bede speaks only in its local Piper
-   voice on the server, once `docs/DECISIONS.md` entry 46's distribution review
-   clears; until then it continues without narration. It never uses OpenAI's
-   voice or the browser's own speech synthesis.
+5. **Text-to-speech.** Installed Bede speaks in Bede's reference voice
+   (OpenAI's) when `OPENAI_API_KEY` is set and speech is not turned off; a
+   deployment that must not send speech to a cloud service sets
+   `TTS_PROVIDER=none` and is text-first. An optional local Piper voice exists
+   for development only and is not a launch dependency (`docs/DECISIONS.md`
+   entry 46). Bede never uses the browser's own speech synthesis.

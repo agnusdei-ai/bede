@@ -1,31 +1,40 @@
 # Setting up Bede's spoken voice
 
-Every feature speaks in Bede's own voice and in no other (owner decisions
-2026-11-18 and 2026-11-19, `docs/DECISIONS.md` entry 46). Cloud speech is
-never used in the product; the demo uses OpenAI's voice.
+Every feature speaks in Bede's own voice and in no other. Bede's reference
+voice is OpenAI's, the voice the public demo uses (owner direction 2026-11-20,
+`docs/DECISIONS.md` entry 46). Installed Bede speaks in that same voice when
+cloud speech is configured and permitted. A different voice, Piper included,
+is never switched in automatically, and any future change to Bede's voice needs
+a separate proposal and the owner's approval after hearing the actual candidate.
 
-**Installed Bede** (`docker-compose.yml`, every installer) speaks only in its
-**local Piper voice** (`voice-service/`), so nothing Bede says aloud leaves the
-computer. If Piper is not set up, is not responding, or fails a line, Bede
-**continues without narration**: every prompt and piece of feedback stays on
-screen, a practice round leaves out the items that only work by ear, and
-Parent Setup's **Bede's voice** card says which of these it is. It never falls
-back to OpenAI's voice, even with `OPENAI_API_KEY` set for tutoring, and never
-to the browser's own built-in voice. Compose pins this with
-`TTS_PROVIDER=local`. **Bede's voice ships with Bede** (owner ruling
-2026-11-19): English, male, a distinctive monk persona, `en_GB-alan-medium`.
-Spanish lessons are read in the same voice. See "Bede's local voice" below.
+**Installed Bede** (`docker-compose.yml`, every installer) speaks in OpenAI's
+voice when `OPENAI_API_KEY` is set and `TTS_PROVIDER` is empty. That means each
+line Bede speaks (never what the child said) is sent to OpenAI to be voiced; see
+`docs/VENDOR_DATA_FLOW.md`. To use no speech at all, set `TTS_PROVIDER=none` or
+leave the key unset. With no voice, a switched-off voice, or a voice that is
+not answering, Bede **continues without narration**: every prompt and piece of
+feedback stays on screen, a practice round leaves out the items that only work
+by ear, and Parent Setup's **Bede's voice** card says which of these it is.
+Bede stays fully usable. It never falls back to the browser's own built-in
+voice or to a different voice, and screen readers are untouched.
 
-**The public demo uses OpenAI's voice, or silence.** It is not run from
-compose: with `TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI
-TTS (`gpt-4o-mini-tts`) when `OPENAI_API_KEY` is set. Its frontend no longer
-has a browser-voice path either (2026-11-19): a line that fails or times out
-is silent, and the visitor reads on.
+**The public demo** is not run from compose and behaves the same way: with
+`TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI TTS
+(`gpt-4o-mini-tts`) when `OPENAI_API_KEY` is set. Its frontend has no
+browser-voice path (2026-11-19): a line that fails or times out is silent, and
+the visitor reads on. The demo is unchanged by the optional Piper voice below.
+
+**Piper is optional development and testing only.** It is not the default voice,
+not a fallback for a failed cloud line and not a launch dependency. It runs only
+when the `piper` compose profile is started and `TTS_PROVIDER=local` asks for
+it. See "The optional Piper voice" below. Sample-voice checks verify integration
+mechanics; they say nothing about how the real alan voice sounds and are not
+approval of it.
 
 **What the app does when Bede's voice cannot speak.** The app asks
 `GET /tutor/voice` once per sign-in, before the first line. If no voice is
-set up, it is switched off (`TTS_PROVIDER=none`), or Piper is not answering
-its health check, **no line is sent to `/tutor/speak` at all**; a "not
+set up, it is switched off (`TTS_PROVIDER=none`), or an asked-for Piper voice is
+not answering its health check, **no line is sent to `/tutor/speak` at all**; a "not
 answering" result is asked again after a minute, so a voice that comes back
 is picked up within the lesson. A status request that itself fails is not
 remembered and is silent meanwhile. A line that is sent but takes longer
@@ -35,8 +44,9 @@ keep the microphone from listening. Nothing about any of this is ever shown
 to the child: no error, no key prompt, no interruption to a round. Screen
 readers are untouched; they read the page on their own terms.
 
-`TTS_PROVIDER` values: `local` (Piper or nothing), empty (local if set,
-otherwise OpenAI, otherwise nothing), `openai`, `none`. An unknown value or a
+`TTS_PROVIDER` values: empty (OpenAI when a key is set, otherwise nothing; it
+never picks Piper, even with `LOCAL_TTS_URL` set), `openai`, `none`, and `local`
+(the optional Piper voice or nothing, never OpenAI). An unknown value or a
 `LOCAL_TTS_URL` that is not this computer or its own network stops Bede from
 starting, with the reason; `local` with no URL starts and is silent.
 `homeschool-tutor/src/bedesVoiceOnly.test.ts` fails if any shipped file in
@@ -55,9 +65,10 @@ cannot speak sends nothing.
 It makes no paid call and downloads nothing; see `voice-service/README.md`.
 It proves the plumbing, not how a real voice sounds.
 
-## Bede's local voice
+## The optional Piper voice
 
-The `voice` service in `docker-compose.yml` runs by default. It is
+The `voice` service in `docker-compose.yml` does not run unless the `piper`
+profile is started (`COMPOSE_PROFILES=piper`). It is
 [Piper](https://github.com/OHF-Voice/piper1-gpl), the open-source engine the
 Open Home Foundation maintains under GPL-3.0-or-later, behind Bede's own
 small server, `voice-service/server.py`. The server is a separate program in
@@ -70,15 +81,14 @@ spoke in memory and shows it at `/info`, and can download voices at
 `/download`. Bede's server logs only the method and path, keeps nothing once a
 line is spoken, and has no route but `/synthesize` and `/health`.
 
-**The voice ships in the image, verified, or not at all.** The voice is named
-in `voice-service/bede-voice.json`: `en_GB-alan-medium`, an English male
+**A voice is in the image only if verified.** The candidate voice, named for testing only, is
+named in `voice-service/bede-voice.json`: `en_GB-alan-medium`, an English male
 voice chosen for Bede's monk persona. When the image is built,
 `fetch_voice.py` downloads its model, its config and its model card, and keeps
 them only if every file's pinned SHA-256 matches. If a hash is not pinned yet,
 the download fails, or a hash differs, it keeps nothing and the build carries
-on: the voice server then runs with no voice and Bede is text-first. It never
-speaks from a file nobody verified. Spanish is read in the same voice unless a
-Spanish one is given (owner ruling 2026-11-19).
+on: the voice server then runs with no voice. It never speaks from a file
+nobody verified. Naming it in the manifest is not approval of it as Bede's voice.
 
 **Pinning the voice.** On a machine that can reach huggingface.co, run
 `python3 scripts/voice/pin_bede_voice.py`. It prints each file's SHA-256 and

@@ -2721,9 +2721,38 @@ What survives the lift, because it was never the freeze's:
   exceptions and are not by the lift.
 - The 2026-12-18 review date no longer applies.
 
-## 46. `[PRODUCT]` Every feature speaks in Bede's own voice; installed Bede's voice is local
+## 46. `[PRODUCT]` Every feature speaks in Bede's own voice; Piper is optional development only
 
-**Status:** open · needs: the voice's SHA-256 hashes pinned and its license, training lineage and redistribution terms recorded from its own MODEL_CARD (`scripts/voice/pin_bede_voice.py`, which needs access to huggingface.co), and the owner's acceptance on the pilot Mac. The decisions below are made and built; until the hashes are pinned, installed Bede is text-first.
+**Status:** open · needs: the owner's approval of any candidate voice after hearing it (Piper stays optional development until then); the optional voice's SHA-256 hashes pinned and its license, training lineage and redistribution terms recorded from its own MODEL_CARD (`scripts/voice/pin_bede_voice.py`, which needs access to huggingface.co), and the owner's acceptance on the pilot Mac. The decisions below are made and built; until the hashes are pinned, installed Bede is text-first.
+
+**Amended (2026-11-20, owner): the demo's voice is Bede's reference voice;
+Piper is optional development only. This SUPERSEDES every earlier amendment
+below that made Piper installed Bede's voice or forbade cloud speech in it.**
+The current demo voice (OpenAI's) is Bede's reference voice experience,
+including for installed Bede when cloud speech is configured and permitted.
+
+- The demo is not switched to Piper and gets no voice selector. Installed Bede
+  never automatically substitutes `en_GB-alan-medium` or any other voice.
+- #875 is isolated as optional Piper development and testing: not the default
+  voice, not an automatic fallback, not a launch dependency. Sample-voice
+  tests verify integration mechanics and are never presented as verification
+  of the actual alan voice or approval of its sound.
+- If configured speech is disabled or unavailable, Bede stays text-first and
+  fully usable, falls back to neither the browser's voice nor a different
+  voice, and screen-reader behavior is untouched.
+- Any future change to Bede's voice requires a separate proposal and the
+  owner's approval after hearing the actual candidate voice.
+- No model downloads, new hosting services, paid test calls or demo
+  deployment changes were authorized by this direction.
+
+Built: `active_provider()` picks OpenAI when `OPENAI_API_KEY` is set and
+`TTS_PROVIDER` is empty, nothing otherwise, and Piper only for
+`TTS_PROVIDER=local`; compose's `TTS_PROVIDER` and `LOCAL_TTS_URL` now default
+to empty, the same as `config.py`'s, and the `voice` service is behind the
+`piper` profile. Parent Setup describes the cloud voice as the usual voice
+and Piper as an optional test voice. **What "permitted" means today:** a key
+set and `TTS_PROVIDER` not `none`; an explicit installer opt-in is not built.
+The 2026-11-18 to 2026-11-19 text below is kept as history.
 
 **Decided (2026-11-18, owner).**
 

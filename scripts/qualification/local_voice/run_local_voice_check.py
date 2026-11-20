@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Installed Bede's voice, checked as a child experiences it (sample only).
+"""The optional Piper development voice, checked as a child experiences it (sample only).
 
-Owner rulings 2026-11-18 and 2026-11-19 (docs/DECISIONS.md entry 46):
-installed Bede speaks only in its local Piper voice, and cloud speech is never
-used in the product. When Piper is not set up, switched off, failing or not
-answering, a round and the chat continue without narration with every prompt
-and piece of feedback on screen, and neither OpenAI's voice nor the browser's
-own voice is used. Where Bede's voice cannot speak at all, the page makes no
-speech request.
+Owner direction 2026-11-20 (docs/DECISIONS.md entry 46): Bede's reference voice
+is OpenAI's. Piper is optional development and testing only: it speaks only
+when TTS_PROVIDER=local asks for it, never as a default or a fallback. This
+check exercises that opt-in path. When Piper is not set up, switched off,
+failing or not answering, a round and the chat continue without narration with
+every prompt and piece of feedback on screen, and neither OpenAI's voice nor
+the browser's own voice is used. Where the voice cannot speak at all, the page
+makes no speech request. Sample voices built from code verify this plumbing
+only; they say nothing about how the real alan voice sounds.
 
 For each case this starts the real pieces on loopback and plays one Sound Time
 round, then one chat turn, in real Chromium (check_round.cjs):
@@ -19,7 +21,7 @@ round, then one chat turn, in real Chromium (check_round.cjs):
   hang      a voice server whose health check answers and whose lines never do
 
 The API is the real `uvicorn main:app` on a throwaway SQLite database, with
-TTS_PROVIDER=local as docker-compose.yml pins it, a loopback model stub for the
+TTS_PROVIDER=local asked for explicitly, a loopback model stub for the
 tutor, and an OPENAI_API_KEY that is set (to prove it is not used) but sample
 and useless. Its HTTP(S) proxy is a local recorder that refuses and logs every
 outbound connection, and HF_HUB_OFFLINE=1 keeps the speech-to-text warm-up off
@@ -162,7 +164,7 @@ def run_case(case: str, a, out: Path, voices: Path) -> dict:
         BEDE_FORCE_ADAPTER="local", TRANSCRIPTION_PROVIDER="local",
         MCP_EXTERNAL_ENABLED="false", LOCUTO_IPC_ENABLED="false",
         CORS_ORIGINS=f"http://127.0.0.1:{UI}", PYTHONUTF8="1",
-        # Installed Bede, as docker-compose.yml pins it: Piper or nothing.
+        # The optional Piper development voice, asked for explicitly: Piper or nothing.
         TTS_PROVIDER="none" if case == "disabled" else "local",
         LOCAL_TTS_URL="" if case == "none" else f"http://127.0.0.1:{VOICE}",
         # Present, so that "never OpenAI" is tested with a key in reach. It is

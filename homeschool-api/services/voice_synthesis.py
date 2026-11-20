@@ -5,12 +5,14 @@ Owner decisions 2026-11-18 (docs/DECISIONS.md entry 46): every feature speaks
 in Bede's voice and never in another. Bede's voice comes from exactly one
 place per deployment, chosen by `active_provider()`:
 
-- **local** (`_synthesize_local`): Bede's own voice server on the family's
-  machine, `voice-service/` (Piper, run as a separate process). Nothing leaves
-  the machine or its network. When a local voice is configured, a cloud voice
-  is NEVER used, not as a default and not when a line fails.
-- **openai** (`_synthesize_openai`): OpenAI's TTS, when no local voice is
-  configured and OPENAI_API_KEY is set, or when TTS_PROVIDER=openai opts in.
+- **openai** (`_synthesize_openai`): OpenAI's TTS, Bede's reference voice, the
+  default whenever OPENAI_API_KEY is set (installed Bede and the demo alike).
+- **local** (`_synthesize_local`): an OPTIONAL Piper voice server,
+  `voice-service/`, run as a separate process, used only when
+  TTS_PROVIDER=local asks for it. It is development and testing, never the
+  default, never a fallback for a failed cloud line, and never a launch
+  dependency. When it is asked for, a cloud voice is NOT used for that
+  deployment, not even when a line fails.
 - **none**: no voice. Bede is silent; neither frontend substitutes the
   browser's own voice, because it is not Bede's.
 
@@ -169,8 +171,10 @@ def active_provider() -> Optional[str]:
         return "local" if settings.local_tts_url else None
     if choice == "openai":
         return "openai" if settings.openai_api_key else None
-    if settings.local_tts_url:
-        return "local"
+    # Auto (the default) never picks the local voice: Piper is an optional
+    # development voice that has to be asked for with TTS_PROVIDER=local
+    # (owner direction 2026-11-20, docs/DECISIONS.md entry 46). Merely having
+    # a LOCAL_TTS_URL set changes nothing.
     return "openai" if settings.openai_api_key else None
 
 

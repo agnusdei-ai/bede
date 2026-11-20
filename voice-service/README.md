@@ -1,4 +1,6 @@
-# Bede's local voice
+# Optional Piper development voice
+
+**Optional, for development and testing only.** Bede's reference voice is OpenAI's, the voice the demo uses (owner direction 2026-11-20, `docs/DECISIONS.md` entry 46). This server is never the default voice, never a fallback for a failed cloud line and not a launch dependency; it speaks only when `TTS_PROVIDER=local` asks for it. Sample-voice checks here verify integration mechanics, not how the real alan voice sounds, and are not approval of it.
 
 A small HTTP server that speaks Bede's lines with [Piper](https://github.com/OHF-Voice/piper1-gpl),
 on the family's own computer. Nothing it is asked to say leaves that computer.
@@ -42,9 +44,9 @@ from the internet at `/download`. This server:
 
 ## Running it
 
-In `docker-compose.yml` it is the `voice` service, which runs by default, on
+In `docker-compose.yml` it is the `voice` service, which does not run unless the `piper` profile is started (`COMPOSE_PROFILES=piper`), on
 a network with no internet access. The API reaches it at
-`LOCAL_TTS_URL=http://voice:5000`.
+`LOCAL_TTS_URL=http://voice:5000`, and only with `TTS_PROVIDER=local`.
 
 | Variable | Meaning |
 | --- | --- |

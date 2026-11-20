@@ -58,7 +58,18 @@ describe('VoiceStatusNotice', () => {
 
   it('"not set up" and "not answering right now" read differently, each with its own next step', () => {
     expect(en.voiceStatus.none.what).not.toBe(en.voiceStatus.down.what)
-    expect(en.voiceStatus.none.next).toMatch(/comes with Bede/)
+    expect(en.voiceStatus.none.next).toMatch(/Nothing is wrong/)
     expect(en.voiceStatus.down.next).toMatch(/checks again/)
+  })
+
+  it('the cloud voice is the usual one and the local voice is only an optional test voice', () => {
+    // Owner direction 2026-11-20 (docs/DECISIONS.md entry 46): the cloud voice
+    // is Bede's reference voice, and Piper is never described as the default
+    // or as something every installation is meant to switch to.
+    expect(en.voiceStatus.cloud.what).toMatch(/usual voice/)
+    expect(en.voiceStatus.cloud.next).not.toMatch(/switch|own voice/i)
+    expect(en.voiceStatus.local.what).toMatch(/optional/i)
+    expect(en.voiceStatus.local.next).toMatch(/not Bede's usual voice/)
+    expect(JSON.stringify(en.voiceStatus)).not.toMatch(/comes with Bede|installed Bede is meant/i)
   })
 })

@@ -94,11 +94,13 @@ on a setting:
   are sent to `https://api.openai.com/v1/audio/speech` (model
   `gpt-4o-mini-tts` by default, configurable voice/instructions) to
   synthesize the audio the child hears. Nothing the child said is ever
-  part of this payload. **This is the public demo only. Installed Bede never
-  sends a line to OpenAI for speech** (`TTS_PROVIDER=local`, pinned by
-  `docker-compose.yml`): every line goes only to its local Piper voice on the
-  family's own computer or network (`voice-service/`), and with Piper absent
-  or failing Bede continues without narration (`docs/DECISIONS.md` entry 46).
+  part of this payload. **This applies to the public demo and to installed
+  Bede**: with `OPENAI_API_KEY` set and `TTS_PROVIDER` empty, every line Bede
+  speaks is sent to OpenAI to be voiced (owner direction 2026-11-20, entry 46).
+  `TTS_PROVIDER=none`, or no key, sends nothing and Bede is text-first. An
+  optional Piper development voice (`TTS_PROVIDER=local`, off by default) keeps
+  lines on the family's own computer or network (`voice-service/`); it is never
+  chosen automatically or used as a fallback.
 - **Speech-to-text (`services/transcription.py`) — local by default, a
   real API call only if you ask for it.** This is what turns a child's
   microphone audio into the text Bede answers. On the default

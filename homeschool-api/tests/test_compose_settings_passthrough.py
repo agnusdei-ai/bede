@@ -68,19 +68,6 @@ PINNED = {
 # the reason. Kept short on purpose: each entry is a place where reading the
 # code tells you something other than what a deployment actually does.
 DIVERGENT_DEFAULTS = {
-    "TTS_PROVIDER": (
-        "Installed Bede speaks only in its local Piper voice or not at all, "
-        "never OpenAI's (owner ruling 2026-11-18, docs/DECISIONS.md entry 46), "
-        "so compose pins `local`. config.py's empty default is what the public "
-        "demo (render.yaml, not compose) relies on to keep its OpenAI voice "
-        "unchanged."
-    ),
-    "LOCAL_TTS_URL": (
-        "Installed Bede's voice ships with it (owner ruling 2026-11-19, "
-        "docs/DECISIONS.md entry 46), so compose points the API at its own "
-        "`voice` service. config.py's empty default is what the public demo "
-        "and a developer running uvicorn directly need: no local voice."
-    ),
     "CORS_ORIGINS": (
         "config.py defaults to the Vite dev-server origins, which are what a "
         "developer running uvicorn directly needs. The compose stack is served "

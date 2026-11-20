@@ -191,22 +191,23 @@ def test_bad_voice_settings_are_refused_at_boot(monkeypatch, env, message):
 
 
 def test_installed_bede_with_no_voice_set_up_boots_and_is_silent(monkeypatch):
-    # TTS_PROVIDER=local is what docker-compose.yml pins; with no LOCAL_TTS_URL
-    # that is installed Bede before Piper is set up, which must start and stay
-    # silent rather than refuse to boot or reach for another voice.
+    # TTS_PROVIDER=local is the optional Piper development opt-in; with no
+    # LOCAL_TTS_URL it must start and stay silent rather than refuse to boot or
+    # reach for another voice.
     monkeypatch.setenv("TTS_PROVIDER", "local")
     monkeypatch.delenv("LOCAL_TTS_URL", raising=False)
     assert Settings().tts_provider == "local"
 
 
-# ── 3. Never a cloud voice when a local one is configured ───────────────────
+# ── 3. Piper is optional: asked for explicitly, never automatic ────────────
 
 @pytest.mark.parametrize("provider,local,key,expected", [
-    ("", "http://voice:5000", "sk-test", "local"),   # local wins even with a cloud key
-    ("", "", "sk-test", "openai"),                   # the demo, and families with no local voice
-    ("", "", "", None),                              # no voice: silence
+    ("", "http://voice:5000", "sk-test", "openai"),  # auto never picks Piper, even with its URL set
+    ("", "http://voice:5000", "", None),             # a URL alone does not turn Piper on
+    ("", "", "sk-test", "openai"),                   # Bede's reference voice, installed and demo alike
+    ("", "", "", None),                              # no voice: text-first
     ("local", "http://voice:5000", "sk-test", "local"),
-    ("local", "", "sk-test", None),                  # installed Bede, Piper not set up: silence, never OpenAI
+    ("local", "", "sk-test", None),                  # Piper asked for but not set up: silence, never OpenAI
     ("openai", "http://voice:5000", "sk-test", "openai"),  # the explicit opt-in
     ("openai", "", "", None),
     ("none", "http://voice:5000", "sk-test", None),
@@ -221,11 +222,12 @@ def test_which_voice_speaks(monkeypatch, provider, local, key, expected):
 
 @pytest.fixture
 def local_voice(monkeypatch, voice_server):
-    """A real voice server, LOCAL_TTS_URL pointing at it, an OpenAI key set,
-    and OpenAI's path rigged to fail the test if it is ever reached."""
+    """A real voice server, LOCAL_TTS_URL pointing at it, TTS_PROVIDER=local
+    asked for explicitly, an OpenAI key set, and OpenAI's path rigged to fail
+    the test if it is ever reached."""
     def use(voices):
         base = voice_server(voices)
-        monkeypatch.setattr(settings, "tts_provider", "")
+        monkeypatch.setattr(settings, "tts_provider", "local")
         monkeypatch.setattr(settings, "local_tts_url", base)
         monkeypatch.setattr(settings, "openai_api_key", "sk-test")
 
@@ -285,24 +287,27 @@ def test_the_speak_route_is_silent_with_no_voice(monkeypatch):
     assert resp.status_code == 204 and resp.headers["X-TTS-Configured"] == "False"
 
 
-# ── 5. The container: on by default, no internet, no published port ───────
+# ── 5. The container: off by default, no internet, no published port ──────
 
-def test_the_voice_container_runs_by_default_and_is_isolated():
+def test_the_voice_container_is_optional_and_isolated():
     import yaml
 
     compose = yaml.safe_load((REPO / "docker-compose.yml").read_text())
     voice = compose["services"]["voice"]
-    # Bede's voice ships with the model (owner ruling 2026-11-19): no profile.
-    assert "profiles" not in voice
+    # Piper is optional development only (owner direction 2026-11-20): it does
+    # not start unless the `piper` profile is asked for.
+    assert voice["profiles"] == ["piper"]
     assert "ports" not in voice and voice["networks"] == ["voice"]
     assert compose["networks"]["voice"]["internal"] is True
     assert "voice" in compose["services"]["api"]["networks"]
     assert voice["read_only"] is True and voice["cap_drop"] == ["ALL"]
     assert all(v.endswith(":ro") for v in voice["volumes"])
     api_env = compose["services"]["api"]["environment"]
-    assert "LOCAL_TTS_URL=${LOCAL_TTS_URL:-http://voice:5000}" in api_env
-    # Installed Bede is Piper or silence: compose pins the provider to local.
-    assert "TTS_PROVIDER=${TTS_PROVIDER:-local}" in api_env
+    # Neither default turns Piper on: empty provider means auto (OpenAI when a
+    # key is set, otherwise silence) and there is no URL until one is asked for.
+    assert "LOCAL_TTS_URL=${LOCAL_TTS_URL:-}" in api_env
+    assert "TTS_PROVIDER=${TTS_PROVIDER:-}" in api_env
+    assert not any(e.startswith("TTS_PROVIDER=") and "local" in e.split(":-")[-1] for e in api_env)
 
 
 def test_the_voice_image_installs_only_hash_locked_packages():
@@ -321,7 +326,8 @@ def test_an_edit_to_the_voice_server_alone_still_runs_these_tests():
 @pytest.mark.parametrize("local,key,expected", [
     ("", "sk-test", {"configured": True, "where": "cloud", "available": True}),
     ("", "", {"configured": False, "where": None, "available": False}),
-    ("http://127.0.0.1:9", "", {"configured": True, "where": "local", "available": False}),  # Piper down
+    ("http://127.0.0.1:9", "", {"configured": False, "where": None, "available": False}),  # a URL alone: Piper is off
+    ("http://127.0.0.1:9", "sk-test", {"configured": True, "where": "cloud", "available": True}),
 ])
 def test_the_voice_status_route_says_whether_where_and_if_bede_can_speak(monkeypatch, local, key, expected):
     from routers.tutor import voice_status
@@ -332,6 +338,20 @@ def test_the_voice_status_route_says_whether_where_and_if_bede_can_speak(monkeyp
     vs._http_client = None
     try:
         assert asyncio.run(voice_status(auth={"role": "parent", "locale": "en"})) == expected
+    finally:
+        asyncio.run(vs.aclose_http_client())
+
+
+def test_an_asked_for_piper_voice_that_is_down_reports_where_it_is_and_unavailable(monkeypatch):
+    from routers.tutor import voice_status
+
+    monkeypatch.setattr(settings, "tts_provider", "local")
+    monkeypatch.setattr(settings, "local_tts_url", "http://127.0.0.1:9")
+    monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    vs._http_client = None
+    try:
+        assert asyncio.run(voice_status(auth={"role": "parent", "locale": "en"})) == {
+            "configured": True, "where": "local", "available": False}
     finally:
         asyncio.run(vs.aclose_http_client())
 
@@ -449,7 +469,7 @@ def test_the_fetch_never_fails_the_build():
     assert "bede-voice.json fetch_voice.py" in dockerfile
 
 
-def test_the_shipped_voice_is_the_one_the_owner_chose():
+def test_the_manifest_names_the_candidate_voice_for_testing_only():
     manifest = json.loads(MANIFEST.read_text())
     assert manifest["name"] == "en_GB-alan-medium"
     for spec in manifest["files"].values():

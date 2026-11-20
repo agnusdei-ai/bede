@@ -203,25 +203,25 @@ class Settings(BaseSettings):
     # Owner decisions 2026-11-18 (docs/DECISIONS.md entry 46): every feature
     # speaks in Bede's voice and never in another one. Bede's voice comes from
     # exactly one of two places, chosen by TTS_PROVIDER:
-    #   ""       (auto, the default) the local voice when LOCAL_TTS_URL is set,
-    #            otherwise OpenAI's voice when OPENAI_API_KEY is set, otherwise
-    #            none. With a local voice configured, auto NEVER uses a cloud
-    #            voice, not even when a line fails.
-    #   "local"  the local voice only, and nothing else ever: with no
-    #            LOCAL_TTS_URL, or the voice down, Bede is silent. Installed
-    #            Bede (docker-compose.yml) is pinned to this.
+    #   ""       (auto, the default) OpenAI's voice when OPENAI_API_KEY is set,
+    #            otherwise none. Auto never picks the local voice, even with a
+    #            LOCAL_TTS_URL set, and installed Bede and the demo behave the
+    #            same.
+    #   "local"  the optional Piper development voice only, and nothing else
+    #            ever: with no LOCAL_TTS_URL, or the voice down, Bede is
+    #            silent. Never the default or a fallback.
     #   "openai" OpenAI's voice only: the explicit opt-in to a cloud voice.
     #   "none"   no voice; Bede is silent.
     # With no voice configured Bede is silent: the browser's own voice is never
     # used, since it is not Bede's (both frontends' useTextToSpeech).
     tts_provider: str = ""
     # Where Bede's local voice is served: the `voice` service in
-    # docker-compose.yml (`http://voice:5000`, profile `local-voice`), or a
+    # docker-compose.yml (`http://voice:5000`, profile `piper`, off by default), or a
     # voice server on this machine or its private network. Refused at boot if
     # it names anything else (core/voice_url.py).
     local_tts_url: str = ""
     # Setting OPENAI_API_KEY makes OpenAI's TTS API available as Bede's voice
-    # (auto, above, uses it only when no local voice is configured).
+    # (auto, above, uses it whenever the key is set).
     openai_api_key: str = ""
     # gpt-4o-mini-tts (not the older tts-1/tts-1-hd) is the only OpenAI TTS
     # model that accepts `instructions` below — that's what actually lets us

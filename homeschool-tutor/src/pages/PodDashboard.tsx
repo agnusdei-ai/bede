@@ -99,7 +99,7 @@ export default function PodDashboard() {
       <div className="max-w-4xl mx-auto">
         <ConsentBanner />
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
           <div className="flex items-center gap-3">
             <img src="/bede-icon.webp" alt="Bede" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
             <div>
@@ -118,7 +118,7 @@ export default function PodDashboard() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button type="button" onClick={() => navigate('/classroom-setup')}
               className="text-sm text-navy-700 border border-navy-200 rounded-lg px-3 py-2">
               Instructors &amp; rosters

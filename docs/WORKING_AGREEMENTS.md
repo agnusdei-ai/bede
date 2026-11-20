@@ -267,7 +267,7 @@ bind every consent and authorization.
 
 ## 12. Stability code freeze (lifted)
 
-*Source: `CLAUDE.md` → Standing Workflow: Stability Code Freeze*
+*Source: `CLAUDE.md` → Standing Workflow: Stability Code Freeze (lifted 2026-11-20)*
 
 The pilot v1.0 freeze was lifted by the owner in writing on 2026-11-20
 (`docs/DECISIONS.md` entry 45, amendment). `main` takes ordinary pull requests

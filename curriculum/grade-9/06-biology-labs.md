@@ -34,7 +34,7 @@ Adult alone uses cutting tools/heated water. Use plastic instead of glass when p
 
 ### Investigation 2 — Qualitative indicator evidence model, week 2
 
-**Question:** what can repeated color descriptions support without calibration? **Materials:** paper or accessible text of the original synthetic table below; no liquids, food, heat or chemical handling. **Status:** model/supplied-data activity, not an experiment. The former physical method is excluded because product strengths, preparation and volumes were insufficiently specified. An adult demonstration is not a bypass.
+**Question:** what can repeated color descriptions support without calibration? **Materials:** paper or accessible text of the original example table below; no liquids, food, heat or chemical handling. **Status:** model/supplied-data activity, not an experiment. The former physical method is excluded because product strengths, preparation and volumes were insufficiently specified. An adult demonstration is not a bypass.
 
 **Invented observations, not measured:** sample A: purple/purple; sample B: pink/pink; sample C: blue/blue-green in two hypothetical repeats. Read color words aloud or use labeled tactile tokens; color discrimination is not assessed. Copy both repeat descriptions, identify agreement and disagreement, and propose controls for a hypothetical future method (same light, volumes and indicator preparation). Explain why these observations cannot establish exact pH, sample identity or safety.
 
@@ -69,7 +69,7 @@ Detailed week6 yeast and week8 prepared-slide procedures are now in document04, 
 | Week | Objective and design | Materials | Key risk/control, check and alternative |
 |---|---|---|---|
 | 01 | Repeatable leaf-length observations | Ruler,5safe leaves | Allergy/site inspection; units/duplicates; approved household leaves |
-| 02 | Interpret qualitative indicator evidence | Original synthetic descriptions/paper | No chemicals or physical demonstration; model only; no exact pH or sample identity; accessible words/tokens |
+| 02 | Interpret qualitative indicator evidence | Original example descriptions/paper | No chemicals or physical demonstration; model only; no exact pH or sample identity; accessible words/tokens |
 | 03 | Observe plant-cell structures | Microscope/prepared slide | Adult glass/tool handling; observed vs drawn; camera/image-analysis alternative |
 | 04 | Measure osmosis-related mass changes | Potato, salt, balance | Adult cutting/eye protection; replicates/percent change; accessible partner weighing |
 | 06 | Compare yeast/sugar gas proxy | Food yeast, sugar, lukewarm water, open cups | Adult checks safe lukewarm temperature; **never seal**; allergies/no inhaling powder; equal cups/time and repeats; observe open-cup foam, not exact gas volume; adult demo alternative |
@@ -80,14 +80,14 @@ Detailed week6 yeast and week8 prepared-slide procedures are now in document04, 
 | 16 | Evaluate biotech evidence | Two adult-approved public summaries and study extracts | No genetic testing or personal data; compare method/sample/conflicts; accessible text alternatives |
 | 18 | Model selection over generations | Paper traits, timed selection rules | No living organisms used; avoid implying choice/goal; compare replicates; accessible non-timed selection |
 | 20 | Describe leaf-form diversity | Safe site, ruler, field sheets | Weather/ticks/allergies/access; adult supervision, no tasting/picking; broad categories not species certainty; adult-provided safe samples |
-| 22 | Evaluate a hypothetical germination comparison | Original synthetic counts/paper | Physical damp-seed setup excluded; no mold handling; interpret supplied counts, not organism experimentation |
+| 22 | Evaluate a hypothetical germination comparison | Original example counts/paper | Physical damp-seed setup excluded; no mold handling; interpret supplied counts, not organism experimentation |
 | 24 | Compare two microhabitats | Thermometer, light/shade notes, field sheets | No digging/animal handling, safe weather/site; repeated time/site caveat; accessible courtyard/teacher readings |
 | 26 | Explore surface-area/volume model | Pre-cut paper cubes, ruler | No cutting by unsupported learners; count faces/volume, not real gas exchange; explain scale limitations; tactile blocks |
 | 28 | Model mark-recapture assumptions | Large cards/tokens, bag | No live animal trapping; no small choking pieces near children; mixing and population assumptions; oversized tactile cards |
 | 30 | Observe litter/leaf distribution | Quadrat string/frame, field log | No handling litter/fungi/sharps; adult-controlled safe site; observations not decomposition experiment; remote observation from safe path |
 | 32 | Repeat leaf study with better protocol | Same ruler/type of safe samples | Reapprove site/allergies; compare matched measurement rules and explain sampling change; approved indoor leaves |
 
-**Week22 paper replacement:** no seeds, containers, damp materials or mold inspection/disposal are authorized. Use this original **synthetic** day7 dataset: water-condition A has 8/10 and 7/10 seeds showing an emerged radicle in hypothetical replicates; B has 4/10 and 5/10. Define the counted event; calculate A=15/20=75%, B=9/20=45%, difference30 percentage points. Preserve replicate counts and explain that invented small samples do not demonstrate a real causal effect or seed viability. Identify necessary future controls (seed batch, light, temperature, timing, sample sizes), confounds and a stop plan as paper design only. Use the existing90m investigation slot; no daily growing/inspection time or extra homework. File paper materials; no biological disposal. A future physical study requires a complete separately reviewed setup-to-disposal method and site controls.
+**Week22 paper replacement:** no seeds, containers, damp materials or mold inspection/disposal are authorized. Use this original **example** day7 dataset: water-condition A has 8/10 and 7/10 seeds showing an emerged radicle in hypothetical replicates; B has 4/10 and 5/10. Define the counted event; calculate A=15/20=75%, B=9/20=45%, difference30 percentage points. Preserve replicate counts and explain that invented small samples do not demonstrate a real causal effect or seed viability. Identify necessary future controls (seed batch, light, temperature, timing, sample sizes), confounds and a stop plan as paper design only. Use the existing90m investigation slot; no daily growing/inspection time or extra homework. File paper materials; no biological disposal. A future physical study requires a complete separately reviewed setup-to-disposal method and site controls.
 
 ## Specialist/facility needs and supervision
 

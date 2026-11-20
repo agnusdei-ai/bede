@@ -2,6 +2,10 @@
 
 **Review edition · October 28, 2026 · Not a published or accredited offering**
 
+**Current evidence status:** the repository terminology revision changed
+source/report bytes. Prior approvals are historical and require re-review;
+see [revision and evidence status](reviews/TERMINOLOGY-REVISION.md).
+
 **Current scope decision:** the owner now prioritizes substantive Grades 9–12
 content development over unfinished Grade 8 and requests rapid reuse of the
 already identified open resources. This supersedes the earlier research-only

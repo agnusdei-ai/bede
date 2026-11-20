@@ -4,7 +4,7 @@
 
 ## Decision
 
-Grade 9 is **not a completed or available year**. The current material has a 36-week map, nine authored teaching weeks, assessments, a lab plan, original biology notes and a synthetic Python project. Existing independent agent records pass their version-bound evidence gate for their stated scope. They do not approve a full year, rights ingestion, accessibility, lab sites, credits, pilots or publication.
+Grade 9 is **not a completed or available year**. The current material has a 36-week map, nine authored teaching weeks, assessments, a lab plan, original biology notes and an example-data Python project. Prior independent agent records describe earlier versions. The terminology revision changes source/report bytes, so those records no longer pass the current-hash gate; re-review is required. They do not approve a full year, rights ingestion, accessibility, lab sites, credits, pilots or publication.
 
 The task description's four-week baseline is historical. Existing weeks 5–9 and replacement reviews were already present before this audit; this task neither authored those weeks nor marks the separate production/review tasks complete. Read historical findings through their final appended dispositions: STEM finding R-M2 was subsequently closed by excluding erroneous external examples and supplying original corrected inputs. The current gate passes; the early “changes required” paragraph is not the final disposition.
 

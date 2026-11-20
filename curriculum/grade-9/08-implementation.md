@@ -26,7 +26,7 @@ Share two meeting days, instructor costs, microscopes/prepared slides and access
 
 Academic lead verifies standards coverage, prerequisites, required credits/seat time or competency evidence, adopted resources and nondevotional suitability. Special-education/accessibility staff verify supports and actual digital materials. IT/privacy leads review data flow, tools, age/consent, device access, network/retention and vendor agreements. Procurement approves contracting/payment/insurance requirements under the operator's policies.
 
-This curriculum **does not change** the current teacher-only, synthetic-only Bede school-pilot scope. Use documents as adult review materials unless a separately qualified deployment and signed scope permit more. No real student upload, automatic grading or transcript workflow is authorized by this package.
+This curriculum **does not change** the current teacher-only, example-data-only Bede school-pilot scope. Use documents as adult review materials unless a separately qualified deployment and signed scope permit more. No real student upload, automatic grading or transcript workflow is authorized by this package.
 
 ## Practical setup checklist
 

@@ -133,12 +133,12 @@ Read M02: Wallace §§1.1–1.2 opening explanations/first two examples, at most
 Read original note B02 water/pH, 5–10m; no advanced chemistry prerequisites assumed.
 
 - **Day1 60m:** read B02's original water/pH explanation; draw its two-water-molecule partial-charge model on paper and answer its charge/bond check. Distinguish a neutral polar molecule from an ion and an attraction between molecules from a covalent bond within one. Use B02's pH6-versus7 tenfold explanation without logarithm calculations. This is conceptual paper modeling, not chemical handling.
-- **Day2 30m:** prepare investigation2 comparison table and read the synthetic case in document06. No indicator, chemical preparation or physical demonstration is authorized.
-- **Day3 90m:** paper indicator investigation: define comparison10, interpret synthetic observations30, compare repeats15, discuss limitations15, record10, organize materials10. Label model/supplied-data work, not a physical lab.
+- **Day2 30m:** prepare investigation2 comparison table and read the example case in document06. No indicator, chemical preparation or physical demonstration is authorized.
+- **Day3 90m:** paper indicator investigation: define comparison10, interpret example observations30, compare repeats15, discuss limitations15, record10, organize materials10. Label model/supplied-data work, not a physical lab.
 - **Day4 60m:** analyze the supplied color descriptions for three coded samples; explain why lighting/indicator concentration could affect appearance. No measured pH or chemical identity can be recovered from these invented observations.
 - **Day5 60m:** original prompt: “A learner says blue color proves pH exactly9. Correct the claim.” Write a report and defend limitations.
 
-**Key:** these coded, uncalibrated synthetic color descriptions establish neither acid/base identity nor exact pH. A/B agree across repeats; C differs. Actual indicator interpretation would require calibration and controlled conditions, neither supplied by these invented data. See investigation2 for the paper-only model; no chemical preparation, handling or physical demonstration is authorized.
+**Key:** these coded, uncalibrated example color descriptions establish neither acid/base identity nor exact pH. A/B agree across repeats; C differs. Actual indicator interpretation would require calibration and controlled conditions, neither supplied by these invented data. See investigation2 for the paper-only model; no chemical preparation, handling or physical demonstration is authorized.
 
 ### Latin — 300m
 
@@ -277,7 +277,7 @@ Use the editions in document 02. No external exercises or whole college chapters
 
 Replacement history locators: UNG §§5.9.3/5.9.5 (exchange/Persian Wars), §§3.5–3.6 (South Asia/Indus), §§3.7.3/3.8.3/3.9 (later Vedic context/Buddhism/Maurya), and Macaulay's Herodotus III.89–90 (reported tribute). These are not aliases for the removed text. The [replacement register](resources/REPLACEMENT-REGISTER.md) pins independent editions, paragraph rules, exclusions and source links.
 
-**Access and integrity:** allow speech-to-text/scribe for composition, accessible graph grids or coordinate tables, large-print/tactile Latin endings, read-aloud historical text and paper code traces. A support may remove a motor/decoding barrier without supplying the argument. Record writing evidence separately from oral reasoning. Lab alternatives must identify physical observation, adult demonstration, image interpretation, model or supplied data. Never award microscope-operation or independent measurement evidence for an image or synthetic dataset. Preview violence, bereavement, coercion and enslavement; allow the specified non-graphic passages plus adult summary, with the same evidence/counterevidence objective. No learner must disclose personal trauma or religious belief.
+**Access and integrity:** allow speech-to-text/scribe for composition, accessible graph grids or coordinate tables, large-print/tactile Latin endings, read-aloud historical text and paper code traces. A support may remove a motor/decoding barrier without supplying the argument. Record writing evidence separately from oral reasoning. Lab alternatives must identify physical observation, adult demonstration, image interpretation, model or supplied data. Never award microscope-operation or independent measurement evidence for an image or example dataset. Preview violence, bereavement, coercion and enslavement; allow the specified non-graphic passages plus adult summary, with the same evidence/counterevidence objective. No learner must disclose personal trauma or religious belief.
 
 ## Week 5 — Journeys and exchange
 
@@ -427,7 +427,7 @@ print(total, count)
 4. Compare the two repeats in each treatment; plot heights against minutes or use a labeled table. Sugar is independent variable; foam height the dependent proxy; equal water, yeast, mixing, time, temperature and cup shape are controls.
 5. Adult disposes promptly under local rules; do not store/incubate the mixture or reuse as food. Wash hands and surfaces. No conclusion about exact CO₂ volume, total respiration rate or exclusive pathway is warranted.
 
-**Supplied synthetic access/practice table, 10min only:** S1=12mm, S2=8mm; N1=3mm, N2=5mm. Means10mm versus4mm; ranges4mm versus2mm. Difference6mm concerns foam layers, not gas volume. An adult demonstration with learner-directed timing is real observation; these numbers alone are **supplied-data analysis**, not a performed investigation. A no-contact observer/partner can record actual measurements. Null/reversed actual results remain valid records; examine temperature, mixing and repeat variation rather than replacing them with the key.
+**Supplied example access/practice table, 10min only:** S1=12mm, S2=8mm; N1=3mm, N2=5mm. Means10mm versus4mm; ranges4mm versus2mm. Difference6mm concerns foam layers, not gas volume. An adult demonstration with learner-directed timing is real observation; these numbers alone are **supplied-data analysis**, not a performed investigation. A no-contact observer/partner can record actual measurements. Null/reversed actual results remain valid records; examine temperature, mixing and repeat variation rather than replacing them with the key.
 
 ### Latin — 300m
 
@@ -443,7 +443,7 @@ print(total, count)
 
 ### Studio — 150m
 
-**Read/code:** missing is `None`, not numeric zero. `len` is not needed; count only valid records. All values synthetic; valid inputs here are numbers or `None` only.
+**Read/code:** missing is `None`, not numeric zero. `len` is not needed; count only valid records. All values are invented examples; valid inputs here are numbers or `None` only.
 
 ```python
 lengths = [4, 5, None, 5, 8, 2]
@@ -512,12 +512,12 @@ else:
 **Teach/read:** photosynthesis uses light energy to build organic molecules from carbon dioxide and water, releasing oxygen in its overall model. Plant dry matter comes largely from carbon fixed from CO₂, not mainly from soil; minerals remain essential and fresh mass includes much water. Plants also respire, day and night. Reference B07 supplies independent support/check; omit biochemical stage detail and external figures.
 
 - **Day 1, 60m:** normal rhythm: read note, contrast respiration/photosynthesis inputs and outputs, label energy separately from matter.
-- **Day 2, 30m:** 5m retrieve units; 15m inspect synthetic data below; 10m identify controlled variables and a confound.
+- **Day 2, 30m:** 5m retrieve units; 15m inspect example data below; 10m identify controlled variables and a confound.
 - **Day 3, 90m:** 10m identify **paper model/supplied-data** status; 25m arrange tactile/input-output cards; 25m graph table; 20m interpret limitations; 10m record/clear station. No plants were grown in this exercise.
 - **Day 4, 60m:** normal rhythm: critique “plants eat soil”; explain why measuring fresh mass alone cannot identify carbon source.
 - **Day 5, 60m:** normal rhythm: submit diagram plus150–200-word data interpretation; explain one relation the simplified model omits.
 
-**Synthetic dataset:** equal-type model seedlings, initial dry mass0.20g each; final dry masses after14days: light group0.32,0.30,0.34g; dark group0.16,0.18,0.17g. This is invented instructional data, not an experiment report or published result. No learner dries/heats living material.
+**Example dataset:** equal-type model seedlings, initial dry mass0.20g each; final dry masses after14days: light group0.32,0.30,0.34g; dark group0.16,0.18,0.17g. This is invented instructional data, not an experiment report or published result. No learner dries/heats living material.
 
 **Practice/key:** mean final masses0.32g and0.17g; mean changes+0.12g and−0.03g. Pattern is consistent with net growth under light and reserve use in darkness, not proof of a sole mechanism or valid population estimate from three fictional samples. Watering, initial size, species and temperature would require control in a physical study. Neither soil minerals being necessary nor roots absorbing water means most dry matter comes from soil.
 
@@ -537,7 +537,7 @@ else:
 
 **Read/teach:** minimum/maximum are smallest/largest observed values; range=max−min, not a confidence interval. Use Python `min`, `max`, `len` as supplied tools, not a requirement to implement them.
 
-- **Day 1:** order synthetic A=[4,5,5,6] and B=[1,5,5,9] on paper.
+- **Day 1:** order example A=[4,5,5,6] and B=[1,5,5,9] on paper.
 - **Day 2:** calculate means/min/max/ranges by hand.
 - **Day 3:** execute `print(min(A), max(A), max(A)-min(A))` after defining A; repeat B. Check an empty list before calling min/max (`if len(A) == 0: print("No measurements")` with computation in `else`).
 - **Day 4:** explain why equal means need not mean equal spread; write two limits about sampling and measurement.
@@ -603,7 +603,7 @@ else:
 4. Compute dividing/(dividing+not visibly dividing)×100; report uncertain count separately and denominator explicitly. Do not silently discard uncertainty or cherry-pick fields.
 5. Adult returns prepared slides safely and cleans station. No disposal of glass in household trash.
 
-**Synthetic fallback, not observed microscopy:** fieldA dividing2/nondividing8/uncertain1; B1/9/0; C3/7/2. Total6/24/3; six of30 classifiable cells=20%, with3 unresolved. If all33 are denominator, six confirmed dividing are18.2% and uncertainty remains; do not call either “20% of all plants.” This snapshot cannot establish cancer or phase duration without additional assumptions/evidence. Tactile category cards from these counts support proportion reasoning but are a model, not observation.
+**Example fallback, not observed microscopy:** fieldA dividing2/nondividing8/uncertain1; B1/9/0; C3/7/2. Total6/24/3; six of30 classifiable cells=20%, with3 unresolved. If all33 are denominator, six confirmed dividing are18.2% and uncertainty remains; do not call either “20% of all plants.” This snapshot cannot establish cancer or phase duration without additional assumptions/evidence. Tactile category cards from these counts support proportion reasoning but are a model, not observation.
 
 ### Latin — 300m
 
@@ -623,7 +623,7 @@ else:
 
 - **Day 1:** label the project's existing rows development/regression; explain why prior exposure matters.
 - **Day 2:** learner writes expected outputs for development rows and freezes a baseline copy.
-- **Day 3:** adult privately prepares four new synthetic held-out cards using the recipe below; learner sees only the protocol, not the cards or key. No species labels.
+- **Day 3:** adult privately prepares four new example held-out cards using the recipe below; learner sees only the protocol, not the cards or key. No species labels.
 - **Day 4:** learner writes no-peeking plan: freeze rule, run once, report all cases, separate unknown reference; any later tuning retires that set. This fixed rule does not train statistically.
 - **Day 5:** rehearse trace on old rows; hand adult frozen code/paper flowchart and plan for week9. Do not execute the new held-out set yet.
 
@@ -674,7 +674,7 @@ else:
 - **Day 1, 60m:** normal rhythm: choose cell drawing, energy model and actual/supplied dataset; label evidence mode and correct overclaims.
 - **Day 2, 30m:** 10m adult approves safe station;10m learner recalls stop/cleanup;10m plan remeasurement of two adult-approved safe leaves or non-contact adult demo. Use investigation1 rules, no new hazards.
 - **Day 3, 90m:** 10m safety brief;25m measure/remeasure two safe leaves and label units;20m compare personal cell drawing with reference;25m orally distinguish observation/inference/model;10m cleanup. Record this as quarter practical/revisit, not an additional designated ledger investigation. If image-only access, report no instrument-operation evidence.
-- **Day 4, 60m:**40m document05 Biology check;15m discuss uncertainty/denominators;5m record. Use actual notebook data where available; any fallback is explicitly synthetic.
+- **Day 4, 60m:**40m document05 Biology check;15m discuss uncertainty/denominators;5m record. Use actual notebook data where available; any fallback is explicitly labelled as invented example data.
 - **Day 5, 60m:**20m lab rubric feedback;20m revise one conclusion;15m no-AI explanation of photosynthesis versus respiration;5m next plan.
 
 **Key/check:** safety is a mandatory stop/reteach gate regardless of score. Leaf repeats reveal measurement agreement, not growth during minutes. Only label structures actually visible in the drawing. Plants respire as well as photosynthesize; photosynthesis stores light energy in organic matter, respiration transfers chemical energy for cellular use. Six of30 means20% of classified sample, not all tissue. Score lab rubric /20 with distinct notes for actual measurement, supplied data and model reasoning; never replace a missing practical skill with a high essay mark.
@@ -711,7 +711,7 @@ else:
 
 **Read:** document07 “Runnable baseline — learner instructions” and “Worked error analysis” only; use existing Python baseline or paper rule. Full-year12–20-observation field project is not newly due this week.
 
-- **Day 1:** freeze version1, check no names/locations, attach synthetic-data provenance and run instructions.
+- **Day 1:** freeze version1, check no names/locations, attach example-data provenance and run instructions.
 - **Day 2:** run familiar regression tests; preserve the known mismatched-record failure and missing-data abstention rather than editing reference labels to improve scores.
 - **Day 3:** before seeing results, predict then execute adult-held fresh cards from week8; record every output and expected label. A paper interpreter traces the same branches.
 - **Day 4:** classify errors as input/reference uncertainty or rule limitation; report counts/denominators separately for old regression and new held-out cases; do not tune on new results and call them unseen again.

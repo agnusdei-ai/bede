@@ -48,13 +48,13 @@ In aqueous solutions lower pH indicates more acidic conditions. For this introdu
 
 An indicator's appearance must be related to known comparison conditions before it supports a pH inference. Invented color descriptions without calibration do not establish exact pH or even reliable acid/base identity. The course investigation is paper-only; this note authorizes no chemical handling. Support: S14 for polarity/attraction; S13 for the concentration/logarithmic relationship; S3 for general pH terminology. The cellular glossary pages are not claimed to establish these chemical mechanisms.
 
-**Check/key:** Is an entire water molecule an ion because it has partial charges? No: partial charge distribution does not change its net neutrality. Does the dotted intermolecular line represent the same bond as an O–H line within a molecule? No: distinguish hydrogen bonding from the covalent O–H bond. Which has greater hydrogen-ion concentration, pH6 or7? pH6, by tenfold in this model. “Blue proves pH9” still fails without calibration and controlled viewing. Record invented observations as supplied synthetic data. Link: investigation2 and document04 week2; these checks replace part of day1's instruction, not extra homework.
+**Check/key:** Is an entire water molecule an ion because it has partial charges? No: partial charge distribution does not change its net neutrality. Does the dotted intermolecular line represent the same bond as an O–H line within a molecule? No: distinguish hydrogen bonding from the covalent O–H bond. Which has greater hydrogen-ion concentration, pH6 or7? pH6, by tenfold in this model. “Blue proves pH9” still fails without calibration and controlled viewing. Record invented observations as supplied example data. Link: investigation2 and document04 week2; these checks replace part of day1's instruction, not extra homework.
 
 ## B03 — Cells and what a microscope resolves
 
-A membrane separates the cell interior from its environment while allowing regulated exchange. Cytoplasm contains cellular components and many reactions. In eukaryotic cells the nucleus contains most DNA; mitochondria participate in energy transfer. Plant cells additionally have a cell wall, and many photosynthetic plant cells contain chloroplasts. Not every plant tissue has visible chloroplasts.
+A membrane separates the cell interior from its environment while allowing regulated exchange. Cytoplasm contains cellular components and many reactions. In eukaryotic cells the nucleus contains most DNA; mitochondria participate in energy transfer. Plant cells additionally have a cell wall, and many plant cells that perform photosynthesis contain chloroplasts. Not every plant tissue has visible chloroplasts.
 
-A reference sketch is a model, not a record of what a learner saw. Draw only resolved structures in the observational record; label an unresolved nucleus “not resolved,” not “absent.” Onion bulb epidermis is not a reason to invent chloroplast observations. Support: S1/S2; S4 photosynthetic context.
+A reference sketch is a model, not a record of what a learner saw. Draw only resolved structures in the observational record; label an unresolved nucleus “not resolved,” not “absent.” Onion bulb epidermis is not a reason to invent chloroplast observations. Support: S1/S2; S4 context for photosynthesis.
 
 **Check/key:** A clear cell boundary does not prove a nucleus was visible. Keep an original model sketch separate from the actual microscope drawing. Link: investigation 3; Q1 drawing assessment.
 
@@ -184,7 +184,7 @@ In vascular plants, xylem conducts water and dissolved minerals; phloem transpor
 
 ## B22 — Nutrients and study design
 
-Plants need mineral nutrients as well as water, carbon dioxide and light. Both deficiency and excess can interfere with growth; more of a substance is not automatically better. Germination and later growth are distinct outcomes. An experiment needs a defined treatment, outcome, comparable groups and replicates. A synthetic germination table is supplied-data analysis, not growing plants. Support: S8 Soils and Plant Adaptations; S4.
+Plants need mineral nutrients as well as water, carbon dioxide and light. Both deficiency and excess can interfere with growth; more of a substance is not automatically better. Germination and later growth are distinct outcomes. An experiment needs a defined treatment, outcome, comparable groups and replicates. An example germination table is supplied-data analysis, not growing plants. Support: S8 Soils and Plant Adaptations; S4.
 
 **Check/key:** Name the denominator for germination proportion and distinguish “not germinated by this time” from “dead.” Link: investigation 22; no growing/mold handling.
 

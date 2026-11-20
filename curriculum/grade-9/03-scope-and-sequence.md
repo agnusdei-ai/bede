@@ -29,7 +29,7 @@ For H/B/M the register's matching week row is the exact reading assignment, incl
 - **L:** support a comparison → *Odyssey* III–IV → compare hosts using two quotations; 250 words → check evidence and fair comparison.
 - **H:** connect environment and settlement without determinism → H02: UNG §§1.5–1.6 → map food production and write two competing explanations → check chronology and uncertainty.
 - **M:** preserve equality → M02: Wallace §§1.1–1.2 → one-/two-step equations → explain inverse operations and verify substitution.
-- **B:** connect water/chemistry to life → B02 water/pH → investigation 2 synthetic indicator evidence model, no chemical handling → distinguish uncalibrated descriptions from exact pH and label supplied data.
+- **B:** connect water/chemistry to life → B02 water/pH → investigation 2 example indicator evidence model, no chemical handling → distinguish uncalibrated descriptions from exact pH and label supplied data.
 - **T:** inflect first-declension singular → noun-case topic → nominative/accusative/dative cards; five original translations → parse endings rather than word order.
 - **C:** execute a sequence → Python variables/print, studio starter → print a non-sensitive observation → compare actual vs intended output.
 - **Connection:** models simplify; a label or equation must keep its meaning.
@@ -213,7 +213,7 @@ For H/B/M the register's matching week row is the exact reading assignment, incl
 - **L:** interpret translated philosophical verse → *Gita* II selected opening dialogue and action passages → context note and analytical paragraph → no required belief statement.
 - **H:** compare Olmec and early Mesoamerican evidence → H22: UNG §10.5.2 prose only → textual account of material evidence, no reproduced object image → state uncertainty about meanings.
 - **M:** solve rational equations → M22: Wallace §7.7 → verify and reject excluded roots → oral explanation.
-- **B:** evaluate a hypothetical plant-response study → B22 plant nutrition → investigation 22 synthetic germination counts, no growing/mold handling → variables/replicates report, not physical experimentation.
+- **B:** evaluate a hypothetical plant-response study → B22 plant nutrition → investigation 22 example germination counts, no growing/mold handling → variables/replicates report, not physical experimentation.
 - **T:** perfect system → perfect endings/review → original past-tense passage → parse before translating.
 - **C:** separate correlation and causation → germination dataset → compare groups with caveats → no causal claim from convenience data.
 - **Connection:** action can be interpreted ethically while experiments test a narrower empirical question.

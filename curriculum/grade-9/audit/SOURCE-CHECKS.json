@@ -6,7 +6,7 @@
     "wrong version denied",
     "agent identity cannot impersonate human",
     "nonapproval denied",
-    "synthetic original structural approval accepted (not authentication)",
+    "mock original structural approval accepted (not authentication)",
     "verbatim licensed denied",
     "verbatim original denied"
   ],
@@ -20,5 +20,5 @@
     "homeschool-api/services/curriculum/persistence.py": "cad49612c013e783b4476dbae3aac8e10d50f6646a429f556bc1457f9b27e05e",
     "homeschool-api/services/curriculum/flag.py": "d6210ead7bd4d107b97a3fc76871d731a4759f8fd8dc23de383aa1eafdde7138"
   },
-  "limits": "Synthetic pure-model checks only; no upstream pytest, DB, auth, browser, rights or deployment certification."
+  "limits": "Historical mock pure-model checks only; wording normalized after the recorded run. Retained source hashes are historical, not current approval. No upstream pytest, DB, auth, browser, rights or deployment certification."
 }

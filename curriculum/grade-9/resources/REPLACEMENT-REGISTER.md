@@ -151,7 +151,7 @@ Each B code is the **exact matching heading** in [biology-reference-notes.md](bi
 |Week/code|Removed input|New exact note/source support|Exercise/assessment linkage|
 |---|---|---|---|
 |01 B01|§§1.1–1.2 science/organization|B01 Observation/inference/organization;S1–S2|04 W1; investigation1;05 science diagnostic|
-|02 B02|ch2 water/pH|B02 authored partial-charge/two-molecule paper model and pH6/7 tenfold explanation;S3,S13–S14 exact chemical support|04 W2 day1 charge/bond and pH checks replace instruction minutes; investigation2 remains synthetic paper model only|
+|02 B02|ch2 water/pH|B02 authored partial-charge/two-molecule paper model and pH6/7 tenfold explanation;S3,S13–S14 exact chemical support|04 W2 day1 charge/bond and pH checks replace instruction minutes; investigation2 remains example paper model only|
 |03 B03|ch4 eukaryotic cells/figure|B03 Cells/microscope limits;S1–S2,S4|04 W3; investigation3 observation and original sketch|
 |04 B04|ch5 diffusion/osmosis|B04 Diffusion/osmosis;S2,S1|04 W4; investigation4 percent-mass report;05 W4|
 |05 B05|ch6/§6.5 enzymes|B05 Metabolism/energy/enzymes and original two-path energy profile;S1 basic catalysis,S15 exact mechanism support|04 W5 day1 computes hypothetical barriers8/4 and identical change−6; no heating/matches/chemical demonstration|
@@ -171,7 +171,7 @@ Each B code is the **exact matching heading** in [biology-reference-notes.md](bi
 |19 B19|ch20 phylogeny|B19 Relationships/classification and original rooted `((A,B),C)` explanation;S17 ancestor/root prose,S18 genetic revision example,S7 context|Branching hypothesis/limits; no modern tip treated as another's ancestor, no copied tree|
 |20 B20|chs25–26 plant diversity|B20 authored fern/flowering-seed-plant comparison;S18 first two prose paragraphs, not S8 as an unsupported whole plant-taxonomy source|Investigation20 observed-trait leaf key with unknown path; no full nonvascular/vascular sequence or verified species claim|
 |21 B21|ch30 transport|B21 Plant transport;S8 Anatomy B–D|Original xylem/phloem diagram/check|
-|22 B22|ch31 nutrition|B22 Nutrients/study design;S8,S4|Investigation22 synthetic germination table, no growing|
+|22 B22|ch31 nutrition|B22 Nutrients/study design;S8,S4|Investigation22 example germination table, no growing|
 |23 B23|chs27/33 animal form|B23 Animal organization/exchange;S2,S9|Form/function/cube scaling, no ladder model|
 |24 B24|ch44 ecology|B24 Ecology/bounded observation;S10–S11|Investigation24 microhabitat records|
 |25 B25|chs33/40 homeostasis/kidney|B25 Homeostasis/kidneys;S9|Original feedback model, no clinical advice|
@@ -192,7 +192,7 @@ Each B code is the **exact matching heading** in [biology-reference-notes.md](bi
 Read all authored Q1 H/M/B blocks, including daily tasks and assessment keys, rather than merely replacing resource titles. Inspected the independent source PDF contents and Q1 history selections, Macaulay sections and the factual pages named in the notes. No claim of independently verified teaching quality follows from this author check.
 
 - **W1:** historical-method reading now UNG5.7; global orientation/BCE/causation instruction explicitly original rather than asserting nonexistent textbook subheadings. Biology reference now B01. Math original SetA retained, support now Wallace.
-- **W2:** agricultural comparison supported by UNG1.5–1.6; indicator data remain synthetic/uncalibrated with no chemical activity. B02 and original SetB retain misconceptions/keys.
+- **W2:** agricultural comparison supported by UNG1.5–1.6; indicator data remain example/uncalibrated with no chemical activity. B02 and original SetB retain misconceptions/keys.
 - **W3:** mandatory Butler hospitality card replaces uncertain law feature. Mesopotamia stays its own secondary/context strand; Greek epic is not treated as Mesopotamian evidence. B03 requires original model sketch plus honest observation; no copied cell figure. SetC unchanged.
 - **W4:** Egypt/Nubia/Mesopotamia comparison re-pinned; inequalities and osmosis keys unchanged. Original maps/observations, not book images.
 - **W5:** removed all old heading references, copied-map instruction and unsupported “550/539 from the reading.” New trade/Persian Wars prose plus Herodotus89 supports exchange/authority reasoning, with a sixth-century range rather than an exact unfetched source claim. Original rate problems/keys remain.

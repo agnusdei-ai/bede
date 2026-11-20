@@ -1,4 +1,4 @@
-"""Offline audit integrity checks and synthetic source contracts. No app startup."""
+"""Offline audit integrity checks and mock source contracts. No app startup."""
 import argparse
 from dataclasses import replace
 from datetime import datetime
@@ -44,8 +44,8 @@ def verify(repo):
     socket.socket = lambda *a, **k: (_ for _ in ()).throw(AssertionError("Network forbidden"))
     spec.loader.exec_module(module)
     r = module.RightsStatus
-    review = module.ReviewRecord("synthetic-review", "synthetic-item", 1,
-                                "Synthetic Educator", datetime(2026, 11, 12),
+    review = module.ReviewRecord("mock-review", "mock-item", 1,
+                                "Mock Educator", datetime(2026, 11, 12),
                                 module.ReviewDecision.approve)
     checks = []
     cases = [
@@ -57,18 +57,18 @@ def verify(repo):
     ]
     for name, rights, record in cases:
         try:
-            module.require_approvable(item_id="synthetic-item", version=1, rights=rights, review=record)
+            module.require_approvable(item_id="mock-item", version=1, rights=rights, review=record)
         except module.CurriculumModelError:
             checks.append(name)
         else:
             raise AssertionError(name)
-    module.require_approvable(item_id="synthetic-item", version=1, rights=(r.original,), review=review)
-    checks.append("synthetic original structural approval accepted (not authentication)")
+    module.require_approvable(item_id="mock-item", version=1, rights=(r.original,), review=review)
+    checks.append("mock original structural approval accepted (not authentication)")
     for status in (r.licensed, r.original):
         try:
-            module.ContentChunk("synthetic", "source", "locator", "synthetic words", True,
+            module.ContentChunk("mock", "source", "locator", "mock words", True,
                                 "edition", status, ("objective",), "history", "grade9",
-                                "synthetic-campus", module.Visibility.campus,
+                                "mock-campus", module.Visibility.campus,
                                 module.ItemStatus.staged, 1)
         except module.CurriculumModelError:
             checks.append(f"verbatim {status.value} denied")
@@ -81,7 +81,7 @@ def verify(repo):
     ]
     print(json.dumps({"register_records": len(ids), "source_contract_checks": checks,
                       "source_hashes": {f: hashlib.sha256((repo / f).read_bytes()).hexdigest() for f in files},
-                      "limits": "Synthetic pure-model checks only; no upstream pytest, DB, auth, browser, rights or deployment certification."}, indent=2))
+                      "limits": "Mock pure-model checks only; no upstream pytest, DB, auth, browser, rights or deployment certification."}, indent=2))
 
 
 if __name__ == "__main__":

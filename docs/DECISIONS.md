@@ -2426,6 +2426,46 @@ and (h) remain open:
 - **(g) The public demo.** **Decided (2026-11-17, owner):** include the already-built Number Time activity for counting, comparison, addition, subtraction and number bonds, entered through a direct demo action. Visitors may select among those authored topics; the server resolves level from the live demo session's validated K-2 grade. Attempts stay temporary and return `recorded=false`; demo math does not read or write household configuration, keys, ledger or mastery, demo progress/activity stores, or make model calls. This approves Number Time only, not the tutoring invitation or other practice areas, and does not imply saved learner progress. **Amended 2026-11-18 (owner):** Number Time speaks in Bede's own voice, in the demo as in the app, through the same text-to-speech path as the chat, with no other voice as a default. So the round's fixed lines (never the visitor's answers) now go to the configured speech provider, which the demo's Privacy Notice already names for Bede's spoken voice.
 - **(h) Negative evidence for a shown answer.** *Recommended (the owner's wording):* an item that ends with the answer shown (missed twice) records weak negative evidence for that domain, smaller than the 0.25 second-try weight, its exact value a product default; not-understood speech and skipped items stay non-evidence, so a microphone problem never counts against a child. First confirm `phonics.process_evidence` can take a negative observation without changing other callers. To be built in a small separate PR with a test that a child guessing at random over many rounds never reaches "secure". Not built in #849. The guess-rate arithmetic behind it is in [`K2_PRACTICE_RESEARCH.md`](K2_PRACTICE_RESEARCH.md).
 
+**Amendment to (g) (2026-11-19, owner): every K-2 foundation area joins the
+public demo, with Bede's voice, as it is completed.** The direction is that the
+demo shows the whole K-2 foundation, not Number Time alone. Each area in
+`docs/K2_PRACTICE.md` is to appear in the public demo, taught in Bede's own
+voice, once it is **completed and developed**:
+
+- phonics and blending (Sound Time, in the demo since #883);
+- practical math (Number Time, in the demo since #857);
+- map reading (Map Practice, in the demo since #883);
+- and, as each is built: handwriting (letter formation), spelling, copying a
+  sentence, and memory work and recitation.
+
+What this does and does not do:
+
+- **It builds and approves nothing by itself.** Sound Time, Number Time and
+  Map Practice are in the demo today (for kindergarten, grade 1 and grade 2
+  visitors); the owner asked for Sound Time and Map Practice on 2026-11-19,
+  and #883 added them under this boundary. The rest are specified, not
+  built. "Completed and developed" means no area is added before it is built
+  and has passed its own review. Each demo addition is its own change, and
+  the owner signs off on it, as for every change under `demo/` and `site/`.
+- **Bede's voice means Bede's voice in the demo too**: the chat's
+  text-to-speech path, through the speech provider the demo's Privacy Notice
+  names, and never the browser's or an on-device voice. Only each round's fixed lines
+  are spoken, never what a visitor chooses or says.
+- **The 2026-11-17 boundary carries over to every area until the owner changes
+  it.** Attempts are temporary and tied to the visitor's session, and answer
+  responses say `recorded=false`. A demo round never reads or writes household
+  configuration, learner keys, the work ledger, mastery, or the demo's own
+  progress and activity stores, and it makes no model call. Level comes from
+  the visitor's validated K-2 grade. The demo keeps its own copies of each
+  screen and its wire types, with a parity test against the family app's.
+- **The tutoring invitation is a separate decision, not made here.** A round
+  still opens from the demo's own action, not from `invite_practice` in a
+  demo tutoring turn, until the owner rules on that.
+- **The public copy follows each addition.** `site/` says exactly what the
+  demo offers today and is updated in the same change as each addition. The
+  demo's Privacy Notice and `docs/RETENTION_POLICY.md` are checked against what
+  each added round stores and sends before it ships.
+
 ## 41. `[PRODUCT]` The pre-release repair loop guards main by detection, not prevention
 
 **Status:** open · needs: the owner's written confirmation of `main_guard_detect_not_prevent`
@@ -2594,3 +2634,67 @@ which of these Bede enforces and which it only recommends.
 **Related:** entry 20 (whether any local model is good enough to be Bede,
 still open), `docs/UNIX_INSTALLER.md`, `docs/WINDOWS_INSTALLER.md`,
 `docs/PROVIDER_ADAPTERS.md`, `docs/PARENT_SETUP.md`.
+
+## 45. `[PRODUCT]` Stability code freeze for pilot v1.0
+
+**Status:** closed
+
+**Decided (2026-11-17).** The owner asked for the open pull requests to be
+merged or closed and then reconciled under one stability code freeze, with the
+build session deciding any tie and the owner authorizing implementation. This
+entry is that freeze.
+
+- **Scope.** Every merge to `main`, in every directory.
+- **Baseline.** `065e82d5b02a49cf354a7d3b6c818bda3264b5fc`, `main` after #865,
+  #851 and #867 landed. Anything already on `main` at that commit is inside the
+  freeze; anything later must qualify as an exception.
+- **What may still merge.** Only a change that fits one of these, and its pull
+  request says which on a line of its own (`Freeze exception: <n>`):
+  1. A security fix: a dependency patch, an audit allowlist entry with its
+     reasoning, or a pull request opened by `security-patch.yml`.
+  2. A fix for a red `main`, or for a gate that failed because of something the
+     world did rather than something a contributor did.
+  3. A fix for a defect that sample qualification or the repair loop found,
+     with the WebKit reload crash first.
+  4. Documentation or register text describing the system as it already is.
+  5. A revert.
+- **What it does not change.** `site/` and `demo/` changes still need the
+  owner's explicit sign-off, exception or not. #862 stays on the owner's hold,
+  and the pilot work on #837 lands only when the owner says so; the freeze
+  decides neither.
+- **Exit.** The owner's GO or NO-GO in the pilot v1.0 release decision packet
+  (which is on #837 and not yet on `main`), or the owner lifting the freeze in
+  writing. Review it on 2026-12-18 if neither has happened.
+
+**Why it is recorded and not enforced.** Nothing makes a merge to `main`
+impossible (entry 41), so a test could only check that this text exists, not
+that the freeze held. The exception line in each pull request is what a
+reviewer checks.
+
+**Amendment, 2026-11-19: a sixth, standing exception for K-12.** The owner
+ruled that Bede is K-12 and that the work to make it so is not held by the
+freeze. This exception stands until the owner declares K-12 complete in writing.
+
+  6. **K-12 completion.** A change whose purpose is to make Bede serve
+     kindergarten through grade 12: accepting every grade K-12 in the server
+     and the apps, and the content the upper grades need, which the owner has
+     said is coming: grade 9-12 year plans and catalogs, the math, reading and
+     other skill maps and their bands, DIBELS coverage for the upper grades,
+     and the site, docs and tests that state or pin the grade range.
+
+What it does not change, and what each pull request must still do:
+- **No guardrail is relaxed.** The constitution, safeguarding and moderation,
+  consent, privacy, security and the standing refusal to measure a child's
+  faith apply to every grade exactly as they do to K-8.
+- **`site/` and `demo/` still need the owner's explicit sign-off.**
+- **A K-8 instrument is not stretched to cover an upper grade by renaming it.**
+  Until its 9-12 content exists, it declines for those grades (the
+  `DEMO_UPPER_GRADES` paths) rather than reporting K-8 results as high-school
+  mastery; the pull request that adds the content removes that decline and its
+  test in the same change.
+- **The line is `Freeze exception: 6`** on its own line in the pull request,
+  like the other five, and the pull request says which part of K-12 it
+  completes.
+
+The exception ends when the owner declares K-12 complete, or lifts it in
+writing. The freeze's own exit (above) is unchanged.

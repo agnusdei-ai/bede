@@ -43,7 +43,7 @@ export function teacherUploadProblem(files: { size: number }[]): 'file' | 'total
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/avif,.jpg,.jpeg,.png,.webp,.avif,application/pdf,.pdf'
 const TYPES: QuestionType[] = ['multiple_choice', 'true_false', 'short_answer', 'fill_in_blank', 'computation', 'written_response']
-const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8']
+const GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
 
 function readFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -24,7 +24,7 @@ one not" both have something to assert against.
 """
 from datetime import date, timedelta
 
-from models.schemas import VALID_GRADES, ChatMessage, GradeStage, SessionConfig, Subject, TermSchedule
+from models.schemas import CURATED_GRADES, ChatMessage, GradeStage, SessionConfig, Subject, TermSchedule
 from services.ai_service import (
     _TERM_ARTISTS,
     _THIS_WEEK_MARK,
@@ -168,7 +168,7 @@ def test_the_next_grade_picks_up_where_the_last_left_off():
 
 
 def test_within_one_grade_no_term_repeats_an_artist():
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         for schedule, terms in ((TermSchedule.trimester, 3), (TermSchedule.quarterly, 4)):
             artists = [_term_artist(_config(grade=grade, term_schedule=schedule, current_term=t)) for t in range(1, terms + 1)]
             assert len(set(artists)) == terms, (grade, schedule, artists)
@@ -181,7 +181,7 @@ def test_every_rotation_artist_is_reachable_by_some_grade_and_term():
     catalog nobody sees."""
     reached = {
         _term_artist(_config(grade=grade, term_schedule=schedule, current_term=t))
-        for grade in VALID_GRADES
+        for grade in CURATED_GRADES
         for schedule, terms in ((TermSchedule.trimester, 3), (TermSchedule.quarterly, 4))
         for t in range(1, terms + 1)
     }
@@ -195,7 +195,7 @@ def test_rodin_term_lists_only_sculpture_and_says_so():
     are listed for a Rodin term."""
     config = next(
         _config(grade=g, term_schedule=TermSchedule.quarterly, current_term=t)
-        for g in VALID_GRADES for t in (1, 2, 3, 4)
+        for g in CURATED_GRADES for t in (1, 2, 3, 4)
         if _term_artist(_config(grade=g, term_schedule=TermSchedule.quarterly, current_term=t)) == "Auguste Rodin"
     )
     text = _ctx(config)

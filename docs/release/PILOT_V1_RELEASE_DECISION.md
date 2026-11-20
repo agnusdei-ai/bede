@@ -195,6 +195,29 @@ exploration was read-only; agent role was `explore`, tool agent ID
 `913eb3c5-525b-4a40-8069-39ac8185aa0f`; session and model identities were
 not exposed. No production demo session was started.
 
+## Owner decisions recorded 2026-11-20
+
+Recorded from the owner's written answers; they narrow the decisions below
+and do not close them.
+
+- **Data:** sample records only for the pilot; counsel and school
+  authorization are required before any real learner data.
+- **Language:** English-only teacher screens.
+- **Inference:** local-only, with room to point the `local` adapter at a
+  private-network OpenAI-compatible endpoint (`LOCAL_LLM_BASE_URL`, no code
+  change). Teacher quiz paths stay on `resolve_local_only()` and never reach
+  a cloud provider. A different private-fabric protocol would need its own
+  adapter and is not part of v1.0.
+- **Quizzes:** Teacher Quiz Studio and model-drafted quizzes are in scope,
+  not deferred.
+- **Small language models:** Bede will be tested on SLMs.
+  `homeschool-api/scripts/slm_pilot_probe.py` is the by-hand check (tutor tool
+  call, quiz draft, quiz read from text and from a picture). It refuses a
+  public endpoint and any paid provider key, downloads nothing, and reports
+  NOT_RUN, ERROR and NO_VISION distinctly. Its result is NOT RUN until the
+  owner runs it on the chosen model; a PASS still needs a person to read
+  the report.
+
 ## Owner decisions required
 
 Please answer these before selecting a candidate. Recommendations are

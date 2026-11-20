@@ -17,6 +17,7 @@ import BetaSurveyModal from '../components/BetaSurveyModal'
 import { useBetaSurvey } from '../hooks/useBetaSurvey'
 import { SUBJECT_MAP, CORE_AREAS } from '../types'
 import { readCycle, describeWindow, DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
+import { isUpperSchoolGrade } from '../utils/gradeStage'
 import type { SubjectCoverage as SubjectCoverageData } from '../services/api'
 import type { NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, SessionConfig, MasteryProfileSummary, UsageSummary, WorkLedger as WorkLedgerData, PodWorkRoster as PodWorkRosterData } from '../types'
 import {
@@ -658,6 +659,12 @@ export default function Progress() {
   // never overlap. Skip the fetch for a K-2 student rather than showing a
   // card that can never have data — same reasoning as phonics above.
   const activeStudentIsBeyondFoundations = !activeStudentIsFoundations
+  // Grades 9-12 are tutored, but the math skill map and the reading engine
+  // are K-8 instruments and decline for upper grades. Say so once, plainly,
+  // and leave those two rows out rather than showing rows that can never
+  // fill. Work notes, coverage, writing and the rest still record.
+  const activeStudentIsUpperSchool = isUpperSchoolGrade(
+    podStudents.find((s) => s.student_name === activeStudent)?.grade ?? '')
   // The Sound Time note is for a K-2 child whose practice is not switched
   // off. An absent setting is the server's default, todays_subjects.
   const activeStudentHasPractice = activeStudentIsFoundations
@@ -672,13 +679,13 @@ export default function Progress() {
   // never have data for this student is left out entirely rather than shown
   // permanently empty.
   const masteryAreas: MasteryArea[] = [
-    {
+    ...(activeStudentIsUpperSchool ? [] : [{
       key: 'mathematics',
       label: t('mastery.areaMathematics'),
       summary: masterySummary,
       noDataText: t('progress.noMathMasteryData', { name: activeStudent }),
       calibrationText: t('progress.mathMasteryCalibration', { name: activeStudent, count: masterySummary?.evidence_count ?? 0 }),
-    },
+    }]),
     ...(activeStudentIsFoundations ? [{
       key: 'phonics',
       label: t('mastery.areaPhonics'),
@@ -686,7 +693,7 @@ export default function Progress() {
       noDataText: t('progress.noPhonicsMasteryData', { name: activeStudent }),
       calibrationText: t('progress.phonicsMasteryCalibration', { name: activeStudent, count: phonicsSummary?.evidence_count ?? 0 }),
     }] : []),
-    ...(activeStudentIsBeyondFoundations ? [{
+    ...(activeStudentIsBeyondFoundations && !activeStudentIsUpperSchool ? [{
       key: 'literacy',
       label: t('mastery.areaLiteracy'),
       summary: literacySummary,
@@ -746,13 +753,15 @@ export default function Progress() {
       fetchNarrationAssessments(token, activeStudent),
       fetchLearnerProfile(token, activeStudent),
       fetchLearnerBehaviorCheck(token, activeStudent),
-      fetchMasteryProfileSummary(token, activeStudent, 'mathematics'),
+      activeStudentIsUpperSchool
+        ? Promise.resolve(null)
+        : fetchMasteryProfileSummary(token, activeStudent, 'mathematics'),
       fetchMasteryProfileSummary(token, activeStudent, 'composition'),
       activeStudentIsFoundations
         ? fetchMasteryProfileSummary(token, activeStudent, 'phonics')
         : Promise.resolve(null),
       fetchMasteryProfileSummary(token, activeStudent, 'language_exposure'),
-      activeStudentIsBeyondFoundations
+      activeStudentIsBeyondFoundations && !activeStudentIsUpperSchool
         ? fetchMasteryProfileSummary(token, activeStudent, 'literacy')
         : Promise.resolve(null),
       fetchMasteryProfileSummary(token, activeStudent, 'music_knowledge'),
@@ -785,7 +794,7 @@ export default function Progress() {
         setLoadError(e instanceof Error ? e.message : t('progress.failedToLoadProgress'))
       })
       .finally(() => setLoading(false))
-  }, [token, activeStudent, activeStudentIsFoundations, activeStudentIsBeyondFoundations])
+  }, [token, activeStudent, activeStudentIsFoundations, activeStudentIsBeyondFoundations, activeStudentIsUpperSchool])
 
   // ── The beta survey prompt ────────────────────────────────────────────
   // Asked here rather than mid-session for two reasons: a parent on this
@@ -905,6 +914,11 @@ export default function Progress() {
                 MasteryOverview.tsx for why the fragmentation was worth
                 removing rather than restyling. Every area's own detail is
                 still here, one tap into its row. */}
+            {activeStudentIsUpperSchool && (
+              <p className="mb-3 rounded-lg border border-gray-200 bg-parchment-100 p-3 text-sm text-gray-700" data-testid="upper-school-note">
+                {t('progress.upperSchoolNote', { name: activeStudent })}
+              </p>
+            )}
             <MasteryOverview areas={masteryAreas} loading={loading} studentName={activeStudent} />
             {/* Instructor-entered measures are NOT incorporated into these
                 diagnostic mastery estimates. They remain independently

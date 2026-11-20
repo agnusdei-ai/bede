@@ -9,6 +9,7 @@ import QuizBuilder from '../components/QuizBuilder'
 import TeacherQuizStudio from '../components/TeacherQuizStudio'
 import { usePracticeCoachEnabled } from '../hooks/usePracticeCoachEnabled'
 import { fromGenerated } from '../utils/teacherQuiz'
+import { isUpperSchoolGrade } from '../utils/gradeStage'
 import {
   fetchInstructorRoster,
   fetchInstructorFrameworks, fetchInstructorDibelsProgress,
@@ -20,6 +21,8 @@ import type {
   AssessmentFrameworkMetadata, DibelsProgress, DibelsGrade, EducatorPasskeySummary,
   DibelsWindow, EducatorAssessmentBand,
 } from '../services/api'
+
+const DIBELS_GRADES: DibelsGrade[] = ['K', '1', '2', '3', '4', '5', '6', '7', '8']
 
 const TODAY = () => {
   const now = new Date()
@@ -103,7 +106,10 @@ export default function EducatorDesk() {
   useEffect(() => {
     if (!activeConfig) return
     setSubject(activeConfig.subjects[0] ?? 'mathematics')
-    setGrade(activeConfig.grade as DibelsGrade)
+    // DIBELS 8 covers K-8. A grade 9-12 learner is not a DIBELS grade, so
+    // keep the current choice (the grade printed on the report being
+    // entered) instead of putting an invalid value in the select.
+    if (DIBELS_GRADES.includes(activeConfig.grade as DibelsGrade)) setGrade(activeConfig.grade as DibelsGrade)
   }, [activeConfig?.student_name, activeConfig?.grade])
 
   const refreshProgress = async (name: string) => {
@@ -320,6 +326,11 @@ export default function EducatorDesk() {
                     onChange={e => setGrade(e.target.value as DibelsGrade)}>
                     {(dibels?.grades ?? []).map(value => <option key={value} value={value}>{value}</option>)}
                   </select>
+                  {activeConfig && isUpperSchoolGrade(activeConfig.grade) && (
+                    <span className="mt-1 block text-xs text-gray-500" data-testid="dibels-upper-school-note">
+                      DIBELS 8 covers kindergarten through grade 8. Choose the grade printed on the report you are entering.
+                    </span>
+                  )}
                 </label>
                 <label className="text-sm">Testing window
                   <select className={field + ' mt-1'} value={windowName}

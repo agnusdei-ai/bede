@@ -65,4 +65,21 @@ describe('authenticated educator-to-learner journey', () => {
     expect(screen.getByText(/do not establish that Bede caused a learning gain/i)).toBeTruthy()
     expect(screen.getByText(/Transcribe an independently administered assessment report/i)).toBeTruthy()
   })
+
+  it('does not put a grade 9-12 learner into the K-8 DIBELS grade choice', async () => {
+    fetchInstructorRoster.mockResolvedValue([{
+      student_name: 'Learner B', grade: '10', grade_stage: '6-8', subjects: ['mathematics'],
+    }])
+    fetchInstructorFrameworks.mockResolvedValue([{
+      id: 'dibels8', supported_measures: ['ORF'], measure_units: { ORF: 'words_correct_per_minute' },
+      grades: ['K', '1', '2', '3', '4', '5', '6', '7', '8'], windows: ['beginning'],
+    }])
+    render(<MemoryRouter><EducatorDesk /></MemoryRouter>)
+    await waitFor(() => expect(fetchInstructorRoster).toHaveBeenCalled())
+    fireEvent.click(screen.getByRole('button', { name: /See progress/i }))
+    expect(await screen.findByTestId('dibels-upper-school-note')).toBeTruthy()
+    const select = screen.getByLabelText(/Assessed grade/i) as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => o.value)).not.toContain('10')
+    expect(select.value).toBe('4')
+  })
 })

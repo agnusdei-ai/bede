@@ -20,3 +20,12 @@ export function stageForGrade(grade: string): GradeStage | null {
   if (n >= 6 && n <= 12) return '6-8'
   return null
 }
+
+// Grades 9-12 are tutored, but the instruments behind the math and reading
+// mastery rows are K-8 (they decline for upper grades on the server,
+// DEMO_UPPER_GRADES in models/schemas.py). The Progress page uses this to say
+// so plainly instead of showing rows that can never fill.
+export function isUpperSchoolGrade(grade: string): boolean {
+  const n = Number(grade.trim())
+  return Number.isInteger(n) && n >= 9 && n <= 12
+}

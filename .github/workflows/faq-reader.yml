@@ -1,0 +1,119 @@
+name: FAQ reader release gate
+
+on:
+  # No PR paths filter: a required check must not remain pending on unrelated PRs.
+  pull_request:
+  merge_group:
+  push:
+    # A production promotion must have evidence for the exact main commit,
+    # including after a squash merge or a change outside the FAQ files.
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: faq-reader-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  faq-reader:
+    name: FAQ copy, PDF and native print cancellation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Prepare evidence directory
+        run: mkdir -p generated-artifacts/faq-reader
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: scripts/faq-browser/package-lock.json
+      - name: Install locked portable test dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          npm ci --prefix scripts/faq-browser --ignore-scripts 2>&1 | tee generated-artifacts/faq-reader/dependency-install.log
+      - name: Check the publication boundary fails closed
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test scripts/faq-browser/publication-gate.test.mjs 2>&1 | tee generated-artifacts/faq-reader/publication-boundary.log
+      - name: Install PDF and virtual-display prerequisites
+        shell: bash
+        run: |
+          set -o pipefail
+          sudo apt-get update 2>&1 | tee generated-artifacts/faq-reader/system-update.log
+          sudo apt-get install --yes poppler-utils xvfb xauth 2>&1 | tee generated-artifacts/faq-reader/system-install.log
+      - name: Install pinned Chromium and its operating-system dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          npm exec --prefix scripts/faq-browser -- playwright install --with-deps chromium 2>&1 | tee generated-artifacts/faq-reader/browser-install.log
+      - name: Check FAQ copy, full PDFs and real print-preview Cancel
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" node scripts/faq-browser/release-check.mjs 2>&1 | tee generated-artifacts/faq-reader/gate.log
+      - name: Retain FAQ evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
+        with:
+          name: faq-reader-${{ github.run_id }}-${{ github.run_attempt }}
+          path: generated-artifacts/faq-reader/
+          if-no-files-found: error
+          retention-days: 14
+
+  faq-reader-engines:
+    name: FAQ export parity (${{ matrix.engine }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [firefox, webkit]
+    env:
+      CI: "true"
+      FAQ_EXPORT_ENGINES: ${{ matrix.engine }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Prepare engine evidence
+        run: mkdir -p "generated-artifacts/faq-reader/${{ matrix.engine }}"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: scripts/faq-browser/package-lock.json
+      - name: Install locked test dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          npm ci --prefix scripts/faq-browser --ignore-scripts 2>&1 | tee "generated-artifacts/faq-reader/${{ matrix.engine }}/dependency-install.log"
+      - name: Install virtual display and browser dependencies
+        shell: bash
+        run: |
+          set -o pipefail
+          sudo apt-get update 2>&1 | tee "generated-artifacts/faq-reader/${{ matrix.engine }}/system-update.log"
+          sudo apt-get install --yes xvfb xauth 2>&1 | tee "generated-artifacts/faq-reader/${{ matrix.engine }}/system-install.log"
+          npm exec --prefix scripts/faq-browser -- playwright install --with-deps "${{ matrix.engine }}" 2>&1 | tee "generated-artifacts/faq-reader/${{ matrix.engine }}/browser-install.log"
+      - name: Check real clipboard, unavailable fallback and print-media parity
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" node scripts/faq-browser/release-engines.mjs 2>&1 | tee "generated-artifacts/faq-reader/${{ matrix.engine }}/gate.log"
+      - name: Retain engine evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v4
+        with:
+          name: faq-reader-${{ matrix.engine }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: generated-artifacts/faq-reader/${{ matrix.engine }}/
+          if-no-files-found: error
+          retention-days: 14

@@ -24,10 +24,8 @@ consciously. That is the intended workflow — the table is the artifact a
 reviewer reads to answer "what protects what", and a diff to it is the
 signal that a protection boundary moved.
 """
-import importlib
-
 import pytest
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, _IncludedRouter
 
 # Outermost first — this is `app.user_middleware` order, which is the REVERSE
 # of the add_middleware() call order in main.py (Starlette inserts each new
@@ -45,15 +43,8 @@ EXPECTED_MIDDLEWARE = [
     "SecurityHeadersMiddleware",
 ]
 
-_ROUTER_MODULES = [
-    "auth", "mfa", "recovery", "tutor", "narration", "transcripts", "voice",
-    "admin", "pod", "catalog", "sandbox", "feedback", "diagnostic", "educators",
-    "pilot_diagnostic", "pilot_journey", "pilot_owner", "pilot_tutor_history", "pilot_tutor",
-    "consent", "map_practice", "k2_practice",
-]
-
 # Dependencies that are plumbing rather than protection.
-_NOT_A_GUARD = {"get_db"}
+_NOT_A_GUARD = {"get_db", "bind_request"}
 
 # (method, path) -> the guard chain protecting it, or "PUBLIC".
 #
@@ -63,6 +54,87 @@ _NOT_A_GUARD = {"get_db"}
 # whether the feedback form is switched on. A new PUBLIC row appearing in a
 # diff is the thing to challenge in review.
 GUARDS = {
+    # Public readiness probe, registered directly on the app.
+    ('GET', '/health'): 'PUBLIC',
+    # Public intake and passkey ceremonies authenticate their own tickets or
+    # challenges; invitation and recovery issuance require elevated parent.
+    ('POST', '/inquiries'): 'PUBLIC',
+    ('POST', '/auth/educator-passkey/invite'): 'require_elevated_parent',
+    ('POST', '/auth/educator-passkey/recovery/{educator_id}'): 'require_elevated_parent',
+    ('POST', '/auth/educator-passkey/register/options'): 'PUBLIC',
+    ('POST', '/auth/educator-passkey/register/verify'): 'PUBLIC',
+    ('POST', '/auth/educator-passkey/login/options'): 'PUBLIC',
+    ('POST', '/auth/educator-passkey/login/verify'): 'PUBLIC',
+    ('GET', '/auth/educator-passkey/credentials'): 'require_educator',
+    ('POST', '/auth/educator-passkey/credentials/{credential_id}/revoke'): 'require_educator',
+    # Practice routes combine their audience guard with the feature switch.
+    ('GET', '/practice/status'): 'require_auth',
+    ('GET', '/practice/packs'): 'require_parent+require_practice_coach_enabled',
+    ('GET', '/practice/quiz-options'): 'require_parent+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/quizzes/source'): 'require_parent+require_practice_coach_enabled',
+    ('GET', '/practice/progress/{progress_id}'): 'require_parent+require_practice_coach_enabled',
+    ('GET', '/practice/educator/progress/{progress_id}'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/quiz/source'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/quizzes/generate'): 'require_parent+require_practice_coach_enabled',
+    ('GET', '/practice/educator/quiz-options'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/quiz/generate'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/teacher-quiz/review'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/teacher-quiz/approve'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/teacher-quiz/extract'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/teacher-quiz/score'): 'require_educator+require_practice_coach_enabled',
+    ('POST', '/practice/educator/teacher-quiz/finalize'): 'require_educator+require_practice_coach_enabled',
+    ('GET', '/practice/reading-route'): 'require_parent+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/assessments/read'): 'require_parent+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/assessments'): 'require_parent+require_practice_coach_enabled',
+    ('PUT', '/practice/{student_name}/assessments/{record_id}'): 'require_parent+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/assessments/{record_id}/plan'): 'require_parent+require_practice_coach_enabled',
+    ('GET', '/practice/{student_name}/sets'): 'require_parent+require_practice_coach_enabled',
+    ('GET', '/practice/{student_name}/delivery'): 'require_practice_coach_enabled+require_real_user',
+    ('POST', '/practice/{student_name}/sets/{set_id}/outcomes'): 'require_family_data_write+require_practice_coach_enabled',
+    ('GET', '/practice/demo/packs'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('GET', '/practice/demo/reading-route'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('GET', '/practice/demo/quiz-options'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('POST', '/practice/demo/quiz/generate'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('POST', '/practice/demo/quiz/source'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('GET', '/practice/demo/progress/{progress_id}'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('POST', '/practice/demo/read'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('POST', '/practice/demo/plan'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('POST', '/practice/demo/approve'): 'require_demo_practice_preview+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/sets/{set_id}/approve'): 'require_parent+require_practice_coach_enabled',
+    ('POST', '/practice/{student_name}/sets/{set_id}/discard'): 'require_parent+require_practice_coach_enabled',
+    # Campus administration is elevated; educators additionally resolve a
+    # learner's current assignment inside the route.
+    ('POST', '/pilot/campuses'): 'require_elevated_parent',
+    ('POST', '/pilot/campuses/{campus_id}/learners'): 'require_elevated_parent',
+    ('POST', '/pilot/campuses/{campus_id}/educators/{educator_id}'): 'require_elevated_parent',
+    ('POST', '/pilot/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}'): 'require_elevated_parent',
+    ('DELETE', '/pilot/campuses/{campus_id}/educators/{educator_id}/learners/{learner_id}'): 'require_elevated_parent',
+    ('POST', '/pilot/campuses/{campus_id}/educators/{educator_id}/disable'): 'require_elevated_parent',
+    ('GET', '/pilot/me/learners'): 'require_educator',
+    ('POST', '/pilot/me/learners/search'): 'require_educator',
+    ('GET', '/pilot/me/learners/{learner_id}'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/data-authorization'): '_admin_or_educator',
+    ('POST', '/pilot/campuses/{campus_id}/data-authorization'): '_admin_or_educator',
+    ('POST', '/pilot/campuses/{campus_id}/data-authorization/revoke'): 'require_elevated_parent',
+    ('PUT', '/pilot/campuses/{campus_id}/calendar'): 'require_elevated_parent',
+    ('GET', '/pilot/campuses/{campus_id}/calendar'): 'require_elevated_parent',
+    ('POST', '/pilot/campuses/{campus_id}/benchmark-authorizations'): 'require_elevated_parent',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}'): 'require_educator',
+    ('PUT', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/scores'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/transitions'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/supersede'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/audit'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/evidence'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/proposal'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/proposals/{proposal_id}/decision'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plan'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/progress-monitoring'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plans/{plan_id}/artifact'): 'require_educator',
+    ('POST', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plans/{plan_id}/follow-ups'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/assessments/{assessment_id}/plans/{plan_id}/follow-ups'): 'require_educator',
+    ('GET', '/pilot/campuses/{campus_id}/learners/{learner_id}/data-day'): 'require_educator',
     # K-2 map practice: the learner's own session (or the parent). Each route
     # then checks require_learner_access and consent itself.
     ('GET', '/map-practice/{student_name}/lesson'): 'require_real_user',
@@ -70,6 +142,18 @@ GUARDS = {
     # K-2 phonics practice: the same guards as map practice, for the same reason.
     ('GET', '/k2-practice/{student_name}/phonics/lesson'): 'require_real_user',
     ('POST', '/k2-practice/{student_name}/phonics/lessons/{lesson_id}/answers'): 'require_family_data_write',
+    # K-2 practical math: the same boundary as phonics, chosen deliberately.
+    # Any real (non-demo) learner session may load a lesson; recording an
+    # answer writes family data, so it needs the family-data write guard.
+    ('GET', '/k2-practice/{student_name}/math/lesson'): 'require_real_user',
+    ('POST', '/k2-practice/{student_name}/math/lessons/{lesson_id}/answers'): 'require_family_data_write',
+    # Public-demo Number Time uses the demo identity and remains temporary.
+    ('GET', '/k2-practice/demo/math/lesson'): 'require_demo_practice_preview',
+    ('POST', '/k2-practice/demo/math/lessons/{lesson_id}/answers'): 'require_demo_practice_preview',
+    ('GET', '/k2-practice/demo/phonics/lesson'): 'require_demo_practice_preview',
+    ('POST', '/k2-practice/demo/phonics/lessons/{lesson_id}/answers'): 'require_demo_practice_preview',
+    ('GET', '/k2-practice/demo/maps/lesson'): 'require_demo_practice_preview',
+    ('POST', '/k2-practice/demo/maps/lessons/{lesson_id}/answers'): 'require_demo_practice_preview',
     ('POST', '/pilot/me/learners/{learner_id}/tutoring/chat'): 'require_educator',
     ('GET', '/pilot/me/learners/{learner_id}/tutoring/history'): 'require_educator',
     ('POST', '/pilot/me/learners/{learner_id}/evidence'): 'require_educator',
@@ -242,8 +326,8 @@ GUARDS = {
     # routers/consent.py: every route is parent-only. These carry a child's
     # consent ledger, pause state, full data export and the adult's own
     # greeting name, so a downgrade to require_auth (which admits a child)
-    # must fail this table rather than pass silently. The router was not
-    # walked at all until it was added to _ROUTER_MODULES.
+    # must fail this table rather than pass silently. The assembled-app walk
+    # ensures these routes are included in the comparison.
     ('GET', '/household/consent'): 'require_parent',
     ('POST', '/household/consent'): 'require_parent',
     ('GET', '/household/profile'): 'require_parent',
@@ -259,22 +343,39 @@ GUARDS = {
 }
 
 
-def _assembled_routes():
-    """Every APIRoute the app actually serves.
+_DOC_ROUTES = {
+    ("/openapi.json", "openapi"),
+    ("/docs", "swagger_ui_html"),
+    ("/docs/oauth2-redirect", "swagger_ui_redirect"),
+    ("/redoc", "redoc_html"),
+}
 
-    Walks the router modules rather than `app.routes` because FastAPI 0.141
-    includes routers lazily — `app.routes` holds `_IncludedRouter` wrappers,
-    so filtering it for APIRoute finds one route out of 75 and a test built
-    on it would silently assert almost nothing.
-    """
-    for name in _ROUTER_MODULES:
-        module = importlib.import_module(f"routers.{name}")
-        for route in module.router.routes:
-            if isinstance(route, APIRoute):
+
+def _assembled_routes(app=None):
+    """Walk the actual app, including FastAPI's lazy router contexts."""
+    if app is None:
+        import main
+        app = main.app
+
+    def walk(routes):
+        for route in routes:
+            if isinstance(route, _IncludedRouter):
+                yield from walk(route.effective_candidates())
+            elif isinstance(route, APIRoute):
                 yield route
+            elif isinstance(getattr(route, "original_route", None), APIRoute):
+                yield route
+            else:
+                # FastAPI's optional API documentation routes are Starlette
+                # routes. Unknown non-API routes must not disappear silently.
+                assert (getattr(route, "path", None), getattr(route, "name", None)) in _DOC_ROUTES, (
+                    f"Unreviewed app route: {route!r}"
+                )
+
+    yield from walk(app.routes)
 
 
-def _guard_chain(route: APIRoute) -> str:
+def _guard_chain(route) -> str:
     names = sorted({
         getattr(d.call, "__name__", "")
         for d in route.dependant.dependencies
@@ -347,19 +448,23 @@ def test_the_instance_id_header_is_actually_exposed_cross_origin():
 
 # ── Guard composition ───────────────────────────────────────────────────────
 
+def _guard_drift(app=None):
+    actual = {}
+    for route in _assembled_routes(app):
+        for method in sorted(route.methods):
+            key = (method, route.path)
+            assert key not in actual, f"Duplicate registered route: {key}"
+            actual[key] = _guard_chain(route)
+    return {k: (GUARDS.get(k, "<not in table>"), v) for k, v in actual.items() if GUARDS.get(k) != v}
+
+
 def test_every_endpoint_carries_the_guard_the_table_says_it_does():
     """Catches a guard being downgraded, swapped, or dropped on a real route.
 
     Downgrading transcript reads, voice enrollment, and the parent sandbox
     from require_parent to require_auth — letting a child reach all three —
     was invisible to the entire suite before this."""
-    actual = {
-        (method, route.path): _guard_chain(route)
-        for route in _assembled_routes()
-        for method in sorted(route.methods)
-    }
-
-    drifted = {k: (GUARDS.get(k, "<not in table>"), v) for k, v in actual.items() if GUARDS.get(k) != v}
+    drifted = _guard_drift()
     assert not drifted, (
         "guard chain changed for:\n"
         + "\n".join(
@@ -391,3 +496,50 @@ def test_the_walk_finds_the_whole_application():
     Pin a floor well below the real count but far above the one route
     `app.routes` yields if the lazy-inclusion detail above is ever missed."""
     assert len(list(_assembled_routes())) >= 60
+
+
+def test_newly_registered_router_missing_from_table_is_detected():
+    from fastapi import APIRouter, FastAPI
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    router = APIRouter()
+
+    @router.get("/unreviewed")
+    def endpoint():
+        return {}
+
+    app.include_router(router)
+    assert _guard_drift(app) == {("GET", "/unreviewed"): ("<not in table>", "PUBLIC")}
+
+
+def test_duplicate_registration_cannot_hide_a_guard():
+    from fastapi import APIRouter, FastAPI
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    router = APIRouter()
+
+    @router.get("/unreviewed")
+    def endpoint():
+        return {}
+
+    app.include_router(router)
+    app.include_router(router)
+    with pytest.raises(AssertionError, match="Duplicate registered route"):
+        _guard_drift(app)
+
+
+def test_a_downgraded_parent_guard_is_detected():
+    from fastapi import APIRouter, Depends, FastAPI
+    from core.deps import require_auth
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    router = APIRouter()
+
+    @router.get("/household/profile", dependencies=[Depends(require_auth)])
+    def endpoint():
+        return {}
+
+    app.include_router(router)
+    assert _guard_drift(app) == {
+        ("GET", "/household/profile"): ("require_parent", "require_auth")
+    }

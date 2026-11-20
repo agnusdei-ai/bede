@@ -1,0 +1,17 @@
+{
+  "name": "bede-faq-release-check",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Portable FAQ reader gate for the canonical npm-based Bede repository",
+  "scripts": {
+    "test": "node release-check.mjs",
+    "test:engines": "node release-engines.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

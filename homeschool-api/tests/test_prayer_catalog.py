@@ -10,7 +10,7 @@ from datetime import date
 
 import pytest
 
-from models.schemas import GradeStage, SessionConfig, Subject, VALID_GRADES
+from models.schemas import GradeStage, SessionConfig, Subject, CURATED_GRADES
 from services.ai_service import _build_subject_prompt, _session_position_note
 from services.prayer_catalog import (
     _COLLECTION,
@@ -31,7 +31,7 @@ async def test_every_grade_stage_has_at_least_one_prayer():
 
 
 async def test_every_individual_grade_has_at_least_one_prayer():
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         assert any(grade in e["grades"] for e in _COLLECTION), grade
 
 
@@ -56,7 +56,7 @@ async def test_current_week_is_the_iso_week_number():
 
 
 async def test_prayer_for_week_with_a_grade_only_returns_entries_tagged_for_that_grade():
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         for week in range(1, 53):
             entry = prayer_for_week(grade, GradeStage.foundations, today=date.fromisocalendar(2026, week, 1))
             assert grade in entry["grades"]
@@ -75,7 +75,7 @@ async def test_prayer_for_week_falls_back_to_stage_for_an_unrecognized_grade():
 
 
 async def test_prayer_for_week_changes_across_the_calendar_year():
-    for grade in VALID_GRADES:
+    for grade in CURATED_GRADES:
         titles = {
             prayer_for_week(grade, GradeStage.foundations, today=date.fromisocalendar(2026, week, 1))["title"]
             for week in range(1, 53)

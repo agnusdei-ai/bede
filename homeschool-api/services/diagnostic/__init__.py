@@ -70,6 +70,9 @@ async def process_evidence(
     grade_band: str,
     subject_area: str = "mathematics",
     model: str = "dina",
+    *,
+    skip_calibration_boost: bool = False,
+    count_toward_calibration: bool = True,
 ) -> MasteryVector:
     """
     The real, persistence-backed entry point (design doc §4.8): load and
@@ -93,6 +96,24 @@ async def process_evidence(
     An unknown probe_id is a true no-op: apply_evidence returns no
     MasteryUpdate, so nothing is written and evidence_count doesn't move
     — a typo'd probe id doesn't cold-start a phantom row.
+
+    Two keyword-only flags exist for K-2 practice rounds only
+    (routers/k2_practice.py, owner rulings 2026-11-16, product defaults), the
+    same two phonics.process_evidence carries:
+
+    * `skip_calibration_boost=True` blends at exactly 1.0 instead of
+      calibration_weight_for(...), so a practice answer moves the estimate by
+      its `confidence` alone (0.5 right first try, 0.25 right second try)
+      and never by the early-evidence boost.
+    * `count_toward_calibration=False` keeps the observation out of
+      `evidence_count`, the count that shrinks that boost for Bede's own
+      in-lesson check-ins (record_skill_evidence) and decides whether the
+      parent's summary still says "calibrating". A practice observation on a
+      new row leaves it at 0.
+
+    Every other caller (Bede's record_skill_evidence check-ins, a marked quiz
+    in services/practice/evidence.py) passes neither and behaves exactly as
+    before.
 
     Returns the new vector (not None, unlike the design doc's sketch) so
     Phase 3's dispatcher/prompt-injection code can reuse it in the same
@@ -161,7 +182,10 @@ async def process_evidence(
     evidence_count_before = 0 if vector_is_cold_start else row.evidence_count
     updated_vector, updates = await apply_evidence(
         vector, probe_id, outcome, confidence,
-        calibration_weight=calibration_weight_for(evidence_count_before), model=model,
+        calibration_weight=(
+            1.0 if skip_calibration_boost else calibration_weight_for(evidence_count_before)
+        ),
+        model=model,
     )
 
     if not updates:
@@ -180,12 +204,13 @@ async def process_evidence(
             db.add(MasteryProfile(
                 student_name=student_name,
                 subject_area=subject_area,
-                evidence_count=1,
+                evidence_count=1 if count_toward_calibration else 0,
                 profile_enc=profile_enc,
             ))
         else:
             row.profile_enc = profile_enc
-            row.evidence_count += 1
+            if count_toward_calibration:
+                row.evidence_count += 1
 
         if settings.diagnostic_evidence_log_enabled:
             # Explicit allowlist, not dataclasses.asdict(update) minus

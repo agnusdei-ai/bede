@@ -162,6 +162,13 @@ We can find a clearer path together without rushing.
   it's your turn: tap the right picture, letter or word. If it isn't the one,
   we look again and you try once more, and then I'll show you. You can say
   "not now", and you can close it whenever you like.
+- In Mathematics, I might ask if you'd like to play **Number Time** 🔢. We
+  count counters, fill a ten-frame, and find the missing part of a number
+  bond. I'll show you first and say every word out loud. Then we do two
+  together. Then it's your turn. You can drag a counter onto the frame, or
+  just tap a box, or tap the big buttons to put one in or take one out. When
+  it looks right, tap **Check**. If it isn't the one, we look again and you
+  try once more, and then I'll show you.
 - Sometimes I'll ask you to **tell me back** a story in your own words. That's
   called a *narration*, and it's one of my favorite parts.
 - If your family has picked **Latin** as one of your subjects, we'll learn a few

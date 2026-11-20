@@ -10,9 +10,23 @@ class GradeStage(str, Enum):
     independent = "6-8"        # Rhetoric stage: application & mastery
 
 
-# Valid grade values a visitor can pick, in display order — mirrors
+# Grades with grade-specific curation (catalog year plans, poetry, prayer and
+# picture-study rotation). A grade outside this list still gets everything the
+# stage provides; it just has no year-specific entry yet.
+CURATED_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+
+# Upper school: grades 9-12 are accepted everywhere (owner ruling 2026-11-19:
+# Bede is K-12). They use the independent stage and the exact grade in the tutor
+# prompt. The diagnostic skill map, year plans and DIBELS stay K-8 because they
+# ARE K-8 instruments or content, so every one of those paths keys on this
+# tuple and declines for these grades rather than reporting K-8 results as
+# high-school mastery (see services/demo_upper_school.py).
+DEMO_UPPER_GRADES = ("9", "10", "11", "12")
+
+# Valid grade values a visitor or family can pick, in display order — mirrors
 # services/ai_service.py's _GRADE_DESCRIPTORS keys.
-VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+VALID_GRADES = [*CURATED_GRADES, *DEMO_UPPER_GRADES]
+VALID_DEMO_GRADES = list(VALID_GRADES)
 
 # Bible translations a parent can pick for SessionConfig.bible_translation,
 # in display order — deliberately spans both Protestant and Catholic
@@ -148,9 +162,20 @@ def grade_to_stage(grade: str) -> GradeStage:
         return GradeStage.foundations
     if g in ("3", "4", "5"):
         return GradeStage.core_mastery
-    if g in ("6", "7", "8"):
+    if g in ("6", "7", "8", "9", "10", "11", "12"):
         return GradeStage.independent
     return GradeStage.foundations
+
+
+def demo_grade_to_stage(grade: str) -> GradeStage:
+    """Use the existing older-learner UI envelope, not a new skill registry.
+
+    Upper-school teaching complexity comes from the exact grade in the
+    tutor prompt. This does not certify a 9-12 diagnostic or full-year course.
+    """
+    if grade.strip() in DEMO_UPPER_GRADES:
+        return GradeStage.independent
+    return grade_to_stage(grade)
 
 
 class TermSchedule(str, Enum):
@@ -240,7 +265,7 @@ SUBJECT_DURATIONS = {
     # Same 10 minutes as Latin, and for the same reason — a few words or
     # letters met properly, not a class period. A family running both gets
     # 20 minutes of classical language a day, which is already more than
-    # most K-8 homeschool days give it.
+    # most K-12 homeschool days give it.
     Subject.greek: 10,
     # Longer than the language blocks: a single argument judged properly
     # needs the student to reason out loud, be wrong, and be walked back
@@ -1243,7 +1268,7 @@ class MasteryProfileSummary(BaseModel):
     subject_area:   str = "mathematics"
     evidence_count: int
     calibration:    bool                       # still in cold-start widening phase
-    # Recorded K-2 practice answers in this area (phonics only). They move the
+    # Recorded K-2 practice answers in this area (phonics and math). They move the
     # estimate but are not counted in evidence_count; 0 everywhere else.
     practice_answers: int = 0
     domains:        List[DomainMasteryView]

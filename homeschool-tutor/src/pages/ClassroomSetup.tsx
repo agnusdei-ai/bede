@@ -9,31 +9,35 @@ import {
 } from '../services/api'
 import type { InstructorAccount, LocutoCapacity } from '../services/api'
 
-function parseRoster(text: string): SessionConfig[] {
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
-  if (!lines.length || lines.length > 90) throw new Error('Enter between 1 and 90 learners')
+export const ROSTER_GRADES = ['K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'] as const
+export type RosterGrade = typeof ROSTER_GRADES[number]
+export interface RosterRow { id: number; name: string; grade: RosterGrade | ''; sex: '' | 'M' | 'F' }
+
+const gradeStageFor = (grade: RosterGrade): SessionConfig['grade_stage'] => {
+  const numeric = grade === 'K' ? 0 : Number(grade)
+  return numeric <= 2 ? 'K-2' : numeric <= 5 ? '3-5' : '6-8'
+}
+
+/** Rows chosen on screen to the learner plans the API takes. Grade and sex are
+ * selectors, so only a learner's name is ever typed. */
+export function buildRoster(rows: RosterRow[]): SessionConfig[] {
+  const filled = rows.filter((row) => row.name.trim() || row.grade)
+  if (!filled.length || filled.length > 90) throw new Error('Enter between 1 and 90 learners')
   const names = new Set<string>()
-  return lines.map((line, index) => {
-    const parts = line.split(',').map((part) => part.trim())
-    if (parts.length < 2 || parts.length > 3) {
-      throw new Error(`Line ${index + 1}: use Name,Grade (optional third field: M/F)`)
-    }
-    const [student_name, grade, sex] = parts
-    if (!student_name || student_name.length > 50 || !/^(K|[1-8])$/.test(grade)) {
-      throw new Error(`Line ${index + 1}: enter a learner name and grade K–8`)
-    }
-    if (sex && !['M', 'F'].includes(sex.toUpperCase())) {
-      throw new Error(`Line ${index + 1}: optional sex must be M or F`)
+  return filled.map((row, index) => {
+    const student_name = row.name.trim()
+    if (!student_name || student_name.length > 50 || !ROSTER_GRADES.includes(row.grade as RosterGrade)) {
+      throw new Error(`Learner ${index + 1}: enter a name and choose a grade`)
     }
     if (names.has(student_name.toLowerCase())) throw new Error('Duplicate learner in roster')
     names.add(student_name.toLowerCase())
-    const numeric = grade === 'K' ? 0 : Number(grade)
+    const grade = row.grade as RosterGrade
     return {
       student_name,
       grade,
-      grade_stage: numeric <= 2 ? 'K-2' : numeric <= 5 ? '3-5' : '6-8',
+      grade_stage: gradeStageFor(grade),
       subjects: ['mathematics', 'living_books', 'language_arts'],
-      ...(sex ? { sex: sex.toLowerCase() === 'm' ? 'male' as const : 'female' as const } : {}),
+      ...(row.sex ? { sex: row.sex === 'M' ? 'male' as const : 'female' as const } : {}),
     }
   })
 }
@@ -48,7 +52,7 @@ export default function ClassroomSetup() {
   const [username, setUsername] = useState('')
   const [institutionalEmail, setInstitutionalEmail] = useState('')
   const [selectedId, setSelectedId] = useState('')
-  const [rosterText, setRosterText] = useState('')
+  const [rosterRows, setRosterRows] = useState<RosterRow[]>([{ id: 1, name: '', grade: '', sex: '' }])
   const [capacity, setCapacity] = useState<LocutoCapacity | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
@@ -116,7 +120,7 @@ export default function ClassroomSetup() {
     setBusy(true)
     setMessage('')
     try {
-      const parsed = parseRoster(rosterText)
+      const parsed = buildRoster(rosterRows)
       const result = await assignInstructorRoster(token, selectedId, parsed)
       setCapacity(result.messaging)
       setMessage(`${result.learner_count} authorized. ${result.new_learner_count} new learner plans created.`)
@@ -243,11 +247,35 @@ export default function ClassroomSetup() {
               </option>)}
             </select>
           </label>
-          <label className="block text-sm">Learners (one per line: Name,Grade,optional M/F)
-            <textarea value={rosterText} onChange={e => setRosterText(e.target.value)}
-              rows={7} className="mt-1 block border rounded-lg p-2 w-full font-mono text-sm"
-              placeholder={'Learner A,4\nLearner B,3\nLearner C,K'} />
-          </label>
+          <fieldset className="text-sm space-y-2">
+            <legend className="font-medium">Learners</legend>
+            {rosterRows.map((row, i) => (
+              <div key={row.id} className="flex gap-2 items-center flex-wrap">
+                <input aria-label={`Learner ${i + 1} name`} value={row.name} maxLength={50} placeholder="First name"
+                  onChange={e => setRosterRows(rows => rows.map(r => r.id === row.id ? { ...r, name: e.target.value } : r))}
+                  className="border rounded-lg p-2 flex-1 min-w-[10rem]" />
+                <select aria-label={`Learner ${i + 1} grade`} value={row.grade}
+                  onChange={e => setRosterRows(rows => rows.map(r => r.id === row.id ? { ...r, grade: e.target.value as RosterGrade | '' } : r))}
+                  className="border rounded-lg p-2 min-h-[44px]">
+                  <option value="">Grade</option>
+                  {ROSTER_GRADES.map(g => <option key={g} value={g}>{g === 'K' ? 'Kindergarten' : `Grade ${g}`}</option>)}
+                </select>
+                <select aria-label={`Learner ${i + 1} sex (optional)`} value={row.sex}
+                  onChange={e => setRosterRows(rows => rows.map(r => r.id === row.id ? { ...r, sex: e.target.value as RosterRow['sex'] } : r))}
+                  className="border rounded-lg p-2 min-h-[44px]">
+                  <option value="">Sex (optional)</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+                <button type="button" aria-label={`Remove learner ${i + 1}`} disabled={rosterRows.length === 1}
+                  onClick={() => setRosterRows(rows => rows.filter(r => r.id !== row.id))}
+                  className="border rounded-lg px-3 py-2 min-h-[44px] disabled:opacity-40">Remove</button>
+              </div>
+            ))}
+            <button type="button" disabled={rosterRows.length >= 90}
+              onClick={() => setRosterRows(rows => [...rows, { id: Math.max(...rows.map(r => r.id)) + 1, name: '', grade: '', sex: '' }])}
+              className="border rounded-lg px-3 py-2 min-h-[44px] disabled:opacity-40">Add a learner</button>
+          </fieldset>
           <p className="text-xs text-gray-600">This replaces the instructor’s assignment list. Existing parent-approved learner plans are not overwritten. New learners start with classical books, math, and language arts; the parent can refine their plans in Setup. Import only learners whose authorized adult has approved participation.</p>
           <div className="flex gap-3 items-center flex-wrap">
             <button type="button" disabled={!pilotMode || busy || !selectedId} onClick={() => void importRoster()}
@@ -280,4 +308,3 @@ export default function ClassroomSetup() {
   )
 }
 
-export { parseRoster }

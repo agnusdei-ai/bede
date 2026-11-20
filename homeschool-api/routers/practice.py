@@ -83,7 +83,7 @@ async def list_packs(auth: dict = Depends(require_parent)) -> list[dict]:
 def _quiz_options() -> dict:
     return {
         "subjects": generate.quiz_subjects(),
-        "grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8"],
+        "grades": ["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"],
         "kinds": list(generate.KIND_GUIDANCE),
         "levels": list(generate.LEVEL_GUIDANCE),
         "max_questions": MAX_QUIZ_QUESTIONS,

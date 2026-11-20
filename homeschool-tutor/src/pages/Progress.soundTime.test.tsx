@@ -79,3 +79,20 @@ describe('Progress and Sound Time', () => {
     expect(screen.queryByTestId('sound-time-record-note')).toBeNull()
   })
 })
+
+describe('Progress and Number Time', () => {
+  it('says Number Time keeps one round per sign-in too, for a K-2 child whose practice is not off', async () => {
+    await show([student('Ada', '1', 'K-2')])
+    expect(screen.getByTestId('number-time-record-note').textContent).toBe(en.progress.numberTimeRecordNote)
+    expect(en.progress.numberTimeRecordNote).toMatch(/the first round your child answers/)
+    expect(en.progress.numberTimeRecordNote).toMatch(/practice only/)
+    expect(es.progress.numberTimeRecordNote).toMatch(/la primera ronda que responde tu hijo/)
+    expect(es.progress.numberTimeRecordNote).toMatch(/solo práctica/)
+    cleanup()
+    await show([student('Ada', '1', 'K-2', 'off')])
+    expect(screen.queryByTestId('number-time-record-note')).toBeNull()
+    cleanup()
+    await show([student('Cal', '4', '3-5')])
+    expect(screen.queryByTestId('number-time-record-note')).toBeNull()
+  })
+})

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { BookOpenCheck, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
+import { BookOpenCheck, Calculator, AudioLines, Map as MapIcon, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -48,6 +48,10 @@ import ConsentModal from './ConsentModal'
 import { dismissKeyboard } from './dismissKeyboard'
 import DemoPracticeCoach from './DemoPracticeCoach'
 import DemoPracticeDelivery from './DemoPracticeDelivery'
+import K2MathPractice from './K2MathPractice'
+import K2PhonicsPractice from './K2PhonicsPractice'
+import MapPractice from './MapPractice'
+import { demoMapTransport, demoMathTransport, demoPhonicsTransport } from './api'
 
 interface DisplayMessage {
   id: string
@@ -237,12 +241,13 @@ const FAITH_STORAGE_KEY = 'bede-demo-faith-tradition'
 // here, same lifetime as the name/grade keys above.
 const LOCALE_STORAGE_KEY = 'bede-demo-locale'
 
-// The stage bands the backend's grade_to_stage() uses, mirrored here so the
+// The stage envelopes the backend's demo_grade_to_stage() uses, mirrored here so the
 // handwriting canvas can scale its composition ruling to the child. The
 // demo default (no grade picked) is grade 4, hence the '3-5' fallback.
+// Upper-school practice uses the older-learner ruling, not a lower-grade learning target.
 function demoGradeStage(grade: string): string {
   if (grade === 'K' || grade === '1' || grade === '2') return 'K-2'
-  if (grade === '6' || grade === '7' || grade === '8') return '6-8'
+  if (['6', '7', '8', '9', '10', '11', '12'].includes(grade)) return '6-8'
   return '3-5'
 }
 
@@ -446,6 +451,7 @@ export function CodeScreen({ onLoggedIn }: {
             </label>
             <select
               id="student-grade"
+              aria-describedby="demo-grade-help"
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
               className="w-full text-sm border border-navy-200 rounded-lg px-3 py-2 bg-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-navy-400"
@@ -455,6 +461,9 @@ export function CodeScreen({ onLoggedIn }: {
                 <option key={g} value={g}>{g === 'K' ? t('codeScreen.kindergarten') : t('codeScreen.gradeN', { n: g })}</option>
               ))}
             </select>
+            <p id="demo-grade-help" className="text-xs text-gray-500 mt-1">
+              {t('codeScreen.gradeHelp')}
+            </p>
           </div>
           {/* Optional — the "outside the built-in curriculum" note behind
               the Continuing Mastery card (ChatScreen below): a book or unit
@@ -989,6 +998,11 @@ const MAX_CONSECUTIVE_SILENT_TURNS = 3
 export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   const [showPracticeCoach, setShowPracticeCoach] = useState(false)
+  const [showNumberTime, setShowNumberTime] = useState(false)
+  const [showSoundTime, setShowSoundTime] = useState(false)
+  const [showMapPractice, setShowMapPractice] = useState(false)
+  // Any K-2 round open: chat, auto-continue and chat speech wait until it closes.
+  const practiceOpen = showNumberTime || showSoundTime || showMapPractice
   const [approvedPractice, setApprovedPractice] = useState<DemoPracticeDeliveryItem[]>([])
   const [practiceRun, setPracticeRun] = useState(0)
   // Read once, on mount, before any state below initializes from it — a
@@ -1167,6 +1181,11 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const consecutiveAutoContinues = useRef(0)
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
+  // Number Time speaks in Bede's own voice, the same voice as the chat (owner
+  // direction 2026-11-18), with no other voice as a default. Each line
+  // replaces the one before it, so a tapped answer's reply is heard at once.
+  const speakNumberTime = useCallback((text: string) => { stopSpeech(); speak(text) }, [stopSpeech, speak])
+  const stopNumberTimeSpeech = stopSpeech
 
   // ── Voice input: tap to speak ─────────────────────────────────────────────
   // One tap starts listening for a single utterance; a finished transcript
@@ -1367,7 +1386,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const holdHandlers = holdHandlersRef.current
 
   const awaitingChildTurn =
-    !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing
+    !isStreaming && !isSpeaking && !sessionPaused && !isListening && !isTranscribing && !practiceOpen
 
   // Open the microphone BEFORE the child presses, not at the press — see
   // useVoiceRecorder.ts's own prewarm() comment for why a cold getUserMedia()
@@ -1578,7 +1597,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
       // Awaiting here used to mean the send button, mic, and text input all
       // sat blocked/spinning for the full duration of every TTS attempt;
       // homeschool-tutor's SocraticChat.tsx never had this coupling.
-      if (ttsEnabled && speechSegments.length) speak(speechSegments.join(' '))
+      if (ttsEnabled && !practiceOpen && speechSegments.length) speak(speechSegments.join(' '))
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {
@@ -1602,7 +1621,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
       // advancing while Bede's own transition line is still playing would
       // cut it off mid-sentence.
     }
-  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, speak, stopSpeech, stopListening, onSessionInvalid, t])
+  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, practiceOpen, speak, stopSpeech, stopListening, onSessionInvalid, t])
 
   // Fires once when a turn's text AND speech have both genuinely finished
   // (not just the text) — see the fire-and-forget speak() comment above for
@@ -1648,22 +1667,22 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   // (not as effect dependencies) so a child mid-typing or mid-drawing is
   // never interrupted — those are exactly the moments this must stay quiet.
   useEffect(() => {
-    if (isStreaming || isSpeaking || sessionPaused) return
+    if (isStreaming || isSpeaking || sessionPaused || practiceOpen) return
     if (consecutiveAutoContinues.current >= MAX_CONSECUTIVE_AUTO_CONTINUES) return
     const id = setTimeout(() => {
-      if (inputRef.current.trim() || showCanvas) return  // actively composing or drawing — leave them be
+      if (inputRef.current.trim() || showCanvas || practiceOpen) return  // actively composing, drawing or practicing — leave them be
       consecutiveAutoContinues.current += 1
       runStream(IDLE_CONTINUE_SENTINEL, null)
     }, IDLE_CONTINUE_MS)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused])
+  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused, practiceOpen])
 
   const send = (overrideMsg?: string) => {
     // overrideMsg lets dictation mode send a transcript directly, without a
     // setInput()-then-read round trip through React state.
     const msg = (overrideMsg ?? input).trim()
-    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused) return
+    if ((!msg && !pendingDrawing) || isStreaming || sessionPaused || practiceOpen) return
     stopSpeech()
     stopListening()
     setInput('')
@@ -1777,6 +1796,57 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
           >
             <BookOpenCheck size={16} /><span className="hidden sm:inline">{t('demoPractice.title')}</span>
           </button>
+          {['K', '1', '2'].includes(grade) && (
+            <button
+              type="button"
+              onClick={() => {
+                stopSpeech()
+                stopListening()
+                stopNumberTimeSpeech()
+                setShowNumberTime(true)
+              }}
+              disabled={isStreaming}
+              title={t('k2Math.open')}
+              aria-label={t('k2Math.open')}
+              className="flex min-h-[44px] items-center gap-1 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1.5 text-xs font-semibold text-navy-800 disabled:opacity-40"
+            >
+              <Calculator size={16} /><span className="hidden sm:inline">{t('k2Math.open')}</span>
+            </button>
+          )}
+          {['K', '1', '2'].includes(grade) && (
+            <button
+              type="button"
+              onClick={() => {
+                stopSpeech()
+                stopListening()
+                stopNumberTimeSpeech()
+                setShowSoundTime(true)
+              }}
+              disabled={isStreaming}
+              title={t('demoK2Practice.soundTime')}
+              aria-label={t('demoK2Practice.soundTime')}
+              className="flex min-h-[44px] items-center gap-1 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1.5 text-xs font-semibold text-navy-800 disabled:opacity-40"
+            >
+              <AudioLines size={16} /><span className="hidden sm:inline">{t('demoK2Practice.soundTime')}</span>
+            </button>
+          )}
+          {['K', '1', '2'].includes(grade) && (
+            <button
+              type="button"
+              onClick={() => {
+                stopSpeech()
+                stopListening()
+                stopNumberTimeSpeech()
+                setShowMapPractice(true)
+              }}
+              disabled={isStreaming}
+              title={t('demoK2Practice.mapPractice')}
+              aria-label={t('demoK2Practice.mapPractice')}
+              className="flex min-h-[44px] items-center gap-1 rounded-lg border border-gold-300 bg-gold-50 px-2 py-1.5 text-xs font-semibold text-navy-800 disabled:opacity-40"
+            >
+              <MapIcon size={16} /><span className="hidden sm:inline">{t('demoK2Practice.mapPractice')}</span>
+            </button>
+          )}
           {/* Parent controls — the header's upper right, next to where the
               appearance picker lives, under the fixed text-size control:
               the familiar corner for settings. Stays visible when the
@@ -1866,6 +1936,42 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             setApprovedPractice(items)
             setPracticeRun((run) => run + 1)
           }}
+        />
+      )}
+      {showNumberTime && (
+        <K2MathPractice
+          transport={demoMathTransport(token)}
+          showTopicPicker
+          onClose={() => {
+            stopNumberTimeSpeech()
+            setShowNumberTime(false)
+          }}
+          onSpeak={ttsEnabled ? speakNumberTime : undefined}
+          canSpeak={ttsEnabled}
+        />
+      )}
+      {/* Sound Time and Map Practice: the household app's rounds, built and
+          checked by the server, held only for this demo session and never
+          recorded. Spoken in Bede's own voice only, like Number Time. */}
+      {showSoundTime && (
+        <K2PhonicsPractice
+          transport={demoPhonicsTransport(token)}
+          onClose={() => {
+            stopNumberTimeSpeech()
+            setShowSoundTime(false)
+          }}
+          onSpeak={ttsEnabled ? speakNumberTime : undefined}
+          canSpeak={ttsEnabled}
+        />
+      )}
+      {showMapPractice && (
+        <MapPractice
+          transport={demoMapTransport(token)}
+          onClose={() => {
+            stopNumberTimeSpeech()
+            setShowMapPractice(false)
+          }}
+          onSpeak={ttsEnabled ? speakNumberTime : undefined}
         />
       )}
 
@@ -3182,13 +3288,13 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
             >
               <FlaskConical size={12} /> {t('header.askBede')}
             </button>
-            <button
+            {!['9', '10', '11', '12'].includes(config.grade) && <button
               onClick={onOpenDiagnostic}
               title={t('header.masteryPreviewTooltip')}
               className="flex items-center gap-1 text-xs text-sage-600 hover:text-sage-800 underline"
             >
               <GraduationCap size={12} /> {t('header.masteryPreview')}
-            </button>
+            </button>}
             {feedbackEnabled && (
               <button
                 onClick={() => setShowFeedback(true)}

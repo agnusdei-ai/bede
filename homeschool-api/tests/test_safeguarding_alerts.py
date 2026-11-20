@@ -107,6 +107,28 @@ async def test_a_retried_concern_is_emailed_once(mail, audits):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("role,recipient", [("child", "parent@example.test"), ("educator", "safeguarding@school.test")])
+@pytest.mark.parametrize("picture", [None, "sexual content"])
+async def test_changed_display_name_does_not_change_identity_or_retry_routing(mail, audits, monkeypatch, role, recipient, picture):
+    monkeypatch.setattr(safeguarding_alerts.settings, "school_safeguarding_email", "safeguarding@school.test")
+    args = dict(role=role, student_name="stable-handle", trigger_excerpt="concern",
+                dedupe_source="same-concern", picture=picture)
+    assert await safeguarding_alerts.deliver(**args, display_name="First") == "sent"
+    assert await safeguarding_alerts.deliver(**args, display_name="Second") == "duplicate"
+    assert len(mail) == 1 and mail[0]["to"] == recipient
+    assert "First" in mail[0]["html"] and "stable-handle" not in mail[0]["html"]
+    assert "First" not in mail[0]["subject"] and "stable-handle" not in mail[0]["subject"]
+    entries = [(event, kw) for event, kw in audits if event == AuditEvent.SAFEGUARDING_ALERT]
+    assert [kw["student_name"] for _, kw in entries] == ["stable-handle", "stable-handle"]
+    route = "parent" if role == "child" else "school"
+    kind = "picture" if picture else "message"
+    assert [kw["detail"] for _, kw in entries] == [
+        f"route={route} outcome=sent kind={kind}",
+        f"route={route} outcome=duplicate kind={kind}",
+    ]
+
+
+@pytest.mark.asyncio
 async def test_a_different_picture_or_learner_is_a_new_concern(mail, audits):
     await _deliver(source="picture-a")
     await _deliver(source="picture-b")

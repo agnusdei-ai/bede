@@ -6,7 +6,8 @@ scenario data. That is honest only if the grade-dependent code is small and
 named, so this file pins it at the two places a grade changes anything:
 
 1. models/schemas.py's grade_to_stage(): grade -> one of three bands. The
-   boundaries are 2|3 and 5|6, and anything unrecognised falls to K-2.
+   boundaries are 2|3 and 5|6, grades 9-12 are the independent band (Bede is K-12),
+   and anything unrecognised falls to K-2.
 2. Two band-dependent consumers in services/diagnostic/: new_vector()'s
    cold-start seeds and cat.select_next_probes()'s on-band filter.
 
@@ -35,7 +36,8 @@ GRADE_TARGET = {
     ("1", GradeStage.foundations), ("2", GradeStage.foundations),
     ("3", GradeStage.core_mastery), ("5", GradeStage.core_mastery),
     ("6", GradeStage.independent), ("8", GradeStage.independent),
-    ("9", GradeStage.foundations), ("", GradeStage.foundations),
+    ("9", GradeStage.independent), ("12", GradeStage.independent),
+    ("13", GradeStage.foundations), ("", GradeStage.foundations),
     (" k ", GradeStage.foundations),
 ])
 def test_grade_to_stage_boundaries(grade, stage):

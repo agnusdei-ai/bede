@@ -432,13 +432,13 @@
     "sprintLengthHint": "Un sprint de aprendizaje es un bloque de trabajo concentrado. Bede ofrece una pausa al final de cada sprint, y su hijo siempre puede rechazarla. Un sprint de 1 hora llega hasta el descanso obligatorio de cada hora, que nunca cambia.",
     "trialLicense": "Prueba",
     "practiceOffersLabel": "Práctica que Bede puede ofrecer (K-2)",
-    "practiceOffersHelp": "Práctica corta de sonidos y palabras en Lenguaje y Libros vivos, solo los días en que esas materias están en el plan. Verás cada oferta en la conversación.",
+    "practiceOffersHelp": "Rondas cortas de práctica: sonidos y palabras en Lenguaje y Libros vivos, y fichas y números en Matemáticas, solo los días en que esas materias están en el plan. Verás cada oferta en la conversación.",
     "practiceOffers_off": "Apagado",
     "practiceOffers_offHelp": "Bede no ofrece práctica.",
     "practiceOffers_approved_only": "Solo lo que yo aprobé",
     "practiceOffers_approved_onlyHelp": "Bede nunca elige por su cuenta. La práctica hecha de un examen que subiste sigue necesitando tu aprobación.",
     "practiceOffers_todays_subjects": "También las materias de hoy",
-    "practiceOffers_todays_subjectsHelp": "Bede también puede ofrecer una ronda de las materias de hoy, usando solo sus propias listas de palabras."
+    "practiceOffers_todays_subjectsHelp": "Bede también puede ofrecer una ronda de las materias de hoy, usando solo sus propias listas de palabras y problemas de números."
   },
   "parentGreeting": {
     "title": "¿Cómo quiere que Bede lo llame? (opcional)",
@@ -453,6 +453,7 @@
   },
   "progress": {
     "soundTimeRecordNote": "La Hora de los Sonidos guarda una ronda por inicio de sesión: la primera ronda que responde tu hijo. Las rondas extra que jugó tu hijo fueron solo práctica: no aparecen en el registro de trabajo ni en el panorama de lectura.",
+    "numberTimeRecordNote": "La Hora de los Números también guarda una ronda por inicio de sesión: la primera ronda que responde tu hijo. Las rondas extra que jugó tu hijo fueron solo práctica: no aparecen en el registro de trabajo ni en el panorama de matemáticas.",
     "advance": "Avanzar",
     "repeat": "Repetir",
     "review": "Repasar",
@@ -1392,7 +1393,7 @@
     "title": "Hora de los Sonidos",
     "open": "Empezar la Hora de los Sonidos",
     "loading": "Preparando las palabras…",
-    "needsSound": "Esta práctica necesita sonido. Pide a un adulto que active la voz de Bede o que instale una voz para este idioma en este dispositivo, y vuelve a intentarlo.",
+    "needsSound": "Esta práctica necesita sonido. Pide a un adulto que active la voz de Bede y vuelve a intentarlo.",
     "loadTrouble": "No se pudo cargar la práctica.",
     "tryAgain": "Intentar de nuevo",
     "finished": "¡Terminaste la Hora de los Sonidos!",
@@ -1430,6 +1431,82 @@
       "first_sound_choice": "{{word}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
       "read_word_choice": "Escucha: {{sounds}}. Junta los sonidos: ¡{{word}}!",
       "sight_word_choice": "Esta palabra es {{word}}. La conocemos de vista."
+    }
+  },
+  "k2Math": {
+    "title": "Hora de los Números",
+    "open": "Empezar la Hora de los Números",
+    "loading": "Preparando las fichas…",
+    "loadTrouble": "No se pudo cargar la práctica.",
+    "tryAgain": "Intentar de nuevo",
+    "finished": "¡Terminaste la Hora de los Números!",
+    "backToBede": "Volver con Bede",
+    "another": "Jugar otra vez",
+    "letsTry": "Probemos una",
+    "next": "Siguiente",
+    "check": "Revisar",
+    "hearAgain": "Oírlo otra vez",
+    "pickAnAnswer": "Elige una respuesta",
+    "thisOne": "Esta",
+    "right": "¡Sí, esa es!",
+    "again": "Miremos otra vez. Intenta una vez más.",
+    "shown": "Aquí está. Toca Siguiente cuando estés listo.",
+    "checkTrouble": "No se pudo revisar esa respuesta. Intenta de nuevo.",
+    "addOne": "Poner una ficha",
+    "takeOne": "Quitar una",
+    "trayCounter": "Una ficha para poner",
+    "dragHint": "Arrastra una ficha al marco, o toca una casilla.",
+    "putInBox": "Poner una ficha en la casilla {{n}}",
+    "takeFromBox": "Quitar la ficha de la casilla {{n}}",
+    "frameLabel": "Un marco de diez con {{count}} fichas, {{crossed}} tachadas",
+    "frameQuiet": "Un marco de diez con fichas",
+    "buildLabel": "Tu marco de diez, con {{count}} fichas ahora",
+    "takeAwayBox": "Quita esta ficha, casilla {{n}}",
+    "rowQuiet": {
+      "red": "Una fila de fichas rojas",
+      "yellow": "Una fila de fichas amarillas"
+    },
+    "bondLabel": "Un enlace numérico: {{whole}} es {{a}} y {{b}}",
+    "rowOf": {
+      "red": "{{count}} fichas rojas",
+      "yellow": "{{count}} fichas amarillas"
+    },
+    "choice": {
+      "red": "Rojas",
+      "yellow": "Amarillas",
+      "same": "Iguales"
+    },
+    "compareResult": {
+      "red": "Algunas rojas no tienen pareja, así que hay más rojas.",
+      "yellow": "Algunas amarillas no tienen pareja, así que hay más amarillas.",
+      "same": "Cada ficha tiene pareja, así que son iguales."
+    },
+    "lead": {
+      "watch": "Mira y escucha.",
+      "together": "Ahora lo hacemos juntos.",
+      "your_turn": "Te toca a ti."
+    },
+    "prompt": {
+      "count_how_many": "¿Cuántas fichas hay?",
+      "count_build": "Pon {{n}} fichas en el marco de diez.",
+      "compare_more": "¿Hay más rojas o más amarillas? ¿O son iguales?",
+      "add_how_many": "{{a}} rojas y {{b}} amarillas. ¿Cuántas hay en total?",
+      "add_build": "Aquí hay {{a}}. Pon {{b}} más.",
+      "subtract_how_many": "Había {{a}}. {{b}} están tachadas. ¿Cuántas quedan?",
+      "subtract_build": "Aquí hay {{a}}. Quita {{b}}.",
+      "bond_missing": "{{whole}} es {{part}} y ¿cuánto más?",
+      "bond_build": "Aquí hay {{part}}. Pon más hasta que haya {{whole}}."
+    },
+    "watch": {
+      "count_how_many": "Mira cómo cuento. Toco cada una, y el último número que digo es cuántas hay: {{answer}}.",
+      "count_build": "Mira cómo pongo fichas, una por una. Ahora hay {{n}}.",
+      "compare_more": "Mira cómo junto cada ficha roja con una amarilla. {{result}}",
+      "add_how_many": "{{a}} rojas y {{b}} amarillas. Las cuento todas: {{answer}}.",
+      "add_build": "Aquí hay {{a}}. Mira cómo pongo {{b}} más. Ahora hay {{answer}}.",
+      "subtract_how_many": "Había {{a}}. Tacho {{b}}. Cuento las que quedan: {{answer}}.",
+      "subtract_build": "Aquí hay {{a}}. Mira cómo quito {{b}}. Ahora hay {{answer}}.",
+      "bond_missing": "{{whole}} es {{part}} y {{answer}}. Juntos hacen {{whole}}.",
+      "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}."
     }
   }
 }

@@ -72,7 +72,7 @@ describe('pilot official assessment two-panel workflow', () => {
       artifact_type: 'teacher_use_instructional_plan',
       status: 'teacher_approved_for_offline_use',
       campus_id: CID, learner_id: LID, assessment_id: AID, plan_id: planId,
-      approval_action: 'approve', plan_text: 'Sample teacher-approved handout',
+      approval_action: 'approve', prepared_at: '2026-10-19T12:00:00Z', plan_text: 'Sample teacher-approved handout',
       based_on: ['PSF, 2026-10-17: the source report lists Some Support.'],
       disclaimer: 'Teacher material, not an official report',
     })

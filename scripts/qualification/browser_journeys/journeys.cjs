@@ -14,6 +14,12 @@ const pw = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const F = JSON.parse(fs.readFileSync(process.env.FIX));
+// The parent password travels in the environment, never in fixture.json,
+// because fixture.json is uploaded as a workflow artifact. Read it once, here,
+// and stop at once if it is missing: typing `undefined` into the sign-in form
+// fails every parent check with a message that names no cause.
+const PARENT_PASSWORD = process.env.JOURNEY_PARENT_PASSWORD;
+if (!PARENT_PASSWORD) { console.error('JOURNEY_PARENT_PASSWORD is not set'); process.exit(2); }
 const OUT = F.out, CTL = F.ctl, T0 = Date.now(), now = () => Date.now();
 const steps = [], checks = [];
 const PROFILE = F.profile || 'desktop';
@@ -43,7 +49,7 @@ const apiCall = (pg, p, method = 'GET', body) => pg.evaluate(async ([p, method, 
 }, [p, method, body]);
 const { replies, inputReady, sendChat, passIntro, childLogin, stillInLesson } = require('./child_steps.cjs')(F);
 async function parentLogin(p) {
-  await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(F.parent_password);
+  await p.goto(F.ui + '/'); await p.getByPlaceholder(/password/i).fill(PARENT_PASSWORD);
   await p.getByRole('button', { name: /Enter as Parent/ }).click(); await p.waitForURL(/setup|pod/, { timeout: 30000 });
 }
 // Diagnostic only (the macOS WebKit reload crash): what each page holds just
@@ -391,7 +397,7 @@ async function boundaryParent(br, bname, i) {
     for (const target of ['https://example.invalid/x', '//example.invalid/x', '/\\example.invalid', 'javascript:alert(1)']) {
       const [ctx, p] = await fresh();
       await p.goto(F.ui + '/?returnTo=' + encodeURIComponent(target));
-      await p.getByPlaceholder(/password/i).fill(F.parent_password);
+      await p.getByPlaceholder(/password/i).fill(PARENT_PASSWORD);
       await p.getByRole('button', { name: /Enter as Parent/ }).click();
       await p.waitForURL(u => !/\/$/.test(u.pathname) || u.origin !== origin, { timeout: 30000 }).catch(() => {});
       const u = new URL(p.url()); if (u.origin !== origin) escaped.push(`${target} -> ${u.origin}`);
@@ -587,7 +593,7 @@ async function boundaryLockout(br) {
       if (r.status === 429) locked = r;
     }
     check(who, 'parent_locked_after_repeated_failures', !!locked, `after ${tries} attempts: ${locked ? locked.body.slice(0, 80) : 'never locked'}`);
-    const right = await appFetch(p, '/auth/login', 'POST', { role: 'parent', credential: F.parent_password }, false);
+    const right = await appFetch(p, '/auth/login', 'POST', { role: 'parent', credential: PARENT_PASSWORD }, false);
     check(who, 'locked_parent_refused_even_with_right_password', right.status === 429, `status=${right.status}`);
     // The burst that tripped the lockout must not also block the way back in.
     const rec = await appFetch(p, '/auth/recovery/methods', 'GET', null, false);

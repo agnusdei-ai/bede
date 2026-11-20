@@ -287,6 +287,9 @@ page.on('response', (r) => {
 try {
   // ── Step 1: the page loads at all ────────────────────────────────────
   const res = await page.goto(TARGET, { waitUntil: 'domcontentloaded', timeout: TIMEOUT_MS });
+  // Recorded for scripts/demo_watchdog_run.py, which retries a gateway
+  // error or no response once and never retries anything else.
+  report.loadStatus = res ? res.status() : null;
   if (!res || !res.ok()) {
     report.failedStep = 'load';
     report.summary = `The demo page did not load (HTTP ${res ? res.status() : 'no response'}).`;
@@ -487,7 +490,9 @@ try {
   finish(1);
 } catch (err) {
   report.failedStep = report.failedStep || 'exception';
-  report.summary = `The check itself failed: ${err?.name}: ${err?.message}`;
+  // The raw error, so a retry decision reads a field rather than prose.
+  report.exception = `${err?.name}: ${err?.message}`;
+  report.summary = `The check itself failed: ${report.exception}`;
   finish(1);
 } finally {
   await browser.close().catch(() => {});

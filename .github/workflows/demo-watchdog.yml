@@ -151,47 +151,14 @@ jobs:
           # still runs if the repo variable was never set — a watchdog that
           # silently no-ops is worse than no watchdog.
           DEMO_URL: ${{ vars.DEMO_PUBLIC_URL || 'https://agnusdei.ai/bede/' }}
-        run: |
-          # No `set -e` for the whole step: one device failing must never
-          # stop the others being checked and reported. That was the
-          # matrix's `fail-fast: false`, and it is preserved here by
-          # accumulating into `overall` rather than exiting early.
-          set +e
-          overall=0
-          for device in desktop galaxy-a10 android-tablet; do
-            report="journey-report-$device.json"
-            DEVICE_PROFILE="$device" node scripts/sample_journey.mjs "$DEMO_URL" > "$report"
-            code=$?
-            [ "$code" -eq 0 ] || overall=1
-
-            # Always surface the report in the job log, pass or fail — the
-            # point is visibility, and a green run that printed nothing
-            # teaches nobody anything.
-            cat "$report"
-
-            # Read the device name back out of the report rather than
-            # echoing the loop variable, so the heading says exactly what
-            # was emulated and cannot drift from PROFILES. Both reads
-            # tolerate an unwritable report: a process that died before
-            # emitting JSON is a real outcome to report, not a reason to
-            # take the remaining devices down with it.
-            name=$(node -pe "try{require('./$report').device}catch(e){'$device'}")
-            summary=$(node -pe "try{require('./$report').summary||'no summary'}catch(e){'the check produced no readable report'}")
-            {
-              echo "### Demo watchdog — $name"
-              echo ""
-              if [ "$code" -eq 0 ]; then
-                echo "**Result:** ✅ the demo works"
-              else
-                echo "**Result:** ❌ the demo is broken"
-              fi
-              echo ""
-              echo "$summary"
-              echo ""
-            } >> "$GITHUB_STEP_SUMMARY"
-          done
-          # The job's own result is what the repair gate reads.
-          exit $overall
+        # scripts/demo_watchdog_run.py checks every device even when one
+        # fails (the old matrix's `fail-fast: false`), prints every report,
+        # and writes the step summary. A device whose failure is a transient
+        # load or connection failure is retried ONCE, after 30 seconds; a
+        # recovered device is labelled "passed on retry" with both attempts
+        # kept, and a device that fails again fails this run. Nothing else is
+        # retried. See that script's header for the exact rule and why.
+        run: python3 scripts/demo_watchdog_run.py
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: always()

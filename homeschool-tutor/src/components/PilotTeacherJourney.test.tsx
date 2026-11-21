@@ -35,9 +35,9 @@ const evidence = [{
 }]
 const pendingRec = {
   recommendation_id: REC, learner_id: A, status: 'pending', version: 1,
-  policy_version: 'pilot-recommender/1', source_evidence_ids: [EV],
+  policy_version: 'pilot-recommender/2', source_evidence_ids: [EV],
   proposal: 'Suggested focus for the next lessons: phoneme segmentation practice.',
-  rationale: ["PSF (2026-10-09): the source report lists 'strategic_some_risk'."],
+  rationale: ['Phonemic Segmentation Fluency (PSF), 2026-10-09: the source report lists strategic support (some risk), so this skill is suggested for practice.'],
   authorized_instruction: null, created_at: '2026-10-10T00:00:00Z', decided_at: null,
 }
 
@@ -126,6 +126,29 @@ describe('PilotTeacherJourney', () => {
     }
     expect(screen.queryByRole('button', { name: /teach|start session|deliver/i })).toBeNull()
     expect(screen.getByText(/Not sent to any learner session/)).toBeTruthy()
+  })
+
+  it('prints the approved guidance on its own sheet, never the whole screen', async () => {
+    api.fetchPilotRecommendations.mockResolvedValue([{ ...pendingRec, status: 'approved',
+      authorized_instruction: pendingRec.proposal, decided_at: '2026-10-11T00:00:00Z' }])
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {})
+    render(<PilotTeacherJourney token="t" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Print this plan' }))
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1))
+    const sheet = document.getElementById('bede-print-root')!.shadowRoot!
+    expect(sheet.querySelector('.plan')?.textContent).toBe(pendingRec.proposal)
+    expect(sheet.textContent).toContain('Example Learner')
+    expect(sheet.textContent).toContain('Not an official DIBELS score')
+    // Nothing else from the screen is on the sheet.
+    expect(sheet.textContent).not.toContain('Ask Bede for a suggestion')
+    expect(screen.queryByRole('button', { name: 'Print this plan' })).toBeTruthy()
+    print.mockRestore()
+  })
+
+  it('offers no print before the teacher has approved anything', async () => {
+    render(<PilotTeacherJourney token="t" />)
+    await screen.findByText(pendingRec.proposal)
+    expect(screen.queryByRole('button', { name: 'Print this plan' })).toBeNull()
   })
 
   it('edit sends the teacher text and a note', async () => {

@@ -927,6 +927,14 @@ async def teacher_artifact(campus_id: str, learner_id: str, assessment_id: str,
     if (not adm.snapshot_sha256 or
             await _snapshot_hash(db, adm, learner) != adm.snapshot_sha256):
         raise _conflict("Official assessment snapshot must be intact")
+    proposal = await db.get(PilotAssessmentProposal, decision.proposal_id)
+    if (proposal is None or proposal.administration_id != adm.id
+            or proposal.campus_id != learner.campus_id
+            or proposal.learner_id != learner.id):
+        raise _conflict("Teacher decision evidence is unavailable")
+    proposal_content = _dec(
+        proposal.proposal_enc, "pilot_assessment_proposals", "proposal_enc",
+        learner, proposal.id)
     body = _dec(plan.plan_enc, "pilot_assessment_plans", "plan_enc", learner, plan.id)
     return {
         "artifact_type": "teacher_use_instructional_plan",
@@ -936,6 +944,7 @@ async def teacher_artifact(campus_id: str, learner_id: str, assessment_id: str,
         "plan_id": plan.id, "decision_id": decision.id,
         "approval_action": decision.action, "approved_by": decision.teacher_id,
         "plan_text": body["plan_text"], "prepared_at": _iso(plan.created_at),
+        "based_on": proposal_content.get("rationale", []),
         "delivery_state": "NOT_REQUESTED", "changes_official_scores": False,
         "changes_roster": False, "sends_to_learner": False,
         "disclaimer": "Teacher-use plan only. Not an official DIBELS score or assessment report.",

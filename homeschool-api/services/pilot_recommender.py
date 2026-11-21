@@ -33,20 +33,70 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
-POLICY_VERSION = "pilot-recommender/1"
+# /2 (2026-11-15): practice focuses are ordered by reading-skill sequence,
+# not alphabetically by measure code; the LNF and Maze focuses no longer
+# suggest practising the test's own task; rationale lines name the measure
+# and the report's category in words a teacher reads, not internal codes.
+POLICY_VERSION = "pilot-recommender/2"
 
 # Practice focus per DIBELS 8 measure: what to practise, not what the
 # child is. Plain, teacher-facing descriptions of the measure's own skill.
 _DIBELS_FOCUS = {
-    "LNF": "letter-naming practice",
+    # The publisher reports LNF as a risk indicator, so the suggestion pairs
+    # letter names with letter sounds rather than drilling naming speed.
+    "LNF": "letter-name and letter-sound practice",
     "PSF": "phoneme segmentation practice (saying the sounds in spoken words)",
     "NWF_CLS": "letter-sound and decoding practice with phonetically regular words",
     "NWF_WRC": "whole-word decoding practice with phonetically regular words",
     "WRF": "word reading practice with grade-level words",
     "ORF_WC": "repeated oral reading of instructional-level text",
     "ORF_ACCURACY": "accuracy-focused oral reading with immediate error correction",
-    "MAZE": "sentence-level comprehension practice (choosing words that keep meaning)",
+    # Comprehension of real text, not practice at the maze task itself.
+    "MAZE": "comprehension practice with connected text (retelling and answering questions about what was read)",
 }
+
+# Which skill to address first when several measures share a support
+# category: sounds in spoken words, then letters and their sounds, then
+# decoding, word reading, accurate reading of text, rate, and comprehension.
+# Without this the two focuses kept were the first two measure codes in
+# alphabetical order, which could drop phonemic awareness for Maze.
+_SKILL_SEQUENCE = ("PSF", "LNF", "NWF_CLS", "NWF_WRC", "WRF", "ORF_ACCURACY", "ORF_WC", "MAZE")
+
+# How a measure and a category are named to the teacher. The stored values
+# are internal codes and never appear in a suggestion or its rationale.
+_MEASURE_NAMES = {
+    "LNF": "Letter Naming Fluency (LNF)",
+    "PSF": "Phonemic Segmentation Fluency (PSF)",
+    "NWF_CLS": "Nonsense Word Fluency, Correct Letter Sounds (NWF-CLS)",
+    "NWF_WRC": "Nonsense Word Fluency, Words Recoded Correctly (NWF-WRC)",
+    "WRF": "Word Reading Fluency (WRF)",
+    "ORF_WC": "Oral Reading Fluency, Words Correct (ORF)",
+    "ORF_ACCURACY": "Oral Reading Fluency, Accuracy (ORF)",
+    "MAZE": "Maze",
+    "COMPOSITE": "Composite",
+}
+_BAND_NAMES = {
+    "intensive_at_risk": "intensive support (at risk)",
+    "strategic_some_risk": "strategic support (some risk)",
+    "core_minimal_risk": "core support (minimal risk)",
+    "core_negligible_risk": "core support (negligible risk)",
+    "well_below_benchmark": "well below benchmark",
+    "below_benchmark": "below benchmark",
+    "at_or_above_benchmark": "at or above benchmark",
+}
+
+
+def _measure_name(code: str) -> str:
+    return _MEASURE_NAMES.get(code, code.replace("_", " "))
+
+
+def _band_name(code: str | None) -> str:
+    return _BAND_NAMES.get(code or "", (code or "not reported").replace("_", " "))
+
+
+def _sequence(code: str) -> int:
+    return _SKILL_SEQUENCE.index(code) if code in _SKILL_SEQUENCE else len(_SKILL_SEQUENCE)
+
 
 # Support categories as transcribed from the official report. Intensive
 # first so the most supported need is addressed first.
@@ -131,13 +181,13 @@ def recommend(records: list[EvidenceRecord]) -> Proposal:
         # external_other is never interpreted (see module docstring).
 
     if support:
-        support.sort(key=lambda item: (item[0], item[1].measure))
+        support.sort(key=lambda item: (item[0], _sequence(item[1].measure), item[1].measure))
         chosen = support[:MAX_FOCUS_ITEMS]
         focuses = [focus for _, _, focus in chosen]
         text = "Suggested focus for the next lessons: " + "; ".join(focuses) + "."
         rationale = tuple(
-            f"{rec.measure} ({rec.assessed_on.isoformat()}): the source report lists "
-            f"'{rec.reported_band}', so this measure's skill is suggested for practice."
+            f"{_measure_name(rec.measure)}, {rec.assessed_on.isoformat()}: the source report "
+            f"lists {_band_name(rec.reported_band)}, so this skill is suggested for practice."
             for _, rec, _ in chosen
         )
         ids = tuple(rec.evidence_id for _, rec, _ in chosen)
@@ -161,16 +211,17 @@ def recommend(records: list[EvidenceRecord]) -> Proposal:
     if on_track:
         chosen_t = sorted(on_track, key=lambda r: r.measure)[:MAX_FOCUS_ITEMS]
         text = ("Suggested: continue current instruction and re-check these measures "
-                "at the next progress-monitoring window.")
+                "at the next scheduled assessment.")
         rationale = tuple(
-            f"{rec.measure} ({rec.assessed_on.isoformat()}): the source report lists "
-            f"'{rec.reported_band}'." for rec in chosen_t
+            f"{_measure_name(rec.measure)}, {rec.assessed_on.isoformat()}: the source report "
+            f"lists {_band_name(rec.reported_band)}." for rec in chosen_t
         )
         return Proposal(False, "Report support categories indicate no change is needed.",
                         text, rationale, tuple(r.evidence_id for r in chosen_t))
 
     return Proposal(
         True,
-        "The recorded evidence carries no reported support category or observation "
-        "this policy can act on, so no recommendation is made.",
+        "The recorded evidence has no measure-level support category or observation "
+        "this policy can act on (a composite alone does not point to a skill), so no "
+        "recommendation is made.",
     )

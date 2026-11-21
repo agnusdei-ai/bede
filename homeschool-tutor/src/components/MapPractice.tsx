@@ -81,11 +81,30 @@ export default function MapPractice({
 
   // Watch: the picture starts tilted, as if seen from the side, and settles
   // flat, as a map seen from above.
+  // Then the way is shown one square at a time, and only after it the
+  // answer, so the child sees how Bede got there. "Watch again" replays it;
+  // with reduced motion everything is shown at once.
+  const [lit, setLit] = useState(0)
+  const [replay, setReplay] = useState(0)
+  const reduced = useRef(prefersReducedMotion())
+  const guideLength = lesson?.watch.guide_cells?.length ?? 0
   useEffect(() => {
     if (!lesson || step !== 'watch') return
-    const timer = setTimeout(() => setFlat(true), 600)
-    return () => clearTimeout(timer)
-  }, [lesson, step])
+    if (reduced.current) { setFlat(true); setLit(guideLength); return }
+    setFlat(false)
+    setLit(0)
+    let n = 0
+    let timer: ReturnType<typeof setInterval> | undefined
+    const settle = setTimeout(() => {
+      setFlat(true)
+      timer = setInterval(() => {
+        n += 1
+        setLit(n)
+        if (n >= guideLength) clearInterval(timer)
+      }, MAP_WATCH_STEP_MS)
+    }, MAP_WATCH_PAUSE_MS)
+    return () => { clearTimeout(settle); if (timer) clearInterval(timer) }
+  }, [lesson, step, replay, guideLength])
 
   const task: MapTask | null = !lesson || done ? null
     : step === 'watch' ? lesson.watch
@@ -155,9 +174,11 @@ export default function MapPractice({
   }
 
   const watching = step === 'watch'
-  const reveal: MapReveal | undefined = watching ? lesson.watch.answer
+  const watchDone = flat && lit >= guideLength
+  const reveal: MapReveal | undefined = watching ? (watchDone ? lesson.watch.answer : undefined)
     : feedback?.kind === 'shown' ? feedback.reveal : undefined
-  const guide = step === 'your_turn' ? undefined : task.guide_cells
+  const guide = step === 'your_turn' ? undefined
+    : watching ? task.guide_cells?.slice(0, lit) : task.guide_cells
 
   return (
     <RoutineShell title={title} step={step} onClose={onClose}>
@@ -214,6 +235,7 @@ export default function MapPractice({
       )}
 
       <div aria-live="polite" className="min-h-[1.75rem] text-center text-base">
+        {watching && !watchDone && <span className="text-navy-700">{t('mapPractice.watchLook')}</span>}
         {watching && reveal && (
           <span className="text-emerald-700">
             {reveal.cell ? t('mapPractice.watchShownSquare') : t('mapPractice.watchShownChoice')}
@@ -231,6 +253,11 @@ export default function MapPractice({
         {feedback?.kind === 'trouble' && <span role="alert" className="text-navy-700">{t('mapPractice.checkTrouble')}</span>}
       </div>
 
+      {watching && !reduced.current && (
+        <button type="button" onClick={() => setReplay((r) => r + 1)} className={secondary}>
+          {t('mapPractice.watchAgain')}
+        </button>
+      )}
       {(watching || settled) && (
         <button type="button" onClick={next} className={primary}>
           {watching ? t('mapPractice.letsTry') : t('mapPractice.next')}
@@ -242,3 +269,15 @@ export default function MapPractice({
 
 const primary = 'min-h-[44px] rounded-xl bg-navy-700 px-6 py-2.5 text-base font-medium text-white hover:bg-navy-600'
 const secondary = 'min-h-[44px] rounded-xl border-2 border-sage-300 bg-white px-6 py-2.5 text-base font-medium text-navy-700'
+
+/** Watch: how long the picture takes to settle flat, then each square of the way. */
+export const MAP_WATCH_PAUSE_MS = 900
+export const MAP_WATCH_STEP_MS = 600
+
+function prefersReducedMotion(): boolean {
+  try {
+    return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  } catch {
+    return false
+  }
+}

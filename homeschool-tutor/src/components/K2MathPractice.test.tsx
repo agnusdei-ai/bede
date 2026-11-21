@@ -196,12 +196,18 @@ describe('K2MathPractice', () => {
     await open()
     expect(frameCount()).toBe(4)
     await waitFor(() => expect(frameCount()).toBe(6), { timeout: 4000 })
+    // A running count beside the frame says how many there are now.
+    expect(screen.getByTestId('watch-count').textContent).toBe('6')
+    // Watch again starts the demonstration over from the first counters.
+    fireEvent.click(screen.getByRole('button', { name: 'Watch again' }))
+    expect(frameCount()).toBe(4)
+    await waitFor(() => expect(frameCount()).toBe(6), { timeout: 4000 })
     cleanup()
     reduceMotion = true
     render(<K2MathPractice transport={transport} onClose={vi.fn()} onSpeak={vi.fn()} />)
     await screen.findByTestId('math-line')
     expect(frameCount()).toBe(6)
-  })
+  }, 12000)
 
   it('in Together, a take-away frame outlines the counters to take, and taking them answers it', async () => {
     reduceMotion = true

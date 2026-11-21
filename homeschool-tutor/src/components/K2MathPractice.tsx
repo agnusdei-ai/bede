@@ -114,16 +114,24 @@ export default function K2MathPractice({
   const built = builtFor.task === task ? builtFor.n
     : watchTarget !== null && reduced.current ? watchTarget : buildStart
   const setBuilt = (n: number) => setBuiltFor({ task, n })
+  // "Watch again" replays the demonstration from the start.
+  const [replay, setReplay] = useState(0)
   useEffect(() => {
     if (watchTarget === null || reduced.current) return
+    // A pause first, so Bede's line is heard before anything moves; then one
+    // counter at a time, slow enough to count along with.
     let n = buildStart
-    const timer = setInterval(() => {
-      n += n < watchTarget ? 1 : -1
-      setBuiltFor({ task, n })
-      if (n === watchTarget) clearInterval(timer)
-    }, 600)
-    return () => clearInterval(timer)
-  }, [task, buildStart, watchTarget])
+    setBuiltFor({ task, n })
+    let timer: ReturnType<typeof setInterval> | undefined
+    const wait = setTimeout(() => {
+      timer = setInterval(() => {
+        n += n < watchTarget ? 1 : -1
+        setBuiltFor({ task, n })
+        if (n === watchTarget) clearInterval(timer)
+      }, WATCH_STEP_MS)
+    }, WATCH_PAUSE_MS)
+    return () => { clearTimeout(wait); if (timer) clearInterval(timer) }
+  }, [task, buildStart, watchTarget, replay])
 
   const next = () => {
     if (!lesson) return
@@ -239,6 +247,11 @@ export default function K2MathPractice({
 
       {building && task.build ? (
         <>
+          {watching && watchTarget !== null && (
+            <p aria-live="polite" data-testid="watch-count" className="text-5xl font-bold text-navy-800 text-center tabular-nums">
+              {built}
+            </p>
+          )}
           <TenFrameBuilder
             frames={task.build.capacity / 10} start={task.build.start} count={built}
             onChange={(n) => { setBuilt(n); if (feedback?.kind === 'again' || feedback?.kind === 'trouble') setFeedback(null) }}
@@ -288,6 +301,11 @@ export default function K2MathPractice({
         {feedback?.kind === 'trouble' && <span role="alert" className="text-navy-700">{t('k2Math.checkTrouble')}</span>}
       </div>
 
+      {watching && watchTarget !== null && !reduced.current && (
+        <button type="button" onClick={() => setReplay((r) => r + 1)} className={SECONDARY}>
+          {t('k2Math.watchAgain')}
+        </button>
+      )}
       {(watching || settled) && (
         <button type="button" onClick={next} className={PRIMARY}>
           {watching ? t('k2Math.letsTry') : t('k2Math.next')}
@@ -298,3 +316,8 @@ export default function K2MathPractice({
 }
 
 const SECONDARY = 'min-h-16 min-w-16 rounded-2xl border-2 border-sage-300 bg-white px-6 py-3 text-lg font-medium text-navy-700'
+
+/** How long Watch waits before anything moves, and between counters: slow
+ *  enough for a five-year-old to count along. */
+export const WATCH_PAUSE_MS = 1200
+export const WATCH_STEP_MS = 800

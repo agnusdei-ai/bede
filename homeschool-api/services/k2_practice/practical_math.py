@@ -249,9 +249,10 @@ def _frames_for(top: int) -> int:
 def _problem(level: str, topic: str, rng: random.Random) -> tuple:
     """One problem's numbers, by level. Every range stays within 20."""
     if topic == "count":
-        return (rng.randint(3, 10),)
+        lo, hi = {"K": (3, 10), "1": (6, 15), "2": (11, 20)}[level]
+        return (rng.randint(lo, hi),)
     if topic == "compare":
-        lo, hi = (1, 8) if level == "K" else (3, 12)
+        lo, hi = {"K": (1, 8), "1": (3, 12), "2": (8, 20)}[level]
         a = rng.randint(lo, hi)
         b = a if rng.random() < 0.25 else rng.choice([v for v in range(lo, hi + 1) if v != a])
         return (a, b)
@@ -301,7 +302,7 @@ def _build_task(level: str, topic: str, seed: int, phase: str, index: int) -> Ta
         (count,) = numbers
         if building:
             return _checked(_build(topic, "count_build", {"n": str(count)}, start=0, target=count,
-                                   capacity=10, take_away=False, expression=f"0 + {count}"))
+                                   capacity=10 * _frames_for(count), take_away=False, expression=f"0 + {count}"))
         diagram = {"kind": "counters", "groups": [{"color": "red", "count": count}]}
         return _checked(Task(topic, "count_how_many", {}, diagram, "number",
                              _number_choices(rng, count, n, 20), str(count)))

@@ -63,8 +63,9 @@ describe('MapPractice', () => {
   it('walks Watch, Together, Your turn and finishes', async () => {
     const onClose = await open()
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
-    // Watch shows the move: the answer is marked and nothing can be tapped.
-    expect(document.querySelector('[data-revealed]')).not.toBeNull()
+    // Watch plays the move: the answer is marked once the way has been shown,
+    // and nothing can be tapped.
+    await waitFor(() => expect(document.querySelector('[data-revealed]')).not.toBeNull(), { timeout: 4000 })
     expect(screen.queryByRole('button', { name: /Square B1/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
 

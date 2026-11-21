@@ -35,26 +35,35 @@ export type DiagramSpec =
   | { kind: 'thermometer'; unit: 'F' | 'C'; low: number; high: number; step: number; reading: number }
   | { kind: 'image'; wiki_title: string; caption?: string }
 
-/** Picture symbols for the API's ICONS (models/practice.py). A name not here draws nothing. */
+/**
+ * Every picture name the API accepts (models/practice.py's ICONS). The
+ * pictures themselves are hand-drawn (DRAWINGS); a name without a drawing
+ * shows its word. A name not here draws nothing.
+ */
 export const ICONS: Record<string, string> = {
-  dog: '🐕', cat: '🐈', mouse: '🐁', bird: '🐦', duck: '🦆', fish: '🐟', horse: '🐎', cow: '🐄', pig: '🐖',
-  sheep: '🐑', goat: '🐐', chicken: '🐓', rabbit: '🐇', frog: '🐸', bee: '🐝', butterfly: '🦋', ant: '🐜',
-  spider: '🕷️', snake: '🐍', turtle: '🐢', lion: '🦁', tiger: '🐅', elephant: '🐘', bear: '🐻', monkey: '🐒',
-  owl: '🦉', whale: '🐋', wolf: '🐺', fox: '🦊', deer: '🦌',
-  tree: '🌳', flower: '🌼', leaf: '🍃', seedling: '🌱', sun: '☀️', moon: '🌙', star: '⭐', cloud: '☁️',
-  rain: '🌧️', snow: '❄️', lightning: '⚡', rainbow: '🌈', water: '💧', fire: '🔥', mountain: '⛰️',
-  volcano: '🌋', wave: '🌊', rock: '🪨',
-  apple: '🍎', banana: '🍌', grapes: '🍇', carrot: '🥕', bread: '🍞', cheese: '🧀', milk: '🥛', egg: '🥚',
-  cake: '🍰', cookie: '🍪',
-  house: '🏠', castle: '🏰', ship: '🚢', boat: '⛵', car: '🚗', bus: '🚌', train: '🚂', plane: '✈️',
-  bicycle: '🚲', book: '📕', pencil: '✏️', scroll: '📜', crown: '👑', ball: '⚽', hat: '🎩', shoe: '👟',
-  key: '🔑', bell: '🔔', lightbulb: '💡', magnet: '🧲', compass: '🧭', globe: '🌍', map: '🗺️', coin: '🪙',
-  boy: '👦', girl: '👧', man: '👨', woman: '👩', baby: '👶', farmer: '🧑‍🌾', king: '🤴', queen: '👸',
-  hand: '✋', eye: '👁️', ear: '👂', foot: '🦶', heart: '🫀', brain: '🧠', tooth: '🦷', bone: '🦴',
-  magnifier: '🔍', microscope: '🔬', thermometer: '🌡️', battery: '🔋', plant: '🪴',
-  crayon: '🖍️', paperclip: '📎', scissors: '✂️', spoon: '🥄', backpack: '🎒', chair: '🪑', bed: '🛏️',
-  watermelon: '🍉', bucket: '🪣', television: '📺', computer: '💻', phone: '📱', cup: '☕', bottle: '🍼',
-  toothbrush: '🪥', cube: '🟦', box: '📦', basket: '🧺', truck: '🚚', ruler: '📏',
+  dog: 'dog', cat: 'cat', mouse: 'mouse', bird: 'bird', duck: 'duck', fish: 'fish', horse: 'horse', cow: 'cow', pig: 'pig',
+  sheep: 'sheep', goat: 'goat', chicken: 'chicken', rabbit: 'rabbit', frog: 'frog', bee: 'bee', butterfly: 'butterfly', ant: 'ant',
+  spider: 'spider', snake: 'snake', turtle: 'turtle', lion: 'lion', tiger: 'tiger', elephant: 'elephant', bear: 'bear', monkey: 'monkey',
+  owl: 'owl', whale: 'whale', wolf: 'wolf', fox: 'fox', deer: 'deer',
+  tree: 'tree', flower: 'flower', leaf: 'leaf', seedling: 'seedling', sun: 'sun', moon: 'moon', star: 'star', cloud: 'cloud',
+  rain: 'rain', snow: 'snow', lightning: 'lightning', rainbow: 'rainbow', water: 'water', fire: 'fire', mountain: 'mountain',
+  volcano: 'volcano', wave: 'wave', rock: 'rock',
+  apple: 'apple', banana: 'banana', grapes: 'grapes', carrot: 'carrot', bread: 'bread', cheese: 'cheese', milk: 'milk', egg: 'egg',
+  cake: 'cake', cookie: 'cookie',
+  house: 'house', castle: 'castle', ship: 'ship', boat: 'boat', car: 'car', bus: 'bus', train: 'train', plane: 'plane',
+  bicycle: 'bicycle', book: 'book', pencil: 'pencil', scroll: 'scroll', crown: 'crown', ball: 'ball', hat: 'hat', shoe: 'shoe',
+  key: 'key', bell: 'bell', lightbulb: 'lightbulb', magnet: 'magnet', compass: 'compass', globe: 'globe', map: 'map', coin: 'coin',
+  boy: 'boy', girl: 'girl', man: 'man', woman: 'woman', baby: 'baby', farmer: 'farmer', king: 'king', queen: 'queen',
+  hand: 'hand', eye: 'eye', ear: 'ear', foot: 'foot', heart: 'heart', brain: 'brain', tooth: 'tooth', bone: 'bone',
+  magnifier: 'magnifier', microscope: 'microscope', thermometer: 'thermometer', battery: 'battery', plant: 'plant',
+  crayon: 'crayon', paperclip: 'paperclip', scissors: 'scissors', spoon: 'spoon', backpack: 'backpack', chair: 'chair', bed: 'bed',
+  watermelon: 'watermelon', bucket: 'bucket', television: 'television', computer: 'computer', phone: 'phone', cup: 'cup', bottle: 'bottle',
+  toothbrush: 'toothbrush', cube: 'cube', box: 'box', basket: 'basket', truck: 'truck', ruler: 'ruler',
+  bat: 'bat', rat: 'rat', van: 'van', fan: 'fan', pen: 'pen', net: 'net', web: 'web', log: 'log', nut: 'nut',
+  bug: 'bug', cap: 'cap', bag: 'bag', hut: 'hut', crab: 'crab', drum: 'drum', sled: 'sled', shell: 'shell', clock: 'clock',
+  flag: 'flag', nest: 'nest', tent: 'tent', skunk: 'skunk', kite: 'kite', rope: 'rope', nose: 'nose', snail: 'snail',
+  seal: 'seal', soap: 'soap', sock: 'sock', lock: 'lock', ring: 'ring', thumb: 'thumb', vest: 'vest', dish: 'dish',
+  zebra: 'zebra', yarn: 'yarn', jar: 'jar',
 }
 
 /** Coins and bills (models/practice.py COIN_CENTS): what each is worth and how it is drawn. */
@@ -66,10 +75,35 @@ export const COINS: Record<string, { cents: number; bill?: boolean; r?: number }
 }
 
 /** What an action looks like beside the thing doing it. */
+/** What a scene's figure is doing; shown as words beside the picture. */
 export const ACTIONS: Record<string, string> = {
-  running: '💨', swimming: '🌊', flying: '☁️', sleeping: '💤', eating: '🍽️', drinking: '💧',
-  singing: '🎵', walking: '👣', reading: '📖', writing: '✏️',
+  running: 'running', swimming: 'swimming', flying: 'flying', sleeping: 'sleeping', eating: 'eating',
+  drinking: 'drinking', singing: 'singing', walking: 'walking', reading: 'reading', writing: 'writing',
 }
+
+export function Picture({ name, label, size, hideWord = false }: {
+  name: string
+  label: string
+  size: string
+  hideWord?: boolean
+}) {
+  // Hand-drawn pictures are added to DRAWINGS; until a word has one, its word
+  // is shown (or "?" where reading that word is the question).
+  const drawing = DRAWINGS[name]
+  if (drawing) {
+    return <svg viewBox="0 0 64 64" role="img" aria-label={label} className={size}>{drawing}</svg>
+  }
+  return (
+    <span role="img" aria-label={label}
+      className={`${size} inline-flex items-center justify-center rounded-xl bg-parchment-100 px-1 text-center text-base font-medium text-navy-800`}>
+      {hideWord ? '?' : label}
+    </span>
+  )
+}
+
+/** Hand-drawn pictures, one per ICONS name, drawn in Bede's ink-and-wash
+ *  style. Filled in as each is drawn and checked; none is fetched online. */
+export const DRAWINGS: Record<string, ReactElement> = {}
 
 const INK = '#1f2a44'
 const FILL = '#8fa37a'
@@ -290,10 +324,9 @@ function Plane({ size, four_quadrants: four, points }: { size: number; four_quad
 }
 
 
-const EMOJI = { fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif' } as const
 
 function Pictures({ groups }: { groups: { icon: string; count: number; label?: string }[] }) {
-  const list = (groups ?? []).slice(0, 6).filter((g) => ICONS[g.icon])
+  const list = (groups ?? []).slice(0, 6).filter((g) => g.icon in ICONS)
   const cols = (n: number) => Math.min(4, Math.max(1, n))
   const widths = list.map((g) => cols(clamp(g.count, 1, 12)) * 38 + 16)
   const total = widths.reduce((a, b) => a + b, 0) + 10
@@ -308,7 +341,7 @@ function Pictures({ groups }: { groups: { icon: string; count: number; label?: s
         return (
           <g key={i}>
             {Array.from({ length: n }, (_, k) => (
-              <text key={k} x={left + 8 + (k % 4) * 38} y={34 + Math.floor(k / 4) * 40} fontSize={30} {...EMOJI}>{ICONS[g.icon]}</text>
+              <SvgPicture key={k} name={g.icon} x={left + 6 + (k % 4) * 38} y={6 + Math.floor(k / 4) * 40} size={34} />
             ))}
             {g.label && <text x={left + widths[i] / 2 - 8} y={tallest * 40 + 26} textAnchor="middle" {...FONT} fontWeight="bold">{g.label.slice(0, 16)}</text>}
           </g>
@@ -318,12 +351,24 @@ function Pictures({ groups }: { groups: { icon: string; count: number; label?: s
   )
 }
 
-function Scene({ icon, action }: { icon: string; action?: string | null }) {
-  if (!ICONS[icon]) return null
+/**
+ * A picture inside an SVG diagram (screen and print alike). With no picture
+ * chosen the word is written in its place.
+ */
+function SvgPicture({ name, x, y, size }: { name: string; x: number; y: number; size: number }) {
+  const drawing = DRAWINGS[name]
+  if (!drawing) {
+    return <text x={x + size / 2} y={y + size / 2 + 4} textAnchor="middle" {...FONT} fontSize={Math.max(10, size / 3)}>{name}</text>
+  }
+  return <svg x={x} y={y} width={size} height={size} viewBox="0 0 64 64"><title>{name}</title>{drawing}</svg>
+}
+
+function Scene({ icon, action, actionLabel }: { icon: string; action?: string | null; actionLabel?: string }) {
+  if (!(icon in ICONS)) return null
   return (
-    <svg viewBox="0 0 150 100" width="150" height="100">
-      <text x={20} y={78} fontSize={64} {...EMOJI}>{ICONS[icon]}</text>
-      {action && ACTIONS[action] && <text x={100} y={44} fontSize={34} {...EMOJI}>{ACTIONS[action]}</text>}
+    <svg viewBox="0 0 190 100" width="190" height="100">
+      <SvgPicture name={icon} x={6} y={6} size={88} />
+      {action && ACTIONS[action] && <text x={102} y={56} {...FONT} fontWeight="bold">{actionLabel ?? ACTIONS[action]}</text>}
     </svg>
   )
 }
@@ -446,7 +491,7 @@ function Ruler({ unit, length, objects }: { unit: 'cm' | 'in'; length: number; o
         <g key={i}>
           <rect x={x(o.start)} y={10 + i * 34} width={Math.max(4, x(o.end) - x(o.start))} height={24} rx={6} fill={BAR_COLOURS[i % 4]} stroke={INK} strokeWidth={1.5} />
           <text x={x(o.start) + 6} y={27 + i * 34} {...FONT} fill="#ffffff" fontWeight="bold">
-            {o.icon && ICONS[o.icon] ? `${ICONS[o.icon]} ` : ''}{o.label.slice(0, 16)}
+            {o.label.slice(0, 16)}
           </text>
           <line x1={x(o.start)} y1={34 + i * 34} x2={x(o.start)} y2={top} stroke={INK} strokeWidth={0.75} strokeDasharray="2 3" />
           <line x1={x(o.end)} y1={34 + i * 34} x2={x(o.end)} y2={top} stroke={INK} strokeWidth={0.75} strokeDasharray="2 3" />
@@ -582,7 +627,9 @@ export function describe(d: DiagramSpec, t: (key: string, values?: Record<string
   }
 }
 
-export function DiagramSvg({ d }: { d: DiagramSpec }) {
+type Translate = (key: string, values?: Record<string, unknown>) => string
+
+export function DiagramSvg({ d, t }: { d: DiagramSpec; t?: Translate }) {
   switch (d.kind) {
     case 'fraction_bar': return <FractionBar parts={d.parts} shaded={d.shaded} />
     case 'fraction_circle': return <FractionCircle parts={d.parts} shaded={d.shaded} />
@@ -595,7 +642,8 @@ export function DiagramSvg({ d }: { d: DiagramSpec }) {
     case 'bar_graph': return <BarGraph title={d.title} bars={d.bars} />
     case 'coordinate_plane': return <Plane {...d} />
     case 'pictures': return <Pictures groups={d.groups} />
-    case 'scene': return <Scene icon={d.icon} action={d.action} />
+    case 'scene': return <Scene icon={d.icon} action={d.action}
+      actionLabel={d.action && t ? t(`diagram.action.${d.action}`, { defaultValue: d.action }) : undefined} />
     case 'timeline': return <Timeline events={d.events} show_years={d.show_years} />
     case 'venn': return <Venn {...d} />
     case 'table': return <Table header={d.header} rows={d.rows} />
@@ -618,7 +666,7 @@ export default function Diagram({ d }: { d?: DiagramSpec | null }) {
   if (!d) return null
   return (
     <figure role="img" aria-label={describe(d, t)} className="my-2 max-w-full overflow-x-auto">
-      <DiagramSvg d={d} />
+      <DiagramSvg d={d} t={t} />
     </figure>
   )
 }
@@ -636,5 +684,5 @@ export function diagramMarkup(d?: DiagramSpec | null, t?: (key: string, values?:
       ? <figure><img src={image.src} alt={words} style={{ maxHeight: '16rem', maxWidth: '100%' }} /><figcaption>{`${words}. ${t ? t('diagram.imageCredit', { title: image.title }) : `Picture: Wikimedia Commons, from the Wikipedia article “${image.title}”`}`}</figcaption></figure>
       : <p><em>{words}</em></p>)}</div>`
   }
-  return `<div class="diagram">${renderToStaticMarkup(<DiagramSvg d={d} />)}</div>`
+  return `<div class="diagram">${renderToStaticMarkup(<DiagramSvg d={d} t={t} />)}</div>`
 }

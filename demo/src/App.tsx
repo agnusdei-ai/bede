@@ -1772,7 +1772,12 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
           panel painted from earlier markup would render underneath the
           conversation it is supposed to cover. */}
       <header className="relative z-30 bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
-        <div className="flex items-center gap-3">
+        {/* flex-wrap: on a phone the practice buttons, settings, finish and
+            debug icons do not fit one row beside the name. Without wrapping
+            the row overflowed, pushing Finish the demo under the fixed
+            text-size button and Debug off the screen. The name keeps a
+            small minimum width so it is what forces the wrap. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap sm:gap-x-3">
           <img
             src={`${import.meta.env.BASE_URL}bede-icon.webp`}
             alt="Bede"
@@ -1780,7 +1785,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
               isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
             }`}
           />
-          <div className="flex-1 min-w-0 truncate">
+          <div className="flex-1 min-w-[4.5rem] truncate sm:min-w-0">
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
             <span className="text-gray-400 text-xs ml-2">{t('chatScreen.withName', { name: displayName })}</span>
           </div>

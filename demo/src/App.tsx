@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { BookOpenCheck, Calculator, AudioLines, Map as MapIcon, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
+import { BookOpenCheck, Calculator, AudioLines, Map as MapIcon, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -1772,7 +1772,12 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
           panel painted from earlier markup would render underneath the
           conversation it is supposed to cover. */}
       <header className="relative z-30 bg-parchment-50 border-b border-sage-200 shrink-0 pl-4 pr-14 py-2">
-        <div className="flex items-center gap-3">
+        {/* flex-wrap: on a phone the practice buttons, settings, finish and
+            debug icons do not fit one row beside the name. Without wrapping
+            the row overflowed, pushing Finish the demo under the fixed
+            text-size button and Debug off the screen. The name keeps a
+            small minimum width so it is what forces the wrap. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap sm:gap-x-3">
           <img
             src={`${import.meta.env.BASE_URL}bede-icon.webp`}
             alt="Bede"
@@ -1780,7 +1785,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
               isSpeaking ? 'animate-bede-talk ring-2 ring-amber-300 shadow-[0_0_10px_rgba(217,180,90,0.6)]' : ''
             }`}
           />
-          <div className="flex-1 min-w-0 truncate">
+          <div className="flex-1 min-w-[4.5rem] truncate sm:min-w-0">
             <span className="text-navy-700 font-semibold text-sm">Bede</span>
             <span className="text-gray-400 text-xs ml-2">{t('chatScreen.withName', { name: displayName })}</span>
           </div>
@@ -1855,6 +1860,8 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             controls={parentControls}
             onChange={setParentControls}
             onOpenSetup={() => setShowParentSetup(true)}
+            debugOn={showDebug}
+            onToggleDebug={() => setShowDebug((v) => !v)}
           />
           {/* Ends the demo — an icon button living here, grouped with the
               other real controls, rather than a text link forced onto its
@@ -1862,30 +1869,15 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
               row's own history: it used to hide behind the fixed
               TextSizeControl button on some WebKit builds when crammed in
               alongside four other links; living here sidesteps that class of
-              bug entirely instead of working around it in place). Debug
-              keeps its own divider and muted styling immediately after this
-              as the one clearly-administrative control. */}
+              bug entirely instead of working around it in place). The
+              debug-panel toggle is not here: it lives in the Parent
+              controls menu beside it. */}
           <button
             onClick={onFinishDemo}
             title={t('header.finishDemoTooltip')}
             className="p-1.5 rounded-lg transition-colors text-gray-500 hover:text-navy-600 hover:bg-navy-50 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400"
           >
             <LogOut size={15} />
-          </button>
-          {/* Voice-flow debug panel toggle — a developer/tester tool, not
-              something an ordinary visitor ever needs, so it's deliberately
-              separated from the actual interaction controls in the input bar
-              below (mic, pencil, send, etc.) rather than mixed in among
-              them. A border-l divider plus muted styling (vs. the sage
-              accent every real user control uses) marks it as
-              administrative, not part of the lesson itself. Off by default —
-              see DebugOverlay.tsx. */}
-          <button
-            onClick={() => setShowDebug((v) => !v)}
-            title="Debug panel (developer tool)"
-            className={`p-1.5 rounded-lg transition-colors border-l border-gray-200 pl-2.5 ml-0.5 flex-shrink-0 ${showDebug ? 'text-navy-600 bg-gray-100' : 'text-gray-300 hover:text-gray-500'}`}
-          >
-            <Bug size={15} />
           </button>
         </div>
         {/* header (code/Ask Bede/Mastery preview/Feedback) gets its own

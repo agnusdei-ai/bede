@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 NOTICE = ROOT / "homeschool-api" / "data" / "consent_notice.txt"
 
 # provider 1, api key, local db (default), parent password, child pin, licence
-ANSWERS = "1\nsk-ant-test\n\nparentpass123\n805274199\nlicense-value\n"
+ANSWERS = "1\nsk-ant-test\n\n\nparentpass123\n805274199\nlicense-value\n"
 
 
 @pytest.fixture

@@ -7,6 +7,29 @@ On top of that, Bede supports one cloud backend: **OpenAI TTS**, using the
 natural than a browser's default voice. Confirmed against real listening
 feedback that this is what it takes to get past "sounds computerized."
 
+## Connecting Bede's voice during installation
+
+Every installer (`setup.sh`, the browser wizard and the native installers that
+hand off to it) offers Bede's voice whichever service you chose for tutoring.
+Bede speaks in one reference voice, OpenAI's speech service, the same voice the
+demo uses, so a key is the only thing it needs:
+
+- **Tutoring on OpenAI:** the same key is used. Nothing more is asked.
+- **Tutoring on Claude, Mistral or a local model:** a separate, optional
+  question asks for an OpenAI key. Adding it does **not** change which service
+  tutors or the adapter order; it only lets Bede speak. Each spoken line is sent
+  to OpenAI and billed to that OpenAI account, and the screen says so.
+- **Pressing Enter / leaving it blank** is allowed. The installer says lessons
+  will be text-only and how to add the key later (`OPENAI_API_KEY=<key>` in
+  `.env`, then `make restart`).
+- **Running setup again** keeps the key already in `.env` and does not ask
+  twice. A deliberate `TTS_PROVIDER=none` (speech off) is kept, never undone.
+
+The installer reports the voice as "connected" or "not connected", never as
+working: it has not made a speech call, and a key that exists may still be
+wrong. Whether Bede is actually speaking is shown by the voice status notice in
+the app (`GET /tutor/voice`).
+
 ## Setup
 
 Get an API key from [platform.openai.com](https://platform.openai.com/), then

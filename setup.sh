@@ -173,7 +173,9 @@ success "Docker and Compose found"
 # ── Existing .env ─────────────────────────────────────────────────────────────
 if [[ -f .env ]]; then
   warn ".env already exists."
-  read -rp "   Overwrite it and start fresh? [y/N] " OVERWRITE
+  echo "   You can re-run setup to change your settings. Your encryption keys and"
+  echo "   database password are kept, so the family's existing data stays readable."
+  read -rp "   Replace your settings? [y/N] " OVERWRITE
   [[ "${OVERWRITE,,}" == "y" ]] || { info "Keeping existing .env. Run 'make start' to launch."; exit 0; }
   cp .env .env.backup
   success "Existing .env backed up to .env.backup"
@@ -190,6 +192,11 @@ PRIOR_ENV=""
 prior_value() {
   [[ -n "$2" && -f "$2" ]] || return 0
   sed -n "s/^$1=//p" "$2" | tail -n1 | tr -d "\"'" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]'
+}
+# The value exactly as written (secrets and keys are case-sensitive).
+prior_raw() {
+  [[ -n "$2" && -f "$2" ]] || return 0
+  sed -n "s/^$1=//p" "$2" | tail -n1 | tr -d "\"'" | tr -d '[:space:]'
 }
 COACH_DEFAULT="y"
 CURRICULUM_DEFAULT="n"
@@ -294,6 +301,52 @@ case "$PROVIDER_CHOICE" in
     ;;
 esac
 
+# ── Bede's voice ──────────────────────────────────────────────────────────────
+# Bede speaks lessons aloud in one reference voice (OpenAI's speech service,
+# the same voice the demo uses), whichever service handles tutoring. It needs
+# an OpenAI key. The key is asked for once: the OpenAI tutoring choice already
+# supplied it, a re-run keeps the one this installation has, and only
+# otherwise is it asked here. Adding it does not change which service tutors
+# (BEDE_ADAPTER_ORDER above decides that). A deliberate "speech off"
+# (TTS_PROVIDER=none) from an earlier setup is kept, never undone.
+VOICE_KEY=""
+VOICE_OFF="n"
+VOICE_STATE="skipped"
+blank
+echo "     Bede's voice (optional)"
+if [[ "$(prior_value TTS_PROVIDER "$PRIOR_ENV")" == "none" ]]; then
+  VOICE_OFF="y"
+  VOICE_STATE="off"
+  info "     Speech is turned off (kept from your last setup): lessons are text-only."
+  echo "     To turn it on, remove the TTS_PROVIDER=none line from .env and run 'make restart'."
+elif [[ "$BEDE_ADAPTER_ORDER" == "openai" ]]; then
+  VOICE_STATE="connected"
+  echo "     Bede will speak with the same OpenAI key. Each line Bede speaks is sent to"
+  echo "     OpenAI to be voiced and is billed to your OpenAI account. To turn speech"
+  echo "     off later, add TTS_PROVIDER=none to .env and run 'make restart'."
+elif [[ -n "$(prior_raw OPENAI_API_KEY "$PRIOR_ENV")" ]]; then
+  VOICE_KEY="$(prior_raw OPENAI_API_KEY "$PRIOR_ENV")"
+  VOICE_STATE="connected"
+  info "     Bede's voice keeps the OpenAI key from your last setup."
+else
+  echo "     Bede reads lessons aloud in one calm, recognizable voice (the one in the"
+  echo "     demo), through OpenAI's speech service: each line Bede speaks is sent to"
+  echo "     OpenAI and billed to your OpenAI account. This is separate from the service"
+  echo "     you chose for tutoring, and it does not change it."
+  echo "     Paste an OpenAI key (platform.openai.com/api-keys) to connect the voice,"
+  echo "     or press Enter to continue without it."
+  read -rsp "     OpenAI key for Bede's voice (optional): " VOICE_KEY || VOICE_KEY=""
+  echo
+  if [[ -n "$VOICE_KEY" ]]; then
+    VOICE_STATE="connected"
+  else
+    VOICE_STATE="skipped"
+    warn "Continuing without Bede's voice: lessons will be text-only, everything on screen."
+    echo "     Parent Setup shows this and how to add it later, or put OPENAI_API_KEY=<key>"
+    echo "     in .env and run 'make restart'."
+  fi
+fi
+
 # ── Database ──────────────────────────────────────────────────────────────────
 blank
 info "2/6  Database"
@@ -306,7 +359,10 @@ echo "        data leaves this machine for their cloud."
 read -rp "     Use local Postgres? [Y/n] " USE_LOCAL_DB
 if [[ "${USE_LOCAL_DB,,}" != "n" ]]; then
   COMPOSE_PROFILES="local-db"
-  POSTGRES_PASSWORD=$(openssl rand -hex 24)
+  # A re-run keeps the database password: the existing database volume was
+  # created with it and would refuse a new one.
+  POSTGRES_PASSWORD="$(prior_raw POSTGRES_PASSWORD "$PRIOR_ENV")"
+  [[ -n "$POSTGRES_PASSWORD" ]] || POSTGRES_PASSWORD=$(openssl rand -hex 24)
   DATABASE_URL="postgresql+asyncpg://sage:${POSTGRES_PASSWORD}@db:5432/bede"
   success "Will run a local Postgres container — remember 'make db-backup' regularly."
 else
@@ -367,10 +423,19 @@ ask_yes_no CURRICULUM "$CURRICULUM_DEFAULT" "     Turn on Curriculum Intelligenc
 
 # ── Auto-generate secrets ─────────────────────────────────────────────────────
 blank
-info "6/6  Generating cryptographic secrets..."
-SECRET_KEY=$(openssl rand -hex 32)
-MASTER_SECRET=$(openssl rand -hex 32)
-success "SECRET_KEY and MASTER_SECRET generated (64 hex chars each)"
+info "6/6  Encryption secrets"
+# MASTER_SECRET wraps the key that encrypts every child's records: replacing it
+# would leave the existing data unreadable. A re-run keeps both secrets from
+# the .env being replaced; a first install generates them.
+SECRET_KEY="$(prior_raw SECRET_KEY "$PRIOR_ENV")"
+MASTER_SECRET="$(prior_raw MASTER_SECRET "$PRIOR_ENV")"
+if [[ ${#SECRET_KEY} -ge 32 && ${#MASTER_SECRET} -ge 32 ]]; then
+  success "Kept your existing encryption secrets, so your data stays readable"
+else
+  SECRET_KEY=$(openssl rand -hex 32)
+  MASTER_SECRET=$(openssl rand -hex 32)
+  success "SECRET_KEY and MASTER_SECRET generated (64 hex chars each)"
+fi
 
 # ── Detect LAN IP for tablet access ──────────────────────────────────────────
 # `hostname -I` is GNU/Linux-only (BSD/macOS's hostname has no -I flag and
@@ -427,6 +492,12 @@ case "$BEDE_ADAPTER_ORDER" in
     [[ -n "$LOCAL_LLM_MODEL" ]] && echo "LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL}" >> .env
     ;;
 esac
+# Bede's voice: the OpenAI key reaches .env here only when tutoring runs on
+# another service (the OpenAI choice above already wrote it).
+if [[ -n "$VOICE_KEY" && "$BEDE_ADAPTER_ORDER" != "openai" ]]; then
+  echo "OPENAI_API_KEY=${VOICE_KEY}" >> .env
+fi
+if [[ "$VOICE_OFF" == "y" ]]; then echo "TTS_PROVIDER=none" >> .env; fi
 if [[ -n "$COMPOSE_PROFILES" ]]; then
   cat >> .env <<EOF
 COMPOSE_PROFILES=${COMPOSE_PROFILES}
@@ -459,15 +530,31 @@ until curl -skf https://localhost/api/health >/dev/null 2>&1; do
 done
 echo ""
 
+BEDE_READY="n"
 if curl -skf https://localhost/api/health >/dev/null 2>&1; then
+  BEDE_READY="y"
   success "API is healthy!"
 fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 blank
-echo -e "${BOLD}${GREEN}══════════════════════════════════════════${RESET}"
-echo -e "${BOLD}${GREEN}  Bede is running!${RESET}"
-echo -e "${BOLD}${GREEN}══════════════════════════════════════════${RESET}"
+if [[ "$BEDE_READY" == "y" ]]; then
+  echo -e "${BOLD}${GREEN}══════════════════════════════════════════${RESET}"
+  echo -e "${BOLD}${GREEN}  Bede is running!${RESET}"
+  echo -e "${BOLD}${GREEN}══════════════════════════════════════════${RESET}"
+else
+  echo -e "${BOLD}${YELLOW}══════════════════════════════════════════${RESET}"
+  echo -e "${BOLD}${YELLOW}  Bede is installed but not answering yet${RESET}"
+  echo -e "${BOLD}${YELLOW}══════════════════════════════════════════${RESET}"
+  echo "  The first start can take a few minutes. Run 'make status' to check, and"
+  echo "  'make logs' if it does not come up. Your settings are saved in .env."
+fi
+blank
+case "$VOICE_STATE" in
+  connected) echo "  Voice: connected. Open Parent Setup to see it; it has not been tested yet." ;;
+  off)       echo "  Voice: turned off, so lessons are text-only." ;;
+  *)         echo "  Voice: not connected, so lessons are text-only. Parent Setup shows how to add it." ;;
+esac
 blank
 echo "  Open in your browser:  https://localhost"
 if [[ -n "$LAN_IP" ]]; then

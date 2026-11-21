@@ -187,8 +187,8 @@ def test_each_setting_is_passed_and_documented_exactly_once():
 
 # ── setup.sh, the terminal installer ─────────────────────────────────────
 
-# provider 1, api key, local db (default), parent password, child pin, licence
-_ANSWERS = "1\nsk-ant-test\n\nparentpass123\n805274199\nlicense-value\n"
+# provider 1, api key, voice (skipped), local db (default), parent password, child pin, licence
+_ANSWERS = "1\nsk-ant-test\n\n\nparentpass123\n805274199\nlicense-value\n"
 
 
 @pytest.fixture
@@ -310,3 +310,85 @@ def test_the_switch_is_not_readable_without_signing_in(http, monkeypatch):
     missing = http.get("/practice/packs")
     assert missing.status_code == 401
     assert "practice_coach_disabled" not in missing.text
+
+
+# ── Bede's voice in setup.sh (separate from the tutoring choice) ─────────
+
+def _answers(provider="1", key="sk-ant-test", voice="", db="", tail="parentpass123\n805274199\nlicense-value\n"):
+    """Scripted stdin. The voice question is asked only when it is not
+    already settled; pass voice=None for the OpenAI choice, which reuses its key."""
+    voice_line = "" if voice is None else f"{voice}\n"
+    return f"{provider}\n{key}\n{voice_line}{db}\n{tail}"
+
+
+def _provider_number(sandbox, name):
+    import re
+    out = subprocess.run(["bash", "setup.sh", "--accept-consent-notice"], cwd=sandbox, input="\n",
+                         text=True, capture_output=True,
+                         env={**os.environ, "PATH": f"{sandbox / 'stubs'}:{os.environ['PATH']}"}, timeout=60).stdout
+    for line in out.splitlines():
+        m = re.search(r"(\d)\)\s*.*" + name, line, re.I)
+        if m:
+            return m.group(1)
+    raise AssertionError(f"no provider menu entry for {name}:\n{out}")
+
+
+def test_a_voice_key_is_kept_without_changing_the_tutoring_provider(sandbox):
+    env, out = _run_setup(sandbox, _answers(voice="sk-voice-test"))
+    assert env["OPENAI_API_KEY"] == "sk-voice-test"
+    assert env["BEDE_ADAPTER_ORDER"] == "anthropic"
+    assert "TTS_PROVIDER" not in env
+    assert "Voice: connected" in out and "not been tested" in out
+    assert "sk-voice-test" not in out
+
+
+def test_skipping_the_voice_says_what_that_means_and_how_to_add_it(sandbox):
+    env, out = _run_setup(sandbox, _answers(voice=""))
+    assert "OPENAI_API_KEY" not in env
+    assert "text-only" in out and "OPENAI_API_KEY=<key>" in out
+    assert "Voice: not connected" in out
+
+
+def test_the_openai_tutoring_choice_reuses_its_key_for_the_voice(sandbox):
+    number = _provider_number(sandbox, "OpenAI")
+    (sandbox / ".env").unlink(missing_ok=True)
+    env, out = _run_setup(sandbox, _answers(provider=number, key="sk-openai-once", voice=None))
+    assert env["OPENAI_API_KEY"] == "sk-openai-once"
+    assert env["BEDE_ADAPTER_ORDER"] == "openai"
+    assert "OpenAI key for Bede's voice" not in out
+    assert out.count("OPENAI_API_KEY") == 0 or "sk-openai-once" not in out
+    assert "Voice: connected" in out
+
+
+def test_a_rerun_keeps_the_voice_key_and_does_not_ask_again(sandbox):
+    _run_setup(sandbox, _answers(voice="sk-voice-test"))
+    env, out = _run_setup(sandbox, "y\n" + _answers(voice=None))
+    assert env["OPENAI_API_KEY"] == "sk-voice-test"
+    assert "OpenAI key for Bede's voice" not in out
+
+
+def test_a_deliberate_speech_off_survives_a_rerun(sandbox):
+    _run_setup(sandbox, _answers(voice=""))
+    with open(sandbox / ".env", "a") as handle:
+        handle.write("TTS_PROVIDER=none\n")
+    env, out = _run_setup(sandbox, "y\n" + _answers(voice=None))
+    assert env.get("TTS_PROVIDER") == "none"
+    assert "OPENAI_API_KEY" not in env
+    assert "Voice: turned off" in out
+
+
+def test_a_rerun_keeps_the_encryption_and_database_secrets(sandbox):
+    first, _ = _run_setup(sandbox, _answers())
+    second, out = _run_setup(sandbox, "y\n" + _answers(voice=""))
+    for name in ("SECRET_KEY", "MASTER_SECRET", "POSTGRES_PASSWORD"):
+        assert first[name] and second[name] == first[name], name
+    assert "Kept your existing encryption secrets" in out
+
+
+def test_the_banner_does_not_claim_it_is_running_when_it_is_not(sandbox):
+    (sandbox / "stubs" / "curl").write_text("#!/bin/sh\nexit 22\n")
+    env_vars = {**os.environ, "PATH": f"{sandbox / 'stubs'}:{os.environ['PATH']}"}
+    result = subprocess.run(["bash", "setup.sh", "--accept-consent-notice"], cwd=sandbox,
+                            input=_answers(), text=True, capture_output=True, env=env_vars, timeout=120)
+    assert "Bede is running!" not in result.stdout
+    assert "not answering yet" in result.stdout

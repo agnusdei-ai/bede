@@ -200,6 +200,20 @@ job, which blocks the merge; this one proposes the fix. Written after
 only because someone looked. See docs/DECISIONS.md entry 12's 2026-10-01
 amendment and entry 17.
 
+**That per-PR job keeps "the audit did not complete" apart from both answers.**
+pip-audit exits 1 for a vulnerability AND for "could not reach PyPI", so the
+exit code cannot say which; the JSON report can, because only a completed
+audit writes one. `scripts/pip_audit_gate.py` runs pip-audit on both
+lockfiles and reports one of three outcomes: clean (exit 0), an advisory not
+in `.github/audit-allowlist.json` (exit 1, never retried, since asking again
+cannot change an answer), or **audit unavailable** (exit 3). Only a transient
+network failure (a timeout, a refused or reset connection, a failed lookup, a
+5xx or 429) is retried, three attempts with 20 s and 60 s between. A timeout
+is neither an advisory nor evidence the dependencies are clean, and a missing
+report, an unreadable allowlist or a missing pip-audit is never "clean".
+Written after 2026-11-18, when two unrelated pull requests went red on a
+PyPI `ReadTimeout` with no advisory read. `tests/test_pip_audit_gate.py`.
+
 **Linux CI runners are pinned, for the same reason the lockfile refresh is
 attended.** Every `runs-on:` is `ubuntu-24.04`, never `ubuntu-latest`
 (`tests/test_runner_pins.py`). GitHub repoints that label to a new major
@@ -391,7 +405,11 @@ the math skill map and its diagnostic bands, the year plans, and the DIBELS 8
 assessment grades (`services/assessment_interop.py`,
 `services/canonical_assessment.py`). Adding a grade 9-12 year plan or skill band
 is content work; accepting the grade is not. `test_demo_upper_school.py` pins
-all of it.
+all of it. The parent side says so rather than showing empty rows: Progress
+(`isUpperSchoolGrade`, `utils/gradeStage.ts`) leaves the math and reading rows
+out for grades 9-12 with one sentence and does not request them, and the
+educator's DIBELS screen never puts a 9-12 grade in its K-8 grade choice
+(`Progress.upperSchool.test.tsx`, `EducatorDesk.journey.test.tsx`).
 
 ## Required Environment Variables
 
@@ -2605,20 +2623,16 @@ after.
 This is a standing rule for this repo across sessions, not a one-off for
 whichever task prompted it.
 
-## Standing Workflow: Stability Code Freeze
+## Standing Workflow: Stability Code Freeze (lifted 2026-11-20)
 
-**`main` is frozen for pilot v1.0 (`docs/DECISIONS.md` entry 45).** From the
-baseline that entry names, a pull request merges only if it fits one of the
-entry's six exceptions (security fixes, a red `main` or world-caused gate
-failure, qualification and repair-loop defects, docs describing the system as it
-is, reverts, and, standing until the owner declares K-12 complete, **6: K-12
-completion**: grades 9-12 acceptance and content, the skill maps, DIBELS upper
-grades, year plans and the copy and tests that state the grade range), and its
-body says which on a line of its own: `Freeze exception: <n>`. No guardrail is
-relaxed by exception 6, and a K-8 instrument declines for grades 9-12 until its
-content exists. `site/` and `demo/` still need the owner's sign-off.
-The freeze ends with the owner's GO or NO-GO in the pilot v1.0 release
-decision packet (on #837, not yet on `main`) or the owner lifting it.
+**The pilot v1.0 freeze (`docs/DECISIONS.md` entry 45) was lifted by the owner
+in writing on 2026-11-20.** `main` takes ordinary pull requests, and none needs a
+`Freeze exception:` line. What still applies: `site/` and `demo/` changes need
+the owner's explicit sign-off before merge; #862 and the pilot work on #837 land
+only when the owner says so; and a K-8 instrument declines for grades 9-12 until
+its upper-grade content exists (see "Grades: the server accepts K-12"). If a
+freeze is ever imposed again, record it as a new register entry rather than
+reviving this one.
 
 ## Standing Workflow: Banned Nomenclature
 

@@ -25,6 +25,7 @@ import ConsentBanner, { ConsentNoticeDisclosure } from '../components/ConsentBan
 import { useHouseholdConsent } from '../hooks/useHouseholdConsent'
 import { tickRequiredToSave } from '../utils/consent'
 import BetaIntakeModal from '../components/BetaIntakeModal'
+import { FAMILY_GRADES, stageForGrade } from '../utils/gradeStage'
 
 // label is a numeric grade range, not a translated word — same across
 // locales. descriptionKey resolves through i18n at render time since this
@@ -32,7 +33,7 @@ import BetaIntakeModal from '../components/BetaIntakeModal'
 const GRADE_STAGES: Array<{ label: string; value: GradeStage; descriptionKey: string; emoji: string }> = [
   { label: 'K–2', value: 'K-2', descriptionKey: 'parentSetup.stageDescGrammar', emoji: '🌱' },
   { label: '3–5', value: '3-5', descriptionKey: 'parentSetup.stageDescLogic', emoji: '🔭' },
-  { label: '6–8', value: '6-8', descriptionKey: 'parentSetup.stageDescRhetoric', emoji: '🎓' },
+  { label: '6–12', value: '6-8', descriptionKey: 'parentSetup.stageDescRhetoric', emoji: '🎓' },
 ]
 
 // One "pick up where we left off" row in the form. `subject` is '' until the
@@ -790,13 +791,27 @@ function StudentCard({
           </div>
           <div>
             <label className="label">{t('parentSetup.grade')}</label>
-            <input
-              type="text"
+            <select
               value={student.grade}
-              onChange={(e) => onUpdate({ grade: e.target.value })}
-              placeholder={t('parentSetup.gradePlaceholder')}
+              onChange={(e) => {
+                const grade = e.target.value
+                const stage = stageForGrade(grade)
+                onUpdate(stage ? { grade, grade_stage: stage } : { grade })
+              }}
+              aria-label={t('parentSetup.grade')}
               className="input"
-            />
+            >
+              <option value="">{t('parentSetup.gradeChoose')}</option>
+              {/* A grade saved earlier as free text stays selectable, so nothing is lost on edit */}
+              {student.grade && !(FAMILY_GRADES as readonly string[]).includes(student.grade) && (
+                <option value={student.grade}>{student.grade}</option>
+              )}
+              {FAMILY_GRADES.map((g) => (
+                <option key={g} value={g}>
+                  {g === 'K' ? t('parentSetup.gradeKindergarten') : t('parentSetup.gradeOption', { grade: g })}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 

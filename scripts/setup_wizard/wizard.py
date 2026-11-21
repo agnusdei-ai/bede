@@ -348,6 +348,23 @@ def existing_choices(env_path: str | None = None) -> dict:
     return choices
 
 
+def _prior_env() -> dict:
+    """Settings in the .env being replaced, exactly as written (keys are
+    case-sensitive). Used so running setup again keeps the encryption secrets,
+    the database password, the voice key and a deliberate speech-off."""
+    try:
+        text = Path(ENV_PATH).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+    found: dict[str, str] = {}
+    for line in text.splitlines():
+        if "=" not in line or line.lstrip().startswith("#"):
+            continue
+        key, _, value = line.partition("=")
+        found[key.strip()] = value.strip().strip('"').strip("'")
+    return found
+
+
 def render_form(error: str = "", banner: str = "", values: dict | None = None) -> str:
     v = values or {}
     if DEPLOYMENT_CONTEXT == "campus" and APPROVED_CAMPUS_ID and not v.get("location_id"):
@@ -434,12 +451,27 @@ def render_form(error: str = "", banner: str = "", values: dict | None = None) -
         var el = document.getElementById('provider_' + name);
         if (el) el.style.display = (name === p) ? 'block' : 'none';
       });
+      var voiceField = document.getElementById('voice_key_field');
+      if (voiceField) voiceField.style.display = (p === 'openai') ? 'none' : 'block';
       document.querySelectorAll('input[name=provider]').forEach(function(el) {
         el.closest('.choice').classList.toggle('selected', el.checked);
       });
     }
     </script>
     """)
+
+    prior = _prior_env()
+    voice_kept = bool(prior.get("OPENAI_API_KEY")) and prior.get("TTS_PROVIDER", "").lower() != "none"
+    voice_off = prior.get("TTS_PROVIDER", "").lower() == "none"
+    body.append('<label>Bede\'s voice (optional)</label>')
+    if voice_off:
+        body.append('<div class="hint">Speaking is off (kept from your last setup). To turn it back on, remove the TTS_PROVIDER=none line from .env.</div>')
+    elif voice_kept:
+        body.append('<div class="hint">Bede\'s voice is connected (it keeps the OpenAI key from your last setup). Each line Bede speaks is sent to OpenAI and billed to your OpenAI account.</div>')
+    else:
+        body.append('<div class="hint">Bede reads lessons aloud in one calm voice (the one in the demo) through OpenAI\'s speech service. Each line Bede speaks is sent to OpenAI and billed to your OpenAI account. This is separate from the tutoring choice above and does not change it. If you chose OpenAI for tutoring, the same key is used and this is not asked. Leave it blank to Continue with text; you can add Bede\'s voice any time by running setup again.</div>')
+        voice_hidden = "" if provider != "openai" else 'style="display:none"'
+        body.append(f'<div id="voice_key_field" {voice_hidden}><input type="password" name="voice_key" autocomplete="off" placeholder="OpenAI key for the voice (optional)" value=""></div>')
 
     body.append('<label>Where should Bede save learning records?</label>')
     body.append(f"""
@@ -717,12 +749,29 @@ def consent_env_lines() -> str:
     )
 
 
+_DECIDED_BY_THE_WIZARD = frozenset({
+    "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "MISTRAL_API_KEY", "BEDE_ADAPTER_ORDER",
+    "LOCAL_LLM_BASE_URL", "LOCAL_LLM_MODEL", "COMPOSE_PROFILES", "POSTGRES_PASSWORD",
+    "DATABASE_URL", "TTS_PROVIDER", "PRACTICE_COACH_ENABLED", "CURRICULUM_ENGINE_ENABLED",
+    "RETAIN_MASTERY_PROFILES", "SECRET_KEY", "MASTER_SECRET", "PARENT_PASSWORD", "CHILD_PIN",
+    "CORS_ORIGINS", "WEBAUTHN_RP_ID", "WEBAUTHN_ORIGIN", "WEBAUTHN_RP_NAME",
+    "BEDE_LAN_ENABLED", "BEDE_LAN_BIND_IP", "CONSENT_INSTALL_ACK_HASH", "CONSENT_INSTALL_ACK_AT",
+    "DISABLE_API_DOCS", "PRODUCTION", "LICENSE_KEY", "EDUCATOR_PILOT_ENABLED", "BEDE_LOCATION_ID",
+})
+
+
 def build_env_file(fields: dict) -> str:
-    secret_key = secrets.token_hex(32)
-    master_secret = secrets.token_hex(32)
+    prior = _prior_env()
+    # MASTER_SECRET wraps the key that encrypts every child's records and the
+    # database volume was created with its password: a re-run keeps all three.
+    if len(prior.get("SECRET_KEY", "")) >= 32 and len(prior.get("MASTER_SECRET", "")) >= 32:
+        secret_key, master_secret = prior["SECRET_KEY"], prior["MASTER_SECRET"]
+    else:
+        secret_key = secrets.token_hex(32)
+        master_secret = secrets.token_hex(32)
 
     if fields["db_choice"] == "local":
-        postgres_password = secrets.token_hex(24)
+        postgres_password = prior.get("POSTGRES_PASSWORD") or secrets.token_hex(24)
         database_url = f"postgresql+asyncpg://sage:{postgres_password}@db:5432/bede"
         db_lines = f"COMPOSE_PROFILES=local-db\nPOSTGRES_PASSWORD={postgres_password}\n"
     else:
@@ -755,10 +804,32 @@ def build_env_file(fields: dict) -> str:
     else:
         provider_lines = f"BEDE_ADAPTER_ORDER={provider}\n" + _PROVIDER_ENV_LINES[provider](fields)
 
+    # Bede's voice needs an OpenAI key whichever service tutors. The OpenAI
+    # tutoring choice already writes it; otherwise a typed key, else the one
+    # this installation has. Never changes BEDE_ADAPTER_ORDER. A deliberate
+    # TTS_PROVIDER=none from an earlier setup is kept, never undone.
+    voice_lines = ""
+    if str(prior.get("TTS_PROVIDER", "")).lower() == "none":
+        voice_lines = "TTS_PROVIDER=none\n"
+    elif provider != "openai":
+        voice_key = (fields.get("voice_key") or "").strip() or prior.get("OPENAI_API_KEY", "")
+        if voice_key:
+            voice_lines = f"OPENAI_API_KEY={voice_key}\n"
+
+    # Settings the wizard neither asks about nor writes (an added mail key, a
+    # custom port, a sandbox PIN) survive a re-run. Anything this run decides
+    # is never carried over, so a changed answer is not undone.
+    kept = "".join(
+        f"{k}={v}\n" for k, v in prior.items()
+        if k not in _DECIDED_BY_THE_WIZARD and "\n" not in v
+    )
+    kept_block = f"\n# Kept from your previous .env\n{kept}" if kept else ""
+
     return (
         "# Generated by Bede's setup wizard\n"
         "# DO NOT commit this file — it contains secrets.\n\n"
         f"{provider_lines}"
+        f"{voice_lines}"
         f"SECRET_KEY={secret_key}\n"
         f"MASTER_SECRET={master_secret}\n"
         f"PARENT_PASSWORD={fields['parent_password']}\n"
@@ -785,6 +856,7 @@ def build_env_file(fields: dict) -> str:
         # Curriculum Intelligence off are what silence means.
         + ("PRACTICE_COACH_ENABLED=false\n" if fields.get("practice_coach") == "no" else "")
         + ("CURRICULUM_ENGINE_ENABLED=true\n" if fields.get("curriculum") == "yes" else "")
+        + kept_block
     )
 
 
@@ -832,6 +904,9 @@ def validate(fields: dict) -> str:
     lan_error = validate_lan_fields(fields)
     if lan_error:
         return lan_error
+    voice_key = (fields.get("voice_key") or "").strip()
+    if voice_key and not re.fullmatch(r"[A-Za-z0-9_\-.]{8,300}", voice_key):
+        return "That does not look like an OpenAI key. Paste it again, or leave the voice key blank."
     provider = fields.get("provider", "anthropic")
     if provider == "local_auto":
         if _read_local_ai_marker() is None:

@@ -118,8 +118,12 @@ def test_the_audit_still_covers_both_lockfiles() -> None:
     which is why the dev lockfile is audited too.
     """
     body = _runs(_workflow()["jobs"][AUDIT_JOB])
+    # Both lockfiles go to scripts/pip_audit_gate.py, which runs pip-audit on
+    # each (tests/test_pip_audit_gate.py drives that script).
+    assert "scripts/pip_audit_gate.py" in body, f"{AUDIT_JOB} no longer runs scripts/pip_audit_gate.py."
+    gate_call = body[body.index("scripts/pip_audit_gate.py"):]
     for lockfile in ("requirements.lock.txt", "requirements-dev.lock.txt"):
-        assert re.search(rf"pip-audit -r {re.escape(lockfile)}", body), (
+        assert re.search(rf"(?<![\w-]){re.escape(lockfile)}", gate_call), (
             f"{AUDIT_JOB} no longer audits {lockfile}."
         )
 

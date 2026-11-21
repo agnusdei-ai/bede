@@ -66,7 +66,7 @@ function consentBoxes() {
 async function fillForm() {
   render(<MemoryRouter><ParentSetup /></MemoryRouter>)
   fireEvent.change(await screen.findByPlaceholderText(i18n.t('parentSetup.namePlaceholder')), { target: { value: 'Ada' } })
-  fireEvent.change(screen.getByPlaceholderText(i18n.t('parentSetup.gradePlaceholder')), { target: { value: '4' } })
+  fireEvent.change(screen.getByRole('combobox', { name: i18n.t('parentSetup.grade') }), { target: { value: '4' } })
   const others = screen.getAllByRole('checkbox').filter((b) => !consentBoxes().includes(b as HTMLInputElement))
   fireEvent.click(others[others.length - 1]) // the existing parent acknowledgement
 }

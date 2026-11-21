@@ -511,3 +511,58 @@ async def test_copied_out_pages_reach_the_draft_and_count_as_photos_for_consent(
     await practice_router.demo_generate_quiz(
         req(focus=None, source_pages_text="[Pages 1-6]\nQ1. 2+2", cloud_consent=True), auth=DEMO)
     assert "[Pages 1-6]" in cloud.calls[0]["messages"][0]["content"][-1]["text"]
+
+
+# The answer key: one or two sentences on why, never an explanation of a
+# replaced answer.
+
+def qx(prompt, answer, explanation, type_="short_answer", options=None):
+    item = q(prompt, answer, type_, options)
+    item["explanation"] = explanation
+    return item
+
+
+@pytest.mark.asyncio
+async def test_a_kept_answer_keeps_its_brief_explanation(monkeypatch, quota):
+    stub = StubClient(draft(qx("48 ÷ 6 =", "8", "Six eights make 48. So 48 shared into 6 is 8. Check by multiplying.", "computation")))
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    out = await practice_router.demo_generate_quiz(req(), auth=DEMO)
+    assert out["quiz"]["questions"][0]["explanation"] == "Six eights make 48. So 48 shared into 6 is 8."
+
+
+@pytest.mark.asyncio
+async def test_a_recomputed_answer_loses_the_explanation_written_for_the_wrong_one(monkeypatch, quota):
+    stub = StubClient(draft(qx("27 + 15 =", "32", "Add the tens then the ones to get 32.", "computation")))
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    out = await practice_router.demo_generate_quiz(req(), auth=DEMO)
+    question = out["quiz"]["questions"][0]
+    assert question["answer"] == "42" and question["explanation"] == ""
+
+
+@pytest.mark.asyncio
+async def test_an_explanation_is_optional(monkeypatch, quota):
+    stub = StubClient(draft(q("Which river flooded every year in Egypt?", "Nile")))
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    out = await practice_router.demo_generate_quiz(req(subject="history", focus="Egypt"), auth=DEMO)
+    assert out["quiz"]["questions"][0]["explanation"] == ""
+
+
+def test_an_overlong_explanation_is_cut_to_fit():
+    text = generate.brief_explanation("word " * 200)
+    assert len(text) <= generate.MAX_EXPLANATION_CHARS and text.endswith("…")
+
+
+def test_the_model_is_asked_for_a_brief_explanation():
+    source = open(generate.__file__, encoding="utf-8").read()
+    assert '"explanation": str' in source and "one or two short sentences" in source
+
+
+@pytest.mark.asyncio
+async def test_each_question_carries_a_difficulty_and_an_unknown_one_becomes_on_level(monkeypatch, quota):
+    a = q("2 + 3 =", "5", "computation"); a["difficulty"] = "easier"
+    b = q("48 ÷ 6 =", "8", "computation"); b["difficulty"] = "HARDER"
+    c = q("9 + 9 =", "18", "computation"); c["difficulty"] = "impossible"
+    stub = StubClient(draft(a, b, c))
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    out = await practice_router.demo_generate_quiz(req(), auth=DEMO)
+    assert [x["difficulty"] for x in out["quiz"]["questions"]] == ["easier", "harder", "on"]

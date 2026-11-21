@@ -572,15 +572,39 @@ Reading and drafting use the same route as photo reading: the household's
 local model, or the configured cloud provider only with consent for this
 request. Nothing is stored.
 
-- **In the app**, the parent prints the quiz and its answer key from the
-  student's Progress page.
+The answers stay hidden on the review screen until the adult presses
+**Show answer key**, in the app and the demo alike, so a quiz can be looked
+over (or taken, on a shared screen) without the answers in view. With the
+key shown, each answer may carry a short explanation of one or two sentences
+on why it is right. The drafting model writes it only where it adds
+something, it is cut to two sentences in code, and it is dropped whenever
+Bede replaces the model's answer (a recomputed math answer, or one counted
+off a picture), so it never explains an answer that is no longer there. The
+printed answer key carries the same explanation under each answer.
+
+- **Taking the quiz.** After reviewing (answers hidden), the adult presses
+  **Start quiz** and the kept questions are taken one at a time
+  (`QuizRunner.tsx`, rules in `utils/quizRunner.ts`, both mirrored in the
+  demo and held equal by `demo/src/quizRunner.test.ts`). A choice, true/false
+  or number answer is checked in code; any other answer that does not match
+  the key exactly is shown for the adult to check and never counted as a miss.
+  The answer and its explanation appear only after the student answers. The
+  quiz is adaptive: each drafted question carries a `difficulty` (easier, on
+  or harder than the requested level, roughly a third each), the quiz starts
+  on level, and the next question steps up a level after a right answer and
+  down after a miss, using the nearest level when one runs out. The end shows
+  how many were right.
+- **In the app**, the parent runs the quiz on that device from the student's
+  Progress page, or prints the quiz and its answer key. Sending a quiz to the
+  child's own tablet is not built yet (it needs the quiz stored for that
+  student).
 - **Teachers** have the same builder on the classroom page
   (`/practice/educator/quiz/generate`, passkey-verified teacher session).
   Teacher drafts run on the school's own local model only, never a cloud
   provider, because a teacher's upload can hold students' work; with no
   local model the teacher is told so. No learner is named, read or written.
-- **In the demo**, an approved quiz is delivered into the chat, questions
-  only. Each draft counts twice against the demo's message quota, since it
+- **In the demo**, **Start quiz** runs the quiz in the chat, and when it
+  ends the result is sent to Bede as one message. Each draft counts twice against the demo's message quota, since it
   is two model calls. The demo can also print the quiz, its answer key and a
   practice worksheet, the same way the app does.
 

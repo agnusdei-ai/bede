@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { providerName } from '../utils/providerName'
 import { useTranslation } from 'react-i18next'
-import { FileQuestion, Loader2, Printer } from 'lucide-react'
+import { FileQuestion, Loader2, Play, Printer } from 'lucide-react'
 import { SOURCE_TEXT_MAX_CHARS, splitIntoParts, uploadProblem } from '../utils/uploadParts'
 import Diagram, { diagramMarkup } from './Diagram'
 import { printSheet } from '../utils/printDocument'
 import ReadingProgressBar from './ReadingProgressBar'
+import QuizRunner from './QuizRunner'
 import { newProgressId, overallPercent, watchProgress, withProgress, type ProgressState } from '../utils/readingProgress'
 import {
   copyEducatorQuizSource,
@@ -161,6 +162,13 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
     }
   }
 
+  // Answers stay hidden until the adult asks for the key, so the quiz can be
+  // looked over (or taken) without the answers showing.
+  const [showKey, setShowKey] = useState(false)
+  // The adult's quick approve: the kept questions run here, one at a time,
+  // with each answer shown only after it is answered.
+  const [running, setRunning] = useState(false)
+
   const chosen = () => quiz ? quiz.questions.filter((_, i) => keep[i]) : []
 
   const print = async (withAnswers: boolean) => {
@@ -173,6 +181,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
         options: q.options,
         diagramHtml: diagramMarkup(q.diagram, t),
         answer: q.answer,
+        answerDetails: q.explanation ? [q.explanation] : [],
       })),
       labels: { name: t('printSheet.name'), date: t('printSheet.date'), keyTitle: `${quiz.title}: ${t('quizBuilder.answerKey')}` },
       copies: [withAnswers ? 'key' : 'student'],
@@ -274,7 +283,11 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
             </>
           )}
 
-          {quiz && (
+          {quiz && running && (
+            <QuizRunner title={quiz.title} questions={chosen()} onFinish={() => setRunning(false)} />
+          )}
+
+          {quiz && !running && (
             <>
               <h3 className="font-semibold text-gray-800">{quiz.title}</h3>
               <p className="text-xs text-gray-600">
@@ -282,6 +295,11 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                 {quiz.coverage.length > 0 && <> · {quiz.coverage.join(', ')}</>}
               </p>
               <p className="text-xs text-gray-600">{t('quizBuilder.checkNote')}</p>
+              <button type="button" aria-pressed={showKey} onClick={() => setShowKey((v) => !v)}
+                className={`${button} border border-gray-200 text-gray-700`}>
+                {showKey ? t('quizBuilder.hideAnswerKey') : t('quizBuilder.showAnswerKey')}
+              </button>
+              {!showKey && <p className="text-xs text-gray-600">{t('quizBuilder.keyHidden')}</p>}
               <ol className="space-y-2">
                 {quiz.questions.map((q, index) => (
                   <li key={q.number} className="flex gap-2 rounded-lg border border-gray-100 p-2 text-xs">
@@ -292,6 +310,7 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                       <p className="font-medium">{q.number}. {q.prompt}</p>
                       <Diagram d={q.diagram} />
                       {q.options.length > 0 && <p className="whitespace-pre-line text-gray-600">{optionLines(q.options).join('\n')}</p>}
+                      {showKey && <>
                       <label className="flex items-center gap-2">
                         <span>{t('quizBuilder.answer')}</span>
                         <input value={q.answer} aria-label={t('quizBuilder.answerFor', { number: q.number })}
@@ -302,20 +321,26 @@ export default function QuizBuilder({ token, studentName = '', audience = 'paren
                         </span>
                       </label>
                       {q.second_answer && <p className="text-gold-800">{t('quizBuilder.secondAnswer', { answer: q.second_answer })}</p>}
+                      {q.explanation && <p className="text-gray-700">{t('quizBuilder.why', { text: q.explanation })}</p>}
+                      </>}
                     </div>
                   </li>
                 ))}
               </ol>
               <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => { setShowKey(false); setRunning(true) }} disabled={!keep.some(Boolean)}
+                  className={`${button} bg-navy-700 text-white disabled:opacity-40`}>
+                  <Play size={15} />{t('quizRunner.start')}
+                </button>
                 <button type="button" onClick={() => void print(false)} disabled={!keep.some(Boolean)}
-                  className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
+                  className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
                   <Printer size={15} />{t('quizBuilder.printQuiz')}
                 </button>
                 <button type="button" onClick={() => void print(true)} disabled={!keep.some(Boolean)}
                   className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
                   <Printer size={15} />{t('quizBuilder.printKey')}
                 </button>
-                <button type="button" onClick={() => setQuiz(null)} className={`${button} border border-gray-200 text-gray-700`}>
+                <button type="button" onClick={() => { setQuiz(null); setShowKey(false); setRunning(false) }} className={`${button} border border-gray-200 text-gray-700`}>
                   {t('quizBuilder.again')}
                 </button>
                 {onEdit && (

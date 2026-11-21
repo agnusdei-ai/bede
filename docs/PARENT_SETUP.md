@@ -1525,14 +1525,25 @@ email) so they land straight on their own login screen.
 
 ## 7. *(Optional)* Giving Bede a real voice
 
-By default, Bede speaks using your browser's built-in voice, which can sound
-robotic. Two options for something better: see `docs/VOICE_SETUP.md` for
-the full walkthrough: a paid option (OpenAI, small per-use cost) that
-sounds meaningfully more natural, or a free, self-hosted option with no
-account needed but a lower quality ceiling.
+Bede speaks only in Bede's own voice: an English, male voice that suits a
+monk, which comes with Bede and runs on your computer itself, so nothing Bede
+says aloud leaves it. Spanish lessons are read in the same voice. There is
+nothing to set up. See `docs/VOICE_SETUP.md`.
 
-If you skip this, everything still works. It just falls back to the browser voice
-automatically.
+Bede never uses another voice in its place: not your browser's built-in voice
+and not an online voice service, even if you use one for tutoring. If the
+voice is not set up, stops responding, or fails a line, everything still
+works: every question, answer and piece of feedback stays on screen, and
+practice rounds leave out the questions that only work by listening. Your
+child is never shown a voice error. The **Bede's voice** card in Parent Setup
+tells you which of these your computer has, and what to do:
+
+- **Speaking in its own voice:** nothing to do.
+- **Set up but not answering right now:** nothing to do straight away; Bede
+  checks again within a minute. If it lasts, restart Bede.
+- **Not installed:** lessons are on screen only. Bede's voice comes with
+  Bede, so updating Bede installs it; if the card still shows, the voice setup
+  guide explains why.
 
 ## 8. Handing off to your child: what to actually tell them
 

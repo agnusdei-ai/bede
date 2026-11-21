@@ -13,6 +13,7 @@ import {
   type FeedbackCategory, type MasteryProfileSummary, type AvailableLocale,
   type DemoWorkLedger,
   type DemoPracticeDeliveryItem,
+  type QuizQuestion,
 } from './api'
 import i18n from './i18n'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
@@ -48,6 +49,7 @@ import ConsentModal from './ConsentModal'
 import { dismissKeyboard } from './dismissKeyboard'
 import DemoPracticeCoach from './DemoPracticeCoach'
 import DemoPracticeDelivery from './DemoPracticeDelivery'
+import QuizRunner from './QuizRunner'
 import K2MathPractice from './K2MathPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import MapPractice from './MapPractice'
@@ -1005,6 +1007,9 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const practiceOpen = showNumberTime || showSoundTime || showMapPractice
   const [approvedPractice, setApprovedPractice] = useState<DemoPracticeDeliveryItem[]>([])
   const [practiceRun, setPracticeRun] = useState(0)
+  // A drafted quiz the adult started: taken in the chat, answers shown only
+  // after each question is answered (QuizRunner).
+  const [runningQuiz, setRunningQuiz] = useState<{ title: string; questions: QuizQuestion[] } | null>(null)
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
@@ -1928,6 +1933,10 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             setApprovedPractice(items)
             setPracticeRun((run) => run + 1)
           }}
+          onStartQuiz={(title, questions) => {
+            setRunningQuiz({ title, questions })
+            setPracticeRun((run) => run + 1)
+          }}
         />
       )}
       {showNumberTime && (
@@ -2071,6 +2080,17 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        {runningQuiz && (
+          <QuizRunner
+            key={`quiz-${practiceRun}`}
+            title={runningQuiz.title}
+            questions={runningQuiz.questions}
+            onFinish={(summary) => {
+              setRunningQuiz(null)
+              send(t('quizRunner.chatSummary', { title: runningQuiz.title, right: summary.right, total: summary.total }))
+            }}
+          />
+        )}
         {approvedPractice.length > 0 && (
           <DemoPracticeDelivery
             key={practiceRun}

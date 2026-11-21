@@ -173,7 +173,11 @@
     "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas.",
     "printQuiz": "Imprimir examen",
     "printKey": "Imprimir respuestas",
-    "answerKey": "respuestas"
+    "answerKey": "respuestas",
+    "showAnswerKey": "Mostrar respuestas",
+    "hideAnswerKey": "Ocultar respuestas",
+    "keyHidden": "Las respuestas están ocultas para que primero se pueda contestar el examen.",
+    "why": "Por qué: {{text}}"
   },
   "canvas": {
     "cancel": "Cancelar",
@@ -885,5 +889,21 @@
   "demoK2Practice": {
     "soundTime": "Probar la Hora de los Sonidos",
     "mapPractice": "Probar la Práctica de mapas"
+  },
+  "quizRunner": {
+    "progress": "Pregunta {{n}} de {{total}}",
+    "answerLabel": "Tu respuesta",
+    "check": "Revisar",
+    "right": "¡Correcto!",
+    "wrong": "No exactamente. La respuesta es {{answer}}.",
+    "open": "Esta es la respuesta: {{answer}}. Revisa la tuya con un adulto.",
+    "why": "Por qué: {{text}}",
+    "next": "Siguiente pregunta",
+    "seeResults": "Ver cómo te fue",
+    "finished": "Acertaste {{right}} de {{total}}.",
+    "openNote": "Un adulto debe revisar {{count}} respuestas.",
+    "done": "Listo",
+    "start": "Empezar el examen",
+    "chatSummary": "Terminé el examen \"{{title}}\" y acerté {{right}} de {{total}}."
   }
 }

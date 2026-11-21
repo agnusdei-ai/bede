@@ -901,7 +901,11 @@
     "uploadTooLarge": "Estos archivos suman más de 1 GB. Elija menos páginas.",
     "fileTooLarge": "Un archivo pesa más de 25 MB. Divídalo o escanéelo con menor resolución.",
     "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas.",
-    "editAsTeacher": "Editar la clave y calificar el trabajo de los alumnos"
+    "editAsTeacher": "Editar la clave y calificar el trabajo de los alumnos",
+    "showAnswerKey": "Mostrar respuestas",
+    "hideAnswerKey": "Ocultar respuestas",
+    "keyHidden": "Las respuestas están ocultas para que primero se pueda contestar el examen.",
+    "why": "Por qué: {{text}}"
   },
   "practiceDelivery": {
     "title": "Una pregunta de práctica aprobada por tu familia",
@@ -1551,5 +1555,43 @@
       "bond_missing": "{{whole}} es {{part}} y {{answer}}. Juntos hacen {{whole}}.",
       "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}."
     }
+  },
+  "voiceStatus": {
+    "title": "La voz de Bede",
+    "local": {
+      "what": "Bede lee las lecciones en voz alta con la voz opcional de desarrollo Piper, que funciona en esta computadora. Nada de lo que Bede dice en voz alta sale de ella.",
+      "next": "No hace falta hacer nada. Esta voz es para pruebas; no es la voz habitual de Bede."
+    },
+    "down": {
+      "what": "La voz de Bede está configurada, pero ahora no responde. Las lecciones continúan con todo en pantalla; a tu hijo no se le avisa y Bede nunca usa otra voz en su lugar.",
+      "next": "Por ahora no hace falta hacer nada: Bede vuelve a comprobarlo en menos de un minuto. Si sigue así, consulta la guía de configuración de voz."
+    },
+    "none": {
+      "what": "La voz de Bede no está terminada de configurar en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede no usa la voz del navegador ni ninguna otra voz en su lugar.",
+      "next": "Para terminar la configuración de la voz, agrega una clave de OpenAI (OPENAI_API_KEY) a los ajustes de esta instalación y reinicia Bede. Después la voz de Bede funciona sin nada más que activar. La guía de configuración de voz explica cómo."
+    },
+    "off": {
+      "what": "La voz se desactivó en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede no usa otra voz en su lugar.",
+      "next": "Para volver a activar la voz de Bede, quien configuró esta instalación quita el ajuste TTS_PROVIDER=none y reinicia Bede. La guía de configuración de voz explica cómo."
+    },
+    "cloud": {
+      "what": "Bede lee las lecciones en voz alta con su voz habitual, que viene de un servicio de voz en la nube. Ese servicio recibe cada frase que dice Bede.",
+      "next": "No hace falta hacer nada. Para que las lecciones sean solo en pantalla, desactiva la voz de Bede durante una lección, o pide a quien configuró esta instalación que desactive la voz."
+    }
+  },
+  "quizRunner": {
+    "progress": "Pregunta {{n}} de {{total}}",
+    "answerLabel": "Tu respuesta",
+    "check": "Revisar",
+    "right": "¡Correcto!",
+    "wrong": "No exactamente. La respuesta es {{answer}}.",
+    "open": "Esta es la respuesta: {{answer}}. Revisa la tuya con un adulto.",
+    "why": "Por qué: {{text}}",
+    "next": "Siguiente pregunta",
+    "seeResults": "Ver cómo te fue",
+    "finished": "Acertaste {{right}} de {{total}}.",
+    "openNote": "Un adulto debe revisar {{count}} respuestas.",
+    "done": "Listo",
+    "start": "Empezar el examen"
   }
 }

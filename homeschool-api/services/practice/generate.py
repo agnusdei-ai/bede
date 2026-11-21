@@ -194,6 +194,11 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
         if raw.get("diagram") is not None and picture is None:
             report["dropped"] += 1  # the question needs a picture Bede cannot draw
             continue
+        if picture is not None and diagrams.keep_for_subject(picture, subject.value) is None:
+            # An outside picture belongs to History & Geography and Art & Music
+            # only; elsewhere the question needs a picture it may not have.
+            report["dropped"] += 1
+            continue
         q["prompt"] = str(q.get("prompt") or "").strip()[:600]
         q["topic"] = str(q.get("topic") or "").strip()[:80]
         q["options"] = [str(o).strip()[:200] for o in (q.get("options") or []) if str(o).strip()][:6]

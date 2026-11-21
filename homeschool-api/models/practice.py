@@ -474,6 +474,20 @@ class GradedAssessment(_Strict):
     subject: str = Field(..., min_length=1, max_length=30)
     sections: List[AssessmentSection] = Field(..., min_length=1, max_length=MAX_SECTIONS)
 
+    @model_validator(mode="after")
+    def _outside_pictures_only_where_approved(self) -> "GradedAssessment":
+        """An outside "image" picture (looked up from Wikipedia) belongs only to
+        History & Geography and Art & Music (diagrams.IMAGE_SUBJECTS). Any
+        other subject's question keeps its words and loses the lookup. Runs on
+        every validation, so a stored reading reloaded later is held to it too."""
+        from services.practice.diagrams import keep_for_subject
+
+        for section in self.sections:
+            for item in section.items:
+                if item.diagram is not None and keep_for_subject(item.diagram, self.subject) is None:
+                    item.diagram = None
+        return self
+
     def word_bank(self) -> List[str]:
         seen: list[str] = []
         for section in self.sections:

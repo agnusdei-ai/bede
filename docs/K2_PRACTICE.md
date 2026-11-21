@@ -494,9 +494,18 @@ with this letter". Number Time's counting and comparing ranges now grow with
 the grade (counting 3-10, 6-15, 11-20; comparing up to 8, 12, 20).
 `test_k2_phonics.py` pins a minimum pool per area and that both kinds appear.
 
-**Pictures (owner direction 2026-11-21).** Pictures are hand-drawn
-illustrations made for Bede, coloured and sketched in one style, drawn as SVG in
-the app. No emoji and no online lookup: nothing is fetched to show a picture.
+**Pictures (owner direction 2026-11-21).** Sound Time, Number Time, ordinary
+quiz pictures and printed sheets use original illustrations made for Bede:
+coloured, sketched drawings in a classical style, drawn as SVG in the app
+(`Diagram.tsx`'s `DRAWINGS`). No emoji and no online lookup. The acceptance
+test is recognisability at the size actually shown and printed; fine detail
+must never obscure the object or add a clue that changes the exercise. These
+drawings are Bede's own work: Mater Amabilis informs which works and composers
+picture and composer study choose and how they are taught, and did not supply,
+license or endorse the illustrations. Outside pictures (Wikipedia and
+Wikimedia Commons) remain only for picture study in History & Geography and Art
+& Music, each with its own source, creator, licence or public-domain basis and
+credit (`docs/VENDOR_DATA_FLOW.md`).
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
 like the map practice card.

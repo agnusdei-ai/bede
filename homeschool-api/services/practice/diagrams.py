@@ -145,6 +145,27 @@ def _named_image(text: str | None):
     return parse({"kind": "image", "wiki_title": name, "caption": name[:60]})
 
 
+#: The only activities whose pictures may be looked up from Wikipedia and
+#: Wikimedia Commons: Bede's History & Geography and Art & Music, the subjects
+#: whose picture study shows a real, named painting, place or artifact. Every
+#: other subject's picture is a drawing or nothing. The ids are models/schemas.py's
+#: Subject values (Subject.history, Subject.art_music); Practice Coach's own
+#: "history" subject id is the same string, its "geography" is not.
+IMAGE_SUBJECTS = frozenset({"history", "art_music"})
+
+
+def image_allowed(subject: str | None) -> bool:
+    """Whether a picture for this subject may be an outside "image" lookup."""
+    return (subject or "") in IMAGE_SUBJECTS
+
+
+def keep_for_subject(diagram, subject: str | None):
+    """The diagram, or None when it is an outside image this subject may not use."""
+    if diagram is not None and getattr(diagram, "kind", None) == "image" and not image_allowed(subject):
+        return None
+    return diagram
+
+
 def from_stimulus(text: str | None):
     """A drawing for a picture described in words, or None if it names
     nothing Bede can draw."""
@@ -636,5 +657,5 @@ def category(diagram) -> str:
     return f"math.diagram.{FAMILY.get(diagram.kind, 'graph')}"
 
 
-__all__ = ["FAMILY", "category", "from_stimulus", "answer", "explain", "explain_point", "key", "new_like", "parse",
+__all__ = ["FAMILY", "IMAGE_SUBJECTS", "category", "from_stimulus", "image_allowed", "keep_for_subject", "answer", "explain", "explain_point", "key", "new_like", "parse",
            "parse_piece", "same"]

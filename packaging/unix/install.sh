@@ -86,6 +86,10 @@ configured_local_model() {  # <.env path> — the LOCAL_LLM_MODEL an earlier set
     | grep -E '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$' || true
 }
 
+valid_ollama_model_name() {  # <name> — any model Ollama can pull; same rule the wizard applies
+  printf '%s' "$1" | grep -qE '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'
+}
+
 model_to_keep() {  # <configured model> <installed model names, one per line>
   # An existing installation keeps the model it already uses, so long as
   # Ollama still has it: an update never re-pulls, switches or deletes it.
@@ -95,17 +99,27 @@ model_to_keep() {  # <configured model> <installed model names, one per line>
 # endregion local-model-tiers
 
 MODEL_FAMILY_REQUESTED="${BEDE_MODEL_FAMILY:-}"
+MODEL_CUSTOM="${BEDE_MODEL:-}"
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    --model)
+      [ "$#" -ge 2 ] || die "--model needs an Ollama model name (for example llama3.1:8b)."
+      MODEL_CUSTOM="$2"; shift 2 ;;
+    --model=*) MODEL_CUSTOM="${1#*=}"; shift ;;
     --model-family)
       [ "$#" -ge 2 ] || die "--model-family needs a value (default or qwen)."
       MODEL_FAMILY_REQUESTED="$2"; shift 2 ;;
     --model-family=*) MODEL_FAMILY_REQUESTED="${1#*=}"; shift ;;
-    *) die "Unknown option: $1 (the only option is --model-family default|qwen)." ;;
+    *) die "Unknown option: $1 (options: --model-family default|qwen, --model <ollama model name>)." ;;
   esac
 done
 MODEL_FAMILY="$(resolve_model_family "$MODEL_FAMILY_REQUESTED")" \
   || die "Unknown model family '$MODEL_FAMILY_REQUESTED' — use 'default' or 'qwen'."
+if [ -n "$MODEL_CUSTOM" ]; then
+  valid_ollama_model_name "$MODEL_CUSTOM" \
+    || die "'$MODEL_CUSTOM' is not a model name Ollama can pull (letters, digits and . _ : / - only)."
+  [ -z "$MODEL_FAMILY_REQUESTED" ] || die "Use either --model-family or --model, not both."
+fi
 
 # ── OS / distro / architecture detection ────────────────────────────────────
 # Only used to pick which official installer command to run — never to
@@ -300,6 +314,37 @@ installed_ollama_models() {
     | sed -E 's/^"name"[[:space:]]*:[[:space:]]*"([^"]*)"$/\1/' || true
 }
 
+choose_model_interactively() {
+  # BEDE_PROMPT_INPUT lets automation (and the tests) answer the menu from a file.
+  local tty="${BEDE_PROMPT_INPUT:-}"
+  if [ -n "$tty" ]; then :
+  elif [ -t 0 ]; then tty=/dev/stdin; elif [ -r /dev/tty ] && (: </dev/tty) 2>/dev/null; then tty=/dev/tty; fi
+  [ -n "$tty" ] || return 0
+  local rec qw
+  rec="$(recommended_ollama_model)"
+  qw="$(MODEL_FAMILY=qwen recommended_ollama_model)"
+  echo "" >&2
+  echo "  Which open-weight model should run Bede on this computer?" >&2
+  echo "    1) Recommended for this computer: $rec (Mistral AI / IBM)   [default]" >&2
+  echo "    2) Qwen: $qw (Alibaba), advanced" >&2
+  echo "    3) Another open-weight model, advanced: you name it (for example llama3.1:8b, gemma3:12b, phi4)" >&2
+  echo "  Bede needs a model that supports tool calling; if unsure, choose 1." >&2
+  local pick name
+  exec 3< "$tty"
+  printf '  Choose 1, 2 or 3 [1]: ' >&2
+  read -r -u 3 pick || pick=""
+  case "$pick" in
+    2) MODEL_FAMILY_REQUESTED="qwen"; MODEL_FAMILY="qwen" ;;
+    3)
+      printf '  Ollama model name: ' >&2
+      read -r -u 3 name || name=""
+      if valid_ollama_model_name "$name"; then MODEL_CUSTOM="$name"
+      else echo "  That is not a model name Ollama can pull; using the recommended model." >&2; fi ;;
+    *) ;;
+  esac
+  exec 3<&-
+}
+
 setup_local_ai() {
   if ollama_installed; then
     wait_for_ollama
@@ -313,15 +358,21 @@ setup_local_ai() {
 
   local model=""
   # Re-running this on an existing installation keeps the model that
-  # installation already uses, unless a model family was asked for
+  # installation already uses, unless a model or family was asked for
   # explicitly. Nothing here re-pulls, switches or deletes a family's model.
-  if [ -z "$MODEL_FAMILY_REQUESTED" ]; then
+  if [ -z "$MODEL_FAMILY_REQUESTED" ] && [ -z "$MODEL_CUSTOM" ]; then
     model="$(model_to_keep "$(configured_local_model "$APP_DIR/.env")" "$(installed_ollama_models)")"
+  fi
+  # Nothing asked for and nothing to keep: someone is at the keyboard, so
+  # let them choose. Without a terminal (curl | bash with no tty, CI) the
+  # default lineup is used exactly as before.
+  if [ -z "$model" ] && [ -z "$MODEL_FAMILY_REQUESTED" ] && [ -z "$MODEL_CUSTOM" ]; then
+    choose_model_interactively
   fi
   if [ -n "$model" ]; then
     step "Keeping the local AI model this computer already uses ($model)"
   else
-    model="$(recommended_ollama_model)"
+    if [ -n "$MODEL_CUSTOM" ]; then model="$MODEL_CUSTOM"; else model="$(recommended_ollama_model)"; fi
     step "Downloading the $model AI model (first time only — can take a while, several GB)"
     ollama pull "$model" \
       || die "Downloading the $model model failed. Check your internet connection; if Ollama says it needs a newer version, update Ollama (https://ollama.com/download), then run this again."

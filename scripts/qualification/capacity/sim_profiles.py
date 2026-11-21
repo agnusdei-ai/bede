@@ -253,7 +253,7 @@ def simulate(profile: Profile, w: Workload) -> dict:
     report["verdict"] = (
         "NOT_MEASURED" if profile.measured is not True else
         ("PASS" if report["meets_thresholds"] else "FAIL"))
-    report["simulated_only"] = profile.measured is not True
+    report["planning_only"] = profile.measured is not True
     return report
 
 

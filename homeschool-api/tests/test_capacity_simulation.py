@@ -32,9 +32,9 @@ def test_one_user_on_a_fast_profile_meets_every_threshold():
 
 def test_a_profile_without_a_measurement_is_never_a_pass():
     r = sim.simulate(FAST, _w(users=1))
-    assert r["meets_thresholds"] and r["verdict"] == "NOT_MEASURED" and r["simulated_only"] is True
+    assert r["meets_thresholds"] and r["verdict"] == "NOT_MEASURED" and r["planning_only"] is True
     measured = sim.simulate(replace(FAST, measured=True), _w(users=1))
-    assert measured["verdict"] == "PASS" and measured["simulated_only"] is False
+    assert measured["verdict"] == "PASS" and measured["planning_only"] is False
 
 
 def test_shipped_profiles_are_all_unmeasured_so_none_can_be_called_qualified():

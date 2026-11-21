@@ -31,6 +31,7 @@ on:
     branches: [main]
     paths:
       - 'homeschool-api/**'
+      - 'voice-service/**'
       - 'scripts/setup_wizard/**'
       - 'scripts/trust_service/**'
       - 'scripts/mcp_server/**'
@@ -93,7 +94,7 @@ jobs:
           # guards (agent-governance/reference/test_governance.py), run by the
           # agent-governance-tests job below.
           if git diff --name-only "$(git merge-base "$BASE_SHA" "$HEAD_SHA")" "$HEAD_SHA" \
-               | grep -qE '^(homeschool-api/|scripts/setup_wizard/|docs/SAMPLE_QUALIFICATION\.md|docs/release/DEVICE_QUALIFICATION\.md|docs/release/WEBKIT_RELOAD_CRASH\.md|scripts/mac/collect-g3-evidence\.sh|scripts/qualification/|scripts/release_repair/|config/|schemas/|\.github/agent-prompts/|docs/release/REPAIR_LOOP\.md|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/nginx\.conf|homeschool-tutor/index\.html|site/_headers|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|demo/public/launch\.html|license-server/src/index\.ts|license-server/src/routes/storefront\.ts|license-server/src/license/issue\.ts|license-server/src/license/entitlements\.ts|site/schools/|site/robots\.txt|site/sitemap\.xml|site/llms\.txt|wrangler\.jsonc|docs/DECISIONS\.md|docs/SELLING_BEDE\.md|docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT\.md|docs/PRICING_RESEARCH\.md|docs/LOCALE_RESEARCH\.md|docs/ACCESSIBILITY_RESEARCH\.md|docs/K2_PRACTICE_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docs/CANONICAL_ASSESSMENT_MODEL\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|demo/public/privacy\.es\.html|demo/src/api\.ts|demo/src/DemoParentSetup\.tsx|homeschool-tutor/src/services/api\.ts|homeschool-tutor/src/store/sessionStore\.ts|homeschool-tutor/src/components/SocraticChat\.tsx|homeschool-tutor/src/components/Pilot|homeschool-tutor/src/components/BedeMark\.tsx|demo/src/BedeMark\.tsx|homeschool-tutor/src/i18n/|demo/src/i18n/|homeschool-tutor/src/components/TextSizeControl\.tsx|homeschool-tutor/src/components/ThemePicker\.tsx|homeschool-tutor/src/components/SubjectDrawer\.tsx|demo/src/TextSizeControl\.tsx|demo/src/ThemePicker\.tsx|render\.yaml|agent-governance/|LICENSE|README\.md|CLAUDE\.md|docs/WORKING_AGREEMENTS\.md|\.github/workflows/|\.github/audit-allowlist\.json|scripts/npm_audit_gate\.py|scripts/check_live_site_headers\.sh|\.github/workflows/test\.yml|\.github/workflows/production-regression\.yml|\.github/workflows/lockfile-refresh\.yml|\.github/workflows/security-patch\.yml)'; then
+               | grep -qE '^(homeschool-api/|voice-service/|scripts/setup_wizard/|docs/SAMPLE_QUALIFICATION\.md|docs/release/DEVICE_QUALIFICATION\.md|docs/release/WEBKIT_RELOAD_CRASH\.md|scripts/mac/collect-g3-evidence\.sh|scripts/qualification/|scripts/release_repair/|config/|schemas/|\.github/agent-prompts/|docs/release/REPAIR_LOOP\.md|scripts/trust_service/|scripts/mcp_server/|scripts/build_pages_site\.sh|ipad-profile\.sh|homeschool-tutor/public/|homeschool-tutor/nginx\.conf|homeschool-tutor/index\.html|site/_headers|site/index\.html|site/assets/offer\.js|site/privacy/index\.html|demo/public/launch\.html|license-server/src/index\.ts|license-server/src/routes/storefront\.ts|license-server/src/license/issue\.ts|license-server/src/license/entitlements\.ts|site/schools/|site/robots\.txt|site/sitemap\.xml|site/llms\.txt|wrangler\.jsonc|docs/DECISIONS\.md|docs/SELLING_BEDE\.md|docs/BEDE_LOCUTO_ENTITLEMENT_CONTRACT\.md|docs/PRICING_RESEARCH\.md|docs/LOCALE_RESEARCH\.md|docs/ACCESSIBILITY_RESEARCH\.md|docs/K2_PRACTICE_RESEARCH\.md|docs/RELEASE_QUALITY_GATES\.md|docs/CANONICAL_ASSESSMENT_MODEL\.md|docker-compose\.yml|Makefile|docs/RETENTION_POLICY\.md|docs/INFORMATION_SECURITY_POLICY\.md|docs/DATA_RETENTION\.md|demo/public/privacy\.html|demo/public/privacy\.es\.html|demo/src/api\.ts|demo/src/DemoParentSetup\.tsx|homeschool-tutor/src/services/api\.ts|homeschool-tutor/src/store/sessionStore\.ts|homeschool-tutor/src/components/SocraticChat\.tsx|homeschool-tutor/src/components/Pilot|homeschool-tutor/src/components/BedeMark\.tsx|demo/src/BedeMark\.tsx|homeschool-tutor/src/i18n/|demo/src/i18n/|homeschool-tutor/src/components/TextSizeControl\.tsx|homeschool-tutor/src/components/ThemePicker\.tsx|homeschool-tutor/src/components/SubjectDrawer\.tsx|demo/src/TextSizeControl\.tsx|demo/src/ThemePicker\.tsx|render\.yaml|agent-governance/|LICENSE|README\.md|CLAUDE\.md|docs/WORKING_AGREEMENTS\.md|\.github/workflows/|\.github/audit-allowlist\.json|scripts/npm_audit_gate\.py|scripts/check_live_site_headers\.sh|\.github/workflows/test\.yml|\.github/workflows/production-regression\.yml|\.github/workflows/lockfile-refresh\.yml|\.github/workflows/security-patch\.yml)'; then
             echo "relevant=true" >> "$GITHUB_OUTPUT"
           else
             echo "relevant=false" >> "$GITHUB_OUTPUT"
@@ -213,17 +214,18 @@ jobs:
         # see that file for what's listed and why. Anything not listed
         # there still fails this gate; upgrade the pin, or add a new
         # entry with a real reason.
+        #
+        # scripts/pip_audit_gate.py keeps three outcomes apart, because
+        # pip-audit exits 1 both for a vulnerability and for "could not reach
+        # PyPI" (2026-11-18: two PRs red on a PyPI ReadTimeout, no advisory
+        # read). An advisory fails at once and is never retried. A transient
+        # network failure is retried with backoff; if the audit still cannot
+        # complete the job fails as "audit unavailable", which is neither an
+        # advisory nor evidence the dependencies are clean.
         run: |
           pip install pip-audit
-          IGNORE_ARGS=$(python3 -c "
-          import json
-          with open('../.github/audit-allowlist.json') as f:
-              data = json.load(f)
-          ids = [e['id'] for e in data.get('python', [])]
-          print(' '.join(f'--ignore-vuln {i}' for i in ids))
-          ")
-          pip-audit -r requirements.lock.txt $IGNORE_ARGS
-          pip-audit -r requirements-dev.lock.txt $IGNORE_ARGS
+          python3 ../scripts/pip_audit_gate.py --allowlist ../.github/audit-allowlist.json \
+            requirements.lock.txt requirements-dev.lock.txt
 
   agent-governance-tests:
     needs: changes

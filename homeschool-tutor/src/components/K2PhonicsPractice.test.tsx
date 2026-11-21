@@ -73,7 +73,7 @@ describe('K2PhonicsPractice', () => {
     const { onSpeak } = await open()
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
     // Watch: the move is shown and spoken, and nothing can be tapped.
-    expect(onSpeak).toHaveBeenCalledWith('Listen: kuh, ah, tuh. Put the sounds together: cat!')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Listen: kuh, ah, tuh. Put the sounds together: cat!'))
     expect(document.querySelector('[data-revealed]')?.getAttribute('aria-label')).toBe('cat')
     expect(screen.getByRole('button', { name: 'cat' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
@@ -142,7 +142,7 @@ describe('K2PhonicsPractice', () => {
     }
     fetchPhonicsLesson.mockResolvedValue(letters)
     const { onSpeak } = await open()
-    expect(onSpeak).toHaveBeenCalledWith('sun starts with the sound sss. We write that sound s.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('sun starts with the sound sss. We write that sound s.'))
     fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
     // Together is guided: the word may be shown, and a tapped letter says its sound.
     expect(screen.getByTestId('phonics-line').textContent).toBe('Which letter starts moon?')

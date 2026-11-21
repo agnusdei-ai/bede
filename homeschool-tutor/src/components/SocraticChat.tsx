@@ -8,7 +8,7 @@ import {
 import { getApiMessages, previousSubjectOf, useSessionStore } from '../store/sessionStore'
 import { useHybridVoiceInput } from '../hooks/useHybridVoiceInput'
 import { useTranscriptWords } from '../hooks/useTranscriptWords'
-import { useTextToSpeech } from '../hooks/useTextToSpeech'
+import { useTextToSpeech, voiceSpeaks } from '../hooks/useTextToSpeech'
 import MapPractice from './MapPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import K2MathPractice from './K2MathPractice'
@@ -224,6 +224,21 @@ export default function SocraticChat({
   // is heard when it is tapped. With Bede's voice off the round is shown
   // without speech and the server leaves out questions that work only by ear.
   const speakInBedesVoice = useCallback((text: string) => { stopSpeech(); speak(text) }, [stopSpeech, speak])
+  // Whether Bede's voice can speak right now (GET /tutor/voice, the same
+  // answer the voice hook reads). Installed Bede speaks only in its local
+  // Piper voice; with none set up, or Piper not answering, a round waits for
+  // this answer, is served without the items that work only by ear, and goes
+  // on with everything on screen. Nothing is used in Piper's place, and
+  // nothing about it is ever shown to the child (docs/DECISIONS.md entry 46).
+  const [voiceCanSpeak, setVoiceCanSpeak] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!token) { setVoiceCanSpeak(false); return }
+    let live = true
+    voiceSpeaks(token).then((ok) => { if (live) setVoiceCanSpeak(ok) })
+    return () => { live = false }
+  }, [token])
+  const roundsSpeak = ttsEnabled && voiceCanSpeak === true
+  const roundCanSpeak = !ttsEnabled ? false : voiceCanSpeak
 
   // Wraps the local toggle to also persist the child's choice server-side,
   // so it's remembered next session (see api.ts's updateVoiceNarrationPreference).
@@ -1216,7 +1231,7 @@ export default function SocraticChat({
         <MapPractice
           transport={mapTransport(token, sessionConfig.student_name)}
           onClose={() => { stopSpeech(); setShowMapPractice(false) }}
-          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
+          onSpeak={roundsSpeak ? speakInBedesVoice : undefined}
         />
       )}
 
@@ -1226,8 +1241,8 @@ export default function SocraticChat({
         <K2PhonicsPractice
           transport={phonicsTransport(token, sessionConfig.student_name)}
           onClose={() => { stopSpeech(); setShowPhonics(false) }}
-          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
-          canSpeak={ttsEnabled}
+          onSpeak={roundsSpeak ? speakInBedesVoice : undefined}
+          canSpeak={roundCanSpeak}
         />
       )}
 
@@ -1243,8 +1258,8 @@ export default function SocraticChat({
               answerMathTask(token, sessionConfig.student_name, lessonId, phase, index, { choice }),
           }}
           onClose={() => { stopSpeech(); setShowMath(false) }}
-          onSpeak={ttsEnabled ? speakInBedesVoice : undefined}
-          canSpeak={ttsEnabled}
+          onSpeak={roundsSpeak ? speakInBedesVoice : undefined}
+          canSpeak={roundCanSpeak}
         />
       )}
 

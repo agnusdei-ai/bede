@@ -1,13 +1,149 @@
 # Setting up Bede's spoken voice
 
-Bede's voice output is entirely optional. If you don't configure anything
-below, the tablet's browser speaks Bede's lines using its own built-in voice.
-On top of that, Bede supports one cloud backend: **OpenAI TTS**, using the
-`gpt-4o-mini-tts` model — a small per-character cost, meaningfully more
-natural than a browser's default voice. Confirmed against real listening
-feedback that this is what it takes to get past "sounds computerized."
+Every feature speaks in Bede's own voice and in no other. Bede's reference
+voice is OpenAI's, the voice the public demo uses (owner direction 2026-11-20,
+`docs/DECISIONS.md` entry 46). Installed Bede speaks in that same voice when
+cloud speech is configured. A different voice, Piper included,
+is never switched in automatically, and any future change to Bede's voice needs
+a separate proposal and the owner's approval after hearing the actual candidate.
 
-## Setup
+**Installed Bede** (`docker-compose.yml`, every installer) speaks in OpenAI's
+voice when `OPENAI_API_KEY` is set and `TTS_PROVIDER` is empty. That means each
+line Bede speaks (never what the child said) is sent to OpenAI to be voiced; see
+`docs/VENDOR_DATA_FLOW.md`. To use no speech at all, set `TTS_PROVIDER=none` or
+leave the key unset. There is no second activation step: a key in `.env` is the
+whole setup, and the voice works on the next start. The setup wizard and
+`setup.sh` write `OPENAI_API_KEY` when OpenAI is the chosen provider; a family
+that chose Claude, Mistral or a local model adds `OPENAI_API_KEY=` to `.env`
+itself and restarts Bede to get the voice. With no voice, a switched-off voice, or a voice that is
+not answering, Bede **continues without narration**: every prompt and piece of
+feedback stays on screen, a practice round leaves out the items that only work
+by ear, and Parent Setup's **Bede's voice** card says which of these it is:
+setup unfinished (with how to finish it, and not presented as voice-ready),
+turned off on purpose, or not answering.
+Bede stays fully usable. It never falls back to the browser's own built-in
+voice or to a different voice, and screen readers are untouched.
+
+**The public demo** is not run from compose and behaves the same way: with
+`TTS_PROVIDER` empty (`core/config.py`'s default) it uses OpenAI TTS
+(`gpt-4o-mini-tts`) when `OPENAI_API_KEY` is set. Its frontend has no
+browser-voice path (2026-11-19): a line that fails or times out is silent, and
+the visitor reads on. The demo is unchanged by the optional Piper voice below.
+
+**Piper is optional development and testing only.** It is not the default voice,
+not a fallback for a failed cloud line and not a launch dependency. It runs only
+when the `piper` compose profile is started and `TTS_PROVIDER=local` asks for
+it. See "The optional Piper voice" below. Sample-voice checks verify integration
+mechanics; they say nothing about how the real alan voice sounds and are not
+approval of it.
+
+**What the app does when Bede's voice cannot speak.** The app asks
+`GET /tutor/voice` once per sign-in, before the first line. If no voice is
+set up, it is switched off (`TTS_PROVIDER=none`), or an asked-for Piper voice is
+not answering its health check, **no line is sent to `/tutor/speak` at all**; a "not
+answering" result is asked again after a minute, so a voice that comes back
+is picked up within the lesson. A status request that itself fails is not
+remembered and is silent meanwhile. A line that is sent but takes longer
+than 20 seconds is given up and left silent (`SPEAK_REQUEST_TIMEOUT_MS`, in
+both apps), so a hung voice never holds Bede in a "speaking" state that would
+keep the microphone from listening. Nothing about any of this is ever shown
+to the child: no error, no key prompt, no interruption to a round. Screen
+readers are untouched; they read the page on their own terms.
+
+`TTS_PROVIDER` values: empty (OpenAI when a key is set, otherwise nothing; it
+never picks Piper, even with `LOCAL_TTS_URL` set), `openai`, `none`, and `local`
+(the optional Piper voice or nothing, never OpenAI). An unknown value or a
+`LOCAL_TTS_URL` that is not this computer or its own network stops Bede from
+starting, with the reason; `local` with no URL starts and is silent.
+`homeschool-tutor/src/bedesVoiceOnly.test.ts` fails if any shipped file in
+either app, the voice hooks included, speaks through the browser's voice, and
+if a round could hand anything but its own fixed lines to Bede's voice.
+
+**Checking it end to end.** `scripts/qualification/local_voice/run_local_voice_check.py`
+runs five cases (Piper works; Piper set up but failing; no voice; voice
+switched off with `TTS_PROVIDER=none`; a voice that answers its health check
+and never answers a line) against the real API, real Piper with sample voices
+built from code, and one Sound Time round plus a chat turn in real Chromium,
+with every outbound connection refused and recorded. It also records the text
+of every line the page sends, so it shows only the round's fixed lines and
+Bede's reply are spoken, never what the child chose, and that a page that
+cannot speak sends nothing.
+It makes no paid call and downloads nothing; see `voice-service/README.md`.
+It proves the plumbing, not how a real voice sounds.
+
+## The optional Piper voice
+
+The `voice` service in `docker-compose.yml` does not run unless the `piper`
+profile is started (`COMPOSE_PROFILES=piper`). It is
+[Piper](https://github.com/OHF-Voice/piper1-gpl), the open-source engine the
+Open Home Foundation maintains under GPL-3.0-or-later, behind Bede's own
+small server, `voice-service/server.py`. The server is a separate program in
+its own container, and Bede's API reaches it only over HTTP at
+`LOCAL_TTS_URL=http://voice:5000`. The container is on a network with no
+internet access and publishes no port, and it downloads nothing at run time.
+
+It does not use Piper's bundled HTTP server, which keeps the last sentence it
+spoke in memory and shows it at `/info`, and can download voices at
+`/download`. Bede's server logs only the method and path, keeps nothing once a
+line is spoken, and has no route but `/synthesize` and `/health`.
+
+**A voice is in the image only if verified.** The candidate voice, named for testing only, is
+named in `voice-service/bede-voice.json`: `en_GB-alan-medium`, an English male
+voice chosen for Bede's monk persona. When the image is built,
+`fetch_voice.py` downloads its model, its config and its model card, and keeps
+them only if every file's pinned SHA-256 matches. If a hash is not pinned yet,
+the download fails, or a hash differs, it keeps nothing and the build carries
+on: the voice server then runs with no voice. It never speaks from a file
+nobody verified. Naming it in the manifest is not approval of it as Bede's voice.
+
+**Pinning the voice.** On a machine that can reach huggingface.co, run
+`python3 scripts/voice/pin_bede_voice.py`. It prints each file's SHA-256 and
+the full model card; `--write` stores the hashes. Then record `license`,
+`training_lineage` and `redistribution` in `bede-voice.json` from that card.
+`homeschool-api/tests/test_local_voice.py` fails while a hash is pinned and
+those fields are empty. The voice's license is separate from Piper's GPL, and
+a voice that can be downloaded publicly is not necessarily licensed for
+commercial use or redistribution, so the card of the exact file shipped is
+what counts (docs/DECISIONS.md entry 46).
+
+**Another voice** can be put in `./voices` (read-only to the container) and
+named in `.env`:
+
+```bash
+BEDE_VOICE_EN=/voices/<english voice>.onnx
+BEDE_VOICE_ES=/voices/<spanish voice>.onnx   # optional; otherwise the English voice reads Spanish
+```
+
+The tests are `homeschool-api/tests/test_local_voice.py`, which drive the
+real server over HTTP with a stand-in voice.
+
+## Connecting Bede's voice during installation
+
+Every installer (`setup.sh`, the browser wizard and the native installers that
+hand off to it) offers Bede's voice whichever service you chose for tutoring.
+Bede speaks in one reference voice, OpenAI's speech service, the same voice the
+demo uses, so a key is the only thing it needs:
+
+- **Tutoring on OpenAI:** the same key is used. Nothing more is asked.
+- **Tutoring on Claude, Mistral or a local model:** a separate, optional
+  question asks for an OpenAI key. Adding it does **not** change which service
+  tutors or the adapter order; it only lets Bede speak. Each spoken line is sent
+  to OpenAI and billed to that OpenAI account, and the screen says so.
+- **Pressing Enter** chooses "Continue with text". Lessons show on screen, and
+  the installer says how to add the voice later (`OPENAI_API_KEY=<key>` in
+  `.env`, then `make restart`, or run setup again).
+- **Running setup again** keeps the key already in `.env` and does not ask
+  twice. A deliberate `TTS_PROVIDER=none` is kept and reported as "Speaking is
+  off", with how to restore it.
+
+When a key is entered the installer says "Bede's voice is connected." If speech
+later fails (the key is refused, the service is unreachable, or school policy
+does not allow cloud speech), the app's voice status notice
+(`GET /tutor/voice`) names the actual problem and the next step. Installer
+verification gaps are kept in the acceptance record
+(`docs/release/FIRST_RUN_AUDIT.md`), not in the product wording.
+
+## Setting up OpenAI TTS
 
 Get an API key from [platform.openai.com](https://platform.openai.com/), then
 set in `.env`:
@@ -127,8 +263,10 @@ browser-speech fallback entirely.
 Both `homeschool-tutor` and `demo` now reuse a single, pre-blessed `<audio>`
 element across every turn instead of constructing a new one per line
 (`useTextToSpeech.ts`'s `getSharedAudioElement()`), and treat a rejected
-`play()` as a genuine playback failure rather than a success — falling back
-to the browser's own voice instead of staying silent. If a family reports
+`play()` as a genuine playback failure rather than a success. (It then fell
+back to the browser's own voice; it now stays silent for that line and
+re-tries on the next tap, since the browser's voice is never used — see the
+top of this file.) If a family reports
 persistent silence after the first line despite this, confirm they're on a
 current app build first; this class of autoplay restriction has historically
 gotten stricter across browser versions, not looser, so a stale deployment
@@ -1321,6 +1459,10 @@ separate change.
 
 ## Troubleshooting: in a Spanish session, Bede's fallback voice reads Spanish with an English accent
 
+**Superseded (2026-11-18).** The browser's own voice is no longer used at
+all, so this cannot happen: with no voice configured Bede is silent. Kept for
+the record.
+
 **Symptom.** With backend TTS unconfigured (or on a deployment relying on the
 browser's own `speechSynthesis`), a Spanish session reads Spanish text in an
 audibly English voice.
@@ -1399,10 +1541,9 @@ no fallback to the browser's default voice for this case at all** — real
 audio that was fetched but blocked from playing just stays silent for
 that one line; see the autoplay-block section below for the actual fix
 (a self-healing retry), which is what makes staying silent an acceptable
-trade rather than a real loss. The *only* remaining fallback case is the
-genuinely different one: TTS was never configured on this deployment at
-all (no `OPENAI_API_KEY`), where the browser's own voice is a reasonable
-zero-config default rather than a mid-session bait-and-switch.
+trade rather than a real loss. The one case that still fell back, TTS never
+configured on the deployment at all, was removed on 2026-11-18: with no voice
+configured, Bede is now silent too, and Parent Setup says why.
 
 Two related things were also fixed in the process, both still true today:
 

@@ -58,12 +58,17 @@ export function saveDemoParentControls(c: DemoParentControls) {
   }
 }
 
-export default function ParentControlsMenu({ controls, onChange, onOpenSetup }: {
+export default function ParentControlsMenu({ controls, onChange, onOpenSetup, debugOn, onToggleDebug }: {
   controls: DemoParentControls
   onChange: (next: DemoParentControls) => void
   /** Opens the full Parent Setup panel (DemoParentSetup.tsx). Optional so
    *  this menu still renders on screens with no session to configure. */
   onOpenSetup?: () => void
+  /** The voice-flow debug panel is a developer/tester tool, so it lives in
+   *  this adult menu rather than as a header icon competing with the real
+   *  controls (on a phone the header had no room for it). */
+  debugOn?: boolean
+  onToggleDebug?: () => void
 }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -170,6 +175,19 @@ export default function ParentControlsMenu({ controls, onChange, onOpenSetup }: 
               </span>
               <span className="block text-xs text-gray-500">
                 {t('parentControls.openSetupHint', 'Subjects, your own books, what helps your child')}
+              </span>
+            </button>
+          )}
+
+          {onToggleDebug && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); onToggleDebug() }}
+              aria-pressed={!!debugOn}
+              className="w-full text-left px-3 py-2 min-h-[44px] rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors"
+            >
+              <span className="block text-sm font-medium text-gray-700">
+                {debugOn ? t('parentControls.hideDebug', 'Hide debug panel') : t('parentControls.showDebug', 'Debug panel (developer tool)')}
               </span>
             </button>
           )}

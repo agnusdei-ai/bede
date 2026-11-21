@@ -213,17 +213,18 @@ jobs:
         # see that file for what's listed and why. Anything not listed
         # there still fails this gate; upgrade the pin, or add a new
         # entry with a real reason.
+        #
+        # scripts/pip_audit_gate.py keeps three outcomes apart, because
+        # pip-audit exits 1 both for a vulnerability and for "could not reach
+        # PyPI" (2026-11-18: two PRs red on a PyPI ReadTimeout, no advisory
+        # read). An advisory fails at once and is never retried. A transient
+        # network failure is retried with backoff; if the audit still cannot
+        # complete the job fails as "audit unavailable", which is neither an
+        # advisory nor evidence the dependencies are clean.
         run: |
           pip install pip-audit
-          IGNORE_ARGS=$(python3 -c "
-          import json
-          with open('../.github/audit-allowlist.json') as f:
-              data = json.load(f)
-          ids = [e['id'] for e in data.get('python', [])]
-          print(' '.join(f'--ignore-vuln {i}' for i in ids))
-          ")
-          pip-audit -r requirements.lock.txt $IGNORE_ARGS
-          pip-audit -r requirements-dev.lock.txt $IGNORE_ARGS
+          python3 ../scripts/pip_audit_gate.py --allowlist ../.github/audit-allowlist.json \
+            requirements.lock.txt requirements-dev.lock.txt
 
   agent-governance-tests:
     needs: changes

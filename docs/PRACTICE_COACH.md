@@ -5,6 +5,13 @@ out *why* each miss happened, and drafts a short practice set and a follow-up
 re-check. **The parent reviews and approves everything before the child sees
 it.** The ruling behind each design choice is `docs/DECISIONS.md` entry 39.
 
+## Voice
+
+Practice Coach shows its work on screen and reads nothing aloud today. Every
+feature that speaks uses Bede's own voice, the same one as the chat (owner
+direction 2026-11-18), so if Practice Coach ever speaks it will be in that
+voice; see `docs/K2_PRACTICE.md` §7.
+
 ## Turning it on or off
 
 Practice Coach is on by default. The setup wizard and `setup.sh` ask about it
@@ -514,7 +521,7 @@ this repository, and `tests/test_practice_packs.py`.
 ## Quizzes and exams
 
 Separate from diagnosing a graded quiz, Bede can **draft a new quiz or exam**
-for any Bede subject that is taught and assessed, K-8. The source can be:
+for any Bede subject that is taught and assessed, K-12. The source can be:
 
 - photos or a PDF of an existing quiz, a previous exam or a prep exam;
 - the text of one, pasted in;
@@ -528,8 +535,9 @@ The adult chooses:
 - the number of questions, up to 50.
 
 Bede works out what the source covers, then writes new questions at that
-grade and level (`services/practice/generate.py`). Grades 9-12 come later;
-the request model accepts K-8 only.
+grade and level (`services/practice/generate.py`). The request model accepts
+every grade K-12 (`QuizGrade`); a grade 9-12 quiz is drafted at that grade and
+level, with no K-8 skill map behind it.
 
 Bede writes both questions and answers, so the draft is checked in code
 before anyone sees it:

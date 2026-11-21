@@ -606,7 +606,7 @@ class PracticeOutcomeRequest(_Strict):
 QuizKind = Literal["ad_hoc", "quiz", "unit_test", "midterm", "final", "prep_exam"]
 QuizLevel = Literal["review", "on_level", "challenge"]
 QuestionType = Literal["multiple_choice", "true_false", "short_answer", "fill_in_blank", "computation", "written_response"]
-QuizGrade = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+QuizGrade = Literal["K", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
 
 MAX_QUIZ_QUESTIONS = 50
 

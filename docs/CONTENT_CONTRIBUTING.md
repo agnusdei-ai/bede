@@ -146,7 +146,7 @@ the first: the card shows a photograph of the work, and the `description`
 must say plainly that it is a statue, a bronze, a bust — so Bede's usual
 "what do you notice in this painting?" never calls a sculpture a painting.
 A test scans every Rodin entry for that wording. Choose works a child in
-K-8 can look at unprompted: the catalog deliberately carries The Thinker,
+K-12 can look at unprompted: the catalog deliberately carries The Thinker,
 The Burghers of Calais, Monument to Balzac, The Cathedral, and the Bust of
 Victor Hugo, and leaves out the nude studies and The Gates of Hell.
 
@@ -326,7 +326,7 @@ Greek adds three rules of its own, on top of all of the above:
 - **Never quote a passage where the manuscript traditions differ.** Greek
   has a live and denominationally charged textual divide the Vulgate does
   not: the Textus Receptus (behind the KJV/NKJV) against the modern
-  critical text (behind the ESV/NIV/NASB/CSB). A K-8 subject must not
+  critical text (behind the ESV/NIV/NASB/CSB). A K-12 subject must not
   adjudicate it. Every anchor in `greek_catalog.py` was chosen because both
   traditions read it identically at the phrase quoted — verify that before
   adding a new one, and if a passage has a real variant, pick a different

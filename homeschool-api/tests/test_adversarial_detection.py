@@ -2,7 +2,7 @@
 services/adversarial_detection.py — the free, deterministic Tier 1 layer of
 the adversarial-resilience pipeline (User Input -> Adversarial Detection ->
 Policy Engine -> ...). Covers detect_tier1()'s true positives (blunt,
-low-ambiguity attack phrasings) and false-positive guards (ordinary K-8
+low-ambiguity attack phrasings) and false-positive guards (ordinary K-12
 Socratic dialogue that must NOT match), plus build_signals()'s merge of
 Tier 1 with an already-computed Tier 2 classifier result.
 """

@@ -16,6 +16,7 @@ import i18n from '../i18n'
 import en from '../i18n/locales/en.json'
 import es from '../i18n/locales/es.json'
 import type { PhonicsLesson } from '../services/api'
+import { phonicsTransport } from '../services/practiceTransports'
 import K2PhonicsPractice, { PRIMARY, TARGET } from './K2PhonicsPractice'
 
 const fetchPhonicsLesson = vi.hoisted(() => vi.fn())
@@ -44,8 +45,11 @@ const lesson = (): PhonicsLesson => ({
 })
 
 const open = async (onSpeak = vi.fn(), onClose = vi.fn()) => {
-  render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={onClose} onSpeak={onSpeak} />)
+  render(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={onClose} onSpeak={onSpeak} />)
   await screen.findByTestId('phonics-line')
+  // The opening line is spoken from an effect, which can land just after the
+  // line renders; wait for it so the first assertion never races it.
+  await waitFor(() => expect(onSpeak).toHaveBeenCalled())
   return { onSpeak, onClose }
 }
 
@@ -69,7 +73,7 @@ describe('K2PhonicsPractice', () => {
     const { onSpeak } = await open()
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
     // Watch: the move is shown and spoken, and nothing can be tapped.
-    expect(onSpeak).toHaveBeenCalledWith('Listen: kuh, ah, tuh. Put the sounds together: cat!')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Listen: kuh, ah, tuh. Put the sounds together: cat!'))
     expect(document.querySelector('[data-revealed]')?.getAttribute('aria-label')).toBe('cat')
     expect(screen.getByRole('button', { name: 'cat' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
@@ -138,7 +142,7 @@ describe('K2PhonicsPractice', () => {
     }
     fetchPhonicsLesson.mockResolvedValue(letters)
     const { onSpeak } = await open()
-    expect(onSpeak).toHaveBeenCalledWith('sun starts with the sound sss. We write that sound s.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('sun starts with the sound sss. We write that sound s.'))
     fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
     // Together is guided: the word may be shown, and a tapped letter says its sound.
     expect(screen.getByTestId('phonics-line').textContent).toBe('Which letter starts moon?')
@@ -196,7 +200,7 @@ describe('K2PhonicsPractice', () => {
 
     // Reduced motion: every letter is there on the very first frame.
     reduceMotion = true
-    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} />)
+    render(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={vi.fn()} onSpeak={vi.fn()} />)
     await screen.findByTestId('phonics-word')
     expect(lit()).toHaveLength(3)
   })
@@ -233,12 +237,12 @@ describe('K2PhonicsPractice', () => {
 
   it('asks for a lesson without ear-only questions when the device cannot speak', async () => {
     // No speaker at all (Bede's voice off).
-    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} />)
+    render(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={vi.fn()} />)
     await screen.findByTestId('phonics-line')
     expect(fetchPhonicsLesson).toHaveBeenLastCalledWith('tok', 'Sam', false)
     cleanup()
-    // A speaker, but no installed voice for the language.
-    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={false} />)
+    // A speaker, but Bede's voice is off.
+    render(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={false} />)
     await screen.findByTestId('phonics-line')
     expect(fetchPhonicsLesson).toHaveBeenLastCalledWith('tok', 'Sam', false)
     cleanup()
@@ -249,10 +253,10 @@ describe('K2PhonicsPractice', () => {
 
   it('fetches nothing while it is still checking whether the device can speak', async () => {
     const { rerender } = render(
-      <K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={null} />)
+      <K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={vi.fn()} onSpeak={vi.fn()} canSpeak={null} />)
     await act(async () => { await new Promise((r) => setTimeout(r, 20)) })
     expect(fetchPhonicsLesson).not.toHaveBeenCalled()
-    rerender(<K2PhonicsPractice token="tok" studentName="Sam" onClose={vi.fn()} onSpeak={vi.fn()} canSpeak />)
+    rerender(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={vi.fn()} onSpeak={vi.fn()} canSpeak />)
     await screen.findByTestId('phonics-line')
     expect(fetchPhonicsLesson).toHaveBeenCalledWith('tok', 'Sam', true)
   })
@@ -263,13 +267,13 @@ describe('K2PhonicsPractice', () => {
       audio: false, needs_audio: true, watch: null, together: [], your_turn: [],
     })
     const onClose = vi.fn()
-    render(<K2PhonicsPractice token="tok" studentName="Sam" onClose={onClose} />)
+    render(<K2PhonicsPractice transport={phonicsTransport('tok', 'Sam')} onClose={onClose} />)
     expect((await screen.findByTestId('phonics-needs-sound')).textContent).toBe(en.k2Phonics.needsSound)
-    // Covers narration being off AND a device with no installed voice for the language.
+    // Bede's voice is the only voice a round uses, so turning it on is the one fix.
     expect(en.k2Phonics.needsSound).toMatch(/turn on Bede's voice/)
-    expect(en.k2Phonics.needsSound).toMatch(/install a voice for this language/)
+    expect(en.k2Phonics.needsSound).not.toMatch(/install a voice/)
     expect(es.k2Phonics.needsSound).toMatch(/active la voz de Bede/)
-    expect(es.k2Phonics.needsSound).toMatch(/instale una voz para este idioma/)
+    expect(es.k2Phonics.needsSound).not.toMatch(/instale una voz/)
     expect(screen.queryByRole('group', { name: 'Pick an answer' })).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { name: 'Back to Bede' }).pop()!)
     expect(onClose).toHaveBeenCalled()

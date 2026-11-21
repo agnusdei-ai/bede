@@ -15,7 +15,7 @@ describe('concise copy and audience-specific FAQs', () => {
   it('answers the classical digital learning query without claiming school enrollment', () => {
     document.documentElement.innerHTML = read('site/homeschool/index.html')
     const intro = document.querySelector('.classical-hero-copy > p:not(.classical-kicker)')!
-    expect(intro.textContent).toContain('classical digital learning program for K–8 homeschool families')
+    expect(intro.textContent).toContain('classical digital learning program for K–12 homeschool families')
     for (const subject of ['reading', 'writing', 'mathematics', 'reasoning']) {
       expect(intro.textContent).toContain(subject)
     }

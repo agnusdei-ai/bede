@@ -6,6 +6,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repository = "agnusdei-ai/bede";
 const workflowPath = ".github/workflows/faq-reader.yml";
+// A newer main commit publishes in its own build, so this one is stale, not broken.
+export const SUPERSEDED = "Only the current canonical main revision may be published: this commit has been superseded by a newer main commit, whose own build publishes. Nothing from this build is published.";
 const requiredJobs = [
   "FAQ copy, PDF and native print cancellation",
   "FAQ export parity (firefox)",
@@ -23,6 +25,14 @@ async function github(path) {
   return response.json();
 }
 
+// Workers Builds sets WORKERS_CI_BRANCH to the branch it is building. Only a
+// NAMED branch other than main is skipped; an absent, blank or "main" value runs
+// the full gate, so a missing variable can never turn the gate off.
+export function isBranchBuild(environment = process.env) {
+  const branch = (environment.WORKERS_CI_BRANCH ?? "").trim();
+  return branch !== "" && branch !== "main";
+}
+
 export async function publicationEvidence(sha, {
   get = github, now = Date.now,
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
@@ -36,7 +46,7 @@ export async function publicationEvidence(sha, {
 
   while (true) {
     const main = await get("git/ref/heads/main");
-    assert.equal(main.object.sha, sha, "Only the current canonical main revision may be published");
+    assert.equal(main.object.sha, sha, SUPERSEDED);
     const runs = await get(`actions/workflows/${workflow.id}/runs?branch=main&head_sha=${sha}&per_page=100`);
     const candidates = runs.workflow_runs.filter(run =>
       run.head_sha === sha && run.head_branch === "main"
@@ -91,6 +101,10 @@ export async function publicationEvidence(sha, {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const root = fileURLToPath(new URL("../../", import.meta.url));
+  if (isBranchBuild()) {
+    console.log("FAQ publication gate: branch build; nothing is published from a branch, so the gate is not applicable. The gate runs in full for main.");
+    process.exit(0);
+  }
   try {
     const sha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
     const evidence = await publicationEvidence(sha);

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { MapCell, MapScene as Scene } from '../services/api'
+import type { MapCell, MapScene as Scene } from '../services/mapPracticeTypes'
 
 /**
  * A practice map, drawn here from the closed set of symbols the server

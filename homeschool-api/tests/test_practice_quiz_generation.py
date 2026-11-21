@@ -166,8 +166,10 @@ def test_there_must_be_something_to_learn_from_and_at_most_50_questions():
         generate.check_request(req(focus=None))
     with pytest.raises(ValidationError):
         req(question_count=51)
+    for accepted in ("9", "12"):  # Bede is K-12 (owner ruling 2026-11-19)
+        assert req(grade=accepted).grade == accepted
     with pytest.raises(ValidationError):
-        req(grade="9")
+        req(grade="13")
 
 
 @pytest.mark.asyncio

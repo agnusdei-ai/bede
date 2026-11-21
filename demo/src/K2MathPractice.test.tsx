@@ -57,6 +57,9 @@ const lesson = (): MathLesson => ({
 const open = async (onSpeak = vi.fn(), onClose = vi.fn()) => {
   render(<K2MathPractice transport={transport} onClose={onClose} onSpeak={onSpeak} />)
   await screen.findByTestId('math-line')
+  // The opening line is spoken from an effect, which can land just after the
+  // line renders; wait for it so the first assertion never races it.
+  await waitFor(() => expect(onSpeak).toHaveBeenCalled())
   return { onSpeak, onClose }
 }
 
@@ -81,7 +84,7 @@ describe('K2MathPractice', () => {
     reduceMotion = true
     const { onSpeak } = await open()
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
-    expect(onSpeak).toHaveBeenCalledWith('Here are 4. Watch me put in 2 more. Now there are 6.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Here are 4. Watch me put in 2 more. Now there are 6.'))
     // Watch: the move is shown, and nothing can be moved or checked.
     expect(frameCount()).toBe(6)
     expect(screen.getByRole('button', { name: 'Put in a counter' })).toHaveProperty('disabled', true)
@@ -135,7 +138,7 @@ describe('K2MathPractice', () => {
     const { onSpeak, onClose } = await open()
 
     expect(screen.getByText('Mira').getAttribute('aria-current')).toBe('step')
-    expect(onSpeak).toHaveBeenCalledWith('Aquí hay 4. Mira cómo pongo 2 más. Ahora hay 6.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Aquí hay 4. Mira cómo pongo 2 más. Ahora hay 6.'))
     fireEvent.click(screen.getByRole('button', { name: 'Probemos una' }))
     expect(screen.getByText('Juntos').getAttribute('aria-current')).toBe('step')
     fireEvent.click(screen.getByRole('button', { name: 'Poner una ficha en la casilla 4' }))

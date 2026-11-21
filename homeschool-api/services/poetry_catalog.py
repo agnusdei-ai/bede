@@ -34,7 +34,7 @@ teaching guidance below).
 """
 from datetime import date
 
-from models.schemas import GradeStage, VALID_GRADES, grade_to_stage
+from models.schemas import GradeStage, CURATED_GRADES, grade_to_stage
 
 
 def _entry(title: str, poet: str, source: str, grades: set, text: str) -> dict:
@@ -159,9 +159,9 @@ def _entries_for_stage(stage: GradeStage) -> list[dict]:
 
 def _entries_for(grade: "str | None", stage: GradeStage) -> list[dict]:
     """Grade-specific entries when the exact grade is known and recognized
-    (VALID_GRADES), otherwise the broader stage band — covers sessions
+    (CURATED_GRADES), otherwise the broader stage band — covers sessions
     that only have a stage (e.g. an unset/guest config)."""
-    if grade and grade.strip().upper() in VALID_GRADES:
+    if grade and grade.strip().upper() in CURATED_GRADES:
         entries = _entries_for_grade(grade.strip().upper())
         if entries:
             return entries

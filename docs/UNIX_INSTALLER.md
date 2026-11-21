@@ -151,6 +151,11 @@ no terminal (for example a piped install in automation) nothing is asked and
 the default lineup is used, as before. A model you choose is downloaded once and
 is then kept on later runs like any other.
 
+Options 2 and 3 are advanced choices. The recommended model in option 1 is
+the existing lineup and stays the default; nothing chosen here becomes a
+default or a recommendation until it has been qualified against Bede's capacity
+and learning-quality requirements (`docs/design/AFFORDABLE_OPEN_WEIGHT_PATH.md`).
+
 Not covered here: the Windows installer still takes `-ModelFamily default|qwen`
 only, and no model other than the two lineups has been run through Bede's
 tutoring or Spanish prompts (`spanish_local_model_probe.py` is the check).

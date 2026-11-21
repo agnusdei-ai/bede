@@ -326,8 +326,8 @@ choose_model_interactively() {
   echo "" >&2
   echo "  Which open-weight model should run Bede on this computer?" >&2
   echo "    1) Recommended for this computer: $rec (Mistral AI / IBM)   [default]" >&2
-  echo "    2) Qwen: $qw (Alibaba)" >&2
-  echo "    3) Another open-weight model: you name it (for example llama3.1:8b, gemma3:12b, phi4)" >&2
+  echo "    2) Qwen: $qw (Alibaba), advanced" >&2
+  echo "    3) Another open-weight model, advanced: you name it (for example llama3.1:8b, gemma3:12b, phi4)" >&2
   echo "  Bede needs a model that supports tool calling; if unsure, choose 1." >&2
   local pick name
   exec 3< "$tty"

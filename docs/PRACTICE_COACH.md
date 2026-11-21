@@ -572,6 +572,16 @@ Reading and drafting use the same route as photo reading: the household's
 local model, or the configured cloud provider only with consent for this
 request. Nothing is stored.
 
+The answers stay hidden on the review screen until the adult presses
+**Show answer key**, in the app and the demo alike, so a quiz can be looked
+over (or taken, on a shared screen) without the answers in view. With the
+key shown, each answer may carry a short explanation of one or two sentences
+on why it is right. The drafting model writes it only where it adds
+something, it is cut to two sentences in code, and it is dropped whenever
+Bede replaces the model's answer (a recomputed math answer, or one counted
+off a picture), so it never explains an answer that is no longer there. The
+printed answer key carries the same explanation under each answer.
+
 - **In the app**, the parent prints the quiz and its answer key from the
   student's Progress page.
 - **Teachers** have the same builder on the classroom page

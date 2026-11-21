@@ -173,7 +173,11 @@
     "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas.",
     "printQuiz": "Imprimir examen",
     "printKey": "Imprimir respuestas",
-    "answerKey": "respuestas"
+    "answerKey": "respuestas",
+    "showAnswerKey": "Mostrar respuestas",
+    "hideAnswerKey": "Ocultar respuestas",
+    "keyHidden": "Las respuestas están ocultas para que primero se pueda contestar el examen.",
+    "why": "Por qué: {{text}}"
   },
   "canvas": {
     "cancel": "Cancelar",

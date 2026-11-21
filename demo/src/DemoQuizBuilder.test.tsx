@@ -45,7 +45,7 @@ const quiz: GeneratedQuiz = {
   title: 'Addition quiz', subject: 'mathematics', grade: '3', kind: 'quiz', level: 'on_level',
   coverage: ['two-digit addition'], est_minutes: 4,
   questions: [
-    { number: 1, type: 'computation', topic: 'addition', prompt: '27 + 15 =', options: [], answer: '42', answer_check: 'computed' },
+    { number: 1, type: 'computation', topic: 'addition', prompt: '27 + 15 =', options: [], answer: '42', answer_check: 'computed', explanation: 'Add the tens, then the ones.' },
     { number: 2, type: 'multiple_choice', topic: 'addition', prompt: 'Which is 10 more than 35?', options: ['25', '45', '36'], answer: '45', answer_check: 'verify' },
   ],
 }
@@ -165,7 +165,13 @@ describe('demo quiz builder', () => {
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'addition' } })
     fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
 
+    // The answers stay hidden until the key is asked for.
+    expect(await screen.findByRole('button', { name: 'Show answer key' })).toBeTruthy()
+    expect(screen.queryByText('Worked out')).toBeNull()
+    expect(screen.queryByLabelText(/^Answer for/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer key' }))
     expect(await screen.findByText('Worked out')).toBeTruthy()
+    expect(screen.getByText('Why: Add the tens, then the ones.')).toBeTruthy()
     expect(screen.getByText('Check')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Answer for question 2'), { target: { value: '45!' } })
     fireEvent.click(screen.getByLabelText('Include question 1'))

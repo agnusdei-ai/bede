@@ -2167,6 +2167,8 @@ export interface QuizQuestion {
   prompt: string
   options: string[]
   answer: string
+  /** One or two sentences on why, for the answer key only; may be empty. */
+  explanation?: string
   diagram?: DiagramSpec | null
   answer_check: 'computed' | 'checked' | 'verify'
   second_answer?: string | null

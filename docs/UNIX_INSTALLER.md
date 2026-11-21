@@ -132,6 +132,29 @@ curl -fsSL https://raw.githubusercontent.com/agnusdei-ai/bede/main/packaging/uni
 `--model-family default` (or leaving it out) uses the default lineup. Any
 other value stops the installer before it changes anything.
 
+**Choosing your own model.** When you run the installer at a keyboard and have
+not asked for a model, and this computer has no model Bede already uses, it
+asks which open-weight model should run Bede:
+
+1. the recommended model for this computer (Mistral AI or IBM, sized to your
+   hardware), the default if you just press Enter;
+2. Qwen, sized to your hardware;
+3. any other open-weight model you name, for example `llama3.1:8b`,
+   `gemma3:12b` or `phi4`.
+
+You can skip the question: `--model-family qwen`, or `--model <name>` /
+`BEDE_MODEL=<name>` for a model you name (it cannot be combined with
+`--model-family`). A name must be one Ollama can pull (letters, digits and
+`. _ : / -`). Bede needs a model that supports tool calling; the installer
+does not check this, and a model that cannot use tools will tutor poorly. With
+no terminal (for example a piped install in automation) nothing is asked and
+the default lineup is used, as before. A model you choose is downloaded once and
+is then kept on later runs like any other.
+
+Not covered here: the Windows installer still takes `-ModelFamily default|qwen`
+only, and no model other than the two lineups has been run through Bede's
+tutoring or Spanish prompts (`spanish_local_model_probe.py` is the check).
+
 On Apple Silicon there's no discrete VRAM concept at all — memory is
 unified, so the RAM-based fallback tier is the *correct* path there, not a
 lesser fallback the way it is on a discrete-GPU machine. On a Raspberry Pi

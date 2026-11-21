@@ -557,7 +557,44 @@
       "box": "caja",
       "basket": "canasta",
       "truck": "camión",
-      "ruler": "regla"
+      "ruler": "regla",
+      "bat": "murciélago",
+      "rat": "rata",
+      "van": "camioneta",
+      "fan": "abanico",
+      "pen": "pluma",
+      "net": "red",
+      "web": "telaraña",
+      "log": "tronco",
+      "nut": "cacahuate",
+      "bug": "bicho",
+      "cap": "gorra",
+      "bag": "bolsa",
+      "hut": "choza",
+      "crab": "cangrejo",
+      "drum": "tambor",
+      "sled": "trineo",
+      "shell": "concha",
+      "clock": "reloj",
+      "flag": "bandera",
+      "nest": "nido",
+      "tent": "tienda de campaña",
+      "skunk": "zorrillo",
+      "kite": "papalote",
+      "rope": "cuerda",
+      "nose": "nariz",
+      "snail": "caracol",
+      "seal": "foca",
+      "soap": "jabón",
+      "sock": "calcetín",
+      "lock": "candado",
+      "ring": "anillo",
+      "thumb": "pulgar",
+      "vest": "chaleco",
+      "dish": "plato",
+      "zebra": "cebra",
+      "yarn": "estambre",
+      "jar": "frasco"
     },
     "action": {
       "running": "corriendo",
@@ -609,6 +646,7 @@
     "back": "Volver a la conversación"
   },
   "k2Math": {
+    "watchAgain": "Ver otra vez",
     "title": "Hora de los Números",
     "open": "Probar la Hora de los Números",
     "chooseTopic": "Elige un tema",
@@ -689,6 +727,7 @@
     }
   },
   "k2Phonics": {
+    "watchAgain": "Ver otra vez",
     "title": "Hora de los Sonidos",
     "open": "Empezar la Hora de los Sonidos",
     "loading": "Preparando las palabras…",
@@ -717,6 +756,8 @@
     },
     "prompt": {
       "rhyme_choice": "¿Cuál rima con {{word}}?",
+      "rhyme_odd_choice": "Escucha: {{words}}. ¿Cuál no rima?",
+      "starts_with_choice": "¿Qué dibujo empieza con {{letter}}, {{sound}}?",
       "first_sound_choice": "¿Con qué letra empieza {{word}}?",
       "read_word_choice": "Lee la palabra. Toca su dibujo.",
       "sight_word_choice": "Toca la palabra {{word}}."
@@ -727,12 +768,16 @@
     },
     "watch": {
       "rhyme_choice": "Escucha: {{word}} y {{answer}}. ¡Riman! Terminan con el mismo sonido.",
+      "rhyme_odd_choice": "Escucha: {{words}}. Dos de ellas riman. {{answer}} no rima con las otras.",
+      "starts_with_choice": "{{answer}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
       "first_sound_choice": "{{word}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
       "read_word_choice": "Escucha: {{sounds}}. Junta los sonidos: ¡{{word}}!",
       "sight_word_choice": "Esta palabra es {{word}}. La conocemos de vista."
     }
   },
   "mapPractice": {
+    "watchAgain": "Ver otra vez",
+    "watchLook": "Mira el camino que sigue Bede.",
     "title": "Práctica de mapas",
     "loading": "Preparando un mapa…",
     "loadTrouble": "No se pudo cargar el mapa.",

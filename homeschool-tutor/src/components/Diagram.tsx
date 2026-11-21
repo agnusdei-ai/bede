@@ -35,7 +35,12 @@ export type DiagramSpec =
   | { kind: 'thermometer'; unit: 'F' | 'C'; low: number; high: number; step: number; reading: number }
   | { kind: 'image'; wiki_title: string; caption?: string }
 
-/** Picture symbols for the API's ICONS (models/practice.py). A name not here draws nothing. */
+/**
+ * A classical public-domain picture for each of the API's ICONS
+ * (models/practice.py): the exact Wikimedia Commons file, looked up live when
+ * shown (docs/PRACTICE_COACH.md, "Pictures"). '' means no picture was chosen
+ * and the word is shown instead. A name not here draws nothing.
+ */
 export const ICONS: Record<string, string> = {
   dog: '🐕', cat: '🐈', mouse: '🐁', bird: '🐦', duck: '🦆', fish: '🐟', horse: '🐎', cow: '🐄', pig: '🐖',
   sheep: '🐑', goat: '🐐', chicken: '🐓', rabbit: '🐇', frog: '🐸', bee: '🐝', butterfly: '🦋', ant: '🐜',
@@ -55,6 +60,11 @@ export const ICONS: Record<string, string> = {
   crayon: '🖍️', paperclip: '📎', scissors: '✂️', spoon: '🥄', backpack: '🎒', chair: '🪑', bed: '🛏️',
   watermelon: '🍉', bucket: '🪣', television: '📺', computer: '💻', phone: '📱', cup: '☕', bottle: '🍼',
   toothbrush: '🪥', cube: '🟦', box: '📦', basket: '🧺', truck: '🚚', ruler: '📏',
+  bat: '🦇', rat: '🐀', van: '🚐', fan: '🪭', pen: '🖊️', net: '🥅', web: '🕸️', log: '🪵', nut: '🥜',
+  bug: '🐛', cap: '🧢', bag: '👜', hut: '🛖', crab: '🦀', drum: '🥁', sled: '🛷', shell: '🐚', clock: '🕐',
+  flag: '🚩', nest: '🪺', tent: '⛺', skunk: '🦨', kite: '🪁', rope: '🪢', nose: '👃', snail: '🐌',
+  seal: '🦭', soap: '🧼', sock: '🧦', lock: '🔒', ring: '💍', thumb: '👍', vest: '🦺', dish: '🍽️',
+  zebra: '🦓', yarn: '🧶', jar: '🫙',
 }
 
 /** Coins and bills (models/practice.py COIN_CENTS): what each is worth and how it is drawn. */
@@ -66,9 +76,45 @@ export const COINS: Record<string, { cents: number; bill?: boolean; r?: number }
 }
 
 /** What an action looks like beside the thing doing it. */
+/** What a scene's figure is doing; shown as words beside the picture. */
 export const ACTIONS: Record<string, string> = {
-  running: '💨', swimming: '🌊', flying: '☁️', sleeping: '💤', eating: '🍽️', drinking: '💧',
-  singing: '🎵', walking: '👣', reading: '📖', writing: '✏️',
+  running: 'running', swimming: 'swimming', flying: 'flying', sleeping: 'sleeping', eating: 'eating',
+  drinking: 'drinking', singing: 'singing', walking: 'walking', reading: 'reading', writing: 'writing',
+}
+
+/** Where a picture's file is fetched from: Commons redirects to the scaled copy on upload.wikimedia.org. */
+export const COMMONS_FILEPATH = 'https://commons.wikimedia.org/wiki/Special:FilePath/'
+
+/** The picture's address at a given width, or null when the name has none. */
+export function pictureSrc(name: string, width = 160): string | null {
+  const file = ICONS[name]
+  if (!file) return null
+  return `${COMMONS_FILEPATH}${encodeURIComponent(file.replace(/^File:/, '').replace(/ /g, '_'))}?width=${width}`
+}
+
+/**
+ * A picture as an HTML image, with its word shown instead when there is no
+ * picture or it cannot be loaded. `hideWord` keeps the word off the screen
+ * where reading that word is the question being asked.
+ */
+export function Picture({ name, label, size, hideWord = false }: {
+  name: string
+  label: string
+  size: string
+  hideWord?: boolean
+}) {
+  const [failed, setFailed] = useState(false)
+  const src = pictureSrc(name, 240)
+  if (!src || failed) {
+    return (
+      <span role="img" aria-label={label}
+        className={`${size} inline-flex items-center justify-center rounded-xl bg-parchment-100 px-1 text-center text-base font-medium text-navy-800`}>
+        {hideWord ? '?' : label}
+      </span>
+    )
+  }
+  return <img src={src} alt={label} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)}
+    className={`${size} object-contain`} />
 }
 
 const INK = '#1f2a44'
@@ -290,10 +336,9 @@ function Plane({ size, four_quadrants: four, points }: { size: number; four_quad
 }
 
 
-const EMOJI = { fontFamily: '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif' } as const
 
 function Pictures({ groups }: { groups: { icon: string; count: number; label?: string }[] }) {
-  const list = (groups ?? []).slice(0, 6).filter((g) => ICONS[g.icon])
+  const list = (groups ?? []).slice(0, 6).filter((g) => g.icon in ICONS)
   const cols = (n: number) => Math.min(4, Math.max(1, n))
   const widths = list.map((g) => cols(clamp(g.count, 1, 12)) * 38 + 16)
   const total = widths.reduce((a, b) => a + b, 0) + 10
@@ -308,7 +353,7 @@ function Pictures({ groups }: { groups: { icon: string; count: number; label?: s
         return (
           <g key={i}>
             {Array.from({ length: n }, (_, k) => (
-              <text key={k} x={left + 8 + (k % 4) * 38} y={34 + Math.floor(k / 4) * 40} fontSize={30} {...EMOJI}>{ICONS[g.icon]}</text>
+              <SvgPicture key={k} name={g.icon} x={left + 6 + (k % 4) * 38} y={6 + Math.floor(k / 4) * 40} size={34} />
             ))}
             {g.label && <text x={left + widths[i] / 2 - 8} y={tallest * 40 + 26} textAnchor="middle" {...FONT} fontWeight="bold">{g.label.slice(0, 16)}</text>}
           </g>
@@ -318,12 +363,24 @@ function Pictures({ groups }: { groups: { icon: string; count: number; label?: s
   )
 }
 
-function Scene({ icon, action }: { icon: string; action?: string | null }) {
-  if (!ICONS[icon]) return null
+/**
+ * A picture inside an SVG diagram (screen and print alike). With no picture
+ * chosen the word is written in its place.
+ */
+function SvgPicture({ name, x, y, size }: { name: string; x: number; y: number; size: number }) {
+  const src = pictureSrc(name, Math.round(size * 3))
+  if (!src) {
+    return <text x={x + size / 2} y={y + size / 2 + 4} textAnchor="middle" {...FONT} fontSize={Math.max(10, size / 3)}>{name}</text>
+  }
+  return <image href={src} x={x} y={y} width={size} height={size} preserveAspectRatio="xMidYMid meet"><title>{name}</title></image>
+}
+
+function Scene({ icon, action, actionLabel }: { icon: string; action?: string | null; actionLabel?: string }) {
+  if (!(icon in ICONS)) return null
   return (
-    <svg viewBox="0 0 150 100" width="150" height="100">
-      <text x={20} y={78} fontSize={64} {...EMOJI}>{ICONS[icon]}</text>
-      {action && ACTIONS[action] && <text x={100} y={44} fontSize={34} {...EMOJI}>{ACTIONS[action]}</text>}
+    <svg viewBox="0 0 190 100" width="190" height="100">
+      <SvgPicture name={icon} x={6} y={6} size={88} />
+      {action && ACTIONS[action] && <text x={102} y={56} {...FONT} fontWeight="bold">{actionLabel ?? ACTIONS[action]}</text>}
     </svg>
   )
 }
@@ -446,7 +503,7 @@ function Ruler({ unit, length, objects }: { unit: 'cm' | 'in'; length: number; o
         <g key={i}>
           <rect x={x(o.start)} y={10 + i * 34} width={Math.max(4, x(o.end) - x(o.start))} height={24} rx={6} fill={BAR_COLOURS[i % 4]} stroke={INK} strokeWidth={1.5} />
           <text x={x(o.start) + 6} y={27 + i * 34} {...FONT} fill="#ffffff" fontWeight="bold">
-            {o.icon && ICONS[o.icon] ? `${ICONS[o.icon]} ` : ''}{o.label.slice(0, 16)}
+            {o.label.slice(0, 16)}
           </text>
           <line x1={x(o.start)} y1={34 + i * 34} x2={x(o.start)} y2={top} stroke={INK} strokeWidth={0.75} strokeDasharray="2 3" />
           <line x1={x(o.end)} y1={34 + i * 34} x2={x(o.end)} y2={top} stroke={INK} strokeWidth={0.75} strokeDasharray="2 3" />
@@ -582,7 +639,9 @@ export function describe(d: DiagramSpec, t: (key: string, values?: Record<string
   }
 }
 
-export function DiagramSvg({ d }: { d: DiagramSpec }) {
+type Translate = (key: string, values?: Record<string, unknown>) => string
+
+export function DiagramSvg({ d, t }: { d: DiagramSpec; t?: Translate }) {
   switch (d.kind) {
     case 'fraction_bar': return <FractionBar parts={d.parts} shaded={d.shaded} />
     case 'fraction_circle': return <FractionCircle parts={d.parts} shaded={d.shaded} />
@@ -595,7 +654,8 @@ export function DiagramSvg({ d }: { d: DiagramSpec }) {
     case 'bar_graph': return <BarGraph title={d.title} bars={d.bars} />
     case 'coordinate_plane': return <Plane {...d} />
     case 'pictures': return <Pictures groups={d.groups} />
-    case 'scene': return <Scene icon={d.icon} action={d.action} />
+    case 'scene': return <Scene icon={d.icon} action={d.action}
+      actionLabel={d.action && t ? t(`diagram.action.${d.action}`, { defaultValue: d.action }) : undefined} />
     case 'timeline': return <Timeline events={d.events} show_years={d.show_years} />
     case 'venn': return <Venn {...d} />
     case 'table': return <Table header={d.header} rows={d.rows} />
@@ -618,7 +678,7 @@ export default function Diagram({ d }: { d?: DiagramSpec | null }) {
   if (!d) return null
   return (
     <figure role="img" aria-label={describe(d, t)} className="my-2 max-w-full overflow-x-auto">
-      <DiagramSvg d={d} />
+      <DiagramSvg d={d} t={t} />
     </figure>
   )
 }
@@ -636,5 +696,5 @@ export function diagramMarkup(d?: DiagramSpec | null, t?: (key: string, values?:
       ? <figure><img src={image.src} alt={words} style={{ maxHeight: '16rem', maxWidth: '100%' }} /><figcaption>{`${words}. ${t ? t('diagram.imageCredit', { title: image.title }) : `Picture: Wikimedia Commons, from the Wikipedia article “${image.title}”`}`}</figcaption></figure>
       : <p><em>{words}</em></p>)}</div>`
   }
-  return `<div class="diagram">${renderToStaticMarkup(<DiagramSvg d={d} />)}</div>`
+  return `<div class="diagram">${renderToStaticMarkup(<DiagramSvg d={d} t={t} />)}</div>`
 }

@@ -469,6 +469,39 @@ the same data the builder returns, so the demonstration and the answer can never
 disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
 
+**Watch, step by step (owner direction 2026-11-21).** The example is played,
+not just shown, so the child can copy what they saw. Number Time waits
+`WATCH_PAUSE_MS` (1.2 s) so Bede's line is heard first, then adds or takes away
+one counter every `WATCH_STEP_MS` (0.8 s) with a large running count beside the
+frame. Map Practice settles the picture flat, then lights the way one square at
+a time (`MAP_WATCH_STEP_MS`, 0.6 s) and shows the answer only after the last
+square. Sound Time lights the letters one at a time and shows the answer only
+once they are all lit. Each has a **Watch again** button. With
+`prefers-reduced-motion` the end state is shown at once and there is no replay
+button.
+
+**Variety (owner direction 2026-11-21).** Sound Time's word lists were small
+enough that a lesson reused nearly the whole list (six blend words, five per
+lesson). They now hold 22 rhyming pairs, 53 first-sound pictures over 18
+letters (each letter keeps one plain sound; the picture for a letter changes
+from lesson to lesson and no letter repeats inside a lesson), 24 short-vowel
+words, 15 blend and digraph words, 19 long-vowel words and 25 sight words.
+Rhyming and first sounds each have two kinds of question, chosen per lesson so
+Watch always demonstrates the kind the child then does: "which rhymes with
+___" or "which one does not rhyme" (always three choices, since a fourth would
+be a second odd one), and "which letter starts ___" or "which picture starts
+with this letter". Number Time's counting and comparing ranges now grow with
+the grade (counting 3-10, 6-15, 11-20; comparing up to 8, 12, 20).
+`test_k2_phonics.py` pins a minimum pool per area and that both kinds appear.
+
+**Pictures (owner direction 2026-11-21).** Pictures are classical public-domain
+illustrations on Wikimedia Commons, not emoji. `Diagram.tsx`'s `ICONS` names
+the exact Commons file for each word; the child's browser loads it through
+`Special:FilePath` (disclosed in the privacy notices and
+`docs/VENDOR_DATA_FLOW.md`). A word with no chosen picture, or a picture that
+cannot load, shows the word instead, except where reading that word is the
+question, where it shows "?" so the answer is not given away.
+
 **Voice:** every line Bede speaks in a round is written by the server per locale,
 like the map practice card.
 

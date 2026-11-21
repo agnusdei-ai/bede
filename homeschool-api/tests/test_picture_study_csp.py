@@ -155,3 +155,18 @@ def test_the_captioned_fallback_still_exists(card):
     source = card.read_text()
     assert "setFailed(true)" in source
     assert "failed" in source
+
+
+_DIAGRAM = _REPO / "homeschool-tutor" / "src" / "components" / "Diagram.tsx"
+
+
+@pytest.mark.parametrize("path", ALL_POLICIES)
+def test_img_src_allows_the_practice_pictures_and_their_redirect(path):
+    """K-2 practice and quiz pictures load from Commons' Special:FilePath,
+    which redirects to upload.wikimedia.org: both hosts must be allowed, or
+    every picture falls back to its word."""
+    match = re.search(r"COMMONS_FILEPATH = '(https://[^/']+)/", _DIAGRAM.read_text())
+    assert match, "Diagram.tsx no longer names where practice pictures come from"
+    img = _directive(_policy(path.read_text()), "img-src")
+    for host in (match.group(1), "https://upload.wikimedia.org"):
+        assert host in img, f"{path.name}'s img-src is missing {host}"

@@ -112,4 +112,4 @@
   # which is why strict-CSP guidance treats naming it as mandatory even
   # where — as here — there is no upload path and no user-controlled
   # same-origin content to point one at.
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://upload.wikimedia.org https://thumb.wikimedia.org; font-src 'self'; connect-src 'self' https://*.onrender.com https://en.wikipedia.org; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://upload.wikimedia.org https://thumb.wikimedia.org https://commons.wikimedia.org; font-src 'self'; connect-src 'self' https://*.onrender.com https://en.wikipedia.org; media-src 'self' blob: data:; worker-src 'self' blob:; object-src 'none'; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self';

@@ -1098,7 +1098,44 @@
       "box": "box",
       "basket": "basket",
       "truck": "truck",
-      "ruler": "ruler"
+      "ruler": "ruler",
+      "bat": "bat",
+      "rat": "rat",
+      "van": "van",
+      "fan": "fan",
+      "pen": "pen",
+      "net": "net",
+      "web": "web",
+      "log": "log",
+      "nut": "nut",
+      "bug": "bug",
+      "cap": "cap",
+      "bag": "bag",
+      "hut": "hut",
+      "crab": "crab",
+      "drum": "drum",
+      "sled": "sled",
+      "shell": "shell",
+      "clock": "clock",
+      "flag": "flag",
+      "nest": "nest",
+      "tent": "tent",
+      "skunk": "skunk",
+      "kite": "kite",
+      "rope": "rope",
+      "nose": "nose",
+      "snail": "snail",
+      "seal": "seal",
+      "soap": "soap",
+      "sock": "sock",
+      "lock": "lock",
+      "ring": "ring",
+      "thumb": "thumb",
+      "vest": "vest",
+      "dish": "dish",
+      "zebra": "zebra",
+      "yarn": "yarn",
+      "jar": "jar"
     },
     "action": {
       "running": "running",
@@ -1283,6 +1320,8 @@
     }
   },
   "mapPractice": {
+    "watchAgain": "Watch again",
+    "watchLook": "Watch the way Bede goes.",
     "title": "Map practice",
     "loading": "Getting a map ready…",
     "loadTrouble": "The map could not be loaded.",
@@ -1388,6 +1427,7 @@
     "open": "Open the map"
   },
   "k2Phonics": {
+    "watchAgain": "Watch again",
     "title": "Sound Time",
     "open": "Start Sound Time",
     "loading": "Getting the words ready…",
@@ -1416,6 +1456,8 @@
     },
     "prompt": {
       "rhyme_choice": "Which one rhymes with {{word}}?",
+      "rhyme_odd_choice": "Listen: {{words}}. Which one does not rhyme?",
+      "starts_with_choice": "Which picture starts with {{letter}}, {{sound}}?",
       "first_sound_choice": "Which letter starts {{word}}?",
       "read_word_choice": "Read the word. Tap its picture.",
       "sight_word_choice": "Tap the word {{word}}."
@@ -1426,12 +1468,15 @@
     },
     "watch": {
       "rhyme_choice": "Listen: {{word}} and {{answer}}. They rhyme! They end with the same sound.",
+      "rhyme_odd_choice": "Listen: {{words}}. Two of them rhyme. {{answer}} does not rhyme with the others.",
+      "starts_with_choice": "{{answer}} starts with the sound {{sound}}. We write that sound {{letter}}.",
       "first_sound_choice": "{{word}} starts with the sound {{sound}}. We write that sound {{letter}}.",
       "read_word_choice": "Listen: {{sounds}}. Put the sounds together: {{word}}!",
       "sight_word_choice": "This word is {{word}}. We know it by sight."
     }
   },
   "k2Math": {
+    "watchAgain": "Watch again",
     "title": "Number Time",
     "open": "Start Number Time",
     "loading": "Getting the counters ready…",

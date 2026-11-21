@@ -305,6 +305,7 @@ GUARDS = {
     ('GET', '/tutor/demo-config'): 'require_auth',
     ('POST', '/tutor/email-summary'): 'require_email_summary',
     ('POST', '/tutor/extract-narration'): 'require_auth',
+    ('GET', '/tutor/voice'): 'require_auth',
     ('POST', '/tutor/speak'): 'require_auth',
     ('POST', '/tutor/summary'): 'require_parent',
     # Legacy name-keyed biometric profiles are unsafe on institutional hosts.

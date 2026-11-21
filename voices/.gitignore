@@ -1,0 +1,4 @@
+# Piper voice models for Bede's local voice (voice-service/), mounted read-only.
+# Voice files are never committed: each has its own license (DECISIONS.md entry 46).
+*
+!.gitignore

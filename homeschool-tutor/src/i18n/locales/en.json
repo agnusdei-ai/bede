@@ -1511,6 +1511,29 @@
       "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}."
     }
   },
+  "voiceStatus": {
+    "title": "Bede's voice",
+    "local": {
+      "what": "Bede is reading lessons aloud with the optional Piper development voice, which runs on this computer. Nothing Bede says aloud leaves it.",
+      "next": "Nothing to do. This voice is for testing; it is not Bede's usual voice."
+    },
+    "down": {
+      "what": "Bede's voice is set up but isn't answering right now. Lessons carry on with everything shown on screen; your child is not told about it, and Bede never uses another voice in its place.",
+      "next": "Nothing to do right away: Bede checks again within a minute. If it lasts, check the voice setup guide."
+    },
+    "none": {
+      "what": "Bede's voice isn't finished setting up on this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede does not use the browser's voice or any other voice in its place.",
+      "next": "To finish voice setup, add an OpenAI key (OPENAI_API_KEY) to this installation's settings and restart Bede. Bede's voice then works with nothing else to turn on. The voice setup guide shows how."
+    },
+    "off": {
+      "what": "Speech was turned off for this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede does not use another voice in its place.",
+      "next": "To turn Bede's voice back on, whoever set up this installation removes the TTS_PROVIDER=none setting and restarts Bede. The voice setup guide shows how."
+    },
+    "cloud": {
+      "what": "Bede reads lessons aloud in its usual voice, which comes from a cloud speech service. That service receives each line Bede speaks.",
+      "next": "Nothing to do. To keep lessons on screen only, turn Bede's voice off during a lesson, or ask whoever set up this installation to turn speech off."
+    }
+  },
   "quizRunner": {
     "progress": "Question {{n}} of {{total}}",
     "answerLabel": "Your answer",

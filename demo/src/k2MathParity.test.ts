@@ -31,13 +31,14 @@ describe('demo Number Time mirrors', () => {
     // (useTextToSpeech's speak), never an on-device or browser default voice.
     const chat = source(app, 'components/SocraticChat.tsx')
     const mathBlock = chat.slice(chat.indexOf('<K2MathPractice'), chat.indexOf('/>', chat.indexOf('<K2MathPractice')))
-    expect(mathBlock).toContain('onSpeak={ttsEnabled ? speakInBedesVoice : undefined}')
+    expect(mathBlock).toContain('onSpeak={roundsSpeak ? speakInBedesVoice : undefined}')
     expect(mathBlock).not.toContain('speakOnDevice')
     expect(chat).toMatch(/const speakInBedesVoice = useCallback\(\(text: string\) => \{ stopSpeech\(\); speak\(text\) \}/)
 
     const demoApp = source(demo, 'App.tsx')
     expect(demoApp).toMatch(/const speakNumberTime = useCallback\(\(text: string\) => \{ stopSpeech\(\); speak\(text\) \}/)
     expect(demoApp).not.toContain('SpeechSynthesisUtterance')
+    expect(source(demo, 'useTextToSpeech.ts')).not.toMatch(/new SpeechSynthesisUtterance|speechSynthesis\.speak/)
     const demoBlock = demoApp.slice(demoApp.indexOf('<K2MathPractice'), demoApp.indexOf('/>', demoApp.indexOf('<K2MathPractice')))
     expect(demoBlock).toContain('onSpeak={ttsEnabled ? speakNumberTime : undefined}')
   })
@@ -74,7 +75,7 @@ describe('demo Number Time mirrors', () => {
     const chat = source(app, 'components/SocraticChat.tsx')
     const demoApp = source(demo, 'App.tsx')
     for (const tag of ['<K2PhonicsPractice', '<MapPractice']) {
-      expect(block(chat, tag)).toContain('onSpeak={ttsEnabled ? speakInBedesVoice : undefined}')
+      expect(block(chat, tag)).toContain('onSpeak={roundsSpeak ? speakInBedesVoice : undefined}')
       expect(block(demoApp, tag)).toContain('onSpeak={ttsEnabled ? speakNumberTime : undefined}')
     }
     for (const file of ['K2PhonicsPractice.tsx', 'MapPractice.tsx', 'MapScene.tsx']) {

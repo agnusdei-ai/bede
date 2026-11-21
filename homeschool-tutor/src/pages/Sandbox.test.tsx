@@ -11,6 +11,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { resetVoiceGateForTests } from '../hooks/useTextToSpeech'
 
 const { streamSandboxChat } = vi.hoisted(() => ({ streamSandboxChat: vi.fn() }))
 
@@ -50,6 +51,7 @@ async function* chunksOf(...texts: string[]) {
 }
 
 beforeEach(() => {
+  resetVoiceGateForTests()
   useSessionStore.setState({ token: 'parent-tok' })
   streamSandboxChat.mockReset()
   window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
@@ -70,6 +72,9 @@ afterEach(() => {
 describe('Sandbox — Bede speaks its answers', () => {
   it('speaks the full assembled reply once streaming completes', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      // Answers both the voice-status ask (ok + json) and /tutor/speak.
+      ok: true,
+      json: async () => ({ configured: true, where: 'local', available: true }),
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['fake-audio'], { type: 'audio/aac' }),
@@ -120,6 +125,9 @@ describe('Sandbox — Bede speaks its answers', () => {
       .mockReturnValueOnce(chunksOf('First answer.'))
       .mockReturnValueOnce(chunksOf('Second question.'))
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      // Answers both the voice-status ask (ok + json) and /tutor/speak.
+      ok: true,
+      json: async () => ({ configured: true, where: 'local', available: true }),
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['fake-audio']),
@@ -149,6 +157,9 @@ describe('Sandbox — Bede speaks its answers', () => {
 
   it('renders a mute/unmute toggle that silences the next reply', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      // Answers both the voice-status ask (ok + json) and /tutor/speak.
+      ok: true,
+      json: async () => ({ configured: true, where: 'local', available: true }),
       status: 200,
       headers: new Headers({ 'X-TTS-Configured': 'True' }),
       blob: async () => new Blob(['fake-audio']),

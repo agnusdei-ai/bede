@@ -10,6 +10,7 @@ import {
   readDemoPracticePhotos,
   planDemoPractice,
   type DemoPracticeAssessment,
+  type QuizQuestion,
   type DemoPracticeSetDraft,
 } from './api'
 import DemoQuizBuilder from './DemoQuizBuilder'
@@ -48,10 +49,12 @@ export default function DemoPracticeCoach({
   token,
   onClose,
   onApproved,
+  onStartQuiz,
 }: {
   token: string
   onClose: () => void
   onApproved: (items: { index: number; prompt: string; hint: string }[]) => void
+  onStartQuiz: (title: string, questions: QuizQuestion[]) => void
 }) {
   const { t } = useTranslation()
   const [packs, setPacks] = useState<{ id: string; display_name: string }[]>([])
@@ -231,7 +234,7 @@ export default function DemoPracticeCoach({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 text-sm text-gray-700">
           {tab === 'quiz' && (
-            <DemoQuizBuilder token={token} onApproved={(items) => { onApproved(items); onClose() }} />
+            <DemoQuizBuilder token={token} onStartQuiz={(title, questions) => { onStartQuiz(title, questions); onClose() }} />
           )}
           {tab === 'practice' && <>
           {error && <p role="alert" className="rounded-lg bg-madder-50 px-3 py-2 text-madder-800">{error}</p>}

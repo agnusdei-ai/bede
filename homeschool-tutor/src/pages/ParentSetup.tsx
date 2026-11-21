@@ -17,6 +17,7 @@ import LicenseSettings from '../components/LicenseSettings'
 import ParentGreetingSettings from '../components/ParentGreetingSettings'
 import { useParentName } from '../hooks/useParentName'
 import AIProviderSettings from '../components/AIProviderSettings'
+import VoiceStatusNotice from '../components/VoiceStatusNotice'
 import PilotOwnerPanel from '../components/PilotOwnerPanel'
 import AgenticLoopInsights from '../components/AgenticLoopInsights'
 import { listVoiceProfiles } from '../services/voiceApi'
@@ -577,6 +578,7 @@ export default function ParentSetup() {
         <DeviceSettings token={token!} />
         <LicenseSettings token={token!} />
         <AIProviderSettings token={token!} />
+        <VoiceStatusNotice token={token!} />
         <PilotOwnerPanel token={token!} />
         <AgenticLoopInsights token={token!} />
 

@@ -47,7 +47,7 @@ const quiz: GeneratedQuiz = {
   questions: [
     { number: 1, type: 'short_answer', topic: 'plants', prompt: 'What do leaves need to make food?', options: [], answer: 'sunlight', answer_check: 'verify', second_answer: 'light' },
     { number: 3, type: 'short_answer', topic: 'plants', prompt: 'What gas do plants take in?', options: [], answer: 'carbon dioxide', answer_check: 'checked' },
-    { number: 2, type: 'computation', topic: 'measurement', prompt: '12 × 3 =', options: [], answer: '36', answer_check: 'computed' },
+    { number: 2, type: 'computation', topic: 'measurement', prompt: '12 × 3 =', options: [], answer: '36', answer_check: 'computed', explanation: 'Add the tens, then the ones.' },
   ],
 }
 
@@ -74,7 +74,13 @@ describe('QuizBuilder', () => {
     await waitFor(() => expect(mocks.generateQuiz).toHaveBeenCalledWith('t', 'Ava', expect.objectContaining({
       subject: 'science', grade: '4', kind: 'midterm', focus: 'plants',
     })))
+    // The answers stay hidden until the key is asked for.
+    expect(await screen.findByRole('button', { name: 'Show answer key' })).toBeTruthy()
+    expect(screen.queryByText('Worked out')).toBeNull()
+    expect(screen.queryByLabelText(/^Answer for/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer key' }))
     expect(await screen.findByText('Worked out')).toBeTruthy()
+    expect(screen.getByText('Why: Add the tens, then the ones.')).toBeTruthy()
     expect(screen.getByText('Check')).toBeTruthy()
     expect(screen.getByText('Double-checked')).toBeTruthy()
     expect(screen.getByText('A second check said: light')).toBeTruthy()
@@ -155,6 +161,18 @@ describe('QuizBuilder', () => {
     render(<QuizBuilder token="t" audience="educator" />)
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
     expect(await screen.findByText(/none is set up here/)).toBeTruthy()
+  })
+
+  it('starts the drafted quiz on this device, answers hidden until each is answered', async () => {
+    mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
+    render(<QuizBuilder token="t" studentName="Ava" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'plants' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start quiz' }))
+    expect(await screen.findByText('Question 1 of 3')).toBeTruthy()
+    expect(screen.queryByText(/The answer is/)).toBeNull()
+    expect(screen.queryByText('Why: Add the tens, then the ones.')).toBeNull()
   })
 
   it('every quiz string exists in Spanish too', () => {

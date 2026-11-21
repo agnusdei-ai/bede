@@ -98,7 +98,7 @@ describe('demo Practice Coach', () => {
     let finish: (v: unknown) => void = () => undefined
     api.readDemoPracticePhotos.mockImplementation(() => new Promise((r) => { finish = r }))
     api.fetchDemoReadingProgress.mockResolvedValue({ stage: 'reading', done: 6, total: 12 })
-    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} onStartQuiz={vi.fn()} />)
     await screen.findByRole('option', { name: 'Latin' })
     fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files: [new File(['x'], 'q.jpg', { type: 'image/jpeg' })] } })
     fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
@@ -120,7 +120,7 @@ describe('demo Practice Coach', () => {
       id: 0, status: 'needs_review', assessment: pictured, ask_parent: [],
       teacher_mark_count: { correct: 0, total: 2, source: 'teacher_marks' },
     })
-    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} onStartQuiz={vi.fn()} />)
     await screen.findByRole('option', { name: 'Latin' })
     fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files: [new File(['x'], 'q.jpg', { type: 'image/jpeg' })] } })
     fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
@@ -134,7 +134,7 @@ describe('demo Practice Coach', () => {
       id: 0, status: 'needs_review', assessment, ask_parent: [],
       teacher_mark_count: { correct: 0, total: 1, source: 'teacher_marks' }, pages_read: body.pages.length,
     }))
-    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} onStartQuiz={vi.fn()} />)
     await screen.findByRole('option', { name: 'Latin' })
     const files = Array.from({ length: 9 }, (_, i) => new File([`page-${i}`], `p${i}.jpg`, { type: 'image/jpeg' }))
     fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files } })
@@ -153,7 +153,7 @@ describe('demo Practice Coach', () => {
     ['scanned PDF', 'application/pdf', '%PDF-sample-scan'],
   ])('reads sample %s uploads, supports adult correction, and requires explicit approval', async (_label, mime, content) => {
     const onApproved = vi.fn()
-    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={onApproved} />)
+    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={onApproved} onStartQuiz={vi.fn()} />)
 
     await screen.findByRole('option', { name: 'Latin' })
     const input = screen.getByLabelText(/Choose image files/i)
@@ -198,7 +198,7 @@ describe('demo Practice Coach', () => {
   it('prints the kept practice items as a worksheet, without the answers', async () => {
     printed.sheets.length = 0
     printed.html.length = 0
-    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} onStartQuiz={vi.fn()} />)
     await screen.findByRole('option', { name: 'Latin' })
     fireEvent.change(screen.getByLabelText(/Choose image files/i), { target: { files: [new File(['x'], 'page.jpg', { type: 'image/jpeg' })] } })
     fireEvent.click(screen.getByRole('button', { name: 'Read quiz' }))
@@ -218,7 +218,7 @@ describe('demo Practice Coach', () => {
 
   it('requires per-upload consent before sending pages to the cloud reader', async () => {
     api.fetchDemoPracticeReadingRoute.mockResolvedValue({ local_available: false, cloud_provider: 'OpenAI' })
-    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} />)
+    render(<DemoPracticeCoach token="sample-token" onClose={vi.fn()} onApproved={vi.fn()} onStartQuiz={vi.fn()} />)
     await screen.findByText(/send these pages to OpenAI/i)
     expect(screen.getByText(/OpenAI may keep the images for up to 30 days/)).toBeTruthy()
     expect(screen.getByText(/crop out a full name first/)).toBeTruthy()

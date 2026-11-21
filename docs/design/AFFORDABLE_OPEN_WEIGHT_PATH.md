@@ -239,12 +239,14 @@ detection alone never supports a "10 users" or "30 users" statement.
 
 ### 7.1 What the existing evidence already says
 
-- `docs/CAPACITY.md` measured the stack with a stub model: the shipped database
-  pool (5 plus 5) supported 8 browser sessions and **failed at 10**, because a
-  lesson turn holds its connection for the whole streamed reply. A raised pool
-  (20 plus 20) passed 10. So the household target already fails on the shipped
-  defaults, before any real model is involved. The API runs one process by
-  design, which is a separate ceiling to measure at 30.
+- `docs/CAPACITY.md`'s first run, with a stub model, found the shipped database
+  pool (5 plus 5) supporting 8 browser sessions and failing at 10. **That was
+  measured before a fix that has since landed** (a turn now hands its
+  connection back before the model call), and `docs/CAPACITY.md` records the
+  confirming stack run as pending. A stack run on current main has been
+  dispatched to settle it; until it reports, the 10-user platform result is
+  unknown rather than failing. The API runs one process by design, a separate
+  ceiling to measure at 30.
 - The capacity harness steps real browser sessions to 10 and API clients to 64.
   It needs extending to a 30-user school profile, the arrival patterns above,
   the two-hour soak, per-user reporting and the overload steps. Its pass rules
@@ -254,7 +256,54 @@ detection alone never supports a "10 users" or "30 users" statement.
   16 GB GPU, and 12 to 25 on a 24 GB GPU, assuming a third of enrolled users are
   generating at any moment. The new targets count users actively performing
   tasks, so those tiers cannot be reused without re-measurement, and that
-  hardware is not "ordinary". This is the capacity-versus-cost conflict below.
+  hardware is not "ordinary".
+
+### 7.1a Simulation of the concurrent paths (planning only, not a measurement)
+
+`scripts/qualification/capacity/sim_profiles.py` models N actively learning
+users sharing one inference server, exactly as the application runs a turn
+(moderation call, then the tutor call; a tool activity has two tutor rounds),
+with queueing counted from submission, the owner's thresholds applied per user,
+and both staggered and synchronized-burst arrivals over two simulated hours. It
+contains no learner content and shares nothing across users. Its inputs are
+throughput numbers, each labelled `assumption` or `project_doc`; a profile
+without a real measurement is reported NOT_MEASURED and can never be called
+qualified from here. It says nothing about educational quality.
+
+What decode speed a profile needs (prefill assumed 40 times decode, 8 slots,
+batching efficiency 0.7; the worst of staggered and burst):
+
+| Design lever | 10 users | 30 users |
+|---|---|---|
+| Full prompt, every item through the model | ~370 tok/s | ~980 tok/s |
+| Code answers 50% of routine items | ~340 | ~670 |
+| Shared constant prefix reused (90%) | ~96 | ~350 |
+| Code 50% plus shared prefix 90% | ~80 | ~210 |
+| Compact 6k-token prompt (assumed) plus both | ~60 | ~180 |
+
+What it shows, to be confirmed by measurement:
+
+1. **Prompt processing, not decode, drives capacity.** Reusing the identical
+   constant prefix across turns is the largest single lever (roughly four times
+   less throughput needed); coded practice and a compact profile help less
+   but compound. A server that reprocesses the full prompt every turn needs
+   throughput no ordinary computer has.
+2. **The project document's CPU-class profile (8B, Q4, about 13 tok/s) fails
+   both targets by a wide margin even with every lever**, and an assumed
+   3B-class ordinary-computer profile does too. On these inputs a household of
+   10 active users is not met by an ordinary CPU-only computer.
+3. **The project document's mid-range GPU profile (14B, about 30 tok/s) comes
+   close at 10 users and fails at 30.** It meets first-useful and hint
+   latency at 10 but not the tool-activity threshold, because a tool turn is
+   three serial model calls and 280 output tokens at that decode speed leave
+   little room. At 30 users it fails clearly.
+4. Therefore the 30-user school target is, on current evidence, a shared
+   inference server question (section 7.2, alternatives 2 and 3), and the
+   10-user household target needs the prefix-reuse and coded-practice levers
+   before any hardware conclusion is drawn.
+
+These figures use unmeasured throughput and an assumed batching efficiency;
+they size the question and rank the levers, nothing more.
 
 ### 7.2 The capacity-versus-cost conflict (to be settled with measurements)
 

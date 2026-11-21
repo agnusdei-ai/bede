@@ -6,7 +6,7 @@ import { useSessionStore } from '../store/sessionStore'
 import type { Subject, GradeStage, SessionConfig, TermSchedule, CoreArea, CompanionMode, LessonResume, PracticeOffers } from '../types'
 import { DEFAULT_PRACTICE_OFFERS, PRACTICE_OFFERS } from '../types'
 import { SUBJECTS, SUBJECT_MAP, CORE_AREAS, BIBLE_TRANSLATIONS, CURRICULUM_RESOURCE_SUGGESTIONS, CHARACTER_VIRTUE_SUGGESTIONS, LEARNING_SUPPORT_SUGGESTIONS } from '../types'
-import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
+import { capForStudyMinutes, studyMinutesWithinCap, cleanSprintMinutes, SPRINT_MINUTES_OPTIONS, type SprintMinutes } from '../utils/gradeTimer'
 import { licenseTierLabel } from '../utils/licenseTierLabel'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
@@ -169,6 +169,7 @@ interface StudentForm {
   letter_spacing: 'normal' | 'wide' | 'wider'
   line_spacing: 'normal' | 'relaxed' | 'loose'
   frequent_break_offers: boolean
+  sprint_minutes: SprintMinutes | null
   // K-2 only: which practice rounds Bede may offer (decision 40(a)).
   practice_offers: PracticeOffers
   voice_required: boolean
@@ -216,6 +217,7 @@ const blankStudent = (): StudentForm => ({
   letter_spacing: 'normal' as const,
   line_spacing: 'normal' as const,
   frequent_break_offers: false,
+  sprint_minutes: null,
   practice_offers: DEFAULT_PRACTICE_OFFERS,
   voice_required: true,
   appearance_locked: false,
@@ -264,6 +266,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     letter_spacing: c.letter_spacing ?? 'normal',
     line_spacing: c.line_spacing ?? 'normal',
     frequent_break_offers: c.frequent_break_offers ?? false,
+    sprint_minutes: cleanSprintMinutes(c.sprint_minutes),
     practice_offers: c.practice_offers ?? DEFAULT_PRACTICE_OFFERS,
     voice_required: c.voice_required ?? true,
     appearance_locked: c.appearance_locked ?? false,
@@ -413,6 +416,7 @@ export default function ParentSetup() {
       letter_spacing: s.letter_spacing,
       line_spacing: s.line_spacing,
       frequent_break_offers: s.frequent_break_offers,
+      sprint_minutes: s.sprint_minutes,
       practice_offers: s.practice_offers,
       voice_required: s.voice_required,
       appearance_locked: s.appearance_locked,
@@ -1545,6 +1549,23 @@ function StudentCard({
                     className="mt-0.5"
                   />
                   <span className="text-sm text-gray-700">{t('parentSetup.frequentBreaks')}</span>
+                </label>
+
+                <label className="block mt-3">
+                  <span className="text-sm text-gray-700">{t('parentSetup.sprintLength')}</span>
+                  <select
+                    value={student.sprint_minutes ?? ''}
+                    onChange={(e) => onUpdate({
+                      sprint_minutes: cleanSprintMinutes(Number(e.target.value)),
+                    })}
+                    className="input mt-1"
+                  >
+                    <option value="">{t('parentSetup.sprintUsual')}</option>
+                    {SPRINT_MINUTES_OPTIONS.map((m) => (
+                      <option key={m} value={m}>{t(`parentSetup.sprint${m}`)}</option>
+                    ))}
+                  </select>
+                  <span className="block text-xs text-gray-500 mt-1">{t('parentSetup.sprintLengthHint')}</span>
                 </label>
               </div>
               <div>

@@ -1,5 +1,5 @@
 import type { DiagramSpec } from '../components/Diagram'
-import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, WorkLedger, PodWorkRoster } from '../types'
+import type { SessionConfig, Subject, ChatMessage, StreamChunk, NarrationAssessmentData, LearnerProfileData, LearnerBehaviorCheck, MasteryProfileSummary, UsageSummary, AgenticLoopStats, LicenseStatus, AIProviderStatus, AIProviderName, AIProviderCheckResult, WorkLedger, PodWorkRoster } from '../types'
 import type { TimeOfDay } from '../store/sessionStore'
 import type { MathLesson } from './k2MathTypes'
 import type { MapCell, MapLesson, MapAnswerResult } from './mapPracticeTypes'
@@ -840,6 +840,19 @@ export async function setAIProviderSecondary(token: string, provider: AIProvider
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.detail || 'Could not switch the failover AI provider')
   return data
+}
+
+/** Sends each configured AI provider one tiny request and returns, in plain
+ *  words, whether it answered and why not. Each check is a real, billed
+ *  request, so the server allows one every 30 seconds. */
+export async function checkAIProviders(token: string): Promise<AIProviderCheckResult[]> {
+  const res = await fetch(`${BASE}/admin/ai-provider/check`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || 'Could not check the AI providers')
+  return data.results ?? []
 }
 
 export async function fetchSystemStatus(token: string): Promise<SystemStatus> {
@@ -1891,6 +1904,7 @@ export interface OfficialTeacherArtifact {
   campus_id: string; learner_id: string; assessment_id: string; plan_id: string
   decision_id: string; approved_by: string; approval_action: 'approve' | 'edit'
   assessment_snapshot_sha256: string; plan_text: string; prepared_at: string
+  based_on: string[]
   delivery_state: 'NOT_REQUESTED'; disclaimer: string
 }
 export interface OfficialTeacherFollowUp {

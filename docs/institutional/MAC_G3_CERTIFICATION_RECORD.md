@@ -10,7 +10,8 @@
 | Field | Actual recorded value |
 | --- | --- |
 | Test session ID / UTC start-end | NOT RECORDED |
-| Test operator / independent reviewer | NOT RECORDED |
+| Owner-operated test operator | NOT RECORDED |
+| Separate agent reviewer role and task/session/model identities when exposed | NOT RECORDED |
 | Bede repository and source code SHA | `agnusdei-ai/bede` / NOT RECORDED |
 | Reference integrated application SHA | `d3eb645c2de1058bb8056005a09c7d40446cea20` (#616 to main) |
 | 146/146 sample matrix evidence source | Candidate `6574a0e1b69ed3b162c39c626be316c4e457db4e`; independently link artifact |

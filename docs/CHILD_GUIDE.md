@@ -288,6 +288,12 @@ Sometimes the screen reloads by itself, or you press refresh by mistake. If you
 were typing something to me and hadn't sent it yet, your words are still in the
 box when the page comes back. Just keep going.
 
+## If I can't answer
+
+Once in a while I can't reach my thinking, and I'll tell you so. That isn't
+anything you did, and pressing send again straight away won't help. Let a
+grown-up know, and we can try again a little later.
+
 ## If something feels wrong
 
 If you ever feel unsafe, upset, or need help with something that isn't about your

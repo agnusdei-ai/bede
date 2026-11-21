@@ -5,6 +5,8 @@ All responses are read-only, size-capped, and filtered by ExfiltrationGuard.
 No data export or download path exists.
 """
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -250,6 +252,31 @@ async def set_ai_provider(
         **audit_from_request(request),
     )
     return _ai_provider_status_payload()
+
+
+# One check at a time, and not more than once every 30 seconds: every check is
+# a real, billed request to each provider, so a held-down button must not
+# become a stream of charges.
+_CHECK_MIN_INTERVAL_SECONDS = 30.0
+_last_provider_check: float = 0.0
+
+
+@router.post("/ai-provider/check")
+async def check_ai_providers(_: dict = Depends(require_parent)):
+    """Send each configured AI provider one tiny request and say, in plain
+    words, whether it answered and if not why (no credit, a plan without the
+    model, a rate limit, a rejected key). Run only on a parent's request.
+    See services/adapters/provider_errors.py."""
+    global _last_provider_check
+    now = time.monotonic()
+    if _last_provider_check and now - _last_provider_check < _CHECK_MIN_INTERVAL_SECONDS:
+        raise HTTPException(
+            status_code=429,
+            detail="Bede checked the providers moments ago. Please wait half a minute and try again.",
+        )
+    _last_provider_check = now
+    results = await adapter_router.check_providers(settings)
+    return {"results": results}
 
 
 @router.post("/ai-provider/secondary")

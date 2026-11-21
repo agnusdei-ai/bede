@@ -67,7 +67,12 @@ Store a private redacted evidence packet for the *exact artifact digest* and can
 | G2 Human teaching workflow | Load independently administered sample DIBELS evidence, review source corrections, then record teacher approve, edit and reject decisions plus the authorized follow up. | Assessment provenance, teacher decisions, immutable audit event references, and next teaching action. | Bede supports but never silently replaces the educator's decision. |
 | G3 Native Mac and recovery | Open the exact DMG, complete guided install and passkey enrollment, validate trusted local HTTPS, stop/restart, revoke/re enroll an approved teacher, and prove installation can recover without deleting existing settings. | Archive SHA256, device and OS details, boot and HTTPS check, administrator passkey, revoke and restart trace, support report. | Real installation and recovery pass without bypasses. |
 
-Each gate needs a human reviewer and an explicit **PASS**. CI tests alone are not sufficient. A STOP or NOT RUN remains a blocking result.
+Each gate needs a separate agent-led review and an explicit **PASS**. Record
+the reviewer role and task/session/model identities when exposed, separately
+from the author and test operator; agent review is not human, educator,
+counsel, or school-administrator certification. CI tests alone are not
+sufficient. A STOP or NOT RUN remains a blocking result. Only the owner may
+operate the pilot Mac or declare Pilot GO.
 
 ## 4. Pilot GO decision
 

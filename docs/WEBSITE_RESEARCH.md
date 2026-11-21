@@ -43,8 +43,8 @@ evidence remains here for review. Reviewed October 20, 2026.
 
 - The owner-directed 50-minute subject session is explicitly illustrative, not a studied protocol,
   recommended clinical/educational dose, or predicted rate of acceleration.
-  Three labeled blocks total 50 minutes: sprint 1 (20), a break (10), and
-  sprint 2 (20), all focused on one subject. Sprint 1 suggests 10 minutes of
+  Three labeled blocks total 50 minutes: learning sprint 1 (20), a break (10), and
+  learning sprint 2 (20), all focused on one subject (see `docs/GLOSSARY.md`). Sprint 1 suggests 10 minutes of
   inquiry and 10 of guided practice; sprint 2 suggests 12 of independent work
   and 8 of adult review. The break is
   included in the total, not added to 50 minutes. Desktop segment widths reflect that allocation;
@@ -58,7 +58,7 @@ evidence remains here for review. Reviewed October 20, 2026.
   rhythm; it does not change tutor timers, require a 10-minute software-enforced
   break, or claim every learner reaches mastery in one session.
 - Critical inquiry, test prep, topic reinforcement, and practice problems are
-  example sprint focuses. AI supplies prompts/feedback; adults guide and check,
+  example learning sprint focuses. AI supplies prompts/feedback; adults guide and check,
   and the learner attempts work without hints.
 - Compare actual before/after checks and revisit later. Do not draw an invented
   improvement curve, assign a percent acceleration, or extrapolate the Tutor

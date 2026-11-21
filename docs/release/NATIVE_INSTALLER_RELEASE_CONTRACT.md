@@ -30,7 +30,7 @@ Do not advertise an architecture before a native installer and full application 
 - Interrupted download resumes; corrupted payload is rejected; insufficient disk, unsupported CPU, unavailable container runtime, and revoked signatures fail safely.
 - Repair, upgrade, reinstall, rollback, restart, and uninstall are observed with no unauthorized deletion of user data.
 - G1 campus isolation, G2 teacher approval workflow, and G3 device/package tests use the exact installed artifact. Sample data only until separate owner Pilot GO.
-- Each tested combination records artifact digest, test runner/device, UTC timestamp, test evidence, and independent reviewer.
+- Each tested combination records artifact digest, test runner/device, UTC timestamp, test evidence, and a separate agent reviewer role plus task/session/model identities when exposed. Agent review is not human certification.
 
 ## Current implementation gaps (as of 2026-10-17)
 

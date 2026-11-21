@@ -83,6 +83,10 @@ export interface SessionConfig {
   // Removes an age gate on a parent's choice; NOT a claim that more breaks
   // improve attention. Cannot touch the mandatory hourly break.
   frequent_break_offers?: boolean
+  // The learning sprint chosen for this learner: 20, 30 or 60 minutes
+  // (docs/GLOSSARY.md). Absent keeps the usual rhythm for the grade. It sets
+  // when a pause is offered; it cannot touch the required hourly break.
+  sprint_minutes?: 20 | 30 | 60 | null
   // K-2 practice (docs/K2_PRACTICE.md §4): which rounds Bede may offer.
   // Absent = 'todays_subjects', the owner's default (decision 40(a)).
   practice_offers?: PracticeOffers
@@ -563,6 +567,18 @@ export type AIProviderName = 'local' | 'openai' | 'mistral' | 'anthropic'
 // — DB value wins over env, live, no restart); `primary`/`secondary` are
 // always the adapters that would actually serve the next tutoring turn (and
 // its first failover), override or not.
+/** One provider's answer to the parent-run "Check AI providers" button
+ *  (POST /admin/ai-provider/check). `code` is one of the reasons in
+ *  homeschool-api/services/adapters/provider_errors.py; `message` is the
+ *  plain sentence for the parent and `detail` the provider's own words. */
+export interface AIProviderCheckResult {
+  provider: AIProviderName
+  ok: boolean
+  code: 'ok' | 'no_credit' | 'model_not_on_plan' | 'rate_limited' | 'bad_key' | 'needs_workspace' | 'unreachable' | 'refused' | 'unknown'
+  message: string
+  detail: string
+}
+
 export interface AIProviderStatus {
   known: AIProviderName[]
   configured: AIProviderName[]

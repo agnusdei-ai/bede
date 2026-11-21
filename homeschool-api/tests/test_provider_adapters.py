@@ -735,3 +735,121 @@ async def test_is_reachable_false_on_a_timeout_not_hanging_forever():
 
     client._openai.models = SimpleNamespace(list=_hangs)
     assert await client.is_reachable(timeout_seconds=0.05) is False
+
+
+# ── A 400 "bad request" moves the turn on, without marking the provider down ──
+#
+# Anthropic reports an empty account ("Your credit balance is too low") as a
+# 400, which was not on the failover list: on 2026-11-17 the demo's Claude
+# backup answered every turn with a 400 and the turn ended there. These pin
+# the live-lesson (stream) path as well as create(), since every child's turn
+# is streamed and the older failover tests only drove create().
+
+import anthropic
+import httpx
+import openai
+
+
+def _bad_request(lib):
+    response = httpx.Response(400, request=httpx.Request("POST", "https://example.invalid/v1"))
+    return lib.BadRequestError("Your credit balance is too low", response=response, body=None)
+
+
+class _FailingStreamCtx:
+    def __init__(self, exc):
+        self._exc = exc
+
+    async def __aenter__(self):
+        raise self._exc
+
+    async def __aexit__(self, *exc):
+        return None
+
+
+class _OkStreamCtx:
+    def __init__(self, stream):
+        self._stream = stream
+
+    async def __aenter__(self):
+        return self._stream
+
+    async def __aexit__(self, *exc):
+        return None
+
+
+def _three_adapter_client():
+    s = _settings(
+        bede_adapter_order="anthropic,openai,mistral",
+        anthropic_api_key="sk-ant",
+        openai_api_key="sk-openai",
+        mistral_api_key="sk-mistral",
+    )
+    return router.FailoverClient(s)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lib", [anthropic, openai])
+async def test_a_bad_request_moves_a_lesson_stream_to_the_next_adapter(lib):
+    fc = _three_adapter_client()
+    stream_sentinel = object()
+    bad = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: _FailingStreamCtx(_bad_request(lib))))
+    good = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: _OkStreamCtx(stream_sentinel)))
+    untouched = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: pytest.fail("third adapter tried")))
+    fc._built = {"anthropic": bad, "openai": good, "mistral": untouched}
+
+    async with fc.messages.stream(model="m", messages=[]) as stream:
+        assert stream is stream_sentinel
+    # A 400 can be about one request, so the provider is not marked down.
+    assert not fc._breaker.is_open("anthropic")
+
+
+@pytest.mark.asyncio
+async def test_a_bad_request_moves_create_to_the_next_adapter():
+    fc = _three_adapter_client()
+    ok_result = object()
+    bad = SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(side_effect=_bad_request(anthropic))))
+    good = SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(return_value=ok_result)))
+    fc._built = {"anthropic": bad, "openai": good, "mistral": good}
+
+    assert await fc.messages.create(model="m", messages=[]) is ok_result
+    assert not fc._breaker.is_open("anthropic")
+
+
+@pytest.mark.asyncio
+async def test_the_next_turn_tries_a_provider_that_only_refused_one_request():
+    """The reason a 400 does not trip the breaker: one oversized picture must
+    not lock every other child out of the provider for a minute."""
+    fc = _three_adapter_client()
+    create = AsyncMock(side_effect=[_bad_request(anthropic), "second turn"])
+    fc._built = {
+        "anthropic": SimpleNamespace(messages=SimpleNamespace(create=create)),
+        "openai": SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(return_value="first turn"))),
+        "mistral": SimpleNamespace(messages=SimpleNamespace(create=AsyncMock())),
+    }
+    assert await fc.messages.create(model="m", messages=[]) == "first turn"
+    assert await fc.messages.create(model="m", messages=[]) == "second turn"
+    assert create.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_a_bad_request_from_every_adapter_still_surfaces():
+    fc = _three_adapter_client()
+    err = _bad_request(openai)
+    failing = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: _FailingStreamCtx(err)))
+    fc._built = {"anthropic": failing, "openai": failing, "mistral": failing}
+    with pytest.raises(openai.BadRequestError):
+        async with fc.messages.stream(model="m", messages=[]):
+            pass
+
+
+@pytest.mark.asyncio
+async def test_other_errors_still_end_the_turn_without_switching():
+    """Only the named error kinds switch. An unexpected error (a bug in our own
+    code, say) must surface, not be hidden by quietly trying another provider."""
+    fc = _three_adapter_client()
+    bad = SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(side_effect=ValueError("our bug"))))
+    other = SimpleNamespace(messages=SimpleNamespace(create=AsyncMock(return_value="should not be reached")))
+    fc._built = {"anthropic": bad, "openai": other, "mistral": other}
+    with pytest.raises(ValueError):
+        await fc.messages.create(model="m", messages=[])
+    other.messages.create.assert_not_awaited()

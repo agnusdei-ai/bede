@@ -6,6 +6,16 @@ that after installation a parent can see and manage Bede's outside connections
 hard part is not the screen, it is letting a browser cause a secret to be
 stored. That needs agreement first.
 
+## Intended destination
+
+Guided, in-app management is where this is heading: a parent connects, replaces
+or turns off Bede's voice and tutoring service from Parent Setup, with the same
+plain wording the installer uses ("Bede's voice is connected", "Continue with
+text", "Speaking is off") and, when something fails, the actual problem and the
+next useful action. Customer-facing labels stay confident and outcome-focused;
+engineering verification detail belongs in tests and the acceptance record. The
+installer's `.env` path stays as the fallback until this exists.
+
 ## What exists today
 
 `GET /admin/ai-provider` (+ `POST`) switches among already-credentialed
@@ -16,11 +26,14 @@ path for a key, deliberately.
 
 ## Proposed states, per connection
 
-`missing` (no key), `configured_not_verified` (key present, never tested),
-`verified` (one low-cost test succeeded, with a time), `rejected` (the service
-refused the key), `unavailable` (could not reach it), `off` (deliberately
-disabled). The UI never says a connection works unless it is `verified`, and a
-verification is a user-pressed action, never automatic.
+Internal states: `missing`, `connected`, `rejected` (the service refused the
+key), `unavailable` (could not reach it), `blocked` (policy forbids it), `off`
+(deliberately disabled). The customer sees plain labels for each ("Bede's voice
+is connected", "Continue with text", "Speaking is off") and, for `rejected`,
+`unavailable` and `blocked`, the actual problem and the next step. A failure
+state comes from a real failed speech attempt, so the label is never a guess.
+Any proactive check of a key is a paid or external call and needs the owner's
+approval first.
 
 ## Decisions needed before any code
 

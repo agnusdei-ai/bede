@@ -317,33 +317,34 @@ echo "     Bede's voice (optional)"
 if [[ "$(prior_value TTS_PROVIDER "$PRIOR_ENV")" == "none" ]]; then
   VOICE_OFF="y"
   VOICE_STATE="off"
-  info "     Speech is turned off (kept from your last setup): lessons are text-only."
-  echo "     To turn it on, remove the TTS_PROVIDER=none line from .env and run 'make restart'."
+  info "     Speaking is off (kept from your last setup)."
+  echo "     To turn it back on, remove the TTS_PROVIDER=none line from .env and run 'make restart'."
 elif [[ "$BEDE_ADAPTER_ORDER" == "openai" ]]; then
   VOICE_STATE="connected"
-  echo "     Bede will speak with the same OpenAI key. Each line Bede speaks is sent to"
-  echo "     OpenAI to be voiced and is billed to your OpenAI account. To turn speech"
-  echo "     off later, add TTS_PROVIDER=none to .env and run 'make restart'."
+  success "Bede's voice is connected (it uses the same OpenAI key)."
+  echo "     Each line Bede speaks is sent to OpenAI to be voiced and billed to your"
+  echo "     OpenAI account. To turn speaking off later, add TTS_PROVIDER=none to .env"
+  echo "     and run 'make restart'."
 elif [[ -n "$(prior_raw OPENAI_API_KEY "$PRIOR_ENV")" ]]; then
   VOICE_KEY="$(prior_raw OPENAI_API_KEY "$PRIOR_ENV")"
   VOICE_STATE="connected"
-  info "     Bede's voice keeps the OpenAI key from your last setup."
+  success "Bede's voice is connected (it keeps the OpenAI key from your last setup)."
 else
   echo "     Bede reads lessons aloud in one calm, recognizable voice (the one in the"
   echo "     demo), through OpenAI's speech service: each line Bede speaks is sent to"
   echo "     OpenAI and billed to your OpenAI account. This is separate from the service"
   echo "     you chose for tutoring, and it does not change it."
   echo "     Paste an OpenAI key (platform.openai.com/api-keys) to connect the voice,"
-  echo "     or press Enter to continue without it."
+  echo "     or press Enter to Continue with text."
   read -rsp "     OpenAI key for Bede's voice (optional): " VOICE_KEY || VOICE_KEY=""
   echo
   if [[ -n "$VOICE_KEY" ]]; then
     VOICE_STATE="connected"
+    success "Bede's voice is connected."
   else
     VOICE_STATE="skipped"
-    warn "Continuing without Bede's voice: lessons will be text-only, everything on screen."
-    echo "     Parent Setup shows this and how to add it later, or put OPENAI_API_KEY=<key>"
-    echo "     in .env and run 'make restart'."
+    info "     Continuing with text. Lessons show on screen; you can add Bede's voice any time:"
+    echo "     put OPENAI_API_KEY=<key> in .env and run 'make restart', or run setup again."
   fi
 fi
 
@@ -508,6 +509,27 @@ fi
 # wizard does: silence means Practice Coach on, Curriculum Intelligence off.
 if [[ "$PRACTICE_COACH" == "n" ]]; then echo "PRACTICE_COACH_ENABLED=false" >> .env; fi
 if [[ "$CURRICULUM" == "y" ]]; then echo "CURRICULUM_ENGINE_ENABLED=true" >> .env; fi
+# Keep the family's other settings from the .env being replaced (anything the
+# installer does not ask about or write itself: an added mail key, a custom
+# port, a sandbox PIN). Settings this run decided are never carried over, so a
+# changed answer is not undone.
+if [[ -n "$PRIOR_ENV" && -f "$PRIOR_ENV" ]]; then
+  KEPT=0
+  while IFS= read -r line; do
+    [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || continue
+    key="${line%%=*}"
+    case "$key" in
+      ANTHROPIC_API_KEY|OPENAI_API_KEY|MISTRAL_API_KEY|BEDE_ADAPTER_ORDER|LOCAL_LLM_BASE_URL|LOCAL_LLM_MODEL|\
+      COMPOSE_PROFILES|POSTGRES_PASSWORD|DATABASE_URL|TTS_PROVIDER|PRACTICE_COACH_ENABLED|\
+      CURRICULUM_ENGINE_ENABLED|RETAIN_MASTERY_PROFILES|CORS_ORIGINS) continue ;;
+    esac
+    grep -q "^${key}=" .env && continue
+    if [[ "$KEPT" -eq 0 ]]; then printf '\n# Kept from your previous .env\n' >> .env; fi
+    printf '%s\n' "$line" >> .env
+    KEPT=$((KEPT + 1))
+  done < "$PRIOR_ENV"
+  [[ "$KEPT" -eq 0 ]] || success "Kept $KEPT other setting(s) from your previous .env"
+fi
 chmod 600 .env
 success ".env written (mode 600 — only readable by you)"
 
@@ -551,9 +573,9 @@ else
 fi
 blank
 case "$VOICE_STATE" in
-  connected) echo "  Voice: connected. Open Parent Setup to see it; it has not been tested yet." ;;
-  off)       echo "  Voice: turned off, so lessons are text-only." ;;
-  *)         echo "  Voice: not connected, so lessons are text-only. Parent Setup shows how to add it." ;;
+  connected) echo "  Bede's voice is connected." ;;
+  off)       echo "  Speaking is off. Remove TTS_PROVIDER=none from .env and run 'make restart' to restore it." ;;
+  *)         echo "  Continuing with text. To add Bede's voice later, run setup again or put OPENAI_API_KEY in .env." ;;
 esac
 blank
 echo "  Open in your browser:  https://localhost"

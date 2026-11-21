@@ -338,15 +338,18 @@ def test_a_voice_key_is_kept_without_changing_the_tutoring_provider(sandbox):
     assert env["OPENAI_API_KEY"] == "sk-voice-test"
     assert env["BEDE_ADAPTER_ORDER"] == "anthropic"
     assert "TTS_PROVIDER" not in env
-    assert "Voice: connected" in out and "not been tested" in out
+    assert "Bede's voice is connected." in out
     assert "sk-voice-test" not in out
+    for weaker in ("not been tested", "not tested", "not verified"):
+        assert weaker not in out
 
 
 def test_skipping_the_voice_says_what_that_means_and_how_to_add_it(sandbox):
     env, out = _run_setup(sandbox, _answers(voice=""))
     assert "OPENAI_API_KEY" not in env
-    assert "text-only" in out and "OPENAI_API_KEY=<key>" in out
-    assert "Voice: not connected" in out
+    assert "Continue with text" in out and "Continuing with text" in out
+    assert "OPENAI_API_KEY=<key>" in out
+    assert "Bede's voice is connected" not in out
 
 
 def test_the_openai_tutoring_choice_reuses_its_key_for_the_voice(sandbox):
@@ -357,7 +360,7 @@ def test_the_openai_tutoring_choice_reuses_its_key_for_the_voice(sandbox):
     assert env["BEDE_ADAPTER_ORDER"] == "openai"
     assert "OpenAI key for Bede's voice" not in out
     assert out.count("OPENAI_API_KEY") == 0 or "sk-openai-once" not in out
-    assert "Voice: connected" in out
+    assert "Bede's voice is connected" in out
 
 
 def test_a_rerun_keeps_the_voice_key_and_does_not_ask_again(sandbox):
@@ -374,7 +377,7 @@ def test_a_deliberate_speech_off_survives_a_rerun(sandbox):
     env, out = _run_setup(sandbox, "y\n" + _answers(voice=None))
     assert env.get("TTS_PROVIDER") == "none"
     assert "OPENAI_API_KEY" not in env
-    assert "Voice: turned off" in out
+    assert "Speaking is off" in out and "TTS_PROVIDER=none" in out
 
 
 def test_a_rerun_keeps_the_encryption_and_database_secrets(sandbox):
@@ -392,3 +395,14 @@ def test_the_banner_does_not_claim_it_is_running_when_it_is_not(sandbox):
                             input=_answers(), text=True, capture_output=True, env=env_vars, timeout=120)
     assert "Bede is running!" not in result.stdout
     assert "not answering yet" in result.stdout
+
+
+def test_a_rerun_keeps_settings_the_installer_does_not_manage(sandbox):
+    _run_setup(sandbox, _answers())
+    with open(sandbox / ".env", "a") as handle:
+        handle.write("RESEND_API_KEY=re_sample_mail_key\nSANDBOX_PIN=482913\nANTHROPIC_API_KEY=old-removed\n")
+    env, out = _run_setup(sandbox, "y\n" + _answers(key="sk-ant-new", voice=""))
+    assert env["RESEND_API_KEY"] == "re_sample_mail_key"
+    assert env["SANDBOX_PIN"] == "482913"
+    assert env["ANTHROPIC_API_KEY"] == "sk-ant-new"  # the answer given this time wins
+    assert "Kept 2 other setting(s)" in out

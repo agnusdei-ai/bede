@@ -1234,4 +1234,19 @@ def test_a_rerun_keeps_secrets_the_voice_key_and_a_deliberate_speech_off(running
 def test_the_form_never_prints_a_stored_key(running_wizard):
     _submit(running_wizard, voice_key="sk-voice-key-123")
     page = urllib.request.urlopen(f"{running_wizard}/").read().decode()
-    assert "sk-voice-key-123" not in page and "keeps the OpenAI key" in page
+    assert "sk-voice-key-123" not in page and "voice is connected" in page
+
+
+def test_a_rerun_keeps_settings_the_wizard_does_not_manage(running_wizard):
+    _submit(running_wizard)
+    with open(wizard.ENV_PATH, "a") as handle:
+        handle.write("RESEND_API_KEY=re_sample_mail_key\nSANDBOX_PIN=482913\nANTHROPIC_API_KEY=old-removed\n")
+    env = _submit(running_wizard, anthropic_key="sk-ant-new")
+    assert env["RESEND_API_KEY"] == "re_sample_mail_key" and env["SANDBOX_PIN"] == "482913"
+    assert env["ANTHROPIC_API_KEY"] == "sk-ant-new"
+
+
+def test_the_voice_field_is_not_shown_when_openai_already_supplies_the_key(running_wizard):
+    page = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'id="voice_key_field"' in page and "showProvider" in page
+    assert "voiceField.style.display = (p === 'openai')" in page

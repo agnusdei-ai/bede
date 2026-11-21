@@ -20,8 +20,9 @@ No model was downloaded, no paid call made, nothing deployed.
 | 2 | High | `setup.sh` ended with "Bede is running!" even when the health check never passed. | Fixed: the banner says "installed but not answering yet" with `make status`/`make logs`. |
 | 3 | Medium | Both installers asked for an OpenAI key only when OpenAI was the tutoring choice, so a Claude, Mistral or local family got text-only lessons with no prompt and no explanation. | Fixed: optional voice question, key reused when OpenAI already supplies it, skip allowed with its consequence stated. |
 | 4 | Medium | The overwrite question read like a wipe ("start fresh") although data is kept. | Reworded: "Replace your settings?" with what is kept. |
-| 5 | Low | `.env.backup` keeps the old file but custom lines (anything other than the settings above) are not carried into the new one. | Documented in `docs/PRODUCTION_SETUP.md`. |
-| 6 | Open | After install there is no in-app place to add or replace a connection; it means editing `.env`. | Design only: `docs/design/CONNECTIONS_AND_READINESS.md`. Nothing built. |
+| 5 | Low | A re-run dropped settings the installer does not manage (mail key, sandbox PIN, custom port); only a backup kept them. | Fixed: both installers carry them over; a setting answered again this run wins. |
+| 6 | Open | After install there is no in-app place to add or replace a connection; it means editing `.env`. Guided in-app management is the intended destination. | Design only: `docs/design/CONNECTIONS_AND_READINESS.md`. Nothing built. |
+| 8 | Fixed | The browser wizard showed a second key field for the voice even when OpenAI tutoring already supplied the key. | The field is hidden for the OpenAI choice and ignored by the server. |
 | 7 | Open, on #875 | Under school (COPPA) enforcement `/tutor/voice` can report cloud speech as configured and available while synthesis is refused, and the cloud status copy states readiness before any test. | Reported to the owner; #875 is held and unchanged here. |
 
 ## Matrix
@@ -41,5 +42,9 @@ No model was downloaded, no paid call made, nothing deployed.
 
 A real Docker boot, any real speech call, the native Windows/Unix installer
 scripts (they hand off to the wizard; their own prompts were not run), and every
-physical-Mac check. "Connected" in the installer means a key is present, not
-that speech works.
+physical-Mac check. Internal record only: the installer tells the customer
+"Bede's voice is connected" when a key is entered; no speech call was made to
+check the key, because paid verification calls are not authorized. A refused
+key or a policy block is reported to the customer by the voice status notice,
+with the actual problem. Closing this gap (a bounded, owner-approved check at
+the first lesson) is a follow-up, not a copy change.

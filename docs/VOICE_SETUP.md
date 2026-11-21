@@ -19,16 +19,19 @@ demo uses, so a key is the only thing it needs:
   question asks for an OpenAI key. Adding it does **not** change which service
   tutors or the adapter order; it only lets Bede speak. Each spoken line is sent
   to OpenAI and billed to that OpenAI account, and the screen says so.
-- **Pressing Enter / leaving it blank** is allowed. The installer says lessons
-  will be text-only and how to add the key later (`OPENAI_API_KEY=<key>` in
-  `.env`, then `make restart`).
+- **Pressing Enter** chooses "Continue with text". Lessons show on screen, and
+  the installer says how to add the voice later (`OPENAI_API_KEY=<key>` in
+  `.env`, then `make restart`, or run setup again).
 - **Running setup again** keeps the key already in `.env` and does not ask
-  twice. A deliberate `TTS_PROVIDER=none` (speech off) is kept, never undone.
+  twice. A deliberate `TTS_PROVIDER=none` is kept and reported as "Speaking is
+  off", with how to restore it.
 
-The installer reports the voice as "connected" or "not connected", never as
-working: it has not made a speech call, and a key that exists may still be
-wrong. Whether Bede is actually speaking is shown by the voice status notice in
-the app (`GET /tutor/voice`).
+When a key is entered the installer says "Bede's voice is connected." If speech
+later fails (the key is refused, the service is unreachable, or school policy
+does not allow cloud speech), the app's voice status notice
+(`GET /tutor/voice`) names the actual problem and the next step. Installer
+verification gaps are kept in the acceptance record
+(`docs/release/FIRST_RUN_AUDIT.md`), not in the product wording.
 
 ## Setup
 

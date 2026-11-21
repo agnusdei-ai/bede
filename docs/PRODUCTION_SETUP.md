@@ -106,9 +106,10 @@ replace your settings) starts from the choices already in `.env`, so pressing
 Enter or submitting unchanged keeps them. It also keeps `SECRET_KEY`,
 `MASTER_SECRET` and `POSTGRES_PASSWORD` (replacing them would leave the
 existing encrypted records and database volume unreadable), the OpenAI key used
-for Bede's voice, and a deliberate `TTS_PROVIDER=none`. The previous file is
-saved as `.env.backup`; lines other than these settings (custom additions) are
-not carried over, so copy any back from the backup. Both installers also offer
+for Bede's voice, and a deliberate `TTS_PROVIDER=none`. Other settings you added
+(a mail key, a sandbox PIN, a custom port) are carried over too; only what you
+answer again in setup is replaced. The previous file is saved as
+`.env.backup`. Both installers also offer
 Bede's voice whichever service tutors, see `docs/VOICE_SETUP.md`. `make update` does not touch `.env`. To
 change either later without rerunning setup, edit the line in `.env` and run
 `make start` (or `docker compose up -d`). `CURRICULUM_ENGINE_ENABLED` must be

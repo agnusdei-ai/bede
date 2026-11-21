@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { BookOpenCheck, Calculator, AudioLines, Map as MapIcon, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, Bug, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
+import { BookOpenCheck, Calculator, AudioLines, Map as MapIcon, Send, Loader2, Mic, Volume2, VolumeX, PenLine, FileUp, X, ShieldAlert, Lock, Sparkles, KeyRound, Mail, Check, FlaskConical, ArrowLeft, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Star, GraduationCap, Coffee, Globe, LogOut, CheckCircle2, Radio, Footprints } from 'lucide-react'
 import {
   streamTutorChat, deriveTimeOfDay, logout, getDemoConfig,
   generateDemoCode, loginWithCode, emailTrialSummary, streamSandboxDemoChat,
@@ -1860,6 +1860,8 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             controls={parentControls}
             onChange={setParentControls}
             onOpenSetup={() => setShowParentSetup(true)}
+            debugOn={showDebug}
+            onToggleDebug={() => setShowDebug((v) => !v)}
           />
           {/* Ends the demo — an icon button living here, grouped with the
               other real controls, rather than a text link forced onto its
@@ -1867,30 +1869,15 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
               row's own history: it used to hide behind the fixed
               TextSizeControl button on some WebKit builds when crammed in
               alongside four other links; living here sidesteps that class of
-              bug entirely instead of working around it in place). Debug
-              keeps its own divider and muted styling immediately after this
-              as the one clearly-administrative control. */}
+              bug entirely instead of working around it in place). The
+              debug-panel toggle is not here: it lives in the Parent
+              controls menu beside it. */}
           <button
             onClick={onFinishDemo}
             title={t('header.finishDemoTooltip')}
             className="p-1.5 rounded-lg transition-colors text-gray-500 hover:text-navy-600 hover:bg-navy-50 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400"
           >
             <LogOut size={15} />
-          </button>
-          {/* Voice-flow debug panel toggle — a developer/tester tool, not
-              something an ordinary visitor ever needs, so it's deliberately
-              separated from the actual interaction controls in the input bar
-              below (mic, pencil, send, etc.) rather than mixed in among
-              them. A border-l divider plus muted styling (vs. the sage
-              accent every real user control uses) marks it as
-              administrative, not part of the lesson itself. Off by default —
-              see DebugOverlay.tsx. */}
-          <button
-            onClick={() => setShowDebug((v) => !v)}
-            title="Debug panel (developer tool)"
-            className={`p-1.5 rounded-lg transition-colors border-l border-gray-200 pl-2.5 ml-0.5 flex-shrink-0 ${showDebug ? 'text-navy-600 bg-gray-100' : 'text-gray-300 hover:text-gray-500'}`}
-          >
-            <Bug size={15} />
           </button>
         </div>
         {/* header (code/Ask Bede/Mastery preview/Feedback) gets its own

@@ -15,8 +15,13 @@ describe('chat header on a phone', () => {
   it('keeps a minimum name width so the row wraps instead of overflowing', () => {
     expect(app).toContain('flex-1 min-w-[4.5rem] truncate sm:min-w-0')
   })
-  it('still offers the finish and debug controls', () => {
+  it('keeps Finish the demo in the header', () => {
     expect(app).toContain('onClick={onFinishDemo}')
-    expect(app).toContain('Debug panel (developer tool)')
+  })
+  it('puts the debug toggle in the adult controls menu, not the header', () => {
+    const menu = readFileSync(resolve(import.meta.dirname, 'ParentControls.tsx'), 'utf8')
+    expect(menu).toContain('onToggleDebug')
+    expect(app).toContain('onToggleDebug={() => setShowDebug((v) => !v)}')
+    expect(app).not.toContain('<Bug ')
   })
 })

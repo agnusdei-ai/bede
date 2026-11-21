@@ -286,7 +286,7 @@ detection alone never supports a "10 users" or "30 users" statement.
 users sharing one inference server, exactly as the application runs a turn
 (moderation call, then the tutor call; a tool activity has two tutor rounds),
 with queueing counted from submission, the owner's thresholds applied per user,
-and both staggered and synchronized-burst arrivals over two simulated hours. It
+and both staggered and synchronized-burst arrivals over two modelled hours. It
 contains no learner content and shares nothing across users. Its inputs are
 throughput numbers, each labelled `assumption` or `project_doc`; a profile
 without a real measurement is reported NOT_MEASURED and can never be called

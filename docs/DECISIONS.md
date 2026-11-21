@@ -2602,8 +2602,12 @@ run in the build session.**
 sends Bede's real Spanish tutoring prompt and real tool list, through Bede's
 own adapter, to each model in Ollama, and records per model whether it stays
 in Spanish, makes a valid tool call and mixes in no English. It runs by
-hand on a computer with the models downloaded; model downloads in CI are
-paused by the owner. Until it has run, every model's result is NOT RUN, and
+hand on a computer with the models downloaded, or by
+`.github/workflows/local-model-pull-probe.yml`: the owner lifted the CI
+download pause on 2026-11-21 for that one dispatch-only job, which pulls the
+five tags, records each registry digest, size and licence, and runs this
+probe (loopback only, no paid keys). `ministral-real-weights-probe.yml`
+stays paused. Until it has run, every model's result is NOT RUN, and
 no result is inferred. If a model fails, notably the 2B tier, that is
 recorded as a failure, not met by lowering the bar.
 

@@ -5,6 +5,16 @@ on:
       - 'packaging/**'
       - '.github/workflows/build-bede-operator.yml'
   workflow_dispatch:
+    inputs:
+      targets:
+        description: >-
+          Space-separated builds to produce. Choices: mac-arm64 mac-amd64
+          windows-amd64 linux-amd64 linux-arm64 bundles (standard and offline
+          tar.gz) checks (walkthrough and launcher syntax). The default is the
+          three bench machines: Mac mini, Windows Dell, Raspberry Pi 5.
+          Pushes and pull requests always build everything.
+        required: false
+        default: "mac-arm64 windows-amd64 linux-arm64"
   push:
     branches:
       - main
@@ -187,6 +197,7 @@ jobs:
           tar -czf bede-operator-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz bede-operator
           sha256sum bede-operator-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz > bede-operator-${SOURCE_SHA}-${{ matrix.arch }}.tar.gz.sha256
       - name: Publish standard network installer separately
+        if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' bundles ') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bede-standard-linux-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
@@ -197,6 +208,7 @@ jobs:
           retention-days: 30
           compression-level: 0
       - name: Publish complete Offline installer separately
+        if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' bundles ') }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: bede-offline-linux-${{ matrix.arch }}-${{ github.event.pull_request.head.sha || github.sha }}
@@ -209,6 +221,7 @@ jobs:
 
   prepilot-browser:
     name: Valor offline administrator experience
+    if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' checks ') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -235,6 +248,7 @@ jobs:
 
   validate-launchers:
     name: Native launcher syntax
+    if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' checks ') }}
     needs: [package, prepilot-browser]
     strategy:
       fail-fast: false
@@ -264,6 +278,7 @@ jobs:
 
   package-mac-pilot:
     name: Bede Mac pilot app
+    if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' mac-arm64 ') }}
     needs: package
     runs-on: macos-15
     timeout-minutes: 90
@@ -370,6 +385,7 @@ jobs:
   # This is not production deployment or signing authorization.
   package-windows-standard:
     name: Bede Windows x64 Standard engineering installer
+    if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' windows-amd64 ') }}
     needs: package
     runs-on: windows-2022
     timeout-minutes: 45
@@ -486,6 +502,9 @@ jobs:
             runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
+        exclude:
+          - arch: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' linux-amd64 ') && 'none' || 'amd64' }}
+          - arch: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' linux-arm64 ') && 'none' || 'arm64' }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -604,6 +623,7 @@ jobs:
   # acceptance, Developer ID notarization, and Pilot GO are NOT asserted.
   package-mac-intel:
     name: Bede Intel Mac native engineering DMG
+    if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' mac-amd64 ') }}
     needs: package
     runs-on: macos-15-intel
     timeout-minutes: 55

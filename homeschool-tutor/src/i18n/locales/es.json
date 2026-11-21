@@ -901,7 +901,11 @@
     "uploadTooLarge": "Estos archivos suman más de 1 GB. Elija menos páginas.",
     "fileTooLarge": "Un archivo pesa más de 25 MB. Divídalo o escanéelo con menor resolución.",
     "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas.",
-    "editAsTeacher": "Editar la clave y calificar el trabajo de los alumnos"
+    "editAsTeacher": "Editar la clave y calificar el trabajo de los alumnos",
+    "showAnswerKey": "Mostrar respuestas",
+    "hideAnswerKey": "Ocultar respuestas",
+    "keyHidden": "Las respuestas están ocultas para que primero se pueda contestar el examen.",
+    "why": "Por qué: {{text}}"
   },
   "practiceDelivery": {
     "title": "Una pregunta de práctica aprobada por tu familia",
@@ -1529,5 +1533,20 @@
       "what": "Bede lee las lecciones en voz alta con su voz habitual, que viene de un servicio de voz en la nube. Ese servicio recibe cada frase que dice Bede.",
       "next": "No hace falta hacer nada. Para que las lecciones sean solo en pantalla, desactiva la voz de Bede durante una lección, o pide a quien configuró esta instalación que desactive la voz."
     }
+  },
+  "quizRunner": {
+    "progress": "Pregunta {{n}} de {{total}}",
+    "answerLabel": "Tu respuesta",
+    "check": "Revisar",
+    "right": "¡Correcto!",
+    "wrong": "No exactamente. La respuesta es {{answer}}.",
+    "open": "Esta es la respuesta: {{answer}}. Revisa la tuya con un adulto.",
+    "why": "Por qué: {{text}}",
+    "next": "Siguiente pregunta",
+    "seeResults": "Ver cómo te fue",
+    "finished": "Acertaste {{right}} de {{total}}.",
+    "openNote": "Un adulto debe revisar {{count}} respuestas.",
+    "done": "Listo",
+    "start": "Empezar el examen"
   }
 }

@@ -435,3 +435,68 @@ def test_security_doc_states_what_is_enforced_and_what_is_not():
             enforced_cell = line.split(" | ")[0]
             assert "GGUF" not in enforced_cell, enforced_cell
             assert "runs no code" not in enforced_cell and "does not run code" not in enforced_cell
+
+
+# ── The user's own choice: recommended, Qwen, or any open-weight model ──────
+
+@pytest.mark.parametrize("name,ok", [
+    ("llama3.1:8b", True), ("gemma3:12b", True), ("phi4", True), ("library/mistral:7b", True),
+    ("bad name", False), ("x;rm -rf", False), ("", False), (":nothing", False), ("a" * 129, False),
+])
+def test_a_custom_model_name_is_checked_like_the_wizard_checks_it(name, ok):
+    assert (_bash(f'valid_ollama_model_name "{name}"').returncode == 0) is ok
+
+
+def test_install_sh_refuses_a_bad_or_conflicting_custom_model_before_doing_anything(tmp_path):
+    env = {**os.environ, "HOME": str(tmp_path)}
+    for args in (["--model", "bad name"], ["--model", "phi4", "--model-family", "qwen"], ["--model"]):
+        result = subprocess.run(["bash", str(INSTALL_SH), *args], env=env, capture_output=True,
+                                text=True, timeout=30, stdin=subprocess.DEVNULL)
+        assert result.returncode != 0, args
+        assert "==>" not in result.stdout, "the installer started a step before refusing"
+    assert not any(tmp_path.iterdir())
+
+
+def _menu(tmp_path, answers):
+    """Run the installer's real menu function with scripted answers."""
+    body = INSTALL_SH.read_text(encoding="utf-8")
+    fn = body[body.index("choose_model_interactively() {"):]
+    fn = fn[:fn.index("\n}\n") + 3]
+    answers_file = tmp_path / "answers"
+    answers_file.write_text(answers)
+    script = (_bash_region() + "\nrecommended_ollama_model() { MODEL_FAMILY=$MODEL_FAMILY ollama_model_for_tier \"$MODEL_FAMILY\" gpu10; }\n"
+              + 'MODEL_FAMILY=default; MODEL_FAMILY_REQUESTED=""; MODEL_CUSTOM=""\n' + fn +
+              '\nchoose_model_interactively\necho "family=$MODEL_FAMILY_REQUESTED custom=$MODEL_CUSTOM"\n')
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30,
+                            stdin=subprocess.DEVNULL, env={**os.environ, "BEDE_PROMPT_INPUT": str(answers_file)})
+    assert result.returncode == 0, result.stderr
+    return result.stdout.strip(), result.stderr
+
+
+def test_the_menu_offers_all_three_and_enter_keeps_the_recommended_model(tmp_path):
+    out, shown = _menu(tmp_path, "\n")
+    assert out == "family= custom="
+    for text in ("1) Recommended", "2) Qwen", "3) Another open-weight model", "tool calling"):
+        assert text in shown
+
+
+def test_the_menu_can_choose_qwen_or_a_named_model(tmp_path):
+    assert _menu(tmp_path, "2\n")[0] == "family=qwen custom="
+    assert _menu(tmp_path, "3\nllama3.1:8b\n")[0] == "family= custom=llama3.1:8b"
+    out, shown = _menu(tmp_path, "3\nbad name\n")
+    assert out == "family= custom=" and "using the recommended model" in shown
+
+
+def test_a_custom_model_is_what_gets_pulled_and_a_menu_only_appears_when_nothing_was_asked():
+    body = INSTALL_SH.read_text(encoding="utf-8")
+    fn = body[body.index("setup_local_ai() {"):]
+    fn = fn[:fn.index("\n}\n")]
+    menu = fn.index("choose_model_interactively")
+    assert fn.index('if [ -z "$model" ] && [ -z "$MODEL_FAMILY_REQUESTED" ] && [ -z "$MODEL_CUSTOM" ]') < menu
+    assert menu < fn.index('model="$MODEL_CUSTOM"') < fn.index('ollama pull "$model"')
+
+
+def test_an_explicit_model_is_never_overridden_by_the_one_already_kept():
+    body = INSTALL_SH.read_text(encoding="utf-8")
+    assert ('if [ -z "$MODEL_FAMILY_REQUESTED" ] && [ -z "$MODEL_CUSTOM" ]; then\n'
+            '    model="$(model_to_keep') in body

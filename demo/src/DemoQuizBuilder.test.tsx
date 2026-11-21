@@ -45,7 +45,7 @@ const quiz: GeneratedQuiz = {
   title: 'Addition quiz', subject: 'mathematics', grade: '3', kind: 'quiz', level: 'on_level',
   coverage: ['two-digit addition'], est_minutes: 4,
   questions: [
-    { number: 1, type: 'computation', topic: 'addition', prompt: '27 + 15 =', options: [], answer: '42', answer_check: 'computed' },
+    { number: 1, type: 'computation', topic: 'addition', prompt: '27 + 15 =', options: [], answer: '42', answer_check: 'computed', explanation: 'Add the tens, then the ones.' },
     { number: 2, type: 'multiple_choice', topic: 'addition', prompt: 'Which is 10 more than 35?', options: ['25', '45', '36'], answer: '45', answer_check: 'verify' },
   ],
 }
@@ -60,7 +60,7 @@ describe('demo quiz builder', () => {
     // The live demo: no local model and photo reading switched off, but a
     // typed topic can be drafted on the provider the chat already uses.
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: null, draft_provider: 'openai' }))
-    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    render(<DemoQuizBuilder token="t" onStartQuiz={vi.fn()} />)
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'Multiplication' } })
     expect(screen.queryByText('No AI model is available to draft quizzes right now.')).toBeNull()
     expect(screen.getByText(/A typed topic or pasted quiz works here/)).toBeTruthy()
@@ -79,7 +79,7 @@ describe('demo quiz builder', () => {
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null, draft_provider: null }))
     printed.sheets.length = 0
     printed.html.length = 0
-    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    render(<DemoQuizBuilder token="t" onStartQuiz={vi.fn()} />)
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'Addition' } })
     fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
     const printQuiz = await screen.findByRole('button', { name: 'Print quiz' })
@@ -109,7 +109,7 @@ describe('demo quiz builder', () => {
     api.copyDemoQuizSource.mockImplementation(async (_t: string, body: { pages: unknown[]; first_page: number }) => ({
       text: `[Pages ${body.first_page}-${body.first_page + body.pages.length - 1}]`, pages_read: body.pages.length,
     }))
-    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    render(<DemoQuizBuilder token="t" onStartQuiz={vi.fn()} />)
     const files = Array.from({ length: 8 }, (_, i) => new File([`p${i}`], `p${i}.jpg`, { type: 'image/jpeg' }))
     fireEvent.change(await screen.findByLabelText(/Or add photos/), { target: { files } })
     fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
@@ -122,7 +122,7 @@ describe('demo quiz builder', () => {
 
   it('refuses a choice of files over 1 GB before anything is sent', async () => {
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null, draft_provider: null }))
-    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    render(<DemoQuizBuilder token="t" onStartQuiz={vi.fn()} />)
     const big = (n: number) => Object.defineProperty(new File(['x'], `${n}.pdf`, { type: 'application/pdf' }), 'size', { value: 25 * 1024 * 1024 })
     fireEvent.change(await screen.findByLabelText(/Or add photos/), { target: { files: Array.from({ length: 41 }, (_, i) => big(i)) } })
     expect(await screen.findByText(/more than 1 GB/)).toBeTruthy()
@@ -131,7 +131,7 @@ describe('demo quiz builder', () => {
 
   it('needs something to learn from, then drafts with every choice the adult made', async () => {
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
-    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    render(<DemoQuizBuilder token="t" onStartQuiz={vi.fn()} />)
     const draft = await screen.findByRole('button', { name: 'Draft quiz' })
     expect(draft).toHaveProperty('disabled', true)
 
@@ -150,7 +150,7 @@ describe('demo quiz builder', () => {
 
   it('needs the consent tick before anything goes to a cloud provider', async () => {
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: false, cloud_provider: 'OpenAI', draft_provider: 'OpenAI' }))
-    render(<DemoQuizBuilder token="t" onApproved={vi.fn()} />)
+    render(<DemoQuizBuilder token="t" onStartQuiz={vi.fn()} />)
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'fractions' } })
     expect(screen.getByRole('button', { name: 'Draft quiz' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('checkbox'))
@@ -158,22 +158,30 @@ describe('demo quiz builder', () => {
     await waitFor(() => expect(api.generateDemoQuiz).toHaveBeenCalledWith('t', expect.objectContaining({ cloud_consent: true })))
   })
 
-  it('shows which answers were worked out and which to check, and sends the student only the questions', async () => {
+  it('shows which answers were worked out and which to check, then starts the kept questions with the adult\'s answers', async () => {
     api.fetchDemoQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
-    const onApproved = vi.fn()
-    render(<DemoQuizBuilder token="t" onApproved={onApproved} />)
+    const onStartQuiz = vi.fn()
+    render(<DemoQuizBuilder token="t" onStartQuiz={onStartQuiz} />)
     fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'addition' } })
     fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
 
+    // The answers stay hidden until the key is asked for.
+    expect(await screen.findByRole('button', { name: 'Show answer key' })).toBeTruthy()
+    expect(screen.queryByText('Worked out')).toBeNull()
+    expect(screen.queryByLabelText(/^Answer for/)).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show answer key' }))
     expect(await screen.findByText('Worked out')).toBeTruthy()
+    expect(screen.getByText('Why: Add the tens, then the ones.')).toBeTruthy()
     expect(screen.getByText('Check')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('Answer for question 2'), { target: { value: '45!' } })
     fireEvent.click(screen.getByLabelText('Include question 1'))
-    fireEvent.click(screen.getByRole('button', { name: 'Use this quiz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start quiz' }))
 
-    expect(onApproved).toHaveBeenCalledWith([
-      { index: 0, prompt: 'Which is 10 more than 35?\nA) 25\nB) 45\nC) 36', hint: '' },
-    ])
-    expect(JSON.stringify(onApproved.mock.calls)).not.toContain('45!')
+    // Only the kept question goes to the quiz, carrying the adult's edited
+    // answer; the runner shows it only after the student has answered.
+    expect(onStartQuiz).toHaveBeenCalledTimes(1)
+    const [, started] = onStartQuiz.mock.calls[0]
+    expect(started).toHaveLength(1)
+    expect(started[0]).toMatchObject({ prompt: 'Which is 10 more than 35?', answer: '45!' })
   })
 })

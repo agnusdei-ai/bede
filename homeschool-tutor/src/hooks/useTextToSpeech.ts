@@ -272,7 +272,7 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
 
     logDebug(`TTS processQueue start gen=${myGeneration} remaining=${queueRef.current.length} text="${ttsPreview(cleanText)}"`)
 
-    // No voice configured, or cloud speech not permitted here: the line is
+    // No voice configured, or the voice switched off here: the line is
     // shown, not spoken, and no speech request is made.
     const allowed = !!token && cleanText.trim() !== '' && !stoppedRef.current && await voiceSpeaks(token)
     if (!allowed && generationRef.current === myGeneration && cleanText.trim()) {

@@ -219,7 +219,7 @@ describe('useTextToSpeech — backend (Fable) voice priority', () => {
 
   // ── An install where Bede's voice cannot speak: text-first, nothing sent ──
 
-  it('sends no line at all when no voice is configured or cloud speech is not permitted', async () => {
+  it('sends no line at all when no voice is configured or the voice is switched off', async () => {
     const speakMock = vi.fn()
     stubFetch(speakMock, false)
     const { result } = renderHook(() => useTextToSpeech('fake-token'))

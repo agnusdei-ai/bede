@@ -523,3 +523,56 @@ def test_a_pinned_voice_has_its_license_on_record():
         assert all(spec["sha256"] for spec in manifest["files"].values()), "pin every file, not some"
         for field in ("license", "training_lineage", "redistribution"):
             assert manifest[field].strip(), f"bede-voice.json: record {field} from the MODEL_CARD"
+
+
+# ── 6. Merging this cannot switch Piper on anywhere ────────────────────────
+
+def _live_lines(path):
+    """The non-comment lines of a text file."""
+    for raw in path.read_text(errors="ignore").splitlines():
+        line = raw.strip()
+        if line and not line.startswith("#"):
+            yield line
+
+
+def test_nothing_that_installs_or_deploys_bede_turns_piper_on():
+    """Owner direction 2026-11-20 (docs/DECISIONS.md entry 46): Piper is optional
+    development only. No installer, packaging file, deployment config or image
+    workflow may start the `piper` profile, set TTS_PROVIDER=local, or point
+    LOCAL_TTS_URL anywhere, so a customer installation gets Piper only if its
+    operator does that by hand."""
+    import re
+
+    owned = [REPO / "setup.sh", REPO / "Makefile", REPO / "render.yaml",
+             REPO / "docker-compose.redteam.yml", REPO / "scripts" / "setup_wizard" / "wizard.py"]
+    owned += [p for p in (REPO / "packaging").rglob("*")
+              if p.is_file() and p.suffix in {".sh", ".ps1", ".command", ".yaml", ".yml", ".py", ".bat", ".iss"}
+              or p.name == ".env.example" and "packaging" in p.parts]
+    owned += [p for p in REPO.glob("setup-gui.*")]
+    assert len(owned) > 8, "the scan found almost nothing, so it proves nothing"
+    pattern = re.compile(
+        r"COMPOSE_PROFILES[^\n]*piper|--profile[ =]piper|TTS_PROVIDER\s*[=:]\s*[\"']?local|LOCAL_TTS_URL\s*[=:]",
+        re.IGNORECASE)
+    hits = [f"{p.relative_to(REPO)}: {line}" for p in owned if p.is_file()
+            for line in _live_lines(p) if pattern.search(line)]
+    assert hits == [], hits
+
+
+def test_no_image_workflow_builds_the_voice_service():
+    for wf in (REPO / ".github" / "workflows").glob("*.yml"):
+        if wf.name == "test.yml":  # names voice-service/ only in its change filter
+            continue
+        text = "\n".join(_live_lines(wf))
+        assert "voice-service" not in text, f"{wf.name} builds or names the voice service"
+
+
+def test_no_voice_model_is_tracked_or_pinned():
+    import subprocess
+
+    names = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True).stdout.splitlines()
+    assert len(names) > 100, "git ls-files returned almost nothing, so this proves nothing"
+    models = [n for n in names if n.endswith((".onnx", ".gguf")) or n.rsplit("/", 1)[-1] == "MODEL_CARD"]
+    assert models == []
+    manifest = json.loads(MANIFEST.read_text())
+    assert all(spec["sha256"] == "" for spec in manifest["files"].values()), (
+        "the candidate voice is unpinned: pinning it is the owner's decision after hearing it")

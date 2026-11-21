@@ -105,7 +105,9 @@ services:
       # Bede's spoken voice (services/voice_synthesis.py, docs/VOICE_SETUP.md,
       # docs/DECISIONS.md entry 46). Bede's reference voice is OpenAI's, the
       # same one the public demo uses, spoken whenever OPENAI_API_KEY is set
-      # and speech is permitted. With no key or TTS_PROVIDER=none, Bede is
+      # and TTS_PROVIDER is not none ("configured"; this is not an explicit
+      # operator enable, see docs/DECISIONS.md entry 46). With no key or
+      # TTS_PROVIDER=none, Bede is
       # text-first and fully usable: never the browser's voice, never a
       # different voice. TTS_PROVIDER=local opts in to the optional Piper
       # development voice (the `voice` service, profile `piper`, off by

@@ -3,7 +3,9 @@
 Every feature speaks in Bede's own voice and in no other. Bede's reference
 voice is OpenAI's, the voice the public demo uses (owner direction 2026-11-20,
 `docs/DECISIONS.md` entry 46). Installed Bede speaks in that same voice when
-cloud speech is configured and permitted. A different voice, Piper included,
+cloud speech is configured (a key set and `TTS_PROVIDER` not `none`; that check
+is not itself proof of permission, and an explicit operator enable is a separate
+proposal in entry 46). A different voice, Piper included,
 is never switched in automatically, and any future change to Bede's voice needs
 a separate proposal and the owner's approval after hearing the actual candidate.
 

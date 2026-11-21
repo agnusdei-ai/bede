@@ -844,5 +844,21 @@
   "demoK2Practice": {
     "soundTime": "Probar la Hora de los Sonidos",
     "mapPractice": "Probar la Práctica de mapas"
+  },
+  "quizRunner": {
+    "progress": "Pregunta {{n}} de {{total}}",
+    "answerLabel": "Tu respuesta",
+    "check": "Revisar",
+    "right": "¡Correcto!",
+    "wrong": "No exactamente. La respuesta es {{answer}}.",
+    "open": "Esta es la respuesta: {{answer}}. Revisa la tuya con un adulto.",
+    "why": "Por qué: {{text}}",
+    "next": "Siguiente pregunta",
+    "seeResults": "Ver cómo te fue",
+    "finished": "Acertaste {{right}} de {{total}}.",
+    "openNote": "Un adulto debe revisar {{count}} respuestas.",
+    "done": "Listo",
+    "start": "Empezar el examen",
+    "chatSummary": "Terminé el examen \"{{title}}\" y acerté {{right}} de {{total}}."
   }
 }

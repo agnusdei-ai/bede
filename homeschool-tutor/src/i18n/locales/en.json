@@ -1510,5 +1510,20 @@
       "bond_missing": "{{whole}} is {{part}} and {{answer}}. Together they make {{whole}}.",
       "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}."
     }
+  },
+  "quizRunner": {
+    "progress": "Question {{n}} of {{total}}",
+    "answerLabel": "Your answer",
+    "check": "Check",
+    "right": "That's right.",
+    "wrong": "Not quite. The answer is {{answer}}.",
+    "open": "Here is the answer: {{answer}}. Check yours with your grown-up.",
+    "why": "Why: {{text}}",
+    "next": "Next question",
+    "seeResults": "See how it went",
+    "finished": "You got {{right}} of {{total}} right.",
+    "openNote": "{{count}} answers are for your grown-up to check.",
+    "done": "Done",
+    "start": "Start quiz"
   }
 }

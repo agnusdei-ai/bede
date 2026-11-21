@@ -163,6 +163,18 @@ describe('QuizBuilder', () => {
     expect(await screen.findByText(/none is set up here/)).toBeTruthy()
   })
 
+  it('starts the drafted quiz on this device, answers hidden until each is answered', async () => {
+    mocks.fetchQuizOptions.mockResolvedValue(options({ local_available: true, cloud_provider: null }))
+    render(<QuizBuilder token="t" studentName="Ava" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+    fireEvent.change(await screen.findByLabelText('What to cover'), { target: { value: 'plants' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft quiz' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Start quiz' }))
+    expect(await screen.findByText('Question 1 of 3')).toBeTruthy()
+    expect(screen.queryByText(/The answer is/)).toBeNull()
+    expect(screen.queryByText('Why: Add the tens, then the ones.')).toBeNull()
+  })
+
   it('every quiz string exists in Spanish too', () => {
     const en = i18n.getResourceBundle('en', 'translation').quizBuilder
     const es = i18n.getResourceBundle('es', 'translation').quizBuilder

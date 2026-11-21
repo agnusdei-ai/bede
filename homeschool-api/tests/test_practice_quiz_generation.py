@@ -555,3 +555,14 @@ def test_an_overlong_explanation_is_cut_to_fit():
 def test_the_model_is_asked_for_a_brief_explanation():
     source = open(generate.__file__, encoding="utf-8").read()
     assert '"explanation": str' in source and "one or two short sentences" in source
+
+
+@pytest.mark.asyncio
+async def test_each_question_carries_a_difficulty_and_an_unknown_one_becomes_on_level(monkeypatch, quota):
+    a = q("2 + 3 =", "5", "computation"); a["difficulty"] = "easier"
+    b = q("48 ÷ 6 =", "8", "computation"); b["difficulty"] = "HARDER"
+    c = q("9 + 9 =", "18", "computation"); c["difficulty"] = "impossible"
+    stub = StubClient(draft(a, b, c))
+    _routing(monkeypatch, local=True, cloud=None, local_client=stub)
+    out = await practice_router.demo_generate_quiz(req(), auth=DEMO)
+    assert [x["difficulty"] for x in out["quiz"]["questions"]] == ["easier", "harder", "on"]

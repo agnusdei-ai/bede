@@ -621,6 +621,9 @@ class QuizQuestion(_Strict):
     # One or two sentences on why the answer is right, shown only on the
     # answer key; empty when nothing useful applies or the answer was replaced.
     explanation: str = Field(default="", max_length=300)
+    # How hard this question is beside the requested level, so a quiz can
+    # step up after a right answer and down after a miss.
+    difficulty: Literal["easier", "on", "harder"] = "on"
     diagram: Optional[Diagram] = None
     # computed: worked out by this backend. checked: a second, independent
     # answer agreed. verify: the adult should check it.

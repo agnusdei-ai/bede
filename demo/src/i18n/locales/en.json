@@ -844,5 +844,21 @@
   "demoK2Practice": {
     "soundTime": "Try Sound Time",
     "mapPractice": "Try Map Practice"
+  },
+  "quizRunner": {
+    "progress": "Question {{n}} of {{total}}",
+    "answerLabel": "Your answer",
+    "check": "Check",
+    "right": "That's right.",
+    "wrong": "Not quite. The answer is {{answer}}.",
+    "open": "Here is the answer: {{answer}}. Check yours with your grown-up.",
+    "why": "Why: {{text}}",
+    "next": "Next question",
+    "seeResults": "See how it went",
+    "finished": "You got {{right}} of {{total}} right.",
+    "openNote": "{{count}} answers are for your grown-up to check.",
+    "done": "Done",
+    "start": "Start quiz",
+    "chatSummary": "I finished the quiz \"{{title}}\" and got {{right}} of {{total}} right."
   }
 }

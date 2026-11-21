@@ -161,7 +161,6 @@ itself**:
 |---|---|---|
 | `GET /api/rest_v1/page/summary/<title>` | `en.wikipedia.org` | `connect-src` |
 | The thumbnail that lookup returns | `upload.wikimedia.org` | `img-src` |
-| A K-2 practice or quiz picture (a public-domain illustration named by its exact Commons file in `Diagram.tsx`'s `ICONS`) | `commons.wikimedia.org` (`Special:FilePath`), which redirects to `upload.wikimedia.org` | `img-src` |
 
 **What travels:** the article title, and nothing else. No session data, no
 student name, no conversation text, no identifier, no query string. It is

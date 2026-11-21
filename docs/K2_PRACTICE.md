@@ -494,13 +494,9 @@ with this letter". Number Time's counting and comparing ranges now grow with
 the grade (counting 3-10, 6-15, 11-20; comparing up to 8, 12, 20).
 `test_k2_phonics.py` pins a minimum pool per area and that both kinds appear.
 
-**Pictures (owner direction 2026-11-21).** Pictures are classical public-domain
-illustrations on Wikimedia Commons, not emoji. `Diagram.tsx`'s `ICONS` names
-the exact Commons file for each word; the child's browser loads it through
-`Special:FilePath` (disclosed in the privacy notices and
-`docs/VENDOR_DATA_FLOW.md`). A word with no chosen picture, or a picture that
-cannot load, shows the word instead, except where reading that word is the
-question, where it shows "?" so the answer is not given away.
+**Pictures (owner direction 2026-11-21).** Pictures are hand-drawn
+illustrations made for Bede, coloured and sketched in one style, drawn as SVG in
+the app. No emoji and no online lookup: nothing is fetched to show a picture.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
 like the map practice card.

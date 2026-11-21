@@ -158,7 +158,7 @@ ICONS = (
     "crayon", "paperclip", "scissors", "spoon", "backpack", "chair", "bed", "watermelon", "bucket",
     "television", "computer", "phone", "cup", "bottle", "toothbrush",
     "cube", "box", "basket", "truck", "ruler",
-    # Pictures for the K-2 Sound Time words (services/k2_practice/phonics.py).
+    # Pictures for the K-2 Sound Time words, services/k2_practice/phonics.py.
     "bat", "rat", "van", "fan", "pen", "net", "web", "log", "nut", "bug", "cap", "bag", "hut",
     "crab", "drum", "sled", "shell", "clock", "flag", "nest", "tent", "skunk", "kite", "rope",
     "nose", "snail", "seal", "soap", "sock", "lock", "ring", "thumb", "vest", "dish", "zebra",

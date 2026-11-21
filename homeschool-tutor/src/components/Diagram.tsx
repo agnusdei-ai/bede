@@ -36,35 +36,34 @@ export type DiagramSpec =
   | { kind: 'image'; wiki_title: string; caption?: string }
 
 /**
- * A classical public-domain picture for each of the API's ICONS
- * (models/practice.py): the exact Wikimedia Commons file, looked up live when
- * shown (docs/PRACTICE_COACH.md, "Pictures"). '' means no picture was chosen
- * and the word is shown instead. A name not here draws nothing.
+ * Every picture name the API accepts (models/practice.py's ICONS). The
+ * pictures themselves are hand-drawn (DRAWINGS); a name without a drawing
+ * shows its word. A name not here draws nothing.
  */
 export const ICONS: Record<string, string> = {
-  dog: '🐕', cat: '🐈', mouse: '🐁', bird: '🐦', duck: '🦆', fish: '🐟', horse: '🐎', cow: '🐄', pig: '🐖',
-  sheep: '🐑', goat: '🐐', chicken: '🐓', rabbit: '🐇', frog: '🐸', bee: '🐝', butterfly: '🦋', ant: '🐜',
-  spider: '🕷️', snake: '🐍', turtle: '🐢', lion: '🦁', tiger: '🐅', elephant: '🐘', bear: '🐻', monkey: '🐒',
-  owl: '🦉', whale: '🐋', wolf: '🐺', fox: '🦊', deer: '🦌',
-  tree: '🌳', flower: '🌼', leaf: '🍃', seedling: '🌱', sun: '☀️', moon: '🌙', star: '⭐', cloud: '☁️',
-  rain: '🌧️', snow: '❄️', lightning: '⚡', rainbow: '🌈', water: '💧', fire: '🔥', mountain: '⛰️',
-  volcano: '🌋', wave: '🌊', rock: '🪨',
-  apple: '🍎', banana: '🍌', grapes: '🍇', carrot: '🥕', bread: '🍞', cheese: '🧀', milk: '🥛', egg: '🥚',
-  cake: '🍰', cookie: '🍪',
-  house: '🏠', castle: '🏰', ship: '🚢', boat: '⛵', car: '🚗', bus: '🚌', train: '🚂', plane: '✈️',
-  bicycle: '🚲', book: '📕', pencil: '✏️', scroll: '📜', crown: '👑', ball: '⚽', hat: '🎩', shoe: '👟',
-  key: '🔑', bell: '🔔', lightbulb: '💡', magnet: '🧲', compass: '🧭', globe: '🌍', map: '🗺️', coin: '🪙',
-  boy: '👦', girl: '👧', man: '👨', woman: '👩', baby: '👶', farmer: '🧑‍🌾', king: '🤴', queen: '👸',
-  hand: '✋', eye: '👁️', ear: '👂', foot: '🦶', heart: '🫀', brain: '🧠', tooth: '🦷', bone: '🦴',
-  magnifier: '🔍', microscope: '🔬', thermometer: '🌡️', battery: '🔋', plant: '🪴',
-  crayon: '🖍️', paperclip: '📎', scissors: '✂️', spoon: '🥄', backpack: '🎒', chair: '🪑', bed: '🛏️',
-  watermelon: '🍉', bucket: '🪣', television: '📺', computer: '💻', phone: '📱', cup: '☕', bottle: '🍼',
-  toothbrush: '🪥', cube: '🟦', box: '📦', basket: '🧺', truck: '🚚', ruler: '📏',
-  bat: '🦇', rat: '🐀', van: '🚐', fan: '🪭', pen: '🖊️', net: '🥅', web: '🕸️', log: '🪵', nut: '🥜',
-  bug: '🐛', cap: '🧢', bag: '👜', hut: '🛖', crab: '🦀', drum: '🥁', sled: '🛷', shell: '🐚', clock: '🕐',
-  flag: '🚩', nest: '🪺', tent: '⛺', skunk: '🦨', kite: '🪁', rope: '🪢', nose: '👃', snail: '🐌',
-  seal: '🦭', soap: '🧼', sock: '🧦', lock: '🔒', ring: '💍', thumb: '👍', vest: '🦺', dish: '🍽️',
-  zebra: '🦓', yarn: '🧶', jar: '🫙',
+  dog: 'dog', cat: 'cat', mouse: 'mouse', bird: 'bird', duck: 'duck', fish: 'fish', horse: 'horse', cow: 'cow', pig: 'pig',
+  sheep: 'sheep', goat: 'goat', chicken: 'chicken', rabbit: 'rabbit', frog: 'frog', bee: 'bee', butterfly: 'butterfly', ant: 'ant',
+  spider: 'spider', snake: 'snake', turtle: 'turtle', lion: 'lion', tiger: 'tiger', elephant: 'elephant', bear: 'bear', monkey: 'monkey',
+  owl: 'owl', whale: 'whale', wolf: 'wolf', fox: 'fox', deer: 'deer',
+  tree: 'tree', flower: 'flower', leaf: 'leaf', seedling: 'seedling', sun: 'sun', moon: 'moon', star: 'star', cloud: 'cloud',
+  rain: 'rain', snow: 'snow', lightning: 'lightning', rainbow: 'rainbow', water: 'water', fire: 'fire', mountain: 'mountain',
+  volcano: 'volcano', wave: 'wave', rock: 'rock',
+  apple: 'apple', banana: 'banana', grapes: 'grapes', carrot: 'carrot', bread: 'bread', cheese: 'cheese', milk: 'milk', egg: 'egg',
+  cake: 'cake', cookie: 'cookie',
+  house: 'house', castle: 'castle', ship: 'ship', boat: 'boat', car: 'car', bus: 'bus', train: 'train', plane: 'plane',
+  bicycle: 'bicycle', book: 'book', pencil: 'pencil', scroll: 'scroll', crown: 'crown', ball: 'ball', hat: 'hat', shoe: 'shoe',
+  key: 'key', bell: 'bell', lightbulb: 'lightbulb', magnet: 'magnet', compass: 'compass', globe: 'globe', map: 'map', coin: 'coin',
+  boy: 'boy', girl: 'girl', man: 'man', woman: 'woman', baby: 'baby', farmer: 'farmer', king: 'king', queen: 'queen',
+  hand: 'hand', eye: 'eye', ear: 'ear', foot: 'foot', heart: 'heart', brain: 'brain', tooth: 'tooth', bone: 'bone',
+  magnifier: 'magnifier', microscope: 'microscope', thermometer: 'thermometer', battery: 'battery', plant: 'plant',
+  crayon: 'crayon', paperclip: 'paperclip', scissors: 'scissors', spoon: 'spoon', backpack: 'backpack', chair: 'chair', bed: 'bed',
+  watermelon: 'watermelon', bucket: 'bucket', television: 'television', computer: 'computer', phone: 'phone', cup: 'cup', bottle: 'bottle',
+  toothbrush: 'toothbrush', cube: 'cube', box: 'box', basket: 'basket', truck: 'truck', ruler: 'ruler',
+  bat: 'bat', rat: 'rat', van: 'van', fan: 'fan', pen: 'pen', net: 'net', web: 'web', log: 'log', nut: 'nut',
+  bug: 'bug', cap: 'cap', bag: 'bag', hut: 'hut', crab: 'crab', drum: 'drum', sled: 'sled', shell: 'shell', clock: 'clock',
+  flag: 'flag', nest: 'nest', tent: 'tent', skunk: 'skunk', kite: 'kite', rope: 'rope', nose: 'nose', snail: 'snail',
+  seal: 'seal', soap: 'soap', sock: 'sock', lock: 'lock', ring: 'ring', thumb: 'thumb', vest: 'vest', dish: 'dish',
+  zebra: 'zebra', yarn: 'yarn', jar: 'jar',
 }
 
 /** Coins and bills (models/practice.py COIN_CENTS): what each is worth and how it is drawn. */
@@ -82,40 +81,29 @@ export const ACTIONS: Record<string, string> = {
   drinking: 'drinking', singing: 'singing', walking: 'walking', reading: 'reading', writing: 'writing',
 }
 
-/** Where a picture's file is fetched from: Commons redirects to the scaled copy on upload.wikimedia.org. */
-export const COMMONS_FILEPATH = 'https://commons.wikimedia.org/wiki/Special:FilePath/'
-
-/** The picture's address at a given width, or null when the name has none. */
-export function pictureSrc(name: string, width = 160): string | null {
-  const file = ICONS[name]
-  if (!file) return null
-  return `${COMMONS_FILEPATH}${encodeURIComponent(file.replace(/^File:/, '').replace(/ /g, '_'))}?width=${width}`
-}
-
-/**
- * A picture as an HTML image, with its word shown instead when there is no
- * picture or it cannot be loaded. `hideWord` keeps the word off the screen
- * where reading that word is the question being asked.
- */
 export function Picture({ name, label, size, hideWord = false }: {
   name: string
   label: string
   size: string
   hideWord?: boolean
 }) {
-  const [failed, setFailed] = useState(false)
-  const src = pictureSrc(name, 240)
-  if (!src || failed) {
-    return (
-      <span role="img" aria-label={label}
-        className={`${size} inline-flex items-center justify-center rounded-xl bg-parchment-100 px-1 text-center text-base font-medium text-navy-800`}>
-        {hideWord ? '?' : label}
-      </span>
-    )
+  // Hand-drawn pictures are added to DRAWINGS; until a word has one, its word
+  // is shown (or "?" where reading that word is the question).
+  const drawing = DRAWINGS[name]
+  if (drawing) {
+    return <svg viewBox="0 0 64 64" role="img" aria-label={label} className={size}>{drawing}</svg>
   }
-  return <img src={src} alt={label} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)}
-    className={`${size} object-contain`} />
+  return (
+    <span role="img" aria-label={label}
+      className={`${size} inline-flex items-center justify-center rounded-xl bg-parchment-100 px-1 text-center text-base font-medium text-navy-800`}>
+      {hideWord ? '?' : label}
+    </span>
+  )
 }
+
+/** Hand-drawn pictures, one per ICONS name, drawn in Bede's ink-and-wash
+ *  style. Filled in as each is drawn and checked; none is fetched online. */
+export const DRAWINGS: Record<string, ReactElement> = {}
 
 const INK = '#1f2a44'
 const FILL = '#8fa37a'
@@ -368,11 +356,11 @@ function Pictures({ groups }: { groups: { icon: string; count: number; label?: s
  * chosen the word is written in its place.
  */
 function SvgPicture({ name, x, y, size }: { name: string; x: number; y: number; size: number }) {
-  const src = pictureSrc(name, Math.round(size * 3))
-  if (!src) {
+  const drawing = DRAWINGS[name]
+  if (!drawing) {
     return <text x={x + size / 2} y={y + size / 2 + 4} textAnchor="middle" {...FONT} fontSize={Math.max(10, size / 3)}>{name}</text>
   }
-  return <image href={src} x={x} y={y} width={size} height={size} preserveAspectRatio="xMidYMid meet"><title>{name}</title></image>
+  return <svg x={x} y={y} width={size} height={size} viewBox="0 0 64 64"><title>{name}</title>{drawing}</svg>
 }
 
 function Scene({ icon, action, actionLabel }: { icon: string; action?: string | null; actionLabel?: string }) {

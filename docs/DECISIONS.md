@@ -2729,8 +2729,8 @@ What survives the lift, because it was never the freeze's:
 Piper is optional development only. This SUPERSEDES every earlier amendment
 below that made Piper installed Bede's voice or forbade cloud speech in it.**
 The current demo voice (OpenAI's) is Bede's reference voice experience,
-including for installed Bede when cloud speech is configured and permitted
-(the owner's words; see "configured" versus "permitted" below).
+including for installed Bede when cloud speech is configured (see the
+2026-11-20 correction below).
 
 - The demo is not switched to Piper and gets no voice selector. Installed Bede
   never automatically substitutes `en_GB-alan-medium` or any other voice.
@@ -2751,17 +2751,34 @@ Built: `active_provider()` picks OpenAI when `OPENAI_API_KEY` is set and
 `TTS_PROVIDER=local`; compose's `TTS_PROVIDER` and `LOCAL_TTS_URL` now default
 to empty, the same as `config.py`'s, and the `voice` service is behind the
 `piper` profile. Parent Setup describes the cloud voice as the usual voice
-and Piper as an optional test voice. **"Configured" is not "permitted".**
-The only check in code is "configured": `OPENAI_API_KEY` set and
-`TTS_PROVIDER` not `none`. That is not evidence that an authorized operator
-chose to send spoken lines to a cloud service, and no explicit enable exists:
-the installers offer OpenAI as a tutoring provider and never ask about speech;
-the existing controls are the opt-out `TTS_PROVIDER=none`, the custodian's
-election of providers in the consent notice, and a lesson's own narration
-switch. **Smallest separate change proposed (not built here, needs owner
-review):** installed Bede's compose default becomes `TTS_PROVIDER=none` so
-cloud speech needs an explicit `TTS_PROVIDER=openai`; `render.yaml` (the demo)
-is untouched by that and the demo's voice is unchanged.
+and Piper as an optional test voice. **Corrected (2026-11-20, owner, later): no new opt-in gate.** The earlier
+suggestion to make installed Bede ship with speech off until a second
+activation step is withdrawn, and is NOT a merge condition. The intended
+experience is the working demo voice, immediately:
+
+- **Configured and working.** An installation whose operator has put an OpenAI
+  key in its settings (the installers write `OPENAI_API_KEY` when OpenAI is the
+  chosen provider) starts with the reference voice available. Nothing else is
+  turned on. The operator's own key is the configuration; the code cannot tell
+  a valid key from a bad one until a line is spoken.
+- **No credentials.** Bede stays fully usable in text. Parent Setup's voice
+  card says setup is unfinished and how to finish it (add `OPENAI_API_KEY` and
+  restart), and does not present the installation as voice-ready
+  (`GET /tutor/voice` reports `reason: "not_set_up"`).
+- **A temporary failure.** A line that fails or times out is silent; the
+  session, chat and controls carry on. There is no switch to browser
+  narration, Piper or another voice.
+- **Deliberately off.** An operator turns speech off with `TTS_PROVIDER=none`;
+  Parent Setup says so (`reason: "off"`), apart from the unfinished-setup case.
+- **Piper alone** stays development only: it never replaces the reference
+  voice, is never an automatic fallback and does not touch the demo.
+
+**The one real configuration gap (reported, not built):** the installers ask
+for an OpenAI key only when OpenAI is the chosen tutoring provider
+(`setup.sh`, the wizard). A family that picks Claude, Mistral or a local model
+has no key and so no voice, and neither installer offers a voice-only key. The
+voice card and `docs/VOICE_SETUP.md` tell the operator what to add; changing
+the installers is a separate decision and not part of #875.
 The 2026-11-18 to 2026-11-19 text below is kept as history.
 
 **Decided (2026-11-18, owner).**

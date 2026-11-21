@@ -178,6 +178,19 @@ def active_provider() -> Optional[str]:
     return "openai" if settings.openai_api_key else None
 
 
+def unconfigured_reason() -> Optional[str]:
+    """Why Bede has no voice, for Parent Setup: "off" when an operator turned
+    speech off on purpose (TTS_PROVIDER=none), "not_set_up" when nothing is
+    configured yet (no OpenAI key, or the optional Piper voice asked for with
+    no URL), and None when a voice is configured. Names no provider, key or
+    address."""
+    if active_provider() is not None:
+        return None
+    if (settings.tts_provider or "").strip().lower() == "none":
+        return "off"
+    return "not_set_up"
+
+
 def synthesis_configured() -> bool:
     """Whether Bede has a voice at all on this deployment."""
     return active_provider() is not None

@@ -54,7 +54,9 @@ from services.document_extraction import extract_narration_text, UnsupportedNarr
 from services.email_service import build_summary_email_html, send_email
 from services.moderation import classify_child_message
 from services.policy_engine import decide as decide_policy
-from services.voice_synthesis import active_provider, synthesis_configured, synthesize_speech, voice_available
+from services.voice_synthesis import (
+    active_provider, synthesis_configured, synthesize_speech, unconfigured_reason, voice_available,
+)
 
 log = logging.getLogger(__name__)
 
@@ -556,6 +558,7 @@ async def voice_status(auth: dict = Depends(require_auth)) -> dict:
     provider = active_provider()
     return {"configured": provider is not None,
             "where": {"local": "local", "openai": "cloud"}.get(provider or ""),
+            "reason": unconfigured_reason(),
             "available": await voice_available(auth.get("locale") or settings.locale)}
 
 

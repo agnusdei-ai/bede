@@ -25,7 +25,7 @@ export default function VoiceStatusNotice({ token }: { token: string }) {
   }, [token])
 
   if (!status) return null
-  const key = !status.configured ? 'none'
+  const key = !status.configured ? (status.reason === 'off' ? 'off' : 'none')
     : status.available === false ? 'down'
       : status.where === 'local' ? 'local' : 'cloud'
   const Icon = key === 'local' || key === 'cloud' ? Volume2 : VolumeX

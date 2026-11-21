@@ -1518,8 +1518,12 @@
       "next": "Por ahora no hace falta hacer nada: Bede vuelve a comprobarlo en menos de un minuto. Si sigue así, consulta la guía de configuración de voz."
     },
     "none": {
-      "what": "La voz está desactivada o no está configurada en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede nunca usa otra voz en su lugar.",
-      "next": "No hay ningún problema. Para que Bede lea las lecciones en voz alta, quien configuró esta instalación puede activar la voz de Bede; la guía de configuración de voz explica cómo."
+      "what": "La voz de Bede no está terminada de configurar en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede no usa la voz del navegador ni ninguna otra voz en su lugar.",
+      "next": "Para terminar la configuración de la voz, agrega una clave de OpenAI (OPENAI_API_KEY) a los ajustes de esta instalación y reinicia Bede. Después la voz de Bede funciona sin nada más que activar. La guía de configuración de voz explica cómo."
+    },
+    "off": {
+      "what": "La voz se desactivó en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede no usa otra voz en su lugar.",
+      "next": "Para volver a activar la voz de Bede, quien configuró esta instalación quita el ajuste TTS_PROVIDER=none y reinicia Bede. La guía de configuración de voz explica cómo."
     },
     "cloud": {
       "what": "Bede lee las lecciones en voz alta con su voz habitual, que viene de un servicio de voz en la nube. Ese servicio recibe cada frase que dice Bede.",

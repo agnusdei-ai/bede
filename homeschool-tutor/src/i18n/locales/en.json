@@ -1518,8 +1518,12 @@
       "next": "Nothing to do right away: Bede checks again within a minute. If it lasts, check the voice setup guide."
     },
     "none": {
-      "what": "Speech is turned off or not set up on this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede never uses another voice in its place.",
-      "next": "Nothing is wrong. To have Bede read lessons aloud, whoever set up this installation can turn on Bede's voice; the voice setup guide shows how."
+      "what": "Bede's voice isn't finished setting up on this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede does not use the browser's voice or any other voice in its place.",
+      "next": "To finish voice setup, add an OpenAI key (OPENAI_API_KEY) to this installation's settings and restart Bede. Bede's voice then works with nothing else to turn on. The voice setup guide shows how."
+    },
+    "off": {
+      "what": "Speech was turned off for this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede does not use another voice in its place.",
+      "next": "To turn Bede's voice back on, whoever set up this installation removes the TTS_PROVIDER=none setting and restarts Bede. The voice setup guide shows how."
     },
     "cloud": {
       "what": "Bede reads lessons aloud in its usual voice, which comes from a cloud speech service. That service receives each line Bede speaks.",

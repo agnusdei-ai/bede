@@ -2084,7 +2084,13 @@ async function practiceFetch<T>(token: string, path: string, init?: RequestInit)
   return res.json()
 }
 
-export type VoiceStatus = { configured: boolean; where: 'local' | 'cloud' | null; available?: boolean }
+export type VoiceStatus = {
+  configured: boolean
+  where: 'local' | 'cloud' | null
+  /** Why there is no voice: turned off on purpose, or setup not finished. */
+  reason?: 'off' | 'not_set_up' | null
+  available?: boolean
+}
 
 /** Whether Bede has a voice on this deployment, where it runs, and whether
  *  it can speak right now in this session's language (GET /tutor/voice). Null when it cannot be told, including an older server
@@ -2098,6 +2104,7 @@ export async function fetchVoiceStatus(token: string): Promise<VoiceStatus | nul
     return {
       configured: data.configured,
       where: data.where === 'local' || data.where === 'cloud' ? data.where : null,
+      ...(data.reason === 'off' || data.reason === 'not_set_up' ? { reason: data.reason } : {}),
       ...(typeof data.available === 'boolean' ? { available: data.available } : {}),
     }
   } catch {

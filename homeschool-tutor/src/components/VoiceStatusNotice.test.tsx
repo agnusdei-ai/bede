@@ -16,6 +16,8 @@ describe('VoiceStatusNotice', () => {
     [{ configured: true, where: 'local' }, 'local'],
     [{ configured: true, where: 'cloud' }, 'cloud'],
     [{ configured: false, where: null }, 'none'],
+    [{ configured: false, where: null, reason: 'not_set_up' }, 'none'],
+    [{ configured: false, where: null, reason: 'off' }, 'off'],
     [{ configured: true, where: 'local', available: false }, 'down'],
     [{ configured: true, where: 'local', available: true }, 'local'],
   ] as const)('explains where Bede speaks: %o', async (body, key) => {
@@ -30,12 +32,13 @@ describe('VoiceStatusNotice', () => {
 
   it.each([
     [{ configured: false, where: null }],
+    [{ configured: false, where: null, reason: 'off' }],
     [{ configured: true, where: 'local', available: false }],
   ])('tells a parent Bede goes on without speaking and never uses another voice: %o', async (body) => {
     answer(body)
     render(<VoiceStatusNotice token="tok" />)
     const text = (await screen.findByTestId('voice-status')).textContent ?? ''
-    expect(text).toMatch(/never uses another voice/)
+    expect(text).toMatch(/(never uses|does not use) (another|the browser's voice or any other) voice/)
     expect(text).toMatch(/on screen/)
   })
 
@@ -48,7 +51,7 @@ describe('VoiceStatusNotice', () => {
 
   it('has every line in Spanish too', () => {
     expect(es.voiceStatus.title).not.toBe(en.voiceStatus.title)
-    for (const k of ['local', 'cloud', 'none', 'down'] as const) {
+    for (const k of ['local', 'cloud', 'none', 'off', 'down'] as const) {
       for (const part of ['what', 'next'] as const) {
         expect(es.voiceStatus[k][part]).toBeTruthy()
         expect(es.voiceStatus[k][part]).not.toBe(en.voiceStatus[k][part])
@@ -58,7 +61,13 @@ describe('VoiceStatusNotice', () => {
 
   it('"not set up" and "not answering right now" read differently, each with its own next step', () => {
     expect(en.voiceStatus.none.what).not.toBe(en.voiceStatus.down.what)
-    expect(en.voiceStatus.none.next).toMatch(/Nothing is wrong/)
+    // Unfinished setup says how to finish it; it is never presented as voice-ready.
+    expect(en.voiceStatus.none.next).toMatch(/OPENAI_API_KEY/)
+    expect(en.voiceStatus.none.next).toMatch(/nothing else to turn on/)
+    expect(en.voiceStatus.none.what).toMatch(/isn't finished setting up/)
+    // Turning speech off on purpose is its own state, not a setup gap.
+    expect(en.voiceStatus.off.what).toMatch(/turned off/)
+    expect(en.voiceStatus.off.next).toMatch(/TTS_PROVIDER=none/)
     expect(en.voiceStatus.down.next).toMatch(/checks again/)
   })
 

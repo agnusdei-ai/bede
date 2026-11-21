@@ -3,9 +3,7 @@
 Every feature speaks in Bede's own voice and in no other. Bede's reference
 voice is OpenAI's, the voice the public demo uses (owner direction 2026-11-20,
 `docs/DECISIONS.md` entry 46). Installed Bede speaks in that same voice when
-cloud speech is configured (a key set and `TTS_PROVIDER` not `none`; that check
-is not itself proof of permission, and an explicit operator enable is a separate
-proposal in entry 46). A different voice, Piper included,
+cloud speech is configured. A different voice, Piper included,
 is never switched in automatically, and any future change to Bede's voice needs
 a separate proposal and the owner's approval after hearing the actual candidate.
 
@@ -13,10 +11,16 @@ a separate proposal and the owner's approval after hearing the actual candidate.
 voice when `OPENAI_API_KEY` is set and `TTS_PROVIDER` is empty. That means each
 line Bede speaks (never what the child said) is sent to OpenAI to be voiced; see
 `docs/VENDOR_DATA_FLOW.md`. To use no speech at all, set `TTS_PROVIDER=none` or
-leave the key unset. With no voice, a switched-off voice, or a voice that is
+leave the key unset. There is no second activation step: a key in `.env` is the
+whole setup, and the voice works on the next start. The setup wizard and
+`setup.sh` write `OPENAI_API_KEY` when OpenAI is the chosen provider; a family
+that chose Claude, Mistral or a local model adds `OPENAI_API_KEY=` to `.env`
+itself and restarts Bede to get the voice. With no voice, a switched-off voice, or a voice that is
 not answering, Bede **continues without narration**: every prompt and piece of
 feedback stays on screen, a practice round leaves out the items that only work
-by ear, and Parent Setup's **Bede's voice** card says which of these it is.
+by ear, and Parent Setup's **Bede's voice** card says which of these it is:
+setup unfinished (with how to finish it, and not presented as voice-ready),
+turned off on purpose, or not answering.
 Bede stays fully usable. It never falls back to the browser's own built-in
 voice or to a different voice, and screen readers are untouched.
 

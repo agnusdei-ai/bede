@@ -323,16 +323,20 @@ def test_an_edit_to_the_voice_server_alone_still_runs_these_tests():
     assert "voice-service/" in line.split("'")[1].strip("^()").split("|")
 
 
-@pytest.mark.parametrize("local,key,expected", [
-    ("", "sk-test", {"configured": True, "where": "cloud", "available": True}),
-    ("", "", {"configured": False, "where": None, "available": False}),
-    ("http://127.0.0.1:9", "", {"configured": False, "where": None, "available": False}),  # a URL alone: Piper is off
-    ("http://127.0.0.1:9", "sk-test", {"configured": True, "where": "cloud", "available": True}),
+@pytest.mark.parametrize("provider,local,key,expected", [
+    # A configured installation speaks at once: a key is the whole setup.
+    ("", "", "sk-test", {"configured": True, "where": "cloud", "reason": None, "available": True}),
+    # No credentials: text-first, and the reason says setup is unfinished.
+    ("", "", "", {"configured": False, "where": None, "reason": "not_set_up", "available": False}),
+    ("", "http://127.0.0.1:9", "", {"configured": False, "where": None, "reason": "not_set_up", "available": False}),  # a URL alone: Piper is off
+    ("", "http://127.0.0.1:9", "sk-test", {"configured": True, "where": "cloud", "reason": None, "available": True}),
+    # An operator turning speech off on purpose is a different state.
+    ("none", "", "sk-test", {"configured": False, "where": None, "reason": "off", "available": False}),
 ])
-def test_the_voice_status_route_says_whether_where_and_if_bede_can_speak(monkeypatch, local, key, expected):
+def test_the_voice_status_route_says_whether_where_and_if_bede_can_speak(monkeypatch, provider, local, key, expected):
     from routers.tutor import voice_status
 
-    monkeypatch.setattr(settings, "tts_provider", "")
+    monkeypatch.setattr(settings, "tts_provider", provider)
     monkeypatch.setattr(settings, "local_tts_url", local)
     monkeypatch.setattr(settings, "openai_api_key", key)
     vs._http_client = None
@@ -351,7 +355,7 @@ def test_an_asked_for_piper_voice_that_is_down_reports_where_it_is_and_unavailab
     vs._http_client = None
     try:
         assert asyncio.run(voice_status(auth={"role": "parent", "locale": "en"})) == {
-            "configured": True, "where": "local", "available": False}
+            "configured": True, "where": "local", "reason": None, "available": False}
     finally:
         asyncio.run(vs.aclose_http_client())
 

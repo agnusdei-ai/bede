@@ -160,6 +160,37 @@ repair agent is correctly unaffected either way: its gate requires
 `needs.check.result == 'failure'`, and a starved job is `cancelled`, so
 it stays skipped. Never widen that to `!= 'success'`.
 
+### One dropped connection is retried once, and nothing else is
+
+`scripts/demo_watchdog_run.py` runs the journey for each device. A device
+that fails is run once more, after 30 seconds, only when its report shows
+a transient load or connection failure:
+
+- the page answered with a gateway error (502, 503, 504, 408, or
+  Cloudflare's 520-524) or with nothing at all, or
+- a request failed at the transport level (a reset, a timeout, a failed
+  name lookup),
+
+and nothing in the report points at a deterministic cause. The following
+are never retried:
+
+- a failed check with no transport failure;
+- a server error from the API;
+- a policy refusal of the backend call;
+- a CORS-shaped `net::ERR_FAILED`;
+- a journey that left no readable report.
+
+A device that passes the second time reads **passed on retry** in the run
+summary. Both attempts are kept: `journey-report-<device>.attempt-1.json`
+and `journey-report-<device>.json`. A device that fails the second time
+fails the run, in the same run. A device is green only if one full journey
+succeeded, so the retry cannot make a broken demo pass.
+
+Added after 2026-11-18 18:15. The desktop check failed because the
+connection was reset while its browser loaded the demo's main script. The
+other two devices passed seconds later, as did every following run, and
+the owner was emailed that the demo was broken.
+
 **Why a browser and not another `curl /health`.** `keep-demo-warm.yml`
 already curls `/health` every 10 minutes and reported healthy right
 through the 2026-08-04 outage. It could not have caught it: curl does not

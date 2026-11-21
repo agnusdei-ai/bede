@@ -33,7 +33,7 @@ the single most consequential Greek word in Christian thought.
 TEXTUAL TRADITION IS DELIBERATELY SIDESTEPPED. Greek has a live, and
 sometimes heated, divide the Vulgate does not: the Textus Receptus (behind
 the KJV/NKJV) against the modern critical text (Nestle-Aland/UBS, behind
-the ESV/NIV/NASB/CSB). A K-8 tutoring subject has no business adjudicating
+the ESV/NIV/NASB/CSB). A K-12 tutoring subject has no business adjudicating
 it. So every anchor below was chosen from passages where the two
 traditions read identically at the phrase being quoted — verified at
 authoring time against both. This is the same reasoning that made

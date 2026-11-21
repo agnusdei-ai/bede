@@ -14,6 +14,7 @@ import i18n from '../i18n'
 import en from '../i18n/locales/en.json'
 import es from '../i18n/locales/es.json'
 import type { MapLesson, MapScene as Scene } from '../services/api'
+import { mapTransport } from '../services/practiceTransports'
 import MapPractice, { promptText } from './MapPractice'
 import { KNOWN_SYMBOLS } from './MapScene'
 
@@ -46,7 +47,7 @@ const lesson = (): MapLesson => ({
 })
 
 const open = async (onClose = vi.fn(), onSpeak?: (s: string) => void) => {
-  render(<MapPractice token="tok" studentName="Sam" onClose={onClose} onSpeak={onSpeak} />)
+  render(<MapPractice transport={mapTransport('tok', 'Sam')} onClose={onClose} onSpeak={onSpeak} />)
   await screen.findByTestId('map-question')
   return onClose
 }
@@ -137,7 +138,7 @@ describe('MapPractice', () => {
   it('offers a retry when the lesson cannot be loaded, and the way back still works', async () => {
     fetchMapLesson.mockReset().mockRejectedValueOnce(new Error('map practice 503')).mockResolvedValue(lesson())
     const onClose = vi.fn()
-    render(<MapPractice token="tok" studentName="Sam" onClose={onClose} />)
+    render(<MapPractice transport={mapTransport('tok', 'Sam')} onClose={onClose} />)
     await screen.findByText('The map could not be loaded.')
     fireEvent.click(screen.getByRole('button', { name: 'Back to Bede' }))
     expect(onClose).toHaveBeenCalled()
@@ -149,7 +150,7 @@ describe('MapPractice', () => {
     const onSpeak = vi.fn()
     await open(vi.fn(), onSpeak)
     await waitFor(() => expect(onSpeak).toHaveBeenCalledTimes(1))
-    expect(onSpeak).toHaveBeenCalledWith('Tap what is north of the house.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Tap what is north of the house.'))
   })
 
   it('draws only known symbols', async () => {

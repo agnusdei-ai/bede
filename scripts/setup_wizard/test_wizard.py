@@ -1174,3 +1174,79 @@ def test_hand_entered_local_model_cannot_inject_env_lines(running_wizard):
         })
     assert exc_info.value.code == 400
     assert not os.path.exists(wizard.ENV_PATH)
+
+
+# ── Bede's voice, and a re-run keeping what must be kept ────────────────
+
+def _submit(base, **extra):
+    fields = {"anthropic_key": "sk-ant-real-key", "db_choice": "local",
+              "parent_password": "parentpass123", "child_pin": TEST_PIN,
+              "license_key": MOCK_ENTITLEMENT, **extra}
+    resp = _post(base, fields)
+    assert resp.status == 200
+    return dict(l.split("=", 1) for l in open(wizard.ENV_PATH).read().splitlines()
+                if "=" in l and not l.startswith("#"))
+
+
+def test_voice_key_is_written_without_changing_the_tutoring_provider(running_wizard):
+    env = _submit(running_wizard, voice_key="sk-voice-key-123")
+    assert env["OPENAI_API_KEY"] == "sk-voice-key-123"
+    assert env["BEDE_ADAPTER_ORDER"] == "anthropic"
+    assert "TTS_PROVIDER" not in env
+
+
+def test_leaving_the_voice_key_blank_writes_no_openai_key(running_wizard):
+    env = _submit(running_wizard)
+    assert "OPENAI_API_KEY" not in env and "TTS_PROVIDER" not in env
+
+
+def test_the_openai_tutoring_key_is_not_replaced_by_a_voice_field(running_wizard):
+    env = _submit(running_wizard, provider="openai", openai_key="sk-proj-tutor-key",
+                  voice_key="sk-other-voice-key")
+    assert env["OPENAI_API_KEY"] == "sk-proj-tutor-key"
+    assert env["BEDE_ADAPTER_ORDER"] == "openai"
+
+
+def test_a_voice_key_cannot_carry_another_env_line(running_wizard):
+    data = urllib.parse.urlencode({
+        "anthropic_key": "sk-ant-real-key", "db_choice": "local", "parent_password": "parentpass123",
+        "child_pin": TEST_PIN, "license_key": MOCK_ENTITLEMENT,
+        "voice_key": "sk-voice-key-123\nPRODUCTION=false"}).encode()
+    with pytest.raises(urllib.error.HTTPError) as err:
+        urllib.request.urlopen(urllib.request.Request(f"{running_wizard}/submit", data=data, method="POST"))
+    assert err.value.code == 400
+    assert not os.path.exists(wizard.ENV_PATH)
+
+
+def test_a_rerun_keeps_secrets_the_voice_key_and_a_deliberate_speech_off(running_wizard):
+    first = _submit(running_wizard, voice_key="sk-voice-key-123")
+    second = _submit(running_wizard)
+    for name in ("SECRET_KEY", "MASTER_SECRET", "POSTGRES_PASSWORD", "OPENAI_API_KEY"):
+        assert second[name] == first[name], name
+    with open(wizard.ENV_PATH, "a") as handle:
+        handle.write("TTS_PROVIDER=none\n")
+    third = _submit(running_wizard, voice_key="sk-another-key-456")
+    assert third["TTS_PROVIDER"] == "none"
+    assert "OPENAI_API_KEY" not in third
+    assert third["SECRET_KEY"] == first["SECRET_KEY"]
+
+
+def test_the_form_never_prints_a_stored_key(running_wizard):
+    _submit(running_wizard, voice_key="sk-voice-key-123")
+    page = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert "sk-voice-key-123" not in page and "voice is connected" in page
+
+
+def test_a_rerun_keeps_settings_the_wizard_does_not_manage(running_wizard):
+    _submit(running_wizard)
+    with open(wizard.ENV_PATH, "a") as handle:
+        handle.write("RESEND_API_KEY=re_sample_mail_key\nSANDBOX_PIN=482913\nANTHROPIC_API_KEY=old-removed\n")
+    env = _submit(running_wizard, anthropic_key="sk-ant-new")
+    assert env["RESEND_API_KEY"] == "re_sample_mail_key" and env["SANDBOX_PIN"] == "482913"
+    assert env["ANTHROPIC_API_KEY"] == "sk-ant-new"
+
+
+def test_the_voice_field_is_not_shown_when_openai_already_supplies_the_key(running_wizard):
+    page = urllib.request.urlopen(f"{running_wizard}/").read().decode()
+    assert 'id="voice_key_field"' in page and "showProvider" in page
+    assert "voiceField.style.display = (p === 'openai')" in page

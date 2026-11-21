@@ -29,7 +29,7 @@ than policy-based:
   `CLAUDE.md`'s "Agentic tools include" section) — none of which can
   execute arbitrary code, reach the network, or touch the filesystem
   beyond its own database rows.
-- **The domain is closed.** Bede tutors a fixed set of K-8 Catholic
+- **The domain is closed.** Bede tutors a fixed set of K-12 Catholic
   Classical subjects (`services/ai_service.py`'s `_SUBJECT_CONTEXT`); it
   has no general-purpose assistant mode to redirect toward attack
   tooling or CBRN uplift content.
@@ -1507,7 +1507,7 @@ animation, self-harm or suicide, sexual content or nudity, graphic violence,
   rules). Two tiers, no added latency or vendor cost: Tier 1
   (`services/adversarial_detection.py`'s `detect_tier1`) is free, instant,
   deterministic regex, curated for near-zero false positives against
-  ordinary K-8 Socratic dialogue and creative-writing roleplay, and is the
+  ordinary K-12 Socratic dialogue and creative-writing roleplay, and is the
   only signal still available during a moderation-classifier outage; Tier 2
   extends `services/moderation.py`'s existing per-turn classifier call with
   the same four categories (no second LLM call). `services/policy_engine.py`'s

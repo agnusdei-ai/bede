@@ -263,6 +263,18 @@ and stand-ins are **sample**, **test**, **example** or **mock**. The one
 exemption is the full phrase for "AI" in the two legal notices, whose hashes
 bind every consent and authorization.
 
+---
+
+## 12. Stability code freeze (lifted)
+
+*Source: `CLAUDE.md` → Standing Workflow: Stability Code Freeze (lifted 2026-11-20)*
+
+The pilot v1.0 freeze was lifted by the owner in writing on 2026-11-20
+(`docs/DECISIONS.md` entry 45, amendment). `main` takes ordinary pull requests
+and none carries a `Freeze exception:` line. `site/` and `demo/` still need the
+owner's sign-off, and #862 and the pilot work on #837 still land only when the
+owner says so.
+
 ## The refusals
 
 Not loops, but the constraints every loop runs inside. These outrank

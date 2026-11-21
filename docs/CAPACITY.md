@@ -172,19 +172,6 @@ now count against the general API bucket; every credential attempt still
 counts against the sign-in bucket (`core/middleware.py`,
 `tests/test_middleware.py`).
 
-## Planning simulation (not a measurement)
-
-`scripts/qualification/capacity/sim_profiles.py` models active users sharing
-one inference server, to size what a model/runtime/hardware profile must
-deliver for the supported targets (10 active users per household, 30 per school)
-before any model is run. It applies the owner's latency thresholds per user,
-counts queueing from submission, and covers staggered and synchronized-burst
-arrivals. Its throughput inputs are labelled `assumption` or `project_doc`
-(`sim_profiles.json`), and a profile without a real measurement is reported
-NOT_MEASURED and never qualified. See
-`docs/design/AFFORDABLE_OPEN_WEIGHT_PATH.md` section 7.1a for what it showed.
-Run it with `python3 scripts/qualification/capacity/sim_profiles.py`.
-
 ## The database pool setting
 
 `DB_POOL_SIZE` and `DB_MAX_OVERFLOW` (default 5 and 5, the values the engine

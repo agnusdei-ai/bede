@@ -149,13 +149,19 @@ def level_for_grade(grade: str) -> Optional[str]:
     return g if g in LEVELS else None
 
 
-def topic_for(level: str, vector: Optional[dict] = None) -> str:
+def topic_for(level: str, vector: Optional[dict] = None, seed: int = 0) -> str:
     """The first of the level's topics whose skill the saved math record does
-    not show as secure; with no record, the level's first topic."""
+    not show as secure; with no record, the level's first topic.
+
+    Topics that practise the SAME skill (equal groups and sharing fairly both
+    record oa.arrays_equal_groups) are one stop on that walk: the lesson's
+    seed picks between them, so sharing is practised while the skill is still
+    being learned rather than only after it is secure."""
     topics = LEVEL_TOPICS[level]
     for topic in topics:
         if vector is None or classify_level(vector.get(TOPIC_SKILL[topic], 0.5)) != "secure":
-            return topic
+            same = [t for t in topics if TOPIC_SKILL[t] == TOPIC_SKILL[topic]]
+            return same[seed % len(same)]
     return topics[-1]
 
 

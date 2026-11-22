@@ -1001,3 +1001,56 @@ def test_a_sharing_picture_starts_with_every_counter_off_the_plates():
     for seed in range(100):
         d = pm.build_task("2", "share", seed, "your_turn", 0).diagram
         assert d["kind"] == "equal_groups" and d["loose"] % d["groups"] == 0 and not d.get("each")
+
+
+def test_equal_groups_and_sharing_are_one_stop_chosen_by_the_lesson_seed():
+    """Both practise oa.arrays_equal_groups, so while that skill is being
+    learned a lesson is either, by seed; sharing is never held back until the
+    skill is already secure."""
+    secure = {s: 0.95 for s in ("oa.add_within_20", "oa.subtract_within_20", "cc.number_bonds",
+                                 "cc.skip_count_2_5_10")}
+    picked = {pm.topic_for("2", secure, seed) for seed in range(10)}
+    assert picked == {"groups", "share"}
+    assert pm.topic_for("2", {**secure, "cc.skip_count_2_5_10": 0.4}, 1) == "skip"
+    # A topic with a skill of its own is chosen exactly as before.
+    assert {pm.topic_for("1", {}, seed) for seed in range(10)} == {"add"}
+
+
+async def _secure(db, name, skills):
+    for skill in skills:
+        for _ in range(12):
+            await math_record.process_evidence(db, name, f"probe.{skill}", "correct", 1.0, "K-2")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("seed,topic,skill", [
+    (0, "groups", "oa.arrays_equal_groups"),
+    (1, "share", "oa.arrays_equal_groups"),
+])
+async def test_the_grade_two_rounds_are_wired_to_the_skill_map_through_the_real_route(db, seed, topic, skill):
+    """From the saved record to the lesson, to the answer, to the ledger row,
+    the mastery observation and its name on the Progress page."""
+    await _secure(db, "Gus", ("oa.add_within_20", "oa.subtract_within_20", "cc.number_bonds",
+                              "cc.skip_count_2_5_10"))
+    with patch.object(routes.secrets, "randbelow", lambda _n: seed):
+        lesson = await _lesson(db, "Gus")
+    assert (lesson["level"], lesson["topic"], lesson["skill"]) == ("2", topic, skill)
+    assert get_skill(skill).band == GradeBand.K_2
+    task = _task("Gus", lesson, "your_turn", 0)
+    before = (await _vector(db, "Gus"))[skill]
+    result = await _send(db, "Gus", lesson, "your_turn", 0, choice=task.accept_choice)
+    assert result["recorded"] is True
+    rows = [r for r in (await db.execute(select(SkillActivityLog))).scalars() if r.skill_id == skill]
+    assert len(rows) == 1 and rows[0].subject_area == "mathematics"
+    assert (await _vector(db, "Gus"))[skill] > before
+    assert ai_service._work_label("mathematics", skill) == get_skill(skill).label
+
+
+@pytest.mark.asyncio
+async def test_skip_counting_is_offered_once_number_bonds_are_secure_and_records_skip_counting(db):
+    await _secure(db, "Gus", ("oa.add_within_20", "oa.subtract_within_20", "cc.number_bonds"))
+    lesson = await _lesson(db, "Gus")
+    assert (lesson["topic"], lesson["skill"]) == ("skip", "cc.skip_count_2_5_10")
+    task = _task("Gus", lesson, "your_turn", 0)
+    assert (await _send(db, "Gus", lesson, "your_turn", 0, choice=task.accept_choice))["recorded"] is True
+    assert [r.skill_id for r in (await db.execute(select(SkillActivityLog))).scalars()] == ["cc.skip_count_2_5_10"]

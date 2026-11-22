@@ -282,6 +282,33 @@ list as items are closed.
 
 ## Closed gaps
 
+- **Files that reached the tutor without the upload checks, and a voice
+  check that trusted a file's name — closed 2026-11-22 (owner direction:
+  "If a child's input file or lesson is infected, Bede should be able to
+  detect it", across the product).** Practice Coach and quiz pages were
+  already checked by their bytes, scanned by a local clamd when
+  `PRACTICE_SCANNER_URL` is set, and rebuilt from their pixels
+  (`services/practice/upload_safety.py`). Three other ways a file reaches
+  Bede had none of that: a lesson photo or a writing-pad drawing went to the
+  content check and the tutor as the device sent it (metadata, appended
+  payloads and all); a narration file was checked for active PDF content but
+  never scanned; and a voice recording was accepted when its *name* ended in
+  `.wav`, whatever its bytes were. `services/file_safety.py` is now the one
+  gate for all of them: a lesson picture is checked by its bytes, scanned,
+  and rebuilt to a fresh PNG before anything else sees it (only the rebuilt
+  picture goes on); a narration file must match its kind and is scanned
+  before text is pulled out; a recording must be audio by its bytes (a
+  streamed piece may be raw samples, never another kind of file) and is
+  scanned. A file the scanner recognises is refused, recorded as
+  `AuditEvent.FILE_FLAGGED` with only the scanner's signature name, and
+  alerts `PARENT_EMAIL` at once (one is enough, pooled across addresses,
+  since the detection point has none); a child is only told Bede couldn't
+  use the picture. An unreachable configured scanner refuses the file (fail
+  closed). **Detection needs a scanner**: with `PRACTICE_SCANNER_URL` unset,
+  files are still checked and rebuilt, but nothing is virus-scanned and
+  nothing claims otherwise. `tests/test_file_safety.py`, each guard verified
+  by breaking it.
+
 - **A picture safety alert could repeat, go to the wrong place, or fail
   unseen — closed 2026-11-14 (owner direction).** The chat's crisis email
   was sent fire-and-forget straight to `PARENT_EMAIL`: a retried turn (the

@@ -1369,6 +1369,18 @@ the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
 `tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
 refused at startup, and if it is set and cannot be reached, uploads are refused.
 
+**The same checks cover every file, not only Practice Coach.** A photo or
+drawing your child sends in a lesson, a narration file from a smart-pen app,
+and every voice recording go through the same gate: each is judged by what is
+actually inside it (a file renamed to look like a recording is refused),
+scanned by your clamd when you run one, and a photo or drawing is rebuilt from
+its pixels before Bede looks at it. If the scanner recognises a file as
+harmful, Bede refuses it, keeps no copy, tells your child only that it
+couldn't use that picture, and emails you straight away (your `PARENT_EMAIL`),
+so you can check the device it came from. Without a scanner, files are still
+checked and rebuilt, but nothing is virus-scanned, and Bede never says a file
+is virus-free.
+
 ### Make a quiz or exam
 
 On the same Progress page, **Make a quiz or exam** drafts a new quiz from:

@@ -27,30 +27,26 @@ from services.streaming_transcription import (
     session_authz,
     start_session,
 )
-from services import pilot_authz
+from services import file_safety, pilot_authz
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 
 _MAX_AUDIO_BYTES = 10 * 1024 * 1024
-_AUDIO_MAGIC_BYTES = {
-    b"RIFF":          "wav",
-    b"OggS":          "ogg",
-    b"\x1aE\xdf\xa3": "webm",
-    b"\xff\xfb":      "mp3",
-    b"ID3":           "mp3",
-}
 
 
-def _validate_audio(data: bytes, filename: str) -> None:
+async def _validate_audio(data: bytes, filename: str, *, raw_samples: bool = False) -> None:
+    """A voice recording is accepted by its bytes, never its name: it must be
+    audio, and it is virus-scanned when the household runs a scanner
+    (services/file_safety.py). `filename` is kept for the callers' sake and
+    deliberately not consulted."""
     if len(data) > _MAX_AUDIO_BYTES:
         raise HTTPException(status_code=413, detail="Audio file too large (max 10 MB)")
-    for magic in _AUDIO_MAGIC_BYTES:
-        if data[:len(magic)] == magic:
-            return
-    ext = filename.rsplit(".", 1)[-1].lower()
-    if ext in {"wav", "webm", "ogg", "mp4", "m4a", "mp3"}:
-        return
-    raise HTTPException(status_code=415, detail="Unsupported file type — only audio files are accepted")
+    try:
+        await file_safety.audio(data, raw_samples=raw_samples)
+    except file_safety.FileRejected:
+        raise HTTPException(status_code=415, detail="Unsupported file type — only audio files are accepted")
+    except (file_safety.ScannerUnavailable, file_safety.UploadBusy):
+        raise HTTPException(status_code=503, detail="The recording could not be checked just now; please try again.")
 
 
 # Biometric profiles in voice_profiles are keyed only by student_name, not
@@ -94,7 +90,7 @@ async def enroll(
     audio_bytes_list = []
     for sample in samples:
         data = await sample.read()
-        _validate_audio(data, sample.filename or "audio")
+        await _validate_audio(data, sample.filename or "audio")
         audio_bytes_list.append(data)
 
     try:
@@ -127,7 +123,7 @@ async def verify(
     await require_learner_access(auth, student_name, db)
     ctx = audit_from_request(request)
     data = await audio.read()
-    _validate_audio(data, audio.filename or "audio")
+    await _validate_audio(data, audio.filename or "audio")
 
     result = await verify_student(student_name, data, db)
 
@@ -214,7 +210,7 @@ async def transcribe(
     Result is returned inline — not stored anywhere on the server.
     """
     data = await audio.read()
-    _validate_audio(data, audio.filename or "audio")
+    await _validate_audio(data, audio.filename or "audio")
     result = await transcribe_audio(data, language=language)
     return {"text": result.get("text", ""), "language": result.get("language", language)}
 
@@ -330,7 +326,8 @@ async def stream_chunk(
     auth: dict = Depends(require_auth),
 ):
     data = await audio.read()
-    _validate_audio(data, audio.filename or "audio")
+    # The app streams raw sound samples here, with no file header.
+    await _validate_audio(data, audio.filename or "audio", raw_samples=True)
     owner = _stream_owner(auth)
     if auth.get("role") == "educator":
         owner, ctx = _educator_owner(session_id, auth)

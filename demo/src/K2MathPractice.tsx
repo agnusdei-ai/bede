@@ -5,6 +5,7 @@ import { Volume2 } from 'lucide-react'
 import type { MathLesson, MathPracticeTransport, MathTask } from './k2MathTypes'
 import RoutineShell, { type RoutineStep } from './RoutineShell'
 import { Counter, MathPicture, TenFrameBuilder } from './MathPieces'
+import { PrintPracticeButton, mathPrintItems, printPractice } from './k2PrintSheet'
 import { PRACTICE_PRIMARY as PRIMARY, PRACTICE_TARGET as TARGET } from './practiceStyles'
 
 /**
@@ -65,6 +66,7 @@ export default function K2MathPractice({
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<MathLesson | null>(null)
   const [failed, setFailed] = useState(false)
+  const [printTrouble, setPrintTrouble] = useState(false)
   const [step, setStep] = useState<RoutineStep>('watch')
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
@@ -219,7 +221,12 @@ export default function K2MathPractice({
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={onClose} className={PRIMARY}>{t('k2Math.backToBede')}</button>
           <button type="button" onClick={() => load()} className={SECONDARY}>{t('k2Math.another')}</button>
+          <PrintPracticeButton t={t} className={SECONDARY} onPrint={() => {
+            setPrintTrouble(false)
+            void printPractice(t, title, mathPrintItems(t, lesson)).then((ok) => setPrintTrouble(!ok))
+          }} />
         </div>
+        {printTrouble && <p role="alert" className="text-base text-navy-700 text-center">{t('printSheet.failed')}</p>}
       </RoutineShell>
     )
   }

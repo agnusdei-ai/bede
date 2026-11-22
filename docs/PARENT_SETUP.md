@@ -1369,6 +1369,18 @@ the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
 `tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
 refused at startup, and if it is set and cannot be reached, uploads are refused.
 
+**The same checks cover every file, not only Practice Coach.** A photo or
+drawing your child sends in a lesson, a narration file from a smart-pen app,
+and every voice recording go through the same gate: each is judged by what is
+actually inside it (a file renamed to look like a recording is refused),
+scanned by your clamd when you run one, and a photo or drawing is rebuilt from
+its pixels before Bede looks at it. If the scanner recognises a file as
+harmful, Bede refuses it, keeps no copy, tells your child only that it
+couldn't use that picture, and emails you straight away (your `PARENT_EMAIL`),
+so you can check the device it came from. Without a scanner, files are still
+checked and rebuilt, but nothing is virus-scanned, and Bede never says a file
+is virus-free.
+
 ### Make a quiz or exam
 
 On the same Progress page, **Make a quiz or exam** drafts a new quiz from:
@@ -2298,6 +2310,22 @@ and "That's it" or "Let's look again") go to the same speech service that
 voices Bede's chat replies. Your child's answers never do. Turning Bede's voice
 off in the chat turns it off here too. Every Number Time question can be
 answered from the picture on screen, so it works without sound too.
+
+## Printing a K-2 round, or saving it as a PDF
+
+When your child finishes Sound Time, Number Time or Map Practice, the last
+screen has a **Print or save as PDF** button. It opens your device's own
+print dialog, the same one Practice Coach's worksheets use, so it works the
+same way on Windows, a Mac, an iPhone or iPad, Android and Linux: print to
+paper, or choose "Save as PDF" (on an iPhone or iPad, share the print preview
+to Files) to keep a copy.
+
+The sheet has your child's name and date lines, the round's questions with
+their pictures, and a line or a box to circle for each answer. It shows each
+question the way "Your turn" does, so nothing on the page gives an answer
+away, and it carries no answer key. Questions that only work by ear (a word
+to listen for, a sight word Bede says aloud) are left off, because paper
+cannot say them. Printing records nothing and sends nothing anywhere.
 
 ## The writing pad: drawings, and where they go
 

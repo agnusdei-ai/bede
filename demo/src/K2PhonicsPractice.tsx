@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next'
 import { Volume2 } from 'lucide-react'
 import type { PhonicsLesson, PhonicsPracticeTransport, PhonicsTask } from './k2PhonicsTypes'
 import { Picture } from './Diagram'
+import { PrintPracticeButton, phonicsPrintItems, printPractice } from './k2PrintSheet'
 import RoutineShell, { type RoutineStep } from './RoutineShell'
 import { PRACTICE_PRIMARY, PRACTICE_TARGET } from './practiceStyles'
 
@@ -87,6 +88,7 @@ export default function K2PhonicsPractice({
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<PhonicsLesson | null>(null)
   const [failed, setFailed] = useState(false)
+  const [printTrouble, setPrintTrouble] = useState(false)
   const [step, setStep] = useState<RoutineStep>('watch')
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
@@ -204,7 +206,12 @@ export default function K2PhonicsPractice({
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={onClose} className={PRIMARY}>{t('k2Phonics.backToBede')}</button>
           <button type="button" onClick={load} className={SECONDARY}>{t('k2Phonics.another')}</button>
+          <PrintPracticeButton t={t} className={SECONDARY} onPrint={() => {
+            setPrintTrouble(false)
+            void printPractice(t, title, phonicsPrintItems(t, lesson)).then((ok) => setPrintTrouble(!ok))
+          }} />
         </div>
+        {printTrouble && <p role="alert" className="text-base text-navy-700 text-center">{t('printSheet.failed')}</p>}
       </RoutineShell>
     )
   }

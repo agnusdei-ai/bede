@@ -119,7 +119,7 @@ G3 collector's guided mode. Run on the Mac, from the folder holding the
 unzipped artifact:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/agnusdei-ai/bede/<collector commit>/scripts/mac/collect-g3-evidence.sh
+curl -fsSLO https://raw.githubusercontent.com/agnusdei-ai/bede/93d121a4eb048f0b3c2503fe81cfb0ed2c3697b8/scripts/mac/collect-g3-evidence.sh
 bash collect-g3-evidence.sh --session \
   --candidate 2eeed597fd90feea0e4592ec77fd79a6be535c00 \
   --dmg ./Bede-Engineering-Mac-arm64.dmg --license-file ~/path/to/licence.txt \

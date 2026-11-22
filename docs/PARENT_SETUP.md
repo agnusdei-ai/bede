@@ -2254,12 +2254,20 @@ then three alone. The pieces are:
 - **A ten-frame**: put counters in, or take them out, to show a number, add
   some more, or take some away; or say how many are there in all, or left.
 - **A number bond**: a whole and its two parts, with one part missing.
+- **Plates of counters (grade 2 only)**: the bridge to multiplication and
+  division, met a year before they are named. Your child counts plates of 2,
+  5 or 10 by 2s, 5s or 10s; says how many are on several equal plates; or
+  shares a pile of counters fairly onto plates and says how many each gets.
+  No times or divide sign is ever shown: those come in grade 3, as Bede's
+  year plans already set out.
 
 Kindergarten starts with counting, grade 1 with adding, and grade 2 with
 adding past ten on two ten-frames. As your child's math record shows a skill
 is secure, the next round moves on to the next one. Only skills already in
 Bede's math record are used: counting objects, comparing quantities, adding
-and taking away within 20, and number bonds.
+and taking away within 20, number bonds, and for grade 2 skip counting and
+equal groups. Sharing fairly counts toward equal groups, the same skill, so
+your child's math record has no separate "division" line before grade 3.
 
 Your child answers by tapping a number, by tapping which row has more, or by
 putting counters on the frame and tapping **Check**. A counter can be dragged

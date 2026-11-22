@@ -651,6 +651,10 @@
   },
   "k2Math": {
     "watchAgain": "Watch again",
+    "groupsLabel": "{{groups}} plates with {{each}} counters on each",
+    "shareLabel": "{{total}} counters to share onto {{groups}} plates",
+    "groupsQuiet": "Plates of counters",
+    "shareQuiet": "Counters to share, and empty plates",
     "title": "Number Time",
     "open": "Try Number Time",
     "chooseTopic": "Choose a topic",
@@ -659,7 +663,10 @@
       "compare": "Compare",
       "add": "Add",
       "subtract": "Subtract",
-      "bond": "Number bonds"
+      "bond": "Number bonds",
+      "skip": "Skip counting",
+      "groups": "Equal groups",
+      "share": "Sharing fairly"
     },
     "loading": "Getting the counters ready…",
     "loadTrouble": "The practice could not be loaded.",
@@ -716,7 +723,10 @@
       "subtract_how_many": "There were {{a}}. {{b}} are crossed out. How many are left?",
       "subtract_build": "Here are {{a}}. Take {{b}} away.",
       "bond_missing": "{{whole}} is {{part}} and what?",
-      "bond_build": "Here are {{part}}. Put in more until there are {{whole}}."
+      "bond_build": "Here are {{part}}. Put in more until there are {{whole}}.",
+      "skip_how_many": "Count by {{by}}s. How many counters in all?",
+      "groups_how_many": "{{groups}} plates with {{each}} on each. How many in all?",
+      "share_each": "Share {{total}} counters fairly onto {{groups}} plates. How many on each plate?"
     },
     "watch": {
       "count_how_many": "Watch me count. I touch each one, and the last number I say is how many: {{answer}}.",
@@ -727,7 +737,10 @@
       "subtract_how_many": "There were {{a}}. I cross out {{b}}. I count what is left: {{answer}}.",
       "subtract_build": "Here are {{a}}. Watch me take {{b}} away. Now there are {{answer}}.",
       "bond_missing": "{{whole}} is {{part}} and {{answer}}. Together they make {{whole}}.",
-      "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}."
+      "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}.",
+      "skip_how_many": "Watch me count by {{by}}s, one plate at a time. That makes {{answer}} in all.",
+      "groups_how_many": "{{groups}} plates with {{each}} on each. I add {{each}} for every plate: {{answer}} in all.",
+      "share_each": "I give one counter to each plate, round and round, until none are left. Each plate gets {{answer}}."
     }
   },
   "k2Phonics": {

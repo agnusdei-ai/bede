@@ -651,6 +651,10 @@
   },
   "k2Math": {
     "watchAgain": "Ver otra vez",
+    "groupsLabel": "{{groups}} platos con {{each}} fichas en cada uno",
+    "shareLabel": "{{total}} fichas para repartir en {{groups}} platos",
+    "groupsQuiet": "Platos con fichas",
+    "shareQuiet": "Fichas para repartir y platos vacíos",
     "title": "Hora de los Números",
     "open": "Probar la Hora de los Números",
     "chooseTopic": "Elige un tema",
@@ -659,7 +663,10 @@
       "compare": "Comparar",
       "add": "Sumar",
       "subtract": "Restar",
-      "bond": "Enlaces numéricos"
+      "bond": "Enlaces numéricos",
+      "skip": "Contar saltando",
+      "groups": "Grupos iguales",
+      "share": "Repartir por igual"
     },
     "loading": "Preparando las fichas…",
     "loadTrouble": "No se pudo cargar la práctica.",
@@ -716,7 +723,10 @@
       "subtract_how_many": "Había {{a}}. {{b}} están tachadas. ¿Cuántas quedan?",
       "subtract_build": "Aquí hay {{a}}. Quita {{b}}.",
       "bond_missing": "{{whole}} es {{part}} y ¿cuánto más?",
-      "bond_build": "Aquí hay {{part}}. Pon más hasta que haya {{whole}}."
+      "bond_build": "Aquí hay {{part}}. Pon más hasta que haya {{whole}}.",
+      "skip_how_many": "Cuenta de a {{by}}. ¿Cuántas fichas hay en total?",
+      "groups_how_many": "{{groups}} platos con {{each}} en cada uno. ¿Cuántas hay en total?",
+      "share_each": "Reparte {{total}} fichas por igual en {{groups}} platos. ¿Cuántas hay en cada plato?"
     },
     "watch": {
       "count_how_many": "Mira cómo cuento. Toco cada una, y el último número que digo es cuántas hay: {{answer}}.",
@@ -727,7 +737,10 @@
       "subtract_how_many": "Había {{a}}. Tacho {{b}}. Cuento las que quedan: {{answer}}.",
       "subtract_build": "Aquí hay {{a}}. Mira cómo quito {{b}}. Ahora hay {{answer}}.",
       "bond_missing": "{{whole}} es {{part}} y {{answer}}. Juntos hacen {{whole}}.",
-      "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}."
+      "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}.",
+      "skip_how_many": "Mira cómo cuento de a {{by}}, plato por plato. Son {{answer}} en total.",
+      "groups_how_many": "{{groups}} platos con {{each}} en cada uno. Sumo {{each}} por cada plato: {{answer}} en total.",
+      "share_each": "Doy una ficha a cada plato, una vuelta tras otra, hasta que no quede ninguna. Cada plato recibe {{answer}}."
     }
   },
   "k2Phonics": {

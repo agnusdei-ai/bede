@@ -250,6 +250,22 @@ practice uses first:
 - **Together:** the child drags the pieces, such as counters into a ten-frame or a clock's hands, with the target faintly shown.
 - **Your turn:** a new problem with no target shown.
 
+**Grade 2's plates of counters (owner direction 2026-11-22).** Three grade 2
+topics, appended to `practical_math.TOPICS` so issued lesson ids still read:
+`skip` (plates of 2, 5 or 10 counted by 2s, 5s or 10s, `cc.skip_count_2_5_10`,
+choices only numbers the count lands on), `groups` (equal plates, how many in
+all, `oa.arrays_equal_groups`) and `share` (counters shared fairly onto empty
+plates, how many on each). Sharing has no K-2 skill of its own and records
+`oa.arrays_equal_groups` (owner ruling 2026-11-22), so no skill id is added. The
+picture is a fourth piece kind, `equal_groups` (`groups`, `each`, `loose`),
+answered by `diagrams.answer` independently of the repeated-addition or
+fair-share working. The guide shows each plate's running total (the skip
+count) or the fair share faintly; Your turn shows neither and its accessible
+name states no number. No times or divide sign appears: they are named in
+grade 3 (`data/catalog/year2.json`, `year3.json`). These are the only Number
+Time numbers past 20 (counting by tens reaches 50). Pick-only, like compare.
+`tests/test_k2_math.py`, `MathPieces.test.tsx`.
+
 **Pictures:** clock, money, ruler, number line, base-ten, array and picture
 groups already exist as diagram kinds. Counters, a ten-frame and a number bond
 are new kinds, added to `diagrams.py`'s closed vocabulary in the same way. Every

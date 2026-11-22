@@ -1369,6 +1369,18 @@ the same computer, set `PRACTICE_SCANNER_URL` to its unix socket (or
 `tcp://127.0.0.1:3310`) to have every upload scanned too; any other address is
 refused at startup, and if it is set and cannot be reached, uploads are refused.
 
+**The same checks cover every file, not only Practice Coach.** A photo or
+drawing your child sends in a lesson, a narration file from a smart-pen app,
+and every voice recording go through the same gate: each is judged by what is
+actually inside it (a file renamed to look like a recording is refused),
+scanned by your clamd when you run one, and a photo or drawing is rebuilt from
+its pixels before Bede looks at it. If the scanner recognises a file as
+harmful, Bede refuses it, keeps no copy, tells your child only that it
+couldn't use that picture, and emails you straight away (your `PARENT_EMAIL`),
+so you can check the device it came from. Without a scanner, files are still
+checked and rebuilt, but nothing is virus-scanned, and Bede never says a file
+is virus-free.
+
 ### Make a quiz or exam
 
 On the same Progress page, **Make a quiz or exam** drafts a new quiz from:
@@ -2254,12 +2266,20 @@ then three alone. The pieces are:
 - **A ten-frame**: put counters in, or take them out, to show a number, add
   some more, or take some away; or say how many are there in all, or left.
 - **A number bond**: a whole and its two parts, with one part missing.
+- **Plates of counters (grade 2 only)**: the bridge to multiplication and
+  division, met a year before they are named. Your child counts plates of 2,
+  5 or 10 by 2s, 5s or 10s; says how many are on several equal plates; or
+  shares a pile of counters fairly onto plates and says how many each gets.
+  No times or divide sign is ever shown: those come in grade 3, as Bede's
+  year plans already set out.
 
 Kindergarten starts with counting, grade 1 with adding, and grade 2 with
 adding past ten on two ten-frames. As your child's math record shows a skill
 is secure, the next round moves on to the next one. Only skills already in
 Bede's math record are used: counting objects, comparing quantities, adding
-and taking away within 20, and number bonds.
+and taking away within 20, number bonds, and for grade 2 skip counting and
+equal groups. Sharing fairly counts toward equal groups, the same skill, so
+your child's math record has no separate "division" line before grade 3.
 
 Your child answers by tapping a number, by tapping which row has more, or by
 putting counters on the frame and tapping **Check**. A counter can be dragged

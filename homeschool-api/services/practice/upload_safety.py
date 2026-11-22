@@ -40,7 +40,8 @@ a file is free of malware.
 * Optional: PRACTICE_SCANNER_URL points at a LOCAL clamd (tcp:// or unix://).
   When set, every upload is streamed to it first and an unreachable scanner
   REFUSES the upload (fail closed). When unset nothing is scanned and nothing
-  claims otherwise. No external scanning service is ever contacted.
+  claims otherwise. No external scanning service is ever contacted. The same
+  scanner checks every other file a person hands Bede (services/file_safety.py).
 
 Raw bytes, extracted content and filenames are never logged here.
 """
@@ -122,6 +123,12 @@ def _ftyp_brands(raw: bytes) -> tuple[bytes, frozenset[bytes]]:
 
 class PhotoRejected(ValueError):
     pass
+
+
+class ScannerFlagged(PhotoRejected):
+    """The local scanner recognised the file as malicious. Refused like any
+    other bad file, and also recorded as `AuditEvent.FILE_FLAGGED`, which
+    alerts the parent at once (core/audit.py)."""
 
 
 class ScannerUnavailable(Exception):
@@ -502,7 +509,12 @@ async def _scan(raw: bytes) -> None:
         raise ScannerUnavailable("The upload scanner is configured but did not answer.") from exc
     text = reply.strip(b"\0\n ").decode("latin-1")
     if text.endswith("FOUND"):
-        raise PhotoRejected("This file was flagged by the upload scanner and was not accepted.")
+        # Only the scanner's own signature name is recorded: never the file,
+        # its name, or anything taken from it.
+        from core.audit import AuditEvent, log_event_nowait
+        signature = re.sub(r"[^A-Za-z0-9._:-]", "", text.rsplit(" ", 2)[-2] if " " in text else "")[:80]
+        log_event_nowait(AuditEvent.FILE_FLAGGED, success=False, detail=f"signature={signature or 'unknown'}")
+        raise ScannerFlagged("This file was flagged by the virus scanner and was not accepted.")
     if not text.endswith("OK"):
         raise ScannerUnavailable("The upload scanner gave an unexpected answer.")
 

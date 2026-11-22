@@ -313,7 +313,8 @@ describe('K2MathPractice', () => {
     const builder = readFileSync(join(__dirname, '../../../homeschool-api/services/k2_practice/practical_math.py'), 'utf8')
     const table = builder.match(/_QUESTION = \{([\s\S]*?)\n\}/)?.[1] ?? ''
     const promptKeys = [...table.matchAll(/"([a-z_]+)":/g)].map((m) => m[1])
-    expect(promptKeys.length).toBe(9)
+    // Nine for K-2, and three for grade 2's plates of counters.
+    expect(promptKeys.length).toBe(12)
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Math.prompt)))
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Math.watch)))
     // The compare choices the server offers each have a word.

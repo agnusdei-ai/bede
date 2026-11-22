@@ -70,7 +70,8 @@ describe('drawn diagrams', () => {
 
   it('draws pictures of things for any subject, and nothing for a name it does not know', () => {
     const { container } = render(<Diagram d={{ kind: 'pictures', groups: [{ icon: 'apple', count: 3 }] }} />)
-    expect([...container.querySelectorAll('text')].filter((t) => t.textContent === ICONS.apple)).toHaveLength(3)
+    expect([...container.querySelectorAll('svg svg title')].filter((t) => t.textContent === ICONS.apple)).toHaveLength(3)
+    expect(container.querySelectorAll('text')).toHaveLength(0)
     cleanup()
     const scene = render(<Diagram d={{ kind: 'scene', icon: 'duck', action: 'swimming' }} />)
     expect(scene.getByRole('img', { name: 'A picture of a duck swimming' })).toBeTruthy()

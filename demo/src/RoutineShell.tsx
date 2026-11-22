@@ -28,9 +28,13 @@ export default function RoutineShell({
       role="dialog" aria-modal="true" aria-label={title}
       className="fixed inset-0 z-40 flex flex-col bg-parchment-50"
     >
-      <header className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-3 short:py-1.5 border-b border-sage-200 bg-white">
-        <h2 className="text-base font-semibold text-navy-700 mr-auto truncate">{title}</h2>
-        <ol className="flex max-w-full flex-wrap items-center justify-center gap-1.5" aria-label={t('routine.steps')}>
+      {/* Two rows on a phone: the title and the way back, then the steps.
+          The right padding keeps everything clear of the floating text-size
+          button (TextSizeControl, fixed top-right), which used to sit on top
+          of the last step. */}
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1 pl-3 pr-16 sm:pl-4 py-2 short:py-1 border-b border-sage-200 bg-white">
+        <h2 className="order-1 min-w-0 flex-1 truncate text-base font-semibold text-navy-700">{title}</h2>
+        <ol className="order-3 flex w-full flex-wrap items-center gap-1.5 sm:order-2 sm:w-auto" aria-label={t('routine.steps')}>
           {ROUTINE_STEPS.map((s, i) => {
             const state = done || i < current ? 'past' : i === current ? 'now' : 'next'
             return (
@@ -49,8 +53,8 @@ export default function RoutineShell({
           })}
         </ol>
         <button
-          type="button" onClick={onClose} aria-label={t('routine.back')}
-          className="min-h-14 min-w-14 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+          type="button" onClick={onClose} aria-label={t('routine.back')} title={t('routine.back')}
+          className="order-2 min-h-14 min-w-14 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 sm:order-3"
         >
           <X size={20} />
         </button>

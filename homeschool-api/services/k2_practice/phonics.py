@@ -70,18 +70,36 @@ AUDIO_ONLY_DOMAINS = frozenset({"sight_words"})
 
 # ── The authored word lists ─────────────────────────────────────────────────
 
-#: Rhyming pairs. Every pair has its own ending, so a word from another pair
-#: never rhymes with the target.
+#: Rhyming pairs. Every pair has its own ending sound, so a word from another
+#: pair never rhymes with the target.
 RHYME_PAIRS: tuple[tuple[str, str], ...] = (
     ("cat", "hat"), ("dog", "frog"), ("bee", "tree"), ("cake", "snake"), ("goat", "boat"),
     ("bear", "chair"), ("mouse", "house"), ("moon", "spoon"), ("fox", "box"), ("bed", "bread"),
-    ("star", "car"),
+    ("star", "car"), ("bone", "phone"), ("sock", "lock"), ("king", "ring"), ("fan", "van"),
+    ("drum", "thumb"), ("nest", "vest"), ("bell", "shell"), ("whale", "snail"), ("rain", "train"),
+    ("fish", "dish"), ("nut", "hut"),
 )
 
-#: A picture and the letter its first sound is written with. No two share a sound.
+#: A picture and the letter its first sound is written with. Each letter has
+#: one sound here, and every picture starts with that plain sound (no
+#: digraphs such as sh, ch, th or ph, and no silent first letters).
 FIRST_SOUNDS: tuple[tuple[str, str], ...] = (
-    ("sun", "s"), ("moon", "m"), ("dog", "d"), ("bee", "b"), ("fish", "f"), ("pig", "p"),
-    ("hat", "h"), ("leaf", "l"), ("rain", "r"), ("goat", "g"), ("water", "w"), ("tooth", "t"),
+    ("sun", "s"), ("sock", "s"), ("seal", "s"), ("soap", "s"),
+    ("moon", "m"), ("mouse", "m"), ("map", "m"),
+    ("dog", "d"), ("duck", "d"), ("dish", "d"),
+    ("bee", "b"), ("ball", "b"), ("bus", "b"), ("bell", "b"), ("bat", "b"),
+    ("fish", "f"), ("fox", "f"), ("fan", "f"),
+    ("pig", "p"), ("pen", "p"),
+    ("hat", "h"), ("house", "h"), ("horse", "h"), ("hut", "h"),
+    ("leaf", "l"), ("lion", "l"), ("lock", "l"), ("log", "l"),
+    ("rain", "r"), ("rabbit", "r"), ("ring", "r"), ("rock", "r"), ("rope", "r"),
+    ("goat", "g"), ("girl", "g"),
+    ("water", "w"), ("wolf", "w"), ("web", "w"),
+    ("tooth", "t"), ("tent", "t"), ("turtle", "t"), ("tiger", "t"),
+    ("nest", "n"), ("nut", "n"), ("nose", "n"),
+    ("van", "v"), ("vest", "v"),
+    ("king", "k"), ("kite", "k"), ("key", "k"),
+    ("jar", "j"), ("yarn", "y"), ("zebra", "z"),
 )
 
 # A grapheme is (letters, sound). The sound is a short spoken cue for speech
@@ -102,6 +120,19 @@ DECODABLE: dict[str, tuple[tuple[str, tuple[_G, ...]], ...]] = {
         ("fox", (("f", "fff"), ("o", "aw"), ("x", "ks"))),
         ("box", (("b", "buh"), ("o", "aw"), ("x", "ks"))),
         ("map", (("m", "mmm"), ("a", "ah"), ("p", "puh"))),
+        ("bat", (("b", "buh"), ("a", "ah"), ("t", "tuh"))),
+        ("rat", (("r", "rrr"), ("a", "ah"), ("t", "tuh"))),
+        ("van", (("v", "vvv"), ("a", "ah"), ("n", "nnn"))),
+        ("fan", (("f", "fff"), ("a", "ah"), ("n", "nnn"))),
+        ("pen", (("p", "puh"), ("e", "eh"), ("n", "nnn"))),
+        ("net", (("n", "nnn"), ("e", "eh"), ("t", "tuh"))),
+        ("web", (("w", "wuh"), ("e", "eh"), ("b", "buh"))),
+        ("log", (("l", "lll"), ("o", "aw"), ("g", "guh"))),
+        ("nut", (("n", "nnn"), ("u", "uh"), ("t", "tuh"))),
+        ("bug", (("b", "buh"), ("u", "uh"), ("g", "guh"))),
+        ("cap", (("c", "kuh"), ("a", "ah"), ("p", "puh"))),
+        ("bag", (("b", "buh"), ("a", "ah"), ("g", "guh"))),
+        ("hut", (("h", "huh"), ("u", "uh"), ("t", "tuh"))),
     ),
     "blends_digraphs": (
         ("fish", (("f", "fff"), ("i", "ih"), ("sh", "shh"))),
@@ -110,6 +141,15 @@ DECODABLE: dict[str, tuple[tuple[str, tuple[_G, ...]], ...]] = {
         ("duck", (("d", "duh"), ("u", "uh"), ("ck", "kuh"))),
         ("truck", (("t", "tuh"), ("r", "rrr"), ("u", "uh"), ("ck", "kuh"))),
         ("plant", (("p", "puh"), ("l", "lll"), ("a", "ah"), ("n", "nnn"), ("t", "tuh"))),
+        ("crab", (("c", "kuh"), ("r", "rrr"), ("a", "ah"), ("b", "buh"))),
+        ("drum", (("d", "duh"), ("r", "rrr"), ("u", "uh"), ("m", "mmm"))),
+        ("sled", (("s", "sss"), ("l", "lll"), ("e", "eh"), ("d", "duh"))),
+        ("shell", (("sh", "shh"), ("e", "eh"), ("ll", "lll"))),
+        ("clock", (("c", "kuh"), ("l", "lll"), ("o", "aw"), ("ck", "kuh"))),
+        ("flag", (("f", "fff"), ("l", "lll"), ("a", "ah"), ("g", "guh"))),
+        ("nest", (("n", "nnn"), ("e", "eh"), ("s", "sss"), ("t", "tuh"))),
+        ("tent", (("t", "tuh"), ("e", "eh"), ("n", "nnn"), ("t", "tuh"))),
+        ("skunk", (("s", "sss"), ("k", "kuh"), ("u", "uh"), ("n", "nnn"), ("k", "kuh"))),
     ),
     "long_vowel_patterns": (
         ("cake", (("c", "kuh"), ("a", "ay"), ("k", "kuh"), ("e", ""))),
@@ -122,17 +162,31 @@ DECODABLE: dict[str, tuple[tuple[str, tuple[_G, ...]], ...]] = {
         ("tree", (("t", "tuh"), ("r", "rrr"), ("ee", "ee"))),
         ("bee", (("b", "buh"), ("ee", "ee"))),
         ("leaf", (("l", "lll"), ("ea", "ee"), ("f", "fff"))),
+        ("kite", (("k", "kuh"), ("i", "eye"), ("t", "tuh"), ("e", ""))),
+        ("rope", (("r", "rrr"), ("o", "oh"), ("p", "puh"), ("e", ""))),
+        ("nose", (("n", "nnn"), ("o", "oh"), ("s", "zzz"), ("e", ""))),
+        ("train", (("t", "tuh"), ("r", "rrr"), ("ai", "ay"), ("n", "nnn"))),
+        ("snail", (("s", "sss"), ("n", "nnn"), ("ai", "ay"), ("l", "lll"))),
+        ("queen", (("qu", "kwuh"), ("ee", "ee"), ("n", "nnn"))),
+        ("seal", (("s", "sss"), ("ea", "ee"), ("l", "lll"))),
+        ("soap", (("s", "sss"), ("oa", "oh"), ("p", "puh"))),
+        ("plane", (("p", "puh"), ("l", "lll"), ("a", "ay"), ("n", "nnn"), ("e", ""))),
     ),
 }
 
 #: Common words that cannot be sounded out, read by sight.
-SIGHT_WORDS: tuple[str, ...] = ("the", "was", "said", "of", "you", "are", "to", "one", "they", "have")
+SIGHT_WORDS: tuple[str, ...] = (
+    "the", "was", "said", "of", "you", "are", "to", "one", "they", "have",
+    "were", "what", "where", "do", "come", "some", "there", "two", "who", "your",
+    "give", "put", "want", "could", "would",
+)
 
 #: The sound of each first-sound letter, spoken when a letter choice is
 #: tapped in Watch and Together. Consonants only, so each has one sound here.
 LETTER_SOUNDS = {
     "s": "sss", "m": "mmm", "d": "duh", "b": "buh", "f": "fff", "p": "puh",
     "h": "huh", "l": "lll", "r": "rrr", "g": "guh", "w": "wuh", "t": "tuh",
+    "n": "nnn", "v": "vvv", "k": "kuh", "j": "juh", "y": "yuh", "z": "zzz",
 }
 
 #: Words a child may say for a choice. Matching is whole-word and only ever
@@ -147,11 +201,27 @@ _PICTURE_SPOKEN = {
     "map": ("mapa",), "fish": ("pez", "pescado"), "ship": ("barco",), "duck": ("pato",),
     "truck": ("camion",), "plant": ("planta",), "rain": ("lluvia",), "bone": ("hueso",),
     "cube": ("cubo",), "leaf": ("hoja",),
+    "phone": ("telefono",), "sock": ("calcetin",), "lock": ("candado",), "king": ("rey",),
+    "ring": ("anillo",), "fan": ("abanico",), "van": ("camioneta",), "drum": ("tambor",),
+    "thumb": ("pulgar",), "nest": ("nido",), "vest": ("chaleco",), "bell": ("campana",),
+    "shell": ("concha",), "whale": ("ballena",), "snail": ("caracol",), "train": ("tren",),
+    "dish": ("plato",), "nut": ("cacahuate", "nuez"), "hut": ("choza",), "seal": ("foca",),
+    "soap": ("jabon",), "ball": ("pelota",), "bat": ("murcielago",), "pen": ("pluma",),
+    "horse": ("caballo",), "lion": ("leon",), "log": ("tronco",), "rabbit": ("conejo",),
+    "rock": ("piedra", "roca"), "rope": ("cuerda",), "girl": ("nina",), "water": ("agua",),
+    "wolf": ("lobo",), "web": ("telarana",), "tooth": ("diente",), "tent": ("tienda",),
+    "turtle": ("tortuga",), "tiger": ("tigre",), "nose": ("nariz",), "kite": ("papalote",),
+    "key": ("llave",), "jar": ("frasco",), "yarn": ("estambre",), "zebra": ("cebra",),
+    "rat": ("rata",), "bug": ("bicho",), "cap": ("gorra",), "bag": ("bolsa",),
+    "crab": ("cangrejo",), "sled": ("trineo",), "clock": ("reloj",), "flag": ("bandera",),
+    "skunk": ("zorrillo",), "queen": ("reina",), "plane": ("avion",),
 }
 _LETTER_SPOKEN = {
     "s": ("ess", "ese"), "m": ("em", "eme"), "d": ("dee",), "b": ("bee", "be"), "f": ("ef", "efe"),
     "p": ("pee", "pe"), "h": ("aitch", "hache"), "l": ("ele",), "r": ("ar", "erre", "ere"),
     "g": ("gee", "ge"), "w": (), "t": ("tee",),
+    "n": ("en", "ene"), "v": ("vee", "uve"), "k": ("kay", "ka"), "j": ("jay", "jota"),
+    "y": ("why", "ye"), "z": ("zee", "zed", "zeta"),
 }
 
 
@@ -231,6 +301,23 @@ def _order(level: str, domain: str, seed: int, size: int) -> list[int]:
     return order
 
 
+#: The letters first-sound questions use, each once per lesson.
+FIRST_LETTERS: tuple[str, ...] = tuple(dict.fromkeys(letter for _, letter in FIRST_SOUNDS))
+
+#: Each lesson asks one kind of question, chosen from its seed, so the Watch
+#: step shows exactly what the child is about to do while lessons vary.
+KINDS: dict[str, tuple[str, ...]] = {
+    "phonological_awareness": ("rhyme_choice", "rhyme_odd_choice"),
+    "letter_sound": ("first_sound_choice", "starts_with_choice"),
+}
+_POSITIONS_ALL = range(1 + TOGETHER_TASKS + YOUR_TURN_TASKS)
+
+
+def _kind(level: str, domain: str, seed: int) -> str:
+    kinds = KINDS.get(domain, ("",))
+    return kinds[random.Random(f"phonics:{level}:{domain}:{seed}:kind").randrange(len(kinds))]
+
+
 def _position(phase: str, index: int) -> int:
     return {"watch": 0, "together": 1, "your_turn": 1 + TOGETHER_TASKS}[phase] + index
 
@@ -241,6 +328,17 @@ def _build(level: str, domain: str, seed: int, phase: str, index: int) -> Task:
     pos = _position(phase, index)
 
     if domain == "phonological_awareness":
+        if _kind(level, domain, seed) == "rhyme_odd_choice":
+            # Two words that rhyme and one that does not: tap the odd one. Always
+            # three choices, at every level: a fourth would be a second odd one.
+            pairs = _order(level, domain, seed, len(RHYME_PAIRS))
+            pair = RHYME_PAIRS[pairs[pos % len(pairs)]]
+            other = RHYME_PAIRS[pairs[(pos + len(_POSITIONS_ALL)) % len(pairs)]]
+            odd = other[rng.randrange(2)]
+            choices = [pair[0], pair[1], odd]
+            rng.shuffle(choices)
+            return Task(domain, "rhyme_odd_choice", {"words": ", ".join(choices)},
+                        {"kind": "none"}, "picture", tuple(choices), odd)
         pair = RHYME_PAIRS[_order(level, domain, seed, len(RHYME_PAIRS))[pos % len(RHYME_PAIRS)]]
         target, rhyme = (pair if rng.random() < 0.5 else (pair[1], pair[0]))
         pool = [w for p in RHYME_PAIRS if p != pair for w in p] + [rhyme]
@@ -249,7 +347,22 @@ def _build(level: str, domain: str, seed: int, phase: str, index: int) -> Task:
                     "picture", _choices(rng, rhyme, pool, n), rhyme)
 
     if domain == "letter_sound":
-        picture, letter = FIRST_SOUNDS[_order(level, domain, seed, len(FIRST_SOUNDS))[pos % len(FIRST_SOUNDS)]]
+        # A lesson never repeats a letter; which picture stands for the
+        # letter changes from lesson to lesson.
+        letter = FIRST_LETTERS[_order(level, domain, seed, len(FIRST_LETTERS))[pos % len(FIRST_LETTERS)]]
+        pictures = [p_ for p_, l_ in FIRST_SOUNDS if l_ == letter]
+        picture = pictures[random.Random(f"phonics:{level}:{domain}:{seed}:{pos}:picture").randrange(len(pictures))]
+        if _kind(level, domain, seed) == "starts_with_choice":
+            # The letter is shown; tap the one picture that starts with it.
+            others: dict[str, str] = {}
+            for p_, l_ in sorted(FIRST_SOUNDS, key=lambda e: rng.random()):
+                if l_ != letter and l_ not in others:
+                    others[l_] = p_
+            picked = [picture] + list(others.values())[: n - 1]
+            rng.shuffle(picked)
+            return Task(domain, "starts_with_choice", {"letter": letter, "sound": LETTER_SOUNDS[letter]},
+                        {"kind": "word", "graphemes": [{"text": letter, "sound": LETTER_SOUNDS[letter]}], "word": letter},
+                        "picture", tuple(picked), picture)
         choices = _choices(rng, letter, [lt for _, lt in FIRST_SOUNDS], n)
         return Task(domain, "first_sound_choice", {"word": picture},
                     {"kind": "picture", "icon": picture, "word": picture},

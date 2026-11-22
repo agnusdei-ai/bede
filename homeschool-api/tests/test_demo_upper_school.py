@@ -78,9 +78,15 @@ async def test_k8_diagnostic_evidence_and_preview_are_not_reused(grade):
 
 
 async def test_existing_curriculum_scope_and_grade8_guidance_stay_distinct():
-    assert VALID_GRADES == ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
-    assert VALID_DEMO_GRADES == [*VALID_GRADES, "9", "10", "11", "12"]
-    assert grade_to_stage("9") == GradeStage.foundations  # non-demo contract unchanged
+    # Owner ruling 2026-11-19: Bede is K-12, so the server accepts every grade
+    # K-12 and files grades 9-12 under the independent stage. Grade-specific
+    # curation (CURATED_GRADES) and the K-8 instruments are still K-8.
+    from models.schemas import CURATED_GRADES
+    assert CURATED_GRADES == ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+    assert VALID_GRADES == [*CURATED_GRADES, "9", "10", "11", "12"]
+    assert VALID_DEMO_GRADES == VALID_GRADES
+    for grade in ("9", "10", "11", "12"):
+        assert grade_to_stage(grade) == GradeStage.independent
     response = await create_demo_code(DemoCodeRequest(grade="8"))
     config = await _demo_session_config(response.code)
     assert upper_school_guidance(config) == ""
@@ -92,3 +98,16 @@ async def test_invalid_grade_retains_existing_default_behavior(grade):
     response = await create_demo_code(DemoCodeRequest(grade=grade))
     _, saved_grade = await demo_code_session.get_personalization(response.code)
     assert saved_grade is None
+
+
+async def test_grades_9_to_12_are_accepted_by_the_server_and_use_the_independent_stage():
+    """Owner ruling 2026-11-19 (standing rule): Bede is K-12. A saved plan for
+    any grade K-12 builds a real prompt, files 9-12 under the independent
+    stage and falls back to the stage band for catalogs with no year entry."""
+    from models.schemas import SessionConfig, Subject
+    for grade in ("9", "10", "11", "12"):
+        config = SessionConfig(student_name="Sample Learner", grade=grade,
+                               grade_stage=GradeStage.independent, subjects=[Subject.living_books])
+        assert grade_to_stage(grade) == GradeStage.independent
+        assert ai_service._grade_descriptor(grade) in ai_service._build_static_prompt(config)
+        assert await ai_service._build_subject_prompt(config, Subject.living_books)

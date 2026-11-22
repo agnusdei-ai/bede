@@ -4,6 +4,7 @@ import App from './App'
 import ErrorBoundary from './ErrorBoundary'
 import OfflineBanner from './OfflineBanner'
 import TextSizeControl from './TextSizeControl'
+import TouchTitles from './TouchTitles'
 import { warmDemoBackend } from './api'
 import { installDiagnostics } from './diagnostics'
 import './i18n'
@@ -27,5 +28,6 @@ createRoot(document.getElementById('root')!).render(
       <App />
     </ErrorBoundary>
     <TextSizeControl />
+    <TouchTitles />
   </StrictMode>
 )

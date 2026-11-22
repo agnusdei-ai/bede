@@ -10,14 +10,23 @@ class GradeStage(str, Enum):
     independent = "6-8"        # Rhetoric stage: application & mastery
 
 
-# Valid grade values a visitor can pick, in display order — mirrors
-# services/ai_service.py's _GRADE_DESCRIPTORS keys.
-VALID_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
+# Grades with grade-specific curation (catalog year plans, poetry, prayer and
+# picture-study rotation). A grade outside this list still gets everything the
+# stage provides; it just has no year-specific entry yet.
+CURATED_GRADES = ["K", "1", "2", "3", "4", "5", "6", "7", "8"]
 
-# Interactive demo scope is wider than the approved full-year curriculum.
-# Do not widen enrollment, diagnostic skill bands, or curriculum promotion.
+# Upper school: grades 9-12 are accepted everywhere (owner ruling 2026-11-19:
+# Bede is K-12). They use the independent stage and the exact grade in the tutor
+# prompt. The diagnostic skill map, year plans and DIBELS stay K-8 because they
+# ARE K-8 instruments or content, so every one of those paths keys on this
+# tuple and declines for these grades rather than reporting K-8 results as
+# high-school mastery (see services/demo_upper_school.py).
 DEMO_UPPER_GRADES = ("9", "10", "11", "12")
-VALID_DEMO_GRADES = [*VALID_GRADES, *DEMO_UPPER_GRADES]
+
+# Valid grade values a visitor or family can pick, in display order — mirrors
+# services/ai_service.py's _GRADE_DESCRIPTORS keys.
+VALID_GRADES = [*CURATED_GRADES, *DEMO_UPPER_GRADES]
+VALID_DEMO_GRADES = list(VALID_GRADES)
 
 # Bible translations a parent can pick for SessionConfig.bible_translation,
 # in display order — deliberately spans both Protestant and Catholic
@@ -153,7 +162,7 @@ def grade_to_stage(grade: str) -> GradeStage:
         return GradeStage.foundations
     if g in ("3", "4", "5"):
         return GradeStage.core_mastery
-    if g in ("6", "7", "8"):
+    if g in ("6", "7", "8", "9", "10", "11", "12"):
         return GradeStage.independent
     return GradeStage.foundations
 

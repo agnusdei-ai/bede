@@ -84,7 +84,7 @@ describe('K2MathPractice', () => {
     reduceMotion = true
     const { onSpeak } = await open()
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
-    expect(onSpeak).toHaveBeenCalledWith('Here are 4. Watch me put in 2 more. Now there are 6.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Here are 4. Watch me put in 2 more. Now there are 6.'))
     // Watch: the move is shown, and nothing can be moved or checked.
     expect(frameCount()).toBe(6)
     expect(screen.getByRole('button', { name: 'Put in a counter' })).toHaveProperty('disabled', true)
@@ -138,7 +138,7 @@ describe('K2MathPractice', () => {
     const { onSpeak, onClose } = await open()
 
     expect(screen.getByText('Mira').getAttribute('aria-current')).toBe('step')
-    expect(onSpeak).toHaveBeenCalledWith('Aquí hay 4. Mira cómo pongo 2 más. Ahora hay 6.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Aquí hay 4. Mira cómo pongo 2 más. Ahora hay 6.'))
     fireEvent.click(screen.getByRole('button', { name: 'Probemos una' }))
     expect(screen.getByText('Juntos').getAttribute('aria-current')).toBe('step')
     fireEvent.click(screen.getByRole('button', { name: 'Poner una ficha en la casilla 4' }))
@@ -348,7 +348,8 @@ describe('K2MathPractice', () => {
     const builder = readFileSync(join(__dirname, '../../homeschool-api/services/k2_practice/practical_math.py'), 'utf8')
     const table = builder.match(/_QUESTION = \{([\s\S]*?)\n\}/)?.[1] ?? ''
     const promptKeys = [...table.matchAll(/"([a-z_]+)":/g)].map((m) => m[1])
-    expect(promptKeys.length).toBe(9)
+    // Nine for K-2, and three for grade 2's plates of counters.
+    expect(promptKeys.length).toBe(12)
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Math.prompt)))
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Math.watch)))
     // The compare choices the server offers each have a word.

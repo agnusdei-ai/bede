@@ -9,7 +9,7 @@ export interface PhonicsTask {
   prompt: { key: string; args: Record<string, string> }
   /** A picture to hear, a word to read, or a word to listen for. In "Your
    * turn", a word to read carries no sounds and no spoken word. */
-  display: { kind: 'picture' | 'word' | 'listen'; icon?: string; word?: string; graphemes?: PhonicsGrapheme[] }
+  display: { kind: 'picture' | 'word' | 'listen' | 'none'; icon?: string; word?: string; graphemes?: PhonicsGrapheme[] }
   choice_kind: 'picture' | 'letter' | 'word'
   choices: string[]
   /** Sounds for tapping a letter choice. Never sent in "Your turn". */

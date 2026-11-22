@@ -7,7 +7,6 @@ import Diagram, { diagramMarkup } from './Diagram'
 import { printSheet } from './printDocument'
 import ReadingProgressBar from './ReadingProgressBar'
 import { newProgressId, overallPercent, watchProgress, withProgress, type ProgressState } from './readingProgress'
-import type { DiagramSpec } from './Diagram'
 import {
   copyDemoQuizSource,
   fetchDemoReadingProgress,
@@ -15,6 +14,7 @@ import {
   generateDemoQuiz,
   quizPrompt,
   type GeneratedQuiz,
+  type QuizQuestion,
   type QuizKind,
   type QuizLevel,
   type QuizOptions,
@@ -45,10 +45,12 @@ function readFile(file: File): Promise<string> {
  */
 export default function DemoQuizBuilder({
   token,
-  onApproved,
+  onStartQuiz,
 }: {
   token: string
-  onApproved: (items: { index: number; prompt: string; hint: string; diagram?: DiagramSpec | null }[]) => void
+  /** The adult's quick approve: the kept questions, answers included, go to
+   *  the quiz runner, which shows each answer only after it is answered. */
+  onStartQuiz: (title: string, questions: QuizQuestion[]) => void
 }) {
   const { t } = useTranslation()
   const [options, setOptions] = useState<QuizOptions | null>(null)
@@ -65,6 +67,9 @@ export default function DemoQuizBuilder({
   const [quiz, setQuiz] = useState<GeneratedQuiz | null>(null)
   const [keep, setKeep] = useState<boolean[]>([])
   const [error, setError] = useState('')
+  // Answers stay hidden until the adult asks for the key: the demo is one
+  // screen, so a key shown on review would be in front of the student.
+  const [showKey, setShowKey] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -158,10 +163,8 @@ export default function DemoQuizBuilder({
 
   const approve = () => {
     if (!quiz) return
-    const items = quiz.questions
-      .filter((_, i) => keep[i])
-      .map((q, index) => ({ index, prompt: quizPrompt(q), hint: '', ...(q.diagram ? { diagram: q.diagram } : {}) }))
-    if (items.length) onApproved(items)
+    const questions = quiz.questions.filter((_, i) => keep[i])
+    if (questions.length) onStartQuiz(quiz.title, questions)
   }
 
   const print = async (withAnswers: boolean) => {
@@ -175,6 +178,7 @@ export default function DemoQuizBuilder({
         options: q.options,
         diagramHtml: diagramMarkup(q.diagram, t),
         answer: q.answer,
+        answerDetails: q.explanation ? [q.explanation] : [],
       })),
       labels: { name: t('printSheet.name'), date: t('printSheet.date'), keyTitle: `${quiz.title}: ${t('demoQuiz.answerKey')}` },
       copies: [withAnswers ? 'key' : 'student'],
@@ -201,6 +205,10 @@ export default function DemoQuizBuilder({
           {quiz.coverage.length > 0 && <> · {quiz.coverage.join(', ')}</>}
         </p>
         <p className="text-xs text-gray-600">{t('demoQuiz.checkNote')}</p>
+        <button type="button" aria-pressed={showKey} onClick={() => setShowKey((v) => !v)} className={`${button} border border-gray-200 text-gray-700`}>
+          {showKey ? t('demoQuiz.hideAnswerKey') : t('demoQuiz.showAnswerKey')}
+        </button>
+        {!showKey && <p className="text-xs text-gray-600">{t('demoQuiz.keyHidden')}</p>}
         <ol className="space-y-2">
           {quiz.questions.map((q, index) => (
             <li key={q.number} className="flex gap-2 rounded-lg bg-white p-2 text-xs">
@@ -213,6 +221,7 @@ export default function DemoQuizBuilder({
               <div className="min-w-0 flex-1 space-y-1">
                 <p className="whitespace-pre-line font-medium">{q.number}. {quizPrompt(q)}</p>
                 <Diagram d={q.diagram} />
+                {showKey && <>
                 <label className="flex items-center gap-2">
                   <span>{t('demoQuiz.answer')}</span>
                   <input
@@ -226,6 +235,8 @@ export default function DemoQuizBuilder({
                   </span>
                 </label>
                 {q.second_answer && <p className="text-gold-800">{t('demoQuiz.secondAnswer', { answer: q.second_answer })}</p>}
+                {q.explanation && <p className="text-gray-700">{t('demoQuiz.why', { text: q.explanation })}</p>}
+                </>}
               </div>
             </li>
           ))}
@@ -233,7 +244,7 @@ export default function DemoQuizBuilder({
         {error && <p role="alert" className="rounded-lg bg-madder-50 px-3 py-2 text-madder-800">{error}</p>}
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={approve} disabled={!keep.some(Boolean)} className={`${button} bg-sage-700 text-white disabled:opacity-40`}>
-            <Check size={15} className="mr-1 inline" />{t('demoQuiz.approve')}
+            <Check size={15} className="mr-1 inline" />{t('quizRunner.start')}
           </button>
           <button type="button" onClick={() => void print(false)} disabled={!keep.some(Boolean)} className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
             <Printer size={15} className="mr-1 inline" />{t('demoQuiz.printQuiz')}
@@ -241,7 +252,7 @@ export default function DemoQuizBuilder({
           <button type="button" onClick={() => void print(true)} disabled={!keep.some(Boolean)} className={`${button} border border-gray-200 text-gray-700 disabled:opacity-40`}>
             <Printer size={15} className="mr-1 inline" />{t('demoQuiz.printKey')}
           </button>
-          <button type="button" onClick={() => setQuiz(null)} className={`${button} border border-gray-200 text-gray-700`}>
+          <button type="button" onClick={() => { setQuiz(null); setShowKey(false) }} className={`${button} border border-gray-200 text-gray-700`}>
             {t('demoQuiz.again')}
           </button>
         </div>

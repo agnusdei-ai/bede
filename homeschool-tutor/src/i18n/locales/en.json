@@ -322,6 +322,9 @@
     "preferredNamePlaceholder": "e.g. a nickname",
     "preferredNameHint": "Only if you want Bede to use a different name or spelling. Bede still saves this child's records under the name above.",
     "grade": "Grade",
+    "gradeChoose": "Choose a grade",
+    "gradeKindergarten": "Kindergarten",
+    "gradeOption": "Grade {{grade}}",
     "gradePlaceholder": "e.g. 4 or K",
     "sex": "Sex",
     "sexMale": "Male",
@@ -464,6 +467,7 @@
     "attentionSustained": "Sustained Focus",
     "attentionVariable": "Variable Attention",
     "mathMasterySnapshotTitle": "Math Mastery Snapshot",
+    "upperSchoolNote": "{{name}} is in grades 9–12. Bede tutors upper-school work, but the math skill map and the reading engine cover grades K–8, so those two rows are not shown here. Work notes, writing, subject coverage and what {{name}} has completed still record as usual.",
     "noMathMasteryData": "No math mastery data yet. This builds silently as {{name}} works through math sessions with Bede — check back after a session or two.",
     "observation_one": "{{count}} observation",
     "observation_other": "{{count}} observations",
@@ -897,7 +901,11 @@
     "uploadTooLarge": "These files add up to more than 1 GB. Choose fewer pages.",
     "fileTooLarge": "One file is larger than 25 MB. Split it, or scan it at a lower resolution.",
     "sourceTrimmed": "This source is very long, so Bede drafted the quiz from its first pages.",
-    "editAsTeacher": "Edit the key and score students' work"
+    "editAsTeacher": "Edit the key and score students' work",
+    "showAnswerKey": "Show answer key",
+    "hideAnswerKey": "Hide answer key",
+    "keyHidden": "Answers are hidden so the quiz can be taken first.",
+    "why": "Why: {{text}}"
   },
   "practiceDelivery": {
     "title": "A practice question your parent approved",
@@ -1094,7 +1102,44 @@
       "box": "box",
       "basket": "basket",
       "truck": "truck",
-      "ruler": "ruler"
+      "ruler": "ruler",
+      "bat": "bat",
+      "rat": "rat",
+      "van": "van",
+      "fan": "fan",
+      "pen": "pen",
+      "net": "net",
+      "web": "web",
+      "log": "log",
+      "nut": "nut",
+      "bug": "bug",
+      "cap": "cap",
+      "bag": "bag",
+      "hut": "hut",
+      "crab": "crab",
+      "drum": "drum",
+      "sled": "sled",
+      "shell": "shell",
+      "clock": "clock",
+      "flag": "flag",
+      "nest": "nest",
+      "tent": "tent",
+      "skunk": "skunk",
+      "kite": "kite",
+      "rope": "rope",
+      "nose": "nose",
+      "snail": "snail",
+      "seal": "seal",
+      "soap": "soap",
+      "sock": "sock",
+      "lock": "lock",
+      "ring": "ring",
+      "thumb": "thumb",
+      "vest": "vest",
+      "dish": "dish",
+      "zebra": "zebra",
+      "yarn": "yarn",
+      "jar": "jar"
     },
     "action": {
       "running": "running",
@@ -1258,6 +1303,13 @@
     "fileTooLarge": "A file is larger than 25 MB. Scan it at a lower resolution or split it, then add it again.",
     "uploadTooLarge": "These files are more than 24 MB together, which is more than one upload can carry. Use smaller scans, or paste the quiz's text instead."
   },
+  "k2Print": {
+    "circle": "Circle your answer.",
+    "button": "Print or save as PDF",
+    "title": "{{title}}: practice sheet",
+    "markSquare": "Mark the square with an X.",
+    "drawCounters": "Draw the counters."
+  },
   "printSheet": {
     "name": "Name",
     "date": "Date",
@@ -1279,6 +1331,8 @@
     }
   },
   "mapPractice": {
+    "watchAgain": "Watch again",
+    "watchLook": "Watch the way Bede goes.",
     "title": "Map practice",
     "loading": "Getting a map ready…",
     "loadTrouble": "The map could not be loaded.",
@@ -1384,6 +1438,7 @@
     "open": "Open the map"
   },
   "k2Phonics": {
+    "watchAgain": "Watch again",
     "title": "Sound Time",
     "open": "Start Sound Time",
     "loading": "Getting the words ready…",
@@ -1412,6 +1467,8 @@
     },
     "prompt": {
       "rhyme_choice": "Which one rhymes with {{word}}?",
+      "rhyme_odd_choice": "Listen: {{words}}. Which one does not rhyme?",
+      "starts_with_choice": "Which picture starts with {{letter}}, {{sound}}?",
       "first_sound_choice": "Which letter starts {{word}}?",
       "read_word_choice": "Read the word. Tap its picture.",
       "sight_word_choice": "Tap the word {{word}}."
@@ -1422,12 +1479,19 @@
     },
     "watch": {
       "rhyme_choice": "Listen: {{word}} and {{answer}}. They rhyme! They end with the same sound.",
+      "rhyme_odd_choice": "Listen: {{words}}. Two of them rhyme. {{answer}} does not rhyme with the others.",
+      "starts_with_choice": "{{answer}} starts with the sound {{sound}}. We write that sound {{letter}}.",
       "first_sound_choice": "{{word}} starts with the sound {{sound}}. We write that sound {{letter}}.",
       "read_word_choice": "Listen: {{sounds}}. Put the sounds together: {{word}}!",
       "sight_word_choice": "This word is {{word}}. We know it by sight."
     }
   },
   "k2Math": {
+    "watchAgain": "Watch again",
+    "groupsLabel": "{{groups}} plates with {{each}} counters on each",
+    "shareLabel": "{{total}} counters to share onto {{groups}} plates",
+    "groupsQuiet": "Plates of counters",
+    "shareQuiet": "Counters to share, and empty plates",
     "title": "Number Time",
     "open": "Start Number Time",
     "loading": "Getting the counters ready…",
@@ -1489,7 +1553,10 @@
       "subtract_how_many": "There were {{a}}. {{b}} are crossed out. How many are left?",
       "subtract_build": "Here are {{a}}. Take {{b}} away.",
       "bond_missing": "{{whole}} is {{part}} and what?",
-      "bond_build": "Here are {{part}}. Put in more until there are {{whole}}."
+      "bond_build": "Here are {{part}}. Put in more until there are {{whole}}.",
+      "skip_how_many": "Count by {{by}}s. How many counters in all?",
+      "groups_how_many": "{{groups}} plates with {{each}} on each. How many in all?",
+      "share_each": "Share {{total}} counters fairly onto {{groups}} plates. How many on each plate?"
     },
     "watch": {
       "count_how_many": "Watch me count. I touch each one, and the last number I say is how many: {{answer}}.",
@@ -1500,7 +1567,48 @@
       "subtract_how_many": "There were {{a}}. I cross out {{b}}. I count what is left: {{answer}}.",
       "subtract_build": "Here are {{a}}. Watch me take {{b}} away. Now there are {{answer}}.",
       "bond_missing": "{{whole}} is {{part}} and {{answer}}. Together they make {{whole}}.",
-      "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}."
+      "bond_build": "Here are {{part}}. Watch me put in more, one at a time, until there are {{whole}}.",
+      "skip_how_many": "Watch me count by {{by}}s, one plate at a time. That makes {{answer}} in all.",
+      "groups_how_many": "{{groups}} plates with {{each}} on each. I add {{each}} for every plate: {{answer}} in all.",
+      "share_each": "I give one counter to each plate, round and round, until none are left. Each plate gets {{answer}}."
     }
+  },
+  "voiceStatus": {
+    "title": "Bede's voice",
+    "local": {
+      "what": "Bede is reading lessons aloud with the optional Piper development voice, which runs on this computer. Nothing Bede says aloud leaves it.",
+      "next": "Nothing to do. This voice is for testing; it is not Bede's usual voice."
+    },
+    "down": {
+      "what": "Bede's voice is set up but isn't answering right now. Lessons carry on with everything shown on screen; your child is not told about it, and Bede never uses another voice in its place.",
+      "next": "Nothing to do right away: Bede checks again within a minute. If it lasts, check the voice setup guide."
+    },
+    "none": {
+      "what": "Bede's voice isn't finished setting up on this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede does not use the browser's voice or any other voice in its place.",
+      "next": "To finish voice setup, add an OpenAI key (OPENAI_API_KEY) to this installation's settings and restart Bede. Bede's voice then works with nothing else to turn on. The voice setup guide shows how."
+    },
+    "off": {
+      "what": "Speech was turned off for this installation, so lessons are text-first: everything appears on screen and nothing is read aloud. Bede does not use another voice in its place.",
+      "next": "To turn Bede's voice back on, whoever set up this installation removes the TTS_PROVIDER=none setting and restarts Bede. The voice setup guide shows how."
+    },
+    "cloud": {
+      "what": "Bede reads lessons aloud in its usual voice, which comes from a cloud speech service. That service receives each line Bede speaks.",
+      "next": "Nothing to do. To keep lessons on screen only, turn Bede's voice off during a lesson, or ask whoever set up this installation to turn speech off."
+    }
+  },
+  "quizRunner": {
+    "progress": "Question {{n}} of {{total}}",
+    "answerLabel": "Your answer",
+    "check": "Check",
+    "right": "That's right.",
+    "wrong": "Not quite. The answer is {{answer}}.",
+    "open": "Here is the answer: {{answer}}. Check yours with your grown-up.",
+    "why": "Why: {{text}}",
+    "next": "Next question",
+    "seeResults": "See how it went",
+    "finished": "You got {{right}} of {{total}} right.",
+    "openNote": "{{count}} answers are for your grown-up to check.",
+    "done": "Done",
+    "start": "Start quiz"
   }
 }

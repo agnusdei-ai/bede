@@ -84,7 +84,7 @@ describe('K2MathPractice', () => {
     reduceMotion = true
     const { onSpeak } = await open()
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
-    expect(onSpeak).toHaveBeenCalledWith('Here are 4. Watch me put in 2 more. Now there are 6.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Here are 4. Watch me put in 2 more. Now there are 6.'))
     // Watch: the move is shown, and nothing can be moved or checked.
     expect(frameCount()).toBe(6)
     expect(screen.getByRole('button', { name: 'Put in a counter' })).toHaveProperty('disabled', true)
@@ -196,12 +196,18 @@ describe('K2MathPractice', () => {
     await open()
     expect(frameCount()).toBe(4)
     await waitFor(() => expect(frameCount()).toBe(6), { timeout: 4000 })
+    // A running count beside the frame says how many there are now.
+    expect(screen.getByTestId('watch-count').textContent).toBe('6')
+    // Watch again starts the demonstration over from the first counters.
+    fireEvent.click(screen.getByRole('button', { name: 'Watch again' }))
+    expect(frameCount()).toBe(4)
+    await waitFor(() => expect(frameCount()).toBe(6), { timeout: 4000 })
     cleanup()
     reduceMotion = true
     render(<K2MathPractice transport={transport} onClose={vi.fn()} onSpeak={vi.fn()} />)
     await screen.findByTestId('math-line')
     expect(frameCount()).toBe(6)
-  })
+  }, 12000)
 
   it('in Together, a take-away frame outlines the counters to take, and taking them answers it', async () => {
     reduceMotion = true
@@ -259,8 +265,8 @@ describe('K2MathPractice', () => {
       },
     })
     const { onSpeak } = await open()
-    expect(onSpeak).toHaveBeenCalledWith(
-      'Watch me match each red counter with a yellow one. Some yellow ones have no partner, so there are more yellow.')
+    await waitFor(() => expect(onSpeak).toHaveBeenCalledWith(
+      'Watch me match each red counter with a yellow one. Some yellow ones have no partner, so there are more yellow.'))
     for (const name of ['Red', 'Yellow', 'The same']) expect(screen.getByRole('button', { name })).toBeTruthy()
     expect(document.querySelector('[data-revealed]')?.getAttribute('aria-label')).toBe('Yellow')
   })
@@ -307,7 +313,8 @@ describe('K2MathPractice', () => {
     const builder = readFileSync(join(__dirname, '../../../homeschool-api/services/k2_practice/practical_math.py'), 'utf8')
     const table = builder.match(/_QUESTION = \{([\s\S]*?)\n\}/)?.[1] ?? ''
     const promptKeys = [...table.matchAll(/"([a-z_]+)":/g)].map((m) => m[1])
-    expect(promptKeys.length).toBe(9)
+    // Nine for K-2, and three for grade 2's plates of counters.
+    expect(promptKeys.length).toBe(12)
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Math.prompt)))
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Math.watch)))
     // The compare choices the server offers each have a word.

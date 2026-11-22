@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Spanish tutoring check for the local models the installers pull.
 
-Run by hand, never in CI or pytest. It needs the models downloaded and a
-running Ollama, and model downloads in CI are paused by the owner
-(.github/workflows/ministral-real-weights-probe.yml). docs/DECISIONS.md
+Run by hand or by .github/workflows/local-model-pull-probe.yml (the one CI
+job the owner allowed to download models, 2026-11-21); never in pytest. It
+needs the models downloaded and a running Ollama. docs/DECISIONS.md
 entry 43 records why these models are the defaults and what this check
 has and has not shown.
 

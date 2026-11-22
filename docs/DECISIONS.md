@@ -2602,8 +2602,12 @@ run in the build session.**
 sends Bede's real Spanish tutoring prompt and real tool list, through Bede's
 own adapter, to each model in Ollama, and records per model whether it stays
 in Spanish, makes a valid tool call and mixes in no English. It runs by
-hand on a computer with the models downloaded; model downloads in CI are
-paused by the owner. Until it has run, every model's result is NOT RUN, and
+hand on a computer with the models downloaded, or by
+`.github/workflows/local-model-pull-probe.yml`: the owner lifted the CI
+download pause on 2026-11-21 for that one dispatch-only job, which pulls the
+five tags, records each registry digest, size and licence, and runs this
+probe (loopback only, no paid keys). `ministral-real-weights-probe.yml`
+stays paused. Until it has run, every model's result is NOT RUN, and
 no result is inferred. If a model fails, notably the 2B tier, that is
 recorded as a failure, not met by lowering the bar.
 
@@ -2698,3 +2702,285 @@ What it does not change, and what each pull request must still do:
 
 The exception ends when the owner declares K-12 complete, or lifts it in
 writing. The freeze's own exit (above) is unchanged.
+
+**Amendment, 2026-11-20: the freeze is lifted.** The owner lifted the freeze in
+writing ("lift the freeze first instead of continuing to build freeze
+exceptions"), which is the exit this entry names. From this entry's merge,
+`main` takes ordinary pull requests again and no pull request needs a
+`Freeze exception:` line; exceptions 1-6, including the K-12 exception, are
+retired with it because there is nothing left to except from.
+
+What survives the lift, because it was never the freeze's:
+- **`site/` and `demo/` still need the owner's explicit sign-off** before
+  merge (the standing carve-out in `CLAUDE.md`'s Root-Cause Fixes workflow).
+- **Held pull requests stay held.** #862 and the pilot work on #837 land only
+  when the owner says so; lifting the freeze decides neither.
+- **K-12 rules stand as ordinary rules.** The server accepts K-12, and a K-8
+  instrument declines for grades 9-12 (the `DEMO_UPPER_GRADES` paths) until its
+  upper-grade content exists; the pull request that adds the content removes
+  the decline and its test in the same change (`CLAUDE.md`, "Grades: the server
+  accepts K-12").
+- **No guardrail changed.** The constitution, safeguarding, consent, privacy,
+  security and the refusal to measure a child's faith were never relaxed by the
+  exceptions and are not by the lift.
+- The 2026-12-18 review date no longer applies.
+
+## 46. `[PRODUCT]` Every feature speaks in Bede's own voice; Piper is optional development only
+
+**Status:** open · needs: the owner's approval of any candidate voice after hearing it (Piper stays optional development until then); the optional voice's SHA-256 hashes pinned and its license, training lineage and redistribution terms recorded from its own MODEL_CARD (`scripts/voice/pin_bede_voice.py`, which needs access to huggingface.co), and the owner's acceptance on the pilot Mac. The decisions below are made and built; until the hashes are pinned, installed Bede is text-first.
+
+**Amended (2026-11-20, owner): the demo's voice is Bede's reference voice;
+Piper is optional development only. This SUPERSEDES every earlier amendment
+below that made Piper installed Bede's voice or forbade cloud speech in it.**
+The current demo voice (OpenAI's) is Bede's reference voice experience,
+including for installed Bede when cloud speech is configured (see the
+2026-11-20 correction below).
+
+- The demo is not switched to Piper and gets no voice selector. Installed Bede
+  never automatically substitutes `en_GB-alan-medium` or any other voice.
+- #875 is isolated as optional Piper development and testing: not the default
+  voice, not an automatic fallback, not a launch dependency. Sample-voice
+  tests verify integration mechanics and are never presented as verification
+  of the actual alan voice or approval of its sound.
+- If configured speech is disabled or unavailable, Bede stays text-first and
+  fully usable, falls back to neither the browser's voice nor a different
+  voice, and screen-reader behavior is untouched.
+- Any future change to Bede's voice requires a separate proposal and the
+  owner's approval after hearing the actual candidate voice.
+- No model downloads, new hosting services, paid test calls or demo
+  deployment changes were authorized by this direction.
+
+Built: `active_provider()` picks OpenAI when `OPENAI_API_KEY` is set and
+`TTS_PROVIDER` is empty, nothing otherwise, and Piper only for
+`TTS_PROVIDER=local`; compose's `TTS_PROVIDER` and `LOCAL_TTS_URL` now default
+to empty, the same as `config.py`'s, and the `voice` service is behind the
+`piper` profile. Parent Setup describes the cloud voice as the usual voice
+and Piper as an optional test voice. **Corrected (2026-11-20, owner, later): no new opt-in gate.** The earlier
+suggestion to make installed Bede ship with speech off until a second
+activation step is withdrawn, and is NOT a merge condition. The intended
+experience is the working demo voice, immediately:
+
+- **Configured and working.** An installation whose operator has put an OpenAI
+  key in its settings (the installers write `OPENAI_API_KEY` when OpenAI is the
+  chosen provider) starts with the reference voice available. Nothing else is
+  turned on. The operator's own key is the configuration; the code cannot tell
+  a valid key from a bad one until a line is spoken.
+- **No credentials.** Bede stays fully usable in text. Parent Setup's voice
+  card says setup is unfinished and how to finish it (add `OPENAI_API_KEY` and
+  restart), and does not present the installation as voice-ready
+  (`GET /tutor/voice` reports `reason: "not_set_up"`).
+- **A temporary failure.** A line that fails or times out is silent; the
+  session, chat and controls carry on. There is no switch to browser
+  narration, Piper or another voice.
+- **Deliberately off.** An operator turns speech off with `TTS_PROVIDER=none`;
+  Parent Setup says so (`reason: "off"`), apart from the unfinished-setup case.
+- **Piper alone** stays development only: it never replaces the reference
+  voice, is never an automatic fallback and does not touch the demo.
+
+**The one real configuration gap (reported, not built):** the installers ask
+for an OpenAI key only when OpenAI is the chosen tutoring provider
+(`setup.sh`, the wizard). A family that picks Claude, Mistral or a local model
+has no key and so no voice, and neither installer offers a voice-only key. The
+voice card and `docs/VOICE_SETUP.md` tell the operator what to add; changing
+the installers is a separate decision and not part of #875.
+The 2026-11-18 to 2026-11-19 text below is kept as history.
+
+**Decided (2026-11-18, owner).**
+
+1. **Bede's voice only.** Sound Time, Number Time, Map Practice, Practice
+   Coach and any feature added later speak in Bede's own voice, the same one
+   as the chat, and default to no other.
+2. **The engine for installed Bede is Piper**, run as a separate local
+   process: `voice-service/`, its own container, reached by the API only over
+   HTTP (`LOCAL_TTS_URL`), with a distribution review before it ships.
+3. **Never a cloud voice by default once a local voice is set up**, and never
+   as a fallback when a local line fails.
+4. **Silence instead of the browser's voice.** With no voice configured, or a
+   line that fails, Bede is silent and Parent Setup says why. The browser's own
+   speechSynthesis is no longer used in the installed app.
+
+**Amended (2026-11-18, owner, same day).** For installed Bede only, Piper is
+the voice to qualify, and there is no other: if Piper is unavailable, fails,
+or no voice is configured, Bede continues without narration, keeps every
+prompt and piece of feedback on screen, shows a clear voice status in Parent
+Setup, and falls back to neither OpenAI's voice nor the browser's. **The demo
+is left unchanged**: it keeps OpenAI's voice and its own browser path.
+Verification makes no paid provider call and downloads no model, and physical
+acceptance on the pilot Mac is the owner's alone.
+
+**Amended (2026-11-19, owner).** Cloud speech is not permitted in the
+product: installed Bede's voice is Piper, the distinctive and recognizable
+Bede voice, or none. The demo uses OpenAI's voice. This replaces, the same
+day, a proposal to use OpenAI's voice in installed Bede for the beta, which
+was not built. Two further rules, from the owner's verification brief of the
+same day:
+
+- **No browser voice anywhere**, the demo included. A demo line that fails or
+  times out is silent, as in the app. (The 2026-11-18 note that the demo
+  "keeps its own browser path" is superseded.)
+- **Where Bede's voice cannot speak, nothing is requested**, and the learner
+  sees no voice error, key prompt or interruption; Parent Setup tells "not set
+  up" apart from "set up but not answering right now", with a next step for
+  each. Screen readers and other assistive technology are untouched.
+
+Still open, as above: the distribution review and the per-voice licenses.
+Until they clear, installed Bede ships text-first, which is the product
+behaving as decided, not a fault.
+
+**Amended (2026-11-19, owner, later the same day): Piper stays parked for the
+beta.** Piper is the product's voice, and nothing ships to customers until
+these are recorded here:
+
+1. **The engine and its exact version.** Piper's engine is open source,
+   maintained by the Open Home Foundation (OHF-Voice/piper1-gpl) under
+   GPL-3.0-or-later. Bede pins `piper-tts==1.8.0`, hash-locked in
+   `voice-service/requirements.lock.txt`. The GPL's distribution obligations
+   are the counsel question above.
+2. **The exact voice: its version and file hash**, for every English and
+   Spanish voice. Voice models are separate from the engine, and Piper's GPL
+   does not cover them. A voice that can be downloaded publicly is not
+   necessarily licensed for commercial use or redistribution.
+3. **For each voice, separately from the engine's GPL obligations:** its
+   license, its training lineage, and its redistribution terms, read from
+   the `MODEL_CARD` that came with that exact file. A newer listing or model
+   card does not change the training history of a copy already in hand.
+
+The owner cited Piper's November 2026 licensing guidance
+(OHF-Voice/piper1-gpl commit 31c3011), which flags older `es_MX-ald` builds:
+they were fine-tuned from an earlier `davefx` model with a restricted
+training chain. Any Mexican Spanish candidate is checked against that.
+Neither the guidance nor any voice's model card was read from this build
+environment: that repository is outside this session's access, and the
+voice repository is unreachable from it.
+
+**Amended (2026-11-19, owner, latest): Piper ships now, with the voice.**
+The owner overruled parking Piper for the beta: Bede's voice ships with the
+model. It is English, male and distinctive, a monk persona, and that is what
+must be maintained. The owner chose **`en_GB-alan-medium`**. Spanish lessons
+are read in that same voice (one voice for both languages). This supersedes
+the "parked for the beta" amendment above; the GPL distribution review is no
+longer a precondition for shipping.
+
+How it ships (`voice-service/`):
+
+- `bede-voice.json` names the voice and pins the SHA-256 of its model, its
+  config and its model card. `fetch_voice.py` downloads them while the voice
+  image is built and keeps them only if every hash matches. If a hash is not
+  pinned yet, the download fails, or a hash differs, it keeps nothing and the
+  build carries on: Bede is then text-first, never speaking from bytes nobody
+  verified. A family's install never fails because of the voice.
+- The `voice` service runs by default (no compose profile), and compose
+  points the API at it (`LOCAL_TTS_URL=http://voice:5000`). The server uses
+  the built-in voice unless `BEDE_VOICE_EN` names another, reads Spanish in
+  the English voice unless `BEDE_VOICE_ES` names one, and with no voice at all
+  keeps running and reports none, rather than restarting forever.
+- **The hashes are not pinned yet**: huggingface.co is unreachable from the
+  build environment, so the voice's model card has not been read here either.
+  `scripts/voice/pin_bede_voice.py`, run where it is reachable, prints each
+  hash and the full card and writes the hashes; the license, training lineage
+  and redistribution fields are then recorded from that card by hand.
+  `tests/test_local_voice.py` fails while any hash is pinned and those fields
+  are empty, so the voice cannot be pinned without its license on record.
+
+**What has actually been tested.** No real Piper voice has been tested in
+this repository. Every check here used sample voices built from code by
+`make_sample_voice.py`, which have no license or lineage to review. The first
+real voice to be reviewed is whichever copy the owner chooses; no download is
+needed to start that review if the tested copy and its model card are
+already in hand.
+
+**How it is built.**
+
+- `services/voice_synthesis.py`'s `active_provider()` picks the voice.
+  Installed Bede is `docker-compose.yml`, which pins `TTS_PROVIDER=local`:
+  Piper at `LOCAL_TTS_URL`, or none, never OpenAI even with a key present.
+  `config.py`'s empty default (local if set, otherwise OpenAI) is what the
+  demo (`render.yaml`, not compose) relies on, so the demo is unchanged; the
+  divergence is named in `tests/test_compose_settings_passthrough.py`.
+  `TTS_PROVIDER=local` with no URL boots and is silent. `core/voice_url.py`
+  holds `LOCAL_TTS_URL` to this computer or its private network, judged from
+  the literal text, and a bad value stops Bede at boot.
+- `voice-service/server.py` is Bede's own server around Piper's library. It
+  does not use Piper's bundled `piper.http_server`, which keeps the last
+  sentence it spoke in memory, shows it at `/info`, and downloads voices at
+  `/download`. This one logs no text, keeps nothing after a request, has only
+  `/synthesize` and `/health`, and never reads one language in another
+  language's voice. Its dependencies are hash-locked.
+- The `voice` compose service (profile `local-voice`, off by default) sits on
+  an internal network with no internet access and publishes no port.
+- The installed app's `useTextToSpeech` no longer contains a browser-voice
+  path. `bedesVoiceOnly.test.ts` fails if any app file speaks through the
+  browser's voice, if anything in the demo but its own unchanged hook does,
+  if anything outside the hooks requests `/tutor/speak`, or if a chat
+  practice screen is handed anything but Bede's voice.
+- `GET /tutor/voice` reports `configured`, `where` and `available` (the local
+  voice's `/health`, no text sent, a voice for the session's language). The
+  chat passes a round Bede's voice only when it is available, so with Piper
+  down or absent a round is served without the items that work only by ear
+  and continues on screen. Parent Setup's **Bede's voice** card shows one of
+  four states: local, cloud, set up but not responding, or none.
+- Piper logs pieces of the text it speaks (`Missing phoneme from id map:`),
+  so the voice server keeps only Piper's errors.
+
+**Verified (2026-11-18)** by `scripts/qualification/local_voice/run_local_voice_check.py`,
+run by hand: the real API on SQLite with `TTS_PROVIDER=local`, a loopback
+model stub, a sample OpenAI key in reach, and an HTTP(S) proxy that refuses
+and records every outbound connection; real Piper in `voice-service/server.py`
+with sample voices built from code (`make_sample_voice.py`: a real ONNX model
+with Piper's interface that emits a tone, plus a variant that loads and then
+fails every line); and one Sound Time round plus a chat reply in real
+Chromium. All three cases passed with zero outbound attempts: **works** (13
+lines returned as `audio/wav` and played), **fails** (every line silent, the
+round and the chat went on with prompts and feedback on screen), **none**
+(the round was served without ear-only items and went on). In every case the
+browser's own voice was never called and no spoken line appeared in any log.
+Three deliberate breaks each failed the check: the old browser-fallback hook
+(the browser voice spoke the reply), OpenAI as a fallback after a failed Piper
+line (28 refused attempts to `api.openai.com`), and the compose pin removed
+(`/tutor/voice` reported a cloud voice and the API tried OpenAI). This proves
+the plumbing, not how a real voice sounds; that, with a real voice whose
+license is recorded, is the owner's acceptance on the pilot Mac.
+
+**Verified again (2026-11-19)**, after the amendment, by the same check with
+two more cases and stricter judgement: it now also records the text of every
+line the page sends and what the child tapped. Five cases, zero outbound
+attempts:
+
+| Case | Lines the page sent | Played | Browser voice | Round and chat |
+| --- | --- | --- | --- | --- |
+| works | 14 (6 distinct) | 13, as Piper audio | never | finished; reply spoken |
+| fails | 14 | none | never | finished; chat went on |
+| none | **0** | none | never | finished; chat went on |
+| disabled (`TTS_PROVIDER=none`, a Piper URL and an OpenAI key present) | **0** | none | never | finished; chat went on |
+| hang (health answers, lines never do) | 15 | none | never | through Together and Your turn; chat went on |
+
+The six distinct lines in **works** were the round's Watch line, its prompt,
+three pieces of feedback and Bede's chat reply; none was a word the child
+tapped. In **hang** the check's step budget ran out before the finish screen,
+with every piece of feedback shown; each line was given up by the 20-second
+client timeout. Six deliberate breaks each failed the unit tests: speaking
+without asking whether the voice can speak, no line timeout, a failed status
+check read as "yes", the browser voice put back in the demo, a round speaking
+the child's choice, and a round told it can speak before the answer is known.
+
+**What the review must settle.**
+
+- Whether running Piper as a separate program in its own container, licensed
+  GPL-3.0-or-later (`voice-service/COPYING`) and talking to Bede only over
+  HTTP, is sufficient for how Bede is distributed: the installers, the Mac
+  bundle, and any image that ships both. This is for counsel.
+- Which voices. Each Piper voice is a separate model under its own license,
+  and some are trained on datasets with research-only terms. Choose an English
+  and a Spanish (Mexican) voice only after reading each voice's model card and
+  recording its license here. This could not be checked from the build
+  environment, which cannot reach the voice repository.
+- Then: installers that fetch and verify the chosen voices, and set
+  `COMPOSE_PROFILES=local-voice` and `LOCAL_TTS_URL` by default.
+
+**What changes for families now.** Installed Bede with no local voice set up
+is silent instead of speaking in OpenAI's voice or the browser's, including a
+family with `OPENAI_API_KEY` set for tutoring; the card in Parent Setup says
+so. The demo hears exactly what it heard before.
+
+**Related:** entry 40(g), `docs/VOICE_SETUP.md`, `docs/K2_PRACTICE.md` §7,
+`voice-service/README.md`.

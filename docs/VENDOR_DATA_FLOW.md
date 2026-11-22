@@ -94,7 +94,13 @@ on a setting:
   are sent to `https://api.openai.com/v1/audio/speech` (model
   `gpt-4o-mini-tts` by default, configurable voice/instructions) to
   synthesize the audio the child hears. Nothing the child said is ever
-  part of this payload.
+  part of this payload. **This applies to the public demo and to installed
+  Bede**: with `OPENAI_API_KEY` set and `TTS_PROVIDER` empty, every line Bede
+  speaks is sent to OpenAI to be voiced (owner direction 2026-11-20, entry 46).
+  `TTS_PROVIDER=none`, or no key, sends nothing and Bede is text-first. An
+  optional Piper development voice (`TTS_PROVIDER=local`, off by default) keeps
+  lines on the family's own computer or network (`voice-service/`); it is never
+  chosen automatically or used as a fallback.
 - **Speech-to-text (`services/transcription.py`) — local by default, a
   real API call only if you ask for it.** This is what turns a child's
   microphone audio into the text Bede answers. On the default
@@ -145,7 +151,11 @@ machine talks to Bede, and Bede talks to the provider. Picture study is
 the one exception, and the distinction is the whole reason it has its own
 section rather than a row in a table above. The Practice Coach makes the same
 two requests for an `image` diagram (a named place, event or artwork a quiz
-question shows; `Diagram.tsx`, `WIKI_SUMMARY`): the diagram holds only the
+question shows), and only in History & Geography and Art & Music: the server
+drops the lookup for every other subject (`diagrams.IMAGE_SUBJECTS`,
+`tests/test_outside_picture_boundary.py`). Every other picture in Bede is an
+original drawing in the app and fetches nothing (`outsidePictures.test.tsx`).
+The image diagram (`Diagram.tsx`, `WIKI_SUMMARY`) holds only the
 article title, and only a picture hosted on Wikimedia Commons (freely
 licensed) is shown, with a credit line. No quiz text, answer or learner
 detail goes with the request; the article title is the only thing sent.

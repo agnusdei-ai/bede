@@ -265,16 +265,15 @@ bind every consent and authorization.
 
 ---
 
-## 12. Stability code freeze
+## 12. Stability code freeze (lifted)
 
-*Source: `CLAUDE.md` → Standing Workflow: Stability Code Freeze*
+*Source: `CLAUDE.md` → Standing Workflow: Stability Code Freeze (lifted 2026-11-20)*
 
-Until the owner's GO or NO-GO on pilot v1.0 (or the owner lifts it in writing),
-only five kinds of change merge to `main`: a security fix, a fix for a red
-`main` or a gate the world broke, a fix for a defect qualification or the repair
-loop found, documentation of the system as it is, or a revert. Each such pull
-request says which on its own line, `Freeze exception: <n>`. `site/` and `demo/`
-still need the owner's sign-off. The full terms are `docs/DECISIONS.md` entry 45.
+The pilot v1.0 freeze was lifted by the owner in writing on 2026-11-20
+(`docs/DECISIONS.md` entry 45, amendment). `main` takes ordinary pull requests
+and none carries a `Freeze exception:` line. `site/` and `demo/` still need the
+owner's sign-off, and #862 and the pilot work on #837 still land only when the
+owner says so.
 
 ## The refusals
 

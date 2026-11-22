@@ -2,7 +2,10 @@ export type CounterColor = 'red' | 'yellow'
 export interface CountersPiece { kind: 'counters'; groups: { color: CounterColor; count: number }[] }
 export interface TenFramePiece { kind: 'ten_frame'; frames?: number; red?: number; yellow?: number; crossed?: number }
 export interface NumberBondPiece { kind: 'number_bond'; whole: number | null; parts: (number | null)[] }
-export type MathPiece = CountersPiece | TenFramePiece | NumberBondPiece
+/** Plates of counters (grade 2): `groups` plates with `each` on every one,
+ * or `loose` counters still to be shared out onto empty plates. */
+export interface EqualGroupsPiece { kind: 'equal_groups'; groups: number; each?: number; loose?: number }
+export type MathPiece = CountersPiece | TenFramePiece | NumberBondPiece | EqualGroupsPiece
 
 export interface MathTask {
   phase?: 'together' | 'your_turn'

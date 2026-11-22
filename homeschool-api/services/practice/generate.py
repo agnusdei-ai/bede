@@ -112,12 +112,14 @@ def _rules() -> str:
 You are drafting a school quiz or exam for an adult (a parent or teacher) to review before any student sees it.
 Return ONLY one JSON object, no prose, in this shape:
 {"title": str, "coverage": [str], "questions": [{"number": int, "type": "multiple_choice"|"true_false"|"short_answer"|"fill_in_blank"|"computation"|"written_response",
-  "topic": str, "prompt": str, "options": [str], "answer": str, "diagram": object|null}]}
+  "topic": str, "prompt": str, "options": [str], "answer": str, "explanation": str, "difficulty": "easier"|"on"|"harder", "diagram": object|null}]}
 Rules:
 - First work out what the source material covers: topics, skills, question types and difficulty. List the topics in "coverage".
 - Write NEW questions on that material. Never copy a source question word for word.
 - Match the requested grade, level and kind. Use the question types the source uses, mixed sensibly.
 - Every question has a correct answer in "answer". For multiple_choice give 3 or 4 "options" and make "answer" exactly one of them. For true_false the options are ["True", "False"].
+- "explanation" says in one or two short sentences why the answer is right, in words a student of that grade understands (for example the step that gets there, or the fact it rests on). Leave it "" when there is nothing useful to add, such as a plain recall question.
+- "difficulty" places each question beside the requested level: "easier", "on" or "harder". Spread them, roughly a third each, so the quiz can step up after a right answer and down after a miss; every question still fits the grade.
 - For a computation, write the problem as a plain expression with + − × ÷ and = (for example "48 ÷ 6 ="), so it can be checked.
 - When a question in any subject needs a picture (a shaded fraction, telling the time, the area of a shape, a number line, a graph, an animal or object to name, a scene, a timeline, a Venn diagram, a table, a cycle or the steps of a process), give it a "diagram" and ask about the picture. Bede draws the picture from the diagram, so never describe it in words instead, and never put the answer in the prompt or in the picture's own labels. Use one of:
 """ + diagrams.PROMPT_SCHEMA + """
@@ -179,6 +181,22 @@ def _option_answer(question: dict) -> str | None:
     return None
 
 
+# The answer key's explanations stay brief: at most two sentences.
+MAX_EXPLANATION_CHARS = 300
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+
+
+def brief_explanation(text: object) -> str:
+    """At most two sentences and MAX_EXPLANATION_CHARS of the model's explanation."""
+    words = " ".join(str(text or "").split())
+    if not words:
+        return ""
+    kept = " ".join(_SENTENCE_END.split(words)[:2])
+    if len(kept) > MAX_EXPLANATION_CHARS:
+        kept = kept[:MAX_EXPLANATION_CHARS - 1].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    return kept
+
+
 def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[GeneratedQuiz, dict]:
     """Check and clean the model's draft. Returns the quiz and what changed."""
     source = _key(req.source_text)
@@ -194,6 +212,11 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
         if raw.get("diagram") is not None and picture is None:
             report["dropped"] += 1  # the question needs a picture Bede cannot draw
             continue
+        if picture is not None and diagrams.keep_for_subject(picture, subject.value) is None:
+            # An outside picture belongs to History & Geography and Art & Music
+            # only; elsewhere the question needs a picture it may not have.
+            report["dropped"] += 1
+            continue
         q["prompt"] = str(q.get("prompt") or "").strip()[:600]
         q["topic"] = str(q.get("topic") or "").strip()[:80]
         q["options"] = [str(o).strip()[:200] for o in (q.get("options") or []) if str(o).strip()][:6]
@@ -204,6 +227,11 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
             report["dropped"] += 1
             continue
         q["answer_check"] = "verify"
+        # An explanation written for an answer Bede then replaces would
+        # explain the wrong answer, so a replaced answer loses it.
+        q["explanation"] = brief_explanation(raw.get("explanation"))
+        level = str(raw.get("difficulty") or "").strip().lower()
+        q["difficulty"] = level if level in ("easier", "on", "harder") else "on"
         if q.get("type") == "true_false":
             q["options"] = ["True", "False"]
         if q.get("type") in ("multiple_choice", "true_false"):
@@ -225,9 +253,11 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
                     if match is not None and match != q["answer"]:
                         report["answers_recomputed"] += 1
                         q["answer"] = match
+                        q["explanation"] = ""
                 else:
                     if not diagrams.same(picture, q["answer"], shown):
                         report["answers_recomputed"] += 1
+                        q["explanation"] = ""
                     q["answer"] = shown
                 if q.get("type") != "true_false":
                     q["answer_check"] = "computed"
@@ -241,6 +271,7 @@ def finish(data: dict, req: GenerateQuizRequest, subject: Subject) -> tuple[Gene
             computed = math_pack._fmt(right, "." in q["prompt"])
             if math_pack.parse_answer(q["answer"].split(" (=")[0]) != right:
                 report["answers_recomputed"] += 1
+                q["explanation"] = ""
             q["answer"] = computed
             q["answer_check"] = "computed"
             q["type"] = "computation"

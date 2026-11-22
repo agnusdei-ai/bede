@@ -1,0 +1,77 @@
+name: Local model pull, digest and Spanish probe
+
+# Owner lifted the CI model-download pause on 2026-11-21 for THIS one bounded
+# job (docs/DECISIONS.md entry 43 amendment). It pulls exactly the models the
+# installers default to, records each one's registry digest, size and licence,
+# and runs homeschool-api/scripts/spanish_local_model_probe.py against them.
+# Loopback only, no paid provider keys, no learner data, dispatch only.
+# ministral-real-weights-probe.yml stays paused.
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Space-separated Ollama tags (default: the five installer tiers)"
+        required: false
+        default: "granite3.3:2b ministral-3:3b granite3.3:8b ministral-3:14b mistral-small3.2:24b"
+
+permissions:
+  contents: read
+
+jobs:
+  pull-and-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+      MISTRAL_API_KEY: ""
+      OLLAMA_HOST: "127.0.0.1:11434"
+      OLLAMA_NOPRUNE: "1"
+      DO_NOT_TRACK: "1"
+      MODELS: ${{ inputs.models }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Free disk space (the five models are about 34 GB)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Install Ollama from the GitHub release and record its checksum
+        run: |
+          set -euo pipefail
+          mkdir -p evidence && sudo apt-get install -y zstd >/dev/null
+          TAG="$(curl -fsSL https://api.github.com/repos/ollama/ollama/releases/latest | python3 -c 'import json,sys;print(json.load(sys.stdin)["tag_name"])')"
+          curl -fL --retry 3 -o /tmp/ollama.tar.zst "https://github.com/ollama/ollama/releases/download/${TAG}/ollama-linux-amd64.tar.zst"
+          { echo "ollama_tag=${TAG}"; sha256sum /tmp/ollama.tar.zst; } | tee evidence/runtime.txt
+          sudo tar -C /usr --zstd -xf /tmp/ollama.tar.zst
+          nohup ollama serve > evidence/ollama.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:11434/api/version && break; sleep 2; done
+
+      - name: Pull each model and record digest, size and licence
+        run: |
+          set -uo pipefail
+          for m in $MODELS; do
+            echo "== $m"
+            if timeout 3000 ollama pull "$m"; then echo "$m PULLED" >> evidence/pulls.txt; else echo "$m PULL_FAILED" >> evidence/pulls.txt; fi
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags > evidence/tags.json
+          for m in $MODELS; do ollama show "$m" --license 2>/dev/null | head -20 > "evidence/license-${m//[:\/]/_}.txt" || true; done
+          cat evidence/pulls.txt
+
+      - name: Install backend dependencies for the probe
+        run: |
+          python3 -m pip install --quiet --require-hashes -r homeschool-api/requirements.lock.txt
+
+      - name: Spanish and tool-call probe (a word-list check; a person still reads the transcripts)
+        working-directory: homeschool-api
+        run: |
+          set -uo pipefail
+          timeout 7000 python3 scripts/spanish_local_model_probe.py --models $MODELS --out ../evidence/spanish.json || echo "probe exited $?" | tee -a ../evidence/pulls.txt
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: local-model-evidence
+          path: evidence/
+          retention-days: 30

@@ -503,7 +503,9 @@ async def test_a_refused_lesson_picture_never_reaches_the_tutor(tutor, audited, 
     assert chunks == [{"type": "text", "content": expected}, {"type": "done"}]
     (call,) = client.calls
     image = call["messages"][0]["content"][0]
-    assert image["source"]["media_type"] == "image/jpeg" and SCREEN_MARK in call["system"]
+    # The check sees the picture as rebuilt from its pixels (a fresh PNG,
+    # services/file_safety.py), never the bytes the device sent.
+    assert image["source"]["media_type"] == "image/png" and SCREEN_MARK in call["system"]
     refusals = [kw for event, kw in audited if event == AuditEvent.UPLOAD_REFUSED]
     if category in content_screen.UNSAFE_CATEGORIES:
         assert [(r["detail"], r["student_name"], r["role"]) for r in refusals] == [

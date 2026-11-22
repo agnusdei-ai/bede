@@ -13,7 +13,8 @@ import type { PhonicsLesson } from '../services/k2PhonicsTypes'
 import type { MathLesson } from '../services/k2MathTypes'
 import type { MapLesson, MapScene } from '../services/mapPracticeTypes'
 import { buildPrintHtml, type PrintItem } from '../utils/printDocument'
-import { K2_PRINT_CSS, mapPrintItems, mathPrintItems, phonicsPrintItems } from './k2PrintSheet'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { K2_PRINT_CSS, MathPrintPicture, mapPrintItems, mathPrintItems, phonicsPrintItems } from './k2PrintSheet'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import K2MathPractice from './K2MathPractice'
 import MapPractice from './MapPractice'
@@ -112,6 +113,20 @@ describe('K-2 practice sheets', () => {
       expect(item.diagramHtml).not.toMatch(/class="(?!k2pic")/)
       expect(item.diagramHtml).not.toMatch(/<text/)
     }
+  })
+
+  it('prints grade 2 plates of counters with no numbers, no answer and no screen classes', () => {
+    for (const diagram of [{ kind: 'equal_groups', groups: 5, each: 10 }, { kind: 'equal_groups', groups: 4, loose: 12 }] as const) {
+      const html = renderToStaticMarkup(<MathPrintPicture d={diagram} />)
+      expect(html).toMatch(/^<svg/)
+      expect(html).not.toMatch(/<text|class=/)
+      const plates = (html.match(/<ellipse/g) ?? []).length
+      expect(plates).toBe(diagram.groups)
+    }
+    const shared = renderToStaticMarkup(<MathPrintPicture d={{ kind: 'equal_groups', groups: 4, loose: 12 }} />)
+    // Twelve counters waiting above the plates, none on a plate: the fair share is the question.
+    expect((shared.match(/r="14"/g) ?? []).length).toBe(12)
+    expect((shared.match(/r="5.5"/g) ?? []).length).toBe(0)
   })
 
   it('prints a map with its grid and asks for an X on paper', () => {

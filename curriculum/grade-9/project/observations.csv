@@ -1,0 +1,14 @@
+id,split,blade,divided,reference,note
+D01,development,flat,false,simple_broad,Fictional intact broad blade
+D02,development,flat,true,compound_broad,Fictional divided broad blade
+D03,development,needle,false,needle_like,Fictional needle form
+D04,development,unknown,,unknown,Fictional insufficient observation
+D05,development,flat,false,simple_broad,Fictional repeated form
+D06,development,flat,true,compound_broad,Fictional repeated form
+T01,test,flat,false,simple_broad,Fictional intact broad blade
+T02,test,flat,true,compound_broad,Fictional divided broad blade
+T03,test,needle,false,needle_like,Fictional needle form
+T04,test,flat,false,compound_broad,Fictional deliberate recording mismatch
+T05,test,flat,,simple_broad,Fictional missing division observation
+T06,test,unknown,,unknown,Fictional unknown reference
+

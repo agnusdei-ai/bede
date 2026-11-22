@@ -471,6 +471,50 @@ def test_same_day_results_use_the_later_entry_not_a_random_id():
         assert "continue current instruction" in p.text and p.source_evidence_ids == ("0000",)
 
 
+
+def test_focuses_follow_reading_skill_sequence_not_measure_code_order():
+    """With four measures at the same support level, the two focuses kept are
+    the earliest skills (sounds in words, then letters), not the first two
+    codes alphabetically (which were LNF and MAZE and dropped PSF)."""
+    p = recommend([_rec(1, "MAZE", "intensive_at_risk"), _rec(2, "LNF", "intensive_at_risk"),
+                   _rec(3, "NWF_CLS", "intensive_at_risk"), _rec(4, "PSF", "intensive_at_risk")])
+    assert p.text.index("phoneme segmentation") < p.text.index("letter-name")
+    assert "comprehension" not in p.text and "decoding" not in p.text
+    # A more supported need still comes before an earlier skill.
+    q = recommend([_rec(1, "PSF", "strategic_some_risk"), _rec(2, "ORF_WC", "intensive_at_risk")])
+    assert q.text.index("oral reading") < q.text.index("phoneme segmentation")
+
+
+def test_no_internal_code_reaches_the_teacher_in_any_suggestion():
+    """Every measure and category, alone: the suggestion and its rationale
+    name them in words. No stored code (intensive_at_risk, NWF_CLS) appears."""
+    from services import assessment_interop, pilot_recommender
+    dibels = next(c for c in assessment_interop.frameworks_catalog() if c["id"] == "dibels8")
+    for measure in dibels["supported_measures"]:
+        for band in dibels["reported_bands"]:
+            p = recommend([_rec(1, measure, band)])
+            shown = " ".join([p.text, p.reason, *p.rationale])
+            assert "_" not in shown, (measure, band, shown)
+            assert band not in shown
+            if not p.abstained:
+                assert p.rationale and "source report" in p.rationale[0]
+    assert pilot_recommender.POLICY_VERSION == "pilot-recommender/2"
+
+
+def test_no_focus_tells_the_teacher_to_practise_the_test_itself():
+    """LNF is reported as a risk indicator and Maze is a test format; the
+    focus names the underlying skill. NWF never suggests nonsense words."""
+    from services.pilot_recommender import _DIBELS_FOCUS
+    assert "letter-sound" in _DIBELS_FOCUS["LNF"]
+    assert "connected text" in _DIBELS_FOCUS["MAZE"] and "choosing words" not in _DIBELS_FOCUS["MAZE"]
+    assert all("nonsense" not in focus for focus in _DIBELS_FOCUS.values())
+    # Every measure a teacher can record (bar the composite) has a focus and a place in the sequence.
+    from services import assessment_interop, pilot_recommender
+    dibels = next(c for c in assessment_interop.frameworks_catalog() if c["id"] == "dibels8")
+    measures = set(dibels["supported_measures"]) - {"COMPOSITE"}
+    assert measures == set(_DIBELS_FOCUS) == set(pilot_recommender._SKILL_SEQUENCE)
+    assert set(dibels["supported_measures"]) <= set(pilot_recommender._MEASURE_NAMES)
+
 def test_composite_and_unreported_bands_alone_abstain():
     assert recommend([_rec(1, "COMPOSITE", "intensive_at_risk")]).abstained
     assert recommend([_rec(1, "PSF", "not_reported")]).abstained

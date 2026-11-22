@@ -1891,6 +1891,7 @@ export interface OfficialTeacherArtifact {
   campus_id: string; learner_id: string; assessment_id: string; plan_id: string
   decision_id: string; approved_by: string; approval_action: 'approve' | 'edit'
   assessment_snapshot_sha256: string; plan_text: string; prepared_at: string
+  based_on: string[]
   delivery_state: 'NOT_REQUESTED'; disclaimer: string
 }
 export interface OfficialTeacherFollowUp {

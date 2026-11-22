@@ -82,8 +82,10 @@ non-destructive cross-version migration has been qualified.
 
 ## Trusted distribution is separate and manual
 
-1. Finish the scope PRs, independent security/counsel reviews, exact-head CI,
-   and merged `main` qualification. Before advertising the **full five-target
+1. Finish the scope PRs, separate agent-led content/security reviews,
+   exact-head CI, and merged `main` qualification. Complete counsel review
+   where applicable legal obligations require it; do not treat it as a
+   substitute for agent review. Before advertising the **full five-target
    matrix**, require device installation and launch evidence for Apple Silicon
    Mac, Intel Mac, Windows x64, Linux AMD64, and Linux ARM64 (including the
    declared DEB/RPM distributions). A physical test on only one machine does
@@ -123,9 +125,10 @@ workflow is the qualifying Windows candidate path.
 
 For each candidate record source SHA, GitHub run ID, artifact name and SHA-256,
 OS/architecture, installer type, signing/notarization status, local health,
-manual device test, sample G1/G2/G3, independent reviewer and dated
-owner release decision. Keep `NOT RUN` where hardware or operational
-checks were not performed.
+manual device test, sample G1/G2/G3, separate agent reviewer role plus
+task/session/model identities when exposed, and dated owner release decision.
+Agent review is not human certification. Keep `NOT RUN` where hardware or
+operational checks were not performed.
 
 No release page or public link is created automatically by either workflow.
 There is not yet an immutable tag-driven `make update` install process.

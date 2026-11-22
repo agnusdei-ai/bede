@@ -9,6 +9,7 @@ import {
   recordPilotEvidence, requestPilotRecommendation, SchoolAuthorizationRequiredError,
 } from '../services/api'
 import { describeFailure } from '../utils/requestFailure'
+import { printTeacherPlan } from '../utils/printTeacherPlan'
 import type { FailureContext } from '../utils/requestFailure'
 import type {
   AssessmentFrameworkMetadata, DibelsGrade, DibelsWindow, EducatorAssessmentBand,
@@ -299,6 +300,16 @@ export default function PilotTeacherJourney({ token }: { token: string }) {
               {authorized.delivery_state === 'NOT_REQUESTED' && (
                 <p className="text-xs text-gray-600">Not sent to any learner session. Sending is not available in this pilot.</p>
               )}
+              <button type="button" className="rounded-lg border px-3 py-2 text-sm min-h-[44px]"
+                onClick={() => void printTeacherPlan({
+                  title: 'Teacher instructional plan',
+                  learnerName: selected?.display_name ?? '',
+                  approvalLine: `${authorized.status === 'edited' ? 'Edited and approved' : 'Approved'} by the teacher${authorized.decided_at ? ` on ${authorized.decided_at.slice(0, 10)}` : ''} · for teacher use, offline`,
+                  planText: authorized.authorized_instruction ?? '',
+                  basedOn: authorized.rationale,
+                  disclaimer: 'Teacher-use plan only. Not an official DIBELS score or assessment report. Not sent to any learner.',
+                }).then(started => { if (!started) setMessage('Printing did not start. Try again.') })}>
+                Print this plan</button>
             </div>
           : <p className="text-sm text-gray-500">No instruction authorized yet.</p>}
         {ledger && ledger.entries.length > 0 && (

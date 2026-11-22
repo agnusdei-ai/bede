@@ -639,6 +639,13 @@
     "drafting": "Writing the quiz…",
     "part": "(part {{part}} of {{parts}})"
   },
+  "k2Print": {
+    "circle": "Circle your answer.",
+    "button": "Print or save as PDF",
+    "title": "{{title}}: practice sheet",
+    "markSquare": "Mark the square with an X.",
+    "drawCounters": "Draw the counters."
+  },
   "printSheet": {
     "name": "Name",
     "date": "Date",

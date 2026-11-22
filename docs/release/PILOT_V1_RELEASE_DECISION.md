@@ -78,6 +78,16 @@ Two exceptions are recorded rather than rounded off:
   If it recurs, or anything similar appears on those paths, investigate
   before release.
 
+- **Auto-merge does not wait for the test suites.** The `main` ruleset
+  requires only the three FAQ checks, and GitHub's auto-merge waits for
+  required checks alone. #908 merged at 02:45:06, four seconds after its
+  `demo-tests` failed and before `homeschool-tutor-tests` finished (also
+  failing), which is how the missing print case reached `main`; #890
+  merged the same way at 03:09 while both suites were red. At this
+  record, #837 is the only open PR and its auto-merge is off. Until the
+  ruleset requires the test suites (an owner setting), a release PR is
+  merged by hand after every check has finished, never by auto-merge.
+
 **2. The site build published.** Cloudflare Workers Builds reported success
 for 2eeed597, and the live header check (44980645084) passed. The site
 carries no revision marker, so "2eeed597 is what is served" rests on that

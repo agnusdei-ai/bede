@@ -10,6 +10,16 @@ existing K-2 skills in services/diagnostic/skill_map.py (no new skill id):
     add        oa.add_within_20        a ten-frame (two past ten) with red and yellow counters
     subtract   oa.subtract_within_20   a ten-frame with some counters taken away
     bond       cc.number_bonds         a number bond with one part missing
+    skip       cc.skip_count_2_5_10    plates of 2, 5 or 10 counted by 2s, 5s or 10s
+    groups     oa.arrays_equal_groups  equal plates of counters: how many in all?
+    share      oa.arrays_equal_groups  counters shared fairly onto plates: how many on each?
+
+The last three are grade 2's bridge to multiplication and division
+(data/catalog/year2.json: "equal groups and arrays seen as repeated addition
+— the bridge to multiplication, met a year before it is named"). No times or
+divide sign is ever shown; that waits for grade 3. Sharing fairly is the root
+of division and has no K-2 skill of its own, so it records the equal-groups
+skill (owner ruling 2026-11-22), not a new skill id.
 
 A building question (putting counters on a ten-frame, whatever the topic
 framing it) records counting, cc.count_objects_20, and nothing else (owner
@@ -69,6 +79,11 @@ TOPIC_SKILL = {
     "add": "oa.add_within_20",
     "subtract": "oa.subtract_within_20",
     "bond": "cc.number_bonds",
+    # Grade 2's bridge to multiplication and division. Appended, never
+    # inserted: a lesson id indexes TOPICS, so the order above must not move.
+    "skip": "cc.skip_count_2_5_10",
+    "groups": "oa.arrays_equal_groups",
+    "share": "oa.arrays_equal_groups",
 }
 TOPICS = tuple(TOPIC_SKILL)
 
@@ -76,7 +91,7 @@ TOPICS = tuple(TOPIC_SKILL)
 LEVEL_TOPICS = {
     "K": ("count", "compare", "bond", "add", "subtract"),
     "1": ("add", "subtract", "bond", "compare"),
-    "2": ("add", "subtract", "bond"),
+    "2": ("add", "subtract", "bond", "skip", "groups", "share"),
 }
 
 #: How many choices a number question offers (the K-2 UX baseline, as phonics).
@@ -91,8 +106,14 @@ _PHASE_COUNT = {"together": TOGETHER_TASKS, "your_turn": YOUR_TURN_TASKS}
 _POSITIONS = (("watch", 0), ("together", 0), ("together", 1), ("your_turn", 0), ("your_turn", 1), ("your_turn", 2))
 
 #: Which steps build on a ten-frame (drag or tap counters) rather than pick an
-#: answer. Comparing two rows has no building step.
+#: answer. Comparing two rows, and the plates of counters, have no building
+#: step.
 _BUILD_POSITIONS = {("watch", 0), ("together", 0), ("your_turn", 1)}
+PICK_ONLY_TOPICS = frozenset({"compare", "skip", "groups", "share"})
+
+#: Grade 2's plates of counters: never built for K or grade 1. They are also
+#: the one place a number passes 20 (skip counting by tens reaches 50).
+GRADE_TWO_TOPICS = frozenset({"skip", "groups", "share"})
 
 LEDGER_SUBJECT_AREA = "mathematics"
 
@@ -116,6 +137,9 @@ _QUESTION = {
     "add_build": "How many are there in all?",
     "subtract_build": "How many are left?",
     "bond_build": "How many are there in all?",
+    "skip_how_many": "How many are there in all?",
+    "groups_how_many": "How many are there in all?",
+    "share_each": "How many on each plate?",
 }
 
 
@@ -125,13 +149,19 @@ def level_for_grade(grade: str) -> Optional[str]:
     return g if g in LEVELS else None
 
 
-def topic_for(level: str, vector: Optional[dict] = None) -> str:
+def topic_for(level: str, vector: Optional[dict] = None, seed: int = 0) -> str:
     """The first of the level's topics whose skill the saved math record does
-    not show as secure; with no record, the level's first topic."""
+    not show as secure; with no record, the level's first topic.
+
+    Topics that practise the SAME skill (equal groups and sharing fairly both
+    record oa.arrays_equal_groups) are one stop on that walk: the lesson's
+    seed picks between them, so sharing is practised while the skill is still
+    being learned rather than only after it is secure."""
     topics = LEVEL_TOPICS[level]
     for topic in topics:
         if vector is None or classify_level(vector.get(TOPIC_SKILL[topic], 0.5)) != "secure":
-            return topic
+            same = [t for t in topics if TOPIC_SKILL[t] == TOPIC_SKILL[topic]]
+            return same[seed % len(same)]
     return topics[-1]
 
 
@@ -247,11 +277,13 @@ def _frames_for(top: int) -> int:
 # ── Problems ─────────────────────────────────────────────────────────────────
 
 def _problem(level: str, topic: str, rng: random.Random) -> tuple:
-    """One problem's numbers, by level. Every range stays within 20."""
+    """One problem's numbers, by level. Every range stays within 20, except
+    grade 2's plates: counting by tens reaches 50."""
     if topic == "count":
-        return (rng.randint(3, 10),)
+        lo, hi = {"K": (3, 10), "1": (6, 15), "2": (11, 20)}[level]
+        return (rng.randint(lo, hi),)
     if topic == "compare":
-        lo, hi = (1, 8) if level == "K" else (3, 12)
+        lo, hi = {"K": (1, 8), "1": (3, 12), "2": (8, 20)}[level]
         a = rng.randint(lo, hi)
         b = a if rng.random() < 0.25 else rng.choice([v for v in range(lo, hi + 1) if v != a])
         return (a, b)
@@ -272,6 +304,11 @@ def _problem(level: str, topic: str, rng: random.Random) -> tuple:
     if topic == "bond":
         whole = rng.randint(3, 7) if level == "K" else rng.randint(5, 10) if level == "1" else rng.randint(11, 18)
         return (whole, rng.randint(1, whole - 1))
+    if topic == "skip":
+        by = rng.choice((2, 5, 10))
+        return (rng.randint(2, 5 if by == 10 else 6), by)
+    if topic in ("groups", "share"):
+        return (rng.randint(2, 5), rng.randint(2, 5))
     raise ValueError("unknown topic")
 
 
@@ -295,13 +332,13 @@ def _build_task(level: str, topic: str, seed: int, phase: str, index: int) -> Ta
     numbers = _problems(level, topic, seed)[pos]
     rng = random.Random(f"k2math:{level}:{topic}:{seed}:{phase}:{index}")
     n = CHOICES_PER_LEVEL[level]
-    building = (phase, index) in _BUILD_POSITIONS and topic != "compare"
+    building = (phase, index) in _BUILD_POSITIONS and topic not in PICK_ONLY_TOPICS
 
     if topic == "count":
         (count,) = numbers
         if building:
             return _checked(_build(topic, "count_build", {"n": str(count)}, start=0, target=count,
-                                   capacity=10, take_away=False, expression=f"0 + {count}"))
+                                   capacity=10 * _frames_for(count), take_away=False, expression=f"0 + {count}"))
         diagram = {"kind": "counters", "groups": [{"color": "red", "count": count}]}
         return _checked(Task(topic, "count_how_many", {}, diagram, "number",
                              _number_choices(rng, count, n, 20), str(count)))
@@ -352,7 +389,40 @@ def _build_task(level: str, topic: str, seed: int, phase: str, index: int) -> Ta
                              _number_choices(rng, missing, n, whole), str(missing),
                              expression=f"{whole} - {part}"))
 
+    if topic in ("skip", "groups"):
+        groups, each = numbers
+        # Repeated addition: the idea this year names, worked out exactly.
+        total = _value(" + ".join([str(each)] * groups))
+        diagram = {"kind": "equal_groups", "groups": groups, "each": each}
+        if topic == "skip":
+            choices = _multiple_choices(rng, total, each, n)
+            return _checked(Task(topic, "skip_how_many", {"by": str(each)}, diagram, "number", choices,
+                                 str(total), expression=" + ".join([str(each)] * groups)))
+        return _checked(Task(topic, "groups_how_many", {"groups": str(groups), "each": str(each)}, diagram,
+                             "number", _number_choices(rng, total, n, 30), str(total),
+                             expression=" + ".join([str(each)] * groups)))
+
+    if topic == "share":
+        groups, each = numbers
+        total = groups * each
+        on_each = _value(f"{total} / {groups}")
+        diagram = {"kind": "equal_groups", "groups": groups, "loose": total}
+        choices = tuple(c for c in _number_choices(rng, on_each, n + 1, 10) if c != "0")[:n]
+        if str(on_each) not in choices:
+            choices = tuple(sorted(set(choices[: n - 1]) | {str(on_each)}, key=int))
+        return _checked(Task(topic, "share_each", {"total": str(total), "groups": str(groups)}, diagram,
+                             "number", choices, str(on_each), expression=f"{total} / {groups}"))
+
     raise ValueError("unknown topic")
+
+
+def _multiple_choices(rng: random.Random, answer: int, by: int, n: int) -> tuple[str, ...]:
+    """For counting by 2s, 5s or 10s: the answer and other numbers the same
+    count lands on, so the choice is a real one (never a number skip counting
+    could not reach)."""
+    pool = [answer + by * d for d in (1, -1, 2, -2, 3, -3) if 0 < answer + by * d <= 50]
+    rng.shuffle(pool)
+    return tuple(str(v) for v in sorted(pool[: n - 1] + [answer]))
 
 
 def _build(topic: str, key: str, args: dict, *, start: int, target: int, capacity: int,
@@ -370,7 +440,7 @@ def _build(topic: str, key: str, args: dict, *, start: int, target: int, capacit
 
 def build_task(level: str, topic: str, seed: int, phase: str, index: int) -> Task:
     """One question, the same every time for the same arguments."""
-    if level not in LEVELS or topic not in TOPICS:
+    if level not in LEVELS or topic not in TOPICS or (topic in GRADE_TWO_TOPICS and level != "2"):
         raise ValueError("unknown level or topic")
     if phase not in PHASES or not 0 <= index < _PHASE_COUNT[phase]:
         raise ValueError("unknown task")
@@ -391,7 +461,7 @@ def build_lesson(level: str, seed: int, topic: str, audio: bool = True) -> dict:
     """The whole lesson as sent to the child's screen. The answer is sent for
     Watch only; Together and Your turn are checked on the server. `audio`
     may only remove questions that work only by ear, and none here does."""
-    if level not in LEVELS or topic not in TOPICS:
+    if level not in LEVELS or topic not in TOPICS or (topic in GRADE_TWO_TOPICS and level != "2"):
         raise ValueError("unknown level or topic")
     base = {"area": "math", "level": level, "topic": topic, "skill": TOPIC_SKILL[topic],
             "label": skill_label(topic), "audio": audio}
@@ -547,7 +617,7 @@ def match_spoken(task: Task, text: str) -> Optional[str]:
 
 
 __all__ = [
-    "AUDIO_ONLY_TOPICS", "CHOICES_PER_LEVEL", "COMPARE_CHOICES", "LEVELS", "LEVEL_TOPICS", "PHASES",
+    "AUDIO_ONLY_TOPICS", "GRADE_TWO_TOPICS", "PICK_ONLY_TOPICS", "CHOICES_PER_LEVEL", "COMPARE_CHOICES", "LEVELS", "LEVEL_TOPICS", "PHASES",
     "TOGETHER_TASKS", "TOPICS", "TOPIC_SKILL", "YOUR_TURN_TASKS", "BUILD_SKILL", "Task", "build_lesson",
     "build_task", "recorded_skill",
     "build_watch", "level_for_grade", "match_spoken", "number_forms", "speech_echoes_answer",

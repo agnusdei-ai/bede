@@ -224,7 +224,8 @@ services:
       # default and deliberately requiring BOTH variables: this is the only
       # route by which content from outside this process reaches model
       # context, and it is confined to the parent's own "Ask Bede" sandbox.
-      # Practice Coach upload scanner (clamd). Empty = none; set = fail closed.
+      # Virus scanner (clamd) for every file a person hands Bede (services/file_safety.py).
+      # Empty = none; set = fail closed.
       # Loopback tcp or a unix socket only; reach another container via a shared
       # unix-socket volume. Anything else is refused at startup.
       - PRACTICE_SCANNER_URL=${PRACTICE_SCANNER_URL:-}

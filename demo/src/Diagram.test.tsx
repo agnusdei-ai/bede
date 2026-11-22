@@ -70,7 +70,8 @@ describe('drawn diagrams', () => {
 
   it('draws pictures of things for any subject, and nothing for a name it does not know', () => {
     const { container } = render(<Diagram d={{ kind: 'pictures', groups: [{ icon: 'apple', count: 3 }] }} />)
-    expect([...container.querySelectorAll('text')].filter((t) => t.textContent === ICONS.apple)).toHaveLength(3)
+    expect([...container.querySelectorAll('svg svg title')].filter((t) => t.textContent === ICONS.apple)).toHaveLength(3)
+    expect(container.querySelectorAll('text')).toHaveLength(0)
     cleanup()
     const scene = render(<Diagram d={{ kind: 'scene', icon: 'duck', action: 'swimming' }} />)
     expect(scene.getByRole('img', { name: 'A picture of a duck swimming' })).toBeTruthy()
@@ -189,6 +190,8 @@ describe('drawn diagrams', () => {
     const demo = readFileSync(resolve(__dirname, 'Diagram.tsx'), 'utf8')
     const app = readFileSync(resolve(__dirname, '../../homeschool-tutor/src/components/Diagram.tsx'), 'utf8')
     expect(strip(demo)).toBe(strip(app))
+    expect(readFileSync(resolve(__dirname, 'drawings.ts'), 'utf8'))
+      .toBe(readFileSync(resolve(__dirname, '../../homeschool-tutor/src/components/drawings.ts'), 'utf8'))
     const py = readFileSync(resolve(__dirname, '../../homeschool-api/models/practice.py'), 'utf8')
     const kinds = py.match(/^DIAGRAM_KINDS = \(([^)]*)\)/m)?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
     expect(kinds.sort()).toEqual([...every, image].map((d) => d.kind).sort())

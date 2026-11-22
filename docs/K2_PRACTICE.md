@@ -250,6 +250,22 @@ practice uses first:
 - **Together:** the child drags the pieces, such as counters into a ten-frame or a clock's hands, with the target faintly shown.
 - **Your turn:** a new problem with no target shown.
 
+**Grade 2's plates of counters (owner direction 2026-11-22).** Three grade 2
+topics, appended to `practical_math.TOPICS` so issued lesson ids still read:
+`skip` (plates of 2, 5 or 10 counted by 2s, 5s or 10s, `cc.skip_count_2_5_10`,
+choices only numbers the count lands on), `groups` (equal plates, how many in
+all, `oa.arrays_equal_groups`) and `share` (counters shared fairly onto empty
+plates, how many on each). Sharing has no K-2 skill of its own and records
+`oa.arrays_equal_groups` (owner ruling 2026-11-22), so no skill id is added. The
+picture is a fourth piece kind, `equal_groups` (`groups`, `each`, `loose`),
+answered by `diagrams.answer` independently of the repeated-addition or
+fair-share working. The guide shows each plate's running total (the skip
+count) or the fair share faintly; Your turn shows neither and its accessible
+name states no number. No times or divide sign appears: they are named in
+grade 3 (`data/catalog/year2.json`, `year3.json`). These are the only Number
+Time numbers past 20 (counting by tens reaches 50). Pick-only, like compare.
+`tests/test_k2_math.py`, `MathPieces.test.tsx`.
+
 **Pictures:** clock, money, ruler, number line, base-ten, array and picture
 groups already exist as diagram kinds. Counters, a ten-frame and a number bond
 are new kinds, added to `diagrams.py`'s closed vocabulary in the same way. Every
@@ -468,6 +484,68 @@ animation is SVG moved with CSS transitions or the Web Animations API, driven by
 the same data the builder returns, so the demonstration and the answer can never
 disagree. With `prefers-reduced-motion`, each step appears in place with no
 movement.
+
+**Watch, step by step (owner direction 2026-11-21).** The example is played,
+not just shown, so the child can copy what they saw. Number Time waits
+`WATCH_PAUSE_MS` (1.2 s) so Bede's line is heard first, then adds or takes away
+one counter every `WATCH_STEP_MS` (0.8 s) with a large running count beside the
+frame. Map Practice settles the picture flat, then lights the way one square at
+a time (`MAP_WATCH_STEP_MS`, 0.6 s) and shows the answer only after the last
+square. Sound Time lights the letters one at a time and shows the answer only
+once they are all lit. Each has a **Watch again** button. With
+`prefers-reduced-motion` the end state is shown at once and there is no replay
+button.
+
+**Variety (owner direction 2026-11-21).** Sound Time's word lists were small
+enough that a lesson reused nearly the whole list (six blend words, five per
+lesson). They now hold 22 rhyming pairs, 53 first-sound pictures over 18
+letters (each letter keeps one plain sound; the picture for a letter changes
+from lesson to lesson and no letter repeats inside a lesson), 24 short-vowel
+words, 15 blend and digraph words, 19 long-vowel words and 25 sight words.
+Rhyming and first sounds each have two kinds of question, chosen per lesson so
+Watch always demonstrates the kind the child then does: "which rhymes with
+___" or "which one does not rhyme" (always three choices, since a fourth would
+be a second odd one), and "which letter starts ___" or "which picture starts
+with this letter". Number Time's counting and comparing ranges now grow with
+the grade (counting 3-10, 6-15, 11-20; comparing up to 8, 12, 20).
+`test_k2_phonics.py` pins a minimum pool per area and that both kinds appear.
+
+**Pictures (owner direction 2026-11-21).** Sound Time, Number Time, ordinary
+quiz pictures and printed sheets use original illustrations made for Bede:
+coloured, sketched drawings in a classical style, drawn as SVG in the app.
+All 160 picture names (`models/practice.py`'s `ICONS`) have one, held as path
+data in `components/drawings.ts` (mirrored byte for byte in the demo) and
+drawn by `Diagram.tsx`'s `DrawingArt`: a watercolour wash under a sepia ink
+line, with hatching for shade. The same style serves every grade, K-12. At
+34px (a pictures diagram's groups) the filters, fine lines and hatching are
+dropped and the ink is thickened so the outline still reads. No drawing holds
+a letter, number or word, and `drawings.test.tsx` fails if a name lacks a
+drawing or a drawing holds anything but path data and palette colours. No
+emoji and no online lookup. The acceptance
+test is recognisability at the size actually shown and printed; fine detail
+must never obscure the object or add a clue that changes the exercise. These
+drawings are Bede's own work: Mater Amabilis informs which works and composers
+picture and composer study choose and how they are taught, and did not supply,
+license or endorse the illustrations. Outside pictures (Wikipedia and
+Wikimedia Commons) remain only for picture study in History & Geography and Art
+& Music, each with its own source, creator, licence or public-domain basis and
+credit (`docs/VENDOR_DATA_FLOW.md`).
+
+**Printing (owner direction 2026-11-22).** Each round's finish screen offers
+**Print or save as PDF** (`components/k2PrintSheet.tsx`, mirrored in the
+demo). It reuses Practice Coach's printer, `utils/printDocument.ts`, so the
+device's own print dialog prints the sheet or saves it as a PDF on every
+platform, with no PDF library of our own. The sheet is the lesson's Together
+and Your turn questions as "Your turn" shows them, with no answers (the server
+keeps them); questions asked only by ear (`listen` displays, sight words, first
+sounds) are left off. Picture choices are lettered, never named, since the
+name can be the answer. Number Time's pieces are redrawn for paper with plain
+colours and no guide numbers (`MathPrintPicture`), because the screen versions
+are styled by the app's classes, which a printed sheet does not carry; a map
+keeps its own drawing, with `K2_PRINT_CSS` placing its compass and key.
+`printDocument.ts` gained `css` (a constant from our code) and `answerSpace`
+for this. Printing records nothing. `k2PrintSheet.test.tsx` pins the sheet's
+content and that each round's finish screen really prints.
 
 **Voice:** every line Bede speaks in a round is written by the server per locale,
 like the map practice card.

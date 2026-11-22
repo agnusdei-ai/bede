@@ -517,8 +517,8 @@ async def new_math_lesson(
     await require_learner_access(auth, student_name, db)
     await consent.require_collection(db, student_name)
     level = await _level_for(db, student_name)
-    topic = practical_math.topic_for(level, await _saved_math_vector(db, student_name))
     seed = secrets.randbelow(1_000_000)
+    topic = practical_math.topic_for(level, await _saved_math_vector(db, student_name), seed)
     lesson = practical_math.build_lesson(level, seed, topic, audio=audio)
     lesson["lesson_id"] = mint_lesson_id(student_name, level, topic, seed, audio, area=MATH_AREA)
     lesson["your_turn_tries"] = YOUR_TURN_TRIES

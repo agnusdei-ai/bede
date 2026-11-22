@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Volume2 } from 'lucide-react'
 import type { PhonicsLesson, PhonicsPracticeTransport, PhonicsTask } from './k2PhonicsTypes'
-import { ICONS } from './Diagram'
+import { Picture } from './Diagram'
+import { PrintPracticeButton, phonicsPrintItems, printPractice } from './k2PrintSheet'
 import RoutineShell, { type RoutineStep } from './RoutineShell'
 import { PRACTICE_PRIMARY, PRACTICE_TARGET } from './practiceStyles'
 
@@ -42,6 +43,10 @@ export function shownPromptText(t: TFunction, task: PhonicsTask, step: RoutineSt
 
 const HIDDEN_WHEN_SHOWN = ['first_sound_choice', 'sight_word_choice']
 
+/** Questions where reading the word is the skill: a missing picture must not
+ *  show the word it stands for. */
+const DECODING_KEYS = ['read_word_choice']
+
 /** What Bede says while demonstrating the Watch step. */
 export function watchText(t: TFunction, watch: NonNullable<PhonicsLesson['watch']>): string {
   const answer = watch.answer.choice
@@ -49,6 +54,8 @@ export function watchText(t: TFunction, watch: NonNullable<PhonicsLesson['watch'
   const sounds = (watch.display.graphemes ?? []).filter((g) => g.sound).map((g) => g.sound).join(', ')
   return t(`k2Phonics.watch.${watch.prompt.key}`, {
     word, answer, letter: answer, sound: watch.choice_sounds?.[answer] ?? '', sounds,
+    // A question's own arguments win: "starts with" names its letter and sound.
+    ...watch.prompt.args,
   })
 }
 
@@ -81,6 +88,7 @@ export default function K2PhonicsPractice({
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<PhonicsLesson | null>(null)
   const [failed, setFailed] = useState(false)
+  const [printTrouble, setPrintTrouble] = useState(false)
   const [step, setStep] = useState<RoutineStep>('watch')
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
@@ -122,6 +130,7 @@ export default function K2PhonicsPractice({
   // Watch: the letters light up one at a time as Bede says each sound, then
   // sit together as one word. With reduced motion they are all there at once.
   const letterCount = task?.display.graphemes?.length ?? 0
+  const [replay, setReplay] = useState(0)
   useEffect(() => {
     if (!watching || !letterCount) { setLit(letterCount); return }
     if (reduced.current) { setLit(letterCount); return }
@@ -133,7 +142,7 @@ export default function K2PhonicsPractice({
       if (n >= letterCount) clearInterval(timer)
     }, 700)
     return () => clearInterval(timer)
-  }, [watching, letterCount, lesson])
+  }, [watching, letterCount, lesson, replay])
 
   const next = () => {
     if (!lesson) return
@@ -197,12 +206,19 @@ export default function K2PhonicsPractice({
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={onClose} className={PRIMARY}>{t('k2Phonics.backToBede')}</button>
           <button type="button" onClick={load} className={SECONDARY}>{t('k2Phonics.another')}</button>
+          <PrintPracticeButton t={t} className={SECONDARY} onPrint={() => {
+            setPrintTrouble(false)
+            void printPractice(t, title, phonicsPrintItems(t, lesson)).then((ok) => setPrintTrouble(!ok))
+          }} />
         </div>
+        {printTrouble && <p role="alert" className="text-base text-navy-700 text-center">{t('printSheet.failed')}</p>}
       </RoutineShell>
     )
   }
 
-  const shownChoice = watching ? lesson.watch?.answer.choice
+  // In Watch the answer is shown only once the demonstration has played.
+  const watchDone = !watching || reduced.current || lit >= (task.display.graphemes?.length ?? 0)
+  const shownChoice = watching ? (watchDone ? lesson.watch?.answer.choice : undefined)
     : feedback?.kind === 'shown' ? feedback.choice : undefined
   const { display } = task
   const tappable = step === 'together' || watching
@@ -249,10 +265,10 @@ export default function K2PhonicsPractice({
           <button type="button" onClick={() => speakRef.current?.(display.word ?? '')}
             aria-label={t('k2Phonics.hearWord', { word: display.word })}
             className={`${TARGET} rounded-2xl border-2 border-sage-300 bg-white p-2 text-6xl`}>
-            <span aria-hidden="true">{ICONS[display.icon]}</span>
+            <Picture name={display.icon} label={display.word ?? display.icon} size="h-24 w-24" />
           </button>
         ) : (
-          <span role="img" aria-label={display.word} className="text-6xl">{ICONS[display.icon]}</span>
+          <Picture name={display.icon} label={display.word ?? display.icon} size="h-24 w-24" />
         )
       )}
 
@@ -269,7 +285,10 @@ export default function K2PhonicsPractice({
                 revealed ? 'border-sage-700 bg-sage-50' : 'border-sage-200 bg-white'
               } ${task.choice_kind === 'picture' ? 'text-5xl' : 'text-3xl font-semibold text-navy-800'}`}
             >
-              {task.choice_kind === 'picture' ? <span aria-hidden="true">{ICONS[choice]}</span> : choice}
+              {task.choice_kind === 'picture'
+                ? <Picture name={choice} label={choice} size="h-20 w-20"
+                  hideWord={DECODING_KEYS.includes(task.prompt.key)} />
+                : choice}
               {revealed && <span className="text-base font-medium text-sage-800">✓ {t('k2Phonics.thisOne')}</span>}
             </button>
           )
@@ -283,6 +302,11 @@ export default function K2PhonicsPractice({
         {feedback?.kind === 'trouble' && <span role="alert" className="text-navy-700">{t('k2Phonics.checkTrouble')}</span>}
       </div>
 
+      {watching && letterCount > 0 && !reduced.current && (
+        <button type="button" onClick={() => setReplay((r) => r + 1)} className={SECONDARY}>
+          {t('k2Phonics.watchAgain')}
+        </button>
+      )}
       {(watching || settled) && (
         <button type="button" onClick={next} className={PRIMARY}>
           {watching ? t('k2Phonics.letsTry') : t('k2Phonics.next')}

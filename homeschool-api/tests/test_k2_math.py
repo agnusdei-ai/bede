@@ -44,6 +44,8 @@ PARENT = {"role": "parent"}
 def _every_task(seeds=range(60)):
     for level in pm.LEVELS:
         for topic in pm.TOPICS:
+            if topic in pm.GRADE_TWO_TOPICS and level != "2":
+                continue
             for seed in seeds:
                 for phase in pm.PHASES:
                     for index in range(pm._PHASE_COUNT[phase]):
@@ -80,7 +82,11 @@ def test_the_next_topic_follows_the_saved_record_in_a_fixed_order():
 
 def test_every_skill_is_an_existing_k2_skill_and_no_new_id_is_made():
     spec_skills = {"cc.count_objects_20", "cc.compare_quantities", "oa.add_within_20",
-                   "oa.subtract_within_20", "cc.number_bonds", "oa.fact_fluency_20"}
+                   "oa.subtract_within_20", "cc.number_bonds", "oa.fact_fluency_20",
+                   # Grade 2's bridge to multiplication and division: existing
+                   # K-2 skills. Sharing fairly records equal groups (owner
+                   # ruling 2026-11-22), so no new id is made.
+                   "cc.skip_count_2_5_10", "oa.arrays_equal_groups"}
     for topic, skill in pm.TOPIC_SKILL.items():
         assert get_skill(skill) is not None, skill
         assert get_skill(skill).band == GradeBand.K_2, skill
@@ -102,8 +108,10 @@ def test_every_question_is_well_formed_and_has_exactly_one_right_choice():
         else:
             assert task.choice_kind == "build", where
             assert task.choices == tuple(str(i) for i in range(task.build["capacity"] + 1)), where
-        # Every number stays within 20, the K-2 range.
-        assert all(int(c) <= 20 for c in task.choices if c.isdigit()), where
+        # Every number stays within 20, the K-2 range, except grade 2's
+        # plates, where counting by tens reaches 50.
+        limit = 50 if topic in pm.GRADE_TWO_TOPICS else 20
+        assert all(int(c) <= limit for c in task.choices if c.isdigit()), where
 
 
 def _recount(task) -> str:
@@ -127,6 +135,10 @@ def _recount(task) -> str:
         return "same" if a == b else "red" if a > b else "yellow"
     if d["kind"] == "ten_frame":
         return str(d.get("red", 0) + d.get("yellow", 0) - d.get("crossed", 0))
+    if d["kind"] == "equal_groups":
+        if d.get("loose"):
+            return str(d["loose"] // d["groups"])
+        return str(d["groups"] * d["each"])
     known = next(p for p in d["parts"] if p is not None)
     return str(d["whole"] - known)
 
@@ -194,7 +206,7 @@ def test_every_topic_with_a_frame_builds_by_drag_or_tap_in_together_and_your_tur
         for topic in pm.LEVEL_TOPICS[level]:
             lesson = pm.build_lesson(level, 2, topic)
             kinds = [i["choice_kind"] for i in lesson["together"] + lesson["your_turn"]]
-            if topic == "compare":
+            if topic in pm.PICK_ONLY_TOPICS:
                 assert "build" not in kinds
             else:
                 assert kinds.count("build") == 2, (level, topic)
@@ -933,3 +945,112 @@ async def test_a_building_answer_with_retention_off_writes_the_counting_ledger_r
     assert await _profile(db, "Ben") is None
     row = (await db.execute(select(SkillActivityLog))).scalar_one()
     assert row.skill_id == "cc.count_objects_20"
+
+
+# ── Grade 2's bridge to multiplication and division ─────────────────────────
+
+def test_plates_of_counters_are_grade_two_only_and_in_order():
+    """Skip counting, equal groups and sharing fairly are grade 2 rounds
+    (data/catalog/year2.json), never built for K or grade 1."""
+    assert pm.LEVEL_TOPICS["2"][-3:] == ("skip", "groups", "share")
+    for level in ("K", "1"):
+        assert not set(pm.LEVEL_TOPICS[level]) & pm.GRADE_TWO_TOPICS
+        for topic in pm.GRADE_TWO_TOPICS:
+            with pytest.raises(ValueError):
+                pm.build_task(level, topic, 1, "your_turn", 0)
+            with pytest.raises(ValueError):
+                pm.build_lesson(level, 1, topic)
+
+
+def test_new_topics_were_appended_so_lesson_ids_already_issued_still_read():
+    """A lesson id indexes TOPICS, so the five original topics keep their places."""
+    assert pm.TOPICS[:5] == ("count", "compare", "add", "subtract", "bond")
+
+
+def test_sharing_fairly_records_the_equal_groups_skill():
+    """Owner ruling 2026-11-22: sharing is the root of division and records
+    oa.arrays_equal_groups, not a new skill."""
+    assert pm.TOPIC_SKILL["share"] == pm.TOPIC_SKILL["groups"] == "oa.arrays_equal_groups"
+    assert pm.TOPIC_SKILL["skip"] == "cc.skip_count_2_5_10"
+    task = pm.build_task("2", "share", 3, "your_turn", 0)
+    assert pm.recorded_skill(task) == "oa.arrays_equal_groups"
+
+
+def test_no_times_or_divide_sign_ever_reaches_the_child():
+    """Multiplication and division are named in grade 3; grade 2 meets them as
+    repeated addition and fair shares."""
+    for seed in range(40):
+        for topic in pm.GRADE_TWO_TOPICS:
+            lesson = pm.build_lesson("2", seed, topic)
+            text = repr(lesson)
+            for sign in ("×", "÷", " x ", "*", "/", "times", "divide"):
+                assert sign not in text, (topic, sign)
+
+
+def test_skip_counting_offers_only_numbers_the_count_lands_on():
+    for seed in range(200):
+        for phase, count in (("together", 2), ("your_turn", 3)):
+            for index in range(count):
+                task = pm.build_task("2", "skip", seed, phase, index)
+                by = int(task.prompt_args["by"])
+                assert by in (2, 5, 10)
+                assert all(int(c) % by == 0 for c in task.choices), task.choices
+
+
+def test_a_sharing_picture_starts_with_every_counter_off_the_plates():
+    for seed in range(100):
+        d = pm.build_task("2", "share", seed, "your_turn", 0).diagram
+        assert d["kind"] == "equal_groups" and d["loose"] % d["groups"] == 0 and not d.get("each")
+
+
+def test_equal_groups_and_sharing_are_one_stop_chosen_by_the_lesson_seed():
+    """Both practise oa.arrays_equal_groups, so while that skill is being
+    learned a lesson is either, by seed; sharing is never held back until the
+    skill is already secure."""
+    secure = {s: 0.95 for s in ("oa.add_within_20", "oa.subtract_within_20", "cc.number_bonds",
+                                 "cc.skip_count_2_5_10")}
+    picked = {pm.topic_for("2", secure, seed) for seed in range(10)}
+    assert picked == {"groups", "share"}
+    assert pm.topic_for("2", {**secure, "cc.skip_count_2_5_10": 0.4}, 1) == "skip"
+    # A topic with a skill of its own is chosen exactly as before.
+    assert {pm.topic_for("1", {}, seed) for seed in range(10)} == {"add"}
+
+
+async def _secure(db, name, skills):
+    for skill in skills:
+        for _ in range(12):
+            await math_record.process_evidence(db, name, f"probe.{skill}", "correct", 1.0, "K-2")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("seed,topic,skill", [
+    (0, "groups", "oa.arrays_equal_groups"),
+    (1, "share", "oa.arrays_equal_groups"),
+])
+async def test_the_grade_two_rounds_are_wired_to_the_skill_map_through_the_real_route(db, seed, topic, skill):
+    """From the saved record to the lesson, to the answer, to the ledger row,
+    the mastery observation and its name on the Progress page."""
+    await _secure(db, "Gus", ("oa.add_within_20", "oa.subtract_within_20", "cc.number_bonds",
+                              "cc.skip_count_2_5_10"))
+    with patch.object(routes.secrets, "randbelow", lambda _n: seed):
+        lesson = await _lesson(db, "Gus")
+    assert (lesson["level"], lesson["topic"], lesson["skill"]) == ("2", topic, skill)
+    assert get_skill(skill).band == GradeBand.K_2
+    task = _task("Gus", lesson, "your_turn", 0)
+    before = (await _vector(db, "Gus"))[skill]
+    result = await _send(db, "Gus", lesson, "your_turn", 0, choice=task.accept_choice)
+    assert result["recorded"] is True
+    rows = [r for r in (await db.execute(select(SkillActivityLog))).scalars() if r.skill_id == skill]
+    assert len(rows) == 1 and rows[0].subject_area == "mathematics"
+    assert (await _vector(db, "Gus"))[skill] > before
+    assert ai_service._work_label("mathematics", skill) == get_skill(skill).label
+
+
+@pytest.mark.asyncio
+async def test_skip_counting_is_offered_once_number_bonds_are_secure_and_records_skip_counting(db):
+    await _secure(db, "Gus", ("oa.add_within_20", "oa.subtract_within_20", "cc.number_bonds"))
+    lesson = await _lesson(db, "Gus")
+    assert (lesson["topic"], lesson["skill"]) == ("skip", "cc.skip_count_2_5_10")
+    task = _task("Gus", lesson, "your_turn", 0)
+    assert (await _send(db, "Gus", lesson, "your_turn", 0, choice=task.accept_choice))["recorded"] is True
+    assert [r.skill_id for r in (await db.execute(select(SkillActivityLog))).scalars()] == ["cc.skip_count_2_5_10"]

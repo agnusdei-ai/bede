@@ -68,7 +68,8 @@ def test_the_next_domain_follows_the_records_developmental_order():
 def test_every_question_is_well_formed_and_has_exactly_one_right_choice():
     for level, domain, seed, phase, index, task in _every_task():
         where = (level, domain, seed, phase, index)
-        assert len(task.choices) == phonics.CHOICES_PER_LEVEL[level], where
+        expected = 3 if task.prompt_key == "rhyme_odd_choice" else phonics.CHOICES_PER_LEVEL[level]
+        assert len(task.choices) == expected, where
         assert len(set(task.choices)) == len(task.choices), where
         assert [c for c in task.choices if task.is_right(c)] == [task.accept_choice], where
         if task.choice_kind == "picture":
@@ -80,9 +81,16 @@ def test_the_computed_answer_is_the_true_one():
     rime = {w: i for i, pair in enumerate(phonics.RHYME_PAIRS) for w in pair}
     first = dict(phonics.FIRST_SOUNDS)
     for _level, domain, _seed, _phase, _index, task in _every_task():
-        if domain == "phonological_awareness":
+        if task.prompt_key == "rhyme_odd_choice":
+            # Exactly one choice shares its rhyme with no other choice.
+            alone = [c for c in task.choices if sum(rime[c] == rime[o] for o in task.choices) == 1]
+            assert alone == [task.accept_choice]
+        elif domain == "phonological_awareness":
             target = task.prompt_args["word"]
             assert [c for c in task.choices if rime[c] == rime[target] and c != target] == [task.accept_choice]
+        elif task.prompt_key == "starts_with_choice":
+            letter = task.prompt_args["letter"]
+            assert [c for c in task.choices if first[c] == letter] == [task.accept_choice]
         elif domain == "letter_sound":
             assert task.accept_choice == first[task.prompt_args["word"]]
         elif domain in phonics.DECODING_DOMAINS:
@@ -101,7 +109,9 @@ def test_the_authored_words_are_spelled_by_their_letters_and_all_have_pictures()
         assert all(w in ICONS for w in pair)
     endings = [pair[0][-2:] for pair in phonics.RHYME_PAIRS]
     assert len(phonics.RHYME_PAIRS) >= 6 and len(phonics.FIRST_SOUNDS) >= 6
-    assert len({letter for _, letter in phonics.FIRST_SOUNDS}) == len(phonics.FIRST_SOUNDS)
+    # Each picture once; each letter keeps one sound (several pictures may share a letter).
+    assert len({p for p, _ in phonics.FIRST_SOUNDS}) == len(phonics.FIRST_SOUNDS)
+    assert set(phonics.FIRST_LETTERS) <= set(phonics.LETTER_SOUNDS)
     assert endings  # each pair is its own rhyme family (checked by the answer test above)
 
 
@@ -138,7 +148,10 @@ def test_together_letters_carry_their_sounds_for_tapping():
     for seed in range(20):
         lesson = phonics.build_lesson("K", seed, "letter_sound")
         for item in lesson["together"]:
-            assert set(item["choice_sounds"]) == set(item["choices"])
+            if item["choice_kind"] == "letter":
+                assert set(item["choice_sounds"]) == set(item["choices"])
+            else:  # starts_with_choice: the shown letter carries its sound
+                assert all(g.get("sound") for g in item["display"]["graphemes"])
         lesson = phonics.build_lesson("1", seed, "cvc_blending")
         for item in lesson["together"]:
             assert all(g.get("sound") or g.get("silent") for g in item["display"]["graphemes"])
@@ -935,3 +948,18 @@ def test_the_sign_in_key_is_a_digest_never_a_credential():
     assert "secret" not in key and len(key) == 24
     assert routes.sign_in_key(dict(auth)) == key
     assert routes.sign_in_key(dict(auth, iat=5)) != key
+
+
+def test_each_area_offers_more_than_one_kind_of_question_across_lessons():
+    for domain, kinds in phonics.KINDS.items():
+        seen = {phonics.build_task("K", domain, seed, "together", 0).prompt_key for seed in range(40)}
+        assert seen == set(kinds), domain
+
+
+def test_lessons_draw_on_a_wide_pool_rather_than_the_same_few_answers():
+    floor = {"phonological_awareness": 30, "letter_sound": 18, "cvc_blending": 20,
+             "blends_digraphs": 12, "long_vowel_patterns": 15, "sight_words": 20}
+    for domain, minimum in floor.items():
+        answers = {phonics.build_task("1", domain, seed, phase, i).accept_choice
+                   for seed in range(200) for phase, n in (("together", 2), ("your_turn", 3)) for i in range(n)}
+        assert len(answers) >= minimum, (domain, len(answers))

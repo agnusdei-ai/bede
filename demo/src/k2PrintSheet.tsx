@@ -124,6 +124,34 @@ export function MathPrintPicture({ d }: { d: MathPiece }) {
       </svg>
     )
   }
+  if (d.kind === 'equal_groups') {
+    // Plates of counters: counters still to share in a row above, then the
+    // plates. No running totals and no fair share: those are the answers.
+    const each = d.each ?? 0
+    const loose = d.loose ?? 0
+    const plateW = 64
+    const width = Math.max(d.groups * (plateW + 10), Math.min(loose, 10) * 22) + 8
+    const pileRows = Math.ceil(loose / 10)
+    const top = pileRows * 22 + (loose ? 10 : 0)
+    return (
+      <svg viewBox={`0 0 ${width} ${top + 74}`} width={width * 0.75} height={(top + 74) * 0.75}>
+        {Array.from({ length: loose }, (_, i) => (
+          <Counter key={`l${i}`} x={14 + (i % 10) * 22} y={12 + Math.floor(i / 10) * 22} red={false} />
+        ))}
+        {Array.from({ length: d.groups }, (_, g) => {
+          const x = 4 + g * (plateW + 10)
+          return (
+            <g key={g}>
+              <ellipse cx={x + plateW / 2} cy={top + 36} rx={plateW / 2} ry="34" fill="#fff" stroke={INK} strokeWidth="2.5" />
+              {Array.from({ length: each }, (_, i) => (
+                <circle key={i} cx={x + 18 + (i % 2) * 28} cy={top + 12 + Math.floor(i / 2) * 12} r="5.5" fill="#b5483b" />
+              ))}
+            </g>
+          )
+        })}
+      </svg>
+    )
+  }
   const shown = (v: number | null) => (v === null ? '?' : String(v))
   const circle = (cx: number, cy: number, v: number | null) => (
     <g>

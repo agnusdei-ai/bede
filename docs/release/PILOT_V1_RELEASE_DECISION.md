@@ -112,29 +112,38 @@ environment, and no one has installed this DMG.
   which the local-only decision did not cover. Choose: set the key for
   this check, or run text-first and record the voice check NOT_RUN.
 
-### Mac acceptance steps
+### Mac acceptance session (one owner-run command)
 
-Record PASS, FAIL or NOT_RUN for each; sample data only.
+The session is `scripts/mac/collect-g3-evidence.sh --session`, the existing
+G3 collector's guided mode. Run on the Mac, from the folder holding the
+unzipped artifact:
 
-1. In the unzipped artifact folder: `shasum -a 256 -c
-   Bede-Engineering-Mac-arm64.dmg.sha256`. Record the digest; this fills
-   `package_digest`.
-2. Start Docker Desktop. Open the DMG, Control-click `Bede Installer.app`,
-   choose Open, choose **Homeschool**.
-3. In the browser setup: read and accept the notice, set the adult
-   password, keep the suggested child PIN, choose Local (Ollama) with the
-   approved model, set the voice as decided, paste the licence.
-4. Sign in as the adult. Add a learner named "Sample Learner", grade 1;
-   save.
-5. Open the learner on this Mac, sign in with the child PIN, start
-   Mathematics, answer two turns, then do one Number Time round to the end.
-6. If the voice was chosen: Bede speaks the reply and the round's lines.
-7. Adult Progress page: the round and the work appear.
-8. Restart: quit Bede and Docker Desktop (or restart the Mac), reopen,
-   sign in. The learner, settings and Progress are still there.
-9. Upgrade and rollback: not applicable to a first install. If an earlier
-   Bede is installed, record that the installer refuses the cross-version
-   upgrade rather than overwriting it (it is meant to fail closed).
+```bash
+curl -fsSLO https://raw.githubusercontent.com/agnusdei-ai/bede/<collector commit>/scripts/mac/collect-g3-evidence.sh
+bash collect-g3-evidence.sh --session \
+  --candidate 2eeed597fd90feea0e4592ec77fd79a6be535c00 \
+  --dmg ./Bede-Engineering-Mac-arm64.dmg --license-file ~/path/to/licence.txt \
+  --voice none            # or: --voice openai --openai-project <id> --voice-max-usd 0.05 --approve-voice
+```
+
+Without `--go` it only runs the read-only preflight and prints the plan and
+every STOP. Add `--approve-downloads` once the listed downloads are agreed,
+then `--go` for the guided steps and `--site` for the public-site checklist.
+`--work DIR --retest STEP` repeats one step after a fix; every attempt
+stays in `results.tsv`. Evidence: `~/Bede-Acceptance/<candidate>/evidence/`,
+owner-only, never uploaded.
+
+### Mac session results
+
+Paste `SUMMARY.md`'s table here after the session, with the evidence
+folder's `SHA256SUMS` digest. Until then every step below is NOT_RUN.
+
+| Step | Checked by | Result |
+| --- | --- | --- |
+| artifact, licence, downloads, voice plan | collector preflight | NOT_RUN |
+| install, licence-unlocked, lesson, restart | collector + owner | NOT_RUN |
+| learner, voice, progress, upgrade | owner | NOT_RUN |
+| site checklist | owner | NOT_RUN |
 
 ### Published site (owner, any browser)
 

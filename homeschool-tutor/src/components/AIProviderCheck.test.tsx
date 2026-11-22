@@ -8,7 +8,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { AIProviderCheckResult } from '../types'
-import { ProviderCheck } from './AIProviderSettings'
+import { ProviderCheck, checkSummary } from './AIProviderSettings'
 
 const checkAIProviders = vi.hoisted(() => vi.fn())
 vi.mock('../services/api', () => ({
@@ -20,6 +20,8 @@ vi.mock('../services/api', () => ({
 
 afterEach(() => { cleanup(); checkAIProviders.mockReset() })
 
+const bad = (provider: AIProviderCheckResult['provider']): AIProviderCheckResult =>
+  ({ provider, ok: false, code: 'no_credit', message: 'Out of credit.', detail: '' })
 const ok = (provider: AIProviderCheckResult['provider']): AIProviderCheckResult =>
   ({ provider, ok: true, code: 'ok', message: 'Answering normally.', detail: '' })
 
@@ -74,4 +76,41 @@ describe('ProviderCheck', () => {
     expect(screen.getByText(/real request/)).toBeTruthy()
     expect(checkAIProviders).not.toHaveBeenCalled()
   })
+})
+
+describe('checkSummary: a working backup needs a second provider that answered', () => {
+  it('never calls one healthy provider a backup', () => {
+    const s = checkSummary([ok('local')])!
+    expect(s.text).not.toMatch(/working backup/)
+    expect(s.text).toMatch(/no backup/)
+    expect(s.tone).toBe('warn')
+  })
+  it('says a lone provider that did not answer stops lessons', () => {
+    expect(checkSummary([bad('local')])!.text).toMatch(/This provider did not answer/)
+  })
+  it('only one of several answering is not a backup', () => {
+    const s = checkSummary([ok('openai'), bad('mistral'), bad('anthropic')])!
+    expect(s.text).not.toMatch(/working backup/)
+    expect(s.text).toMatch(/nothing to fall back to/)
+  })
+  it('two answering out of three is a working backup, with the failures still named', () => {
+    const s = checkSummary([ok('openai'), ok('mistral'), bad('anthropic')])!
+    expect(s.text).toMatch(/working backup/)
+    expect(s.text).toMatch(/did not answer/)
+  })
+  it('all answering', () => {
+    expect(checkSummary([ok('openai'), ok('mistral')])!.text).toBe('Every provider answered. Bede has a working backup.')
+  })
+  it('nothing to summarize', () => {
+    expect(checkSummary([])).toBeNull()
+  })
+})
+
+it('the rendered card does not promise a backup for a single provider', async () => {
+  checkAIProviders.mockResolvedValue([ok('local')])
+  render(<ProviderCheck token="tok" />)
+  fireEvent.click(screen.getByRole('button', { name: /Check AI providers/ }))
+  const text = (await screen.findByRole('status', { name: 'AI provider check results' })).textContent
+  expect(text).not.toContain('working backup')
+  expect(text).toContain('no backup')
 })

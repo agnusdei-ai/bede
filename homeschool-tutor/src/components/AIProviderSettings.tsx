@@ -213,6 +213,34 @@ export default function AIProviderSettings({ token }: { token: string }) {
   )
 }
 
+const SUMMARY_TONE = { good: 'text-green-700', warn: 'text-amber-800', bad: 'text-red-700' } as const
+
+/**
+ * The one-line summary above the check results. "A working backup" means a
+ * second provider that answered: a household with one provider, or with only
+ * one that answered, has none, however healthy that one provider is.
+ */
+export function checkSummary(
+  results: AIProviderCheckResult[],
+): { tone: keyof typeof SUMMARY_TONE; text: string } | null {
+  const total = results.length
+  const answered = results.filter((r) => r.ok).length
+  if (total === 0) return null
+  if (answered === 0) {
+    return total === 1
+      ? { tone: 'bad', text: 'This provider did not answer. Lessons will not work until it is fixed.' }
+      : { tone: 'bad', text: 'No provider answered. Lessons will not work until at least one of these is fixed.' }
+  }
+  if (answered === 1) {
+    return total === 1
+      ? { tone: 'warn', text: 'This provider answered, so lessons will work. Bede has no backup: if it stops answering, lessons stop until it is back.' }
+      : { tone: 'warn', text: 'Lessons will work, but only one provider answered, so Bede has nothing to fall back to until the others are fixed.' }
+  }
+  return answered === total
+    ? { tone: 'good', text: 'Every provider answered. Bede has a working backup.' }
+    : { tone: 'good', text: 'Lessons will work and Bede has a working backup, but the providers marked below did not answer.' }
+}
+
 /**
  * "Check AI providers": sends each configured provider one tiny request and
  * says, in plain words, which ones answer and why the others do not (no
@@ -240,7 +268,7 @@ export function ProviderCheck({ token }: { token: string }) {
     }
   }
 
-  const failing = results?.filter((r) => !r.ok) ?? []
+  const summary = results ? checkSummary(results) : null
 
   return (
     <div className="pt-3 mt-3 border-t border-gray-100 space-y-2">
@@ -263,20 +291,7 @@ export function ProviderCheck({ token }: { token: string }) {
       {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
       {results && (
         <div role="status" aria-label="AI provider check results" className="space-y-1.5">
-          {results.length > 0 && failing.length === 0 && (
-            <p className="text-sm text-green-700">Every provider answered. Bede has a working backup.</p>
-          )}
-          {results.length > 1 && failing.length === results.length && (
-            <p className="text-sm text-red-700">
-              No provider answered. Lessons will not work until at least one of these is fixed.
-            </p>
-          )}
-          {results.length > 1 && failing.length > 0 && failing.length < results.length && (
-            <p className="text-sm text-amber-800">
-              Lessons will work, but if the providers that answered go down, Bede has nothing to
-              fall back to until the others are fixed.
-            </p>
-          )}
+          {summary && <p className={`text-sm ${SUMMARY_TONE[summary.tone]}`}>{summary.text}</p>}
           <ul className="space-y-1.5">
             {results.map((r) => (
               <li

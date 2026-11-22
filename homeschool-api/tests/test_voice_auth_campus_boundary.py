@@ -88,7 +88,7 @@ async def test_voice_verify_checks_child_learner_before_audio_or_profile(
     async def forbidden_inference(*_args, **_kwargs):
         pytest.fail("unauthorized voice profile must never be queried")
     monkeypatch.setattr(voice_router, "verify_student", forbidden_inference)
-    audio = UploadFile(filename="sample.wav", file=BytesIO(b"RIFFsample"))
+    audio = UploadFile(filename="sample.wav", file=BytesIO(b"RIFF\x00\x00\x00\x00WAVEsample"))
     with patch("core.deps.settings") as settings, patch("core.deps.device_registry") as devices:
         settings.hosted_profile = False
         devices.is_revoked.return_value = revoked
@@ -128,11 +128,11 @@ async def test_voice_verify_preserves_authorized_household_access(monkeypatch, r
         result = await voice_router.verify(
             Request({"type": "http", "headers": []}),
             student_name="Alice",
-            audio=UploadFile(filename="sample.wav", file=BytesIO(b"RIFFsample")),
+            audio=UploadFile(filename="sample.wav", file=BytesIO(b"RIFF\x00\x00\x00\x00WAVEsample")),
             db=db, auth=auth,
         )
     assert result["verified"] is False
     assert result["score"] == 0.0
-    assert calls == [("Alice", b"RIFFsample")]
+    assert calls == [("Alice", b"RIFF\x00\x00\x00\x00WAVEsample")]
     if role == "parent":
         db.get.assert_not_called()

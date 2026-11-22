@@ -151,7 +151,11 @@ machine talks to Bede, and Bede talks to the provider. Picture study is
 the one exception, and the distinction is the whole reason it has its own
 section rather than a row in a table above. The Practice Coach makes the same
 two requests for an `image` diagram (a named place, event or artwork a quiz
-question shows; `Diagram.tsx`, `WIKI_SUMMARY`): the diagram holds only the
+question shows), and only in History & Geography and Art & Music: the server
+drops the lookup for every other subject (`diagrams.IMAGE_SUBJECTS`,
+`tests/test_outside_picture_boundary.py`). Every other picture in Bede is an
+original drawing in the app and fetches nothing (`outsidePictures.test.tsx`).
+The image diagram (`Diagram.tsx`, `WIKI_SUMMARY`) holds only the
 article title, and only a picture hosted on Wikimedia Commons (freely
 licensed) is shown, with a credit line. No quiz text, answer or learner
 detail goes with the request; the article title is the only thing sent.

@@ -46,7 +46,7 @@ describe('outside pictures', () => {
 
   it('in Diagram.tsx only the image diagram reaches the lookup, never a practice picture', () => {
     const source = readFileSync(join(SRC, 'components/Diagram.tsx'), 'utf8')
-    const picture = source.slice(source.indexOf('export function Picture('), source.indexOf('export const DRAWINGS'))
+    const picture = source.slice(source.indexOf('export function Picture('), source.indexOf('const DRAWING_INK'))
     const svgPicture = source.slice(source.indexOf('function SvgPicture('), source.indexOf('function Scene('))
     for (const body of [picture, svgPicture]) {
       expect(body.length).toBeGreaterThan(50)

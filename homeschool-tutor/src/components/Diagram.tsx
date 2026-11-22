@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react'
+import { DRAWINGS, DRAWING_PALETTE, type Drawing } from './drawings'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { useTranslation } from 'react-i18next'
 
@@ -37,8 +38,8 @@ export type DiagramSpec =
 
 /**
  * Every picture name the API accepts (models/practice.py's ICONS). The
- * pictures themselves are hand-drawn (DRAWINGS); a name without a drawing
- * shows its word. A name not here draws nothing.
+ * pictures themselves are hand-drawn (drawings.ts, DRAWINGS), never fetched.
+ * A name not here draws nothing.
  */
 export const ICONS: Record<string, string> = {
   dog: 'dog', cat: 'cat', mouse: 'mouse', bird: 'bird', duck: 'duck', fish: 'fish', horse: 'horse', cow: 'cow', pig: 'pig',
@@ -87,11 +88,11 @@ export function Picture({ name, label, size, hideWord = false }: {
   size: string
   hideWord?: boolean
 }) {
-  // Hand-drawn pictures are added to DRAWINGS; until a word has one, its word
-  // is shown (or "?" where reading that word is the question).
+  // A name with no drawing shows its word (or "?" where reading that word is
+  // the question). Every ICONS name has one; tests keep it so.
   const drawing = DRAWINGS[name]
   if (drawing) {
-    return <svg viewBox="0 0 64 64" role="img" aria-label={label} className={size}>{drawing}</svg>
+    return <svg viewBox="0 0 64 64" role="img" aria-label={label} className={size}><DrawingArt drawing={drawing} small={false} /></svg>
   }
   return (
     <span role="img" aria-label={label}
@@ -101,9 +102,53 @@ export function Picture({ name, label, size, hideWord = false }: {
   )
 }
 
-/** Hand-drawn pictures, one per ICONS name, drawn in Bede's ink-and-wash
- *  style. Filled in as each is drawn and checked; none is fetched online. */
-export const DRAWINGS: Record<string, ReactElement> = {}
+const DRAWING_INK = '#3a2c1e'
+
+/**
+ * One hand-drawn picture (drawings.ts): a watercolour wash under a sepia ink
+ * line, with engraver's hatching for shade. Each full-size picture carries its
+ * own filters and patterns so a printed copy draws the same. `small` (34px)
+ * drops the filters, the fine lines and the hatching and thickens the ink, so
+ * the outline still reads at that size.
+ */
+export function DrawingArt({ drawing, small }: { drawing: Drawing; small: boolean }) {
+  const ink = small ? undefined : 'url(#bede-ink)'
+  return (
+    <>
+      {!small && (
+        <defs>
+          <filter id="bede-ink" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves={2} seed={4} result="w" />
+            <feDisplacementMap in="SourceGraphic" in2="w" scale={1.1} />
+          </filter>
+          <filter id="bede-wash" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves={3} seed={9} result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale={4} result="d" />
+            <feGaussianBlur in="d" stdDeviation={0.7} />
+          </filter>
+          <pattern id="bede-hatch" width="2.2" height="2.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="2.2" stroke="#4a3a2a" strokeWidth={0.35} />
+          </pattern>
+          <pattern id="bede-cross" width="2.2" height="2.2" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <path d="M0 0 V2.2 M0 0 H2.2" stroke="#4a3a2a" strokeWidth={0.3} />
+          </pattern>
+        </defs>
+      )}
+      <g filter={small ? undefined : 'url(#bede-wash)'} opacity={0.75}>
+        {drawing.wash.map(([d, colour], i) => <path key={i} d={d} fill={DRAWING_PALETTE[colour]} />)}
+      </g>
+      <g filter={ink} fill="none" stroke={DRAWING_INK} strokeLinecap="round" strokeLinejoin="round">
+        {drawing.bold && <path d={drawing.bold} strokeWidth={small ? 2.8 : 1.6} />}
+        <path d={drawing.ink} strokeWidth={small ? 2.1 : 0.9} />
+        {drawing.thin && <path d={drawing.thin} strokeWidth={small ? 1.5 : 0.6} />}
+        {drawing.fine && !small && <path d={drawing.fine} strokeWidth={0.45} />}
+      </g>
+      {(drawing.dots ?? []).map(([cx, cy, r], i) => <circle key={i} cx={cx} cy={cy} r={small ? Math.max(r, 1.6) : r} fill={DRAWING_INK} />)}
+      {!small && drawing.hatch && <path d={drawing.hatch} fill="url(#bede-hatch)" opacity={0.8} filter={ink} />}
+      {!small && drawing.cross && <path d={drawing.cross} fill="url(#bede-cross)" opacity={0.8} filter={ink} />}
+    </>
+  )
+}
 
 const INK = '#1f2a44'
 const FILL = '#8fa37a'
@@ -360,7 +405,7 @@ function SvgPicture({ name, x, y, size }: { name: string; x: number; y: number; 
   if (!drawing) {
     return <text x={x + size / 2} y={y + size / 2 + 4} textAnchor="middle" {...FONT} fontSize={Math.max(10, size / 3)}>{name}</text>
   }
-  return <svg x={x} y={y} width={size} height={size} viewBox="0 0 64 64"><title>{name}</title>{drawing}</svg>
+  return <svg x={x} y={y} width={size} height={size} viewBox="0 0 64 64"><title>{name}</title><DrawingArt drawing={drawing} small={size < 48} /></svg>
 }
 
 function Scene({ icon, action, actionLabel }: { icon: string; action?: string | null; actionLabel?: string }) {

@@ -189,6 +189,8 @@ describe('drawn diagrams', () => {
     const demo = readFileSync(resolve(__dirname, 'Diagram.tsx'), 'utf8')
     const app = readFileSync(resolve(__dirname, '../../homeschool-tutor/src/components/Diagram.tsx'), 'utf8')
     expect(strip(demo)).toBe(strip(app))
+    expect(readFileSync(resolve(__dirname, 'drawings.ts'), 'utf8'))
+      .toBe(readFileSync(resolve(__dirname, '../../homeschool-tutor/src/components/drawings.ts'), 'utf8'))
     const py = readFileSync(resolve(__dirname, '../../homeschool-api/models/practice.py'), 'utf8')
     const kinds = py.match(/^DIAGRAM_KINDS = \(([^)]*)\)/m)?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
     expect(kinds.sort()).toEqual([...every, image].map((d) => d.kind).sort())

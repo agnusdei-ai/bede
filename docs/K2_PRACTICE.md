@@ -496,8 +496,16 @@ the grade (counting 3-10, 6-15, 11-20; comparing up to 8, 12, 20).
 
 **Pictures (owner direction 2026-11-21).** Sound Time, Number Time, ordinary
 quiz pictures and printed sheets use original illustrations made for Bede:
-coloured, sketched drawings in a classical style, drawn as SVG in the app
-(`Diagram.tsx`'s `DRAWINGS`). No emoji and no online lookup. The acceptance
+coloured, sketched drawings in a classical style, drawn as SVG in the app.
+All 160 picture names (`models/practice.py`'s `ICONS`) have one, held as path
+data in `components/drawings.ts` (mirrored byte for byte in the demo) and
+drawn by `Diagram.tsx`'s `DrawingArt`: a watercolour wash under a sepia ink
+line, with hatching for shade. The same style serves every grade, K-12. At
+34px (a pictures diagram's groups) the filters, fine lines and hatching are
+dropped and the ink is thickened so the outline still reads. No drawing holds
+a letter, number or word, and `drawings.test.tsx` fails if a name lacks a
+drawing or a drawing holds anything but path data and palette colours. No
+emoji and no online lookup. The acceptance
 test is recognisability at the size actually shown and printed; fine detail
 must never obscure the object or add a clue that changes the exercise. These
 drawings are Bede's own work: Mater Amabilis informs which works and composers

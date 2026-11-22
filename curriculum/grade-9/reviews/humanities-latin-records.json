@@ -1,0 +1,58 @@
+[
+  {
+    "subject": "humanities",
+    "agent_id": "grade9-replacement-humanities-review",
+    "agent_version": "not exposed by platform",
+    "review_run": "replacement-humanities:correction-recheck-2026-11-12",
+    "authoring_run": "grade9-rights-replacement-author:45",
+    "date": "2026-11-12",
+    "status": "agent-reviewed",
+    "scope": "Initial separate review of actual replacement humanities for nine authored weeks plus history source crosswalk, followed by affected-selection-only recheck of RH1/RH2/RH3 corrections in 02/03/04/register. Not full-year readiness or approval of later unauthored lessons/exams. Assigned agent ID supplied by dispatcher; descriptive review-run label is not a platform job ID or hidden model identity.",
+    "methods": "Initial review read Q1 humanities teaching/assessments, history map/register, actual UNG license/prose and securely fetched catalog/CC/Macaulay/Butler/D'Ooge. Correction recheck read affected H08/H13/H15/H16 selections and actual corresponding PDF paragraphs, revised 02/03/04/register exceptions/prompts/keys, H17/H18 dependencies, 6.10.3/H29 and removed law-source instruction. Publisher TLS/institutional 403 limitations remain: inspected existing author research PDF, not new authenticated transfer. No OpenStax ingestion, curriculum/test changes, outreach, purchase, push or publication.",
+    "evidence": "RH1 closed: independently recounted actual UNG 3.7.3 paragraphs9/10/12/13 and 3.8.3 paragraphs1/3/4/5; they teach the revised narrated ritual/karma/rebirth versus suffering/cessation/path comparison; embedded modern quotation/footnote excluded, four paragraphs/20m per day replace earlier blocks. RH2 closed: 04:171 removes law procurement/logging/fallback and bounds optional fictional practice inside day2, preserving required Odyssey evidence. All RH3 components closed: H13 paragraphs3-5 reach actual Sparta; H15 explicitly rereads 5.9.1 paragraph4 and limits chart claims; H16 actual 5.11 paragraph1, 5.11.1 paragraphs2-3 and 5.11.2 paragraph1 supply territory/contact, resistance and translation captions without verified-route claims. H17/H18 dependencies align. Actual 6.10.3 title is corrected to Pliny and Apuleius; H29 now specifically selects 4.9.1 in map/register. Initial rights/source evidence and external hashes preserved in appended report.",
+    "conditions": "Confirm secure learner access and accessible formats before teaching; failed TLS/access is not a default license rejection and was not retested/resolved. Existing author research PDF inspection is not a newly authenticated publisher transfer. US public-domain route does not clear worldwide rights, modern additions/audio or paid PG-branded distribution. Maintain attribution/ShareAlike, asset exclusions and bounded selections; changed content/hashes need affected-scope review. No adoption, publication, full-year readiness, learner feasibility, classroom outcome or complete package pass follows.",
+    "disagreements": "Prior H1/H2/H4 closures hold; old H3 is superseded by actual replacement, not fabricated permission. Initial RH1-RH3 findings preserved; evidence-based correction dispositions appended and all closed. Explicit codes alone remain insufficient without actual paragraph checks. Assigned reviewer ID is now dispatcher supplied; model/version remains unexposed. This agent does not claim to be the earlier historical reviewer.",
+    "open_findings": [],
+    "source_hashes": {
+      "02-resources.md": "2b0c845e415f25bc2fff832886cf3331732b7eb1fc4a84b0ed8dac7ca793d02d",
+      "03-scope-and-sequence.md": "6fb186ad1e6b84ae54f11cd7e098096157dcdf5eb6695486bd15e012e30d824a",
+      "04-starter-lessons.md": "773f524ab5ee4be961bbbb082dac663b441d6ed3626f7ffcb22c5489ab9cf427",
+      "05-assessments.md": "fdb360e5f77e4375411fca33165362886a6f22ea364838bbc17b38bbb4407e47",
+      "resources/REPLACEMENT-REGISTER.md": "bb6e270ed772a8a8e87ca85832f825187ba8860ecc6eaaa3879facb05a1c51dc",
+      "resources/CLASSICS-EDITION-CHECK.md": "cd2c99e6ae204ee13c6bc7803ee7d5da4a6aed804cfa87635c7ea12bfcbe253f",
+      "reviews/humanities-latin.md": "47e02b0367e78e3364d99bb7a97ded5d6b84076bd19e1319d1aa74c1daee6929",
+      "reviews/humanities-latin-recheck.md": "13d88c361fb546fa99e5843faf8d93f9a7bf01491fc76168a0d7956fc3a0955d"
+    },
+    "report": "reviews/replacement-humanities.md",
+    "report_sha256": "4eb6667e3de16b65033cf6ed1fddbaf64fe764509244671e4fdf65f77fbd731d",
+    "freshness_note": "2026-11-12 M28-only mathematics correction: exact in-memory reversal of 03 M28 row and register M28 row/inserted original correction reproduces both prior reviewed file hashes. No H/T changes; other recorded evidence unchanged. Hash refresh only, not mathematics approval or renewed broad review; all existing scope/accessibility/TLS/rights qualifications retained."
+  },
+  {
+    "subject": "latin",
+    "agent_id": "grade9-replacement-humanities-review",
+    "agent_version": "not exposed by platform",
+    "review_run": "replacement-humanities:correction-recheck-2026-11-12",
+    "authoring_run": "grade9-rights-replacement-author:45",
+    "date": "2026-11-12",
+    "status": "agent-reviewed",
+    "scope": "Repeated independent freshness review of unchanged Latin sections in corrected current 02-05 for previously reviewed authored weeks1-9, including T1/T2/T3 history. Not new Latin, later-year passages, full paradigm audit or full-year readiness. Assigned agent ID now dispatcher supplied; descriptive review-run label is not a platform job ID or model identity.",
+    "methods": "Initial review read Q1 Latin blocks, checked actual D'Ooge and representative constructions against preserved correction history. At author-correction recheck repeated programmatic comparison of Latin resource section, all T map rows, all nine Latin teaching blocks and assessment lines with the same historically reviewed Git HEAD snapshot; all identical with unchanged character counts. Refreshed whole-file hashes for unrelated changes. No curriculum or test modifications.",
+    "evidence": "Latin extracts are identical to prior reviewed snapshot: 02 1747 characters, 03 4226, 04 16386, 05 2226. Fresh D'Ooge SHA 4502c4abc390948867b32fbd1257e0f609fc8a9b1eda65bbdde824ee8a11bf12 matches prior source. T1 quantities insula/narro remain correctly modeled with macrons; T2 dative and either genitive attachment explicitly score both translation and parsing; T3 1-17 pronunciation input still excludes historical advocacy. Independent regressions support amicis dative plural, dona nominative/accusative context, cum amico ablative and vocatis/vocamus person-number distinctions. No new Latin content in replacement author run.",
+    "conditions": "Scope is unchanged-content freshness and checked corrections only, not human endorsement, classroom/accessibility validation, credit acceptance or full-year approval. Maintain adult teaching/grading, keyboard-macron accommodation, bounded D'Ooge input and territory/PG license distinctions. Changed passages/hashes need affected-scope review. Dispatcher-supplied assigned agent ID resolves initial metadata limitation; model/version remains unexposed. Humanities secure access/accessibility conditions remain separate and unresolved despite closed RH1-RH3.",
+    "disagreements": "No substantive disagreement with previous T1/T2/T3 closures. This is a separate reviewing agent, not the earlier reviewer; historical full Q1 audit is cited as history, not falsely claimed as this session's full fresh audit. Whole-file changes in other subjects do not constitute Latin changes, but require current hashes and explicit subject-level comparison.",
+    "open_findings": [],
+    "source_hashes": {
+      "02-resources.md": "2b0c845e415f25bc2fff832886cf3331732b7eb1fc4a84b0ed8dac7ca793d02d",
+      "03-scope-and-sequence.md": "6fb186ad1e6b84ae54f11cd7e098096157dcdf5eb6695486bd15e012e30d824a",
+      "04-starter-lessons.md": "773f524ab5ee4be961bbbb082dac663b441d6ed3626f7ffcb22c5489ab9cf427",
+      "05-assessments.md": "fdb360e5f77e4375411fca33165362886a6f22ea364838bbc17b38bbb4407e47",
+      "resources/REPLACEMENT-REGISTER.md": "bb6e270ed772a8a8e87ca85832f825187ba8860ecc6eaaa3879facb05a1c51dc",
+      "resources/CLASSICS-EDITION-CHECK.md": "cd2c99e6ae204ee13c6bc7803ee7d5da4a6aed804cfa87635c7ea12bfcbe253f",
+      "reviews/humanities-latin.md": "47e02b0367e78e3364d99bb7a97ded5d6b84076bd19e1319d1aa74c1daee6929",
+      "reviews/humanities-latin-recheck.md": "13d88c361fb546fa99e5843faf8d93f9a7bf01491fc76168a0d7956fc3a0955d"
+    },
+    "report": "reviews/replacement-humanities.md",
+    "report_sha256": "4eb6667e3de16b65033cf6ed1fddbaf64fe764509244671e4fdf65f77fbd731d",
+    "freshness_note": "2026-11-12 M28-only mathematics correction: exact in-memory reversal of 03 M28 row and register M28 row/inserted original correction reproduces both prior reviewed file hashes. No H/T changes; other recorded evidence unchanged. Hash refresh only, not mathematics approval or renewed broad review; all existing scope/accessibility/TLS/rights qualifications retained."
+  }
+]

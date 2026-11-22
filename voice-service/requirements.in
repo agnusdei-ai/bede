@@ -1,0 +1,4 @@
+# Bede's local voice server. Piper is GPL-3.0-or-later; see README.md.
+# Regenerate requirements.lock.txt with:
+#   pip-compile --generate-hashes --output-file=requirements.lock.txt requirements.in
+piper-tts==1.8.0

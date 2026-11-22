@@ -2098,6 +2098,34 @@ async function practiceFetch<T>(token: string, path: string, init?: RequestInit)
   return res.json()
 }
 
+export type VoiceStatus = {
+  configured: boolean
+  where: 'local' | 'cloud' | null
+  /** Why there is no voice: turned off on purpose, or setup not finished. */
+  reason?: 'off' | 'not_set_up' | null
+  available?: boolean
+}
+
+/** Whether Bede has a voice on this deployment, where it runs, and whether
+ *  it can speak right now in this session's language (GET /tutor/voice). Null when it cannot be told, including an older server
+ *  without the route, so the notice simply does not show. */
+export async function fetchVoiceStatus(token: string): Promise<VoiceStatus | null> {
+  try {
+    const res = await fetch(`${BASE}/tutor/voice`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (typeof data?.configured !== 'boolean') return null
+    return {
+      configured: data.configured,
+      where: data.where === 'local' || data.where === 'cloud' ? data.where : null,
+      ...(data.reason === 'off' || data.reason === 'not_set_up' ? { reason: data.reason } : {}),
+      ...(typeof data.available === 'boolean' ? { available: data.available } : {}),
+    }
+  } catch {
+    return null
+  }
+}
+
 /** Whether Practice Coach is on for this installation (PRACTICE_COACH_ENABLED).
  *  Its cards are shown only on a clear yes. A server too old to have this
  *  route (404) always had Coach on, so it reads as on; any other failure
@@ -2181,6 +2209,8 @@ export interface QuizQuestion {
   prompt: string
   options: string[]
   answer: string
+  /** One or two sentences on why, for the answer key only; may be empty. */
+  explanation?: string
   diagram?: DiagramSpec | null
   answer_check: 'computed' | 'checked' | 'verify'
   second_answer?: string | null

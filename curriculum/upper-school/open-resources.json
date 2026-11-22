@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "status": "local-review-intake-only",
+  "selection_evidence": [
+    "curriculum/grade-9/02-resources.md",
+    "curriculum/grade-9/resources/REPLACEMENT-REGISTER.md",
+    "curriculum/grade-8/source-register.json"
+  ],
+  "documentation_collection": {
+    "parent_id": "python-tutorial",
+    "purpose": "Local, unchanged review snapshots of selected PSF documentation and its license. The owner requested rapid reuse; these are technical references requiring age-appropriate teaching, not four completed computing courses.",
+    "pages": [
+      {"id": "python-license", "title": "Python 3.14 History and License", "url": "https://docs.python.org/3.14/license.html"},
+      {"id": "python-introduction", "title": "An Informal Introduction to Python", "url": "https://docs.python.org/3.14/tutorial/introduction.html"},
+      {"id": "python-controlflow", "title": "More Control Flow Tools", "url": "https://docs.python.org/3.14/tutorial/controlflow.html"},
+      {"id": "python-datastructures", "title": "Data Structures", "url": "https://docs.python.org/3.14/tutorial/datastructures.html"},
+      {"id": "python-modules", "title": "Modules", "url": "https://docs.python.org/3.14/tutorial/modules.html"},
+      {"id": "python-inputoutput", "title": "Input and Output", "url": "https://docs.python.org/3.14/tutorial/inputoutput.html"},
+      {"id": "python-errors", "title": "Errors and Exceptions", "url": "https://docs.python.org/3.14/tutorial/errors.html"},
+      {"id": "python-classes", "title": "Classes", "url": "https://docs.python.org/3.14/tutorial/classes.html"},
+      {"id": "python-stdlib", "title": "Brief Tour of the Standard Library", "url": "https://docs.python.org/3.14/tutorial/stdlib.html"}
+    ]
+  },
+  "sources": [
+    {
+      "id": "wallace-algebra",
+      "title": "Beginning and Intermediate Algebra",
+      "creator": "Tyler Wallace",
+      "url": "https://www.wallace.ccfaculty.org/book/Beginning_and_Intermediate_Algebra.pdf",
+      "catalog_url": "https://www.wallace.ccfaculty.org/book/book.html",
+      "format": "pdf",
+      "acquire": true,
+      "expected_sha256": "856bd81edc61c50496982ddc849138f4e0e56fd0ddf0edb53fee9bb0830d0678",
+      "license": "CC BY 3.0 Unported",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "attribution": "Tyler Wallace, Beginning and Intermediate Algebra, copyright 2010, ISBN 978-1-4583-7768-5; CC BY 3.0; unmodified review copy.",
+      "use": "Grade 9 M01–M36 selections; placement-based algebra support for later grades, not Geometry or a complete advanced-mathematics sequence.",
+      "restrictions": "Preserve the book's license and attribution. No solutions-manual, workbook, video or linked-asset acquisition. Review copying is not runtime promotion or training approval."
+    },
+    {
+      "id": "homer-butler-odyssey",
+      "title": "The Odyssey",
+      "creator": "Homer; Samuel Butler, translator",
+      "url": "https://www.gutenberg.org/ebooks/1727.txt.utf-8",
+      "catalog_url": "https://www.gutenberg.org/ebooks/1727",
+      "format": "gutenberg-text",
+      "acquire": true,
+      "license": "Underlying edition public domain in the USA; Gutenberg file terms retained",
+      "license_url": "https://www.gutenberg.org/policy/license.html",
+      "attribution": "Homer, The Odyssey, Samuel Butler translation; Project Gutenberg ebook 1727. Exact source file and notices retained.",
+      "use": "Existing Grade 9 Books I–XXIV sequence, with the current reading caps, excerpt route, naming guidance and adult previews.",
+      "restrictions": "US public-domain route only; local jurisdiction and paid redistribution/trademark conditions require review. Translator prefaces are not assigned as established historical facts. No recordings or illustrations."
+    },
+    {
+      "id": "sophocles-storr-antigone",
+      "title": "Oedipus Trilogy: Antigone selection",
+      "creator": "Sophocles; Francis Storr, translator",
+      "url": "https://www.gutenberg.org/ebooks/31.txt.utf-8",
+      "catalog_url": "https://www.gutenberg.org/ebooks/31",
+      "format": "gutenberg-text",
+      "acquire": true,
+      "license": "Underlying edition public domain in the USA; Gutenberg file terms retained",
+      "license_url": "https://www.gutenberg.org/policy/license.html",
+      "attribution": "Sophocles, Oedipus Trilogy, Francis Storr translation; Project Gutenberg ebook 31. Assigned work: Antigone only.",
+      "use": "Grade 9 Antigone scenes and argument/authority analysis; not assignment of the complete trilogy.",
+      "restrictions": "Full source kept for provenance; only Antigone is selected. Adult preview of death, suicide and family conflict required. US rights, local jurisdiction and Gutenberg terms remain distinct."
+    },
+    {
+      "id": "confucius-legge-analects",
+      "title": "The Analects",
+      "creator": "Confucius; James Legge, translator",
+      "url": "https://www.gutenberg.org/ebooks/3330.txt.utf-8",
+      "catalog_url": "https://www.gutenberg.org/ebooks/3330",
+      "format": "gutenberg-text",
+      "acquire": true,
+      "license": "Underlying edition public domain in the USA; Gutenberg file terms retained",
+      "license_url": "https://www.gutenberg.org/policy/license.html",
+      "attribution": "Confucius, The Analects, James Legge translation; Project Gutenberg ebook 3330.",
+      "use": "Existing Grade 9 short selections in Books I, II, IV, XII and XV; contextual comparative reading.",
+      "restrictions": "Do not reduce a living tradition to slogans or silently substitute a modern translation. US rights, local jurisdiction and Gutenberg terms require separate treatment."
+    },
+    {
+      "id": "gita-arnold",
+      "title": "The Song Celestial / Bhagavad-Gita",
+      "creator": "Edwin Arnold, verse translator",
+      "url": "https://www.gutenberg.org/ebooks/2388.txt.utf-8",
+      "catalog_url": "https://www.gutenberg.org/ebooks/2388",
+      "format": "gutenberg-text",
+      "acquire": true,
+      "license": "Underlying edition public domain in the USA; Gutenberg file terms retained",
+      "license_url": "https://www.gutenberg.org/policy/license.html",
+      "attribution": "The Bhagavad-Gita, Edwin Arnold verse translation, The Song Celestial; Project Gutenberg ebook 2388.",
+      "use": "Existing Grade 9 Chapters II–III comparative literature selections, taught in historical and literary context.",
+      "restrictions": "Victorian rendering, not a neutral representation of every Hindu interpretation. Comparative academics, not devotional participation. US rights, local jurisdiction and Gutenberg terms apply."
+    },
+    {
+      "id": "virgil-dryden-aeneid",
+      "title": "The Aeneid",
+      "creator": "Virgil; John Dryden, translator",
+      "url": "https://www.gutenberg.org/ebooks/228.txt.utf-8",
+      "catalog_url": "https://www.gutenberg.org/ebooks/228",
+      "format": "gutenberg-text",
+      "acquire": true,
+      "license": "Underlying edition public domain in the USA; Gutenberg file terms retained",
+      "license_url": "https://www.gutenberg.org/policy/license.html",
+      "attribution": "Virgil, The Aeneid, John Dryden translation; Project Gutenberg ebook 228.",
+      "use": "Existing Grade 9 Books I, II, IV, VI and XII selections; adult-supported reading and analytical writing.",
+      "restrictions": "Preview violence and difficult verse; preserve the excerpt/access route. No modern apparatus or recordings cleared. US rights, local jurisdiction and Gutenberg terms apply."
+    },
+    {
+      "id": "dooge-latin",
+      "title": "Latin for Beginners",
+      "creator": "Benjamin L. D'Ooge",
+      "url": "https://www.gutenberg.org/ebooks/18251.txt.utf-8",
+      "catalog_url": "https://www.gutenberg.org/ebooks/18251",
+      "format": "gutenberg-text",
+      "acquire": true,
+      "license": "Underlying edition public domain in the USA; Gutenberg file terms retained",
+      "license_url": "https://www.gutenberg.org/policy/license.html",
+      "attribution": "Benjamin L. D'Ooge, Latin for Beginners; Project Gutenberg ebook 18251.",
+      "use": "Existing Grade 9 grammar/topic pathway and later language reference where appropriate; not four complete language courses.",
+      "restrictions": "Exclude the unassigned cultural-superiority introductory essays from teaching. Preserve macrons and document pronunciation conventions. No images/audio; US rights, local jurisdiction and Gutenberg terms apply."
+    },
+    {
+      "id": "ung-world-history",
+      "title": "World History: Cultures, States, and Societies to 1500",
+      "creator": "Berger, Israel, Miller, Parkinson, Reeves and Williams; University System of Georgia / University of North Georgia Press",
+      "url": "https://oer.galileo.usg.edu/history-textbooks/2/",
+      "catalog_url": "https://oer.galileo.usg.edu/history-textbooks/2/",
+      "format": "external-selection",
+      "acquire": false,
+      "license": "CC BY-SA 4.0 for specified original author prose; incorporated assets excluded",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "attribution": "World History: Cultures, States, and Societies to 1500, 2016, listed authors, USG/UNG Press; selected original prose under CC BY-SA 4.0.",
+      "use": "Existing H01–H36 bounded author-prose selections; use the exact replacement register, not complete chapters.",
+      "restrictions": "Do not download and import the entire book as cleared content. Exclude figures, maps, captions, quotations, translations and separately credited assets. Any adapted CC BY-SA prose retains ShareAlike obligations; do not relicense it proprietary."
+    },
+    {
+      "id": "python-tutorial",
+      "title": "Python 3.14 Tutorial",
+      "creator": "Python Software Foundation and documentation contributors",
+      "url": "https://docs.python.org/3.14/tutorial/",
+      "catalog_url": "https://docs.python.org/3.14/license.html",
+      "format": "external-selection",
+      "acquire": false,
+      "license": "PSF License Version 2; examples additionally dual-licensed Zero-Clause BSD as stated",
+      "license_url": "https://docs.python.org/3.14/license.html",
+      "attribution": "Python Software Foundation and contributors, Python 3.14 documentation; retain the exact applicable notices for copied material.",
+      "use": "Technical reference for age-appropriate original computing instruction across Grades 9–12, not a standalone AI-literacy course.",
+      "restrictions": "Existing external-reference scope retained. No wholesale documentation import or claim that the tutorial is a complete high-school computing sequence."
+    }
+  ]
+}

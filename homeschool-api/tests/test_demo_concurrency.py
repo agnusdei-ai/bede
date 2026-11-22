@@ -31,6 +31,7 @@ import os
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 from contextlib import closing
 from pathlib import Path
@@ -105,6 +106,10 @@ def demo_api_base_url():
     # exists specifically to catch a drift between the two. Bound to
     # 0.0.0.0 so it's reachable via any loopback alias, including the
     # _SHARED_PROXY_PEER address the test clients connect from.
+    # A PIPE without a concurrent reader can block the server once its log
+    # buffer fills. Capture to a file instead and expose diagnostic output
+    # through pytest capture on failure, including exceptions behind HTTP 500.
+    server_output = tempfile.TemporaryFile(mode="w+t", encoding="utf-8")
     proc = subprocess.Popen(
         [
             sys.executable, "-m", "uvicorn", "main:app",
@@ -113,7 +118,7 @@ def demo_api_base_url():
         ],
         cwd=str(API_DIR),
         env=env,
-        stdout=subprocess.PIPE,
+        stdout=server_output,
         stderr=subprocess.STDOUT,
         text=True,
     )
@@ -136,10 +141,13 @@ def demo_api_base_url():
     if not healthy:
         proc.terminate()
         try:
-            output = proc.communicate(timeout=5)[0]
+            proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc.kill()
-            output = "(process did not exit after terminate)"
+            proc.wait(timeout=5)
+        server_output.seek(0)
+        output = server_output.read()[-16000:]
+        server_output.close()
         pytest.skip(
             "Could not start homeschool-api for the demo concurrency test "
             f"(is Postgres reachable at {env['DATABASE_URL']}?). Server output:\n{output}"
@@ -156,15 +164,19 @@ def demo_api_base_url():
     # above (main.py's lifespan runs create_tables() before the app starts
     # serving), so it's safe to truncate here rather than guard for
     # "table doesn't exist yet."
-    asyncio.run(_truncate_demo_tables(env["DATABASE_URL"]))
-
-    yield base_url
-
-    proc.terminate()
     try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+        asyncio.run(_truncate_demo_tables(env["DATABASE_URL"]))
+        yield base_url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5)
+        server_output.seek(0)
+        print("\nDemo concurrency server output:\n" + server_output.read()[-16000:])
+        server_output.close()
 
 
 @pytest.mark.parametrize("concurrency", [10, 20, 30, 40, 50])
@@ -231,7 +243,11 @@ async def test_fifty_concurrent_visitors_generate_and_redeem_without_collision(d
         ])
 
     statuses = [r.status_code for r in login_responses]
-    assert all(s == 200 for s in statuses), f"Expected all 50 logins to succeed, got: {statuses}"
+    failures = [(r.status_code, r.text[:200]) for r in login_responses
+                if r.status_code != 200]
+    assert all(s == 200 for s in statuses), (
+        f"Expected all 50 logins to succeed, got: {statuses}; errors: {failures}"
+    )
     tokens = [r.json()["access_token"] for r in login_responses]
     assert len(set(tokens)) == 50, "Two different visitors were issued the same JWT"
 

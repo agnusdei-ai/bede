@@ -5,6 +5,7 @@ from pydantic import Field, field_validator, model_validator
 from typing import List
 
 from core.scanner_url import ScannerUrlRefused, parse_scanner_url
+from core.voice_url import VoiceUrlRefused, parse_voice_url
 from core.pin_policy import (
     MIN_PIN_LENGTH,
     PUBLISHED_EXAMPLE_PINS,
@@ -94,6 +95,10 @@ _WORKSPACE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
 LOCAL_LLM_DEFAULT_MODEL = "mistralai/Mistral-Small-3.2-24B-Instruct-2506"
 LOCAL_LLM_DEFAULT_GPU_MEMORY_GB = 55
 LOCAL_LLM_DEFAULT_MIN_VLLM = "0.9.1"
+
+
+# Where Bede's voice may come from; see Settings.tts_provider.
+TTS_PROVIDERS = frozenset({"", "local", "openai", "none"})
 
 
 class Settings(BaseSettings):
@@ -215,12 +220,29 @@ class Settings(BaseSettings):
     # the ones a parent expects to use it.
     locale: str = "en"
 
-    # ── Voice output — OpenAI TTS ─────────────────────────────────────────────
-    # Setting OPENAI_API_KEY switches Bede's voice to OpenAI's TTS API — a
-    # full cloud model, meaningfully more natural than a browser's default
-    # voice. Leave unset to skip cloud voice entirely — the browser's own
-    # speech takes over automatically, with no other changes needed (see
-    # useTextToSpeech.ts). No self-hosted TTS backend is used anymore.
+    # ── Voice output: Bede's own voice ────────────────────────────────────────
+    # Owner decisions 2026-11-18 (docs/DECISIONS.md entry 46): every feature
+    # speaks in Bede's voice and never in another one. Bede's voice comes from
+    # exactly one of two places, chosen by TTS_PROVIDER:
+    #   ""       (auto, the default) OpenAI's voice when OPENAI_API_KEY is set,
+    #            otherwise none. Auto never picks the local voice, even with a
+    #            LOCAL_TTS_URL set, and installed Bede and the demo behave the
+    #            same.
+    #   "local"  the optional Piper development voice only, and nothing else
+    #            ever: with no LOCAL_TTS_URL, or the voice down, Bede is
+    #            silent. Never the default or a fallback.
+    #   "openai" OpenAI's voice only: the explicit opt-in to a cloud voice.
+    #   "none"   no voice; Bede is silent.
+    # With no voice configured Bede is silent: the browser's own voice is never
+    # used, since it is not Bede's (both frontends' useTextToSpeech).
+    tts_provider: str = ""
+    # Where Bede's local voice is served: the `voice` service in
+    # docker-compose.yml (`http://voice:5000`, profile `piper`, off by default), or a
+    # voice server on this machine or its private network. Refused at boot if
+    # it names anything else (core/voice_url.py).
+    local_tts_url: str = ""
+    # Setting OPENAI_API_KEY makes OpenAI's TTS API available as Bede's voice
+    # (auto, above, uses it whenever the key is set).
     openai_api_key: str = ""
     # gpt-4o-mini-tts (not the older tts-1/tts-1-hd) is the only OpenAI TTS
     # model that accepts `instructions` below — that's what actually lets us
@@ -949,6 +971,22 @@ class Settings(BaseSettings):
                 "ANTHROPIC_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY, or LOCAL_LLM_BASE_URL "
                 "(see docs/PROVIDER_ADAPTERS.md)"
             )
+        return self
+
+    @model_validator(mode="after")
+    def reject_unknown_or_non_local_voice(self) -> "Settings":
+        """Bede's voice settings are refused at boot rather than at the first
+        line spoken: an unknown TTS_PROVIDER, a LOCAL_TTS_URL that is not this
+        machine or its network. TTS_PROVIDER=local with no LOCAL_TTS_URL is
+        allowed: that is installed Bede with no voice set up, which is silent."""
+        provider = (self.tts_provider or "").strip().lower()
+        if provider not in TTS_PROVIDERS:
+            raise ValueError(f"TTS_PROVIDER must be one of {sorted(p or '(empty)' for p in TTS_PROVIDERS)}")
+        try:
+            parse_voice_url(self.local_tts_url)
+        except VoiceUrlRefused as exc:
+            raise ValueError(f"LOCAL_TTS_URL: {exc}") from exc
+        self.tts_provider = provider
         return self
 
     @model_validator(mode="after")

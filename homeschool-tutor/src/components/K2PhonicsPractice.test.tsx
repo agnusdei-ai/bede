@@ -74,7 +74,8 @@ describe('K2PhonicsPractice', () => {
     expect(screen.getByText('Watch').getAttribute('aria-current')).toBe('step')
     // Watch: the move is shown and spoken, and nothing can be tapped.
     await waitFor(() => expect(onSpeak).toHaveBeenCalledWith('Listen: kuh, ah, tuh. Put the sounds together: cat!'))
-    expect(document.querySelector('[data-revealed]')?.getAttribute('aria-label')).toBe('cat')
+    // The answer is shown once the letters have all lit.
+    await waitFor(() => expect(document.querySelector('[data-revealed]')?.getAttribute('aria-label')).toBe('cat'), { timeout: 4000 })
     expect(screen.getByRole('button', { name: 'cat' })).toHaveProperty('disabled', true)
     fireEvent.click(screen.getByRole('button', { name: 'Let’s try one' }))
 
@@ -286,7 +287,7 @@ describe('K2PhonicsPractice', () => {
     const promptKeys = [...builder.matchAll(/Task\(domain, "([a-z_]+)"/g)].map((m) => m[1])
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Phonics.prompt)))
     expect(new Set(promptKeys)).toEqual(new Set(Object.keys(en.k2Phonics.watch)))
-    expect(promptKeys.length).toBe(4)
+    expect(promptKeys.length).toBe(6)
   })
 
   it('is rerun when the server module changes', () => {

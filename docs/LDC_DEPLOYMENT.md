@@ -403,13 +403,14 @@ software stack is less settled than either the Pi's or the Jetson's.
 **As a client, not a server** — and this is a real answer, not a consolation.
 Bede's architecture is one server plus tablets over the LAN (§7). Where tablets
 are unaffordable or hard to replace, a Pi 5 with a touchscreen is a legitimate
-learner station: it needs only a browser, and browser-side text-to-speech runs
-on the device at no server cost.
+learner station: it needs only a browser. Bede's voice comes from the server,
+not the station (the browser's own voice is never used), so the station adds
+no text-to-speech load of its own.
 
 Two things to check before committing to that: the station needs **a real
 microphone** — narration and voice verification are not optional in this
-product — and browser speech synthesis should be confirmed working offline on
-the actual image, per §11's open item on local text-to-speech.
+product — and it must play audio, since Bede's spoken lines arrive from the
+server (§11's item on local text-to-speech).
 
 A Pi 5 is also perfectly capable of running Caddy, nginx and PostgreSQL. But
 splitting those onto a second box buys little: they are §3's small resident
@@ -632,7 +633,9 @@ Stated here rather than discovered in the field:
    with one parent credential. A parish server serving several families is
    `docs/DECISIONS.md` entry 21, and is **not** reachable by adding students to
    one pod — that would put each family's records in reach of the others.
-5. **Local text-to-speech.** Bede's voice output currently uses the browser's
-   own speech synthesis (on the tablet, so no server cost) or OpenAI's API. The
-   browser path works without internet on most platforms; verify it on the
-   actual tablets before promising it.
+5. **Text-to-speech.** Installed Bede speaks in Bede's reference voice
+   (OpenAI's) when `OPENAI_API_KEY` is set and speech is not turned off; a
+   deployment that must not send speech to a cloud service sets
+   `TTS_PROVIDER=none` and is text-first. An optional local Piper voice exists
+   for development only and is not a launch dependency (`docs/DECISIONS.md`
+   entry 46). Bede never uses the browser's own speech synthesis.

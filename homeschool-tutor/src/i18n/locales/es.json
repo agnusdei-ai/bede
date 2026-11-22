@@ -907,7 +907,11 @@
     "uploadTooLarge": "Estos archivos suman más de 1 GB. Elija menos páginas.",
     "fileTooLarge": "Un archivo pesa más de 25 MB. Divídalo o escanéelo con menor resolución.",
     "sourceTrimmed": "Este material es muy largo, así que Bede preparó la prueba con sus primeras páginas.",
-    "editAsTeacher": "Editar la clave y calificar el trabajo de los alumnos"
+    "editAsTeacher": "Editar la clave y calificar el trabajo de los alumnos",
+    "showAnswerKey": "Mostrar respuestas",
+    "hideAnswerKey": "Ocultar respuestas",
+    "keyHidden": "Las respuestas están ocultas para que primero se pueda contestar el examen.",
+    "why": "Por qué: {{text}}"
   },
   "practiceDelivery": {
     "title": "Una pregunta de práctica aprobada por tu familia",
@@ -1104,7 +1108,44 @@
       "box": "caja",
       "basket": "canasta",
       "truck": "camión",
-      "ruler": "regla"
+      "ruler": "regla",
+      "bat": "murciélago",
+      "rat": "rata",
+      "van": "camioneta",
+      "fan": "abanico",
+      "pen": "pluma",
+      "net": "red",
+      "web": "telaraña",
+      "log": "tronco",
+      "nut": "cacahuate",
+      "bug": "bicho",
+      "cap": "gorra",
+      "bag": "bolsa",
+      "hut": "choza",
+      "crab": "cangrejo",
+      "drum": "tambor",
+      "sled": "trineo",
+      "shell": "concha",
+      "clock": "reloj",
+      "flag": "bandera",
+      "nest": "nido",
+      "tent": "tienda de campaña",
+      "skunk": "zorrillo",
+      "kite": "papalote",
+      "rope": "cuerda",
+      "nose": "nariz",
+      "snail": "caracol",
+      "seal": "foca",
+      "soap": "jabón",
+      "sock": "calcetín",
+      "lock": "candado",
+      "ring": "anillo",
+      "thumb": "pulgar",
+      "vest": "chaleco",
+      "dish": "plato",
+      "zebra": "cebra",
+      "yarn": "estambre",
+      "jar": "frasco"
     },
     "action": {
       "running": "corriendo",
@@ -1268,6 +1309,13 @@
     "fileTooLarge": "Un archivo pesa más de 25 MB. Escanéelo con menor resolución o divídalo y vuelva a añadirlo.",
     "uploadTooLarge": "Estos archivos suman más de 24 MB, más de lo que cabe en un envío. Use escaneos más pequeños o pegue el texto de la prueba."
   },
+  "k2Print": {
+    "circle": "Encierra tu respuesta en un círculo.",
+    "button": "Imprimir o guardar como PDF",
+    "title": "{{title}}: hoja de práctica",
+    "markSquare": "Marca la casilla con una X.",
+    "drawCounters": "Dibuja las fichas."
+  },
   "printSheet": {
     "name": "Nombre",
     "date": "Fecha",
@@ -1289,6 +1337,8 @@
     }
   },
   "mapPractice": {
+    "watchAgain": "Ver otra vez",
+    "watchLook": "Mira el camino que sigue Bede.",
     "title": "Práctica de mapas",
     "loading": "Preparando un mapa…",
     "loadTrouble": "No se pudo cargar el mapa.",
@@ -1394,6 +1444,7 @@
     "open": "Abrir el mapa"
   },
   "k2Phonics": {
+    "watchAgain": "Ver otra vez",
     "title": "Hora de los Sonidos",
     "open": "Empezar la Hora de los Sonidos",
     "loading": "Preparando las palabras…",
@@ -1422,6 +1473,8 @@
     },
     "prompt": {
       "rhyme_choice": "¿Cuál rima con {{word}}?",
+      "rhyme_odd_choice": "Escucha: {{words}}. ¿Cuál no rima?",
+      "starts_with_choice": "¿Qué dibujo empieza con {{letter}}, {{sound}}?",
       "first_sound_choice": "¿Con qué letra empieza {{word}}?",
       "read_word_choice": "Lee la palabra. Toca su dibujo.",
       "sight_word_choice": "Toca la palabra {{word}}."
@@ -1432,12 +1485,19 @@
     },
     "watch": {
       "rhyme_choice": "Escucha: {{word}} y {{answer}}. ¡Riman! Terminan con el mismo sonido.",
+      "rhyme_odd_choice": "Escucha: {{words}}. Dos de ellas riman. {{answer}} no rima con las otras.",
+      "starts_with_choice": "{{answer}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
       "first_sound_choice": "{{word}} empieza con el sonido {{sound}}. Ese sonido se escribe {{letter}}.",
       "read_word_choice": "Escucha: {{sounds}}. Junta los sonidos: ¡{{word}}!",
       "sight_word_choice": "Esta palabra es {{word}}. La conocemos de vista."
     }
   },
   "k2Math": {
+    "watchAgain": "Ver otra vez",
+    "groupsLabel": "{{groups}} platos con {{each}} fichas en cada uno",
+    "shareLabel": "{{total}} fichas para repartir en {{groups}} platos",
+    "groupsQuiet": "Platos con fichas",
+    "shareQuiet": "Fichas para repartir y platos vacíos",
     "title": "Hora de los Números",
     "open": "Empezar la Hora de los Números",
     "loading": "Preparando las fichas…",
@@ -1499,7 +1559,10 @@
       "subtract_how_many": "Había {{a}}. {{b}} están tachadas. ¿Cuántas quedan?",
       "subtract_build": "Aquí hay {{a}}. Quita {{b}}.",
       "bond_missing": "{{whole}} es {{part}} y ¿cuánto más?",
-      "bond_build": "Aquí hay {{part}}. Pon más hasta que haya {{whole}}."
+      "bond_build": "Aquí hay {{part}}. Pon más hasta que haya {{whole}}.",
+      "skip_how_many": "Cuenta de a {{by}}. ¿Cuántas fichas hay en total?",
+      "groups_how_many": "{{groups}} platos con {{each}} en cada uno. ¿Cuántas hay en total?",
+      "share_each": "Reparte {{total}} fichas por igual en {{groups}} platos. ¿Cuántas hay en cada plato?"
     },
     "watch": {
       "count_how_many": "Mira cómo cuento. Toco cada una, y el último número que digo es cuántas hay: {{answer}}.",
@@ -1510,7 +1573,48 @@
       "subtract_how_many": "Había {{a}}. Tacho {{b}}. Cuento las que quedan: {{answer}}.",
       "subtract_build": "Aquí hay {{a}}. Mira cómo quito {{b}}. Ahora hay {{answer}}.",
       "bond_missing": "{{whole}} es {{part}} y {{answer}}. Juntos hacen {{whole}}.",
-      "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}."
+      "bond_build": "Aquí hay {{part}}. Mira cómo pongo más, una por una, hasta que haya {{whole}}.",
+      "skip_how_many": "Mira cómo cuento de a {{by}}, plato por plato. Son {{answer}} en total.",
+      "groups_how_many": "{{groups}} platos con {{each}} en cada uno. Sumo {{each}} por cada plato: {{answer}} en total.",
+      "share_each": "Doy una ficha a cada plato, una vuelta tras otra, hasta que no quede ninguna. Cada plato recibe {{answer}}."
     }
+  },
+  "voiceStatus": {
+    "title": "La voz de Bede",
+    "local": {
+      "what": "Bede lee las lecciones en voz alta con la voz opcional de desarrollo Piper, que funciona en esta computadora. Nada de lo que Bede dice en voz alta sale de ella.",
+      "next": "No hace falta hacer nada. Esta voz es para pruebas; no es la voz habitual de Bede."
+    },
+    "down": {
+      "what": "La voz de Bede está configurada, pero ahora no responde. Las lecciones continúan con todo en pantalla; a tu hijo no se le avisa y Bede nunca usa otra voz en su lugar.",
+      "next": "Por ahora no hace falta hacer nada: Bede vuelve a comprobarlo en menos de un minuto. Si sigue así, consulta la guía de configuración de voz."
+    },
+    "none": {
+      "what": "La voz de Bede no está terminada de configurar en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede no usa la voz del navegador ni ninguna otra voz en su lugar.",
+      "next": "Para terminar la configuración de la voz, agrega una clave de OpenAI (OPENAI_API_KEY) a los ajustes de esta instalación y reinicia Bede. Después la voz de Bede funciona sin nada más que activar. La guía de configuración de voz explica cómo."
+    },
+    "off": {
+      "what": "La voz se desactivó en esta instalación, así que las lecciones son en texto: todo aparece en pantalla y nada se lee en voz alta. Bede no usa otra voz en su lugar.",
+      "next": "Para volver a activar la voz de Bede, quien configuró esta instalación quita el ajuste TTS_PROVIDER=none y reinicia Bede. La guía de configuración de voz explica cómo."
+    },
+    "cloud": {
+      "what": "Bede lee las lecciones en voz alta con su voz habitual, que viene de un servicio de voz en la nube. Ese servicio recibe cada frase que dice Bede.",
+      "next": "No hace falta hacer nada. Para que las lecciones sean solo en pantalla, desactiva la voz de Bede durante una lección, o pide a quien configuró esta instalación que desactive la voz."
+    }
+  },
+  "quizRunner": {
+    "progress": "Pregunta {{n}} de {{total}}",
+    "answerLabel": "Tu respuesta",
+    "check": "Revisar",
+    "right": "¡Correcto!",
+    "wrong": "No exactamente. La respuesta es {{answer}}.",
+    "open": "Esta es la respuesta: {{answer}}. Revisa la tuya con un adulto.",
+    "why": "Por qué: {{text}}",
+    "next": "Siguiente pregunta",
+    "seeResults": "Ver cómo te fue",
+    "finished": "Acertaste {{right}} de {{total}}.",
+    "openNote": "Un adulto debe revisar {{count}} respuestas.",
+    "done": "Listo",
+    "start": "Empezar el examen"
   }
 }

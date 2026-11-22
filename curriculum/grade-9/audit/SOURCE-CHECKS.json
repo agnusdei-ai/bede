@@ -1,0 +1,24 @@
+{
+  "register_records": 61,
+  "source_contract_checks": [
+    "unverified rights denied",
+    "missing review denied",
+    "wrong version denied",
+    "agent identity cannot impersonate human",
+    "nonapproval denied",
+    "mock original structural approval accepted (not authentication)",
+    "verbatim licensed denied",
+    "verbatim original denied"
+  ],
+  "source_hashes": {
+    "homeschool-api/services/curriculum/models.py": "c4de542886bf2e71a22313a054d26fffcfc1f8784455185328fbf168f6fa6d2b",
+    "homeschool-api/services/curriculum/rights_gate.py": "ebe70efc6afed5db988a1b2d208844ded39991978a02c74d0a3431d9677b1949",
+    "homeschool-api/services/curriculum/workflow.py": "cea4361e23ad674940adbc1c23c49ffc2109fc74d3fb9a3293e92125c2523ce6",
+    "homeschool-api/services/curriculum/local_hybrid_index.py": "2850882e479f857dcec29198318aa92e24530da4eeef951e28a84d5819b0c596",
+    "homeschool-api/services/curriculum/citation_retriever.py": "ca631068db4ec98262a53ff690d22b8ea99011ee1ff382e464322e9360f7a667",
+    "homeschool-api/services/curriculum/learner_evolution.py": "757fc7f476ca89f4789054b296078063a844780f6c8ca3af65a0d7078bb072b3",
+    "homeschool-api/services/curriculum/persistence.py": "cad49612c013e783b4476dbae3aac8e10d50f6646a429f556bc1457f9b27e05e",
+    "homeschool-api/services/curriculum/flag.py": "d6210ead7bd4d107b97a3fc76871d731a4759f8fd8dc23de383aa1eafdde7138"
+  },
+  "limits": "Historical mock pure-model checks only; wording normalized after the recorded run. Retained source hashes are historical, not current approval. No upstream pytest, DB, auth, browser, rights or deployment certification."
+}

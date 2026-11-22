@@ -515,6 +515,22 @@ Wikimedia Commons) remain only for picture study in History & Geography and Art
 & Music, each with its own source, creator, licence or public-domain basis and
 credit (`docs/VENDOR_DATA_FLOW.md`).
 
+**Printing (owner direction 2026-11-22).** Each round's finish screen offers
+**Print or save as PDF** (`components/k2PrintSheet.tsx`, mirrored in the
+demo). It reuses Practice Coach's printer, `utils/printDocument.ts`, so the
+device's own print dialog prints the sheet or saves it as a PDF on every
+platform, with no PDF library of our own. The sheet is the lesson's Together
+and Your turn questions as "Your turn" shows them, with no answers (the server
+keeps them); questions asked only by ear (`listen` displays, sight words, first
+sounds) are left off. Picture choices are lettered, never named, since the
+name can be the answer. Number Time's pieces are redrawn for paper with plain
+colours and no guide numbers (`MathPrintPicture`), because the screen versions
+are styled by the app's classes, which a printed sheet does not carry; a map
+keeps its own drawing, with `K2_PRINT_CSS` placing its compass and key.
+`printDocument.ts` gained `css` (a constant from our code) and `answerSpace`
+for this. Printing records nothing. `k2PrintSheet.test.tsx` pins the sheet's
+content and that each round's finish screen really prints.
+
 **Voice:** every line Bede speaks in a round is written by the server per locale,
 like the map practice card.
 

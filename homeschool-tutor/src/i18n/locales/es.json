@@ -1303,6 +1303,13 @@
     "fileTooLarge": "Un archivo pesa más de 25 MB. Escanéelo con menor resolución o divídalo y vuelva a añadirlo.",
     "uploadTooLarge": "Estos archivos suman más de 24 MB, más de lo que cabe en un envío. Use escaneos más pequeños o pegue el texto de la prueba."
   },
+  "k2Print": {
+    "circle": "Encierra tu respuesta en un círculo.",
+    "button": "Imprimir o guardar como PDF",
+    "title": "{{title}}: hoja de práctica",
+    "markSquare": "Marca la casilla con una X.",
+    "drawCounters": "Dibuja las fichas."
+  },
   "printSheet": {
     "name": "Nombre",
     "date": "Fecha",

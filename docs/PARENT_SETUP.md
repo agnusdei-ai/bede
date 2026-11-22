@@ -2291,6 +2291,22 @@ voices Bede's chat replies. Your child's answers never do. Turning Bede's voice
 off in the chat turns it off here too. Every Number Time question can be
 answered from the picture on screen, so it works without sound too.
 
+## Printing a K-2 round, or saving it as a PDF
+
+When your child finishes Sound Time, Number Time or Map Practice, the last
+screen has a **Print or save as PDF** button. It opens your device's own
+print dialog, the same one Practice Coach's worksheets use, so it works the
+same way on Windows, a Mac, an iPhone or iPad, Android and Linux: print to
+paper, or choose "Save as PDF" (on an iPhone or iPad, share the print preview
+to Files) to keep a copy.
+
+The sheet has your child's name and date lines, the round's questions with
+their pictures, and a line or a box to circle for each answer. It shows each
+question the way "Your turn" does, so nothing on the page gives an answer
+away, and it carries no answer key. Questions that only work by ear (a word
+to listen for, a sight word Bede says aloud) are left off, because paper
+cannot say them. Printing records nothing and sends nothing anywhere.
+
 ## The writing pad: drawings, and where they go
 
 When Bede invites your child to write or draw by hand, a full-screen

@@ -421,11 +421,34 @@ class NumberBondDiagram(_Strict):
         return self
 
 
+class EqualGroupsDiagram(_Strict):
+    """Plates of counters, the grade 2 bridge to multiplication and division
+    (data/catalog/year2.json: equal groups and arrays seen as repeated
+    addition, met a year before they are named). `groups` plates, `each`
+    counters on every plate, and `loose` counters not yet shared out: "3
+    plates of 4, how many in all?", "Share these 12 onto 3 plates: how many
+    on each?". No times or divide sign is ever drawn."""
+    kind: Literal["equal_groups"]
+    groups: int = Field(..., ge=2, le=6)
+    each: int = Field(default=0, ge=0, le=10)
+    loose: int = Field(default=0, ge=0, le=30)
+
+    @model_validator(mode="after")
+    def _fits(self) -> "EqualGroupsDiagram":
+        if self.groups * self.each + self.loose > 50:
+            raise ValueError("more counters than a picture holds")
+        if self.loose and (self.each or self.loose % self.groups):
+            raise ValueError("loose counters are shared onto empty plates, evenly")
+        if not self.loose and not self.each:
+            raise ValueError("a picture with no counters")
+        return self
+
+
 PieceDiagram = Annotated[
-    Union[CountersDiagram, TenFrameDiagram, NumberBondDiagram],
+    Union[CountersDiagram, TenFrameDiagram, NumberBondDiagram, EqualGroupsDiagram],
     Field(discriminator="kind"),
 ]
-PIECE_DIAGRAM_KINDS = ("counters", "ten_frame", "number_bond")
+PIECE_DIAGRAM_KINDS = ("counters", "ten_frame", "number_bond", "equal_groups")
 
 
 class AssessmentItem(_Strict):

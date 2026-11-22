@@ -1,6 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { CounterColor, CountersPiece, MathPiece, NumberBondPiece, TenFramePiece } from './k2MathTypes'
+import type { CounterColor, CountersPiece, EqualGroupsPiece, MathPiece, NumberBondPiece, TenFramePiece } from './k2MathTypes'
 
 /**
  * The pieces of a K-2 practical-math round (docs/K2_PRACTICE.md §5.3):
@@ -149,17 +149,59 @@ function NumberBondPicture({ d }: { d: NumberBondPiece }) {
   )
 }
 
+/**
+ * Plates of counters, grade 2's bridge to multiplication and division. With
+ * the guide (Watch, Together) each plate shows the running total under it,
+ * which is counting by the plate's size (4, 8, 12...), and a sharing picture
+ * shows the fair share faintly on each plate. Your turn shows neither, and
+ * its label never states the answer. No times or divide sign anywhere.
+ */
+function EqualGroupsPicture({ d, guide }: { d: EqualGroupsPiece; guide: boolean }) {
+  const { t } = useTranslation()
+  const each = d.each ?? 0
+  const loose = d.loose ?? 0
+  const share = loose > 0 ? loose / d.groups : 0
+  // Without the guide (Your turn) the label states no number at all, the
+  // same rule as every other piece's quiet label.
+  const label = !guide ? t(loose > 0 ? 'k2Math.shareQuiet' : 'k2Math.groupsQuiet')
+    : loose > 0 ? t('k2Math.shareLabel', { total: loose, groups: d.groups })
+      : t('k2Math.groupsLabel', { groups: d.groups, each })
+  return (
+    <div className="flex flex-col items-center gap-3" role="img" aria-label={label} data-testid="math-equal-groups">
+      {loose > 0 && (
+        <div className="flex max-w-[20rem] flex-wrap justify-center gap-1" data-testid="math-loose">
+          {Array.from({ length: loose }, (_, i) => <Counter key={i} color="yellow" />)}
+        </div>
+      )}
+      <div className="flex flex-wrap justify-center gap-3">
+        {Array.from({ length: d.groups }, (_, g) => (
+          <div key={g} className="flex flex-col items-center gap-1">
+            <div data-plate="" className="flex min-h-[4.5rem] w-[6.5rem] flex-wrap content-center items-center justify-center gap-0.5 rounded-full border-4 border-navy-300 bg-white p-2">
+              {Array.from({ length: each }, (_, i) => <Counter key={i} color="red" />)}
+              {guide && Array.from({ length: share }, (_, i) => <Counter key={`s${i}`} color="yellow" faint />)}
+            </div>
+            {guide && each > 0 && (
+              <span data-running="" className="text-lg font-semibold text-navy-700 tabular-nums">{(g + 1) * each}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** Draws any piece. Anything outside the closed vocabulary draws nothing. */
 export function MathPicture({ d, guide = false }: { d: MathPiece | null | undefined; guide?: boolean }) {
   if (!d) return null
   if (d.kind === 'counters') return <CountersPicture d={d} guide={guide} />
   if (d.kind === 'ten_frame') return <TenFramePicture d={d} guide={guide} />
   if (d.kind === 'number_bond') return <NumberBondPicture d={d} />
+  if (d.kind === 'equal_groups') return <EqualGroupsPicture d={d} guide={guide} />
   return null
 }
 
 /** The kinds this file draws: kept equal to the server's list by test. */
-export const PIECE_KINDS = ['counters', 'ten_frame', 'number_bond'] as const
+export const PIECE_KINDS = ['counters', 'ten_frame', 'number_bond', 'equal_groups'] as const
 
 /**
  * A ten-frame the child fills or empties. Three ways to move a counter, so

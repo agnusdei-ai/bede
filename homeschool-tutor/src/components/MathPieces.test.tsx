@@ -68,6 +68,8 @@ describe('MathPicture', () => {
       { kind: 'counters', groups: [{ color: 'red', count: 4 }, { color: 'yellow', count: 6 }] },
       { kind: 'ten_frame', frames: 1, red: 6, yellow: 1 },
       { kind: 'ten_frame', frames: 2, red: 13, crossed: 4 },
+      { kind: 'equal_groups', groups: 3, each: 4 },
+      { kind: 'equal_groups', groups: 4, loose: 12 },
     ]
     for (const locale of ['en', 'es']) {
       await i18n.changeLanguage(locale)
@@ -88,6 +90,36 @@ describe('MathPicture', () => {
     expect(bond.getAttribute('aria-label')).toBe('A number bond: 7 is 3 and ?')
   })
 
+  it('draws plates of counters, with the running count (skip counting) only as the guide', () => {
+    const { container, rerender } = render(<MathPicture d={{ kind: 'equal_groups', groups: 3, each: 4 }} guide />)
+    expect(container.querySelectorAll('[data-plate]')).toHaveLength(3)
+    expect(container.querySelectorAll('[data-plate] [data-counter="red"]')).toHaveLength(12)
+    expect(Array.from(container.querySelectorAll('[data-running]')).map((n) => n.textContent)).toEqual(['4', '8', '12'])
+    expect(screen.getByRole('img', { name: '3 plates with 4 counters on each' })).toBeTruthy()
+    rerender(<MathPicture d={{ kind: 'equal_groups', groups: 3, each: 4 }} />)
+    expect(container.querySelectorAll('[data-running]')).toHaveLength(0)
+    expect(screen.getByRole('img', { name: 'Plates of counters' })).toBeTruthy()
+  })
+
+  it('draws counters to share above empty plates, with the fair share shown faintly only as the guide', () => {
+    const { container, rerender } = render(<MathPicture d={{ kind: 'equal_groups', groups: 4, loose: 12 }} />)
+    expect(container.querySelectorAll('[data-testid="math-loose"] [data-counter]')).toHaveLength(12)
+    expect(container.querySelectorAll('[data-plate] [data-counter]')).toHaveLength(0)
+    rerender(<MathPicture d={{ kind: 'equal_groups', groups: 4, loose: 12 }} guide />)
+    expect(container.querySelectorAll('[data-plate] [data-counter]')).toHaveLength(12)
+    expect(screen.getByRole('img', { name: '12 counters to share onto 4 plates' })).toBeTruthy()
+  })
+
+  it('never shows a times or divide sign on a plate picture', () => {
+    for (const d of [{ kind: 'equal_groups', groups: 5, each: 10 }, { kind: 'equal_groups', groups: 3, loose: 15 }] as MathPiece[]) {
+      for (const guide of [true, false]) {
+        const { container, unmount } = render(<MathPicture d={d} guide={guide} />)
+        expect(container.textContent ?? '').not.toMatch(/[×÷*/]/)
+        unmount()
+      }
+    }
+  })
+
   it('draws nothing for a kind outside the closed vocabulary', () => {
     const { container } = render(<MathPicture d={{ kind: 'svg' } as unknown as MathPiece} />)
     expect(container.innerHTML).toBe('')
@@ -97,7 +129,7 @@ describe('MathPicture', () => {
     const py = readFileSync(join(__dirname, '../../../homeschool-api/models/practice.py'), 'utf8')
     const kinds = py.match(/^PIECE_DIAGRAM_KINDS = \(([^)]*)\)/m)?.[1].match(/"(\w+)"/g)?.map((k) => k.slice(1, -1)) ?? []
     expect([...PIECE_KINDS].sort()).toEqual(kinds.sort())
-    expect(kinds).toHaveLength(3)
+    expect(kinds).toHaveLength(4)
   })
 })
 

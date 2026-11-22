@@ -410,6 +410,13 @@ def _piece_answer(diagram, prompt: str) -> Optional[str]:
         if re.search(r"\b(left|remain)", words) or "how many" in words:
             return str(diagram.red + diagram.yellow - diagram.crossed)
         return None
+    if kind == "equal_groups":
+        total = diagram.groups * diagram.each + diagram.loose
+        if re.search(r"\b(on|in) each\b", words):
+            return str(total // diagram.groups) if total % diagram.groups == 0 else None
+        if "how many" in words:
+            return str(total)
+        return None
     if kind == "number_bond":
         if diagram.whole is None:
             return str(sum(diagram.parts))

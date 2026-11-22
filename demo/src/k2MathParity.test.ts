@@ -64,7 +64,14 @@ describe('demo Number Time mirrors', () => {
       const demoCopy = JSON.parse(source(demo, `i18n/locales/${lang}.json`))
       expect(demoCopy.k2Phonics).toEqual(appCopy.k2Phonics)
       expect(demoCopy.mapPractice).toEqual(appCopy.mapPractice)
+      expect(demoCopy.k2Print).toEqual(appCopy.k2Print)
+      expect(demoCopy.printSheet).toEqual(appCopy.printSheet)
     }
+    expect(source(demo, 'k2PrintSheet.tsx')).toBe(source(app, 'components/k2PrintSheet.tsx')
+      .replace("../services/k2PhonicsTypes", "./k2PhonicsTypes")
+      .replace("../services/k2MathTypes", "./k2MathTypes")
+      .replace("../services/mapPracticeTypes", "./mapPracticeTypes")
+      .replace("../utils/printDocument", "./printDocument"))
   })
 
   it("speaks every K-2 round in Bede's own voice only, in both apps", () => {

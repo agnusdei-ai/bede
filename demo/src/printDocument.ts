@@ -44,6 +44,13 @@ export interface PrintItem {
    * model text here: everything else in this module is escaped, this is not.
    */
   diagramHtml?: string
+  /**
+   * Where the student copy leaves room to answer, when the item has no
+   * written options: 'letter' (the choices are lettered pictures in
+   * `diagramHtml`) gets one short line, as written options do; 'picture'
+   * (the answer is marked on the picture itself) gets none.
+   */
+  answerSpace?: 'letter' | 'picture'
   /** The answer, shown on the answer key. */
   answer?: string
   /** Extra lines under the answer on the key, such as other accepted answers. */
@@ -71,6 +78,12 @@ export interface PrintSheet {
   nameOnKey?: boolean
   /** A closing line, such as a total. */
   footer?: string
+  /**
+   * Extra sheet styles for pictures drawn by a component built for the
+   * screen (a K-2 map's compass and key). A constant from this app's own
+   * code, never anything a model or a person wrote.
+   */
+  css?: string
 }
 
 /** How long to wait for pictures before printing anyway. */
@@ -140,7 +153,9 @@ function itemHtml(item: PrintItem, index: number, copy: 'student' | 'key'): stri
   if (copy === 'key') {
     tail = `<p class="ans">${escapeHtml(item.answer?.trim() ? item.answer : '—')}</p>`
       + (item.answerDetails ?? []).filter(Boolean).map((line) => `<p class="small">${escapeHtml(line)}</p>`).join('')
-  } else if (item.options?.length) {
+  } else if (item.answerSpace === 'picture') {
+    tail = ''
+  } else if (item.options?.length || item.answerSpace === 'letter') {
     tail = '<div class="choice"><div class="line"></div></div>'
   } else {
     tail = '<div class="line"></div>'.repeat(OPEN_ANSWER_LINES)
@@ -160,7 +175,7 @@ export function buildPrintHtml(sheet: PrintSheet): string {
   }).join('')
   return `<!doctype html><html><head><meta charset="utf-8">`
     + `<meta name="viewport" content="width=device-width, initial-scale=1">`
-    + `<title>${escapeHtml(sheet.title)}</title><style>${PAGE_STYLE}${STYLE}</style></head>`
+    + `<title>${escapeHtml(sheet.title)}</title><style>${PAGE_STYLE}${STYLE}${sheet.css ?? ''}</style></head>`
     + `<body><div class="sheet">${sections}</div></body></html>`
 }
 

@@ -442,3 +442,45 @@ async def send_backend_failure_alert(count: int, window_label: str = "in the las
         subject="Bede: having trouble responding — please check in",
         html_body=html_body,
     )
+
+
+def build_file_flagged_alert_html() -> str:
+    """A file someone uploaded was recognised by the local virus scanner.
+    Says what Bede did (refused it, kept nothing) and what to do, and names
+    no file, learner or address: the detection point has none of them, and
+    a file name could itself carry something unpleasant."""
+    return """\
+<!DOCTYPE html>
+<html>
+<body style="font-family: Georgia, 'Times New Roman', serif; color: #2d3142; max-width: 560px; margin: 0 auto; padding: 24px;">
+  <h1 style="font-size: 20px; margin: 0 0 4px 0; color: #b91c1c;">Bede refused a file its virus scanner flagged</h1>
+  <p style="font-size: 15px; line-height: 1.6;">
+    Someone using Bede tried to send a file (a photo, a drawing, a worksheet, a narration
+    file or a voice recording) that your virus scanner recognised as harmful. Bede refused
+    it before using it, kept no copy, and sent it nowhere.
+  </p>
+  <p style="font-size: 14px; color: #4b5563; line-height: 1.6;">
+    It is worth running a virus check on the device it came from: a tablet, a phone or a
+    computer in your home. If a file was picked from a USB stick or downloaded, it is worth
+    checking where it came from too.
+  </p>
+  <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
+    The scanner's name for what it found is in your instance's audit log (parent login
+    &rarr; Admin &rarr; Audit Log). This alert does not repeat for a while, so check the
+    log for anything further.
+  </p>
+</body>
+</html>"""
+
+
+async def send_file_flagged_alert() -> bool:
+    """Best-effort email when AuditEvent.FILE_FLAGGED fires. Same
+    PARENT_EMAIL/Resend config and silent-when-unconfigured convention as
+    send_security_alert."""
+    if not security_alert_configured():
+        return False
+    return await send_email(
+        settings.parent_email,
+        subject="Bede: a file was refused by the virus scanner",
+        html_body=build_file_flagged_alert_html(),
+    )

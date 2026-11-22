@@ -4,6 +4,7 @@ import type { TFunction } from 'i18next'
 import type { MapCell, MapLesson, MapPracticeTransport, MapReveal, MapTask } from '../services/mapPracticeTypes'
 import MapScene, { KNOWN_SYMBOLS, SideView, cellLabel } from './MapScene'
 import RoutineShell, { type RoutineStep } from './routine/RoutineShell'
+import { PrintPracticeButton, mapPrintItems, printPractice } from './k2PrintSheet'
 
 /**
  * Map-reading practice for K-2: Watch, Together, Your turn.
@@ -57,6 +58,7 @@ export default function MapPractice({
   const { t } = useTranslation()
   const [lesson, setLesson] = useState<MapLesson | null>(null)
   const [failed, setFailed] = useState(false)
+  const [printTrouble, setPrintTrouble] = useState(false)
   const [step, setStep] = useState<RoutineStep>('watch')
   const [index, setIndex] = useState(0)
   const [done, setDone] = useState(false)
@@ -168,7 +170,12 @@ export default function MapPractice({
         <div className="flex flex-wrap justify-center gap-3">
           <button type="button" onClick={onClose} className={primary}>{t('mapPractice.backToBede')}</button>
           <button type="button" onClick={load} className={secondary}>{t('mapPractice.anotherMap')}</button>
+          <PrintPracticeButton t={t} className={secondary} onPrint={() => {
+            setPrintTrouble(false)
+            void printPractice(t, title, mapPrintItems(t, lesson, (task) => promptText(t, task.prompt), (c) => choiceText(t, c))).then((ok) => setPrintTrouble(!ok))
+          }} />
         </div>
+        {printTrouble && <p role="alert" className="text-base text-navy-700 text-center">{t('printSheet.failed')}</p>}
       </RoutineShell>
     )
   }

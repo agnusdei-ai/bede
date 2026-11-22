@@ -1303,6 +1303,13 @@
     "fileTooLarge": "A file is larger than 25 MB. Scan it at a lower resolution or split it, then add it again.",
     "uploadTooLarge": "These files are more than 24 MB together, which is more than one upload can carry. Use smaller scans, or paste the quiz's text instead."
   },
+  "k2Print": {
+    "circle": "Circle your answer.",
+    "button": "Print or save as PDF",
+    "title": "{{title}}: practice sheet",
+    "markSquare": "Mark the square with an X.",
+    "drawCounters": "Draw the counters."
+  },
   "printSheet": {
     "name": "Name",
     "date": "Date",

@@ -139,6 +139,7 @@ class AuditEvent:
     # unfit for a school. Detail carries the category and surface only, never
     # the picture or the model's reply.
     UPLOAD_REFUSED             = "upload.refused"
+    FILE_FLAGGED               = "file.flagged"
 
 
 # ── Anomaly detection (AIUC-1 E009) ─────────────────────────────────────────
@@ -172,6 +173,11 @@ _ANOMALY_RULES: dict[str, tuple[int, float]] = {
     # counterpart: one refused picture already stops in the moment (and a
     # history page can be misjudged); a repeated pattern is worth an email.
     AuditEvent.UPLOAD_REFUSED: (3, 600),
+    # A file the local virus scanner recognised (services/file_safety.py).
+    # One is enough: it is never a misjudged picture, and the parent should
+    # know a malicious file reached their tablet or computer. Pooled across
+    # addresses (below), since the detection point has no request address.
+    AuditEvent.FILE_FLAGGED: (1, 1),
     # A generous ceiling on ordinary tool use — a busy, multi-subject
     # session can legitimately rack up dozens of request_narration/
     # celebrate_discovery/etc. calls over a couple of hours — sized to
@@ -225,7 +231,7 @@ _AUDIT_AAD = aad_for("audit_log", "event_enc", "audit")
 # reliability signal about the deployment as a whole, not a security
 # pattern from one actor. _GLOBAL_ANOMALY_KEY is a fixed placeholder, not
 # a real IP, used only to key these events' shared window.
-_GLOBAL_ANOMALY_EVENTS = frozenset({AuditEvent.AI_BACKEND_FAILURE})
+_GLOBAL_ANOMALY_EVENTS = frozenset({AuditEvent.AI_BACKEND_FAILURE, AuditEvent.FILE_FLAGGED})
 _GLOBAL_ANOMALY_KEY = "*"
 
 _anomaly_windows: dict[tuple[str, str], list[float]] = {}
@@ -286,6 +292,7 @@ async def _fire_anomaly_alert(event: str, ip: str, count: int) -> None:
     from services.email_service import (
         security_alert_configured,
         send_backend_failure_alert,
+        send_file_flagged_alert,
         send_security_alert,
     )
 
@@ -298,6 +305,8 @@ async def _fire_anomaly_alert(event: str, ip: str, count: int) -> None:
         return
     if event == AuditEvent.AI_BACKEND_FAILURE:
         await send_backend_failure_alert(count)
+    elif event == AuditEvent.FILE_FLAGGED:
+        await send_file_flagged_alert()
     else:
         await send_security_alert(event, ip, count)
 

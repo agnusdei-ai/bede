@@ -639,6 +639,13 @@
     "drafting": "Preparando la prueba…",
     "part": "(parte {{part}} de {{parts}})"
   },
+  "k2Print": {
+    "circle": "Encierra tu respuesta en un círculo.",
+    "button": "Imprimir o guardar como PDF",
+    "title": "{{title}}: hoja de práctica",
+    "markSquare": "Marca la casilla con una X.",
+    "drawCounters": "Dibuja las fichas."
+  },
   "printSheet": {
     "name": "Nombre",
     "date": "Fecha",

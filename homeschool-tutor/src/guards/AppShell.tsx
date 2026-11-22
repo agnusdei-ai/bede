@@ -7,6 +7,7 @@ import {
 } from '../utils/idleTimeout'
 import { setLogoutNotice, type LogoutReason } from '../utils/logoutNotice'
 import TextSizeControl from '../components/TextSizeControl'
+import TouchTitles from '../components/TouchTitles'
 import { AgnusDeiMark, BedeWordmark } from '../components/BedeMark'
 
 const VALIDATE_INTERVAL_MS = 5 * 60 * 1000   // re-validate token every 5 min
@@ -145,6 +146,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       )}
       <TextSizeControl />
+      <TouchTitles />
     </>
   )
 }

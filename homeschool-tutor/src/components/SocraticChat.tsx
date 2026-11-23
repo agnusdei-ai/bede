@@ -27,6 +27,7 @@ import { logDebug } from '../hooks/debugBus'
 import { createHoldHandlers } from '../utils/holdGesture'
 import { displayNameOf } from '../utils/displayName'
 import { draftOwnerFor, loadDraft, saveDraft } from '../utils/chatDraft'
+import { useCanvasAfterSpeech } from '../hooks/useCanvasAfterSpeech'
 
 // How long Bede waits, in silence, after a turn ends before gently picking
 // the thread back up (the [CONTINUE] sentinel — see ai_service.py's rule
@@ -214,6 +215,9 @@ export default function SocraticChat({
     speak, stop: stopSpeech, toggle: toggleTTSLocal, isSpeaking,
     enabled: ttsEnabled, isSupported: ttsSupported,
   } = useTextToSpeech(token, sessionConfig?.voice_narration_enabled ?? true)
+  // The writing pad Bede invites the child to opens once Bede has finished
+  // saying what to draw or write, never under his voice (useCanvasAfterSpeech).
+  const invitedCanvas = useCanvasAfterSpeech(isSpeaking, () => setShowCanvas(true))
   // Bede's chat voice stops when a round opens, so two voices never talk
   // over each other.
   useEffect(() => { if (practiceOpen) stopSpeech() }, [practiceOpen, stopSpeech])
@@ -484,7 +488,7 @@ export default function SocraticChat({
   })
   useEffect(() => {
     if (isContinuous || !sttSupported || !awaitingChildTurn) return
-    if (showCanvas || showMapPractice || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || invitedCanvas.waiting || showMapPractice || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
     prewarmRef.current()
     // Cleanup fires the instant awaitingChildTurn (or one of the other
     // guards) goes false again — either the child pressed
@@ -493,7 +497,7 @@ export default function SocraticChat({
     // safe no-op) or the turn ended some other way without a press (a real
     // prewarmed stream that genuinely needs releasing).
     return () => cancelPrewarmRef.current()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, practiceOpen, uploadingNarration, pendingVoiceTranscript])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, invitedCanvas.waiting, showMapPractice, practiceOpen, uploadingNarration, pendingVoiceTranscript])
 
   // Track which subjects have already received their opening message
   const openerFiredRef = useRef(new Set<string>())
@@ -529,6 +533,7 @@ export default function SocraticChat({
   // mechanical even when each clip's own voice quality is fine — a single
   // continuous take sounds like one person talking.
   const consumeTurnStream = useCallback(async (stream: ReturnType<typeof streamTutorChat>) => {
+    invitedCanvas.cancel()
     const speechSegments: string[] = []
     let pendingText = ''
     // Everything this turn has already said (text + rendered cards) — the
@@ -567,7 +572,7 @@ export default function SocraticChat({
           flush()
           // Side effects (opening the canvas) still fire even for a card we
           // suppress — only the duplicated words are dropped, not the action.
-          if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
+          if (chunk.tool === 'invite_handwriting') invitedCanvas.invite()
           if (chunk.tool === 'invite_map_practice') setShowMapPractice(true)
           if (chunk.tool === 'invite_practice' && chunk.area === 'phonics') {
             openedPracticeRound = true
@@ -600,7 +605,9 @@ export default function SocraticChat({
         }
       }
       flush()
-      if (speechSegments.length && mine() && !openedPracticeRound) speak(speechSegments.join(' '))
+      const willSpeak = ttsEnabled && speechSegments.length > 0 && mine() && !openedPracticeRound
+      if (willSpeak) speak(speechSegments.join(' '))
+      if (mine()) invitedCanvas.turnEnded(willSpeak)
     } catch (err: unknown) {
       if (mine() && err instanceof Error && err.name !== 'AbortError') {
         // A dropped connection reaches here as Safari's "Load failed" or
@@ -622,13 +629,15 @@ export default function SocraticChat({
       }
     } finally {
       if (mine()) {
+        // A turn that failed or was cut short still opens the pad it invited.
+        invitedCanvas.turnEnded(false)
         finalizeAssistantMessage()
         setStreaming(false)
       }
       // advanceSubjectRef, if set, is picked up by the turn-completion effect
       // below once streaming AND any queued speech have both finished.
     }
-  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, t])
+  }, [appendAssistantChunk, addToolMessage, addVisualAidMessage, finalizeAssistantMessage, setStreaming, speak, t, ttsEnabled, invitedCanvas])
 
   // sendOpener reads live store state to avoid stale-closure issues during streaming
   const sendOpener = useCallback(async () => {
@@ -678,7 +687,7 @@ export default function SocraticChat({
     // Don't interrupt a child who's mid-drawing, has a drawing ready to
     // send, is uploading narration, or has unsent text sitting in the box —
     // the whole point is to fire only once they've genuinely gone quiet.
-    if (showCanvas || showMapPractice || practiceOpen || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
+    if (showCanvas || invitedCanvas.waiting || showMapPractice || practiceOpen || pendingDrawing || uploadingNarration || inputRef.current.trim()) return
     if (consecutiveContinuesRef.current >= MAX_CONSECUTIVE_CONTINUES) return
     consecutiveContinuesRef.current += 1
 
@@ -705,7 +714,7 @@ export default function SocraticChat({
       previousSubjectOf(state),
     )
     await consumeTurnStream(stream)
-  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, showMapPractice, practiceOpen, pendingDrawing, uploadingNarration])
+  }, [consumeTurnStream, stopSpeech, stopListening, showCanvas, invitedCanvas.waiting, showMapPractice, practiceOpen, pendingDrawing, uploadingNarration])
 
   // Fire opener once per subject — when subject changes and session is ready
   useEffect(() => {
@@ -926,13 +935,13 @@ export default function SocraticChat({
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return
-    if (showCanvas || showMapPractice || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || invitedCanvas.waiting || showMapPractice || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
     const now = Date.now()
     if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
     lastAutoStartRef.current = now
     logDebug('continuous voice mode — auto-starting listening for the child\'s turn')
     start()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, showMapPractice, practiceOpen, uploadingNarration, pendingVoiceTranscript, start])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, invitedCanvas.waiting, showMapPractice, practiceOpen, uploadingNarration, pendingVoiceTranscript, start])
 
   // Clear any pending silence timer on unmount so a stray [CONTINUE] never
   // fires into a session the child has already left.
@@ -1074,7 +1083,7 @@ export default function SocraticChat({
         <div className="flex gap-2 items-end">
           {/* Pen/drawing button */}
           <button
-            onClick={() => setShowCanvas(true)}
+            onClick={() => { invitedCanvas.cancel(); setShowCanvas(true) }}
             disabled={isStreaming || breakActive}
             title={t('chat.drawOrWrite')}
             className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0"

@@ -50,6 +50,7 @@ import { dismissKeyboard } from './dismissKeyboard'
 import DemoPracticeCoach from './DemoPracticeCoach'
 import DemoPracticeDelivery from './DemoPracticeDelivery'
 import QuizRunner from './QuizRunner'
+import { useCanvasAfterSpeech } from './useCanvasAfterSpeech'
 import K2MathPractice from './K2MathPractice'
 import K2PhonicsPractice from './K2PhonicsPractice'
 import MapPractice from './MapPractice'
@@ -1004,12 +1005,14 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const [showSoundTime, setShowSoundTime] = useState(false)
   const [showMapPractice, setShowMapPractice] = useState(false)
   // Any K-2 round open: chat, auto-continue and chat speech wait until it closes.
-  const practiceOpen = showNumberTime || showSoundTime || showMapPractice
+  // A running quiz counts too: Bede waits while the visitor takes it.
+  const [runningQuiz, setRunningQuiz] = useState<{ title: string; questions: QuizQuestion[] } | null>(null)
+  const practiceOpen = showNumberTime || showSoundTime || showMapPractice || runningQuiz !== null
   const [approvedPractice, setApprovedPractice] = useState<DemoPracticeDeliveryItem[]>([])
   const [practiceRun, setPracticeRun] = useState(0)
-  // A drafted quiz the adult started: taken in the chat, answers shown only
-  // after each question is answered (QuizRunner).
-  const [runningQuiz, setRunningQuiz] = useState<{ title: string; questions: QuizQuestion[] } | null>(null)
+  // A drafted quiz the adult started (runningQuiz, declared above): taken on
+  // its own full-screen sheet, answers shown only after each question is
+  // answered (QuizRunner).
   // Read once, on mount, before any state below initializes from it — a
   // reload mid-conversation (see "Session persistence" above) should pick
   // right back up where it left off, not silently drop back to a blank
@@ -1186,6 +1189,9 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const consecutiveAutoContinues = useRef(0)
 
   const { speak, stop: stopSpeech, isSpeaking } = useTextToSpeech(speakToken ?? null)
+  // The writing pad Bede invites the visitor to opens once Bede has finished
+  // saying what to draw, never under his voice (useCanvasAfterSpeech.ts).
+  const invitedCanvas = useCanvasAfterSpeech(isSpeaking, () => setShowCanvas(true))
   // Number Time speaks in Bede's own voice, the same voice as the chat (owner
   // direction 2026-11-18), with no other voice as a default. Each line
   // replaces the one before it, so a tapped answer's reply is heard at once.
@@ -1447,13 +1453,13 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   useEffect(() => {
     if (!isContinuous || !sttSupported) return
     if (!awaitingChildTurn) return
-    if (showCanvas || uploadingNarration || pendingVoiceTranscript) return
+    if (showCanvas || invitedCanvas.waiting || practiceOpen || uploadingNarration || pendingVoiceTranscript) return
     const now = Date.now()
     if (now - lastAutoStartRef.current < MIN_MS_BETWEEN_AUTO_STARTS) return
     lastAutoStartRef.current = now
     logDebug('continuous voice mode — auto-starting listening for the visitor\'s turn')
     startRef.current()
-  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, uploadingNarration, pendingVoiceTranscript])
+  }, [isContinuous, sttSupported, awaitingChildTurn, showCanvas, invitedCanvas.waiting, practiceOpen, uploadingNarration, pendingVoiceTranscript])
 
   // The live interim transcript, the "transcribing…" indicator, and the
   // voice-review confirm/cancel card (below) are all rendered inside the
@@ -1502,6 +1508,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
     // call rather than replacing whatever's already playing.
     stopSpeech()
     stopListening()
+    invitedCanvas.cancel()
     setIsStreaming(true)
     abortRef.current?.abort()
     abortRef.current = new AbortController()
@@ -1543,7 +1550,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
           flushPendingSpeech()
           // Side effects still fire even for a suppressed duplicate card —
           // only the repeated words are dropped, not the action.
-          if (chunk.tool === 'invite_handwriting') setShowCanvas(true)
+          if (chunk.tool === 'invite_handwriting') invitedCanvas.invite()
           if (isDuplicateUtterance(chunk.content, turnText)) {
             // The turn already said this — don't render or speak it twice
             // (see dedupe.ts; the deterministic CX backstop for the model
@@ -1602,7 +1609,9 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
       // Awaiting here used to mean the send button, mic, and text input all
       // sat blocked/spinning for the full duration of every TTS attempt;
       // homeschool-tutor's SocraticChat.tsx never had this coupling.
-      if (ttsEnabled && !practiceOpen && speechSegments.length) speak(speechSegments.join(' '))
+      const willSpeak = ttsEnabled && !practiceOpen && speechSegments.length > 0
+      if (willSpeak) speak(speechSegments.join(' '))
+      invitedCanvas.turnEnded(willSpeak)
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== assistantId || m.content))
       if (err instanceof TrialSessionEndedError) {
@@ -1620,13 +1629,15 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
         setMessages((prev) => [...prev, { id: `err-${Date.now()}`, role: 'system', content: `⚠️ ${content}` }])
       }
     } finally {
+      // A turn that failed or was cut short still opens the pad it invited.
+      invitedCanvas.turnEnded(false)
       setIsStreaming(false)
       // Subject-advance itself now happens in the turnJustEnded effect
       // below, once isSpeaking (not just isStreaming) has also settled —
       // advancing while Bede's own transition line is still playing would
       // cut it off mid-sentence.
     }
-  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, practiceOpen, speak, stopSpeech, stopListening, onSessionInvalid, t])
+  }, [runChat, subject, activeSubjects, historyForApi, ttsEnabled, practiceOpen, speak, stopSpeech, stopListening, onSessionInvalid, t, invitedCanvas])
 
   // Fires once when a turn's text AND speech have both genuinely finished
   // (not just the text) — see the fire-and-forget speak() comment above for
@@ -1675,13 +1686,13 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
     if (isStreaming || isSpeaking || sessionPaused || practiceOpen) return
     if (consecutiveAutoContinues.current >= MAX_CONSECUTIVE_AUTO_CONTINUES) return
     const id = setTimeout(() => {
-      if (inputRef.current.trim() || showCanvas || practiceOpen) return  // actively composing, drawing or practicing — leave them be
+      if (inputRef.current.trim() || showCanvas || invitedCanvas.waiting || practiceOpen) return  // actively composing, drawing or practicing — leave them be
       consecutiveAutoContinues.current += 1
       runStream(IDLE_CONTINUE_SENTINEL, null)
     }, IDLE_CONTINUE_MS)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStreaming, isSpeaking, showCanvas, messages, sessionPaused, practiceOpen])
+  }, [isStreaming, isSpeaking, showCanvas, invitedCanvas.waiting, messages, sessionPaused, practiceOpen])
 
   const send = (overrideMsg?: string) => {
     // overrideMsg lets dictation mode send a transcript directly, without a
@@ -1701,6 +1712,15 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
 
   // Keep continuous mode's onFinal pointing at the CURRENT send().
   sendRef.current = send
+
+  // A finished quiz's result goes to Bede as soon as the chat is back, so
+  // Bede picks the lesson up from it rather than the visitor having to.
+  const [quizResultMessage, setQuizResultMessage] = useState<string | null>(null)
+  useEffect(() => {
+    if (!quizResultMessage || practiceOpen || isStreaming) return
+    setQuizResultMessage(null)
+    sendRef.current(quizResultMessage)
+  }, [quizResultMessage, practiceOpen, isStreaming])
 
   // Voice review: the child presses Send on the transcript they were just
   // shown, or Cancel to discard it — nothing reaches Bede without one of
@@ -1934,10 +1954,50 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
             setPracticeRun((run) => run + 1)
           }}
           onStartQuiz={(title, questions) => {
+            // Bede stops talking and listening: the quiz has the screen now.
+            stopSpeech()
+            stopListening()
+            invitedCanvas.cancel()
             setRunningQuiz({ title, questions })
             setPracticeRun((run) => run + 1)
           }}
         />
+      )}
+      {runningQuiz && (
+        // Its own full-screen sheet, like the K-2 rounds: the quiz used to be
+        // added above the whole conversation, out of sight, so starting it
+        // looked like going straight back to the chat. Finishing hands the
+        // result to Bede, which is the way back; the X leaves without one.
+        <div
+          role="dialog" aria-modal="true" aria-label={runningQuiz.title}
+          className="fixed inset-0 z-40 flex flex-col bg-parchment-50"
+        >
+          <header className="flex items-center gap-2 pl-3 pr-16 sm:pl-4 py-2 border-b border-sage-200 bg-white">
+            <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-navy-700">{runningQuiz.title}</h2>
+            <button
+              type="button" onClick={() => setRunningQuiz(null)}
+              aria-label={t('routine.back')} title={t('routine.back')}
+              className="min-h-14 min-w-14 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+            >
+              <X size={20} />
+            </button>
+          </header>
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="mx-auto max-w-xl">
+              <QuizRunner
+                key={`quiz-${practiceRun}`}
+                title={runningQuiz.title}
+                questions={runningQuiz.questions}
+                onFinish={(summary) => {
+                  // Sent once the sheet has closed (the effect below): while
+                  // the quiz is open, the chat is waiting and would refuse it.
+                  setQuizResultMessage(t('quizRunner.chatSummary', { title: runningQuiz.title, right: summary.right, total: summary.total }))
+                  setRunningQuiz(null)
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
       {showNumberTime && (
         <K2MathPractice
@@ -2080,17 +2140,6 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
         </div>
       )}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {runningQuiz && (
-          <QuizRunner
-            key={`quiz-${practiceRun}`}
-            title={runningQuiz.title}
-            questions={runningQuiz.questions}
-            onFinish={(summary) => {
-              setRunningQuiz(null)
-              send(t('quizRunner.chatSummary', { title: runningQuiz.title, right: summary.right, total: summary.total }))
-            }}
-          />
-        )}
         {approvedPractice.length > 0 && (
           <DemoPracticeDelivery
             key={practiceRun}
@@ -2166,7 +2215,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
 
       <div className="px-4 py-3 bg-parchment-50 border-t border-sage-200">
         <div className="flex gap-2 items-end">
-          <button onClick={() => setShowCanvas(true)} disabled={isStreaming || sessionPaused} title={t('chatScreen.drawOrWrite')} aria-label={t('chatScreen.drawOrWrite')} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
+          <button onClick={() => { invitedCanvas.cancel(); setShowCanvas(true) }} disabled={isStreaming || sessionPaused} title={t('chatScreen.drawOrWrite')} aria-label={t('chatScreen.drawOrWrite')} className="p-2.5 rounded-lg bg-sage-100 text-sage-700 hover:bg-sage-200 disabled:opacity-40 transition-all hover:scale-110 active:scale-95 flex-shrink-0">
             <PenLine size={18} />
           </button>
           <input

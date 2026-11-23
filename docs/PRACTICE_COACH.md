@@ -603,8 +603,10 @@ printed answer key carries the same explanation under each answer.
   Teacher drafts run on the school's own local model only, never a cloud
   provider, because a teacher's upload can hold students' work; with no
   local model the teacher is told so. No learner is named, read or written.
-- **In the demo**, **Start quiz** runs the quiz in the chat, and when it
-  ends the result is sent to Bede as one message. Each draft counts twice against the demo's message quota, since it
+- **In the demo**, **Start quiz** opens the quiz on its own full-screen page.
+  Bede stops talking and waits while it is open. When the quiz ends, **Done**
+  sends the result to Bede as one message and Bede picks the lesson up from it;
+  the close button leaves without sending anything. Each draft counts twice against the demo's message quota, since it
   is two model calls. The demo can also print the quiz, its answer key and a
   practice worksheet, the same way the app does.
 

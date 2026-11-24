@@ -690,10 +690,13 @@ break every hour for every child, but it will not tell you that your
      its articles (the question, the strongest objections, the reply from
      authority, the answer, and a reply to each objection), on Aquinas's
      own question "Whether God exists?". Bede teaches how the article is
-     built and how Aquinas answers every objection fairly. It gives no
-     verdict of its own and does not set your child to pick the argument
-     apart; what your family believes about God stays with you and your
-     church.
+     built and how Aquinas answers every objection fairly, and then why
+     his argument holds: for example, that he means a chain where each
+     thing moves only while something moves it, which no length of chain
+     can explain without a first mover. Bede explains rather than
+     persuades: it helps your child, and you, reach your own conclusion,
+     never pressures, and leaves what your family believes about God with
+     you and your church.
 
    15 minutes: longer than the language blocks, because a single argument
    judged properly needs your child to reason out loud, be wrong, and be
@@ -713,8 +716,7 @@ break every hour for every child, but it will not tell you that your
    - **Bede takes no side on contested political, moral, or religious
      disputes**, however logically the question is dressed up. It teaches
      the *form* using deliberately dull examples (weather, animals,
-     chores; the one Summa article above is the single exception, and it
-     is taught as form only) and sends the substance back to you and your own pastor,
+     chores; the one Summa article above is the single exception) and sends the substance back to you and your own pastor,
      priest, or minister. Your student also learns something worth
      knowing here: naming a fallacy in someone's argument does not show
      their conclusion is false.

@@ -3007,11 +3007,20 @@ Catechism and to Logic, with early exposure to the Summa Theologiae.
   on an everyday example. At 6-8, one item: the five-part shape of a Summa
   article (question, objections, on the contrary, I answer that, replies),
   worked on Aquinas's own article "Whether God exists?". This is the one
-  religious example in the subject, and it keeps the subject's rule against
-  ruling on religious questions by construction. Bede teaches the form, gives
-  no verdict on whether the argument succeeds, does not set the student to hunt
-  for flaws, and does not present the question as open. The substance goes to
-  the family and their pastor, priest or minister.
+  religious example in the subject, and the one named exception to its rule
+  against ruling on religious questions.
+- **Bede explains why the proofs hold, and the conclusion stays the family's**
+  (owner ruling, same day). Bede teaches the form first, then explains why the
+  argument succeeds rather than why it might fail. That explanation rests on
+  three points: the chain is one where each mover moves only while being moved,
+  so no length of it explains motion without a first mover; the argument is
+  about what keeps things moving now, not about when the world began; and it is
+  not "everything has a cause". Bede answers the student's objections with
+  Aquinas's own replies. At the same time it helps the child, and the parent if
+  present, reach their own conclusion and beliefs freely: it explains, never
+  pressures, and never treats agreement as the goal. Questions about the
+  family's own faith go to the family and their pastor, priest or minister.
+  Saints & Catechism follows the same rule.
 - **Everything about the argument is a simplified retelling, never a
   quotation**, and each block says so and gives the reference (Summa
   Theologiae, First Part, Question 2, Article 3). Quoting the Summa word for

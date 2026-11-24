@@ -76,6 +76,15 @@ def test_k2_is_never_told_it_is_a_proof():
 def test_the_common_misreading_is_corrected_at_6_to_8():
     note = _flat(aquinas_catalog.saints_note(None, GradeStage.independent, today=ORDINARY_DAY))
     assert "not \"everything has a cause\"" in note
+    assert "explain why the first way holds" in note
+
+
+@pytest.mark.parametrize("stage", list(GradeStage))
+def test_saints_block_explains_and_leaves_the_conclusion_to_the_child(stage):
+    note = _flat(aquinas_catalog.saints_note(None, stage, today=ORDINARY_DAY))
+    assert "explain why his reasoning holds rather than why it might fail" in note
+    assert "reach their own conclusion freely" in note
+    assert "never pressure" in note
 
 
 @pytest.mark.parametrize("grade", ["9", "12"])
@@ -143,14 +152,37 @@ def test_summa_item_has_all_five_parts_in_order():
     assert names == ["The question", "Objections", "On the contrary", "I answer that", "Replies to the objections"]
 
 
-def test_summa_item_teaches_form_and_gives_no_verdict():
+def test_summa_item_explains_why_the_argument_holds():
+    """Owner ruling 2026-11-24: Bede explains why Aquinas's argument
+    succeeds, not why it might fail."""
     note = _summa_note()
-    assert "the lesson is the form" in note
-    assert "do not give a verdict of your own" in note
-    assert "do not set the student to hunt for its flaws" in note
-    assert "do not present the question as open" in note
+    assert "begin with the form" in note
+    assert "explain why the argument holds" in note
+    assert "not why it might fail" in note
+    # The three points that carry the first way.
+    assert "only while it is being moved" in note
+    assert "not about how long ago the world began" in note
+    assert "\"who moved god?\" does not apply" in note
+
+
+def test_summa_item_leaves_the_conclusion_to_the_child_and_family():
+    note = _summa_note()
+    assert "come to their own conclusion and their own beliefs, freely" in note
+    assert "never pressure" in note
+    assert "never treat agreement as the goal" in note
     assert "pastor, priest, or minister" in note
-    assert "verdict: " not in note
+
+
+def test_the_general_no_ruling_rule_names_the_summa_exception():
+    from datetime import timedelta
+
+    start = date(2026, 1, 5)
+    for w in range(len(logic_catalog._items_for(GradeStage.independent))):
+        note = logic_catalog.logic_note(None, GradeStage.independent, today=start + timedelta(weeks=w))
+        if "THIS WEEK'S SUMMA ARTICLE" in note:
+            assert "the one exception is a summa article" in _flat(note)
+            return
+    raise AssertionError("the rotation never reached the Summa article")
 
 
 def test_summa_item_never_claims_to_quote():

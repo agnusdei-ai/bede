@@ -90,7 +90,11 @@ _PICTURE = {
         "for a purpose, which points to a mind that directs them. Take ONE way per lesson, the "
         "first or second to begin with. Make clear what St. Thomas did NOT say: not \"everything "
         "has a cause\" (which would make God need one too), but that the things we see are caused "
-        "by something else, and the chain needs a beginning that is not caused."
+        "by something else, and the chain needs a beginning that is not caused. Explain why the "
+        "first way holds: he means a chain where each thing moves only while it is being moved, "
+        "like a hand moving a stick that moves a stone, and such a chain explains no motion at all "
+        "without a first mover, however long it is (an endless train of carriages still needs an "
+        "engine). It is about what keeps things moving now, not about how long ago the world began."
     ),
 }
 
@@ -142,7 +146,11 @@ Aquinas's own words; if a parent asks where it comes from, it is {REFERENCE}):
 RULES:
 - Never present the retelling as a quotation of the Summa, and never quote the Summa from memory.
 - This is the Church's teaching as St. Thomas gave it, told to a child with wonder. Teach it
-  warmly and plainly; do not turn it into a debate, and do not quiz the child on it.
+  warmly and plainly, and explain why his reasoning holds rather than why it might fail; do not
+  turn it into a debate, and do not quiz the child on it.
+- What the child concludes and believes is their own, with their family. Help them, and their
+  parent if they are there, think it through and reach their own conclusion freely: explain, never
+  pressure, and never treat agreement as the goal.
 - If the child has a hard question (for example, "then who made God?"), welcome it: St. Thomas
   welcomed every hard question. Give the simple answer the picture above already carries, and
   for anything deeper say it is a wonderful question to take to their parents or their priest.

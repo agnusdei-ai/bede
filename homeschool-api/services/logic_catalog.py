@@ -55,10 +55,11 @@ rather than the form.
 
 One deliberate exception (owner ruling 2026-11-24, docs/DECISIONS.md entry
 47): `_SUMMA_ARTICLES`, an early exposure to St. Thomas Aquinas's Summa at
-6-8, worked on his article "Whether God exists?". It keeps rule 2 above by
-construction: it teaches the SHAPE of a disputed question (objections stated
-fairly first, then the answer, then a reply to each objection), Bede gives
-no verdict on whether the argument succeeds, and the substance goes home.
+6-8, worked on his article "Whether God exists?". It is the one owner-approved
+exception to rule 2 above: it teaches the SHAPE of a disputed question (objections stated
+fairly first, then the answer, then a reply to each objection), and then
+explains why Aquinas's argument holds (owner ruling 2026-11-24), while the
+conclusion and the student's beliefs remain their own and their family's.
 """
 from datetime import date
 
@@ -281,7 +282,8 @@ _SYLLOGISMS = [
 # Summa Theologiae at 6-8. The one item in this module drawn from religion, on
 # purpose, and handled differently from every other: it teaches the SHAPE of a
 # disputed question, worked on Aquinas's own article "Whether God exists?", and
-# Bede delivers no verdict on it. Every part is a SIMPLIFIED RETELLING, not a
+# then explains why the argument holds, while the conclusion stays the
+# student's and their family's own. Every part is a SIMPLIFIED RETELLING, not a
 # quotation (see services/aquinas_catalog.py for why), and says so.
 _SUMMA_ARTICLES = [
     {
@@ -390,23 +392,36 @@ def _render_item(item: dict) -> str:
             "is a simplified retelling for this lesson, NOT Aquinas's own words; never quote the "
             "Summa from memory or present this as a quotation.\n"
             f"{parts}\n"
-            "How to teach it: the lesson is the FORM. Walk the student through the five parts in "
+            "How to teach it: begin with the FORM. Walk the student through the five parts in "
             "order and ask them to say back what each part does. Point out what is remarkable about "
             "it: Aquinas puts the strongest case AGAINST his own conclusion first and answers every "
             "objection, which is this subject's own rule (state the other side fairly before you "
             "criticize it) practised by one of the greatest teachers who ever lived. Then take the "
             "first way and ask the student to restate it step by step in their own words, and to "
-            "say which step each later step depends on. Correct one common mistake if it comes up: "
-            "Aquinas does NOT argue \"everything has a cause\" (which would make God need a cause "
-            "too); he argues that the things we see are moved and caused by something else, and "
-            "that chain needs a beginning that is not itself moved or caused.\n"
-            "What NOT to do: do not give a verdict of your own on whether the argument succeeds or "
-            "whether God exists, and do not set the student to hunt for its flaws. Do not present "
-            "the question as open either. Say plainly that this is St. Thomas's argument for what "
-            "his Church teaches, and that what the student's own family believes about God belongs "
-            "to their parents and their pastor, priest, or minister, who teach something definite "
-            "about it. If the student pushes on an objection, that is the article working: show "
-            "them where Aquinas answers it, and send anything further home."
+            "say which step each later step depends on.\n"
+            "Then explain WHY THE ARGUMENT HOLDS, step by step. This article is the one exception to "
+            "the rule below about religious questions (owner ruling 2026-11-24): here you show why "
+            "Aquinas's reasoning succeeds, not why it might fail. The points that carry it:\n"
+            "  - The chain he means is one where each mover moves only WHILE it is being moved, "
+            "like a hand moving a stick that moves a stone. Take away the hand and nothing moves. "
+            "A chain like that, however long, explains no motion at all unless something at the "
+            "head of it moves without being moved; an endless line of borrowed motion is like an "
+            "endless train of carriages with no engine.\n"
+            "  - So the argument is NOT about how long ago the world began. Aquinas himself held "
+            "that reason alone cannot settle whether the world had a beginning in time; the first "
+            "way works either way, because it is about what keeps things moving now.\n"
+            "  - It is NOT \"everything has a cause\", which would make God need a cause too. It is "
+            "that whatever is moved or caused is moved or caused by another, and the first mover is "
+            "precisely the one that is not moved, so \"who moved God?\" does not apply.\n"
+            "  - When the student raises an objection, welcome it and show how Aquinas answers it, "
+            "starting from his own replies above. Take their questions seriously and answer them "
+            "honestly; never pretend a hard question is easy.\n"
+            "The conclusion is theirs to reach. Help the student, and their parent if they are "
+            "there, think it through and come to their own conclusion and their own beliefs, freely: "
+            "explain, never pressure, never test them on whether they are convinced, and never "
+            "treat agreement as the goal of the lesson. Say plainly that this is St. Thomas's "
+            "argument for what his Church teaches, and that questions about their own faith belong "
+            "to their family and their pastor, priest, or minister."
         )
     premises = "\n".join(f"    {p}" for p in item["premises"])
     return (
@@ -466,6 +481,8 @@ WHAT LOGIC IS FOR — this matters more here than in any other subject:
 - Being right is not the same as being kind, and it does not outrank it. When a student is
   correct and unkind about it, the unkindness is the thing to address first.
 - Do NOT rule on political, moral, or religious questions, however logically they are dressed up.
+  (The one exception is a Summa article, when this week's item is one: follow its own
+  instructions above.)
   Teach the FORM with the examples given in this block and send the substance home: that question belongs
   to the student's own parents and their own pastor, priest, or minister.
 - Declining to rule is NOT the same as saying the matter is unsettled, and you must not blur them.

@@ -19,6 +19,7 @@ from services.prayer_catalog import daily_prayer_note as _daily_prayer_catalog_n
 from services.latin_catalog import latin_note as _latin_catalog_note
 from services.greek_catalog import greek_note as _greek_catalog_note
 from services.logic_catalog import logic_note as _logic_catalog_note
+from services.aquinas_catalog import saints_note as _aquinas_saints_note
 from services.diagnostic.phonics import (
     DOMAINS as _PHONICS_DOMAINS,
     DOMAIN_CHECKIN_HINTS as _PHONICS_DOMAIN_HINTS,
@@ -3032,6 +3033,10 @@ _CATALOG_NOTE_SUBJECTS = {
     Subject.latin: _latin_catalog_note,
     Subject.greek: _greek_catalog_note,
     Subject.logic: _logic_catalog_note,
+    # St. Thomas Aquinas (docs/DECISIONS.md entry 47): fixed, checked life
+    # facts and a simplified first-cause picture per stage, featured in his
+    # feast week. Not a language, so not in _CLASSICAL_LANGUAGE_SUBJECTS.
+    Subject.saints: _aquinas_saints_note,
 }
 
 # The subset of those that teach a classical LANGUAGE, mapped to the single

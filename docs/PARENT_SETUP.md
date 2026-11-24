@@ -538,7 +538,19 @@ break every hour for every child, but it will not tell you that your
    as settled fact) and **Saints & Catechism** (hagiography and the Catholic
    Church's teaching, drawing on the Ignatius Press *Faith and Life* series).
    Enable either one, both, or neither: whichever matches how your own
-   family and church already teach the faith. Bede never treats either
+   family and church already teach the faith.
+
+   **St. Thomas Aquinas in Saints & Catechism.** Bede can tell his life as a
+   story (the quiet student called "the dumb ox" who became one of the
+   Church's great teachers) and his big idea, that the world points back to
+   God, at your child's level: wonder at the chain of seeds and trees for
+   K–2, a line of falling dominoes that needs a first push for 3–5, and his
+   five ways, one line each, from 6th grade up. Bede leads with his story in
+   the week of his feast, 28 January, unless your note for that day points
+   elsewhere, and otherwise tells it when your lesson or your child brings
+   him up. The explanation of his argument is Bede's simplified retelling,
+   not a quotation; it comes from the *Summa Theologiae*, First Part,
+   Question 2, Article 3, if you would like to read the original. Bede never treats either
    module as a substitute for your own pastor, priest, or church's teaching.
 
    **Latin & Christian Foundations is a third, separate optional subject,
@@ -664,14 +676,27 @@ break every hour for every child, but it will not tell you that your
      syllogisms, no technical vocabulary. Just a handful of questions your
      child learns to ask out loud: *"Is that true always, or just
      sometimes?"* *"How do you know?"* *"Did it happen because of that, or
-     just after it?"* If your child starts asking "how do you know?"
-     unprompted, the stage has done its whole job.
+     just after it?"* One of them comes from St. Thomas Aquinas: *"What's
+     the best reason someone might disagree?"*, the habit his great book
+     is built on, practised on everyday things. If your child starts asking
+     "how do you know?" unprompted, the stage has done its whole job.
    - **6–8**: formal. Premises and conclusions, the two safe argument
      forms and the two classic mistakes, and the named fallacies (ad
      hominem, straw man, false dilemma, circular reasoning, and the rest).
      The idea Bede returns to most: **valid and true are not the same
      thing.** An argument can be built perfectly and still reach a false
-     conclusion, because a premise was false.
+     conclusion, because a premise was false. Your student also meets the
+     *Summa Theologiae* once in the rotation: the five-part shape of one of
+     its articles (the question, the strongest objections, the reply from
+     authority, the answer, and a reply to each objection), on Aquinas's
+     own question "Whether God exists?". Bede teaches how the article is
+     built and how Aquinas answers every objection fairly, and then why
+     his argument holds: for example, that he means a chain where each
+     thing moves only while something moves it, which no length of chain
+     can explain without a first mover. Bede explains rather than
+     persuades: it helps your child, and you, reach your own conclusion,
+     never pressures, and leaves what your family believes about God with
+     you and your church.
 
    15 minutes: longer than the language blocks, because a single argument
    judged properly needs your child to reason out loud, be wrong, and be
@@ -691,7 +716,7 @@ break every hour for every child, but it will not tell you that your
    - **Bede takes no side on contested political, moral, or religious
      disputes**, however logically the question is dressed up. It teaches
      the *form* using deliberately dull examples (weather, animals,
-     chores) and sends the substance back to you and your own pastor,
+     chores; the one Summa article above is the single exception) and sends the substance back to you and your own pastor,
      priest, or minister. Your student also learns something worth
      knowing here: naming a fallacy in someone's argument does not show
      their conclusion is false.

@@ -2984,3 +2984,49 @@ so. The demo hears exactly what it heard before.
 
 **Related:** entry 40(g), `docs/VOICE_SETUP.md`, `docs/K2_PRACTICE.md` §7,
 `voice-service/README.md`.
+
+## 47. `[PRODUCT]` St. Thomas Aquinas in Saints & Catechism, and an early exposure to the Summa in Logic
+
+**Status:** closed
+
+**Decided (2026-11-24).** The owner asked for Aquinas to be added to Saints &
+Catechism and to Logic, with early exposure to the Summa Theologiae.
+
+- **Saints & Catechism** (`services/aquinas_catalog.py`, rendered through
+  `_CATALOG_NOTE_SUBJECTS`): his life as a story, from facts checked against
+  Encyclopaedia Britannica, the Vatican's Saint of the Day for 28 January and
+  EWTN, saying less where they disagree (birth "about 1225"; his family kept him
+  at home "a long time"). Then one first-cause picture for each grade band:
+  wonder at K-2 (never called a proof), the domino chain at 3-5, the five ways
+  in one line each at 6 and up. The block is always present, so Bede can tell
+  his story when the family or child brings him up. In the week of his feast
+  (28 January) Bede opens the lesson with it, unless the parent's own note for
+  the day points elsewhere.
+- **Logic** (`services/logic_catalog.py`): at 3-5, one informal move, "What's
+  the best reason against?", which is the habit the Summa is built on, practised
+  on an everyday example. At 6-8, one item: the five-part shape of a Summa
+  article (question, objections, on the contrary, I answer that, replies),
+  worked on Aquinas's own article "Whether God exists?". This is the one
+  religious example in the subject, and the one named exception to its rule
+  against ruling on religious questions.
+- **Bede explains why the proofs hold, and the conclusion stays the family's**
+  (owner ruling, same day). Bede teaches the form first, then explains why the
+  argument succeeds rather than why it might fail. That explanation rests on
+  three points: the chain is one where each mover moves only while being moved,
+  so no length of it explains motion without a first mover; the argument is
+  about what keeps things moving now, not about when the world began; and it is
+  not "everything has a cause". Bede answers the student's objections with
+  Aquinas's own replies. At the same time it helps the child, and the parent if
+  present, reach their own conclusion and beliefs freely: it explains, never
+  pressures, and never treats agreement as the goal. Questions about the
+  family's own faith go to the family and their pastor, priest or minister.
+  Saints & Catechism follows the same rule.
+- **Everything about the argument is a simplified retelling, never a
+  quotation**, and each block says so and gives the reference (Summa
+  Theologiae, First Part, Question 2, Article 3). Quoting the Summa word for
+  word waits on checking the text against a published translation, which could
+  not be fetched from the build environment. Until then, nothing claims to be
+  Aquinas's own words.
+
+`homeschool-api/tests/test_aquinas_content.py` pins the wiring, the stage
+pictures, the feast week, the retelling labels and the Logic guardrails.

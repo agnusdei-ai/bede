@@ -56,6 +56,8 @@ _NOT_A_GUARD = {"get_db", "bind_request"}
 GUARDS = {
     # Public readiness probe, registered directly on the app.
     ('GET', '/health'): 'PUBLIC',
+    # Fixed public beta deadline only; no credentials or visitor data.
+    ('GET', '/auth/demo-status'): 'PUBLIC',
     # Public intake and passkey ceremonies authenticate their own tickets or
     # challenges; invitation and recovery issuance require elevated parent.
     ('POST', '/inquiries'): 'PUBLIC',

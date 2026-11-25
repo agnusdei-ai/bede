@@ -1,0 +1,1581 @@
+{
+  "format": "bede-student-review-v1",
+  "grade": 8,
+  "calendar_weeks": 36,
+  "weekly_focus_drafts": 252,
+  "complete": false,
+  "academic_approval": false,
+  "live_activation": false,
+  "public_review_authorization": "Owner selected student-only review PR; adult materials excluded.",
+  "license": "Bede proprietary. All Rights Reserved. Public review is not a general reuse license.",
+  "private_verification_sha256": "6b9c9b5fcfbc7b2cf151960c4b22eb6c0d782bfd0e6e177076a55228d6b5834b",
+  "excluded": [
+    "adult worked models",
+    "answer keys",
+    "scoring rubrics",
+    "assessor records",
+    "private source code",
+    "teacher packets",
+    "private build history",
+    "learner data"
+  ],
+  "checks": {
+    "input_bundle_hashes_verified": 252,
+    "private_solution_fields_checked": 1260,
+    "private_field_noninterference_checks_passed": 252,
+    "substantial_private_solution_fields_found_in_output": 0,
+    "substring_scan_minimum_characters": 32,
+    "authoring_source_hashes_verified": 13
+  },
+  "documents": {
+    "mathematics.md": {
+      "bytes": 169580,
+      "sha256": "4c8fbf35c8b68e328203e21e0ae6cb4e3f40f4a89dfa73f567057258ba630dc2",
+      "weeks": 36
+    },
+    "science.md": {
+      "bytes": 171496,
+      "sha256": "11af57421c1c6603b7f3d260768d778a8d958e23f404222310f754aa6704cc46",
+      "weeks": 36
+    },
+    "literature.md": {
+      "bytes": 281856,
+      "sha256": "ab9668e934bd9221b6be83522bfde26ce1fd5fa907bb87b88779524c91b0f659",
+      "weeks": 36
+    },
+    "history.md": {
+      "bytes": 241430,
+      "sha256": "692a0b32f8b65a375ab86acdd2ba7017810c6d9f85015ca14015a4c1ae53fcdc",
+      "weeks": 36
+    },
+    "spanish.md": {
+      "bytes": 205128,
+      "sha256": "11738b806be7452eaae07b3e138a4cc4c525c2fecbf9f1d500040cb3fba40711",
+      "weeks": 36
+    },
+    "computing.md": {
+      "bytes": 220161,
+      "sha256": "15ba7f5d42082ca702129d1830bd1cf9825a60f451a93881555e854c2b82a901",
+      "weeks": 36
+    },
+    "wider_learning.md": {
+      "bytes": 241951,
+      "sha256": "681f246fdd0b5e7e3c27fe9b380c07ed3d48ea56c1f9b6ba1a129694a7152e15",
+      "weeks": 36
+    }
+  },
+  "lesson_provenance": [
+    {
+      "strand": "mathematics",
+      "week": 1,
+      "lesson_id": "g8-year-mathematics-w01",
+      "private_bundle_sha256": "18fcb720846e85d385334705ea8b387902fb22a51700eeac28d7f4d6d54ba72b"
+    },
+    {
+      "strand": "mathematics",
+      "week": 2,
+      "lesson_id": "g8-year-mathematics-w02",
+      "private_bundle_sha256": "0205fd3ddcc4641f38714664e1db0801e7bd7e1ae93c337552c80b80312acf0a"
+    },
+    {
+      "strand": "mathematics",
+      "week": 3,
+      "lesson_id": "g8-year-mathematics-w03",
+      "private_bundle_sha256": "91cf5fd89e54255053873ee08ee9815163fea5e435625c7c8400523c5330e39a"
+    },
+    {
+      "strand": "mathematics",
+      "week": 4,
+      "lesson_id": "g8-year-mathematics-w04",
+      "private_bundle_sha256": "5de955daa7fce75d8c8a63527c422fa06df17c394a6c474a7e4c4bb3e6400159"
+    },
+    {
+      "strand": "mathematics",
+      "week": 5,
+      "lesson_id": "g8-year-mathematics-w05",
+      "private_bundle_sha256": "539f934d0e181f91b4045f539ad0ee58660c24bddc9eac84f19ef2ffa4e6ac33"
+    },
+    {
+      "strand": "mathematics",
+      "week": 6,
+      "lesson_id": "g8-year-mathematics-w06",
+      "private_bundle_sha256": "8b3e02a4da827a406c4a5fd5a8a15f20066cf8e6543c0dc2ed5b8104add217f3"
+    },
+    {
+      "strand": "mathematics",
+      "week": 7,
+      "lesson_id": "g8-year-mathematics-w07",
+      "private_bundle_sha256": "cff99f48aa213d374c4f0c70d373e451b366fc0791c7f68b8ec4783bd8bb5502"
+    },
+    {
+      "strand": "mathematics",
+      "week": 8,
+      "lesson_id": "g8-year-mathematics-w08",
+      "private_bundle_sha256": "5a6beac0965e140a4d1cde3d4177b7f0499b995abc68ceee0e4327791469e50c"
+    },
+    {
+      "strand": "mathematics",
+      "week": 9,
+      "lesson_id": "g8-year-mathematics-w09",
+      "private_bundle_sha256": "a98bc7e189142a228456bf0d67ec3ae7a3b8a1c3627b8bca684dee7348fcb542"
+    },
+    {
+      "strand": "mathematics",
+      "week": 10,
+      "lesson_id": "g8-year-mathematics-w10",
+      "private_bundle_sha256": "104bacf723705d6a1b87b20c958fd79f1afc807cc478ad7c17efbdeb66aad541"
+    },
+    {
+      "strand": "mathematics",
+      "week": 11,
+      "lesson_id": "g8-year-mathematics-w11",
+      "private_bundle_sha256": "7362e9e00845034959b3cffbe4fc27042d9dd14a2dfed480f5ea4507dc0c149f"
+    },
+    {
+      "strand": "mathematics",
+      "week": 12,
+      "lesson_id": "g8-year-mathematics-w12",
+      "private_bundle_sha256": "3181935d0d5ae3c6724b5a1fa781441a07fc72f6630c2503b2b809a68eaafc1a"
+    },
+    {
+      "strand": "mathematics",
+      "week": 13,
+      "lesson_id": "g8-year-mathematics-w13",
+      "private_bundle_sha256": "29103c1fc6b5fc3e31f53682029698fdbf95c9b1ad12adb3bc8ab51a34f1e17b"
+    },
+    {
+      "strand": "mathematics",
+      "week": 14,
+      "lesson_id": "g8-year-mathematics-w14",
+      "private_bundle_sha256": "3753785f92094caf3253a45e0907fdcf4cfa78795086b27aa31691ce218bb4cb"
+    },
+    {
+      "strand": "mathematics",
+      "week": 15,
+      "lesson_id": "g8-year-mathematics-w15",
+      "private_bundle_sha256": "f3a65910aecfdcb9e6a41becb596a1dcc2197c58d1c5d5a0a8ec0204823c79b2"
+    },
+    {
+      "strand": "mathematics",
+      "week": 16,
+      "lesson_id": "g8-year-mathematics-w16",
+      "private_bundle_sha256": "92e6d0eb4bbb3f7f7f1fc03c4c81a0c7cce440cc33d650dd810866d07dffd038"
+    },
+    {
+      "strand": "mathematics",
+      "week": 17,
+      "lesson_id": "g8-year-mathematics-w17",
+      "private_bundle_sha256": "d0382bb57f298688355f1311c4349f0000651095fd81185f2c7fa300e0bfdd94"
+    },
+    {
+      "strand": "mathematics",
+      "week": 18,
+      "lesson_id": "g8-year-mathematics-w18",
+      "private_bundle_sha256": "ff8f3a18bf6726b1c7291e96206d327af57a6dfddca67b8694d3f62360b80995"
+    },
+    {
+      "strand": "mathematics",
+      "week": 19,
+      "lesson_id": "g8-year-mathematics-w19",
+      "private_bundle_sha256": "72b53e63d5792cd44ae66ab301bd2e7a38deb5f2919520947cd3473edb32c98e"
+    },
+    {
+      "strand": "mathematics",
+      "week": 20,
+      "lesson_id": "g8-year-mathematics-w20",
+      "private_bundle_sha256": "0c396fcb430dcc02a7266b3472bb3aa920a14d460987bf84f5574965bca1dad0"
+    },
+    {
+      "strand": "mathematics",
+      "week": 21,
+      "lesson_id": "g8-year-mathematics-w21",
+      "private_bundle_sha256": "c6daa539fadb215bbb765a347c7c16d2e29df97dacf17620862595a27791d846"
+    },
+    {
+      "strand": "mathematics",
+      "week": 22,
+      "lesson_id": "g8-year-mathematics-w22",
+      "private_bundle_sha256": "d1d83236cbbbbd9c62d0ef778dfddbb1f9682473428e9fd6a827386f2b2e003e"
+    },
+    {
+      "strand": "mathematics",
+      "week": 23,
+      "lesson_id": "g8-year-mathematics-w23",
+      "private_bundle_sha256": "5df2e458df6e16af69180fc6dead2740628dd168f7d7496801e9ba2cd7333c97"
+    },
+    {
+      "strand": "mathematics",
+      "week": 24,
+      "lesson_id": "g8-year-mathematics-w24",
+      "private_bundle_sha256": "9215ed6737b4ee2cb876f83cae8c85aa7d8e5b5b4688f10e8232ac181a6c10e9"
+    },
+    {
+      "strand": "mathematics",
+      "week": 25,
+      "lesson_id": "g8-year-mathematics-w25",
+      "private_bundle_sha256": "b3b5f39ed2ffd71d9332ecf610840ec99e2e9a8b5efad7458d31618182258b0a"
+    },
+    {
+      "strand": "mathematics",
+      "week": 26,
+      "lesson_id": "g8-year-mathematics-w26",
+      "private_bundle_sha256": "0fb7b259db04e98e6e30e1811a20399d63bcb1d991a6843f3dccea2f7c92c42b"
+    },
+    {
+      "strand": "mathematics",
+      "week": 27,
+      "lesson_id": "g8-year-mathematics-w27",
+      "private_bundle_sha256": "b4314e5e897adef1b277fc889162626daff007e74e541f835b086a946afebfa9"
+    },
+    {
+      "strand": "mathematics",
+      "week": 28,
+      "lesson_id": "g8-year-mathematics-w28",
+      "private_bundle_sha256": "67e43a0d7453a83246df51e56923271938f52e6f553f18224e7514cefcacc30e"
+    },
+    {
+      "strand": "mathematics",
+      "week": 29,
+      "lesson_id": "g8-year-mathematics-w29",
+      "private_bundle_sha256": "cb431c60455096f34b5e7d0803312ebd866acb1329b32c969b0f06c1cf37cea0"
+    },
+    {
+      "strand": "mathematics",
+      "week": 30,
+      "lesson_id": "g8-year-mathematics-w30",
+      "private_bundle_sha256": "ffa2c8a2f080aa0a7e0db37cdb7b23ffa7f76fddbced8a3a563ebbd7a8972e73"
+    },
+    {
+      "strand": "mathematics",
+      "week": 31,
+      "lesson_id": "g8-year-mathematics-w31",
+      "private_bundle_sha256": "40d2b7e3e9160ce91eeeccee7d9f312b77af5fec7e35aa60c0d896ec0e396c21"
+    },
+    {
+      "strand": "mathematics",
+      "week": 32,
+      "lesson_id": "g8-year-mathematics-w32",
+      "private_bundle_sha256": "7f0780240e389b8bcd00217680b8e2e3d64a208bf36dd841b2753dfa590896c0"
+    },
+    {
+      "strand": "mathematics",
+      "week": 33,
+      "lesson_id": "g8-year-mathematics-w33",
+      "private_bundle_sha256": "5d79d2b1942f9d9120396fea3a3b10ede843ed69e91773f55eb07c4e91643624"
+    },
+    {
+      "strand": "mathematics",
+      "week": 34,
+      "lesson_id": "g8-year-mathematics-w34",
+      "private_bundle_sha256": "015e0adf6686ee883029a646289c173e913d8bdba88c02802a7cf31c4a84238b"
+    },
+    {
+      "strand": "mathematics",
+      "week": 35,
+      "lesson_id": "g8-year-mathematics-w35",
+      "private_bundle_sha256": "6823f1fec80252dc2c390157e5c4faee762bd4265022c3e930e5c52455dd335c"
+    },
+    {
+      "strand": "mathematics",
+      "week": 36,
+      "lesson_id": "g8-year-mathematics-w36",
+      "private_bundle_sha256": "aa318c71dba70520f1f84cbab429ef9af10efcdc790dbb39dc54e3e13d996567"
+    },
+    {
+      "strand": "science",
+      "week": 1,
+      "lesson_id": "g8-year-science-w01",
+      "private_bundle_sha256": "1c5bfdfdd90047f1f1c12d71ee186c031580894f6a4deb8fa03b85439d2af1bd"
+    },
+    {
+      "strand": "science",
+      "week": 2,
+      "lesson_id": "g8-year-science-w02",
+      "private_bundle_sha256": "461481180c44d5939c16bc1da95590da286e272353b67e998ef2483b9c420747"
+    },
+    {
+      "strand": "science",
+      "week": 3,
+      "lesson_id": "g8-year-science-w03",
+      "private_bundle_sha256": "f31d50910ddecdd88a3998967adac00144ccf05ed552764f867eb549cda57795"
+    },
+    {
+      "strand": "science",
+      "week": 4,
+      "lesson_id": "g8-year-science-w04",
+      "private_bundle_sha256": "a6c66a619c6ae5cf10a28ef9f3796792fc9da0a2e7785ef1f097eb907000b37a"
+    },
+    {
+      "strand": "science",
+      "week": 5,
+      "lesson_id": "g8-year-science-w05",
+      "private_bundle_sha256": "12c8a9d9622fccf2df091a99b431fc4af84eecc60d31efed45ec7bb08b6eb15a"
+    },
+    {
+      "strand": "science",
+      "week": 6,
+      "lesson_id": "g8-year-science-w06",
+      "private_bundle_sha256": "6e446d1379d1fa309b0c66c049608e377742c80384ddbf850834f5998f6b05e0"
+    },
+    {
+      "strand": "science",
+      "week": 7,
+      "lesson_id": "g8-year-science-w07",
+      "private_bundle_sha256": "d9adf33553d3e13c03da67fc3452a405bcda837fce743a0da927dca37a48ad25"
+    },
+    {
+      "strand": "science",
+      "week": 8,
+      "lesson_id": "g8-year-science-w08",
+      "private_bundle_sha256": "26131b52fb39bf0998e688614e913303c7117434a03db856342c70fe5d1aa016"
+    },
+    {
+      "strand": "science",
+      "week": 9,
+      "lesson_id": "g8-year-science-w09",
+      "private_bundle_sha256": "8462dfa8b953aabbc97bb82ebb07ffb864812cc91dd6c660fbe59ebc78a966d7"
+    },
+    {
+      "strand": "science",
+      "week": 10,
+      "lesson_id": "g8-year-science-w10",
+      "private_bundle_sha256": "9ba1ce196bd84b75eb01323d0ac183ac4f1da41ae8d4f24193c2adf893111774"
+    },
+    {
+      "strand": "science",
+      "week": 11,
+      "lesson_id": "g8-year-science-w11",
+      "private_bundle_sha256": "6fb2615ef35d50ee4a5091250496a09f0d98027609c3a8d28ec2df2007b9fa2a"
+    },
+    {
+      "strand": "science",
+      "week": 12,
+      "lesson_id": "g8-year-science-w12",
+      "private_bundle_sha256": "f47b34cdab49541a6cfafa92ae4dc94b5be4ba762c5952d822d4b90a69168191"
+    },
+    {
+      "strand": "science",
+      "week": 13,
+      "lesson_id": "g8-year-science-w13",
+      "private_bundle_sha256": "586a79462aaab1821f7575760638244b0b78e36a4e3d627cba8936fff1d82299"
+    },
+    {
+      "strand": "science",
+      "week": 14,
+      "lesson_id": "g8-year-science-w14",
+      "private_bundle_sha256": "b4aa7a188e9ed11f146e4dc020e8a7cbb14e4661a4215569f1d9b47cbc175b58"
+    },
+    {
+      "strand": "science",
+      "week": 15,
+      "lesson_id": "g8-year-science-w15",
+      "private_bundle_sha256": "b9fa34b1e63becfd7568d5fb6cf1dfab3867dacd50e871977baafa31d8f058b0"
+    },
+    {
+      "strand": "science",
+      "week": 16,
+      "lesson_id": "g8-year-science-w16",
+      "private_bundle_sha256": "cf3aa1137db287aa132b80157b1ade3e86700da47946b4b5dc29a573e0f0d5ed"
+    },
+    {
+      "strand": "science",
+      "week": 17,
+      "lesson_id": "g8-year-science-w17",
+      "private_bundle_sha256": "0606df2d0b94e4310f51ae1ec5513a996091866a3bffc11680f6f89837406dc1"
+    },
+    {
+      "strand": "science",
+      "week": 18,
+      "lesson_id": "g8-year-science-w18",
+      "private_bundle_sha256": "339af3cfbb5900bc74f671c21b2322873eedf722df2e2b33ff41104c6ab8ac78"
+    },
+    {
+      "strand": "science",
+      "week": 19,
+      "lesson_id": "g8-year-science-w19",
+      "private_bundle_sha256": "ce2c51bfd832449150c2aea60214836a98a27a7a7e14dbd2d3da670454827699"
+    },
+    {
+      "strand": "science",
+      "week": 20,
+      "lesson_id": "g8-year-science-w20",
+      "private_bundle_sha256": "56f31d0bde498b8db48edb75f25fd9440316f21fabec55f091ee726bd6e0e68b"
+    },
+    {
+      "strand": "science",
+      "week": 21,
+      "lesson_id": "g8-year-science-w21",
+      "private_bundle_sha256": "50e110fe4504fade3e6f2f39121f880366f24de971d05ea0b60802b5367f5606"
+    },
+    {
+      "strand": "science",
+      "week": 22,
+      "lesson_id": "g8-year-science-w22",
+      "private_bundle_sha256": "5a75737bb6222b9112845345c2c4c0a5558ec2a8ec6f6fc5034fc64076659f98"
+    },
+    {
+      "strand": "science",
+      "week": 23,
+      "lesson_id": "g8-year-science-w23",
+      "private_bundle_sha256": "2e476d2f6d0156fe7fd7813cbcc2d4a67d2b73b125f14441ade415b73e2e15f7"
+    },
+    {
+      "strand": "science",
+      "week": 24,
+      "lesson_id": "g8-year-science-w24",
+      "private_bundle_sha256": "e6ed2b519079eea5ed40915293e0761fe55609a75b09c43fe3d52daceff39f79"
+    },
+    {
+      "strand": "science",
+      "week": 25,
+      "lesson_id": "g8-year-science-w25",
+      "private_bundle_sha256": "2cd1c2959d6ea22c7ec21ef602b08d3480608cb7f28bd6fad291ab9847d55240"
+    },
+    {
+      "strand": "science",
+      "week": 26,
+      "lesson_id": "g8-year-science-w26",
+      "private_bundle_sha256": "1b5fa77bfbd4973365b61fc3a402079f81ff6e86f3823fc12672cd1b43723e81"
+    },
+    {
+      "strand": "science",
+      "week": 27,
+      "lesson_id": "g8-year-science-w27",
+      "private_bundle_sha256": "c4e3ef1dba8769d2bea06eaf2eb7bc0a20d2339ac1bf26836be6ddc2713f5dd6"
+    },
+    {
+      "strand": "science",
+      "week": 28,
+      "lesson_id": "g8-year-science-w28",
+      "private_bundle_sha256": "fc264396257386054ecaddd6c553fff7b242c74b2d2612a5e9fa563cdbe8c6b1"
+    },
+    {
+      "strand": "science",
+      "week": 29,
+      "lesson_id": "g8-year-science-w29",
+      "private_bundle_sha256": "9dd1969f2a0f4554060c4ab3f357e0f4fe44a20ca7ace5074bc33134da6fb015"
+    },
+    {
+      "strand": "science",
+      "week": 30,
+      "lesson_id": "g8-year-science-w30",
+      "private_bundle_sha256": "181ce3726036a8a584fb273da0fe9f8155dea1b72ceb2b8f0a72be867dbc80c9"
+    },
+    {
+      "strand": "science",
+      "week": 31,
+      "lesson_id": "g8-year-science-w31",
+      "private_bundle_sha256": "fddf2701dbaecd70ebc0aca3a3836fe329815d0d6a84a7b33199bf4f639aa0ee"
+    },
+    {
+      "strand": "science",
+      "week": 32,
+      "lesson_id": "g8-year-science-w32",
+      "private_bundle_sha256": "9f090dc8bfba2340702dfc2b1842b5c5c5f7780bebdb7e47360ee7f94aa4e32e"
+    },
+    {
+      "strand": "science",
+      "week": 33,
+      "lesson_id": "g8-year-science-w33",
+      "private_bundle_sha256": "9dc1a5c66421cd36c8f2ebc45c858908d4a1897f0981f1de5f0dc6f4abe30403"
+    },
+    {
+      "strand": "science",
+      "week": 34,
+      "lesson_id": "g8-year-science-w34",
+      "private_bundle_sha256": "50eadad30ce162838cee9aac694887370d79994eb8eb5eaa4fbbde1ffd44411e"
+    },
+    {
+      "strand": "science",
+      "week": 35,
+      "lesson_id": "g8-year-science-w35",
+      "private_bundle_sha256": "79ff641039ac91a8e98a493bb2432570965a83f4b4b5c47f2ea7230a927d72b8"
+    },
+    {
+      "strand": "science",
+      "week": 36,
+      "lesson_id": "g8-year-science-w36",
+      "private_bundle_sha256": "cc4e1b7985c3c071c0ebcd492d40f2d52d8abc9592fdf01030c09ee04319d6ea"
+    },
+    {
+      "strand": "literature",
+      "week": 1,
+      "lesson_id": "g8-year-literature-w01",
+      "private_bundle_sha256": "0fe8aa429b07fa95bfe884c7cf2c77bf0678a04d2c677e72a24339cd12fa60a5"
+    },
+    {
+      "strand": "literature",
+      "week": 2,
+      "lesson_id": "g8-year-literature-w02",
+      "private_bundle_sha256": "ca4afd592f71f03376b9a0b7ed2ba9ab3a61c43d5598c0e9112b5a75f30ccc75"
+    },
+    {
+      "strand": "literature",
+      "week": 3,
+      "lesson_id": "g8-year-literature-w03",
+      "private_bundle_sha256": "abb6a071d7d62d988705b3754cdc93d6548202b198d44526d5683e1f8c1795bc"
+    },
+    {
+      "strand": "literature",
+      "week": 4,
+      "lesson_id": "g8-year-literature-w04",
+      "private_bundle_sha256": "96f417c5285623d26a763c207bc8b05118518c0ab6217a655a114aa00b13f7d8"
+    },
+    {
+      "strand": "literature",
+      "week": 5,
+      "lesson_id": "g8-year-literature-w05",
+      "private_bundle_sha256": "73e0bcea981ef169e03a91cc8c685158a88c8db4bdee73303232af1d63a9229a"
+    },
+    {
+      "strand": "literature",
+      "week": 6,
+      "lesson_id": "g8-year-literature-w06",
+      "private_bundle_sha256": "220f5146d05f77294cc47c1006496b2efbdd0dec6535cf0f97a83f2783c8cd51"
+    },
+    {
+      "strand": "literature",
+      "week": 7,
+      "lesson_id": "g8-year-literature-w07",
+      "private_bundle_sha256": "3e906017f3d41e21206e3f3dfc491197a5838e75a93087a489312637470f9df7"
+    },
+    {
+      "strand": "literature",
+      "week": 8,
+      "lesson_id": "g8-year-literature-w08",
+      "private_bundle_sha256": "aa6fd87c007d11740e9c781241b8faf0135f306ff5361f4aa77b55cb1b6c6e0f"
+    },
+    {
+      "strand": "literature",
+      "week": 9,
+      "lesson_id": "g8-year-literature-w09",
+      "private_bundle_sha256": "ba8067e28cf7a3ccde7a5aa95a717f692e200e0b042394fa0407bbb876cfa9a2"
+    },
+    {
+      "strand": "literature",
+      "week": 10,
+      "lesson_id": "g8-year-literature-w10",
+      "private_bundle_sha256": "0c6084980d226cfc27209131a7034e83ba758f3fb96be6ed7b6277f7b62be8a5"
+    },
+    {
+      "strand": "literature",
+      "week": 11,
+      "lesson_id": "g8-year-literature-w11",
+      "private_bundle_sha256": "110607d604a2ece884a0dccc34d329541377165152b8c98b186af3d9e5689b52"
+    },
+    {
+      "strand": "literature",
+      "week": 12,
+      "lesson_id": "g8-year-literature-w12",
+      "private_bundle_sha256": "38146b11667628c4f672bc3c2711e034d7ab5d2e85871174093bb8dab5c29398"
+    },
+    {
+      "strand": "literature",
+      "week": 13,
+      "lesson_id": "g8-year-literature-w13",
+      "private_bundle_sha256": "506c48194327d87ef6c8183624bbeb372e3c10dea664329524c6d6ecb0080416"
+    },
+    {
+      "strand": "literature",
+      "week": 14,
+      "lesson_id": "g8-year-literature-w14",
+      "private_bundle_sha256": "be683e8de156acd828f8c260d9fbf3c8f27b489d30f20d13b9b3bd38d074b529"
+    },
+    {
+      "strand": "literature",
+      "week": 15,
+      "lesson_id": "g8-year-literature-w15",
+      "private_bundle_sha256": "e0d7044b632f7c2e6cfb850c6c06ebef8274e6853a2c43efb623f6e0efc2a645"
+    },
+    {
+      "strand": "literature",
+      "week": 16,
+      "lesson_id": "g8-year-literature-w16",
+      "private_bundle_sha256": "194e0990d25ff22f80989d597751361ec35b40fa6bb4dd5e22fcb65796f156de"
+    },
+    {
+      "strand": "literature",
+      "week": 17,
+      "lesson_id": "g8-year-literature-w17",
+      "private_bundle_sha256": "dd5294470fe61a34e2639cb781f40b849894bcc43d96af5b663aa660b9022da5"
+    },
+    {
+      "strand": "literature",
+      "week": 18,
+      "lesson_id": "g8-year-literature-w18",
+      "private_bundle_sha256": "12258a274185938dc8fe7d14f895d6a257d691b41d06116c8e8eed3f1839ec48"
+    },
+    {
+      "strand": "literature",
+      "week": 19,
+      "lesson_id": "g8-year-literature-w19",
+      "private_bundle_sha256": "c8b508b81431434ea34710c87e1f9b8b1b6e151a332acfb70b57f5524732684b"
+    },
+    {
+      "strand": "literature",
+      "week": 20,
+      "lesson_id": "g8-year-literature-w20",
+      "private_bundle_sha256": "c48ab401196e7e946858cf94958a1d197a420284ef3defad9bfa68c15add54d3"
+    },
+    {
+      "strand": "literature",
+      "week": 21,
+      "lesson_id": "g8-year-literature-w21",
+      "private_bundle_sha256": "cc982eb9e723fc94e4c7a1ac3de49dc451742609102554648947e67bd1187465"
+    },
+    {
+      "strand": "literature",
+      "week": 22,
+      "lesson_id": "g8-year-literature-w22",
+      "private_bundle_sha256": "73ffa5a83d4ada761ce781253abbe807e67dd2e1aec63acac2feb93fc8bb21a6"
+    },
+    {
+      "strand": "literature",
+      "week": 23,
+      "lesson_id": "g8-year-literature-w23",
+      "private_bundle_sha256": "1a4d6eddc5df77f358a5c9514ffcdc430328747f3ebadb1ab6bd1e07338cfa87"
+    },
+    {
+      "strand": "literature",
+      "week": 24,
+      "lesson_id": "g8-year-literature-w24",
+      "private_bundle_sha256": "a88c7f8dc3430a643f518f1fb23a3a90166cbabb8e150eae530979f2b56b2a26"
+    },
+    {
+      "strand": "literature",
+      "week": 25,
+      "lesson_id": "g8-year-literature-w25",
+      "private_bundle_sha256": "ec533614e8a53aa29a6af89332fca2f65b6e2f9101e71074907edbad88a36cd5"
+    },
+    {
+      "strand": "literature",
+      "week": 26,
+      "lesson_id": "g8-year-literature-w26",
+      "private_bundle_sha256": "8b1cd4cce523a128557d60a9ec78fdd131f98dc4898210a193684ff8ff23c382"
+    },
+    {
+      "strand": "literature",
+      "week": 27,
+      "lesson_id": "g8-year-literature-w27",
+      "private_bundle_sha256": "66f4de01d9993c9eb23e7e165712741f8986a79c5b65369e48964e9d10aeb5aa"
+    },
+    {
+      "strand": "literature",
+      "week": 28,
+      "lesson_id": "g8-year-literature-w28",
+      "private_bundle_sha256": "95e6c2be678e2814030c71fa20f9c337f765ac1fceb72c0863fc531d4cd370f2"
+    },
+    {
+      "strand": "literature",
+      "week": 29,
+      "lesson_id": "g8-year-literature-w29",
+      "private_bundle_sha256": "98d6bf8c120ee8727a1277e2a4c3f8a2cc48a46142d74b3b87a98a3ea68d1622"
+    },
+    {
+      "strand": "literature",
+      "week": 30,
+      "lesson_id": "g8-year-literature-w30",
+      "private_bundle_sha256": "71da25d3bac1ef8c4a32739e3dccfa2079de4ff846af219fa92f6733ef6f38a2"
+    },
+    {
+      "strand": "literature",
+      "week": 31,
+      "lesson_id": "g8-year-literature-w31",
+      "private_bundle_sha256": "392b81567f31b5b0c0e9d002d0563d7f63798ae7cf6bc6428ebb3762da2be5a2"
+    },
+    {
+      "strand": "literature",
+      "week": 32,
+      "lesson_id": "g8-year-literature-w32",
+      "private_bundle_sha256": "d7be2f816b291bc6e61aad8586ea83f5f9c96a6cce5b00214a61ece86b2c2249"
+    },
+    {
+      "strand": "literature",
+      "week": 33,
+      "lesson_id": "g8-year-literature-w33",
+      "private_bundle_sha256": "184ef72e3289615de93cd0b88d3d2296f293223808f59bf46d5889f41ed7ebab"
+    },
+    {
+      "strand": "literature",
+      "week": 34,
+      "lesson_id": "g8-year-literature-w34",
+      "private_bundle_sha256": "b62d02133a3fd6d69839428220e80fcb0b3055590e555d184aa0ea0af51cf09b"
+    },
+    {
+      "strand": "literature",
+      "week": 35,
+      "lesson_id": "g8-year-literature-w35",
+      "private_bundle_sha256": "b718f4c9af7c8fa77189183bbf80d4e7c1bab059890aceda11db4d076b7789cc"
+    },
+    {
+      "strand": "literature",
+      "week": 36,
+      "lesson_id": "g8-year-literature-w36",
+      "private_bundle_sha256": "61d469cf0d93d16a24a2339ace7ba2265ea89379da9494fbecaf7adfff44e8f4"
+    },
+    {
+      "strand": "history",
+      "week": 1,
+      "lesson_id": "g8-year-history-w01",
+      "private_bundle_sha256": "89ecc89822006d17594d58cadb676eeecb76700e4df242b2cf92eb139b096d44"
+    },
+    {
+      "strand": "history",
+      "week": 2,
+      "lesson_id": "g8-year-history-w02",
+      "private_bundle_sha256": "3516d6dd5e776e6399aac682709737082edd5dbedc12ac0ed6b11f5a0f484040"
+    },
+    {
+      "strand": "history",
+      "week": 3,
+      "lesson_id": "g8-year-history-w03",
+      "private_bundle_sha256": "9403218f09609caa1f4f63fb167738f06a21ddab0823a9aa2e6869b74940985d"
+    },
+    {
+      "strand": "history",
+      "week": 4,
+      "lesson_id": "g8-year-history-w04",
+      "private_bundle_sha256": "15513ee835f96f55b79c30876ff34f5e2f81846c9e30923340111e104351a209"
+    },
+    {
+      "strand": "history",
+      "week": 5,
+      "lesson_id": "g8-year-history-w05",
+      "private_bundle_sha256": "ac4ba3a7b97af44febfddde29d5d38de086efe87dbd60984ab53c3fe06a248d0"
+    },
+    {
+      "strand": "history",
+      "week": 6,
+      "lesson_id": "g8-year-history-w06",
+      "private_bundle_sha256": "e3018472f2ae1588dae92db9ab417a970608bc2ad072ccf3bd4a75fbd76f323d"
+    },
+    {
+      "strand": "history",
+      "week": 7,
+      "lesson_id": "g8-year-history-w07",
+      "private_bundle_sha256": "d40c799691a3dde95caa6b67aa47112ca2930153a4c14b6d94ade0a56d758091"
+    },
+    {
+      "strand": "history",
+      "week": 8,
+      "lesson_id": "g8-year-history-w08",
+      "private_bundle_sha256": "2c72c0e240e8c59f9d69396953f2b97c1e855da31501708becf80b59b371acc3"
+    },
+    {
+      "strand": "history",
+      "week": 9,
+      "lesson_id": "g8-year-history-w09",
+      "private_bundle_sha256": "355f5b72287f6c6c8dc23ac7ae3bbbfbb7b6a9ccafe8ab7c2b4502c1ce6dcba5"
+    },
+    {
+      "strand": "history",
+      "week": 10,
+      "lesson_id": "g8-year-history-w10",
+      "private_bundle_sha256": "2ab8f5f4ed8536e5e88ccede73e6792bfe0c9046f6cd76b2a7b3a285ca57f6ba"
+    },
+    {
+      "strand": "history",
+      "week": 11,
+      "lesson_id": "g8-year-history-w11",
+      "private_bundle_sha256": "c5b14ac4e96d61406926a22432afe8fe533d19362dace00d8282e7d4b0113b88"
+    },
+    {
+      "strand": "history",
+      "week": 12,
+      "lesson_id": "g8-year-history-w12",
+      "private_bundle_sha256": "3643411bec61e56dbcad2551d797ff96a39554edb5eb256dbd2c0038b1f94c9f"
+    },
+    {
+      "strand": "history",
+      "week": 13,
+      "lesson_id": "g8-year-history-w13",
+      "private_bundle_sha256": "41cf60cec2c1d98908aaec475989d084b3e7fd0eb0de004691e30545f9eec11a"
+    },
+    {
+      "strand": "history",
+      "week": 14,
+      "lesson_id": "g8-year-history-w14",
+      "private_bundle_sha256": "c36be2dec043d70c264ead31080c6175ca33cdfe3c6a5fee1ab9b1e095824a2d"
+    },
+    {
+      "strand": "history",
+      "week": 15,
+      "lesson_id": "g8-year-history-w15",
+      "private_bundle_sha256": "659096e9a352d2d932dfa1d041b6e9b89aac82a8866dfc0d9daa094c5ae6c810"
+    },
+    {
+      "strand": "history",
+      "week": 16,
+      "lesson_id": "g8-year-history-w16",
+      "private_bundle_sha256": "187f53af2e060e1e78defce65321ab60cf07085b3324447bbf745402f6a899ed"
+    },
+    {
+      "strand": "history",
+      "week": 17,
+      "lesson_id": "g8-year-history-w17",
+      "private_bundle_sha256": "bffb9d0dd192977cd8259c39b071ba7e6de9ec1c3c92065028cf1ddeed2fdc2e"
+    },
+    {
+      "strand": "history",
+      "week": 18,
+      "lesson_id": "g8-year-history-w18",
+      "private_bundle_sha256": "ff5d8347286f26c782bdeb99951b3d68e330d2dad96327f7b301570f3fe90ec4"
+    },
+    {
+      "strand": "history",
+      "week": 19,
+      "lesson_id": "g8-year-history-w19",
+      "private_bundle_sha256": "4de3e245aca4f36a6e65ee52b392f6ae943a31b1dd92157983b64b63937031a3"
+    },
+    {
+      "strand": "history",
+      "week": 20,
+      "lesson_id": "g8-year-history-w20",
+      "private_bundle_sha256": "82c56fa7f0606f788259444fb269f8984b35a033897d78ac3b486a7876db3996"
+    },
+    {
+      "strand": "history",
+      "week": 21,
+      "lesson_id": "g8-year-history-w21",
+      "private_bundle_sha256": "c71167cef37e2e5d14991809e3e53570865e9b305a16084e493af64e5b5ccb84"
+    },
+    {
+      "strand": "history",
+      "week": 22,
+      "lesson_id": "g8-year-history-w22",
+      "private_bundle_sha256": "6949d7b139f56edceff5f87c043f13c40c04b7de85a5c97bf19f2901d8c23ef3"
+    },
+    {
+      "strand": "history",
+      "week": 23,
+      "lesson_id": "g8-year-history-w23",
+      "private_bundle_sha256": "2497ef44521e378d1ec567082bd244e9b7fd305925fbb3c49bba8ecf9b1c73dc"
+    },
+    {
+      "strand": "history",
+      "week": 24,
+      "lesson_id": "g8-year-history-w24",
+      "private_bundle_sha256": "77777ba5e8f7cfc4dc7ad5873f78adf87bdf6d7bd83f7a1c60c03d30ca39c457"
+    },
+    {
+      "strand": "history",
+      "week": 25,
+      "lesson_id": "g8-year-history-w25",
+      "private_bundle_sha256": "cb4109eaf89856105d918e57e8ffe29bc51d8e50442b76a9df72e23d6bdca134"
+    },
+    {
+      "strand": "history",
+      "week": 26,
+      "lesson_id": "g8-year-history-w26",
+      "private_bundle_sha256": "0c276d2dfb278e6c87b6b3d2e8728d5e4f2f00dcd22a5c502bc3d2b10686d855"
+    },
+    {
+      "strand": "history",
+      "week": 27,
+      "lesson_id": "g8-year-history-w27",
+      "private_bundle_sha256": "b881ba4010e8cbca9ad288e44ee032b6671293f3675d0d813512af326547134a"
+    },
+    {
+      "strand": "history",
+      "week": 28,
+      "lesson_id": "g8-year-history-w28",
+      "private_bundle_sha256": "26b752b9cadb9edf1fc5e13c1d634dca1b2953f0217cbe6f5d275a7d7322f532"
+    },
+    {
+      "strand": "history",
+      "week": 29,
+      "lesson_id": "g8-year-history-w29",
+      "private_bundle_sha256": "fca5a80cf9d2ea9cb47eb0a51756d7f5ffbf864ae0338d773092e0d3fdda009c"
+    },
+    {
+      "strand": "history",
+      "week": 30,
+      "lesson_id": "g8-year-history-w30",
+      "private_bundle_sha256": "fb7196b67b8a15b9d9d998781c0a62bafb5af9c7279abeace18c818a1bc9450e"
+    },
+    {
+      "strand": "history",
+      "week": 31,
+      "lesson_id": "g8-year-history-w31",
+      "private_bundle_sha256": "5b09b1b8ffb0be3421a1feb91cfb570a6c34ea83d6c7b8b52e996f54b02c10ec"
+    },
+    {
+      "strand": "history",
+      "week": 32,
+      "lesson_id": "g8-year-history-w32",
+      "private_bundle_sha256": "680d0b07b68a97f49e6c295a9fdc10c6890fe93d0849f94973dfee1ed195fa62"
+    },
+    {
+      "strand": "history",
+      "week": 33,
+      "lesson_id": "g8-year-history-w33",
+      "private_bundle_sha256": "8f0a58e6561ea332b00b84fdb329ac331b7a67d64038f6774c21d5a6e29d6d49"
+    },
+    {
+      "strand": "history",
+      "week": 34,
+      "lesson_id": "g8-year-history-w34",
+      "private_bundle_sha256": "47d6de13bfb54497b295f2c3db51a4bec31013dc441f64f0ffd0b1eb0ca52514"
+    },
+    {
+      "strand": "history",
+      "week": 35,
+      "lesson_id": "g8-year-history-w35",
+      "private_bundle_sha256": "f6cdd6236674778a3d339fbbddb0483e5b936a961cc21bc97f5a743d7a752788"
+    },
+    {
+      "strand": "history",
+      "week": 36,
+      "lesson_id": "g8-year-history-w36",
+      "private_bundle_sha256": "4f81aaee27c3b5b85a1007daadd945af0300fe9fa81f80f7623ec6ecff0c7226"
+    },
+    {
+      "strand": "spanish",
+      "week": 1,
+      "lesson_id": "g8-year-spanish-w01",
+      "private_bundle_sha256": "68adec0426780c1b5aa105c3af8d93498cfc3ea0a4c94e006ff74d36174b5a5f"
+    },
+    {
+      "strand": "spanish",
+      "week": 2,
+      "lesson_id": "g8-year-spanish-w02",
+      "private_bundle_sha256": "a001a9e82b2a359627e8673608cbc84e4f02312bcdda0dddb755e18206f07a00"
+    },
+    {
+      "strand": "spanish",
+      "week": 3,
+      "lesson_id": "g8-year-spanish-w03",
+      "private_bundle_sha256": "f4002c1d588011aa4bc97b3b7354eac7afac01abad34e73fc50d29e91a2dd82a"
+    },
+    {
+      "strand": "spanish",
+      "week": 4,
+      "lesson_id": "g8-year-spanish-w04",
+      "private_bundle_sha256": "041ef084e255b69eb956f6f76446d7b863b0dd6946ab75c7371e20fe31d8d88c"
+    },
+    {
+      "strand": "spanish",
+      "week": 5,
+      "lesson_id": "g8-year-spanish-w05",
+      "private_bundle_sha256": "a527adb40a1c653d6f0cabdf4e9c3685e429c4eb938a2dcf419f4baeaf34abb5"
+    },
+    {
+      "strand": "spanish",
+      "week": 6,
+      "lesson_id": "g8-year-spanish-w06",
+      "private_bundle_sha256": "52da5ca8ff4cc69179ca3fe2ae006907ed68f47b77a9221e6118dc08e23a91e9"
+    },
+    {
+      "strand": "spanish",
+      "week": 7,
+      "lesson_id": "g8-year-spanish-w07",
+      "private_bundle_sha256": "6db01414880bf4f0d5a86ade78c401366183cca35eec1de882b561b46ada6030"
+    },
+    {
+      "strand": "spanish",
+      "week": 8,
+      "lesson_id": "g8-year-spanish-w08",
+      "private_bundle_sha256": "2a829834191f43025797708de81b350cf0219b2f9e26c15b6a9bdafe98fe4f72"
+    },
+    {
+      "strand": "spanish",
+      "week": 9,
+      "lesson_id": "g8-year-spanish-w09",
+      "private_bundle_sha256": "5436238e6230fc3a3796f7f67f1cd0e8b761e7878ca0119b38f3562dcd2142ea"
+    },
+    {
+      "strand": "spanish",
+      "week": 10,
+      "lesson_id": "g8-year-spanish-w10",
+      "private_bundle_sha256": "fed9645124e25672c20a4154476b491ffa964f05a71857ece4d177e24e8a75c9"
+    },
+    {
+      "strand": "spanish",
+      "week": 11,
+      "lesson_id": "g8-year-spanish-w11",
+      "private_bundle_sha256": "7490036f1e4ca7902f37c7f87937ed6075bc3bcb67b1f44552d2c54586f89007"
+    },
+    {
+      "strand": "spanish",
+      "week": 12,
+      "lesson_id": "g8-year-spanish-w12",
+      "private_bundle_sha256": "c4e72032f23e439d9cb0485751f7a53c225ef117edbb017a9762d4ed0eb2dafa"
+    },
+    {
+      "strand": "spanish",
+      "week": 13,
+      "lesson_id": "g8-year-spanish-w13",
+      "private_bundle_sha256": "d7b1570452f2db9f8668c244e254475251970849b8b1cabfb60357c98031b6d8"
+    },
+    {
+      "strand": "spanish",
+      "week": 14,
+      "lesson_id": "g8-year-spanish-w14",
+      "private_bundle_sha256": "460e661b8f42527a7b369c55d8e971389cd2c5a53dde73fa62fe638038d3bfee"
+    },
+    {
+      "strand": "spanish",
+      "week": 15,
+      "lesson_id": "g8-year-spanish-w15",
+      "private_bundle_sha256": "792d6d6fcdffef7bd43d1782eb4778a45e743c61484042c8456927178399afa7"
+    },
+    {
+      "strand": "spanish",
+      "week": 16,
+      "lesson_id": "g8-year-spanish-w16",
+      "private_bundle_sha256": "f0b2106737de80fa7d4a589c7da44e5ed24847f50af3fce0d08ebd71e2c15b57"
+    },
+    {
+      "strand": "spanish",
+      "week": 17,
+      "lesson_id": "g8-year-spanish-w17",
+      "private_bundle_sha256": "cacb01378fd084825ebf35e10f487dd86a35b65483b5d311b216bd44f223e68d"
+    },
+    {
+      "strand": "spanish",
+      "week": 18,
+      "lesson_id": "g8-year-spanish-w18",
+      "private_bundle_sha256": "3f529bcdaeac042bc0efba55f4d3c41fed3f8fe889322eccab7dd90eb074b371"
+    },
+    {
+      "strand": "spanish",
+      "week": 19,
+      "lesson_id": "g8-year-spanish-w19",
+      "private_bundle_sha256": "ffcae1d1e749930ad1a7d82fd2f371c1c52c54ebe9bb2e80b7f20a292f95c03d"
+    },
+    {
+      "strand": "spanish",
+      "week": 20,
+      "lesson_id": "g8-year-spanish-w20",
+      "private_bundle_sha256": "a59892670b080ec2a04f7fa7d212b47a4716835bb153e5318504ce0f2b8933de"
+    },
+    {
+      "strand": "spanish",
+      "week": 21,
+      "lesson_id": "g8-year-spanish-w21",
+      "private_bundle_sha256": "e88060ab49850fc42b4a7a651b32d8589b643413317d9a006048aa6f2c318f49"
+    },
+    {
+      "strand": "spanish",
+      "week": 22,
+      "lesson_id": "g8-year-spanish-w22",
+      "private_bundle_sha256": "0f4f5bc92bf3a62872106787b29b71d886bc4e687664c79461158fb375e00d49"
+    },
+    {
+      "strand": "spanish",
+      "week": 23,
+      "lesson_id": "g8-year-spanish-w23",
+      "private_bundle_sha256": "fdfd01b4fad8e67ec2ad194f42095d6dde214a045ba36319fa6b25e041b9871e"
+    },
+    {
+      "strand": "spanish",
+      "week": 24,
+      "lesson_id": "g8-year-spanish-w24",
+      "private_bundle_sha256": "0400783e96b879901cfe3dcd72059e9249c6572a9c922b142453dce4bda656fa"
+    },
+    {
+      "strand": "spanish",
+      "week": 25,
+      "lesson_id": "g8-year-spanish-w25",
+      "private_bundle_sha256": "622499d21efd499e12d8fe99bd52d07aa1b8ac13b54669567510592720187e78"
+    },
+    {
+      "strand": "spanish",
+      "week": 26,
+      "lesson_id": "g8-year-spanish-w26",
+      "private_bundle_sha256": "eeaefd5706576b51a4a33914a34febbfdd73a868f07a9b8d469d1722b6ba7ded"
+    },
+    {
+      "strand": "spanish",
+      "week": 27,
+      "lesson_id": "g8-year-spanish-w27",
+      "private_bundle_sha256": "d22278c3e07dc2a2eeecf96c1e68bcb4e319a123991cac307300958338252ed2"
+    },
+    {
+      "strand": "spanish",
+      "week": 28,
+      "lesson_id": "g8-year-spanish-w28",
+      "private_bundle_sha256": "71ce644fefa164fcb8300926e0208786b7aba6a342008162c21ffa57d0a22bf9"
+    },
+    {
+      "strand": "spanish",
+      "week": 29,
+      "lesson_id": "g8-year-spanish-w29",
+      "private_bundle_sha256": "13fc3248e1712f9c90837dec389b5c56936773ca8d062bc8b0ade6f5fa1c91d2"
+    },
+    {
+      "strand": "spanish",
+      "week": 30,
+      "lesson_id": "g8-year-spanish-w30",
+      "private_bundle_sha256": "a82e119fad8ab5f1fbce8835240d91a1c4da4217e7769ba4ab010ff349edaef2"
+    },
+    {
+      "strand": "spanish",
+      "week": 31,
+      "lesson_id": "g8-year-spanish-w31",
+      "private_bundle_sha256": "09a04419901760b152ec64b4468037d301f9989bf29bf3a916bfebebf36422e3"
+    },
+    {
+      "strand": "spanish",
+      "week": 32,
+      "lesson_id": "g8-year-spanish-w32",
+      "private_bundle_sha256": "81300173eb260fac44c92e7879a2eec1b52f1a1a0bb9fd0a570d6ab0ce603554"
+    },
+    {
+      "strand": "spanish",
+      "week": 33,
+      "lesson_id": "g8-year-spanish-w33",
+      "private_bundle_sha256": "67d1aca45578d9ed188dd7318464d330fac951ef7dcf7dc75b3647255063cb30"
+    },
+    {
+      "strand": "spanish",
+      "week": 34,
+      "lesson_id": "g8-year-spanish-w34",
+      "private_bundle_sha256": "7d3eeee6a81ecc8765e283a1fc0001177c4cba393e3286f3bcd87c25884a959b"
+    },
+    {
+      "strand": "spanish",
+      "week": 35,
+      "lesson_id": "g8-year-spanish-w35",
+      "private_bundle_sha256": "18ebfd1794c098810601ea0d8ec698b0935a38fae5947f56d9d7a06a38def8e1"
+    },
+    {
+      "strand": "spanish",
+      "week": 36,
+      "lesson_id": "g8-year-spanish-w36",
+      "private_bundle_sha256": "1424113cf0914f2d52d2e13c1fd27e12a33382620eb7f222f003d222fe17cf8c"
+    },
+    {
+      "strand": "computing",
+      "week": 1,
+      "lesson_id": "g8-year-computing-w01",
+      "private_bundle_sha256": "2309d2a8fc3cfb85034038928db3d5c930c070c90a6fe5d42a3caa37a9a34cff"
+    },
+    {
+      "strand": "computing",
+      "week": 2,
+      "lesson_id": "g8-year-computing-w02",
+      "private_bundle_sha256": "0acbf48c4b41ecba0a21c7547707f1bab18f5de3e13637cf6111e1d3a390239d"
+    },
+    {
+      "strand": "computing",
+      "week": 3,
+      "lesson_id": "g8-year-computing-w03",
+      "private_bundle_sha256": "cee090751040e2653faf9f9987e33bc0ab7051ef610673213b4b3680c4598330"
+    },
+    {
+      "strand": "computing",
+      "week": 4,
+      "lesson_id": "g8-year-computing-w04",
+      "private_bundle_sha256": "716795d1ed3401b937e6b168d7f956e61609dd5986242eef549863e4c1d98dad"
+    },
+    {
+      "strand": "computing",
+      "week": 5,
+      "lesson_id": "g8-year-computing-w05",
+      "private_bundle_sha256": "64743c9ee92d0dc97280c317c60324a282dac8756450d4229696f97132769ec0"
+    },
+    {
+      "strand": "computing",
+      "week": 6,
+      "lesson_id": "g8-year-computing-w06",
+      "private_bundle_sha256": "0f1a04ef620fe7f05eae6968cd490609f72a87bfc840b4318995097f4e2331b3"
+    },
+    {
+      "strand": "computing",
+      "week": 7,
+      "lesson_id": "g8-year-computing-w07",
+      "private_bundle_sha256": "1a1eee06d22a1a5971d8939de726dce8ee49d71001ae8050cdea43b75cc0472f"
+    },
+    {
+      "strand": "computing",
+      "week": 8,
+      "lesson_id": "g8-year-computing-w08",
+      "private_bundle_sha256": "231eb560f9e91a60df38aeebb0e3ae2d0af0aa346cb38480e7398ac3070ab07f"
+    },
+    {
+      "strand": "computing",
+      "week": 9,
+      "lesson_id": "g8-year-computing-w09",
+      "private_bundle_sha256": "181b714aff157cd86c59e46f2665d4871e9888ecde3f166b314f262792ad2023"
+    },
+    {
+      "strand": "computing",
+      "week": 10,
+      "lesson_id": "g8-year-computing-w10",
+      "private_bundle_sha256": "1118aaae7685cbe3d38b1967c68c9fdb327de503c19146a68fe0cb5cfb288db8"
+    },
+    {
+      "strand": "computing",
+      "week": 11,
+      "lesson_id": "g8-year-computing-w11",
+      "private_bundle_sha256": "7012edc55d80cde51848f435696812ad2c7be4b245105b047162ddd222ed81b1"
+    },
+    {
+      "strand": "computing",
+      "week": 12,
+      "lesson_id": "g8-year-computing-w12",
+      "private_bundle_sha256": "f2bbd640cb5780a9f0c6982936f2f0f64c51dcfa5878c2f5b8cfb041d601404b"
+    },
+    {
+      "strand": "computing",
+      "week": 13,
+      "lesson_id": "g8-year-computing-w13",
+      "private_bundle_sha256": "4b7899b2b63fc77843f9474d62e4dca9db1223f1e0f3f56763aae28dd8885110"
+    },
+    {
+      "strand": "computing",
+      "week": 14,
+      "lesson_id": "g8-year-computing-w14",
+      "private_bundle_sha256": "dad7ff5b62b98b5bc681fa404ff34686889bf03814c8586eb0c8b2b8a521ab04"
+    },
+    {
+      "strand": "computing",
+      "week": 15,
+      "lesson_id": "g8-year-computing-w15",
+      "private_bundle_sha256": "715334c65117916fc940d1de1bfcd8ccdb3d218a57266ae22056ad41630ad985"
+    },
+    {
+      "strand": "computing",
+      "week": 16,
+      "lesson_id": "g8-year-computing-w16",
+      "private_bundle_sha256": "1fd9a3854ee377fe03b674389da7344e6778bd45eec93d45f5c6fd62b595b9bb"
+    },
+    {
+      "strand": "computing",
+      "week": 17,
+      "lesson_id": "g8-year-computing-w17",
+      "private_bundle_sha256": "115f5b1573bdb1c4d60fea11ffc3b18051ade4623fcd7898bd50e419adbdf74b"
+    },
+    {
+      "strand": "computing",
+      "week": 18,
+      "lesson_id": "g8-year-computing-w18",
+      "private_bundle_sha256": "9273f77464322b1750b3576878245cac6bc04d48b3e69973441dc8bac36cfc74"
+    },
+    {
+      "strand": "computing",
+      "week": 19,
+      "lesson_id": "g8-year-computing-w19",
+      "private_bundle_sha256": "812dd84b9d08ee1c2171d59bca298b0ff2b95bc9f5c5886ab931a6c169896300"
+    },
+    {
+      "strand": "computing",
+      "week": 20,
+      "lesson_id": "g8-year-computing-w20",
+      "private_bundle_sha256": "ac07ad8f46c936ab5029148ed189845b7a61eb3ca13e538ae38cfede5a6d1b76"
+    },
+    {
+      "strand": "computing",
+      "week": 21,
+      "lesson_id": "g8-year-computing-w21",
+      "private_bundle_sha256": "f26a345904efa4a4d892c42ab85824c080b416b2ff28f7265268adb4075240ea"
+    },
+    {
+      "strand": "computing",
+      "week": 22,
+      "lesson_id": "g8-year-computing-w22",
+      "private_bundle_sha256": "790e2f6e7b16df6476597507f1cecaf883693d5cc8acfdd1b2e2f39399169e99"
+    },
+    {
+      "strand": "computing",
+      "week": 23,
+      "lesson_id": "g8-year-computing-w23",
+      "private_bundle_sha256": "f438c3a0502c3026dcc72c727bc206c1c278d6a434855a2c0c021082ad8c20a4"
+    },
+    {
+      "strand": "computing",
+      "week": 24,
+      "lesson_id": "g8-year-computing-w24",
+      "private_bundle_sha256": "a2cdfcc4c4285e1f0bd58f2ae99c70a2e4a6078070f959cfdb9b834f2337b994"
+    },
+    {
+      "strand": "computing",
+      "week": 25,
+      "lesson_id": "g8-year-computing-w25",
+      "private_bundle_sha256": "3fa2c3fa65e2134c52cbb866ae8a32895748927dcc040cf0b7853378adcf3287"
+    },
+    {
+      "strand": "computing",
+      "week": 26,
+      "lesson_id": "g8-year-computing-w26",
+      "private_bundle_sha256": "e71cdfb29887e07e2a31b294abbbb158c3c4549b6dc06ea5dd7b687e032c6df8"
+    },
+    {
+      "strand": "computing",
+      "week": 27,
+      "lesson_id": "g8-year-computing-w27",
+      "private_bundle_sha256": "ce1bfb9596757453ed6500897b83a3cf5cdff89ef3b48441841a0a3283203d38"
+    },
+    {
+      "strand": "computing",
+      "week": 28,
+      "lesson_id": "g8-year-computing-w28",
+      "private_bundle_sha256": "16afe32e3e7278724586d7ca5f9b0d35fe58022f7bd873b907bbaed0b6a19305"
+    },
+    {
+      "strand": "computing",
+      "week": 29,
+      "lesson_id": "g8-year-computing-w29",
+      "private_bundle_sha256": "4758760638b52a97521f8d8ef49425021db0c91eed2cca8a6c8bf62ece60c70f"
+    },
+    {
+      "strand": "computing",
+      "week": 30,
+      "lesson_id": "g8-year-computing-w30",
+      "private_bundle_sha256": "43828e9c11a8f5437ace3b47e3398dcbe5e09795e31be47419f7719477c26624"
+    },
+    {
+      "strand": "computing",
+      "week": 31,
+      "lesson_id": "g8-year-computing-w31",
+      "private_bundle_sha256": "eb7f527c37237c2ddf91ebae03a59af9ed393b0e8c07166a0d525c2ea87a93f3"
+    },
+    {
+      "strand": "computing",
+      "week": 32,
+      "lesson_id": "g8-year-computing-w32",
+      "private_bundle_sha256": "c348102be63e4982db62eab99ed6cc8e65d4b103812705de6c69ce803548feba"
+    },
+    {
+      "strand": "computing",
+      "week": 33,
+      "lesson_id": "g8-year-computing-w33",
+      "private_bundle_sha256": "e1fd8f7593f02f6ee00b9e62fbb0441ecd1bfe58a0cc6fb661f7e69c5c6a9cce"
+    },
+    {
+      "strand": "computing",
+      "week": 34,
+      "lesson_id": "g8-year-computing-w34",
+      "private_bundle_sha256": "6b47936b2f6f74b7b6f4a21439b5005c7b7c3ee48e200fd219cc65166811b55e"
+    },
+    {
+      "strand": "computing",
+      "week": 35,
+      "lesson_id": "g8-year-computing-w35",
+      "private_bundle_sha256": "c013f017360d9967af41fc44c15bf5152973c79a8fd5c224466c9b815430e629"
+    },
+    {
+      "strand": "computing",
+      "week": 36,
+      "lesson_id": "g8-year-computing-w36",
+      "private_bundle_sha256": "e6ac2204e642f15bb33b949a88a70a19ca22cea2596cab0cdc5c5e27474b80e4"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 1,
+      "lesson_id": "g8-year-wider_learning-w01",
+      "private_bundle_sha256": "dde09fde518bd6d55fbfba01ada8eda8dc1ee537423b90205e724205c94e7f52"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 2,
+      "lesson_id": "g8-year-wider_learning-w02",
+      "private_bundle_sha256": "fa0625f0ca388ac4e9490a132ada14863699baaed73633c4fa23407d603601c8"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 3,
+      "lesson_id": "g8-year-wider_learning-w03",
+      "private_bundle_sha256": "4f46914b761c35c772119c076aa10ec83cb9c5e54d576ba5c73615577de720df"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 4,
+      "lesson_id": "g8-year-wider_learning-w04",
+      "private_bundle_sha256": "34edfbcb0b60b43098984e951e4ce56864ed8b4cee46e614d1bf988902c5d922"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 5,
+      "lesson_id": "g8-year-wider_learning-w05",
+      "private_bundle_sha256": "275fc1861b063142901bf6502f28b48b8795fbc95b1e17b50dd91cec091262a5"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 6,
+      "lesson_id": "g8-year-wider_learning-w06",
+      "private_bundle_sha256": "cc697bf04015231d5363d6600992e576c05240228ba0c1a8505b651d2048a727"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 7,
+      "lesson_id": "g8-year-wider_learning-w07",
+      "private_bundle_sha256": "a78d797652cc059b730c574890dabba4b3a530a9f9565d4a9dec8378410ffad1"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 8,
+      "lesson_id": "g8-year-wider_learning-w08",
+      "private_bundle_sha256": "63b4ae959bd7531b21f6a3a6e1c521d88215cb82afe688d93855702237d12508"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 9,
+      "lesson_id": "g8-year-wider_learning-w09",
+      "private_bundle_sha256": "e3257f4cfe43949aae43151a3a4e453fc83def343b92f3fb53e2102d921a902b"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 10,
+      "lesson_id": "g8-year-wider_learning-w10",
+      "private_bundle_sha256": "4d5686a2a7a106702f22f39a315d9972f0cc3348f6808659b20a895d549a5084"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 11,
+      "lesson_id": "g8-year-wider_learning-w11",
+      "private_bundle_sha256": "eb44e46c5c57a0c7f94da62447c4196b97d6bbb7a23c7b18d6fc9aaa1b6d1f24"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 12,
+      "lesson_id": "g8-year-wider_learning-w12",
+      "private_bundle_sha256": "701247b3f3d8462679db745aa04688f754ac5fba3e2689d6c1f5054583d9ab1e"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 13,
+      "lesson_id": "g8-year-wider_learning-w13",
+      "private_bundle_sha256": "956c505e4ce3dca25a8bb2883d06221a0b94ef454f6772535e366babb6340ae5"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 14,
+      "lesson_id": "g8-year-wider_learning-w14",
+      "private_bundle_sha256": "6219c5174e469c41bebea6826b6c46790221b11ba9f51ef948eecdfc3e4ecd50"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 15,
+      "lesson_id": "g8-year-wider_learning-w15",
+      "private_bundle_sha256": "1da4e7a7571e6c730bbd487b97bde447f92a37638affc3aa68d17cbf71a52051"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 16,
+      "lesson_id": "g8-year-wider_learning-w16",
+      "private_bundle_sha256": "35d6a789621efbaa9f5ff78b682c41b8d53885e3756abe6d30aa9d28050f862f"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 17,
+      "lesson_id": "g8-year-wider_learning-w17",
+      "private_bundle_sha256": "f2c2dfe9250bda0802a3473bc8b1b83b55845a99c0cbcafabc9cc7a93796b472"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 18,
+      "lesson_id": "g8-year-wider_learning-w18",
+      "private_bundle_sha256": "ca2fc74f33d5a320d928772b95941a420acf736e70dad014279ce14c01d964e5"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 19,
+      "lesson_id": "g8-year-wider_learning-w19",
+      "private_bundle_sha256": "43e2e8f221e49d3a986dfe9a42e6973bc52064a3315ba59996dfb6233680e81a"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 20,
+      "lesson_id": "g8-year-wider_learning-w20",
+      "private_bundle_sha256": "3094a6458da4e346fbff51debba06a893375b4f059bc9e4d9a3725fb4c658576"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 21,
+      "lesson_id": "g8-year-wider_learning-w21",
+      "private_bundle_sha256": "d1ced7e3f1962f915fe7224dba23657168828fd8a845634b5b187c85aa9294af"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 22,
+      "lesson_id": "g8-year-wider_learning-w22",
+      "private_bundle_sha256": "de9d603b9c4e82ce6bac850ca845eaf788a96b405db8189be4db66a95b6a4d6e"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 23,
+      "lesson_id": "g8-year-wider_learning-w23",
+      "private_bundle_sha256": "d12f1191a074d864928b670b4139842232bb0a1da0cace88cf13395cca780213"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 24,
+      "lesson_id": "g8-year-wider_learning-w24",
+      "private_bundle_sha256": "3cea665cd78fe110b139755f01a4b4a5eca4f20d96bcb5d7fad191449c1759c5"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 25,
+      "lesson_id": "g8-year-wider_learning-w25",
+      "private_bundle_sha256": "2b4f4c1edd27d2477e5c9f8249ec4b833ba703d90ad52ea482bbd1855fb68f0b"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 26,
+      "lesson_id": "g8-year-wider_learning-w26",
+      "private_bundle_sha256": "3be8b2dc3612e0c77b7f7fd1a01ba353ec4366a2b431dec81836b05a27ec97d4"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 27,
+      "lesson_id": "g8-year-wider_learning-w27",
+      "private_bundle_sha256": "5e1a19362520fc617b40166e852af2127f7721ded502865a1662269c491606a2"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 28,
+      "lesson_id": "g8-year-wider_learning-w28",
+      "private_bundle_sha256": "360c7c5878b7d4f603da2f51c331cc479b9957c891f84da2a4ec94fa31d6ae6d"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 29,
+      "lesson_id": "g8-year-wider_learning-w29",
+      "private_bundle_sha256": "271838c939dc5eee0dfe0a15692e735863eb1200827f35f6d50e54a1b5c83754"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 30,
+      "lesson_id": "g8-year-wider_learning-w30",
+      "private_bundle_sha256": "590a24eceb6aa51e08561815b1f1e01bc15ca01ecbb1119a03f99a4fef9fa6ed"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 31,
+      "lesson_id": "g8-year-wider_learning-w31",
+      "private_bundle_sha256": "7803968d0cac75fd579ed30d5743482acd2ff44cd8046f9714361058ca5bc29c"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 32,
+      "lesson_id": "g8-year-wider_learning-w32",
+      "private_bundle_sha256": "86d5fdcff6f0be90bc367b792103bd6fabb386bbbe5dff9a39f02c3776795e5e"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 33,
+      "lesson_id": "g8-year-wider_learning-w33",
+      "private_bundle_sha256": "104ecde6a5e4ba08021ab357a1ca2544bcb482d762fdeda8c522b6adda878a95"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 34,
+      "lesson_id": "g8-year-wider_learning-w34",
+      "private_bundle_sha256": "82d217ff9b53cd4e9b8b6715d3247e8d05ab528b55816d1d841fb789e949a959"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 35,
+      "lesson_id": "g8-year-wider_learning-w35",
+      "private_bundle_sha256": "492f0efb05ddaacc2466977ef1dcee039ce35fedb981fb0802de43ec8626830d"
+    },
+    {
+      "strand": "wider_learning",
+      "week": 36,
+      "lesson_id": "g8-year-wider_learning-w36",
+      "private_bundle_sha256": "95585aaf47b592d5d7854864c7aee612bf64bb829be8c90e161a820f8e7f41bf"
+    }
+  ]
+}

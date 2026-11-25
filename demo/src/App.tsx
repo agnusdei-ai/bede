@@ -16,6 +16,7 @@ import {
   type QuizQuestion,
 } from './api'
 import i18n from './i18n'
+import { usePublicDemoClosed } from './publicDemoBeta'
 import { useHybridVoiceInput } from './useHybridVoiceInput'
 import { useTranscriptWords } from './useTranscriptWords'
 import { useTextToSpeech, unlockSpeechForSession } from './useTextToSpeech'
@@ -374,6 +375,7 @@ export function CodeScreen({ onLoggedIn }: {
         <span className="block text-xs font-semibold uppercase tracking-wide text-navy-500">
           Demo beta ends December 31, 2026
         </span>
+        <span className="block text-xs text-navy-700">Access closes automatically at midnight Central Time.</span>
         <span className="mt-0.5 block text-xs text-navy-700">
           Onboarding requests are open now.{' '}
           {/* Arrow outside the underlined span — an underlined arrow reads
@@ -3401,6 +3403,7 @@ type Mode =
   | { kind: 'session-ended' }
 
 export default function App() {
+  const betaClosed = usePublicDemoClosed()
   // Resumes a code-chat session straight away if one survived in
   // sessionStorage (see "Session persistence" above) — a reload from a
   // backgrounded-tab app-switch lands back in the conversation instead of
@@ -3412,6 +3415,24 @@ export default function App() {
     const stored = loadStoredAuth()
     return stored ? { kind: 'code-chat', token: stored.token, code: stored.code } : { kind: 'code-setup' }
   })
+
+  useEffect(() => {
+    if (betaClosed) clearStoredAuth()
+  }, [betaClosed])
+
+  if (betaClosed) {
+    return (
+      <main className="min-h-screen bg-parchment-50 flex items-center justify-center p-6">
+        <section className="min-w-0 w-full max-w-lg rounded-2xl border border-navy-100 bg-white p-6 text-center shadow-lg [overflow-wrap:anywhere] sm:p-8">
+          <h1 className="font-display text-3xl font-bold text-navy-800">The demo beta has ended</h1>
+          <p className="mt-4 text-navy-700">The public demo closed December 31, 2026, at 11:59 p.m. Central Time.</p>
+          <p className="mt-3 text-navy-700">Onboarding requests are open.</p>
+          <a href="/inquire/" className="mt-6 inline-block max-w-full rounded-lg bg-gold-400 px-6 py-3 font-bold text-navy-900">Request onboarding</a>
+          <p className="mt-5 break-words"><a href="mailto:info@agnusdei.ai" className="text-navy-800 underline">info@agnusdei.ai</a></p>
+        </section>
+      </main>
+    )
+  }
 
   switch (mode.kind) {
     case 'code-setup':

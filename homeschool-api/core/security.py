@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from core import identity
+from core.public_demo_beta import PUBLIC_DEMO_CLOSES_AT, public_demo_closed
 from core.config import settings
 
 log = logging.getLogger(__name__)
@@ -59,6 +60,8 @@ def create_access_token(
     payload = data.copy()
     now = datetime.now(timezone.utc)
     expire = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
+    if data.get("role") == "demo_code":
+        expire = min(expire, PUBLIC_DEMO_CLOSES_AT)
     payload["iat"] = int(now.timestamp())
     payload["exp"] = int(expire.timestamp())
     if fingerprint:
@@ -138,6 +141,10 @@ def decode_token(token: str, expected_domain: Optional[str] = None) -> Optional[
         if not isinstance(payload, dict):
             return None
         if "exp" in payload and payload["exp"] < datetime.now(timezone.utc).timestamp():
+            return None
+        # Also reject previously issued demo JWTs whose original expiry was
+        # later. Every bearer-token entry point uses this verifier.
+        if payload.get("role") == "demo_code" and public_demo_closed():
             return None
 
         # A legacy token predates domains and is not held to (2) — it was

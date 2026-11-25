@@ -46,6 +46,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium, devices } from 'playwright';
+import { publicDemoClosed, verifyClosedDemo } from './public_demo_beta.mjs';
 
 const TARGET = process.argv[2] || process.env.DEMO_URL || 'https://agnusdei.ai/bede/';
 const TIMEOUT_MS = Number(process.env.JOURNEY_TIMEOUT_MS || 90_000);
@@ -294,6 +295,19 @@ try {
     report.failedStep = 'load';
     report.summary = `The demo page did not load (HTTP ${res ? res.status() : 'no response'}).`;
     finish(1);
+  }
+
+  // Planned closure is healthy only when the real closed screen and both
+  // onboarding contacts are present. Never accept consent or mint a code
+  // after the deadline. The repair workflow's safety HOLD is unchanged.
+  if (publicDemoClosed()) {
+    report.failedStep = 'expected-closure';
+    await verifyClosedDemo(page, ENTRY_BUTTON_LABEL, TIMEOUT_MS);
+    report.failedStep = null;
+    report.ok = true;
+    report.expectedClosure = true;
+    report.summary = 'The public demo is closed as scheduled; onboarding remains available.';
+    finish(0);
   }
 
   // ── Step 1b: the consent gate ────────────────────────────────────────

@@ -29,6 +29,11 @@ terms, private parent/child sessions, or Pilot HOLD.
 Any extension requires a new owner-approved change. No scheduler, external
 account change, new secret, or midnight deployment is required.
 
+The scheduled read-only demo watchdog expects the closed screen after the
+same deadline and verifies both onboarding links instead of starting a demo.
+It still reports broken or premature closure as a failure. Its separate
+write-capable repair HOLD remains unchanged.
+
 ## Validation
 
 Boundary tests cover the last microsecond before closure, exact closure,
@@ -37,3 +42,8 @@ roles. Frontend tests cover an open tab crossing the deadline, mobile
 resume, timer cleanup, API/browser date parity, and the closed screen's
 onboarding contacts. No live email or tutoring session is needed to verify
 the behavior.
+
+Ordinary API tests use a test-only open deadline so unrelated demo scenarios
+continue to run after production closes. `real_demo_beta` tests opt out and
+control the server/token clock at the actual fixed deadline. The public
+route-guard inventory explicitly classifies the read-only status endpoint.

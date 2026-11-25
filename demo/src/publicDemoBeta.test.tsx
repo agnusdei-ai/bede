@@ -42,6 +42,8 @@ describe('public beta deadline', () => {
     const date = /PUBLIC_DEMO_CLOSES_AT = datetime\((\d+), (\d+), (\d+), (\d+), tzinfo=timezone.utc\)/.exec(api)!
     expect(date).not.toBeNull()
     expect(Date.UTC(+date[1], +date[2] - 1, +date[3], +date[4])).toBe(Date.parse(PUBLIC_DEMO_CLOSES_AT))
+    const monitor = readFileSync(join(__dirname, '../../scripts/public_demo_beta.mjs'), 'utf8')
+    expect(monitor).toContain(`PUBLIC_DEMO_CLOSES_AT = '${PUBLIC_DEMO_CLOSES_AT}'`)
   })
 
   it('places the closed screen before every demo mode, retaining onboarding contacts', () => {

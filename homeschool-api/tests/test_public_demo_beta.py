@@ -14,6 +14,8 @@ from core.security import _b64url_decode, create_access_token, decode_token
 from models.schemas import LoginRequest
 from routers import auth
 
+pytestmark = pytest.mark.real_demo_beta
+
 
 def at(monkeypatch, instant):
     monkeypatch.setattr(beta, "utc_now", lambda: datetime.fromisoformat(instant))
@@ -29,7 +31,8 @@ def test_central_midnight_boundary(monkeypatch, instant, closed):
     assert beta.public_demo_closed() is closed
 
 
-def test_new_demo_jwt_never_outlives_beta():
+def test_new_demo_jwt_never_outlives_beta(monkeypatch):
+    at(monkeypatch, "2026-12-31T18:00:00+00:00")
     token = create_access_token({"role": "demo_code"}, expires_delta=timedelta(days=365))
     payload = json.loads(_b64url_decode(token.split(".")[1]))
     assert payload["exp"] == int(beta.PUBLIC_DEMO_CLOSES_AT.timestamp())
@@ -102,6 +105,7 @@ async def test_existing_demo_bearer_is_refused_by_request_guard(monkeypatch):
     from fastapi.security import HTTPAuthorizationCredentials
     from core import deps
 
+    at(monkeypatch, "2027-01-01T05:59:59+00:00")
     token = create_access_token({"role": "demo_code", "code": "123456"})
     monkeypatch.setattr(deps, "demo_code_exists", AsyncMock(return_value=True))
     monkeypatch.setattr(deps, "log_event", AsyncMock())
@@ -142,3 +146,19 @@ def test_http_status_and_mint_exchange_at_cutoff(monkeypatch):
         }).status_code == 410
     mint.assert_not_awaited()
     redeem.assert_not_awaited()
+
+
+def test_open_beta_fixture_still_exercises_sessions_after_real_closure(monkeypatch):
+    from types import SimpleNamespace
+    from conftest import _demo_open_window_unless_testing_deadline
+
+    at(monkeypatch, "2030-02-01T12:00:00+00:00")
+    assert beta.public_demo_closed()
+    request = SimpleNamespace(node=SimpleNamespace(get_closest_marker=lambda name: None))
+    fixture = _demo_open_window_unless_testing_deadline.__wrapped__(request, monkeypatch)
+    next(fixture)
+    assert not beta.public_demo_closed()
+    token = create_access_token({"role": "demo_code", "code": "123456"})
+    assert decode_token(token) is not None
+    with pytest.raises(StopIteration):
+        next(fixture)

@@ -61,6 +61,25 @@ def test_client_with_database_context():
 
 
 @pytest.fixture(autouse=True)
+def _demo_open_window_unless_testing_deadline(request, monkeypatch):
+    """Ordinary demo tests exercise an open beta, even after production closes.
+
+    Only the explicit real_demo_beta tests exercise the fixed real deadline.
+    Move the test deadline, not general token time: unrelated expiry tests
+    can keep constructing timestamps relative to their actual wall clock.
+    This fixture is test-only; there is no production extension switch.
+    """
+    if not request.node.get_closest_marker("real_demo_beta"):
+        from datetime import timedelta
+        from core import public_demo_beta
+        monkeypatch.setattr(
+            public_demo_beta, "PUBLIC_DEMO_CLOSES_AT",
+            public_demo_beta.utc_now() + timedelta(days=365),
+        )
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _clear_readonly_prompt_caches():
     """services/ai_service.py caches _load_mastery_vector_readonly,
     _load_processing_style_readonly, _load_lesson_bookmark_readonly and
@@ -153,6 +172,9 @@ async def demo_db(monkeypatch):
 
 
 def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "real_demo_beta: exercise the fixed production beta deadline",
+    )
     config.addinivalue_line(
         "markers",
         "real_consent: run the real parental-consent gate (core/consent.py) instead of the test stub",

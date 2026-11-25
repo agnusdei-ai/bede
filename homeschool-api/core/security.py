@@ -20,11 +20,10 @@ import hashlib
 import hmac
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Optional
 
-from core import identity
-from core.public_demo_beta import PUBLIC_DEMO_CLOSES_AT, public_demo_closed
+from core import identity, public_demo_beta
 from core.config import settings
 
 log = logging.getLogger(__name__)
@@ -58,10 +57,10 @@ def create_access_token(
     invalidates the signature either way.
     """
     payload = data.copy()
-    now = datetime.now(timezone.utc)
+    now = public_demo_beta.utc_now()
     expire = now + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     if data.get("role") == "demo_code":
-        expire = min(expire, PUBLIC_DEMO_CLOSES_AT)
+        expire = min(expire, public_demo_beta.PUBLIC_DEMO_CLOSES_AT)
     payload["iat"] = int(now.timestamp())
     payload["exp"] = int(expire.timestamp())
     if fingerprint:
@@ -140,11 +139,11 @@ def decode_token(token: str, expected_domain: Optional[str] = None) -> Optional[
         payload = json.loads(_b64url_decode(body_b64))
         if not isinstance(payload, dict):
             return None
-        if "exp" in payload and payload["exp"] < datetime.now(timezone.utc).timestamp():
+        if "exp" in payload and payload["exp"] < public_demo_beta.utc_now().timestamp():
             return None
         # Also reject previously issued demo JWTs whose original expiry was
         # later. Every bearer-token entry point uses this verifier.
-        if payload.get("role") == "demo_code" and public_demo_closed():
+        if payload.get("role") == "demo_code" and public_demo_beta.public_demo_closed():
             return None
 
         # A legacy token predates domains and is not held to (2) — it was

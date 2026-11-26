@@ -889,6 +889,16 @@ break every hour for every child, but it will not tell you that your
      attention — it removes an age limit on a choice that is yours to make.
      It cannot shorten, skip, delay, or extend past the mandatory ten-minute
      break every hour, which stays exactly as it is for everyone.
+   - **Learning sprint length** (a dropdown: Usual, 20 minutes, 30 minutes,
+     1 hour). A learning sprint is one focused stretch of work before Bede
+     offers a pause. Pick the length that suits this learner. With 20 or 30
+     minutes, Bede offers a short pause at the end of each sprint, at any
+     grade; the child can take it or keep going. With 1 hour, Bede offers
+     no pause and the sprint runs to the required hourly break. **Usual**
+     leaves things as they were: an offer every 20 minutes for grades K-3
+     (or any grade with the checkbox above), none otherwise. The required
+     ten-minute break every hour does not change, and Bede never tells the
+     child a sprint is ending or hurries them to finish.
 
    **There is deliberately no dyslexia font, and no "dyslexia mode."** The
    special fonts sold for this — OpenDyslexic and similar — have been
@@ -1688,6 +1698,41 @@ local model is running slowly or giving weaker answers than usual.
 Setting up a second provider in the first place is a one-time, technical
 step (see `docs/PROVIDER_ADAPTERS.md`). This card only lets you choose
 among providers that are already set up, it doesn't add a new one.
+
+### Checking that each provider actually answers
+
+A backup only helps if it can answer. The **AI Provider** card has a
+**Check AI providers** button (it also appears when only one provider is set
+up). Press it and Bede sends each provider one very small request, then tells
+you, in plain words, which ones answered and why any others did not:
+
+- **Out of credit or billing is not set up.** Add credit in that provider's
+  billing settings.
+- **Your plan does not include the model Bede asks for.** Upgrade the plan, or
+  set that provider's model setting to one your plan includes.
+- **Refusing because of a rate limit.** Your plan allows too few requests or
+  too little text per minute. A higher plan raises the limit.
+- **The API key was rejected.** Check the key, or create a new one.
+- **This key belongs to the whole organization.** Claude keys made at the
+  organization level (rather than inside a workspace) need to say which
+  workspace to bill. Copy the workspace's ID from the Anthropic Console's
+  workspace settings into `ANTHROPIC_WORKSPACE_ID`, or create a new key inside
+  a workspace and use that instead.
+- **Could not be reached.** The provider may be down, or the address may be
+  wrong.
+
+Under each reason you also see the provider's own words, which is what to
+quote if you contact them. Each check is a real request and costs a tiny
+amount on each provider's bill, so Bede allows one every 30 seconds. It is
+worth pressing after you add credit, change a plan or paste a new key, rather
+than finding out during a lesson.
+
+**If no provider can answer during a lesson,** your child sees: "I can't reach
+my thinking right now, so I can't answer yet. This isn't anything you did.
+Please let a grown-up know, and we can try again a little later." That is your
+cue to press **Check AI providers**. In **Ask Bede** you see the same reasons
+as the check, provider by provider. Bede's log and the backend-failure alert
+also record each provider's reason.
 
 ## 11. Managing devices
 

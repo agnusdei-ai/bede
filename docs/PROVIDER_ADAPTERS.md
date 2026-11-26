@@ -91,6 +91,7 @@ All in `homeschool-api/core/config.py` (env vars via `.env`):
 | `LOCAL_LLM_MODEL` | *(not set)* | Model name the local server serves. Written by every installer and by setup. Not set: the server's only model, or an error naming this setting (see "When `LOCAL_LLM_MODEL` is not set" below). Recommended for vLLM: `mistralai/Mistral-Small-3.2-24B-Instruct-2506`. |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | Chat model for the OpenAI adapter (reuses `OPENAI_API_KEY`). |
 | `MISTRAL_API_KEY` / `MISTRAL_MODEL` | *(empty)* / `mistral-large-latest` | Mistral secondary. |
+| `ANTHROPIC_WORKSPACE_ID` | *(empty)* | Only for an **organization-level** Anthropic key. Sent as the `anthropic-workspace-id` header on every Claude request, naming the workspace to bill. Without it such a key is refused with "API key is not scoped to a workspace" (seen on the demo, 2026-11-17). A key created inside a workspace needs nothing here, and sending the header with one is harmless. Checked at boot: letters, digits, `_` and `-` only, since it becomes a header value. `tests/test_anthropic_workspace_header.py` reads the header off the wire. |
 
 An adapter is **"configured"** when the credentials it needs are present:
 `local` needs `LOCAL_LLM_BASE_URL`; `anthropic` needs `ANTHROPIC_API_KEY`;
@@ -126,14 +127,57 @@ be enabled explicitly, e.g. `BEDE_ADAPTER_ORDER=local,openai,anthropic`.
 
 `router.resolve_with_failover()` returns a `FailoverClient` presenting the same
 `.messages` surface but trying each *configured* adapter in order, catching
-auth (401/403), rate-limit (429), and connection/timeout errors and falling
-through to the next. A short in-memory circuit breaker (per-adapter cooldown)
-keeps a downed provider from being retried on every request. Streaming fails
+auth (401/403), rate-limit (429), connection/timeout and "bad request" (400)
+errors and falling through to the next. A short in-memory circuit breaker
+(per-adapter cooldown) keeps a downed provider from being retried on every
+request. A 400 is the one exception to the cooldown: it moves the turn on but
+does not mark the provider down, because a 400 can be about one request (an
+oversized picture) rather than the provider, and a cooldown would then refuse
+every other child's turn too. It is on the list because Anthropic reports an
+empty account ("Your credit balance is too low") as a 400; before 2026-11-17 a
+Claude provider with no credit ended the turn instead of passing it on. Any
+other error (a bug in Bede's own code, for instance) still ends the turn rather
+than being hidden by trying another provider. Streaming fails
 over only *before* the first event is yielded (switching mid-stream to the child
 isn't safe). It is an opt-in helper, not the default `_client`, so the
 single-resolved-client contract the existing tests rely on stays intact. When a
 non-primary adapter is used, it best-effort emails the operator
 (`PARENT_EMAIL`/Resend, via the existing `services/email_service.py`) as an FYI.
+
+## When a provider refuses: the reason, in plain words
+
+`services/adapters/provider_errors.py`'s `classify()` turns a provider's
+refusal into one code and a sentence a parent can act on: `no_credit`,
+`model_not_on_plan`, `rate_limited`, `bad_key`, `needs_workspace` (an organization-level Anthropic key with no `ANTHROPIC_WORKSPACE_ID`), `unreachable`, `refused` or
+`unknown`. It reads the exception's class, status and the provider's own
+message, never the request. Billing words are checked before the status code,
+because OpenAI reports "no credits" as a 429 and Anthropic reports an empty
+balance as a 400.
+
+- **The switch** logs each provider's reason as it moves on, and when every
+  provider refused it attaches `(provider, code)` pairs to the exception it
+  raises (`router.provider_failures(exc)`).
+- **A lesson** whose providers all refused tells the child, in their language,
+  that Bede can't reach its thinking and to let a grown-up know
+  (`ai_unavailable_response`), instead of "Something went wrong on my end",
+  which invited a retry that would fail the same way. The child never sees a
+  provider name or a billing word. The `AI_BACKEND_FAILURE` audit detail gains
+  `providers=openai:no_credit,...`. A failure that did not come from every
+  provider refusing (a bug in Bede) keeps the old message.
+- **Ask Bede** tells a signed-in parent or teacher which provider refused and
+  why. The anonymous demo gets the child's plain notice instead, since the
+  operator's billing state is not a visitor's business.
+- **`POST /admin/ai-provider/check`** (parent) sends each configured provider
+  the fixed prompt "Reply with the single word OK." with `max_tokens` 5 and
+  returns each result. Fresh clients per check, so it never trips the circuit
+  breaker real lessons use. One check per 30 seconds per server, since every
+  check is billed. `AIProviderSettings.tsx` shows it as **Check AI providers**.
+  It runs only on a press, never on a schedule.
+
+Tests: `tests/test_provider_refusal_messages.py` (the classifier against the
+exact errors of 2026-11-17, the real switch, a real `/tutor/chat` turn in both
+languages, Ask Bede for a parent and for the demo, the check and its limit)
+and `src/components/AIProviderCheck.test.tsx`.
 
 ## Live, in-app provider switching (no .env edit, no restart)
 
@@ -303,6 +347,27 @@ serve without needing Anthropic access at all. After a Blueprint deploy, fill
 in `OPENAI_API_KEY` and `MISTRAL_API_KEY` from Render's dashboard (both
 `sync: false`, per docs/DEMO_HOSTING.md's setup walkthrough) —
 `ANTHROPIC_API_KEY` is left declared but optional/unused by default here.
+
+`render.yaml` also sets `MISTRAL_MODEL=mistral-small-latest`. The default,
+`mistral-large-latest`, is refused by the demo account's Mistral plan ("403 -
+This model is not available in your subscription tier"). Nothing showed it
+while OpenAI answered every turn; on 2026-11-17 OpenAI ran out of credit and
+every lesson failed, because the backup could not answer either. **A backup
+you have never seen answer is not a backup.** After changing a key or plan,
+send one test request per provider (see the curl check below) rather than
+waiting for an outage to find out.
+
+To check a model without sending your key anywhere but Mistral:
+
+```
+curl -s https://api.mistral.ai/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_MISTRAL_KEY" -H "Content-Type: application/json" \
+  -d '{"model":"mistral-small-latest","messages":[{"role":"user","content":"hi"}],"max_tokens":5}'
+```
+
+A reply with text means the plan allows the model; a 403 means it does not.
+Do not rely on `/v1/models` for this, which can list models a plan still
+refuses.
 
 **This is live failover, not just a boot-time preference.**
 `services/ai_service.py`'s `_client` is resolved via

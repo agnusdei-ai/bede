@@ -181,6 +181,10 @@ GUARDS = {
     ('GET', '/admin/ai-provider'): 'require_parent',
     ('POST', '/admin/ai-provider'): 'require_elevated_parent',
     ('POST', '/admin/ai-provider/secondary'): 'require_elevated_parent',
+    # Parent, not elevated: it changes no setting and shows the same provider
+    # list GET does, plus whether each answers. Its cost (one tiny billed
+    # request per provider) is bounded by a 30-second server-side limit.
+    ('POST', '/admin/ai-provider/check'): 'require_parent',
     ('GET', '/admin/audit'): 'require_elevated_parent',
     ('GET', '/admin/devices'): 'require_parent',
     ('POST', '/admin/devices/{device_id}/revoke'): 'require_elevated_parent',

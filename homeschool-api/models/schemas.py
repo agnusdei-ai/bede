@@ -402,6 +402,10 @@ def clean_display_name(value: str) -> str:
     return " ".join(kept.split())[:50]
 
 
+#: The learning sprint lengths an adult can pick (mirrored in gradeTimer.ts).
+SPRINT_MINUTES_OPTIONS = (20, 30, 60)
+
+
 class Grade8CurriculumSelection(BaseModel):
     """Adult-selected instructional position, never inferred mastery."""
     model_config = {"extra": "forbid"}
@@ -622,6 +626,21 @@ class SessionConfig(BaseModel):
     #: §5). Cannot shorten, skip, delay, or extend past the mandatory hourly
     #: break; it only makes the existing suggestion reachable.
     frequent_break_offers: bool = False
+    #: The learning sprint chosen for this learner, in minutes: 20, 30 or 60
+    #: (docs/GLOSSARY.md). None keeps the usual rhythm for the grade. The app
+    #: offers a pause at the end of each sprint; a 60-minute sprint offers
+    #: none, since the required hourly break already ends it. It cannot
+    #: shorten, skip or delay that break, and it never reaches a prompt:
+    #: Bede does not time or hurry a child.
+    sprint_minutes: Optional[int] = None
+
+    @field_validator("sprint_minutes", mode="before")
+    @classmethod
+    def _clean_sprint_minutes(cls, value):
+        """Clean, never reject: anything but 20, 30 or 60 means "not set"."""
+        if isinstance(value, bool):
+            return None
+        return value if value in SPRINT_MINUTES_OPTIONS else None
 
     #: K-2 practice (docs/K2_PRACTICE.md §4): which practice rounds Bede may
     #: offer this child. "off": none. "approved_only": only practice sets the

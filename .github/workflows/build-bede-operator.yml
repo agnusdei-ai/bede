@@ -493,10 +493,18 @@ jobs:
   # manifest and can be launched from a desktop application entry.
   package-linux-native:
     name: Bede Linux native Standard DEB and RPM (${{ matrix.arch }})
+    # A matrix's exclude can only name keys of its base matrix, so arch is
+    # listed here and include only adds each arch's runner. With an
+    # include-only matrix (#898) the exclude names a key that does not exist,
+    # and GitHub silently creates no job and fails the whole run. The job is
+    # skipped outright when neither Linux build was asked for, since an empty
+    # matrix is also an error.
+    if: ${{ contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' linux-amd64 ') || contains(format(' {0} ', github.event_name == 'workflow_dispatch' && inputs.targets || 'mac-arm64 mac-amd64 windows-amd64 linux-amd64 linux-arm64 bundles checks'), ' linux-arm64 ') }}
     needs: package
     strategy:
       fail-fast: false
       matrix:
+        arch: [amd64, arm64]
         include:
           - arch: amd64
             runner: ubuntu-24.04

@@ -21,17 +21,19 @@ release:
   version: "1.0"
   target: production pilot RC for customer-environment implementation
 candidate:
-  source_sha: null
-  source_sha_reason: owner has not selected a candidate; this branch and its working tree are not a candidate
-  target_platform: customer deployment unknown; documented physical-acceptance target is macOS on the owner's 24 GB Apple Silicon MacBook Pro, same-machine
-  target_architecture: customer deployment unknown; documented physical-acceptance Mac is Apple Silicon/arm64, to be verified on device by owner
-  package_digest: null
-  package_status: not built
-  qualification_manifest: null
+  source_sha: 2eeed597fd90feea0e4592ec77fd79a6be535c00
+  source_sha_reason: main at 2026-11-22, proposed for acceptance; not owner-selected until owner_approval_ref is set
+  target_platform: macOS on the owner's 24 GB Apple Silicon MacBook Pro, same-machine; customer deployment unknown
+  target_architecture: arm64, to be verified on device by owner
+  package: bede-mac-engineering-unnotarized-arm64-2eeed597fd90feea0e4592ec77fd79a6be535c00 (Actions run 44980645119, artifact 14737873579, expires 2026-12-22)
+  package_digest: NOT_RUN; the DMG's own SHA-256 is in Bede-Engineering-Mac-arm64.dmg.sha256 inside the artifact and has not been read or verified
+  package_status: built; ad hoc signed, not notarized, engineering only
+  qualification_manifest: Sample qualification run 45022537882 (passed)
 gates:
   agent_review: prior read-only reviews recorded; follow-up of proposed print fix pending
-  automated_qualification: not run on a selected candidate
-  customer_installation: not run
+  automated_qualification: passed on 2eeed597 (see "Candidate under acceptance")
+  customer_installation: NOT_RUN
+  published_site_visual_check: NOT_RUN
   physical_mac_safari_acceptance: NOT_RUN; owner-operated
   real_learner_data: not authorized by this packet
   production_rc_ready: false
@@ -40,6 +42,122 @@ decision:
   status: HOLD
   owner_approval_ref: null
 ```
+
+## Candidate under acceptance (recorded 2026-11-22)
+
+Candidate: `main` at `2eeed597fd90feea0e4592ec77fd79a6be535c00` (#895).
+Three outcomes, kept apart. The first two do not establish the third.
+
+**1. CI passed.** On 2eeed597, 79 check runs: 61 passed, 18 skipped, none
+pending, no commit statuses. The 18 skipped are the demo watchdog's
+`repair` job, which runs only when the watchdog finds a fault. The three
+required checks (the `main` ruleset: FAQ copy, PDF and native print
+cancellation; FAQ export parity firefox and webkit) passed on the first
+attempt. Production deployment regression (44980645090) passed. Dispatched
+against this SHA: sample qualification 45022537882 passed; cross-platform
+browser journeys 45022539891 passed in all five jobs (macOS desktop and
+mobile, Ubuntu desktop and boundary, Windows desktop).
+
+Two exceptions are recorded rather than rounded off:
+
+- The operator-bundle workflow run 44980645119 concluded failure although
+  all nine of its jobs passed. #898 added a matrix `exclude` to the Linux
+  DEB/RPM job, whose matrix had only `include`; GitHub created no job and
+  failed the run on every push from f4154151. The Mac DMG is unaffected.
+  The fix is commit 88a74e56 on #837; run 45022659588 there created and
+  passed both Linux jobs. It reaches `main` only with #837 or separately
+  on the owner's say.
+- The FAQ print-cancellation check failed once on #911's head
+  (324d48f1, run 44979575426, job 137076906007) and **passed on rerun**;
+  it was not an uninterrupted pass. The failure is in the test harness:
+  headed Chromium's native print preview did not appear within 15 s
+  (`cancelPrintPreview`), so the FAQ's own restore check never ran. One
+  failure in the last 40 runs. The failed log is kept with the session's
+  evidence; the attempt-1 artifact expires 2026-12-06. It is not the
+  teacher-plan or K-2 print code (`printDocument`/`printTeacherPlan`).
+  If it recurs, or anything similar appears on those paths, investigate
+  before release.
+
+- **Auto-merge does not wait for the test suites.** The `main` ruleset
+  requires only the three FAQ checks, and GitHub's auto-merge waits for
+  required checks alone. #908 merged at 02:45:06, four seconds after its
+  `demo-tests` failed and before `homeschool-tutor-tests` finished (also
+  failing), which is how the missing print case reached `main`; #890
+  merged the same way at 03:09 while both suites were red. At this
+  record, #837 is the only open PR and its auto-merge is off. Until the
+  ruleset requires the test suites (an owner setting), a release PR is
+  merged by hand after every check has finished, never by auto-merge.
+
+**2. The site build published.** Cloudflare Workers Builds reported success
+for 2eeed597, and the live header check (44980645084) passed. The site
+carries no revision marker, so "2eeed597 is what is served" rests on that
+build result alone.
+
+**3. The published site and the installed product were exercised.**
+NOT_RUN. The agnusdei.ai pages could not be reached from the engineering
+environment, and no one has installed this DMG.
+
+### Before the Mac session
+
+- **Licence.** This DMG verifies keys against the public key on `main`.
+  The pilot replacement key described in BEDE_MAC_PILOT_INSTALLER.md §1 is
+  not on `main`. Without a key signed for `main`'s key, the installed
+  product starts gated. Confirm which key will be pasted.
+- **Downloads.** The installer pulls the container images it names by
+  digest. Local inference (the 2026-11-20 decision) needs an Ollama model
+  pulled on the Mac. Docker Desktop, if not already installed. Each one is
+  the owner's to approve.
+- **Paid speech.** The reference voice is OpenAI's: with `OPENAI_API_KEY`
+  set, each spoken line is a paid request and Bede's words leave the Mac,
+  which the local-only decision did not cover. Choose: set the key for
+  this check, or run text-first and record the voice check NOT_RUN.
+
+### Mac acceptance session (one owner-run command)
+
+The session is `scripts/mac/collect-g3-evidence.sh --session`, the existing
+G3 collector's guided mode. Run on the Mac, from the folder holding the
+unzipped artifact:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/agnusdei-ai/bede/93d121a4eb048f0b3c2503fe81cfb0ed2c3697b8/scripts/mac/collect-g3-evidence.sh
+bash collect-g3-evidence.sh --session \
+  --candidate 2eeed597fd90feea0e4592ec77fd79a6be535c00 \
+  --dmg ./Bede-Engineering-Mac-arm64.dmg --license-file ~/path/to/licence.txt \
+  --voice none            # or: --voice openai --openai-project <id> --voice-max-usd 0.05 --approve-voice
+```
+
+Without `--go` it only runs the read-only preflight and prints the plan and
+every STOP. Add `--approve-downloads` once the listed downloads are agreed,
+then `--go` for the guided steps and `--site` for the public-site checklist.
+`--work DIR --retest STEP` repeats one step after a fix; every attempt
+stays in `results.tsv`. Evidence: `~/Bede-Acceptance/<candidate>/evidence/`,
+owner-only, never uploaded.
+
+### Mac session results
+
+Paste `SUMMARY.md`'s table here after the session, with the evidence
+folder's `SHA256SUMS` digest. Until then every step below is NOT_RUN.
+
+| Step | Checked by | Result |
+| --- | --- | --- |
+| artifact, licence, downloads, voice plan | collector preflight | NOT_RUN |
+| install, licence-unlocked, lesson, restart | collector + owner | NOT_RUN |
+| learner, voice, progress, upgrade | owner | NOT_RUN |
+| site checklist | owner | NOT_RUN |
+
+### Published site (owner, any browser)
+
+- `https://agnusdei.ai/`: loads; no checkout or payment links.
+- `https://agnusdei.ai/faq/`: open the curriculum section; Print FAQ opens
+  the print dialog; Cancel returns with the same sections open.
+- `https://agnusdei.ai/bede/`: start the demo as grade 2; Number Time to
+  the end; "Print or save as PDF" gives one sheet with drawn pictures,
+  plates of counters for a sharing question, nothing cut off.
+- The same print from Sound Time and Map Practice (kindergarten or
+  grade 1).
+- `https://agnusdei.ai/privacy/`: loads.
+
+Until someone does this, the visual check is NOT_RUN.
 
 ## Current evidence
 

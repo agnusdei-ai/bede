@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { BadgeCheck, ChevronDown, ChevronUp, CircleSlash, Cpu, Loader2 } from 'lucide-react'
-import { fetchAIProviderStatus, setAIProvider, setAIProviderSecondary } from '../services/api'
-import type { AIProviderName, AIProviderStatus } from '../types'
+import { AlertTriangle, BadgeCheck, ChevronDown, ChevronUp, CircleSlash, Cpu, Loader2, Stethoscope } from 'lucide-react'
+import { checkAIProviders, fetchAIProviderStatus, setAIProvider, setAIProviderSecondary } from '../services/api'
+import type { AIProviderCheckResult, AIProviderName, AIProviderStatus } from '../types'
 
 const LABELS: Record<AIProviderName, string> = {
   local: 'Local (self-hosted, e.g. Ollama/vLLM)',
@@ -52,6 +52,7 @@ export default function AIProviderSettings({ token }: { token: string }) {
           Adding a second provider, even just as a backup, lets Bede keep working on its own. See
           docs/PROVIDER_ADAPTERS.md for how to set one up.
         </p>
+        <ProviderCheck token={token} />
       </div>
     )
   }
@@ -202,8 +203,114 @@ export default function AIProviderSettings({ token }: { token: string }) {
             </div>
           )}
 
+          <ProviderCheck token={token} />
+
           {busy && <p className="text-xs text-gray-400 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Switching…</p>}
           {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const SUMMARY_TONE = { good: 'text-green-700', warn: 'text-amber-800', bad: 'text-red-700' } as const
+
+/**
+ * The one-line summary above the check results. "A working backup" means a
+ * second provider that answered: a household with one provider, or with only
+ * one that answered, has none, however healthy that one provider is.
+ */
+export function checkSummary(
+  results: AIProviderCheckResult[],
+): { tone: keyof typeof SUMMARY_TONE; text: string } | null {
+  const total = results.length
+  const answered = results.filter((r) => r.ok).length
+  if (total === 0) return null
+  if (answered === 0) {
+    return total === 1
+      ? { tone: 'bad', text: 'This provider did not answer. Lessons will not work until it is fixed.' }
+      : { tone: 'bad', text: 'No provider answered. Lessons will not work until at least one of these is fixed.' }
+  }
+  if (answered === 1) {
+    return total === 1
+      ? { tone: 'warn', text: 'This provider answered, so lessons will work. Bede has no backup: if it stops answering, lessons stop until it is back.' }
+      : { tone: 'warn', text: 'Lessons will work, but only one provider answered, so Bede has nothing to fall back to until the others are fixed.' }
+  }
+  return answered === total
+    ? { tone: 'good', text: 'Every provider answered. Bede has a working backup.' }
+    : { tone: 'good', text: 'Lessons will work and Bede has a working backup, but the providers marked below did not answer.' }
+}
+
+/**
+ * "Check AI providers": sends each configured provider one tiny request and
+ * says, in plain words, which ones answer and why the others do not (no
+ * credit, a plan without the model, a rate limit, a rejected key). A backup
+ * nobody has seen answer is not a backup: on 2026-11-17 the public demo's two
+ * backups could not answer and nothing showed it until the main provider ran
+ * out of credit. Run only on a press, because every check is a real, billed
+ * request; the server allows one every 30 seconds.
+ */
+export function ProviderCheck({ token }: { token: string }) {
+  const [checking, setChecking] = useState(false)
+  const [results, setResults] = useState<AIProviderCheckResult[] | null>(null)
+  const [error, setError] = useState('')
+
+  const run = async () => {
+    setChecking(true)
+    setError('')
+    try {
+      setResults(await checkAIProviders(token))
+    } catch (err) {
+      setResults(null)
+      setError(err instanceof Error ? err.message : 'Could not check the AI providers')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const summary = results ? checkSummary(results) : null
+
+  return (
+    <div className="pt-3 mt-3 border-t border-gray-100 space-y-2">
+      <button
+        onClick={run}
+        disabled={checking}
+        className="flex items-center gap-1.5 text-sm font-medium text-navy-700 border border-navy-200 rounded-lg px-3 py-2 hover:bg-navy-50 disabled:opacity-60"
+      >
+        <Stethoscope size={14} /> Check AI providers
+      </button>
+      <p className="text-xs text-gray-500">
+        Sends each provider one very small request and tells you which ones answer. Each check is
+        a real request, so it costs a tiny amount on each provider&apos;s bill.
+      </p>
+      {checking && (
+        <p className="text-xs text-gray-400 flex items-center gap-1.5" role="status">
+          <Loader2 size={12} className="animate-spin" /> Checking…
+        </p>
+      )}
+      {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
+      {results && (
+        <div role="status" aria-label="AI provider check results" className="space-y-1.5">
+          {summary && <p className={`text-sm ${SUMMARY_TONE[summary.tone]}`}>{summary.text}</p>}
+          <ul className="space-y-1.5">
+            {results.map((r) => (
+              <li
+                key={r.provider}
+                className={`text-sm rounded-lg px-3 py-2 border ${
+                  r.ok ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-900'
+                }`}
+              >
+                <span className="flex items-center gap-1.5 font-medium">
+                  {r.ok ? <BadgeCheck size={14} /> : <AlertTriangle size={14} />}
+                  {LABELS[r.provider] ?? r.provider}
+                </span>
+                <span className="block text-xs mt-0.5">{r.message}</span>
+                {!r.ok && r.detail && (
+                  <span className="block text-xs mt-0.5 text-gray-600">The provider said: {r.detail}</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>

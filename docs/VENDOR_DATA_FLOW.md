@@ -82,6 +82,10 @@ that vendor's own privacy policy and terms yourself — this document
 describes what Bede sends, not what any given vendor does with it
 afterward.
 
+**The parent's "Check AI providers" button** sends each configured provider
+one fixed sentence, "Reply with the single word OK.", with no system prompt,
+conversation, learner or account detail. It runs only when a parent presses it.
+
 ## OpenAI — optional, three independent features
 
 All three are gated behind `OPENAI_API_KEY`; leaving it unset disables

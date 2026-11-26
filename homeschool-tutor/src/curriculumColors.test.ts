@@ -38,7 +38,21 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SUBJECTS } from './types'
+import { SUBJECTS as ALL_SUBJECTS } from './types'
+
+// Keep the full original14-subject marketing contract. Grade8 course-only
+// options have their own app accents and are not advertised across every grade.
+const SUBJECTS = ALL_SUBJECTS.filter(subject => !subject.courseOnly)
+
+it('keeps the three Grade8 additions course-specific, without changing the general catalog', () => {
+  const extras = ALL_SUBJECTS.filter(subject => subject.courseOnly)
+  expect(extras.map(subject => subject.id)).toEqual(['spanish', 'computing', 'movement_health'])
+  expect(SUBJECTS).toHaveLength(14)
+  for (const subject of extras) {
+    expect(subject.color).toMatch(/^#[0-9a-f]{6}$/i)
+    expect(subject.durationMin).toBeGreaterThan(0)
+  }
+})
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO = join(__dirname, '../..')

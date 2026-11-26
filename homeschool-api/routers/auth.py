@@ -33,6 +33,7 @@ from core.deps import (
 from core.middleware import compute_fingerprint
 from core.parent_credential import current_credentials_version, verify_parent_password
 from core.security import create_access_token, decode_token, validate_fingerprint
+from core import public_demo_beta
 from models.schemas import (
     DemoCodeRequest,
     DemoCodeResponse,
@@ -50,6 +51,24 @@ from services.ai_service import _sanitize_parent_field
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
+
+
+def _require_public_demo_open() -> None:
+    if public_demo_beta.public_demo_closed():
+        raise HTTPException(
+            status_code=status.HTTP_410_GONE,
+            detail=public_demo_beta.PUBLIC_DEMO_CLOSED_MESSAGE,
+        )
+
+
+@router.get("/demo-status")
+async def public_demo_status():
+    """Public, read-only deadline; never expose deployment credentials."""
+    return {
+        "closed": public_demo_beta.public_demo_closed(),
+        "closes_at": public_demo_beta.PUBLIC_DEMO_CLOSES_AT.isoformat(),
+        "time_zone": "America/Chicago",
+    }
 
 
 @router.post("/demo-code", response_model=DemoCodeResponse)
@@ -90,6 +109,7 @@ async def create_demo_code(req: Optional[DemoCodeRequest] = None):
     """
     if not settings.demo_pin:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="The free demo is not enabled on this deployment")
+    _require_public_demo_open()
 
     student_name = _sanitize_parent_field(req.student_name if req else None, max_len=50)
     grade = req.grade.strip() if req and req.grade and req.grade.strip() in VALID_DEMO_GRADES else None
@@ -177,6 +197,7 @@ async def set_demo_parent_config(
             student_name=student_name or settings.demo_student_name,
             grade=grade,
             grade_stage=demo_grade_to_stage(grade),
+            grade8_curriculum=req.grade8_curriculum,
             **({"subjects": req.subjects} if req.subjects else {}),
             **({"companion_mode": req.companion_mode} if req.companion_mode else {}),
             **({"bible_translation": req.bible_translation} if req.bible_translation else {}),
@@ -195,6 +216,7 @@ async def set_demo_parent_config(
         "lesson_focus": validated.lesson_focus,
         "faith_emphasis": validated.faith_emphasis,
         "current_unit": validated.current_unit,
+        "grade8_curriculum": validated.grade8_curriculum.model_dump() if validated.grade8_curriculum else None,
         "faith_tradition": validated.faith_tradition,
         "bible_translation": validated.bible_translation,
         "curriculum_resources": validated.curriculum_resources,
@@ -243,6 +265,8 @@ async def educator_login(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(req: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    if req.role == "demo_code":
+        _require_public_demo_open()
     ctx = audit_from_request(request)
     fp = compute_fingerprint(ctx["ip"], ctx["user_agent"])
 

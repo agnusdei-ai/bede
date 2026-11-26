@@ -345,7 +345,10 @@
     "latin": "Latín y Fundamentos Cristianos",
     "greek": "Griego y Fundamentos del Nuevo Testamento",
     "logic": "Lógica",
-    "free_study": "Estudio Libre"
+    "free_study": "Estudio Libre",
+    "spanish": "Español",
+    "computing": "Informática e Investigación",
+    "movement_health": "Movimiento y Educación para la Salud"
   },
   "breakActivities": [
     "Mira algo a al menos 6 metros de distancia durante 20 segundos — les da a tus ojos un verdadero descanso.",

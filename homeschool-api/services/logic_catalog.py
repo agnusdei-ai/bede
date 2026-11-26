@@ -52,6 +52,14 @@ THE TWO GUARDRAILS THAT MATTER MOST. Neither is decoration:
 Examples throughout are deliberately dull: weather, animals, chores,
 homework. That is a feature. An example with real stakes teaches the stakes
 rather than the form.
+
+One deliberate exception (owner ruling 2026-11-24, docs/DECISIONS.md entry
+47): `_SUMMA_ARTICLES`, an early exposure to St. Thomas Aquinas's Summa at
+6-8, worked on his article "Whether God exists?". It is the one owner-approved
+exception to rule 2 above: it teaches the SHAPE of a disputed question (objections stated
+fairly first, then the answer, then a reply to each objection), and then
+explains why Aquinas's argument holds (owner ruling 2026-11-24), while the
+conclusion and the student's beliefs remain their own and their family's.
 """
 from datetime import date
 
@@ -115,6 +123,19 @@ _MOVES = [
         "Teaches that a belief worth holding is one that could, in principle, be checked — and "
         "gently exposes a claim built so it can never be wrong.",
         "\"My plant grows faster with music.\" What would we see if that were false?",
+    ),
+    # Owner ruling 2026-11-24 (docs/DECISIONS.md entry 47): early exposure to
+    # the Summa. At 3-5 that is the HABIT the Summa is built on, not its
+    # content, so the example stays as dull as every other one here.
+    _move(
+        "best_reason_against", "What's the best reason against?",
+        "\"Before you give your answer, what's the best reason someone might disagree?\"",
+        "St. Thomas Aquinas wrote his greatest book this way: before he gave his own answer to "
+        "any question, he wrote down the strongest reasons against it, fairly, and then answered "
+        "each one. Saying the other side well first is how you find out whether your own answer "
+        "really holds, and it is kind to the person who disagrees.",
+        "\"We should walk to the park instead of riding bikes.\" What's the best reason someone "
+        "might say bikes are better? Can you say it so well they'd agree you got it right?",
     ),
 ]
 
@@ -257,6 +278,45 @@ _SYLLOGISMS = [
     ),
 ]
 
+# Owner ruling 2026-11-24 (docs/DECISIONS.md entry 47): early exposure to the
+# Summa Theologiae at 6-8. The one item in this module drawn from religion, on
+# purpose, and handled differently from every other: it teaches the SHAPE of a
+# disputed question, worked on Aquinas's own article "Whether God exists?", and
+# then explains why the argument holds, while the conclusion stays the
+# student's and their family's own. Every part is a SIMPLIFIED RETELLING, not a
+# quotation (see services/aquinas_catalog.py for why), and says so.
+_SUMMA_ARTICLES = [
+    {
+        "summa_id": "whether_god_exists",
+        "reference": "Summa Theologiae, First Part, Question 2, Article 3",
+        "question": "Whether God exists?",
+        "parts": [
+            ("The question", "Every article opens with a yes-or-no question, here: does God exist?"),
+            ("Objections",
+             "Next come the strongest reasons AGAINST the answer Aquinas will give, stated fairly, "
+             "as a serious opponent would put them. Here there are two. First: if God were "
+             "infinitely good, there would be no evil, yet there is evil in the world. Second: "
+             "nature and human choices seem to explain everything that happens without needing "
+             "God."),
+            ("On the contrary",
+             "Then a short reply from an authority on the other side. Here it is God's own word "
+             "in Scripture, where God names himself to Moses as \"I am\" (Exodus 3)."),
+            ("I answer that",
+             "Then Aquinas's own reasoning. Here he gives five ways. The first, from motion: "
+             "things are moved by something else; that chain cannot go back forever, or nothing "
+             "would be moving now; so there is a first mover that nothing else moves, and that "
+             "is what everyone means by God."),
+            ("Replies to the objections",
+             "Last, he answers EACH objection in turn. To the first, he follows St. Augustine: "
+             "God, being supremely good, would not allow any evil unless he could bring good out "
+             "of it. To the second: nature and human choices are themselves moved and caused, so "
+             "they too lead back to a first cause."),
+        ],
+        "stages": _FROM_6,
+    },
+]
+
+
 _STAGE_METHOD = {
     GradeStage.core_mastery: (
         "3-5 — INFORMAL AND ORAL. No technical vocabulary, no fallacy names, no syllogisms. At this "
@@ -291,7 +351,7 @@ def _items_for(stage: GradeStage) -> list:
     if stage == GradeStage.core_mastery:
         return list(_MOVES)
     if stage == GradeStage.independent:
-        return list(_FALLACIES) + list(_SYLLOGISMS)
+        return list(_FALLACIES) + list(_SYLLOGISMS) + list(_SUMMA_ARTICLES)
     return []
 
 
@@ -323,6 +383,45 @@ def _render_item(item: dict) -> str:
             f"What it is: {item['definition']}\n"
             f"Example (use this one — do not invent your own): {item['example']}\n"
             f"Why it fails: {item['why_it_fails']}"
+        )
+    if "summa_id" in item:
+        parts = "\n".join(f"  {name}: {text}" for name, text in item["parts"])
+        return (
+            "THIS WEEK'S SUMMA ARTICLE — the shape of a disputed question, worked on St. Thomas "
+            f"Aquinas's own article \"{item['question']}\" ({item['reference']}). Everything below "
+            "is a simplified retelling for this lesson, NOT Aquinas's own words; never quote the "
+            "Summa from memory or present this as a quotation.\n"
+            f"{parts}\n"
+            "How to teach it: begin with the FORM. Walk the student through the five parts in "
+            "order and ask them to say back what each part does. Point out what is remarkable about "
+            "it: Aquinas puts the strongest case AGAINST his own conclusion first and answers every "
+            "objection, which is this subject's own rule (state the other side fairly before you "
+            "criticize it) practised by one of the greatest teachers who ever lived. Then take the "
+            "first way and ask the student to restate it step by step in their own words, and to "
+            "say which step each later step depends on.\n"
+            "Then explain WHY THE ARGUMENT HOLDS, step by step. This article is the one exception to "
+            "the rule below about religious questions (owner ruling 2026-11-24): here you show why "
+            "Aquinas's reasoning succeeds, not why it might fail. The points that carry it:\n"
+            "  - The chain he means is one where each mover moves only WHILE it is being moved, "
+            "like a hand moving a stick that moves a stone. Take away the hand and nothing moves. "
+            "A chain like that, however long, explains no motion at all unless something at the "
+            "head of it moves without being moved; an endless line of borrowed motion is like an "
+            "endless train of carriages with no engine.\n"
+            "  - So the argument is NOT about how long ago the world began. Aquinas himself held "
+            "that reason alone cannot settle whether the world had a beginning in time; the first "
+            "way works either way, because it is about what keeps things moving now.\n"
+            "  - It is NOT \"everything has a cause\", which would make God need a cause too. It is "
+            "that whatever is moved or caused is moved or caused by another, and the first mover is "
+            "precisely the one that is not moved, so \"who moved God?\" does not apply.\n"
+            "  - When the student raises an objection, welcome it and show how Aquinas answers it, "
+            "starting from his own replies above. Take their questions seriously and answer them "
+            "honestly; never pretend a hard question is easy.\n"
+            "The conclusion is theirs to reach. Help the student, and their parent if they are "
+            "there, think it through and come to their own conclusion and their own beliefs, freely: "
+            "explain, never pressure, never test them on whether they are convinced, and never "
+            "treat agreement as the goal of the lesson. Say plainly that this is St. Thomas's "
+            "argument for what his Church teaches, and that questions about their own faith belong "
+            "to their family and their pastor, priest, or minister."
         )
     premises = "\n".join(f"    {p}" for p in item["premises"])
     return (
@@ -382,7 +481,9 @@ WHAT LOGIC IS FOR — this matters more here than in any other subject:
 - Being right is not the same as being kind, and it does not outrank it. When a student is
   correct and unkind about it, the unkindness is the thing to address first.
 - Do NOT rule on political, moral, or religious questions, however logically they are dressed up.
-  Teach the FORM with the neutral examples above and send the substance home: that question belongs
+  (The one exception is a Summa article, when this week's item is one: follow its own
+  instructions above.)
+  Teach the FORM with the examples given in this block and send the substance home: that question belongs
   to the student's own parents and their own pastor, priest, or minister.
 - Declining to rule is NOT the same as saying the matter is unsettled, and you must not blur them.
   Say "that one belongs to your parents and your church, and they teach something definite about

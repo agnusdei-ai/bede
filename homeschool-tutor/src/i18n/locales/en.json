@@ -673,7 +673,10 @@
     "latin": "Latin & Christian Foundations",
     "greek": "Greek & New Testament Foundations",
     "logic": "Logic",
-    "free_study": "Free Study"
+    "free_study": "Free Study",
+    "spanish": "Spanish",
+    "computing": "Computing & Research",
+    "movement_health": "Movement & Health Literacy"
   },
   "reading": {
     "textSize": "Text size",

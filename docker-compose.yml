@@ -77,6 +77,9 @@ services:
       # (e.g. a deployment driving the API directly with no frontend). See
       # docs/SECURITY.md. GET /admin/status reports which posture you have.
       - ELEVATION_ENFORCED=${ELEVATION_ENFORCED:-true}
+      # Separate original Grade 8 student adapter; publication never enables it.
+      # Existing institutional corpus/promotion controls are unchanged.
+      - BEDE_GRADE8_CURRICULUM_ENABLED=${BEDE_GRADE8_CURRICULUM_ENABLED:-false}
       - ELEVATION_TTL_MINUTES=${ELEVATION_TTL_MINUTES:-10}
       # LEGACY_TOKEN_GRACE — accept JWTs issued before identity domains
       # existed (core/identity.py). Only needed for the first deploy after

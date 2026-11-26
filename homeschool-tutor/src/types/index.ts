@@ -18,6 +18,9 @@ export type Subject =
   | 'greek'
   | 'logic'
   | 'free_study'
+  | 'spanish'
+  | 'computing'
+  | 'movement_health'
 
 export interface SessionConfig {
   student_name: string
@@ -36,6 +39,7 @@ export interface SessionConfig {
   lesson_focus?: string
   faith_emphasis?: string
   current_unit?: string
+  grade8_curriculum?: { release_id?: 'bede-grade8-2026-accepted'; week: number; pathway: 'foundations' | 'algebra'; lesson_id?: string | null } | null
   // Optional, short label for the family's own church tradition (e.g.
   // "Baptist", "Catholic", "Non-denominational") — mirrors the backend's
   // SessionConfig.faith_tradition. Set in ParentSetup.tsx's optional
@@ -271,6 +275,8 @@ export interface StreamChunk {
 
 export interface SubjectInfo {
   id: Subject
+  // Course-only options are not additions to the general marketing catalog.
+  courseOnly?: boolean
   label: string
   Icon: LucideIcon
   durationMin: number
@@ -401,6 +407,12 @@ export const SUBJECTS: SubjectInfo[] = [
     color: '#7f3957',
     description: 'Student-directed exploration',
   },
+  { id: 'spanish', courseOnly: true, label: 'Spanish', Icon: BookOpen, durationMin: 20,
+    color: '#8a6e35', description: 'Spoken comprehension, reading and original writing' },
+  { id: 'computing', courseOnly: true, label: 'Computing & Research', Icon: Columns3, durationMin: 20,
+    color: '#416979', description: 'Reasoning about programs, data and sources' },
+  { id: 'movement_health', courseOnly: true, label: 'Movement & Health Literacy', Icon: Sun, durationMin: 20,
+    color: '#657c41', description: 'Adult-supervised accessible movement and careful health reasoning' },
 ]
 
 export const SUBJECT_MAP: Record<Subject, SubjectInfo> = Object.fromEntries(

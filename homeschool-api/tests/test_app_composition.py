@@ -56,6 +56,8 @@ _NOT_A_GUARD = {"get_db", "bind_request"}
 GUARDS = {
     # Public readiness probe, registered directly on the app.
     ('GET', '/health'): 'PUBLIC',
+    # Fixed public beta deadline only; no credentials or visitor data.
+    ('GET', '/auth/demo-status'): 'PUBLIC',
     # Public intake and passkey ceremonies authenticate their own tickets or
     # challenges; invitation and recovery issuance require elevated parent.
     ('POST', '/inquiries'): 'PUBLIC',
@@ -211,6 +213,11 @@ GUARDS = {
     ('POST', '/auth/recovery/webauthn/options'): 'PUBLIC',
     ('GET', '/auth/validate'): 'PUBLIC',
     ('GET', '/catalog/book/{book_id}'): 'require_real_user',
+    # Original, owner-accepted student material only: no teacher keys,
+    # learner records, or access to the authenticated book library.
+    ('GET', '/catalog/grade8/atlas'): 'PUBLIC',
+    ('GET', '/catalog/grade8/release'): 'PUBLIC',
+    ('GET', '/catalog/grade8/visual-source'): 'PUBLIC',
     ('GET', '/catalog/search'): 'require_real_user',
     ('GET', '/catalog/years'): 'require_real_user',
     ('GET', '/catalog/{year}/books'): 'require_real_user',

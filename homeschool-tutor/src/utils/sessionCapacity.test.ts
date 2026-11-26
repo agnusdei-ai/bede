@@ -37,8 +37,16 @@ const studyMinutesFor = (subjects: Subject[]) =>
 // Mirrors ParentSetup.tsx's own constants. Kept in step by
 // `test_default_subjects_match_the_ui` below rather than imported, since
 // ParentSetup is a page component that pulls in the whole app on import.
-const ELECTIVES: Subject[] = ['latin', 'greek', 'logic', 'free_study']
+const ELECTIVES: Subject[] = ['latin', 'greek', 'logic', 'free_study', 'spanish', 'computing', 'movement_health']
 const DEFAULT_SUBJECTS = SUBJECTS.filter((s) => !ELECTIVES.includes(s.id)).map((s) => s.id)
+
+it('requires rotating Grade8 additions rather than silently extending the daily ceiling', () => {
+  const course = SUBJECTS.filter(subject => subject.courseOnly).map(subject => subject.id)
+  const study = studyMinutesFor([...DEFAULT_SUBJECTS, ...course])
+  expect(study).toBe(245)
+  expect(capForStudyMinutes(study)).toBe(MAX_SESSION_CAP_MINUTES)
+  expect(studyMinutesWithinCap(MAX_SESSION_CAP_MINUTES)).toBeLessThan(study)
+})
 
 describe('studyMinutesWithinCap', () => {
   it('subtracts the mandatory break from every completed hour', () => {

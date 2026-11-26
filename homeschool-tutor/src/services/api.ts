@@ -14,6 +14,13 @@ import { ApiRequestError } from '../utils/requestFailure'
 
 const BASE = '/api'
 
+export async function getGrade8Release(week: number, pathway: string) {
+  const res = await fetch(`${BASE}/catalog/grade8/release?week=${week}&pathway=${encodeURIComponent(pathway)}`)
+  if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)
+  return { ...await res.json(), atlas_url: `${BASE}/catalog/grade8/atlas`,
+    visual_source_url: `${BASE}/catalog/grade8/visual-source` }
+}
+
 // ── Auth ────────────────────────────────────────────────────────────────────
 
 export type MfaMethod = 'webauthn' | 'totp'

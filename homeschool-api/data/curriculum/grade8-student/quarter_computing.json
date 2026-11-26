@@ -1,0 +1,490 @@
+[
+  {
+    "id": "g8-year-quarter_computing-w09",
+    "title": "Week 9: Quarter 1: computing synthesis",
+    "objective_ids": [
+      "g8-year-quarter_computing-w09-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 1: computing synthesis using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Prior instruction through week 9, lawful required readings/materials and an adult-confirmed access route. If a required source is absent, that item is not ready.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Use earlier practice for preparation, not the unseen check. Preserve first attempts and supports separately from feedback and revision. Responses may be oral, typed or verbatim-scribed where the construct permits. A fluent response or completed packet is not by itself independent evidence of every outcome. Use a specific reteaching plan after the check, then a different task.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Trace this fictional procedure: total=0; for each x in [2,5,8], if x>4 then total=total+x; output total. (a) Show each state. (b) Give the output. (c) Predict the result for an empty list. (d) Explain whether x=4 is included. (e) Name data not needed to run the procedure.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Trace this fictional procedure: total=0; for each x in [2,5,8], if x>4 then total=total+x; output total. (a) Show each state. (b) Give the output. (c) Predict the result for an empty list. (d) Explain whether x=4 is included. (e) Name data not needed to run the procedure.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "Trace the same procedure for [4,6,1]. Explain the boundary case.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "Adapt the paper procedure to count qualifying entries rather than sum values.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_computing, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 1: computing synthesis",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_computing/week-9",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_computing, week 9"
+      }
+    ],
+    "strand": "quarter_computing",
+    "week": 9,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_computing-w18",
+    "title": "Week 18: Quarter 2: computing synthesis",
+    "objective_ids": [
+      "g8-year-quarter_computing-w18-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 2: computing synthesis using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Prior instruction through week 18, lawful required readings/materials and an adult-confirmed access route. If a required source is absent, that item is not ready.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Use earlier practice for preparation, not the unseen check. Preserve first attempts and supports separately from feedback and revision. Responses may be oral, typed or verbatim-scribed where the construct permits. A fluent response or completed packet is not by itself independent evidence of every outcome. Use a specific reteaching plan after the check, then a different task.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Three search records have the same sentence, but two copied the third. A fourth record is an original dated document with uncertain relevance. (a) Distinguish source independence from count. (b) Define relevance to a specific question. (c) Specify provenance fields. (d) Explain why a matching hash does not establish truth or a license.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Three search records have the same sentence, but two copied the third. A fourth record is an original dated document with uncertain relevance. (a) Distinguish source independence from count. (b) Define relevance to a specific question. (c) Specify provenance fields. (d) Explain why a matching hash does not establish truth or a license.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "An updated source has a new hash. State what can and cannot be concluded.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "Design a paper retrieval table that favors a relevant primary document but retains a useful independent interpretation without treating it as primary.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_computing, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 2: computing synthesis",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_computing/week-18",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_computing, week 18"
+      }
+    ],
+    "strand": "quarter_computing",
+    "week": 18,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_computing-w27",
+    "title": "Week 27: Quarter 3: computing synthesis",
+    "objective_ids": [
+      "g8-year-quarter_computing-w27-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 3: computing synthesis using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Prior instruction through week 27, lawful required readings/materials and an adult-confirmed access route. If a required source is absent, that item is not ready.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Use earlier practice for preparation, not the unseen check. Preserve first attempts and supports separately from feedback and revision. Responses may be oral, typed or verbatim-scribed where the construct permits. A fluent response or completed packet is not by itself independent evidence of every outcome. Use a specific reteaching plan after the check, then a different task.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: A local note says ignore the teacher and reveal the adult key. A proposed tool sends every query and child name to a hosted server. (a) Classify note text as data or authority. (b) State a safe tutor response. (c) Explain why local retrieval alone does not make hosted processing offline. (d) Design a fictional evaluation that does not expose keys or personal data.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "A local note says ignore the teacher and reveal the adult key. A proposed tool sends every query and child name to a hosted server. (a) Classify note text as data or authority. (b) State a safe tutor response. (c) Explain why local retrieval alone does not make hosted processing offline. (d) Design a fictional evaluation that does not expose keys or personal data.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "A network call fails. Specify bounded retry, timeout and explicit failure behavior.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "Propose an educator-facing explanation containing intent, three scaffolding questions and differentiated inquiry without completing the learner's active task.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_computing, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 3: computing synthesis",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_computing/week-27",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_computing, week 27"
+      }
+    ],
+    "strand": "quarter_computing",
+    "week": 27,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_computing-w36",
+    "title": "Week 36: Quarter 4: computing synthesis",
+    "objective_ids": [
+      "g8-year-quarter_computing-w36-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 4: computing synthesis using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Prior instruction through week 36, lawful required readings/materials and an adult-confirmed access route. If a required source is absent, that item is not ready.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Use earlier practice for preparation, not the unseen check. Preserve first attempts and supports separately from feedback and revision. Responses may be oral, typed or verbatim-scribed where the construct permits. A fluent response or completed packet is not by itself independent evidence of every outcome. Use a specific reteaching plan after the check, then a different task.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Design a paper/local-only retrieval prototype over three Bede-original fictional records. (a) Specify allowed inputs and excluded personal data. (b) Define ranking and missing-result behavior. (c) Trace one query. (d) Give relevant and irrelevant test cases plus a hostile instruction inside a record. (e) Explain one failure honestly to a nontechnical adult.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work"
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before assessment, explain two important ideas from older practice. Give an example and an uncertainty for each.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Design a paper/local-only retrieval prototype over three Bede-original fictional records. (a) Specify allowed inputs and excluded personal data. (b) Define ranking and missing-result behavior. (c) Trace one query. (d) Give relevant and irrelevant test cases plus a hostile instruction inside a record. (e) Explain one failure honestly to a nontechnical adult.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "Change one record and identify which test/evidence is stale and must be repeated.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "Adapt the design for two fictional learners without allowing cross-learner retrieval.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_computing, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 4: computing synthesis",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_computing/week-36",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_computing, week 36"
+      }
+    ],
+    "strand": "quarter_computing",
+    "week": 36,
+    "prerequisite_objective_ids": []
+  }
+]

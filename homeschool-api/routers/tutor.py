@@ -146,7 +146,10 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     # both places (the code screen asks for them before a visitor has seen
     # anything, the setup panel after), and the later, more deliberate
     # answer is the setup panel's.
-    subjects = [Subject(s) for s in parent_config.get("subjects") or []] or list(Subject)
+    # New course subjects are adult opt-ins, not additions to existing demos.
+    subjects = [Subject(s) for s in parent_config.get("subjects") or []] or [
+        s for s in Subject if s not in {Subject.spanish, Subject.computing, Subject.movement_health}
+    ]
     companion = parent_config.get("companion_mode")
 
     return SessionConfig(
@@ -158,6 +161,7 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         term_schedule=TermSchedule.quarterly,
         current_term=_demo_current_term(code),
         current_unit=parent_config.get("current_unit") or current_unit,
+        grade8_curriculum=parent_config.get("grade8_curriculum"),
         faith_tradition=parent_config.get("faith_tradition") or faith_tradition,
         **({"companion_mode": CompanionMode(companion)} if companion else {}),
         lesson_focus=parent_config.get("lesson_focus"),
@@ -264,6 +268,25 @@ async def chat(
         # No write this turn makes can become durable once the grant stops
         # holding: every commit and flush re-validates first.
         db = pilot_authz.RevocationGatedSession(db, tutor_ctx, audit_from_request(request))
+
+    # Keep stored plans readable/editable while a release is disabled. Reject
+    # teaching before starting a stream or contacting any model provider.
+    from services.grade8_curriculum_service import enabled as grade8_enabled, authoritative_config
+    if role in ("child", "parent") and grade8_enabled():
+        from routers.pod import get_student_config
+        saved = await get_student_config(req.session_config.student_name, auth=auth, db=db)
+        try:
+            req.session_config = authoritative_config(req.session_config, saved, req.current_subject)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if req.current_subject in {Subject.spanish, Subject.computing, Subject.movement_health} and (
+        not req.session_config.grade8_curriculum or req.current_subject not in req.session_config.subjects
+    ):
+        raise HTTPException(status_code=403, detail="This course subject is not enabled in the adult-selected plan.")
+    if req.session_config.grade8_curriculum and not grade8_enabled():
+        raise HTTPException(status_code=409, detail="The Grade 8 curriculum has not been activated by the operator.")
 
     # COPPA: no child content is collected for a student until a parent has
     # consented, and not while collection is paused (core/consent.py). The

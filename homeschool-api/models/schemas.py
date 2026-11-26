@@ -244,6 +244,9 @@ class Subject(str, Enum):
     greek = "greek"                     # Koine Greek, the New Testament's own language — see services/greek_catalog.py
     logic = "logic"                     # Reasoning — 3-5 informal, 6-8 formal; NEVER K-2, see services/logic_catalog.py
     free_study = "free_study"           # Child-directed exploration
+    spanish = "spanish"                 # Explicit modern-language instruction
+    computing = "computing"             # Computing and source-critical research
+    movement_health = "movement_health" # Adapted movement and health literacy
 
 
 SUBJECT_DURATIONS = {
@@ -272,6 +275,9 @@ SUBJECT_DURATIONS = {
     # through it. That doesn't compress the way a vocabulary word does.
     Subject.logic: 15,
     Subject.free_study: 20,
+    Subject.spanish: 20,
+    Subject.computing: 20,
+    Subject.movement_health: 20,
 }
 
 SUBJECT_LABELS = {
@@ -289,6 +295,9 @@ SUBJECT_LABELS = {
     Subject.greek: "Greek & New Testament Foundations",
     Subject.logic: "Logic",
     Subject.free_study: "Free Study",
+    Subject.spanish: "Spanish",
+    Subject.computing: "Computing & Research",
+    Subject.movement_health: "Movement & Health Literacy",
 }
 
 
@@ -322,6 +331,9 @@ SUBJECT_LABELS_BY_LOCALE: Dict[str, Dict[Subject, str]] = {
         Subject.greek: "Griego y Fundamentos del Nuevo Testamento",
         Subject.logic: "Lógica",
         Subject.free_study: "Estudio Libre",
+        Subject.spanish: "Español",
+        Subject.computing: "Informática e Investigación",
+        Subject.movement_health: "Movimiento y Educación para la Salud",
     },
 }
 
@@ -394,6 +406,15 @@ def clean_display_name(value: str) -> str:
 SPRINT_MINUTES_OPTIONS = (20, 30, 60)
 
 
+class Grade8CurriculumSelection(BaseModel):
+    """Adult-selected instructional position, never inferred mastery."""
+    model_config = {"extra": "forbid"}
+    release_id: Literal["bede-grade8-2026-accepted"] = "bede-grade8-2026-accepted"
+    week: int = Field(ge=1, le=36, strict=True)
+    pathway: Literal["foundations", "algebra"]
+    lesson_id: Optional[str] = Field(default=None, min_length=1, max_length=120)
+
+
 class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
     # What an adult wants the learner called: a corrected spelling or a
@@ -440,6 +461,21 @@ class SessionConfig(BaseModel):
     lesson_focus: Optional[str] = None       # Parent's note for today
     faith_emphasis: Optional[str] = None     # Scripture or virtue focus
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
+    grade8_curriculum: Optional[Grade8CurriculumSelection] = None
+
+    @model_validator(mode="after")
+    def _validate_grade8_curriculum(self):
+        course_subjects = {Subject.spanish, Subject.computing, Subject.movement_health}
+        if course_subjects.intersection(self.subjects) and self.grade8_curriculum is None:
+            raise ValueError("Grade 8 course subjects require an explicit adult-selected curriculum")
+        if self.grade8_curriculum is not None:
+            from services.grade8_curriculum_service import validate_selection, load, STRAND_SUBJECT
+            validate_selection(self.grade8_curriculum, self.grade)
+            if self.grade8_curriculum.lesson_id:
+                lesson = load()["lessons"][self.grade8_curriculum.lesson_id]
+                if STRAND_SUBJECT[lesson["strand"]] not in {s.value for s in self.subjects}:
+                    raise ValueError("Enable the selected lesson's subject in the adult plan")
+        return self
     # Optional, short label for the family's own church tradition (e.g.
     # "Baptist", "Non-denominational", "Catholic", "Eastern Orthodox") — sets
     # framing guidance for Scripture & Bible Study / Saints & Catechism
@@ -1027,6 +1063,7 @@ class DemoParentConfigRequest(BaseModel):
     lesson_focus: Optional[str] = Field(None, max_length=500)
     faith_emphasis: Optional[str] = Field(None, max_length=500)
     current_unit: Optional[str] = Field(None, max_length=200)
+    grade8_curriculum: Optional[Grade8CurriculumSelection] = None
     faith_tradition: Optional[str] = Field(None, max_length=60)
     bible_translation: Optional[str] = Field(None, max_length=40)
     curriculum_resources: Optional[List[str]] = None

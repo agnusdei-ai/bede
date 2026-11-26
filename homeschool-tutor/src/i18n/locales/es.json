@@ -673,7 +673,10 @@
     "latin": "Latín y Fundamentos Cristianos",
     "greek": "Griego y Fundamentos del Nuevo Testamento",
     "logic": "Lógica",
-    "free_study": "Estudio Libre"
+    "free_study": "Estudio Libre",
+    "spanish": "Español",
+    "computing": "Informática e Investigación",
+    "movement_health": "Movimiento y Educación para la Salud"
   },
   "reading": {
     "textSize": "Tamaño del texto",

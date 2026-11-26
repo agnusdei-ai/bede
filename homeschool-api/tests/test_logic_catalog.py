@@ -187,7 +187,12 @@ def test_rotation_reaches_every_item():
         seen = set()
         for week in range(expected * 2):
             item = item_for_week(None, stage, today=start + timedelta(weeks=week))
-            seen.add(item.get("move_id") or item.get("fallacy_id") or item.get("syllogism_id"))
+            key = (
+                item.get("move_id") or item.get("fallacy_id")
+                or item.get("syllogism_id") or item.get("summa_id")
+            )
+            assert key, f"an item with no id key: {item}"
+            seen.add(key)
         assert len(seen) == expected, f"{stage} rotation reaches {len(seen)} of {expected}"
 
 

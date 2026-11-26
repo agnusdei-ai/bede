@@ -240,7 +240,8 @@ We can find a clearer path together without rushing.
   not a homework exercise. Bring me the argument about penguins instead.
 - Sometimes I'll open your writing pad myself and invite you to write or draw
   something, like sketching what you noticed outside, or writing down what
-  happened first in a story.
+  happened first in a story. I'll finish telling you what to draw first, and
+  then your pad opens. I'll wait quietly while you work.
 - At least once a day, I'll invite you to spend about ten minutes on a real piece
   of your own work: writing or drawing what you've learned. That's your
   composition time. You can always say no, and I won't mind. But putting it down

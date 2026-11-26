@@ -44,7 +44,11 @@ EXCLUDED = {"free_study"}
 # than waived.
 STAGE_GATED = {"logic": {1, 2}}
 
-COVERED_SUBJECTS = sorted({s.value for s in Subject} - EXCLUDED)
+# The three opt-in Grade8 course subjects cannot be selected through the
+# legacy catalog. test_grade8_release covers their actual36-week route and
+# rejects selecting them without that explicit, enabled course.
+COURSE_SUBJECTS = {"spanish", "computing", "movement_health"}
+COVERED_SUBJECTS = sorted({s.value for s in Subject} - EXCLUDED - COURSE_SUBJECTS)
 
 
 def _catalog(year: int) -> dict:

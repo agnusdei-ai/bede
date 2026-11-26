@@ -39,6 +39,12 @@ async function gradeSelect() {
 }
 
 describe('ParentSetup grade selector', () => {
+  it('does not add opt-in Grade8 subjects to a new family plan', async () => {
+    await gradeSelect()
+    for (const subject of ['spanish', 'computing', 'movement_health']) {
+      expect(screen.queryByText(i18n.t(`subjects.${subject}`))).toBeNull()
+    }
+  })
   it('offers Kindergarten and grades 1-12 as choices, with no free text', async () => {
     const select = await gradeSelect()
     const values = Array.from(select.options).map((o) => o.value).filter(Boolean)

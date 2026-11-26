@@ -1,0 +1,510 @@
+[
+  {
+    "id": "g8-year-quarter_science-w09",
+    "title": "Week 9: Quarter 1: science evidence and explanation",
+    "objective_ids": [
+      "g8-year-quarter_science-w09-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 1: science evidence and explanation using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Instruction through week 9; prior evidence for the particular concepts, not attendance alone.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Review relevant earlier focus packets before the check. All quantities and records here are invented for instruction. Teach learners to distinguish observation, calculation, inference and uncertainty. Use accessible representations and untimed reasoning. Do not carry out an experiment from an assessment prompt.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Use these invented trials of a cart travelling a fixed distance: smooth surface 4,5,6 seconds; rough surface 7,8,9 seconds. Release method and starting point were intended to be the same. A second record gives a block mass 54 g and volume 20 cm³. (a) Identify the changed variable and two controls. (b) Find each mean travel time. (c) State a supported conclusion and one limit. (d) Calculate density with units. (e) Does melting a sample establish that a new substance formed? Explain.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Use these invented trials of a cart travelling a fixed distance: smooth surface 4,5,6 seconds; rough surface 7,8,9 seconds. Release method and starting point were intended to be the same. A second record gives a block mass 54 g and volume 20 cm³. (a) Identify the changed variable and two controls. (b) Find each mean travel time. (c) State a supported conclusion and one limit. (d) Calculate density with units. (e) Does melting a sample establish that a new substance formed? Explain.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "New invented readings: mass 42 g; volume 15 cm³. Calculate density, then distinguish an observation from an explanation about the material.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "A learner times two toy designs once each and claims the faster design is always better. Design a fairer paper investigation and define better.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_science, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 1: science evidence and explanation",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_science/week-9",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_science, week 9"
+      }
+    ],
+    "strand": "quarter_science",
+    "week": 9,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_science-w18",
+    "title": "Week 18: Quarter 2: science evidence and explanation",
+    "objective_ids": [
+      "g8-year-quarter_science-w18-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 2: science evidence and explanation using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Instruction through week 18; prior evidence for the particular concepts, not attendance alone.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Review relevant earlier focus packets before the check. All quantities and records here are invented for instruction. Teach learners to distinguish observation, calculation, inference and uncertainty. Use accessible representations and untimed reasoning. Do not carry out an experiment from an assessment prompt.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Invented motion table: at 0,1,2,3 s velocity is 0,2,4,6 m/s in the same direction. A 3 kg cart is subject to a net 6 N force in that direction. (a) Find acceleration from the table. (b) Check whether force and mass fit that acceleration. (c) Distinguish balanced forces from no forces. (d) An earthquake pattern follows a plate boundary; what further evidence helps test plate motion? (e) Explain why a rock-cycle diagram is not a timed schedule.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Invented motion table: at 0,1,2,3 s velocity is 0,2,4,6 m/s in the same direction. A 3 kg cart is subject to a net 6 N force in that direction. (a) Find acceleration from the table. (b) Check whether force and mass fit that acceleration. (c) Distinguish balanced forces from no forces. (d) An earthquake pattern follows a plate boundary; what further evidence helps test plate motion? (e) Explain why a rock-cycle diagram is not a timed schedule.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "A cart has mass 4 kg and net force 12 N. Predict acceleration and identify one reason an observation might differ from the simple prediction.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "A report says waves move a floating object across an entire body of water because waves carry energy. Distinguish what the premise supports and propose a safe model.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_science, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 2: science evidence and explanation",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_science/week-18",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_science, week 18"
+      }
+    ],
+    "strand": "quarter_science",
+    "week": 18,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_science-w27",
+    "title": "Week 27: Quarter 3: science evidence and explanation",
+    "objective_ids": [
+      "g8-year-quarter_science-w27-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 3: science evidence and explanation using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Instruction through week 27; prior evidence for the particular concepts, not attendance alone.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Review relevant earlier focus packets before the check. All quantities and records here are invented for instruction. Teach learners to distinguish observation, calculation, inference and uncertainty. Use accessible representations and untimed reasoning. Do not carry out an experiment from an assessment prompt.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Invented ecosystem model: producers capture 12,000 energy units; herbivores receive 1,200 and predators receive 120. Two nonidentical habitats have different plant growth after rainfall. (a) Calculate the transfer percentage at each listed step. (b) Explain why matter and energy need different accounts. (c) Does the habitat comparison isolate rain as the cause? (d) Explain a change in trait frequency without saying individuals chose to evolve. (e) Explain seasons without invoking Earth being substantially nearer the Sun during each hemisphere's summer.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Invented ecosystem model: producers capture 12,000 energy units; herbivores receive 1,200 and predators receive 120. Two nonidentical habitats have different plant growth after rainfall. (a) Calculate the transfer percentage at each listed step. (b) Explain why matter and energy need different accounts. (c) Does the habitat comparison isolate rain as the cause? (d) Explain a change in trait frequency without saying individuals chose to evolve. (e) Explain seasons without invoking Earth being substantially nearer the Sun during each hemisphere's summer.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "A model gives 8,000 energy units to producers and 960 to the next level. Find the percentage and explain why it need not equal the earlier example.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "A family resemblance is used to predict a child's future character with certainty. Explain why this exceeds what inheritance evidence can establish, using a fictional example.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_science, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 3: science evidence and explanation",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_science/week-27",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_science, week 27"
+      }
+    ],
+    "strand": "quarter_science",
+    "week": 27,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_science-w36",
+    "title": "Week 36: Quarter 4: science evidence and explanation",
+    "objective_ids": [
+      "g8-year-quarter_science-w36-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 4: science evidence and explanation using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "Instruction through week 36; prior evidence for the particular concepts, not attendance alone.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "Review relevant earlier focus packets before the check. All quantities and records here are invented for instruction. Teach learners to distinguish observation, calculation, inference and uncertainty. Use accessible representations and untimed reasoning. Do not carry out an experiment from an assessment prompt.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: Invented test records for two paper designs: A supports 4,4,5 counters; B supports 3,6,6. Designs use equal paper amounts. (a) Find each mean and range. (b) Recommend a design for consistency, stating a limitation. (c) Explain why three trials do not establish a universal winner. (d) Name a life-cycle boundary absent from a material-only comparison. (e) Write a short claim-evidence-reasoning account that distinguishes supplied observations, assumptions and a proposed next test.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper; accessible table or verbal description of the invented records."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Using an older lesson, distinguish a direct observation from a proposed explanation. State what further evidence could challenge the explanation.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "Invented test records for two paper designs: A supports 4,4,5 counters; B supports 3,6,6. Designs use equal paper amounts. (a) Find each mean and range. (b) Recommend a design for consistency, stating a limitation. (c) Explain why three trials do not establish a universal winner. (d) Name a life-cycle boundary absent from a material-only comparison. (e) Write a short claim-evidence-reasoning account that distinguishes supplied observations, assumptions and a proposed next test.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "A fresh design C supports 5,5,5 counters in three invented trials. Does zero observed range show it will never fail? Explain.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "A supplier claims its new design improves learning because it scored higher in a materials test. Identify the missing evidence and a responsible next step.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_science, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 4: science evidence and explanation",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_science/week-36",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_science, week 36"
+      }
+    ],
+    "strand": "quarter_science",
+    "week": 36,
+    "prerequisite_objective_ids": []
+  }
+]

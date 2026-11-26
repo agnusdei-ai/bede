@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Loader2, Check } from 'lucide-react'
+import Grade8CourseControls, { type Grade8Selection } from './Grade8CourseControls'
+import { getGrade8Release } from './api'
 
 import {
   BIBLE_TRANSLATIONS,
@@ -71,11 +73,13 @@ function parseList(raw: string, cap: number): string[] {
 
 export default function DemoParentSetup({
   token,
+  grade = '',
   initial,
   onSaved,
   onClose,
 }: {
   token: string
+  grade?: string
   initial?: DemoParentConfig
   onSaved: (config: DemoParentConfig) => void
   onClose: () => void
@@ -87,6 +91,7 @@ export default function DemoParentSetup({
     initial?.subjects ?? [...COMPANION_MODES[2].subjects],
   )
   const [currentUnit, setCurrentUnit] = useState(initial?.current_unit ?? '')
+  const [course, setCourse] = useState<Grade8Selection | null>(initial?.grade8_curriculum ?? null)
   const [lessonFocus, setLessonFocus] = useState(initial?.lesson_focus ?? '')
   const [faithEmphasis, setFaithEmphasis] = useState(initial?.faith_emphasis ?? '')
   const [faithTradition, setFaithTradition] = useState(initial?.faith_tradition ?? '')
@@ -139,6 +144,7 @@ export default function DemoParentSetup({
       subjects,
       companion_mode: companion,
       current_unit: currentUnit.trim() || undefined,
+      grade8_curriculum: grade.trim() === '8' ? course : null,
       lesson_focus: lessonFocus.trim() || undefined,
       faith_emphasis: faithSubjectOn ? faithEmphasis.trim() || undefined : undefined,
       faith_tradition: faithSubjectOn ? faithTradition.trim() || undefined : undefined,
@@ -211,13 +217,18 @@ export default function DemoParentSetup({
           </div>
 
           {/* Subjects */}
+          <Grade8CourseControls grade={grade} value={course} subjects={subjects}
+            onChange={next => {
+              setCourse(next)
+              if (!next) setSubjects(prev => prev.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)))
+            }} load={getGrade8Release} />
           <div>
             <span className={label}>
               {t('parentSetup.subjects', 'Subjects for today')}{' '}
               <span className="font-normal text-gray-400">({subjects.length})</span>
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {SUBJECTS.map((s) => (
+              {SUBJECTS.filter(s => !['spanish', 'computing', 'movement_health'].includes(s) || course || subjects.includes(s)).map((s) => (
                 <button
                   key={s}
                   type="button"

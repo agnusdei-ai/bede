@@ -24,6 +24,10 @@ CURRICULUM = CURRICULUM[: CURRICULUM.index("</section>")]
 GUARANTEE = {Subject.mathematics, Subject.language_arts, Subject.living_books, Subject.science, Subject.nature_study}
 FAITH = {Subject.saints, Subject.scripture}
 STAGE_GATED_FROM_GRADE_3 = {Subject.logic}
+# These are opt-in parts of the accepted Grade 8 course, not new K–12
+# marketing promises. Keep all existing 14-card facts checked below.
+GRADE8_COURSE_ONLY = {Subject.spanish, Subject.computing, Subject.movement_health}
+GENERAL_SUBJECTS = tuple(s for s in Subject if s not in GRADE8_COURSE_ONLY)
 
 
 def _cards() -> dict[str, dict[str, str]]:
@@ -35,22 +39,22 @@ def _cards() -> dict[str, dict[str, str]]:
 
 
 CARDS = _cards()
-BY_SUBJECT = {s: CARDS.get(SUBJECT_LABELS[s]) for s in Subject}
+BY_SUBJECT = {s: CARDS.get(SUBJECT_LABELS[s]) for s in GENERAL_SUBJECTS}
 
 
 def test_every_subject_has_a_card_with_all_three_facts():
-    assert len(CARDS) == len(Subject)
+    assert len(CARDS) == len(GENERAL_SUBJECTS) == 14
     for subject, facts in BY_SUBJECT.items():
         assert facts is not None, f"no card for {SUBJECT_LABELS[subject]}"
         assert set(facts) == {"Session", "Grades", "Record"}, SUBJECT_LABELS[subject]
 
 
-@pytest.mark.parametrize("subject", list(Subject), ids=lambda s: s.value)
+@pytest.mark.parametrize("subject", GENERAL_SUBJECTS, ids=lambda s: s.value)
 def test_session_length_is_the_planned_one(subject):
     assert BY_SUBJECT[subject]["Session"] == f"{SUBJECT_DURATIONS[subject]} minutes"
 
 
-@pytest.mark.parametrize("subject", list(Subject), ids=lambda s: s.value)
+@pytest.mark.parametrize("subject", GENERAL_SUBJECTS, ids=lambda s: s.value)
 def test_grades(subject):
     want = "3–12" if subject in STAGE_GATED_FROM_GRADE_3 else "K–12"
     assert BY_SUBJECT[subject]["Grades"] == want
@@ -65,7 +69,7 @@ def test_logic_is_really_gated_from_grade_3():
     assert Subject.logic in cfg.subjects
 
 
-@pytest.mark.parametrize("subject", list(Subject), ids=lambda s: s.value)
+@pytest.mark.parametrize("subject", GENERAL_SUBJECTS, ids=lambda s: s.value)
 def test_record_line_says_the_right_kind_of_thing(subject):
     line = BY_SUBJECT[subject]["Record"]
     tracked = "One of the five subjects tracked" in line
@@ -74,6 +78,15 @@ def test_record_line_says_the_right_kind_of_thing(subject):
         assert "never scored" in line
     else:
         assert "never scored" not in line
+
+
+@pytest.mark.parametrize("subject", sorted(GRADE8_COURSE_ONLY, key=lambda s: s.value))
+def test_course_only_subjects_are_not_general_offer_claims(subject):
+    from models.schemas import GradeStage, SessionConfig
+
+    assert SUBJECT_LABELS[subject] not in CARDS
+    with pytest.raises(ValueError, match="explicit adult-selected curriculum"):
+        SessionConfig(student_name="A", grade="8", grade_stage=GradeStage.independent, subjects=[subject])
 
 
 def test_the_five_named_in_the_lede_are_the_five_marked_tracked():

@@ -1,0 +1,510 @@
+[
+  {
+    "id": "g8-year-quarter_mathematics-w09",
+    "title": "Week 9: Quarter 1: cumulative mathematics evidence",
+    "objective_ids": [
+      "g8-year-quarter_mathematics-w09-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 1: cumulative mathematics evidence using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "The learner has had instruction and practice for weeks 1–9. Use existing work to identify access needs; do not assume readiness from attendance.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "This is a curriculum-aligned classroom bank, not a standardized test. Teach from practice, not from the unseen bank. Divide the independent bank over two manageable sessions, preserving the first attempt and supports. A calculator may check arithmetic after the setup is visible; do not replace the reasoning target with calculator fluency. Classify errors by concept, representation, arithmetic, unit or access barrier. Reteach that component before a fresh check; do not average supported corrections into the first score.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: 1. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n2. [Week 2 outcome] Order -12/3 and -12/4 on a number line. Give their difference as an exact fraction.\n3. [Week 3 outcome] 10 notebooks cost 30 currency units. At that rate, what do 14 notebooks cost? Show the units at each step.\n4. [Week 4 outcome] A proportional relationship includes (0,0), (11,44), and (13,52). Find y when x=16 and explain why a nonzero intercept would change the model.\n5. [Week 5 outcome] A fee changes from 240 to 300. Find the percent increase and the percent decrease needed to return from the new price to the old price.\n6. [Week 6 outcome] Expand 10(x+3)-2(x-1). Then evaluate the simplified expression at x=4.\n7. [Week 7 outcome] Solve 11x+7=139. Explain why each operation preserves equality.\n8. [Week 8 outcome] Solve 14x+3=12x+29. Check the result in the original equation.\n9. [Week 9 outcome] Solve -10x+5>-25. Is x=3 included? Describe the solution on a number line.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "1. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n2. [Week 2 outcome] Order -12/3 and -12/4 on a number line. Give their difference as an exact fraction.\n3. [Week 3 outcome] 10 notebooks cost 30 currency units. At that rate, what do 14 notebooks cost? Show the units at each step.\n4. [Week 4 outcome] A proportional relationship includes (0,0), (11,44), and (13,52). Find y when x=16 and explain why a nonzero intercept would change the model.\n5. [Week 5 outcome] A fee changes from 240 to 300. Find the percent increase and the percent decrease needed to return from the new price to the old price.\n6. [Week 6 outcome] Expand 10(x+3)-2(x-1). Then evaluate the simplified expression at x=4.\n7. [Week 7 outcome] Solve 11x+7=139. Explain why each operation preserves equality.\n8. [Week 8 outcome] Solve 14x+3=12x+29. Check the result in the original equation.\n9. [Week 9 outcome] Solve -10x+5>-25. Is x=3 included? Describe the solution on a number line.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "Solve -15x+5>-40. Is x=3 included? Describe the solution on a number line.\nUse at least seven days after the quarter check.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "Solve -16x+5>-43. Is x=3 included? Describe the solution on a number line.\nExplain the assumptions and how you would check whether this mathematical model is appropriate before using its result.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_mathematics, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 1: cumulative mathematics evidence",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_mathematics/week-9",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_mathematics, week 9"
+      }
+    ],
+    "strand": "quarter_mathematics",
+    "week": 9,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_mathematics-w18",
+    "title": "Week 18: Quarter 2: cumulative mathematics evidence",
+    "objective_ids": [
+      "g8-year-quarter_mathematics-w18-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 2: cumulative mathematics evidence using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "The learner has had instruction and practice for weeks 1–18. Use existing work to identify access needs; do not assume readiness from attendance.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "This is a curriculum-aligned classroom bank, not a standardized test. Teach from practice, not from the unseen bank. Divide the independent bank over two manageable sessions, preserving the first attempt and supports. A calculator may check arithmetic after the setup is visible; do not replace the reasoning target with calculator fluency. Classify errors by concept, representation, arithmetic, unit or access barrier. Reteach that component before a fresh check; do not average supported corrections into the first score.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: 1. [Week 10 outcome] Evaluate 2^11 × 2^3 / 2^2. State which exponent rule applies and why the same rule would not combine 2^a+2^3 into one power.\n2. [Week 11 outcome] Write 144000 in scientific notation, multiply it by 2×10^-3, and give the ordinary-number result. Treat the supplied numbers as exact for this task.\n3. [Week 12 outcome] Between which consecutive integers is √145? Explain without rounding it to an integer.\n4. [Week 13 outcome] A line passes through (11,23) and (14,29). Find its slope and interpret it as change in output per input.\n5. [Week 14 outcome] A linear charge is y=3x+12. Find y at x=14, then explain both coefficients.\n6. [Week 15 outcome] A table has (10,1), (11,2), and (10,3). Is output a function of input? State the number of distinct outputs assigned to the repeated input.\n7. [Week 16 outcome] Compare y=2x+1 and y=x² at x=13. Find the difference and explain why matching values at a few inputs would not establish equivalent rules.\n8. [Week 17 outcome] Solve y=2x+12 and y=-x+21. Interpret the intersection.\n9. [Week 18 outcome] Compare y=10x+2 and y=10x+7. How many intersections exist? Explain what happens if the second intercept becomes 2.\n10. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n11. [Week 9 outcome] Solve -12x+5>-31. Is x=3 included? Describe the solution on a number line.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "1. [Week 10 outcome] Evaluate 2^11 × 2^3 / 2^2. State which exponent rule applies and why the same rule would not combine 2^a+2^3 into one power.\n2. [Week 11 outcome] Write 144000 in scientific notation, multiply it by 2×10^-3, and give the ordinary-number result. Treat the supplied numbers as exact for this task.\n3. [Week 12 outcome] Between which consecutive integers is √145? Explain without rounding it to an integer.\n4. [Week 13 outcome] A line passes through (11,23) and (14,29). Find its slope and interpret it as change in output per input.\n5. [Week 14 outcome] A linear charge is y=3x+12. Find y at x=14, then explain both coefficients.\n6. [Week 15 outcome] A table has (10,1), (11,2), and (10,3). Is output a function of input? State the number of distinct outputs assigned to the repeated input.\n7. [Week 16 outcome] Compare y=2x+1 and y=x² at x=13. Find the difference and explain why matching values at a few inputs would not establish equivalent rules.\n8. [Week 17 outcome] Solve y=2x+12 and y=-x+21. Interpret the intersection.\n9. [Week 18 outcome] Compare y=10x+2 and y=10x+7. How many intersections exist? Explain what happens if the second intercept becomes 2.\n10. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n11. [Week 9 outcome] Solve -12x+5>-31. Is x=3 included? Describe the solution on a number line.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "Compare y=15x+2 and y=15x+7. How many intersections exist? Explain what happens if the second intercept becomes 2.\nUse at least seven days after the quarter check.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "Compare y=16x+2 and y=16x+7. How many intersections exist? Explain what happens if the second intercept becomes 2.\nExplain the assumptions and how you would check whether this mathematical model is appropriate before using its result.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_mathematics, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 2: cumulative mathematics evidence",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_mathematics/week-18",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_mathematics, week 18"
+      }
+    ],
+    "strand": "quarter_mathematics",
+    "week": 18,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_mathematics-w27",
+    "title": "Week 27: Quarter 3: cumulative mathematics evidence",
+    "objective_ids": [
+      "g8-year-quarter_mathematics-w27-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 3: cumulative mathematics evidence using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "The learner has had instruction and practice for weeks 1–27. Use existing work to identify access needs; do not assume readiness from attendance.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "This is a curriculum-aligned classroom bank, not a standardized test. Teach from practice, not from the unseen bank. Divide the independent bank over two manageable sessions, preserving the first attempt and supports. A calculator may check arithmetic after the setup is visible; do not replace the reasoning target with calculator fluency. Classify errors by concept, representation, arithmetic, unit or access barrier. Reteach that component before a fresh check; do not average supported corrections into the first score.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: 1. [Week 19 outcome] Translate point (11,2) by (-3,4), then reflect the result across the y-axis. Give both intermediate and final coordinates.\n2. [Week 20 outcome] A dilation centered at the origin has scale factor 3/2. A rectangle has sides 24 cm and 4 cm. Find its new area and explain why the area factor is not 3/2.\n3. [Week 21 outcome] A triangle has angles 50° and 40°. Find the third angle, then state the geometric assumption used.\n4. [Week 22 outcome] A right triangle has legs 33 cm and 44 cm. Find its hypotenuse. Would adding the two leg lengths be a valid method?\n5. [Week 23 outcome] Find the distance from (12,1) to (15,5). Explain how horizontal and vertical differences produce the right triangle.\n6. [Week 24 outcome] A circle has radius 10 cm. Give circumference and area exactly in π, and state the area coefficient of π. Distinguish linear from square units.\n7. [Week 25 outcome] A cylinder and cone both have radius 11 cm and height 6 cm. Give each volume exactly in π and state the cone coefficient.\n8. [Week 26 outcome] A sphere has radius 12 cm. Give its volume exactly in π. If the radius doubles, by what factor does volume change?\n9. [Week 27 outcome] A poll selects only the first 20 volunteers at a music club. Can it estimate the whole school's music preference without qualification? Give one selection improvement.\n10. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n11. [Week 18 outcome] Compare y=12x+2 and y=12x+7. How many intersections exist? Explain what happens if the second intercept becomes 2.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "1. [Week 19 outcome] Translate point (11,2) by (-3,4), then reflect the result across the y-axis. Give both intermediate and final coordinates.\n2. [Week 20 outcome] A dilation centered at the origin has scale factor 3/2. A rectangle has sides 24 cm and 4 cm. Find its new area and explain why the area factor is not 3/2.\n3. [Week 21 outcome] A triangle has angles 50° and 40°. Find the third angle, then state the geometric assumption used.\n4. [Week 22 outcome] A right triangle has legs 33 cm and 44 cm. Find its hypotenuse. Would adding the two leg lengths be a valid method?\n5. [Week 23 outcome] Find the distance from (12,1) to (15,5). Explain how horizontal and vertical differences produce the right triangle.\n6. [Week 24 outcome] A circle has radius 10 cm. Give circumference and area exactly in π, and state the area coefficient of π. Distinguish linear from square units.\n7. [Week 25 outcome] A cylinder and cone both have radius 11 cm and height 6 cm. Give each volume exactly in π and state the cone coefficient.\n8. [Week 26 outcome] A sphere has radius 12 cm. Give its volume exactly in π. If the radius doubles, by what factor does volume change?\n9. [Week 27 outcome] A poll selects only the first 20 volunteers at a music club. Can it estimate the whole school's music preference without qualification? Give one selection improvement.\n10. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n11. [Week 18 outcome] Compare y=12x+2 and y=12x+7. How many intersections exist? Explain what happens if the second intercept becomes 2.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "A poll selects only the first 25 volunteers at a music club. Can it estimate the whole school's music preference without qualification? Give one selection improvement.\nUse at least seven days after the quarter check.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "A poll selects only the first 26 volunteers at a music club. Can it estimate the whole school's music preference without qualification? Give one selection improvement.\nExplain the assumptions and how you would check whether this mathematical model is appropriate before using its result.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_mathematics, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 3: cumulative mathematics evidence",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_mathematics/week-27",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_mathematics, week 27"
+      }
+    ],
+    "strand": "quarter_mathematics",
+    "week": 27,
+    "prerequisite_objective_ids": []
+  },
+  {
+    "id": "g8-year-quarter_mathematics-w36",
+    "title": "Week 36: Quarter 4: cumulative mathematics evidence",
+    "objective_ids": [
+      "g8-year-quarter_mathematics-w36-objective"
+    ],
+    "objectives": [
+      "Apply and explain quarter 4: cumulative mathematics evidence using the specified independent and transfer tasks."
+    ],
+    "entry_evidence": "The learner has had instruction and practice for weeks 1–36. Use existing work to identify access needs; do not assume readiness from attendance.",
+    "steps": [
+      {
+        "mode": "explicit_teaching",
+        "instruction": "This is a curriculum-aligned classroom bank, not a standardized test. Teach from practice, not from the unseen bank. Divide the independent bank over two manageable sessions, preserving the first attempt and supports. A calculator may check arithmetic after the setup is visible; do not replace the reasoning target with calculator fluency. Classify errors by concept, representation, arithmetic, unit or access barrier. Reteach that component before a fresh check; do not average supported corrections into the first score.\nEntry check: ask the learner to demonstrate the stated prerequisite with a fresh example. If missing, teach that skill first; do not treat age or an earlier week number as evidence of readiness.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "practice",
+        "instruction": "Guided task: Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.\nAsk what is known, which idea applies, and how the learner could check the result. Fade prompts; do not complete the learner's response. Record hints separately.",
+        "minutes": 15,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "seminar",
+        "instruction": "Explain the central idea to an adult or peer. What makes the explanation defensible? Identify one assumption and a possible error. Ask a question about a differing explanation before replying. Written participation is valid.",
+        "minutes": 12,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "studio",
+        "instruction": "Independent task: 1. [Week 28 outcome] For [11, 12, 12, 13, 27], calculate the median and mean. Which better describes the typical value if the last value is an unusual but genuine observation?\n2. [Week 29 outcome] A scatter plot shows a positive association between ice-cream sales and pool attendance over 22 summer days. Does that show one causes the other? Propose a third variable and a better study question.\n3. [Week 30 outcome] A fitted model is y=2x+10. At x=4, the observed y is 21. Calculate observed-minus-predicted residual and explain what it means.\n4. [Week 31 outcome] In a table, 11 of 44 bus users and 22 of 55 walkers bring a packed lunch. Compare the within-group proportions as percentages.\n5. [Week 32 outcome] A bag contains 12 blue counters and 24 red counters. With replacement and independent mixing, find the probability of two blue draws. Would the same multiplication hold without replacement?\n6. [Week 33 outcome] Plan A costs 20+3x and Plan B costs 50+x. At what x do they have equal cost? If x counts whole sessions, explain feasibility.\n7. [Week 34 outcome] A rectangular design is 11 m by 13 m. A scale drawing uses 1 cm for 2 m. Find the drawing area and distinguish it from real area.\n8. [Week 35 outcome] A report says a price fell 20% and then rose 20%, returning to its starting value of 1200. Audit the claim with calculations.\n9. [Week 36 outcome] A rectangular plot has area 1200 m² and one side 30 m. Find the other side, its perimeter and diagonal; justify the units and theorem.\n10. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n11. [Week 27 outcome] A poll selects only the first 22 volunteers at a music club. Can it estimate the whole school's music preference without qualification? Give one selection improvement.\nCreate the response on a fresh page. Use the permitted access supports, not the model or adult key. Adult withholds correction until the first attempt has been captured locally in an authorized setting.",
+        "minutes": 25,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      },
+      {
+        "mode": "exit",
+        "instruction": "Name one step you can justify and one uncertainty. After adult feedback, revise on a separate page; distinguish first attempt from supported revision. Complete the transfer task on a fresh page, and schedule the delayed task 7 days later. Repeat the concept with a new task if reasoning remains dependent on hints.",
+        "minutes": 14,
+        "materials": [
+          "Paper, pencil or accessible response tool",
+          "Adult packet kept separate from independent work",
+          "Paper or accessible response tool; calculator only after an unaided setup is preserved."
+        ]
+      }
+    ],
+    "assessments": [
+      {
+        "kind": "guided",
+        "prompt": "Before the independent check, explain one previously corrected error using an older practice item; name the principle, not just its answer.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "independent",
+        "prompt": "1. [Week 28 outcome] For [11, 12, 12, 13, 27], calculate the median and mean. Which better describes the typical value if the last value is an unusual but genuine observation?\n2. [Week 29 outcome] A scatter plot shows a positive association between ice-cream sales and pool attendance over 22 summer days. Does that show one causes the other? Propose a third variable and a better study question.\n3. [Week 30 outcome] A fitted model is y=2x+10. At x=4, the observed y is 21. Calculate observed-minus-predicted residual and explain what it means.\n4. [Week 31 outcome] In a table, 11 of 44 bus users and 22 of 55 walkers bring a packed lunch. Compare the within-group proportions as percentages.\n5. [Week 32 outcome] A bag contains 12 blue counters and 24 red counters. With replacement and independent mixing, find the probability of two blue draws. Would the same multiplication hold without replacement?\n6. [Week 33 outcome] Plan A costs 20+3x and Plan B costs 50+x. At what x do they have equal cost? If x counts whole sessions, explain feasibility.\n7. [Week 34 outcome] A rectangular design is 11 m by 13 m. A scale drawing uses 1 cm for 2 m. Find the drawing area and distinguish it from real area.\n8. [Week 35 outcome] A report says a price fell 20% and then rose 20%, returning to its starting value of 1200. Audit the claim with calculations.\n9. [Week 36 outcome] A rectangular plot has area 1200 m² and one side 30 m. Find the other side, its perimeter and diagonal; justify the units and theorem.\n10. [Week 1 outcome] A lift starts at floor -11, rises 25 floors, then descends 12. Find its final floor and explain your reference point.\n11. [Week 27 outcome] A poll selects only the first 22 volunteers at a music club. Can it estimate the whole school's music preference without qualification? Give one selection improvement.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "delayed",
+        "prompt": "A rectangular plot has area 2700 m² and one side 45 m. Find the other side, its perimeter and diagonal; justify the units and theorem.\nUse at least seven days after the quarter check.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      },
+      {
+        "kind": "transfer",
+        "prompt": "A rectangular plot has area 3072 m² and one side 48 m. Find the other side, its perimeter and diagonal; justify the units and theorem.\nExplain the assumptions and how you would check whether this mathematical model is appropriate before using its result.",
+        "supports": [
+          "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+        ],
+        "success_criteria": "Correct concept/evidence, justified reasoning, accurate representation/units, and stated limitations: 0 absent, 1 partial, 2 secure each; proposed 6/8 with no zero. Record errors and supports by dimension; this is not a validated placement threshold."
+      }
+    ],
+    "access": {
+      "construct": "Conceptual reasoning in quarter_mathematics, not handwriting, speed or agreement with an adult.",
+      "supports": [
+        "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
+      ],
+      "alternative_response": "Oral, typed, enlarged-print or verbatim-scribed equivalent; for language production record whether input was read or heard. Teach transcription separately."
+    },
+    "safety": {
+      "hazards": [],
+      "supervision": "Adult facilitates a paper-only route. No physical experiment is authorized.",
+      "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
+      "safer_alternative": "Use provided invented records and diagrams rather than a practical activity."
+    },
+    "sources": [
+      {
+        "title": "Quarter 4: cumulative mathematics evidence",
+        "creator_editor_translator": "Bede; AI-assisted original authoring",
+        "edition": "Original instructional draft 1; no third-party excerpts",
+        "url": "bede-original:grade8-year/quarter_mathematics/week-36",
+        "license": "Bede proprietary",
+        "attribution": "Bede-original explanation, tasks and invented contexts/data; not field evidence",
+        "notices": [
+          "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
+        ],
+        "locator": "Original record: quarter_mathematics, week 36"
+      }
+    ],
+    "strand": "quarter_mathematics",
+    "week": 36,
+    "prerequisite_objective_ids": []
+  }
+]

@@ -19,6 +19,7 @@ export type GradeStage = 'K-2' | '3-5' | '6-8'
 export const SUBJECTS = [
   'morning_time', 'living_books', 'mathematics', 'nature_study', 'history',
   'language_arts', 'science', 'art_music', 'saints', 'scripture', 'latin', 'greek', 'logic', 'free_study',
+  'spanish', 'computing', 'movement_health',
 ] as const
 export type Subject = typeof SUBJECTS[number]
 
@@ -29,6 +30,7 @@ export const SUBJECT_LABELS: Record<Subject, string> = {
   scripture: 'Scripture & Bible Study', latin: 'Latin & Christian Foundations',
   greek: 'Greek & New Testament Foundations', logic: 'Logic',
   free_study: 'Free Study',
+  spanish: 'Spanish', computing: 'Computing & Research', movement_health: 'Movement & Health Literacy',
 }
 
 export interface ChatMessage {
@@ -90,6 +92,12 @@ export interface SessionConfig {
   lesson_focus?: string | null
   faith_emphasis?: string | null
   current_unit?: string | null
+  grade8_curriculum?: DemoParentConfig['grade8_curriculum']
+  companion_mode?: CompanionMode
+  bible_translation?: string
+  curriculum_resources?: string[]
+  character_virtues?: string[]
+  learning_support?: string[]
   faith_tradition?: string | null
   voice_required?: boolean
   screen_time_limit_minutes?: number | null
@@ -122,6 +130,7 @@ export interface DemoParentConfig {
   lesson_focus?: string
   faith_emphasis?: string
   current_unit?: string
+  grade8_curriculum?: { release_id?: 'bede-grade8-2026-accepted'; week: number; pathway: 'foundations' | 'algebra'; lesson_id?: string | null } | null
   faith_tradition?: string
   bible_translation?: string
   curriculum_resources?: string[]
@@ -458,6 +467,13 @@ export async function setDemoParentConfig(
   })
   if (res.status === 401) throw new TrialSessionEndedError('This demo session has ended')
   if (!res.ok) throw new Error(`Could not save these settings (${res.status})`)
+}
+
+export async function getGrade8Release(week: number, pathway: string) {
+  const res = await fetch(`${apiBase()}/catalog/grade8/release?week=${week}&pathway=${encodeURIComponent(pathway)}`)
+  if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)
+  return { ...await res.json(), atlas_url: `${apiBase()}/catalog/grade8/atlas`,
+    visual_source_url: `${apiBase()}/catalog/grade8/visual-source` }
 }
 
 export function decodeExpiry(token: string): number | null {

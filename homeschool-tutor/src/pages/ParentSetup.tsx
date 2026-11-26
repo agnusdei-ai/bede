@@ -10,6 +10,8 @@ import { capForStudyMinutes, studyMinutesWithinCap } from '../utils/gradeTimer'
 import { licenseTierLabel } from '../utils/licenseTierLabel'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
+import Grade8CourseControls from '../components/Grade8CourseControls'
+import { getGrade8Release } from '../services/api'
 import ChildPinSettings from '../components/ChildPinSettings'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
@@ -66,7 +68,7 @@ const blankResume = (): ResumeForm => ({
 // asked for it, which is the opposite of the opt-in promise those subjects
 // are documented with. `free_study` was already excluded for its own
 // reasons and keeps that behavior.
-const ELECTIVE_SUBJECTS: Subject[] = ['latin', 'greek', 'logic', 'free_study']
+const ELECTIVE_SUBJECTS: Subject[] = ['latin', 'greek', 'logic', 'free_study', 'spanish', 'computing', 'movement_health']
 const DEFAULT_SUBJECTS: Subject[] = SUBJECTS
   .filter((s) => !ELECTIVE_SUBJECTS.includes(s.id))
   .map((s) => s.id)
@@ -154,6 +156,7 @@ interface StudentForm {
   lesson_focus: string
   faith_emphasis: string
   current_unit: string
+  grade8_curriculum?: SessionConfig['grade8_curriculum']
   faith_tradition: string
   bible_translation: string
   // Comma-separated in the form, same convention as term_topics; parsed to
@@ -257,6 +260,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     lesson_focus: c.lesson_focus ?? '',
     faith_emphasis: c.faith_emphasis ?? '',
     current_unit: c.current_unit ?? '',
+    grade8_curriculum: c.grade8_curriculum ?? null,
     faith_tradition: c.faith_tradition ?? '',
     bible_translation: c.bible_translation ?? '',
     curriculum_resources: (c.curriculum_resources ?? []).join(', '),
@@ -402,6 +406,7 @@ export default function ParentSetup() {
       lesson_focus: s.lesson_focus.trim() || undefined,
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
+      grade8_curriculum: s.grade.trim() === '8' ? s.grade8_curriculum ?? null : null,
       faith_tradition: s.faith_tradition.trim() || undefined,
       bible_translation: s.bible_translation.trim() || undefined,
       curriculum_resources: s.curriculum_resources.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 6),
@@ -720,7 +725,9 @@ function StudentCard({
   // Both the grid and the minutes total read from this, so a student moved
   // down to K-2 after picking Logic stops showing it AND stops being
   // billed 15 minutes for a subject the backend will drop on save.
-  const availableSubjects = subjectsForStage(student.grade_stage)
+  const availableSubjects = subjectsForStage(student.grade_stage).filter(s =>
+    !['spanish', 'computing', 'movement_health'].includes(s.id)
+      || student.grade8_curriculum || student.selected_subjects.includes(s.id))
   const totalMin = student.selected_subjects.reduce((acc, s) => {
     const info = availableSubjects.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
@@ -794,7 +801,11 @@ function StudentCard({
               onChange={(e) => {
                 const grade = e.target.value
                 const stage = stageForGrade(grade)
-                onUpdate(stage ? { grade, grade_stage: stage } : { grade })
+                const course = grade.trim() === '8' ? {} : {
+                  grade8_curriculum: null,
+                  selected_subjects: student.selected_subjects.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)),
+                }
+                onUpdate({ ...(stage ? { grade, grade_stage: stage } : { grade }), ...course })
               }}
               aria-label={t('parentSetup.grade')}
               className="input"
@@ -925,6 +936,14 @@ function StudentCard({
         )}
 
         {/* Subjects */}
+        <Grade8CourseControls grade={student.grade} value={student.grade8_curriculum}
+          subjects={student.selected_subjects}
+          onChange={grade8_curriculum => onUpdate({
+            grade8_curriculum,
+            selected_subjects: grade8_curriculum ? student.selected_subjects
+              : student.selected_subjects.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)),
+          })}
+          load={getGrade8Release} />
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">{t('parentSetup.subjects')}</label>

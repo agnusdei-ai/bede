@@ -1,8 +1,10 @@
 """
 Catalog router — Mater Amabilis Year 1-3 reading list.
 
-All routes require authentication (parent or child). The catalog is static
-in-memory data loaded from data/catalog/ JSON files — no database queries.
+Book-list routes require authentication (parent or child). The Grade 8
+release/atlas/visual-source routes serve only published original student
+materials, never learner records or teacher keys. All are static source
+data; these handlers make no database queries or external requests.
 
 Routes:
   GET /catalog/years                     — list of available curriculum years
@@ -13,11 +15,61 @@ Routes:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import FileResponse
 
 from core.deps import require_real_user
 from services.catalog_service import get_book, get_books, get_years, search_books
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+
+@router.get("/grade8/atlas")
+async def grade8_atlas():
+    from services.grade8_curriculum_service import DATA_FILE, load
+    try:
+        load()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return FileResponse(DATA_FILE.parent / "grade8-atlas.html", media_type="text/html",
+                        headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"})
+
+
+@router.get("/grade8/visual-source")
+async def grade8_visual_source():
+    from services.grade8_curriculum_service import DATA_FILE, load
+    try:
+        load()
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return FileResponse(DATA_FILE.parent / "grade8-visual-source.html", media_type="text/html",
+                        headers={"Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"})
+
+
+@router.get("/grade8/release")
+async def grade8_release(
+    week: int = Query(default=1, ge=1, le=36),
+    pathway: str = Query(default="foundations", pattern="^(foundations|algebra)$"),
+) -> dict:
+    """Public original student curriculum only; no user, campus or teacher data.
+
+    Repository publication does not enable tutor activation. The explicit
+    operator flag is returned so setup controls cannot promise availability.
+    """
+    from services.grade8_curriculum_service import RELEASE_ID, STRAND_SUBJECT, enabled, week_plan
+    try:
+        plan, lessons = week_plan(week, pathway)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {
+        "release_id": RELEASE_ID, "runtime_enabled": enabled(),
+        "week": week, "pathway": pathway,
+        "lessons": [{**lesson, "subject": STRAND_SUBJECT[lesson["strand"]]} for lesson in lessons],
+        "reading_minutes": plan["reading_minutes"],
+        "composition_scope": plan["composition_scope"],
+        "quarter_assessment": plan["quarter_assessment"],
+        "retention_due_week": plan["retention_due_week"],
+        "pilot_evaluated": False,
+    }
 
 
 @router.get("/years")

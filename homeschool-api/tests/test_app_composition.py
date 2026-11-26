@@ -209,6 +209,11 @@ GUARDS = {
     ('POST', '/auth/recovery/webauthn/options'): 'PUBLIC',
     ('GET', '/auth/validate'): 'PUBLIC',
     ('GET', '/catalog/book/{book_id}'): 'require_real_user',
+    # Original, owner-accepted student material only: no teacher keys,
+    # learner records, or access to the authenticated book library.
+    ('GET', '/catalog/grade8/atlas'): 'PUBLIC',
+    ('GET', '/catalog/grade8/release'): 'PUBLIC',
+    ('GET', '/catalog/grade8/visual-source'): 'PUBLIC',
     ('GET', '/catalog/search'): 'require_real_user',
     ('GET', '/catalog/years'): 'require_real_user',
     ('GET', '/catalog/{year}/books'): 'require_real_user',

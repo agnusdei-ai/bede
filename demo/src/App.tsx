@@ -646,6 +646,7 @@ interface ChatScreenProps {
   // and surfaced here for the Continuing Mastery card's own framing line,
   // so a visitor sees Bede is actually aware of the material they typed in.
   currentUnit?: string | null
+  initialParentConfig?: DemoParentConfig
   runChat: (subject: Subject, history: ChatMessage[], childMessage: string, drawingImage: string | null, signal: AbortSignal, previousSubject: Subject | null) => AsyncGenerator<StreamChunk>
   // Only used for POST /tutor/extract-narration (see handleNarrationFile
   // below) — runChat already has its own token baked in via closure.
@@ -1000,7 +1001,7 @@ const MIN_MS_BETWEEN_AUTO_STARTS = 800
 const MAX_CONSECUTIVE_SILENT_TURNS = 3
 
 // Exported for ChatScreen.unmount.test.tsx only.
-export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
+export function ChatScreen({ displayName, grade, subjects, currentUnit, initialParentConfig, runChat, token, code, speakToken, header, onFinishDemo, onSessionInvalid, sessionStateRef, sessionStartedAt }: ChatScreenProps) {
   const { t, i18n } = useTranslation()
   const [showPracticeCoach, setShowPracticeCoach] = useState(false)
   const [showNumberTime, setShowNumberTime] = useState(false)
@@ -1029,16 +1030,14 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
   const [parentControls, setParentControls] = useState<DemoParentControls>(() => readDemoParentControls())
   // The full Parent Setup panel (DemoParentSetup.tsx). `parentSetup` keeps
   // what was saved so reopening the panel shows the plan in force rather
-  // than resetting to defaults; it is not persisted across a reload, the
-  // same posture as subjectLastExchange above — the SERVER holds the saved
-  // configuration for this code either way, so a reload loses only the
-  // form's pre-fill, never the plan Bede is actually running.
+  // than resetting to defaults. Seed the course selection from the freshly
+  // fetched server config after a reload; do not save an empty course over it.
   // The subject list the picker offers. Seeded from the prop and replaced
   // when a plan is saved, so the chat cannot keep offering subjects the
   // server has just been told this session does not include.
   const [activeSubjects, setActiveSubjects] = useState<readonly Subject[]>(subjects)
   const [showParentSetup, setShowParentSetup] = useState(false)
-  const [parentSetup, setParentSetup] = useState<DemoParentConfig | undefined>(undefined)
+  const [parentSetup, setParentSetup] = useState<DemoParentConfig | undefined>(initialParentConfig)
   // Re-render every 15s so break/conclude transitions are noticed promptly
   // even when nothing else is happening (same trick as the full app).
   const [, setPhaseTick] = useState(0)
@@ -2283,6 +2282,7 @@ export function ChatScreen({ displayName, grade, subjects, currentUnit, runChat,
       {showParentSetup && (
         <DemoParentSetup
           token={token}
+          grade={grade}
           initial={parentSetup}
           onSaved={(config) => {
             setParentSetup(config)
@@ -3332,6 +3332,14 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
         grade={config.grade}
         subjects={config.subjects}
         currentUnit={config.current_unit}
+        initialParentConfig={{
+          subjects: config.subjects, current_unit: config.current_unit ?? undefined,
+          lesson_focus: config.lesson_focus ?? undefined, faith_emphasis: config.faith_emphasis ?? undefined,
+          faith_tradition: config.faith_tradition ?? undefined, grade8_curriculum: config.grade8_curriculum ?? null,
+          companion_mode: config.companion_mode, bible_translation: config.bible_translation,
+          curriculum_resources: config.curriculum_resources, character_virtues: config.character_virtues,
+          learning_support: config.learning_support,
+        }}
         runChat={runChat}
         token={token}
         code={code}

@@ -1,4 +1,4 @@
-"""K–12 routing parity; use static public sources and synthetic configurations."""
+"""K–12 routing parity; use static public sources and sample configurations."""
 from hashlib import sha256
 from pathlib import Path
 

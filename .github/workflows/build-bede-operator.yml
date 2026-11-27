@@ -63,7 +63,15 @@ jobs:
       - name: Prepare bundle generator
         run: python -m pip install 'PyYAML==6.0.2'
       - name: Install archive compressor
-        run: sudo apt-get update && sudo apt-get install -y zstd
+        # zstd ships in the runner image; install only if it is missing. On
+        # 2026-11-26 this step hung on apt for the whole 120-minute job
+        # budget (run 45754755802), so apt is bounded and retried rather
+        # than left to wait on a stalled mirror.
+        timeout-minutes: 10
+        run: |
+          command -v zstd && exit 0
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y zstd
       - name: Verify LAN opt-in and WebAuthn wizard contracts
         run: |
           python -m py_compile scripts/setup_wizard/wizard.py
@@ -521,9 +529,10 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
       - name: Install native Linux package builders
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y rpm
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 install -y rpm
           command -v dpkg-deb
           command -v rpmbuild
       - name: Download exact source-free Standard operator

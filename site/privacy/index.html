@@ -166,6 +166,13 @@
           <td>Tab close / logout</td>
         </tr>
         <tr>
+          <td><code>bede-webkit-nav-relocate</code></td>
+          <td>sessionStorage</td>
+          <td>Strictly necessary</td>
+          <td>Written only on Safari or iPad versions 26.0, where a browser bug can crash the page on a second reload. It holds the page address and a time, so the page reloads itself at most once to avoid the crash. Other browsers never write it.</td>
+          <td>Tab close</td>
+        </tr>
+        <tr>
           <td><code>bede-demo-student-name</code></td>
           <td>sessionStorage</td>
           <td>Functional</td>

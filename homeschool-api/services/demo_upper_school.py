@@ -1,4 +1,8 @@
-"""Grade-specific interactive demo guidance, not approved course content."""
+"""Shared upper-school guidance for demo and enrolled sessions.
+
+The module name is retained for compatibility. Availability and routing are
+defined by curriculum_delivery, independently of account or delivery type.
+"""
 
 from models.schemas import DEMO_UPPER_GRADES, SessionConfig
 
@@ -36,7 +40,7 @@ def upper_school_guidance(config: SessionConfig) -> str:
     if grade not in DEMO_UPPER_GRADES:
         return ""
     return (
-        f"INTERACTIVE GRADE {grade} DEMO — upper-school Socratic practice.\n"
+        f"INTERACTIVE GRADE {grade} — upper-school Socratic practice.\n"
         "The 6-8 transport band is only a compatibility envelope for existing session tools; "
         "teach at the exact upper-school grade stated here, not at a middle-school level. "
         "These are sample practice directions, not a complete, accredited, or approved full-year curriculum. "

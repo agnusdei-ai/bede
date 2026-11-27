@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Loader2, Check } from 'lucide-react'
 import Grade8CourseControls, { type Grade8Selection } from './Grade8CourseControls'
-import { getGrade8Release } from './api'
+import CurriculumAvailability from './CurriculumAvailability'
+import { getGrade8Release, getCurriculumAvailability } from './api'
 
 import {
   BIBLE_TRANSLATIONS,
@@ -217,6 +218,7 @@ export default function DemoParentSetup({
           </div>
 
           {/* Subjects */}
+          <CurriculumAvailability grade={grade} load={getCurriculumAvailability} />
           <Grade8CourseControls grade={grade} value={course} subjects={subjects}
             onChange={next => {
               setCourse(next)

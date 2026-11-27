@@ -40,7 +40,7 @@ async def test_exact_grade_reaches_actual_tutor_prompts_without_k8_catalog(grade
     response = await create_demo_code(DemoCodeRequest(grade=grade, current_unit="Our own unit"))
     config = await _demo_session_config(response.code)
     static = ai_service._build_static_prompt(config, locale)
-    assert f"INTERACTIVE GRADE {grade} DEMO" in static
+    assert f"INTERACTIVE GRADE {grade} — upper-school" in static
     assert GRADE_FOCI[grade] in static
     assert "Rhetoric Stage (grades 6-8)" not in static
     assert "Grades 6-7 (Rhetoric stage" not in static
@@ -49,7 +49,7 @@ async def test_exact_grade_reaches_actual_tutor_prompts_without_k8_catalog(grade
         assert "Spanish" in static
     for subject in (Subject.mathematics, Subject.living_books, Subject.science, Subject.history):
         prompt = await ai_service._build_subject_prompt(config, subject, demo_code=response.code, locale=locale)
-        assert f"INTERACTIVE GRADE {grade} DEMO" in prompt
+        assert f"INTERACTIVE GRADE {grade} — upper-school" in prompt
         assert "Our own unit" in prompt
         assert "Never complete active assignments" in prompt
         assert "probe." not in prompt

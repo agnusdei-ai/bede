@@ -665,8 +665,10 @@ class Settings(BaseSettings):
     # meaning off. Turning it on approves no content: every rights and review
     # gate in that package still applies.
     curriculum_engine_enabled: bool = False
-    # Independent original student instruction, not institutional corpus promotion.
-    bede_grade8_curriculum_enabled: bool = False
+    # Accepted original student instruction is available in every delivery.
+    # An explicit false remains an operator kill switch. This is independent
+    # of institutional corpus promotion and does not select a course for a learner.
+    bede_grade8_curriculum_enabled: bool = True
 
     @field_validator("curriculum_engine_enabled", mode="before")
     @classmethod

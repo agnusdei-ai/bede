@@ -27,6 +27,23 @@ def test_operator_flag_uses_the_existing_environment_contract(monkeypatch, value
     assert Settings(_env_file=None).bede_grade8_curriculum_enabled is expected
 
 
+def test_accepted_course_is_available_without_enabling_institutional_ingestion(monkeypatch):
+    from core.config import Settings
+    monkeypatch.delenv("BEDE_GRADE8_CURRICULUM_ENABLED", raising=False)
+    monkeypatch.delenv("CURRICULUM_ENGINE_ENABLED", raising=False)
+    settings = Settings(_env_file=None)
+    assert settings.bede_grade8_curriculum_enabled is True
+    assert settings.curriculum_engine_enabled is False
+    assert config(grade8_curriculum=None).grade8_curriculum is None
+
+
+def test_accepted_course_rejects_invalid_operator_flag(monkeypatch):
+    from core.config import Settings
+    monkeypatch.setenv("BEDE_GRADE8_CURRICULUM_ENABLED", "ture")
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None)
+
+
 def config(**updates):
     data = dict(student_name="Example learner", grade="8", grade_stage="6-8",
                 subjects=[Subject.mathematics],

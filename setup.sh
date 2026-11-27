@@ -509,6 +509,10 @@ fi
 # wizard does: silence means Practice Coach on, Curriculum Intelligence off.
 if [[ "$PRACTICE_COACH" == "n" ]]; then echo "PRACTICE_COACH_ENABLED=false" >> .env; fi
 if [[ "$CURRICULUM" == "y" ]]; then echo "CURRICULUM_ENGINE_ENABLED=true" >> .env; fi
+# Accepted student instruction is independent of the optional institutional
+# engine. Preserve an explicit operator override when running setup again.
+GRADE8_CURRICULUM="$(prior_value BEDE_GRADE8_CURRICULUM_ENABLED "$PRIOR_ENV")"
+printf 'BEDE_GRADE8_CURRICULUM_ENABLED=%s\n' "${GRADE8_CURRICULUM:-true}" >> .env
 # Keep the family's other settings from the .env being replaced (anything the
 # installer does not ask about or write itself: an added mail key, a custom
 # port, a sandbox PIN). Settings this run decided are never carried over, so a
@@ -521,7 +525,7 @@ if [[ -n "$PRIOR_ENV" && -f "$PRIOR_ENV" ]]; then
     case "$key" in
       ANTHROPIC_API_KEY|OPENAI_API_KEY|MISTRAL_API_KEY|BEDE_ADAPTER_ORDER|LOCAL_LLM_BASE_URL|LOCAL_LLM_MODEL|\
       COMPOSE_PROFILES|POSTGRES_PASSWORD|DATABASE_URL|TTS_PROVIDER|PRACTICE_COACH_ENABLED|\
-      CURRICULUM_ENGINE_ENABLED|RETAIN_MASTERY_PROFILES|CORS_ORIGINS) continue ;;
+      CURRICULUM_ENGINE_ENABLED|BEDE_GRADE8_CURRICULUM_ENABLED|RETAIN_MASTERY_PROFILES|CORS_ORIGINS) continue ;;
     esac
     grep -q "^${key}=" .env && continue
     if [[ "$KEPT" -eq 0 ]]; then printf '\n# Kept from your previous .env\n' >> .env; fi

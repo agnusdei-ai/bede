@@ -2374,14 +2374,11 @@ def _infer_year(config: SessionConfig) -> "int | None":
     Returns None if the grade cannot be mapped, or if no catalog file exists
     for that year — get_catalog_note() degrades gracefully in that case.
     """
-    grade = config.grade.strip().upper()
-    mapping: dict = {
-        "K": 1, "0": 1, "1": 1,
-        "2": 2,
-        "3": 3,
-        "4": 4, "5": 5, "6": 6, "7": 7, "8": 8,
-    }
-    return mapping.get(grade)
+    from services.curriculum_delivery import catalog_year_for_grade
+    try:
+        return catalog_year_for_grade(config.grade)
+    except ValueError:
+        return None
 
 
 def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:

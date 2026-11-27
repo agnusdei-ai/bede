@@ -23,6 +23,13 @@ from services.catalog_service import get_book, get_books, get_years, search_book
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
 
+@router.get("/curriculum-availability")
+async def shared_curriculum_availability():
+    """Public K–12 release metadata shared by demo, installed, and native clients."""
+    from services.curriculum_delivery import curriculum_availability
+    return curriculum_availability()
+
+
 @router.get("/grade8/atlas")
 async def grade8_atlas():
     from services.grade8_curriculum_service import DATA_FILE, load

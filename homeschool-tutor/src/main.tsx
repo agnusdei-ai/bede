@@ -5,6 +5,7 @@ import App from './App'
 import { installDiagnostics } from './hooks/diagnostics'
 import { retireServiceWorker } from './utils/serviceWorker'
 import { logDebug } from './hooks/debugBus'
+import { installWebkitNavigationGuard } from './utils/webkitNavigationGuard'
 import './index.css'
 import './i18n'
 
@@ -14,6 +15,11 @@ import './i18n'
 // buffer, which nothing reads until the DebugOverlay is opened from the
 // session header. See hooks/diagnostics.ts.
 installDiagnostics()
+
+// Before the router makes its first pushState: on WebKit 26.0 a push the
+// engine fails to record makes the second reload crash the page (#861). See
+// utils/webkitNavigationGuard.ts.
+installWebkitNavigationGuard(window, logDebug)
 
 // Vite reports a page file that failed to preload here, before the import
 // itself throws. Recorded only. The error screen decides whether to reload,

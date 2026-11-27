@@ -756,6 +756,7 @@ _DECIDED_BY_THE_WIZARD = frozenset({
     "RETAIN_MASTERY_PROFILES", "SECRET_KEY", "MASTER_SECRET", "PARENT_PASSWORD", "CHILD_PIN",
     "CORS_ORIGINS", "WEBAUTHN_RP_ID", "WEBAUTHN_ORIGIN", "WEBAUTHN_RP_NAME",
     "BEDE_LAN_ENABLED", "BEDE_LAN_BIND_IP", "CONSENT_INSTALL_ACK_HASH", "CONSENT_INSTALL_ACK_AT",
+    "BEDE_GRADE8_CURRICULUM_ENABLED",
     "DISABLE_API_DOCS", "PRODUCTION", "LICENSE_KEY", "EDUCATOR_PILOT_ENABLED", "BEDE_LOCATION_ID",
 })
 
@@ -856,6 +857,9 @@ def build_env_file(fields: dict) -> str:
         # Curriculum Intelligence off are what silence means.
         + ("PRACTICE_COACH_ENABLED=false\n" if fields.get("practice_coach") == "no" else "")
         + ("CURRICULUM_ENGINE_ENABLED=true\n" if fields.get("curriculum") == "yes" else "")
+        # Accepted student instruction is available independently of the
+        # optional institutional engine. Keep explicit operator overrides.
+        + f"BEDE_GRADE8_CURRICULUM_ENABLED={prior.get('BEDE_GRADE8_CURRICULUM_ENABLED', 'true')}\n"
         + kept_block
     )
 

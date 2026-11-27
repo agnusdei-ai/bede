@@ -173,6 +173,9 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
     )
 
 
+# The three course subjects that exist only in the Grade 8 curriculum.
+_GRADE8_ONLY_SUBJECTS = frozenset({Subject.spanish, Subject.computing, Subject.movement_health})
+
 _FILE_REFUSED = {
     "en": "Bede couldn't use that picture. Please try a different photo or drawing.",
     "es": "Bede no pudo usar esa imagen. Prueba con otra foto u otro dibujo.",
@@ -269,33 +272,47 @@ async def chat(
         # holding: every commit and flush re-validates first.
         db = pilot_authz.RevocationGatedSession(db, tutor_ctx, audit_from_request(request))
 
+    # COPPA: no child content is collected for a student until a parent has
+    # consented, and not while collection is paused (core/consent.py). The
+    # demo role is a pseudonymous public session with no StudentConfig and
+    # its own retention story, so it is not gated here. The educator branch
+    # above has already replaced session_config with the saved, authoritative
+    # plan, so this checks the student whose data would be written. It runs
+    # before the Grade 8 plan lookup below, so a student without consent is
+    # refused for consent, never told about a plan.
+    if not is_demo_code:
+        await consent.require_collection(db, req.session_config.student_name)
+
     # Keep stored plans readable/editable while a release is disabled. Reject
     # teaching before starting a stream or contacting any model provider.
+    # The saved plan is loaded only for a Grade 8 turn (the request claims the
+    # Grade 8 curriculum, or asks for one of its three course subjects), so an
+    # ordinary lesson makes no extra lookup and behaves exactly as before.
     from services.grade8_curriculum_service import enabled as grade8_enabled, authoritative_config
-    if role in ("child", "parent") and grade8_enabled():
+    grade8_turn = bool(req.session_config.grade8_curriculum) or req.current_subject in _GRADE8_ONLY_SUBJECTS
+    if role in ("child", "parent") and grade8_enabled() and grade8_turn:
         from routers.pod import get_student_config
-        saved = await get_student_config(req.session_config.student_name, auth=auth, db=db)
+        try:
+            saved = await get_student_config(req.session_config.student_name, auth=auth, db=db)
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            raise HTTPException(
+                status_code=409,
+                detail="The Grade 8 plan changed or was not saved; reload Parent Setup",
+            ) from exc
         try:
             req.session_config = authoritative_config(req.session_config, saved, req.current_subject)
         except PermissionError as exc:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-    if req.current_subject in {Subject.spanish, Subject.computing, Subject.movement_health} and (
+    if req.current_subject in _GRADE8_ONLY_SUBJECTS and (
         not req.session_config.grade8_curriculum or req.current_subject not in req.session_config.subjects
     ):
         raise HTTPException(status_code=403, detail="This course subject is not enabled in the adult-selected plan.")
     if req.session_config.grade8_curriculum and not grade8_enabled():
         raise HTTPException(status_code=409, detail="The Grade 8 curriculum has not been activated by the operator.")
-
-    # COPPA: no child content is collected for a student until a parent has
-    # consented, and not while collection is paused (core/consent.py). The
-    # demo role is a pseudonymous public session with no StudentConfig and
-    # its own retention story, so it is not gated here. The educator branch
-    # above has already replaced session_config with the saved, authoritative
-    # plan, so this checks the student whose data would be written.
-    if not is_demo_code:
-        await consent.require_collection(db, req.session_config.student_name)
 
     if role in ("child", "parent") and req.session_config.grade_stage == GradeStage.foundations:
         # K-2 practice: the per-child setting comes from the SAVED config,

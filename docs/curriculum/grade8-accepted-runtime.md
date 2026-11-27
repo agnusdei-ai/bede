@@ -32,13 +32,32 @@ No teacher-resource download endpoint is introduced.
 
 ## Activation is separate
 
-`BEDE_GRADE8_CURRICULUM_ENABLED` defaults off. An authorized operator can enable
-the runtime using the deployment's existing environment controls **only after
-the applicable remaining rollout requirements are met**. This change does not
-set that flag or alter existing institutional review/promotion controls.
+`BEDE_GRADE8_CURRICULUM_ENABLED` defaults to `true` for the accepted original
+student course in the shared API, Docker Compose, Render Blueprint, and both
+installers. This makes the same course available in the demo and installed
+runtime; it does not automatically select it for a learner. The separate
+`CURRICULUM_ENGINE_ENABLED` institutional engine remains off by default, with
+its existing rights, review, and promotion controls unchanged.
+
+An authorized operator can set `BEDE_GRADE8_CURRICULUM_ENABLED=false` to disable
+the course. Both installers preserve an explicit value during reconfiguration.
 Stored choices remain readable and removable while the runtime is disabled;
 a teaching request returns HTTP 409 before streaming or contacting a model.
 Publishing source or setting a client-side selection cannot bypass this gate.
+
+For an existing Render service, deploy the updated API and, if an older explicit
+`false` is present, intentionally change that non-secret setting to `true` and
+redeploy. A Blueprint sync applies the committed `true`; an existing service not
+managed by this Blueprint requires its normal environment controls. Verify
+`GET /catalog/grade8/release?week=1&pathway=foundations` returns
+`runtime_enabled: true` and release `bede-grade8-2026-accepted` after rollout;
+repeat for `pathway=algebra` and week 36. Check the adult course controls and
+saved selection before claiming end-to-end teaching verification.
+
+Availability is not pilot evaluation, institutional promotion, installer
+qualification, or real learner-data authorization. Swift/App Store packaging
+must use this same API contract when implemented; no native Swift delivery
+is established by this configuration change.
 
 For a Grade 8 profile, Parent Setup shows the release status and source links.
 After operator activation, the adult can choose the week, mathematics pathway,

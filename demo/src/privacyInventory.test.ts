@@ -21,6 +21,7 @@ import { describe, expect, it } from 'vitest'
 
 import { canvasStorageKey, CANVAS_STORAGE_VERSION } from './canvasPersistence'
 import { READING_PRESENTATION_KEYS } from './useReadingPresentation'
+import { RELOCATE_MARKER_KEY } from './webkitNavigationGuard'
 
 const PRIVACY_PAGE = readFileSync(join(__dirname, '../../site/privacy/index.html'), 'utf8')
 
@@ -32,6 +33,7 @@ const DISCLOSED_KEYS: ReadonlyArray<{ what: string; key: string }> = [
   { what: 'the writing pad page', key: canvasStorageKey('&lt;code&gt;') },
   { what: 'the in-progress chat', key: 'bede-demo-chat-&lt;code&gt;' },
   { what: 'the session token', key: 'bede-demo-auth' },
+  { what: 'the WebKit 26.0 reload-crash guard marker', key: RELOCATE_MARKER_KEY },
   { what: 'the press-and-hold vs. hands-free mic preference', key: 'bede-voice-mode' },
   { what: 'the letter-spacing reading preference', key: 'bede-demo-letter-spacing' },
   { what: 'the line-spacing reading preference', key: 'bede-demo-line-spacing' },

@@ -133,6 +133,10 @@ properly, straight away. From then on reloads are safe. Other browsers, and
 WebKit versions without the bug, never take this extra load. Words a child has
 typed survive it (see "Unsent words survive a reload"), and so does sign-in.
 
+The public demo carries the same guard (`demo/src/webkitNavigationGuard.ts`,
+checked to match the app's copy). The demo does not move between pages that
+way today, so there it only protects against a future change.
+
 ## A crash is recorded, not just shown
 
 Any other error that reaches the error screen is a real bug. It is now written

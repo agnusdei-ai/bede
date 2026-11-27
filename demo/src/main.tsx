@@ -7,6 +7,8 @@ import TextSizeControl from './TextSizeControl'
 import TouchTitles from './TouchTitles'
 import { warmDemoBackend } from './api'
 import { installDiagnostics } from './diagnostics'
+import { logDebug } from './debugBus'
+import { installWebkitNavigationGuard } from './webkitNavigationGuard'
 import './i18n'
 import './index.css'
 
@@ -16,6 +18,12 @@ import './index.css'
 // (CSP, CORS, DNS). Silent: everything lands in debugBus's ring buffer,
 // which nothing reads until the DebugOverlay is opened. See diagnostics.ts.
 installDiagnostics()
+
+// Same guard as the app (homeschool-tutor/src/utils/webkitNavigationGuard.ts,
+// #861): on WebKit 26.0 a pushState the engine fails to record makes a later
+// second reload crash the page. The demo does not call pushState today, so
+// this is preventive; it does nothing on any other engine.
+installWebkitNavigationGuard(window, logDebug)
 
 // Start waking the (possibly sleeping) demo backend before React even
 // mounts — see warmDemoBackend's own comment.

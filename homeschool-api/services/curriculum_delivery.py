@@ -31,14 +31,17 @@ def catalog_year_for_grade(grade: str) -> int | None:
 
 def curriculum_availability() -> dict:
     """Public source/version metadata only: no learner plans or adult answers."""
-    from services.grade8_curriculum_service import DATA_FILE, RELEASE_ID, enabled, load
+    from services.grade8_curriculum_service import DATA_FILE, MANIFEST_SHA256, RELEASE_ID, enabled, load
 
     # Use the existing integrity-checked adapter. A missing/tampered accepted
     # release must fail explicitly, not be relabeled as ready or fall back.
     accepted = load()
+    digest = sha256(DATA_FILE.read_bytes()).hexdigest()
+    if digest != MANIFEST_SHA256:
+        raise ValueError("Accepted curriculum manifest changed after verification")
     accepted_release = {
         "release_id": RELEASE_ID,
-        "source_sha256": sha256(DATA_FILE.read_bytes()).hexdigest(),
+        "source_sha256": digest,
         "runtime_enabled": enabled(),
         "reviewed_records": accepted["reviewed_records"],
     }

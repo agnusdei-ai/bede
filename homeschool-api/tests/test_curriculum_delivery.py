@@ -68,6 +68,15 @@ def test_public_metadata_does_not_silently_accept_a_broken_release(monkeypatch):
         delivery.curriculum_availability()
 
 
+def test_metadata_rechecks_manifest_even_after_adapter_cache_is_warm(monkeypatch, tmp_path):
+    accepted.load()
+    changed = tmp_path / "changed-manifest.json"
+    changed.write_text('{"release_id":"unreviewed"}')
+    monkeypatch.setattr(accepted, "DATA_FILE", changed)
+    with pytest.raises(ValueError, match="manifest changed"):
+        delivery.curriculum_availability()
+
+
 @pytest.mark.parametrize("grade", ["-1", "13", "high school", "8.0", ""])
 def test_invalid_grades_do_not_route_to_other_content(grade):
     with pytest.raises(ValueError):

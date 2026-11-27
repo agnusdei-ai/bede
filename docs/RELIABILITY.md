@@ -117,6 +117,22 @@ new release behind it is now logged and never reloads.
   screen alone decides whether to reload.
 - Tests: `homeschool-tutor/src/components/ErrorBoundary.test.tsx`.
 
+## A second reload no longer crashes the lesson on WebKit 26.0
+
+Safari and iOS 26.0 (WebKit 26.0) have an engine bug, tracked by WebKit as
+bug 300402. When the app moves to a new page within itself, WebKit does not
+record that move. One reload then leaves the record empty, and the next reload
+crashes the tab. The browser journeys caught this on a child's lesson page
+(#861), and a blank test page with no Bede code crashes the same way. WebKit
+26.6 does not have the bug.
+
+A page cannot refuse a reload, so Bede removes what makes the second one fatal
+(`homeschool-tutor/src/utils/webkitNavigationGuard.ts`). When the browser shows
+it failed to record an in-app move, the app loads that same address once
+properly, straight away. From then on reloads are safe. Other browsers, and
+WebKit versions without the bug, never take this extra load. Words a child has
+typed survive it (see "Unsent words survive a reload"), and so does sign-in.
+
 ## A crash is recorded, not just shown
 
 Any other error that reaches the error screen is a real bug. It is now written

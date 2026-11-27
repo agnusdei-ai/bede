@@ -268,3 +268,67 @@ def test_missing_or_tampered_source_never_silently_uses_the_old_catalog(monkeypa
     finally:
         monkeypatch.setattr(release, "DATA_FILE", original)
         release.load.cache_clear()
+
+
+class _TurnReachedTheLesson(Exception):
+    """Raised where the turn would start logging and streaming the lesson."""
+
+
+def _stop_at_the_lesson(*_args, **_kwargs):
+    raise _TurnReachedTheLesson
+
+
+def _child_chat(monkeypatch, selected, subject, saved_lookup):
+    from core import consent
+    from routers import pod, tutor
+    order = []
+    async def consent_check(db, student_name):
+        order.append("consent")
+    async def lookup(student_name, auth, db):
+        order.append("plan")
+        return await saved_lookup(student_name)
+    monkeypatch.setattr(consent, "require_collection", consent_check)
+    monkeypatch.setattr(pod, "get_student_config", lookup)
+    monkeypatch.setattr(tutor, "log_event", _stop_at_the_lesson)
+    req = TutorRequest(session_config=selected, current_subject=subject,
+                       child_message="Guide me through the next task.")
+    request = Request({"type": "http", "method": "POST", "path": "/tutor/chat", "headers": []})
+    return order, tutor.chat(req, request, auth={"role": "parent"}, db=None)
+
+
+@pytest.mark.asyncio
+async def test_an_ordinary_turn_makes_no_saved_plan_lookup(monkeypatch):
+    # The activated release must not change a lesson that is not a Grade 8
+    # turn: no plan lookup, and the turn goes on to the lesson as before.
+    set_activation(monkeypatch, True)
+    async def never(name):
+        raise AssertionError("an ordinary turn must not load the saved plan")
+    order, turn = _child_chat(monkeypatch, config(grade8_curriculum=None), Subject.mathematics, never)
+    with pytest.raises(_TurnReachedTheLesson):
+        await turn
+    assert order == ["consent"]
+
+
+@pytest.mark.asyncio
+async def test_a_grade8_turn_checks_consent_first_then_uses_the_saved_plan(monkeypatch):
+    set_activation(monkeypatch, True)
+    saved = config(subjects=[Subject.computing],
+                   grade8_curriculum={"week": 12, "pathway": "foundations"})
+    async def found(name):
+        return saved
+    order, turn = _child_chat(monkeypatch, saved, Subject.computing, found)
+    with pytest.raises(_TurnReachedTheLesson):
+        await turn
+    assert order == ["consent", "plan"]
+
+
+@pytest.mark.asyncio
+async def test_a_grade8_turn_with_no_saved_plan_is_a_clear_conflict(monkeypatch):
+    set_activation(monkeypatch, True)
+    async def missing(name):
+        raise HTTPException(status_code=404, detail="Student config not found")
+    order, turn = _child_chat(monkeypatch, config(), Subject.mathematics, missing)
+    with pytest.raises(HTTPException) as caught:
+        await turn
+    assert caught.value.status_code == 409
+    assert order == ["consent", "plan"]

@@ -217,6 +217,7 @@ GUARDS = {
     # learner records, or access to the authenticated book library.
     ('GET', '/catalog/grade8/atlas'): 'PUBLIC',
     ('GET', '/catalog/grade8/release'): 'PUBLIC',
+    ('GET', '/catalog/curriculum-availability'): 'PUBLIC',
     ('GET', '/catalog/grade8/visual-source'): 'PUBLIC',
     ('GET', '/catalog/search'): 'require_real_user',
     ('GET', '/catalog/years'): 'require_real_user',

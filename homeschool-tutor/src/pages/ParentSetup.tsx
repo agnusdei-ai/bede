@@ -11,7 +11,8 @@ import { licenseTierLabel } from '../utils/licenseTierLabel'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import Grade8CourseControls from '../components/Grade8CourseControls'
-import { getGrade8Release } from '../services/api'
+import CurriculumAvailability from '../components/CurriculumAvailability'
+import { getGrade8Release, getCurriculumAvailability } from '../services/api'
 import ChildPinSettings from '../components/ChildPinSettings'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
@@ -940,6 +941,7 @@ function StudentCard({
         )}
 
         {/* Subjects */}
+        <CurriculumAvailability grade={student.grade} load={getCurriculumAvailability} />
         <Grade8CourseControls grade={student.grade} value={student.grade8_curriculum}
           subjects={student.selected_subjects}
           onChange={grade8_curriculum => onUpdate({

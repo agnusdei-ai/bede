@@ -476,6 +476,12 @@ export async function getGrade8Release(week: number, pathway: string) {
     visual_source_url: `${apiBase()}/catalog/grade8/visual-source` }
 }
 
+export async function getCurriculumAvailability() {
+  const res = await fetch(`${apiBase()}/catalog/curriculum-availability`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Could not load curriculum availability (${res.status})`)
+  return res.json()
+}
+
 export function decodeExpiry(token: string): number | null {
   try {
     const [, payloadB64] = token.split('.')

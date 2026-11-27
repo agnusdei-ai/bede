@@ -14,6 +14,12 @@ import { ApiRequestError } from '../utils/requestFailure'
 
 const BASE = '/api'
 
+export async function getCurriculumAvailability() {
+  const res = await fetch(`${BASE}/catalog/curriculum-availability`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`Could not load curriculum availability (${res.status})`)
+  return res.json()
+}
+
 export async function getGrade8Release(week: number, pathway: string) {
   const res = await fetch(`${BASE}/catalog/grade8/release?week=${week}&pathway=${encodeURIComponent(pathway)}`)
   if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)

@@ -196,6 +196,8 @@ services:
       # Explicit operator overrides still apply in non-Blueprint deployments.
       - key: BEDE_GRADE8_CURRICULUM_ENABLED
         value: "true"
+      - key: BEDE_UPPER_CURRICULUM_ENABLED
+        value: "true"
       - key: DEMO_STUDENT_NAME
         value: Guest
       - key: DEMO_GRADE

@@ -162,6 +162,7 @@ async def _demo_session_config(code: str | None = None) -> SessionConfig:
         current_term=_demo_current_term(code),
         current_unit=parent_config.get("current_unit") or current_unit,
         grade8_curriculum=parent_config.get("grade8_curriculum"),
+        upper_curriculum=parent_config.get("upper_curriculum"),
         faith_tradition=parent_config.get("faith_tradition") or faith_tradition,
         **({"companion_mode": CompanionMode(companion)} if companion else {}),
         lesson_focus=parent_config.get("lesson_focus"),
@@ -289,8 +290,11 @@ async def chat(
     # Grade 8 curriculum, or asks for one of its three course subjects), so an
     # ordinary lesson makes no extra lookup and behaves exactly as before.
     from services.grade8_curriculum_service import enabled as grade8_enabled, authoritative_config
-    grade8_turn = bool(req.session_config.grade8_curriculum) or req.current_subject in _GRADE8_ONLY_SUBJECTS
-    if role in ("child", "parent") and grade8_enabled() and grade8_turn:
+    from services.upper_curriculum_service import enabled as upper_enabled
+    upper_turn = bool(req.session_config.upper_curriculum)
+    grade8_turn = (bool(req.session_config.grade8_curriculum) or upper_turn
+                   or req.current_subject in _GRADE8_ONLY_SUBJECTS)
+    if role in ("child", "parent") and (grade8_enabled() or upper_enabled()) and grade8_turn:
         from routers.pod import get_student_config
         try:
             saved = await get_student_config(req.session_config.student_name, auth=auth, db=db)
@@ -308,11 +312,14 @@ async def chat(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
     if req.current_subject in _GRADE8_ONLY_SUBJECTS and (
-        not req.session_config.grade8_curriculum or req.current_subject not in req.session_config.subjects
+        not (req.session_config.grade8_curriculum or req.session_config.upper_curriculum)
+        or req.current_subject not in req.session_config.subjects
     ):
         raise HTTPException(status_code=403, detail="This course subject is not enabled in the adult-selected plan.")
     if req.session_config.grade8_curriculum and not grade8_enabled():
         raise HTTPException(status_code=409, detail="The Grade 8 curriculum has not been activated by the operator.")
+    if req.session_config.upper_curriculum and not upper_enabled():
+        raise HTTPException(status_code=409, detail="The Grades 9-12 curriculum has not been activated by the operator.")
 
     if role in ("child", "parent") and req.session_config.grade_stage == GradeStage.foundations:
         # K-2 practice: the per-child setting comes from the SAVED config,

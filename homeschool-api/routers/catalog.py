@@ -79,6 +79,24 @@ async def grade8_release(
     }
 
 
+@router.get("/upper/release")
+async def upper_release(
+    grade: str = Query(..., pattern="^(9|10|11|12)$"),
+    week: int = Query(default=1, ge=1, le=36),
+) -> dict:
+    """Public original Grades 9-12 student curriculum only; adult keys are not in the release."""
+    from services.upper_curriculum_service import RELEASE_ID, enabled, week_lessons
+    try:
+        lessons = week_lessons(grade, week)
+    except ValueError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {
+        "release_id": RELEASE_ID, "runtime_enabled": enabled(),
+        "grade": grade, "week": week, "lessons": lessons,
+        "pilot_evaluated": False, "human_accepted": False,
+    }
+
+
 @router.get("/years")
 async def list_years(
     _: dict = Depends(require_real_user),

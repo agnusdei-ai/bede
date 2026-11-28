@@ -669,6 +669,9 @@ class Settings(BaseSettings):
     # An explicit false remains an operator kill switch. This is independent
     # of institutional corpus promotion and does not select a course for a learner.
     bede_grade8_curriculum_enabled: bool = True
+    # Reviewed original Grades 9-12 student instruction, same contract: available
+    # by default, an explicit false is an operator kill switch, never corpus promotion.
+    bede_upper_curriculum_enabled: bool = True
 
     @field_validator("curriculum_engine_enabled", mode="before")
     @classmethod

@@ -89,7 +89,9 @@ MIN_SECONDS_FOR_LONG_FORM_TASK = 180
 #: telling a passage back from memory; `invite_handwriting` opens the
 #: full-screen canvas. Everything else (a hint, a celebration, a picture,
 #: a faith connection) is read in place and costs no working time.
-LONG_FORM_TOOLS = frozenset({"request_narration", "invite_handwriting", "invite_map_practice", "invite_practice"})
+LONG_FORM_TOOLS = frozenset({
+    "request_narration", "invite_handwriting", "invite_map_practice", "invite_practice", "invite_essay_studio",
+})
 
 
 @dataclass(frozen=True)

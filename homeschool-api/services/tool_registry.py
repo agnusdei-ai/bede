@@ -136,6 +136,9 @@ _SPECS: Tuple[ToolSpec, ...] = (
     # Opens a K-2 practice round (services/k2_practice/). The model sends only
     # a closed `area`; the card, the words and the checking are the server's.
     ToolSpec("invite_practice"),
+    # Puts an Essay Studio card in the lesson (docs/ESSAY_STUDIO.md). The
+    # student opens it; the card frame is the server's.
+    ToolSpec("invite_essay_studio"),
     ToolSpec("offer_socratic_hint"),
     # celebrate_discovery/connect_to_faith render a card and may legitimately
     # carry no question, hence questionless. They are NOT reactable: nothing

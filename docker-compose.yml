@@ -240,6 +240,7 @@ services:
       # Curriculum Intelligence off unless set true. Both asked by the setup
       # wizard and setup.sh, and written to .env only when changed.
       - PRACTICE_COACH_ENABLED=${PRACTICE_COACH_ENABLED:-true}
+      - ESSAY_STUDIO_SAVE_DRAFTS=${ESSAY_STUDIO_SAVE_DRAFTS:-true}
       - CURRICULUM_ENGINE_ENABLED=${CURRICULUM_ENGINE_ENABLED:-false}
       - MCP_EXTERNAL_ENABLED=${MCP_EXTERNAL_ENABLED:-false}
       - MCP_EXTERNAL_SERVERS=${MCP_EXTERNAL_SERVERS:-}

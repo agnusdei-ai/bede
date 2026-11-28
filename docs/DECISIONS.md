@@ -3030,3 +3030,33 @@ Catechism and to Logic, with early exposure to the Summa Theologiae.
 
 `homeschool-api/tests/test_aquinas_content.py` pins the wiring, the stage
 pictures, the feast week, the retelling labels and the Logic guardrails.
+
+
+## 48. `[PRODUCT]` Essay Studio: a lesson activity for grades 6-12, separate from Practice Coach
+
+**Status:** closed
+
+**Decided (2026-11-28).** The owner asked for Essay Studio, a lesson-native
+workspace for essay writing, analysis, formative evaluation and Socratic
+coaching, with Bede as coach and the student as author, built on classical
+writing practice. It is opened from the lesson like Sound Time and Number Time,
+not placed inside Practice Coach, and adds no menu item, header control or
+Practice hub. Practice Coach, Quiz Builder and Teacher Quiz Studio are unchanged.
+
+- Grades 6-12, Language Arts and Living Books. Three progymnasmata exercises
+  (narrative, refutation, thesis); the grade at which the rhetoric stage begins
+  is a per-student setting, default 9, because schools disagree.
+- Model first, from the student's own assigned book (no model passages are
+  bundled); the opposing view stated fairly before it is answered, in
+  refutation and thesis only; coaching one criterion and one question at a time,
+  emphasis moving from clarity and form to reasoning to audience.
+- Bede never writes the student's text; coaching writes nothing to the mastery
+  record; one unfinished draft per student; `ESSAY_STUDIO_SAVE_DRAFTS` can make
+  drafts session-only.
+- Deferred: grades 3-5, a Practice Coach hand-off, teacher-authored prompts and
+  models, oral delivery and the rest of the fourteen exercises. User-facing copy
+  says "built on classical writing practice" and nothing stronger until a
+  classical educator has reviewed the exercises and coaching prompts; that review
+  is pending.
+
+See docs/ESSAY_STUDIO.md.

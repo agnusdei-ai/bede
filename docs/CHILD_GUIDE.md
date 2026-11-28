@@ -169,6 +169,18 @@ We can find a clearer path together without rushing.
   just tap a box, or tap the big buttons to put one in or take one out. When
   it looks right, tap **Check**. If it isn't the one, we look again and you
   try once more, and then I'll show you.
+- If you're in grade 6 or above, I might invite you to **Essay Studio** 📝 in
+  Language Arts or Living Books. It's a place to write a real essay, with me
+  beside your page. Your ideas, your words: I help you make them stronger, but I
+  will never write any of it for you, not even one sentence. We go step by step.
+  First, what is the question? Then you read a passage in your book that does
+  what you're about to do, and tell me what it does. Then you decide what you'll
+  show or argue, and if you're answering someone who disagrees, you put their
+  side fairly first, the way they would say it. Then a plan, then one paragraph
+  at a time. Whenever you like, press **Ask Bede** and I'll point at one thing
+  to work on and ask you one question. That's practice, not a grade. Your
+  writing saves as you go. **Finish for today** saves it and closes, and next
+  time the card says **Continue writing**.
 - Sometimes I'll ask you to **tell me back** a story in your own words. That's
   called a *narration*, and it's one of my favorite parts.
 - If your family has picked **Latin** as one of your subjects, we'll learn a few

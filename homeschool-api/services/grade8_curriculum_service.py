@@ -92,7 +92,11 @@ def authoritative_config(requested, saved, subject):
     """Use the server-approved adult plan, not a child's posted position."""
     if requested.grade8_curriculum and requested.grade8_curriculum != saved.grade8_curriculum:
         raise ValueError("The Grade 8 plan changed or was not saved; reload Parent Setup")
-    if (saved.grade8_curriculum or requested.grade8_curriculum
+    requested_upper = getattr(requested, "upper_curriculum", None)
+    saved_upper = getattr(saved, "upper_curriculum", None)
+    if requested_upper and requested_upper != saved_upper:
+        raise ValueError("The Grades 9-12 plan changed or was not saved; reload Parent Setup")
+    if (saved.grade8_curriculum or requested.grade8_curriculum or saved_upper or requested_upper
             or subject.value in ("spanish", "computing", "movement_health")):
         if subject not in saved.subjects:
             raise PermissionError("Subject not included in the approved learner plan")

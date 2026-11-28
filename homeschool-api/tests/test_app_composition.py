@@ -217,6 +217,9 @@ GUARDS = {
     # learner records, or access to the authenticated book library.
     ('GET', '/catalog/grade8/atlas'): 'PUBLIC',
     ('GET', '/catalog/grade8/release'): 'PUBLIC',
+    # Student-only Grades 9-12 projection (no adult keys or worked models), the same
+    # boundary as the Grade 8 release; parents preview it before choosing a week.
+    ('GET', '/catalog/upper/release'): 'PUBLIC',
     ('GET', '/catalog/curriculum-availability'): 'PUBLIC',
     ('GET', '/catalog/grade8/visual-source'): 'PUBLIC',
     ('GET', '/catalog/search'): 'require_real_user',

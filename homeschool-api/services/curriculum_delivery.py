@@ -45,6 +45,18 @@ def curriculum_availability() -> dict:
         "runtime_enabled": enabled(),
         "reviewed_records": accepted["reviewed_records"],
     }
+    from services import upper_curriculum_service as upper
+    upper_data = upper.load()
+    upper_digest = sha256(upper.DATA_FILE.read_bytes()).hexdigest()
+    if upper_digest != upper.MANIFEST_SHA256:
+        raise ValueError("Reviewed curriculum manifest changed after verification")
+    upper_release = {
+        "release_id": upper.RELEASE_ID,
+        "source_sha256": upper_digest,
+        "runtime_enabled": upper.enabled(),
+        "reviewed_records": len(upper_data["lessons"]),
+        "human_accepted": False,
+    }
     grades = []
     for grade in VALID_GRADES:
         year = catalog_year_for_grade(grade)
@@ -55,5 +67,6 @@ def curriculum_availability() -> dict:
             "catalog_year": year,
             "catalog_sha256": sha256(catalog.read_bytes()).hexdigest() if catalog else None,
             "accepted_full_year": accepted_release if grade == "8" else None,
+            "reviewed_full_year": upper_release if grade in upper.GRADES else None,
         })
     return {"contract_version": CONTRACT_VERSION, "grades": grades}

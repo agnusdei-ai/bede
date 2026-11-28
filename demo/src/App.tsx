@@ -3336,6 +3336,7 @@ function DemoFlow({ token, code, onSessionEnded, onLogout, onOpenSandbox, onOpen
           subjects: config.subjects, current_unit: config.current_unit ?? undefined,
           lesson_focus: config.lesson_focus ?? undefined, faith_emphasis: config.faith_emphasis ?? undefined,
           faith_tradition: config.faith_tradition ?? undefined, grade8_curriculum: config.grade8_curriculum ?? null,
+          upper_curriculum: config.upper_curriculum ?? null,
           companion_mode: config.companion_mode, bible_translation: config.bible_translation,
           curriculum_resources: config.curriculum_resources, character_virtues: config.character_virtues,
           learning_support: config.learning_support,

@@ -11,8 +11,9 @@ import { licenseTierLabel } from '../utils/licenseTierLabel'
 import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import Grade8CourseControls from '../components/Grade8CourseControls'
+import UpperCourseControls, { UPPER_GRADES } from '../components/UpperCourseControls'
 import CurriculumAvailability from '../components/CurriculumAvailability'
-import { getGrade8Release, getCurriculumAvailability } from '../services/api'
+import { getGrade8Release, getUpperRelease, getCurriculumAvailability } from '../services/api'
 import ChildPinSettings from '../components/ChildPinSettings'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
@@ -158,6 +159,7 @@ interface StudentForm {
   faith_emphasis: string
   current_unit: string
   grade8_curriculum?: SessionConfig['grade8_curriculum']
+  upper_curriculum?: SessionConfig['upper_curriculum']
   faith_tradition: string
   bible_translation: string
   // Comma-separated in the form, same convention as term_topics; parsed to
@@ -264,6 +266,7 @@ const formFromConfig = (c: SessionConfig): StudentForm => {
     faith_emphasis: c.faith_emphasis ?? '',
     current_unit: c.current_unit ?? '',
     grade8_curriculum: c.grade8_curriculum ?? null,
+    upper_curriculum: c.upper_curriculum ?? null,
     faith_tradition: c.faith_tradition ?? '',
     bible_translation: c.bible_translation ?? '',
     curriculum_resources: (c.curriculum_resources ?? []).join(', '),
@@ -411,6 +414,7 @@ export default function ParentSetup() {
       faith_emphasis: s.faith_emphasis.trim() || undefined,
       current_unit: s.current_unit.trim() || undefined,
       grade8_curriculum: s.grade.trim() === '8' ? s.grade8_curriculum ?? null : null,
+      upper_curriculum: UPPER_GRADES.includes(s.grade.trim()) ? s.upper_curriculum ?? null : null,
       faith_tradition: s.faith_tradition.trim() || undefined,
       bible_translation: s.bible_translation.trim() || undefined,
       curriculum_resources: s.curriculum_resources.split(',').map((r) => r.trim()).filter(Boolean).slice(0, 6),
@@ -732,7 +736,7 @@ function StudentCard({
   // billed 15 minutes for a subject the backend will drop on save.
   const availableSubjects = subjectsForStage(student.grade_stage).filter(s =>
     !['spanish', 'computing', 'movement_health'].includes(s.id)
-      || student.grade8_curriculum || student.selected_subjects.includes(s.id))
+      || student.grade8_curriculum || student.upper_curriculum || student.selected_subjects.includes(s.id))
   const totalMin = student.selected_subjects.reduce((acc, s) => {
     const info = availableSubjects.find((x) => x.id === s)
     return acc + (info?.durationMin ?? 0)
@@ -806,8 +810,11 @@ function StudentCard({
               onChange={(e) => {
                 const grade = e.target.value
                 const stage = stageForGrade(grade)
-                const course = grade.trim() === '8' ? {} : {
+                // A curriculum week belongs to one grade's release: changing grade clears it.
+                const keepGrade8 = grade.trim() === '8' && !!student.grade8_curriculum
+                const course = keepGrade8 ? { upper_curriculum: null } : {
                   grade8_curriculum: null,
+                  upper_curriculum: null,
                   selected_subjects: student.selected_subjects.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)),
                 }
                 onUpdate({ ...(stage ? { grade, grade_stage: stage } : { grade }), ...course })
@@ -950,9 +957,17 @@ function StudentCard({
               : student.selected_subjects.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)),
           })}
           load={getGrade8Release} />
+        <UpperCourseControls grade={student.grade} value={student.upper_curriculum}
+          subjects={student.selected_subjects}
+          onChange={upper_curriculum => onUpdate({
+            upper_curriculum,
+            selected_subjects: upper_curriculum ? student.selected_subjects
+              : student.selected_subjects.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)),
+          })}
+          load={getUpperRelease} />
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label mb-0">{student.grade8_curriculum ? t('parentSetup.curriculumSubjects', 'Curriculum subjects') : t('parentSetup.subjects')}</label>
+            <label className="label mb-0">{student.grade8_curriculum || student.upper_curriculum ? t('parentSetup.curriculumSubjects', 'Curriculum subjects') : t('parentSetup.subjects')}</label>
             <span className={`text-xs ${overSubscribedBy > 0 ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
               {t('parentSetup.minutesShort', { count: totalMin })} / {t('parentSetup.minutesShort', { count: availableStudyMin })}
             </span>

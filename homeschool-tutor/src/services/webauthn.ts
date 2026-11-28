@@ -20,17 +20,43 @@ function base64urlToBuffer(b64url: string): ArrayBuffer {
   return bytes.buffer
 }
 
+/** A credential descriptor as the backend sends it: `id` is base64url text. */
+export interface JsonCredentialDescriptor {
+  id: string
+  type: PublicKeyCredentialType
+  transports?: AuthenticatorTransport[]
+}
+
+/** POST /mfa/webauthn/register/options (and the educator equivalent), as JSON. */
+export interface JsonCreationOptions
+  extends Omit<PublicKeyCredentialCreationOptions, 'challenge' | 'user' | 'excludeCredentials'> {
+  challenge: string
+  user: Omit<PublicKeyCredentialUserEntity, 'id'> & { id: string }
+  excludeCredentials?: JsonCredentialDescriptor[]
+}
+
+/** POST /mfa/webauthn/authenticate/options (and the recovery and educator equivalents), as JSON. */
+export interface JsonRequestOptions
+  extends Omit<PublicKeyCredentialRequestOptions, 'challenge' | 'allowCredentials'> {
+  challenge: string
+  allowCredentials?: JsonCredentialDescriptor[]
+}
+
+function toDescriptor(c: JsonCredentialDescriptor): PublicKeyCredentialDescriptor {
+  return { ...c, id: base64urlToBuffer(c.id) }
+}
+
 export function webauthnSupported(): boolean {
   return typeof window !== 'undefined' && !!window.PublicKeyCredential
 }
 
 /** Enrolling a new security key. `options` is the JSON from POST /mfa/webauthn/register/options. */
-export async function registerSecurityKey(options: any): Promise<object> {
+export async function registerSecurityKey(options: JsonCreationOptions): Promise<object> {
   const publicKey: PublicKeyCredentialCreationOptions = {
     ...options,
     challenge: base64urlToBuffer(options.challenge),
     user: { ...options.user, id: base64urlToBuffer(options.user.id) },
-    excludeCredentials: (options.excludeCredentials ?? []).map((c: any) => ({ ...c, id: base64urlToBuffer(c.id) })),
+    excludeCredentials: (options.excludeCredentials ?? []).map(toDescriptor),
   }
   const credential = (await navigator.credentials.create({ publicKey })) as PublicKeyCredential
   const response = credential.response as AuthenticatorAttestationResponse
@@ -46,11 +72,11 @@ export async function registerSecurityKey(options: any): Promise<object> {
 }
 
 /** Completing a login with an enrolled key. `options` is the JSON from POST /mfa/webauthn/authenticate/options. */
-export async function authenticateSecurityKey(options: any): Promise<object> {
+export async function authenticateSecurityKey(options: JsonRequestOptions): Promise<object> {
   const publicKey: PublicKeyCredentialRequestOptions = {
     ...options,
     challenge: base64urlToBuffer(options.challenge),
-    allowCredentials: (options.allowCredentials ?? []).map((c: any) => ({ ...c, id: base64urlToBuffer(c.id) })),
+    allowCredentials: (options.allowCredentials ?? []).map(toDescriptor),
   }
   const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
   const response = credential.response as AuthenticatorAssertionResponse

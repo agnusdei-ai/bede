@@ -43,10 +43,10 @@ async def _validate_audio(data: bytes, filename: str, *, raw_samples: bool = Fal
         raise HTTPException(status_code=413, detail="Audio file too large (max 10 MB)")
     try:
         await file_safety.audio(data, raw_samples=raw_samples)
-    except file_safety.FileRejected:
-        raise HTTPException(status_code=415, detail="Unsupported file type — only audio files are accepted")
-    except (file_safety.ScannerUnavailable, file_safety.UploadBusy):
-        raise HTTPException(status_code=503, detail="The recording could not be checked just now; please try again.")
+    except file_safety.FileRejected as exc:
+        raise HTTPException(status_code=415, detail="Unsupported file type — only audio files are accepted") from exc
+    except (file_safety.ScannerUnavailable, file_safety.UploadBusy) as exc:
+        raise HTTPException(status_code=503, detail="The recording could not be checked just now; please try again.") from exc
 
 
 # Biometric profiles in voice_profiles are keyed only by student_name, not
@@ -61,9 +61,9 @@ async def _require_household_biometric_scope(
             raise pilot_authz.not_found()
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         # An unavailable campus lookup must never reopen name-keyed access.
-        raise pilot_authz.not_found()
+        raise pilot_authz.not_found() from exc
 
 
 # ── Enrollment (parent only) ─────────────────────────────────────────────────
@@ -104,7 +104,7 @@ async def enroll(
         }
     except ValueError as exc:
         log_event_nowait(AuditEvent.VOICE_ENROLL, student_name=student_name, success=False, detail=str(exc), **ctx)
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 # ── Verification (both roles) ────────────────────────────────────────────────

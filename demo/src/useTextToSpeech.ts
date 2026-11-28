@@ -91,6 +91,18 @@ export function unlockSpeechForSession() {
   }
 }
 
+/**
+ * Drop the tool-card marker emoji and *stage directions* before a line is
+ * spoken. The markers are alternatives, not a character class, and the regex
+ * carries the `u` flag: without it a class like `[📖🔍]` is a set of UTF-16
+ * halves, so it also matched half of any other emoji (😊) and sent a lone
+ * surrogate to the voice. Mirrors the app's helper of the same name;
+ * `useTextToSpeech.markers.test.ts` asserts the two agree.
+ */
+export function stripSpokenMarkers(text: string): string {
+  return text.replace(/(?:📖|🔍|✨|🌿|⚠\uFE0F?)\s*/gu, '').replace(/\*[^*]+\*/g, '')
+}
+
 export function useTextToSpeech(speakToken: string | null = null) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -183,7 +195,7 @@ export function useTextToSpeech(speakToken: string | null = null) {
     // No `^` anchor: callers now batch a whole turn's segments (main text +
     // any tool cards) into one string before calling speak(), so a marker
     // emoji can appear mid-string, not just at position 0.
-    const clean = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '').trim()
+    const clean = stripSpokenMarkers(text).trim()
     if (!clean) return
     generationRef.current += 1
     const myGeneration = generationRef.current

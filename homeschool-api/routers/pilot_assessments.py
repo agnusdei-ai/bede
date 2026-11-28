@@ -124,9 +124,9 @@ async def _recheck(db: AsyncSession, auth: dict, learner: PilotLearner) -> None:
     """Grant re-check at write time, inside the open transaction."""
     try:
         again = await g1._assigned(db, auth, learner.id)
-    except HTTPException:
+    except HTTPException as exc:
         await db.rollback()
-        raise _not_found()
+        raise _not_found() from exc
     if again.id != learner.id or again.campus_id != learner.campus_id:
         await db.rollback()
         raise _not_found()
@@ -196,11 +196,11 @@ async def _commit(db: AsyncSession, auth: dict, learner: PilotLearner) -> None:
     await _recheck(db, auth, learner)
     try:
         await db.commit()
-    except (IntegrityError, DBAPIError):
+    except (IntegrityError, DBAPIError) as exc:
         # Unique (administration_id, seq) collision = a concurrent
         # transition from the same head; DB trigger = immutability.
         await db.rollback()
-        raise _conflict()
+        raise _conflict() from exc
 
 
 # ── Lifecycle ledger ────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ async def _advance(db: AsyncSession, learner: PilotLearner, adm: PilotAssessment
     try:
         t = next_state(current, action, resolution=resolution, link_id=link_id)
     except IllegalTransition as exc:
-        raise _conflict(str(exc))
+        raise _conflict(str(exc)) from exc
     _append(db, learner, adm.id, actor, head, t.action.value, t.from_state.value,
             t.to_state.value, link_id=link_id, content_sha256=content_sha256, note=resolution)
     try:
@@ -287,9 +287,9 @@ async def _advance(db: AsyncSession, learner: PilotLearner, adm: PilotAssessment
         # (administration_id, seq) here, and must surface as a 409 rather
         # than as an autoflush error from some later query.
         await db.flush()
-    except (IntegrityError, DBAPIError):
+    except (IntegrityError, DBAPIError) as exc:
         await db.rollback()
-        raise _conflict()
+        raise _conflict() from exc
     return t
 
 
@@ -588,8 +588,8 @@ async def transition(campus_id: str, learner_id: str, assessment_id: str,
     adm = await _administration(db, learner, assessment_id)
     try:
         expected = State(payload.expected_state)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Unknown expected_state")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Unknown expected_state") from exc
     action = Action(payload.action)
     content_sha = ""
     if action in (Action.SUBMIT, Action.FINALIZE):

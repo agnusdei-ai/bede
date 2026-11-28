@@ -264,7 +264,7 @@ def _digits(n: int, width: int) -> list[int]:
 
 def no_carry_sum(a: int, b: int) -> int:
     width = max(len(str(a)), len(str(b)))
-    return int("".join(str((x + y) % 10) for x, y in zip(_digits(a, width), _digits(b, width))))
+    return int("".join(str((x + y) % 10) for x, y in zip(_digits(a, width), _digits(b, width), strict=True)))
 
 
 def needs_carry(a: int, b: int) -> bool:
@@ -273,7 +273,7 @@ def needs_carry(a: int, b: int) -> bool:
 
 def smaller_from_larger(a: int, b: int) -> int:
     width = max(len(str(a)), len(str(b)))
-    return int("".join(str(abs(x - y)) for x, y in zip(_digits(a, width), _digits(b, width))))
+    return int("".join(str(abs(x - y)) for x, y in zip(_digits(a, width), _digits(b, width), strict=True)))
 
 
 def needs_borrow(a: int, b: int) -> bool:

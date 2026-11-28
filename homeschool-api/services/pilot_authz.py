@@ -128,7 +128,7 @@ def canonical_uuid(value: Any) -> str:
         if parsed.version != 4 or str(parsed) != value:
             raise ValueError("Noncanonical UUID")
     except (ValueError, AttributeError, TypeError):
-        raise not_found()
+        raise not_found() from None
     return str(parsed)
 
 

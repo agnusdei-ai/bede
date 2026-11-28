@@ -178,9 +178,9 @@ async def recover_educator(
             ok = True
         else:
             ok = await issue_invitation(db, educator_id, str(body.institutional_email), recovery=True)
-    except ValueError:
+    except ValueError as exc:
         await db.rollback()
-        raise HTTPException(status_code=422, detail="School recovery criteria were not satisfied")
+        raise HTTPException(status_code=422, detail="School recovery criteria were not satisfied") from exc
     except Exception:
         await db.rollback()
         raise
@@ -216,8 +216,8 @@ async def register_options(
     try:
         ticket = await validate_invitation(db, body.ticket_id, body.ticket_token)
         return await passkeys.registration_options(db, ticket.educator_id)
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invitation is invalid or expired")
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="Invitation is invalid or expired") from exc
 
 
 @router.post("/register/verify")
@@ -233,8 +233,8 @@ async def register_verify(
             db, ticket.educator_id, body.ceremony_id, body.credential,
             ticket_id=body.ticket_id, ticket_token=body.ticket_token,
         )
-    except Exception:
-        raise HTTPException(status_code=401, detail="Passkey enrollment could not be verified")
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Passkey enrollment could not be verified") from exc
     return {"registered": True, "sign_in_required": True}
 
 
@@ -253,8 +253,8 @@ async def login_options(
         if account is None:
             raise ValueError("Unknown educator")
         return await passkeys.authentication_options(db, account.id)
-    except ValueError:
-        raise HTTPException(status_code=401, detail="No available passkey authentication")
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="No available passkey authentication") from exc
 
 
 @router.post("/login/verify", response_model=TokenResponse)
@@ -272,10 +272,10 @@ async def login_verify(
         if not account:
             raise ValueError("Unknown educator")
         payload = await passkeys.verify_authentication(db, account.id, body.ceremony_id, body.credential)
-    except Exception:
+    except Exception as exc:
         log_event_nowait(AuditEvent.AUTH_FAILURE, role="educator", success=False,
                          **audit_from_request(request))
-        raise HTTPException(status_code=401, detail="Passkey authentication failed")
+        raise HTTPException(status_code=401, detail="Passkey authentication failed") from exc
     ctx = audit_from_request(request)
     token = create_access_token(
         payload, fingerprint=compute_fingerprint(ctx["ip"], ctx["user_agent"]),

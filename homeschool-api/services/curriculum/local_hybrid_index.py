@@ -89,7 +89,7 @@ def _vector(tokens: tuple[str, ...]) -> tuple[float, ...]:
 
 def _cosine(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     # Signed hashing may yield negative similarities; never promote them.
-    return max(0.0, sum(x * y for x, y in zip(a, b)))
+    return max(0.0, sum(x * y for x, y in zip(a, b, strict=True)))
 
 
 def _eligible(item: IndexedChunk, scope: SearchScope) -> bool:
@@ -169,7 +169,7 @@ def search_chunks(
     q_vector = _vector(q)
     raw_bm25: list[float] = []
     cosine: list[float] = []
-    for doc, doc_length in zip(documents, lengths):
+    for doc, doc_length in zip(documents, lengths, strict=True):
         frequencies = Counter(doc)
         bm25 = 0.0
         for term in query_terms:

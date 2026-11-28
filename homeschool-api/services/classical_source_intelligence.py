@@ -6,7 +6,6 @@ Only independently verified, commercially compatible source records may enter se
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import log
 import re
 from typing import Iterable
 

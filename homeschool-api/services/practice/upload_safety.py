@@ -365,7 +365,7 @@ def _render_page(doc, index: int) -> bytes:
             bitmap.close()
     finally:
         page.close()
-    low, high = zip(*img.getextrema())
+    low, high = zip(*img.getextrema(), strict=True)
     if max(high) - min(low) < 8:
         raise _BLANK_PAGE
     out = io.BytesIO()

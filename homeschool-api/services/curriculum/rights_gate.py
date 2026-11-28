@@ -127,5 +127,5 @@ def assess_staging_batch(submissions: Sequence[StagingSubmission]) -> list[Curat
             candidate_id=verdict.candidate_id,
             findings=verdict.findings + _provenance_findings(submission),
         )
-        for submission, verdict in zip(submissions, base)
+        for submission, verdict in zip(submissions, base, strict=True)
     ]

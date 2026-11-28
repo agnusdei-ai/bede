@@ -9,13 +9,5 @@
       "added": "2026-10-24"
     }
   ],
-  "npm": [
-    {
-      "id": "GHSA-fc5q-39xc-vjpf",
-      "package": "picomatch",
-      "fix_version": null,
-      "reason": "There is no version of picomatch that fixes this. The advisory range is <=4.0.7 and 4.0.7 IS the latest published release (npm dist-tag latest, checked 2026-11-17), so no lockfile change can clear it; npm's own suggested remedy, a major vitest upgrade, would not either, since vitest still depends on picomatch. The advisory is a regular-expression denial of service triggered by a glob pattern with a single-branch repeated extglob. picomatch reaches this repo only at BUILD, TEST and DEV time, in all three Node projects (homeschool-tutor, demo, license-server): through vite, vitest and tinyglobby/fdir, and through tailwindcss's content globbing and chokidar's file watching (via micromatch, anymatch, readdirp). Every copy is marked dev in the lockfiles; it is in no shipped browser bundle and not in the license-server Worker, so no visitor, child, parent or customer can reach it. The patterns it compiles are the ones written in our own build and test configuration; supplying a malicious one requires editing this repository's configuration, at which point the glob matcher is not the problem. Same shape as the braces entry above. Revisit when picomatch publishes a fix, which makes this a lockfile refresh plus deleting this entry.",
-      "added": "2026-11-17"
-    }
-  ]
+  "npm": []
 }

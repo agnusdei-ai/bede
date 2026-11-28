@@ -51,7 +51,7 @@ try:
 except ImportError:  # pragma: no cover - a setup error, not a runtime path
     sys.stderr.write(
         "The MCP SDK is not installed. Run:\n"
-        "    pip install -r scripts/mcp_server/requirements.txt\n"
+        "    pip install --require-hashes -r scripts/mcp_server/requirements.lock.txt\n"
     )
     raise SystemExit(1)
 

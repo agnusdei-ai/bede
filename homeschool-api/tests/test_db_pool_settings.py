@@ -42,14 +42,26 @@ def _engine_pool(tmp_path: Path, **env: str) -> dict:
     return json.loads(out.stdout.strip().splitlines()[-1])
 
 
-def test_the_defaults_are_unchanged():
+def test_the_defaults_are_the_measured_capacity_target():
+    # Owner decision 2026-11-28: 20 + 20, the pool that served 10 learners at
+    # once in docs/CAPACITY.md where 5 + 5 failed.
     fields = Settings.model_fields
-    assert fields["db_pool_size"].default == 5
-    assert fields["db_max_overflow"].default == 5
+    assert fields["db_pool_size"].default == 20
+    assert fields["db_max_overflow"].default == 20
 
 
 def test_the_engine_gets_the_default_pool(tmp_path):
-    assert _engine_pool(tmp_path) == {"size": 5, "overflow": 5, "cls": "AsyncAdaptedQueuePool"}
+    assert _engine_pool(tmp_path) == {"size": 20, "overflow": 20, "cls": "AsyncAdaptedQueuePool"}
+
+
+def test_the_capacity_report_knows_the_shipped_default():
+    # run_capacity.py labels a run NON-DEFAULT by comparing against its own
+    # copy of the defaults; a stale copy would mislabel every default run.
+    src = (API_DIR.parent / "scripts/qualification/capacity/run_capacity.py").read_text()
+    fields = Settings.model_fields
+    want = (f'"db_pool_size": {fields["db_pool_size"].default}, '
+            f'"db_max_overflow": {fields["db_max_overflow"].default}')
+    assert want in src
 
 
 def test_the_engine_gets_a_configured_pool(tmp_path):

@@ -49,12 +49,12 @@ def parse_voice_url(url: str) -> str | None:
         return url.rstrip("/")
     try:
         ip = ipaddress.ip_address(host)
-    except ValueError:
+    except ValueError as exc:
         if "." in host or ":" in host:
             raise VoiceUrlRefused(
                 "LOCAL_TTS_URL must be this computer or its own network: a compose service name "
                 "such as http://voice:5000, localhost, host.docker.internal, or a private IP"
-            )
+            ) from exc
         return url.rstrip("/")
     if ip.is_loopback or (ip.is_private and not ip.is_link_local and not ip.is_unspecified):
         return url.rstrip("/")

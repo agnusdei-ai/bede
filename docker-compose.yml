@@ -83,9 +83,9 @@ services:
       - BEDE_UPPER_CURRICULUM_ENABLED=${BEDE_UPPER_CURRICULUM_ENABLED:-true}
       - ELEVATION_TTL_MINUTES=${ELEVATION_TTL_MINUTES:-10}
       # LEGACY_TOKEN_GRACE — accept JWTs issued before identity domains
-      # existed (core/identity.py). Only needed for the first deploy after
-      # upgrading; set false once every pre-upgrade token has expired (8h).
-      - LEGACY_TOKEN_GRACE=${LEGACY_TOKEN_GRACE:-true}
+      # existed (core/identity.py). Off by default; only an upgrade straight
+      # from a pre-2026-08-03 release needs it, for one day (8h token max).
+      - LEGACY_TOKEN_GRACE=${LEGACY_TOKEN_GRACE:-false}
       # DEMO_SECRET_KEY — independent signing key for the public demo's
       # identity domain. Irrelevant on a family instance (no demo role in
       # play); listed so the variable behaves the same way everywhere.
@@ -212,8 +212,8 @@ services:
       # Database connection pool (core/database.py). Defaults are the values
       # the engine always used; docs/CAPACITY.md says how to measure before
       # raising them.
-      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
-      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-5}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-20}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-20}
       # What Bede is allowed to keep about a child. RETAIN_MASTERY_PROFILES
       # false runs the identical diagnostic but holds the estimate in memory
       # for the session only, writing nothing describing the child; the

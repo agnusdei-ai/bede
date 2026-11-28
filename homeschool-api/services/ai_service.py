@@ -46,7 +46,6 @@ from models.schemas import (
     ChatMessage,
     GradeStage,
     CompanionMode,
-    SUBJECT_LABELS,
     subject_label,
     SessionSummaryRequest,
     PUBLIC_DOMAIN_BIBLE_TRANSLATIONS,

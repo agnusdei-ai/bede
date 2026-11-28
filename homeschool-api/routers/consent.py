@@ -98,7 +98,7 @@ async def grant_household_consent(
             db, names, parent_label=req.parent_label, presented_notice_hash=req.notice_hash
         )
     except consent.ConsentError as exc:
-        raise _refuse(exc)
+        raise _refuse(exc) from exc
     await audit_consent_result(request, result)
     return result
 
@@ -187,7 +187,7 @@ async def grant_consent(
             presented_notice_hash=req.notice_hash,
         )
     except consent.ConsentError as exc:
-        raise _refuse(exc)
+        raise _refuse(exc) from exc
     if created:
         await log_event(
             AuditEvent.CONSENT_GRANTED,

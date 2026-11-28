@@ -797,7 +797,7 @@ animation, self-harm or suicide, sexual content or nudity, graphic violence,
   self-hosted family deployment that has no demo role in play.
 
   Tokens issued before the change stay valid until they expire
-  (`LEGACY_TOKEN_GRACE`, default on) so the deploy doesn't sign families out
+  (`LEGACY_TOKEN_GRACE`, default on until 2026-11-28, off since) so the deploy doesn't sign families out
   mid-lesson. It is not a downgrade path — the grace accepts only tokens
   signed with the raw pre-migration key, so stripping the header off a
   domain-signed token fails.

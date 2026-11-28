@@ -171,7 +171,7 @@ async def delete_pilot_learner(
     try:
         scope = LearnerScope.institutional(campus_id, learner_id)
     except (ValueError, AttributeError, TypeError):
-        raise LearnerNotFound()
+        raise LearnerNotFound() from None
 
     try:
         learner = (await db.execute(

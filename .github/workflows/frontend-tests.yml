@@ -210,6 +210,12 @@ jobs:
       - name: Install dependencies
         working-directory: homeschool-tutor
         run: npm ci
+      # ESLint (code-health tracker #924): React hook rules and the
+      # typescript-eslint correctness set. Errors fail the job; missing
+      # effect dependencies are warnings until each is reviewed.
+      - name: Lint
+        working-directory: homeschool-tutor
+        run: npm run lint
       - name: Select affected tests
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

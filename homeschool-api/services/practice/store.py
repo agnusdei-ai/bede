@@ -7,12 +7,16 @@ id belonging to another child answers exactly like an id that does not exist.
 """
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select
 
+from core.log_redaction import exc_summary
 from models.practice import GradedAssessment, PracticeSet
+
+log = logging.getLogger(__name__)
 
 
 def _aad(table: str, student_name: str) -> bytes:
@@ -150,7 +154,8 @@ async def list_sets(db, student_name: str, status: Optional[str] = None) -> list
         try:
             detail = decrypt_json(row.detail_enc, _aad("practice_sets", student_name), key)
             out.append({"id": row.id, "assessment_id": row.assessment_id, "status": row.status, **detail})
-        except Exception:
+        except Exception as exc:
+            log.warning("Skipped practice set %s, which could not be read: %s", row.id, exc_summary(exc))
             continue
     return out
 

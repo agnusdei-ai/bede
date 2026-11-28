@@ -67,8 +67,11 @@ on. If you run it on two machines that report the same hostname, set
 The MCP server runs on **your own computer**, not inside Bede's containers.
 
 ```bash
-pip install -r scripts/mcp_server/requirements.txt
+pip install --require-hashes -r scripts/mcp_server/requirements.lock.txt
 ```
+
+The lockfile pins every package to an exact version and hash, so you get
+exactly what Bede's CI tested and audited.
 
 ### 2. Configure your assistant
 
@@ -265,4 +268,7 @@ Bede's own model for completions and spend your API budget.
 
 The MCP SDK is pinned in `scripts/mcp_server/requirements.txt`, deliberately
 apart from `homeschool-api/requirements.in`, so the API image never carries a
-dependency it doesn't use.
+dependency it doesn't use. That file states the version floors; the
+hash-locked `requirements.lock.txt` beside it is what CI installs and what
+`test.yml`'s `dependency-audit` job audits, alongside the API's own lockfiles.
+Regenerate it with `pip-compile` (Python 3.12) after editing the floors.

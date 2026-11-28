@@ -799,7 +799,7 @@ def main() -> int:
         snap = backend.read_metrics() or {}
         settings = snap.get("settings") or {}
         meta["settings"] = settings
-        defaults = {"db_pool_size": 5, "db_max_overflow": 5, "rate_limit_api_per_minute": 120}
+        defaults = {"db_pool_size": 20, "db_max_overflow": 20, "rate_limit_api_per_minute": 120}
         meta["non_default"] = sorted(k for k, v in defaults.items() if settings.get(k) not in (None, v))
         time.sleep(61)  # let the probe's requests leave every rate-limit window
         if bsteps:

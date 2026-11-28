@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.audit import AuditEvent, audit_from_request, log_event
@@ -216,10 +216,10 @@ async def delete_learner(campus_id: str, learner_id: str, payload: DeletionConfi
             actor_role="parent", audit_context=audit_from_request(request),
             before_commit=persist_receipt,
         )
-    except LearnerNotFound:
-        raise HTTPException(status_code=404, detail="Record not found")
-    except DeletionIncomplete:
-        raise HTTPException(status_code=409, detail="Deletion did not complete; nothing was removed")
+    except LearnerNotFound as exc:
+        raise HTTPException(status_code=404, detail="Record not found") from exc
+    except DeletionIncomplete as exc:
+        raise HTTPException(status_code=409, detail="Deletion did not complete; nothing was removed") from exc
     # No second audit write: canonical service already records content-free
     # tombstone only AFTER the atomic delete and receipt commit succeeds.
     row = receipts[0]

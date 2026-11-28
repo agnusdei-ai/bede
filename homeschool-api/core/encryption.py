@@ -260,13 +260,13 @@ async def initialize_encryption(master_secret: str, db) -> None:
         try:
             _DATA_KEY = _aes_decrypt(key_row.value, kek)
             log.info("DATA_KEY loaded from database")
-        except Exception:
+        except Exception as exc:
             log.critical(
                 "Failed to unwrap DATA_KEY — wrong MASTER_SECRET or corrupted key row"
             )
             raise RuntimeError(
                 "Encryption key decryption failed. Verify MASTER_SECRET env var."
-            )
+            ) from exc
 
     await db.commit()
 

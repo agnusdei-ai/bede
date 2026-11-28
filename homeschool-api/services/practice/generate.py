@@ -94,7 +94,7 @@ def check_request(req: GenerateQuizRequest) -> Subject:
     try:
         subject = Subject(req.subject)
     except ValueError:
-        raise QuizRefused(f"Bede has no subject called {req.subject!r}.")
+        raise QuizRefused(f"Bede has no subject called {req.subject!r}.") from None
     if subject in NOT_QUIZZED:
         raise QuizRefused(f"{SUBJECT_LABELS.get(subject, subject.value)} is not quizzed or scored.")
     if subject == Subject.logic and req.grade in K2:

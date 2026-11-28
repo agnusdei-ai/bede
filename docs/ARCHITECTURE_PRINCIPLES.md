@@ -476,7 +476,7 @@ Application Architecture component split — is still open, tracked with the
 component split itself rather than here.
 
 Tokens issued before this change carry no domain header and remain valid
-until natural expiry (`LEGACY_TOKEN_GRACE`, on by default), so deploying it
+until natural expiry (`LEGACY_TOKEN_GRACE`, on by default until 2026-11-28 and off since), so deploying it
 does not sign a family out mid-lesson. The grace accepts only tokens signed
 with the raw pre-migration key, so it is not a downgrade path: stripping the
 header off a domain-signed token fails, which `tests/test_identity_domains.py`

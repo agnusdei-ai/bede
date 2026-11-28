@@ -6,6 +6,13 @@
 # part with the logic and the tests — needs only httpx, which the API already
 # depends on.
 #
+# This file is the floor-pinned statement of intent. Install from the
+# hash-locked requirements.lock.txt beside it, which CI installs and audits:
+#     pip install --require-hashes -r scripts/mcp_server/requirements.lock.txt
+# After editing this file, regenerate the lock with Python 3.12:
+#     pip-compile --allow-unsafe --generate-hashes --strip-extras \
+#         --output-file=requirements.lock.txt requirements.txt
+#
 # 2.x specifically: server.py is written against the MCPServer/add_tool API,
 # which replaced 1.x's decorator-based low-level Server. A 1.x install fails
 # at import with AttributeError rather than degrading, so the floor is real.

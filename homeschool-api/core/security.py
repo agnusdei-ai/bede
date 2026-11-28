@@ -139,7 +139,12 @@ def decode_token(token: str, expected_domain: Optional[str] = None) -> Optional[
         payload = json.loads(_b64url_decode(body_b64))
         if not isinstance(payload, dict):
             return None
-        if "exp" in payload and payload["exp"] < public_demo_beta.utc_now().timestamp():
+        # Every token this server issues carries an integer exp
+        # (create_access_token). A token without one is not ours, and
+        # treating a missing exp as "never expires" would make any such
+        # token valid forever.
+        exp = payload.get("exp")
+        if type(exp) is not int or exp < public_demo_beta.utc_now().timestamp():
             return None
         # Also reject previously issued demo JWTs whose original expiry was
         # later. Every bearer-token entry point uses this verifier.

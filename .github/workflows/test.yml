@@ -225,7 +225,8 @@ jobs:
         run: |
           pip install pip-audit
           python3 ../scripts/pip_audit_gate.py --allowlist ../.github/audit-allowlist.json \
-            requirements.lock.txt requirements-dev.lock.txt
+            requirements.lock.txt requirements-dev.lock.txt \
+            ../scripts/mcp_server/requirements.lock.txt
 
   agent-governance-tests:
     needs: changes
@@ -391,7 +392,11 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         working-directory: scripts/mcp_server
-        run: pip install -r requirements.txt pytest pytest-asyncio
+        # The hash-locked install a parent is told to run (docs/MCP.md), so
+        # what is tested is what a parent gets.
+        run: |
+          pip install --require-hashes -r requirements.lock.txt
+          pip install pytest pytest-asyncio
       - name: Run tests
         working-directory: scripts/mcp_server
         run: python -m pytest test_bede_tools.py test_server.py -v

@@ -236,7 +236,7 @@ def plan_session(signals: PlanningSignals) -> SessionPlan:
         free.remove(slot)
 
     movable.sort(key=lambda pair: (_band(pair[1], signals), pair[0]))
-    for slot, (_, subject) in zip(free, movable):
+    for slot, (_, subject) in zip(free, movable, strict=True):
         placed[slot] = (subject, _band(subject, signals))
 
     return SessionPlan(

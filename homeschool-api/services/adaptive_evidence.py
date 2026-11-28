@@ -15,11 +15,11 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from services.adaptive_learning import (
     InstructionalDecision, _METHODS, _utc, load_recent_math_work,
 )
+from core.log_redaction import exc_summary
 from services.diagnostic.skill_map import get_skill
 
 log = logging.getLogger(__name__)
@@ -178,8 +178,9 @@ async def parent_recommendation_history(
                     "assistance": next_work.assistance,
                 } if next_work else None),
             })
-        except Exception:
+        except Exception as exc:
             # Invalid or undecryptable records cannot become evidence.
+            log.warning("Skipped an adaptive-instruction record that could not be read: %s", exc_summary(exc))
             continue
     return _report(student_name, days, entries)
 

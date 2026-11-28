@@ -15,10 +15,15 @@ entries, never with agent-generated scoring rubrics or inferred thresholds.
 """
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timezone
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from core.log_redaction import exc_summary
+
+log = logging.getLogger(__name__)
 
 DIBELS_MEASURES = frozenset({
     "LNF", "PSF", "NWF_CLS", "NWF_WRC", "WRF",
@@ -204,7 +209,8 @@ async def list_assessments(db, student_name: str, *, limit: int = 60) -> list[di
             # bounded input contract. Invalid/tampered records aren't data.
             record = EducatorAssessmentInput.model_validate(detail)
             results.append(_render(row, record.model_dump(mode="json")))
-        except Exception:
+        except Exception as exc:
+            log.warning("Skipped an assessment record that could not be read: %s", exc_summary(exc))
             continue
     return results
 

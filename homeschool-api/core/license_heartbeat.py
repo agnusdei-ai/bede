@@ -79,17 +79,6 @@ def enabled() -> bool:
     return bool(settings.license_server_url.strip()) and not settings.is_demo_deployment
 
 
-def kick() -> None:
-    """Request an immediate heartbeat cycle — called when the parent
-    applies a new key, so activation/revalidation doesn't wait up to a
-    day. Purely an optimization: never raises, and the daily loop runs
-    regardless."""
-    try:
-        _kick.set()
-    except Exception as exc:  # a kick must never fail the request that triggered it
-        log.debug("license heartbeat kick skipped: %s", exc)
-
-
 async def _post_json(path: str, body: dict) -> tuple[int, dict]:
     """One POST to the license server: (status_code, parsed json body —
     {} when the body isn't JSON). Raises on network failure; callers treat

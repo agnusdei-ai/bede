@@ -1,4 +1,7 @@
 {
+  "parentSetup": {
+    "curriculumSubjects": "Curriculum subjects"
+  },
   "codeScreen": {
     "titleSuffix": ", a Socratic tutor",
     "tagline": "He asks the questions. Your child does the thinking.",

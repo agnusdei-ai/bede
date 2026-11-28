@@ -1,4 +1,7 @@
 {
+  "parentSetup": {
+    "curriculumSubjects": "Materias del currículo"
+  },
   "codeScreen": {
     "titleSuffix": ", un tutor socrático",
     "tagline": "Él hace las preguntas. El estudiante encuentra las respuestas.",

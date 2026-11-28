@@ -19,6 +19,21 @@ function Harness({ load, initial = null, subjects = ['mathematics'], grade = '8'
 const choice = () => JSON.parse(screen.getByTestId('choice').textContent!)
 
 describe('adult-selected Grade8 course', () => {
+  it('labels Math plainly and keeps other subjects available', async () => {
+    const load = vi.fn().mockResolvedValue({ runtime_enabled: true, lessons })
+    render(<Harness load={load} initial={{ week: 1, pathway: 'foundations' }} subjects={['mathematics', 'spanish']} />)
+    await waitFor(() => expect((screen.getByLabelText('Math') as HTMLSelectElement).disabled).toBe(false))
+    expect(screen.getByRole('combobox', { name: 'Math' })).toBeTruthy()
+    expect(screen.queryByLabelText('Math course')).toBeNull()
+    expect(screen.queryByLabelText('Mathematics pathway')).toBeNull()
+    expect(screen.getByRole('group', { name: 'Spanish' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Specific curriculum lesson'), { target: { value: 'spanish' } })
+    expect(choice()).toMatchObject({ pathway: 'foundations', lesson_id: 'spanish' })
+    fireEvent.change(screen.getByLabelText('Math'), { target: { value: 'algebra' } })
+    expect(choice()).toMatchObject({ pathway: 'algebra', lesson_id: null })
+    await waitFor(() => expect(load).toHaveBeenCalledWith(1, 'algebra'))
+    expect(screen.getByRole('group', { name: 'Spanish' })).toBeTruthy()
+  })
   it('keeps other grades unchanged', () => {
     const load = vi.fn()
     render(<Harness grade="9" load={load} />)
@@ -40,8 +55,8 @@ describe('adult-selected Grade8 course', () => {
     fireEvent.change(screen.getByLabelText('Curriculum week'), { target: { value: '25' } })
     expect(choice()).toEqual({ week: 25, pathway: 'algebra', lesson_id: null })
     await waitFor(() => expect(load).toHaveBeenCalledWith(25, 'algebra'))
-    await waitFor(() => expect((screen.getByLabelText('Mathematics pathway') as HTMLSelectElement).disabled).toBe(false))
-    fireEvent.change(screen.getByLabelText('Mathematics pathway'), { target: { value: 'foundations' } })
+    await waitFor(() => expect((screen.getByLabelText('Math') as HTMLSelectElement).disabled).toBe(false))
+    fireEvent.change(screen.getByLabelText('Math'), { target: { value: 'foundations' } })
     expect(choice().pathway).toBe('foundations')
     expect(choice().lesson_id).toBeNull()
   })

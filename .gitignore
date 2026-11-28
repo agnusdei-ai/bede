@@ -74,3 +74,4 @@ node_modules/
 
 # Development-only curriculum evidence, private SQLite ledger and build outputs
 /generated-artifacts/
+/demo/generated-artifacts/

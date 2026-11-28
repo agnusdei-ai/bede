@@ -20,6 +20,189 @@ export async function getCurriculumAvailability() {
   return res.json()
 }
 
+export interface ClassicalArtsProgram {
+  id: 'bede' | 'valor' | 'memoria_press' | 'other'
+  label: string
+  description: string
+  coverage_note: string
+  schedule_note: string
+  references: Array<{ title: string; url: string; locator: string }>
+}
+
+export interface ClassicalArtsProgramMatch {
+  work: string
+  placement: string
+  reference_isbn: string
+  reference_url: string
+  reference_kind: 'reading_text' | 'study_guide'
+  edition_note: string
+}
+
+export interface ClassicalArtsUnit {
+  id: string
+  title: string
+  subjects: string[]
+  min_grade: number
+  weeks: number
+  summary: string
+  content_note: string
+  program_match?: ClassicalArtsProgramMatch | null
+}
+
+export interface ClassicalArtsCatalog {
+  release_id: string
+  runtime_enabled: boolean
+  units: ClassicalArtsUnit[]
+  scope_note: string
+  program?: ClassicalArtsProgram
+}
+
+export interface ClassicalArtsLesson {
+  release_id: string
+  selection_token?: string
+  unit_id: string
+  title: string
+  week: number
+  program?: ClassicalArtsProgram
+  program_match?: ClassicalArtsProgramMatch | null
+  objective: string
+  companion_sources: Array<ClassicalArtsLesson['source']>
+  visual_previews: Array<{ id: string; title: string; title_es: string; image_url: string; source_url: string }>
+  source: {
+    id: string
+    title: string
+    url: string
+    locator: string
+    text: string
+    language: string
+    rights: string
+  }
+  steps: Array<{ label: string; instruction: string }>
+  assessments: Array<{ kind: string; prompt: string }>
+  rehearsal: Array<{ speaker: string; text: string }>
+}
+
+export function classicalArtsImageUrl(path: string): string | null {
+  return /^\/catalog\/classical-arts\/assets\/[a-z0-9_]+\/[0-9a-f]{64}\.jpg$/.test(path) ? `${BASE}${path}` : null
+}
+
+export class ClassicalArtsSourcePendingError extends Error {
+  constructor() {
+    super('Classical arts source verification is pending (503)')
+    this.name = 'ClassicalArtsSourcePendingError'
+  }
+}
+
+function isClassicalArtsRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isClassicalArtsString(value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+function isClassicalProgram(value: unknown): value is ClassicalArtsProgram {
+  return isClassicalArtsRecord(value) && isClassicalArtsString(value.id)
+    && ['bede', 'valor', 'memoria_press', 'other'].includes(value.id)
+    && ['label', 'description', 'coverage_note', 'schedule_note'].every((key) => isClassicalArtsString(value[key]))
+    && Array.isArray(value.references) && value.references.every((ref) => isClassicalArtsRecord(ref)
+      && ['title', 'url', 'locator'].every((key) => isClassicalArtsString(ref[key]))
+      && isClassicalArtsString(ref.url) && ref.url.startsWith('https://'))
+}
+
+function isClassicalMatch(value: unknown): boolean {
+  return value === undefined || value === null || (isClassicalArtsRecord(value)
+    && ['work', 'placement', 'reference_isbn', 'reference_url', 'edition_note'].every((key) => isClassicalArtsString(value[key]))
+    && (value.reference_kind === 'reading_text' || value.reference_kind === 'study_guide')
+    && isClassicalArtsString(value.reference_url) && value.reference_url.startsWith('https://'))
+}
+
+function isClassicalArtsCatalog(value: unknown): value is ClassicalArtsCatalog {
+  return isClassicalArtsRecord(value)
+    && isClassicalArtsString(value.release_id)
+    && typeof value.runtime_enabled === 'boolean'
+    && isClassicalArtsString(value.scope_note)
+    && (value.program === undefined || isClassicalProgram(value.program))
+    && Array.isArray(value.units)
+    && value.units.every((unit) => isClassicalArtsRecord(unit)
+      && isClassicalArtsString(unit.id)
+      && isClassicalArtsString(unit.title)
+      && Array.isArray(unit.subjects)
+      && unit.subjects.every(isClassicalArtsString)
+      && typeof unit.min_grade === 'number'
+      && Number.isInteger(unit.min_grade)
+      && typeof unit.weeks === 'number'
+      && Number.isInteger(unit.weeks)
+      && unit.weeks > 0
+      && isClassicalArtsString(unit.summary)
+      && isClassicalArtsString(unit.content_note) && isClassicalMatch(unit.program_match))
+}
+
+function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
+  return isClassicalArtsRecord(value)
+    && isClassicalArtsString(value.release_id)
+    && isClassicalArtsString(value.unit_id)
+    && isClassicalArtsString(value.title)
+    && typeof value.week === 'number'
+    && Number.isInteger(value.week)
+    && isClassicalArtsString(value.objective)
+    && (value.selection_token === undefined || (isClassicalArtsString(value.selection_token) && /^[a-f0-9]{24}$/.test(value.selection_token)))
+    && (value.program === undefined || isClassicalProgram(value.program))
+    && isClassicalMatch(value.program_match)
+    && isClassicalArtsRecord(value.source)
+    && isClassicalArtsString(value.source.id)
+    && isClassicalArtsString(value.source.title)
+    && isClassicalArtsString(value.source.url)
+    && isClassicalArtsString(value.source.locator)
+    && isClassicalArtsString(value.source.text)
+    && isClassicalArtsString(value.source.language)
+    && isClassicalArtsString(value.source.rights)
+    && Array.isArray(value.companion_sources)
+    && value.companion_sources.every((source) => isClassicalArtsRecord(source)
+      && ['id', 'title', 'url', 'locator', 'text', 'language', 'rights'].every((key) => isClassicalArtsString(source[key])))
+    && Array.isArray(value.visual_previews)
+    && value.visual_previews.every((image) => isClassicalArtsRecord(image)
+      && ['id', 'title', 'title_es', 'image_url', 'source_url'].every((key) => isClassicalArtsString(image[key])))
+    && Array.isArray(value.steps)
+    && value.steps.every((step) => isClassicalArtsRecord(step) && isClassicalArtsString(step.label) && isClassicalArtsString(step.instruction))
+    && Array.isArray(value.assessments)
+    && value.assessments.every((item) => isClassicalArtsRecord(item) && isClassicalArtsString(item.kind) && isClassicalArtsString(item.prompt))
+    && Array.isArray(value.rehearsal)
+    && value.rehearsal.every((line) => isClassicalArtsRecord(line) && isClassicalArtsString(line.speaker) && isClassicalArtsString(line.text))
+}
+
+export async function getClassicalArtsCatalog(grade: string, locale: string, program = 'bede'): Promise<ClassicalArtsCatalog> {
+  const query = new URLSearchParams({ grade, locale, program })
+  const res = await fetch(`${BASE}/catalog/classical-arts?${query}`)
+  if (res.status === 503) throw new ClassicalArtsSourcePendingError()
+  if (!res.ok) throw new Error(`Could not load classical arts (${res.status})`)
+  const data: unknown = await res.json()
+  if (!isClassicalArtsCatalog(data)
+    || (data.program?.id ?? 'bede') !== program) throw new Error('Invalid classical arts catalog response')
+  return data
+}
+
+export async function getClassicalArtsLesson(
+  unit: string,
+  grade: string,
+  week: number,
+  locale: string,
+  support: string,
+  program = 'bede',
+): Promise<ClassicalArtsLesson> {
+  const query = new URLSearchParams({ grade, week: String(week), locale, support, program })
+  const res = await fetch(`${BASE}/catalog/classical-arts/${encodeURIComponent(unit)}?${query}`)
+  if (res.status === 503) throw new ClassicalArtsSourcePendingError()
+  if (!res.ok) throw new Error(`Could not load this rehearsal (${res.status})`)
+  const data: unknown = await res.json()
+  if (!isClassicalArtsLesson(data)
+    || data.unit_id !== unit
+    || (data.program?.id ?? 'bede') !== program
+    || (program !== 'bede' && !data.selection_token)
+    || data.week !== week) throw new Error('Invalid classical arts lesson response')
+  return data
+}
+
 export async function getGrade8Release(week: number, pathway: string) {
   const res = await fetch(`${BASE}/catalog/grade8/release?week=${week}&pathway=${encodeURIComponent(pathway)}`)
   if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)

@@ -254,6 +254,10 @@ export interface ChatMessage {
 
 export interface VisualAidData {
   id: string
+  image_url?: string
+  source_url?: string
+  title_es?: string
+  description_es?: string
   title: string
   creator: string
   year: string

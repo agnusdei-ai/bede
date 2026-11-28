@@ -15,12 +15,56 @@ Routes:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from core.deps import require_real_user
 from services.catalog_service import get_book, get_books, get_years, search_books
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+@router.get("/classical-arts/assets/{asset_id}/{digest}.jpg")
+async def classical_arts_image(asset_id: str, digest: str):
+    from services.classical_arts_service import art_asset, SourceUnavailable
+    try:
+        return Response(art_asset(asset_id, digest), media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except SourceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/classical-arts")
+async def classical_arts_catalog(
+    grade: str = Query(pattern=r"^(?:[4-9]|1[0-2])$"), locale: str = "en",
+    program: str = "bede",
+):
+    """Public source-bound unit metadata; no learner records or adult keys."""
+    from services.classical_arts_service import SourceUnavailable, catalog
+    try:
+        return catalog(grade, locale, program)
+    except SourceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/classical-arts/{unit_id}")
+async def classical_arts_lesson(
+    unit_id: str, grade: str = Query(pattern=r"^(?:[4-9]|1[0-2])$"),
+    week: int = Query(default=1, ge=1, le=3), locale: str = "en",
+    support: str = Query(default="guided", pattern=r"^(guided|independent|extension)$"),
+    program: str = "bede",
+):
+    from services.classical_arts_service import SourceUnavailable, lesson
+    try:
+        return lesson(unit_id, grade, week, locale, support, program)
+    except SourceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/curriculum-availability")

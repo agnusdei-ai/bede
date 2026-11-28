@@ -51,6 +51,111 @@
         "core_mastery": "Point out the two mandolins trade short, repeated phrases back and forth. Ask the child to listen for an 'echo' — one mandolin playing something, and the other answering with something similar.",
         "independent": "Discuss why the mandolin — a plucked instrument rarely featured as a soloist in the Baroque era — was an unusual choice for Vivaldi. Ask the child to compare how these two soloists trading phrases differs from the single lute soloist in RV 93, if that work came up earlier this term."
       }
+    },
+    {
+      "id": "beethoven_op27_2_1",
+      "subject": "art_music",
+      "composer": "Ludwig van Beethoven",
+      "composer_dates": "1770–1827",
+      "work_title": "Piano Sonata in C-sharp minor, Op. 27 No. 2",
+      "movement": "I. Adagio sostenuto",
+      "era": "Classical / early nineteenth century",
+      "forces": "solo piano",
+      "composer_bio": "Beethoven's sonata is titled Sonata quasi una fantasia. Treat the score, later nickname and a performance as different kinds of evidence.",
+      "listening_notes": "When a lawful recording is actually playing, listen for the persistent triplet accompaniment and a distinct melodic line. In a score, locate those layers instead; do not call that listening. Explain how recurrence can support continuity without requiring every listener to feel the same emotion.",
+      "stage_notes": {
+        "foundations": "If an adult has a lawful source, notice one repeated sound or contrasting part. A spoken original pattern is an alternative, not a performance of this work.",
+        "core_mastery": "Identify a repeated idea and one change using a location in the actual source; distinguish a score from a recording.",
+        "independent": "Support a formal interpretation with a located feature, an alternative reading and a limitation of the available source. Do not infer influence from chronology alone."
+      },
+      "bibliographic_sources": [
+        "https://imslp.org/wiki/Piano_Sonata_No.14%2C_Op.27_No.2_(Beethoven%2C_Ludwig_van)"
+      ],
+      "rights_scope": "Original descriptive guidance only. No score, lyrics, recording or modern edition is reproduced or licensed."
+    },
+    {
+      "id": "beethoven_op27_2_2",
+      "subject": "art_music",
+      "composer": "Ludwig van Beethoven",
+      "composer_dates": "1770–1827",
+      "work_title": "Piano Sonata in C-sharp minor, Op. 27 No. 2",
+      "movement": "II. Allegretto",
+      "era": "Classical / early nineteenth century",
+      "forces": "solo piano",
+      "composer_bio": "Beethoven's sonata is titled Sonata quasi una fantasia. Treat the score, later nickname and a performance as different kinds of evidence.",
+      "listening_notes": "Compare this movement's pace and grouping with a located passage from movement I using an adult's source. Notice returning material and contrast; the movement label is a starting clue, not a complete analysis.",
+      "stage_notes": {
+        "foundations": "If an adult has a lawful source, notice one repeated sound or contrasting part. A spoken original pattern is an alternative, not a performance of this work.",
+        "core_mastery": "Identify a repeated idea and one change using a location in the actual source; distinguish a score from a recording.",
+        "independent": "Support a formal interpretation with a located feature, an alternative reading and a limitation of the available source. Do not infer influence from chronology alone."
+      },
+      "bibliographic_sources": [
+        "https://imslp.org/wiki/Piano_Sonata_No.14%2C_Op.27_No.2_(Beethoven%2C_Ludwig_van)"
+      ],
+      "rights_scope": "Original descriptive guidance only. No score, lyrics, recording or modern edition is reproduced or licensed."
+    },
+    {
+      "id": "beethoven_op27_2_3",
+      "subject": "art_music",
+      "composer": "Ludwig van Beethoven",
+      "composer_dates": "1770–1827",
+      "work_title": "Piano Sonata in C-sharp minor, Op. 27 No. 2",
+      "movement": "III. Presto agitato",
+      "era": "Classical / early nineteenth century",
+      "forces": "solo piano",
+      "composer_bio": "Beethoven's sonata is titled Sonata quasi una fantasia. Treat the score, later nickname and a performance as different kinds of evidence.",
+      "listening_notes": "Use a short adult-selected section to examine changes in texture and energy. Avoid equating fast playing with better learning or requiring a piano performance. Mark actual locations for each observation.",
+      "stage_notes": {
+        "foundations": "If an adult has a lawful source, notice one repeated sound or contrasting part. A spoken original pattern is an alternative, not a performance of this work.",
+        "core_mastery": "Identify a repeated idea and one change using a location in the actual source; distinguish a score from a recording.",
+        "independent": "Support a formal interpretation with a located feature, an alternative reading and a limitation of the available source. Do not infer influence from chronology alone."
+      },
+      "bibliographic_sources": [
+        "https://imslp.org/wiki/Piano_Sonata_No.14%2C_Op.27_No.2_(Beethoven%2C_Ludwig_van)"
+      ],
+      "rights_scope": "Original descriptive guidance only. No score, lyrics, recording or modern edition is reproduced or licensed."
+    },
+    {
+      "id": "dowland_flow_my_tears",
+      "subject": "art_music",
+      "composer": "John Dowland",
+      "composer_dates": "1563–1626",
+      "work_title": "Flow My Tears",
+      "movement": "Song, The Second Book of Songes, no. 2 (1600)",
+      "era": "English Renaissance",
+      "forces": "voice and lute; original print also offers a bass part",
+      "composer_bio": "Dowland's published songs belong to the musical world around Shakespeare. Shared time and place do not prove collaboration.",
+      "listening_notes": "With an actual lawful source, notice how a sung phrase relates to its words and repeated musical material. Without a source, compare the documented printed-song setting with a song embedded in a play. No lyrics or recording are supplied.",
+      "stage_notes": {
+        "foundations": "If an adult has a lawful source, notice one repeated sound or contrasting part. A spoken original pattern is an alternative, not a performance of this work.",
+        "core_mastery": "Identify a repeated idea and one change using a location in the actual source; distinguish a score from a recording.",
+        "independent": "Support a formal interpretation with a located feature, an alternative reading and a limitation of the available source. Do not infer influence from chronology alone."
+      },
+      "bibliographic_sources": [
+        "https://imslp.org/wiki/Flow_My_Tears_(Dowland,_John)"
+      ],
+      "rights_scope": "Original descriptive guidance only. No score, lyrics, recording or modern edition is reproduced or licensed."
+    },
+    {
+      "id": "byrd_salisbury_pavan",
+      "subject": "art_music",
+      "composer": "William Byrd",
+      "composer_dates": "c.1540–1623",
+      "work_title": "The Earl of Salisbury Pavan",
+      "movement": "Pavan, in Parthenia (published by 1613)",
+      "era": "English Renaissance / early seventeenth century",
+      "forces": "keyboard",
+      "composer_bio": "Byrd wrote vocal and keyboard music. This is an instrumental keyboard pathway; historical religious context is descriptive, not required assent.",
+      "listening_notes": "With an actual lawful score or recording, locate a phrase and its return or alteration. Compare instrumental organization with Dowland's song only when both sources are present. A chronological overlap is not proof that Byrd set a particular Shakespeare lyric.",
+      "stage_notes": {
+        "foundations": "If an adult has a lawful source, notice one repeated sound or contrasting part. A spoken original pattern is an alternative, not a performance of this work.",
+        "core_mastery": "Identify a repeated idea and one change using a location in the actual source; distinguish a score from a recording.",
+        "independent": "Support a formal interpretation with a located feature, an alternative reading and a limitation of the available source. Do not infer influence from chronology alone."
+      },
+      "bibliographic_sources": [
+        "https://imslp.org/wiki/The_Earl_of_Salisbury_Pavan_and_2_Galliards_(Byrd,_William)"
+      ],
+      "rights_scope": "Original descriptive guidance only. No score, lyrics, recording or modern edition is reproduced or licensed."
     }
   ]
 }

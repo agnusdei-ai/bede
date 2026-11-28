@@ -2381,7 +2381,7 @@ def _infer_year(config: SessionConfig) -> "int | None":
         return None
 
 
-def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
+def _get_catalog_context(config: SessionConfig, subject: Subject, locale: str = "en") -> str:
     """
     Return a brief catalog note if a curriculum year can be inferred and no
     explicit current_unit is set. Imports lazily to avoid circular dependency.
@@ -2399,12 +2399,18 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
     for this subject. Both are metadata/orientation only, never the
     underlying books' actual text — same rule either catalog follows.
     """
+    from services.classical_arts_service import context as classical_context, PREFIX as classical_prefix
+    classical_selection = bool(config.current_unit and config.current_unit.startswith(classical_prefix))
+    if classical_selection:
+        authored = classical_context(config, subject, locale)
+        if authored:
+            return authored
     if getattr(config, "grade8_curriculum", None):
         from services.grade8_curriculum_service import context
         authored = context(config, subject)
         if authored:
             return authored
-    if config.current_unit:
+    if config.current_unit and not classical_selection:
         return ""  # Parent already specified the unit — catalog note not needed
     try:
         from services.catalog_service import get_catalog_note, get_catechism_note, get_subject_plan
@@ -2509,7 +2515,13 @@ def _term_rotation_index(config: SessionConfig, n: int) -> int:
 
 def _term_artist(config: SessionConfig) -> str:
     """The picture-study artist for this session's grade + term."""
-    return _TERM_ARTISTS[_term_rotation_index(config, len(_TERM_ARTISTS))]
+    from services.classical_arts_service import enabled, selection
+    if enabled() and (config.grade == "8" or (
+        selection(config.current_unit) and selection(config.current_unit)[0] == "michelangelo-looking"
+    )):
+        return "Michelangelo"
+    legacy = _TERM_ARTISTS
+    return legacy[_term_rotation_index(config, len(legacy))]
 
 
 # The Year 1 Aesop set list lives on this catalog entry's `readings`.
@@ -2633,6 +2645,19 @@ def _get_visual_aids_context(
     """
     if subject not in (Subject.art_music, Subject.history):
         return ""
+    from services.classical_arts_service import enabled, selection
+    chosen = selection(config.current_unit)
+    if chosen and chosen[0] in ("beethoven-form", "elizabethan-music"):
+        return ""  # An explicit music unit does not request unrelated pictures.
+    if subject == Subject.art_music and enabled() and _term_artist(config) == "Michelangelo":
+        if not chosen or chosen[0] != "michelangelo-looking":
+            return (
+                "\n<picture_study>Grade 8's artist focus is Michelangelo. "
+                "The adult must preview the exact linked fresco details, including decorative artistic nudity, "
+                "and explicitly choose the Michelangelo unit in setup before any reproduction can be displayed. "
+                "Until then teach the original observation method with an actually available adult-provided object; "
+                "do not show an unrelated artist or pretend an image was seen.</picture_study>\n"
+            )
     try:
         from services.catalog_service import get_visual_aids
         aids = get_visual_aids(subject.value)
@@ -2730,12 +2755,24 @@ def _get_composer_context(subject: Subject, config: SessionConfig, today: "date 
         if not works:
             return ""
 
-        composer = _TERM_COMPOSERS[_term_rotation_index(config, len(_TERM_COMPOSERS))]
+        from services.classical_arts_service import enabled, selection
+        chosen = selection(config.current_unit)
+        if chosen and chosen[0] == "michelangelo-looking":
+            return ""  # Explicit picture study is not a request for music.
+        composer = "Antonio Vivaldi"
+        if enabled():
+            if chosen and chosen[0] == "elizabethan-music":
+                composer = "William Byrd" if chosen[1] == 2 else "John Dowland"
+            elif config.grade == "8" or (chosen and chosen[0] == "beethoven-form"):
+                composer = "Ludwig van Beethoven"
         term_works = [w for w in works if w.get("composer") == composer]
         if not term_works:
-            term_works = works
+            return ""  # Never substitute a different composer for a missing source.
 
-        work = term_works[_this_weeks_pick(term_works, config, today)]
+        pick = ((chosen[1] - 1) % len(term_works)
+                if chosen and chosen[0] in ("beethoven-form", "elizabethan-music")
+                else _this_weeks_pick(term_works, config, today))
+        work = term_works[pick]
         # GradeStage member NAMES ("foundations"/"core_mastery"/"independent")
         # are the stage_notes keys — not .value ("K-2"/"3-5"/"6-8").
         stage_note = work.get("stage_notes", {}).get(config.grade_stage.name) or work["listening_notes"]
@@ -2752,6 +2789,9 @@ This week: "{work['work_title']}", {work['movement']} ({work['era']}), scored fo
 {work['composer_bio']}
 
 {work['listening_notes']}
+
+{work.get('rights_scope', '')}
+{"Bibliographic reference (not an asset license): " + "; ".join(work.get('bibliographic_sources', [])) if work.get('bibliographic_sources') else ""}
 
 For this child's stage: {stage_note}
 
@@ -3521,15 +3561,27 @@ async def _build_subject_prompt(
     faith_note = f"\nToday's faith focus: {faith_raw}" if faith_raw else ""
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
+    # Resolve the explicit source-bound increment BEFORE the upper-school
+    # shortcut, which intentionally excludes unrelated legacy K–8 catalogs.
+    from services.classical_arts_service import context as classical_context, recitation_note
+    classical_note = classical_context(config, subject, locale)
+    if classical_note:
+        faith_note = "\nThis is common academic study. Historical beliefs may be discussed; devotional practice or assent is not required. Keep optional devotion in a separately chosen faith activity."
     if config.grade.strip() in DEMO_UPPER_GRADES:
         # Do not inherit K-8 catalogs, probe IDs, or term/mastery targets
         # through the compatibility stage used by existing session tools.
+        upper_poetry = (
+            recitation_note(config, locale, local_date)
+            if not classical_note and subject in (Subject.morning_time, Subject.living_books) else ""
+        )
         return (
             f"CURRENT SUBJECT: {subject_label(subject, locale)}\n"
-            f"{upper_school_guidance(config)}{faith_note}{lesson_note}{unit_note}"
-            f"{_faith_tradition_note(config, subject)}"
-            f"{_bible_translation_note(config, subject)}"
-            f"{_lesson_resume_note(config, subject, locale)}"
+            f"{classical_note or upper_school_guidance(config)}{upper_poetry}{faith_note}{lesson_note}{unit_note}"
+            f"{_get_visual_aids_context(subject, config, history, local_date) if classical_note and subject == Subject.art_music else ''}"
+            f"{_get_composer_context(subject, config, local_date) if classical_note and subject == Subject.art_music else ''}"
+            f"{'' if classical_note else _faith_tradition_note(config, subject)}"
+            f"{'' if classical_note else _bible_translation_note(config, subject)}"
+            f"{'' if classical_note else _lesson_resume_note(config, subject, locale)}"
             f"{_subject_transition_note(previous_subject, subject, config.display_name, locale)}"
             f"{_time_of_day_note(time_of_day, already_greeted=previous_subject is not None)}"
             f"{_pacing_note(history, config.grade_stage)}"
@@ -3544,7 +3596,11 @@ async def _build_subject_prompt(
     # bookmark whenever a resume note fires keeps the prompt unambiguous
     # without touching bookmark storage/fade logic at all.
     bookmark_note = "" if resume_note else _bookmark_note(bookmark, today=local_date)
-    catalog_note = _get_catalog_context(config, subject)
+    catalog_note = classical_note or _get_catalog_context(config, subject, locale)
+    subject_context = (
+        "Academic literature and arts: follow the selected verified unit; historical religious references are objects of interpretation, not required devotional practice."
+        if classical_note else _SUBJECT_CONTEXT[subject]
+    )
     fable_note = _fable_of_the_week_note(config, subject, today=local_date)
     visual_aids_note = _get_visual_aids_context(subject, config, history, today=local_date)
     composer_note = _get_composer_context(subject, config, today=local_date)
@@ -3580,6 +3636,13 @@ async def _build_subject_prompt(
         if subject in (Subject.morning_time, Subject.living_books)
         else ""
     )
+    # An explicit source-bound unit already includes its own text and questions.
+    # Do not append an unrelated devotional poem to a Spanish literature unit.
+    if locale == "es" and subject in (Subject.morning_time, Subject.living_books):
+        from services.classical_arts_service import spanish_recitation
+        poetry_note = spanish_recitation(config, local_date) or poetry_note
+    if "<classical_arts_unit>" in catalog_note:
+        poetry_note = ""
     # Prayer recitation (verbatim traditional Catholic prayers, English or
     # Spanish per the deployment's locale — see services/prayer_catalog.py)
     # is Morning Time only, not living_books — Subject.morning_time's own
@@ -3610,6 +3673,10 @@ async def _build_subject_prompt(
         subject_catalog_note = _CATALOG_NOTE_SUBJECTS[subject](
             config.grade, config.grade_stage, week_salt=config.current_term, today=local_date,
         )
+    if classical_note:
+        # The explicit academic unit is not a request to start prayer, assess
+        # faith, or import an unrelated devotional recitation into school work.
+        prayer_recitation_note = session_position_note = ""
     term_note = _term_outcomes_note(config, subject)
     diagnostic_note = await _diagnostic_context(config, subject, demo_code, db_vector, db_evidence_count)
     processing_style_note = _processing_style_note(processing_style)
@@ -3625,9 +3692,17 @@ async def _build_subject_prompt(
     language_note = _language_checkin_note(config, subject)
     music_note = _music_checkin_note(config, subject)
     music_so_far_note = _music_calibration_note(subject, music_vector, music_evidence_count)
-    guadalupe_note = _guadalupe_note(subject, locale)
-    faith_tradition_note = _faith_tradition_note(config, subject)
-    bible_translation_note = _bible_translation_note(config, subject)
+    guadalupe_note = "" if classical_note else _guadalupe_note(subject, locale)
+    faith_tradition_note = "" if classical_note else _faith_tradition_note(config, subject)
+    bible_translation_note = "" if classical_note else _bible_translation_note(config, subject)
+    if classical_note:
+        from services.classical_arts_service import selection
+        selected = selection(config.current_unit)
+        resume_note = bookmark_note = fable_note = term_note = ""
+        if selected[0] != "michelangelo-looking":
+            visual_aids_note = ""
+        if selected[0] not in ("beethoven-form", "elizabethan-music"):
+            composer_note = ""
     companion_note = _classical_language_companion_note(config, subject)
     # The two turn-budget notes. Both are computed here rather than in the
     # cached static block: follow-up depth changes every single turn, and
@@ -3636,7 +3711,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{practice_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
+{subject_context}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{practice_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3848,7 +3923,7 @@ def _content_block_to_dict(block: Any) -> Optional[dict]:
     return None
 
 
-def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
+def _lookup_visual_aid(visual_aid_id: str, config: Optional[SessionConfig] = None) -> Optional[dict]:
     """
     Server-side authoritative lookup for show_visual_aid's tool input.
     Only fields we define here ever reach the client — the model's raw tool_input
@@ -3862,7 +3937,12 @@ def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
         aid = get_visual_aid(visual_aid_id)
         if not aid:
             return None
-        return {
+        if aid.get("adult_preview_required"):
+            from services.classical_arts_service import enabled, selection
+            selected = selection(config.current_unit) if config else None
+            if not enabled() or not selected or selected[0] != "michelangelo-looking" or config.grade not in {str(n) for n in range(8, 13)}:
+                return None
+        payload = {
             "id": aid["id"],
             "title": aid["title"],
             "creator": aid.get("creator", ""),
@@ -3871,6 +3951,15 @@ def _lookup_visual_aid(visual_aid_id: str) -> Optional[dict]:
             "description": aid["description"],
             "category": aid.get("category", "picture_study"),
         }
+        for key in ("image_url", "source_url", "title_es", "description_es"):
+            if key in aid:
+                payload[key] = aid[key]
+        if "image_url" in payload and not (
+            payload["image_url"].startswith("https://upload.wikimedia.org/wikipedia/commons/")
+            or re.fullmatch(r"/catalog/classical-arts/assets/[a-z0-9_]+/[0-9a-f]{64}\.jpg", payload["image_url"])
+        ):
+            return None
+        return payload
     except Exception:
         return None
 
@@ -5363,7 +5452,7 @@ async def stream_tutor_response(
                                     else:
                                         result_payload = {"recorded": False}
                                 elif tc["name"] == "show_visual_aid":
-                                    aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""))
+                                    aid = _lookup_visual_aid(tool_input.get("visual_aid_id", ""), config)
                                     if aid and aid.get("id") in shown_aid_ids:
                                         # Already on screen from an earlier round of
                                         # THIS turn — see shown_aid_ids above. Emitting

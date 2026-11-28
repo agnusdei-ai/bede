@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ImageOff, MapPin, Palette, EyeOff } from 'lucide-react'
 import type { VisualAidData } from '../types'
+import { classicalArtsImageUrl } from '../services/api'
 
 // Mater Amabilis's picture-study method is specifically: look closely for a
 // while, then the picture is put away, then the child narrates what they
@@ -66,6 +68,8 @@ async function fetchWikiSummary(wikiTitle: string, signal: AbortSignal): Promise
  * image, this degrades to a plain captioned card — never a broken-image icon.
  */
 export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
+  const { i18n } = useTranslation()
+  const es = i18n.language?.startsWith('es') ?? false
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -78,6 +82,15 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
     setImageUrl(null)
     setPutAway(false)
 
+    if (aid.image_url) {
+      const local = classicalArtsImageUrl(aid.image_url)
+      if (local) setImageUrl(local)
+      else if (aid.image_url.startsWith('https://upload.wikimedia.org/wikipedia/commons/')) setImageUrl(aid.image_url)
+      else setFailed(true)
+      setLoading(false)
+      return () => controller.abort()
+    }
+
     fetchWikiSummary(aid.wiki_title, controller.signal)
       .then((src) => {
         if (controller.signal.aborted) return
@@ -88,7 +101,7 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
 
     return () => controller.abort()
-  }, [aid.wiki_title])
+  }, [aid.wiki_title, aid.image_url])
 
   const isPictureStudy = aid.category !== 'map'
 
@@ -101,7 +114,8 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
   }, [loading, failed, imageUrl, isPictureStudy])
 
   const Icon = aid.category === 'map' ? MapPin : Palette
-  const caption = [aid.title, aid.creator].filter(Boolean).join(' — ') + (aid.year ? ` (${aid.year})` : '')
+  const title = es && aid.title_es ? aid.title_es : aid.title
+  const caption = [title, aid.creator].filter(Boolean).join(' — ') + (aid.year ? ` (${aid.year})` : '')
 
   return (
     <div className="max-w-[85%] rounded-2xl border border-gold-200 bg-white shadow-sm overflow-hidden animate-slide-up">
@@ -114,7 +128,7 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
       {!loading && !putAway && imageUrl && !failed && (
         <img
           src={imageUrl}
-          alt={aid.title}
+          alt={title}
           className="w-full max-h-64 object-contain bg-parchment-50"
           onError={() => setFailed(true)}
         />
@@ -123,14 +137,14 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
       {!loading && putAway && (
         <div className="h-40 bg-gold-50 flex flex-col items-center justify-center gap-1.5 text-gold-600">
           <EyeOff size={20} />
-          <span className="text-xs font-medium">Picture put away</span>
+          <span className="text-xs font-medium">{es ? 'Imagen guardada' : 'Picture put away'}</span>
         </div>
       )}
 
       {!loading && !putAway && (failed || !imageUrl) && (
         <div className="h-28 bg-parchment-100 flex flex-col items-center justify-center gap-1.5 text-gold-600">
           <ImageOff size={20} />
-          <span className="text-xs">Picture unavailable right now</span>
+          <span className="text-xs">{es ? 'La imagen no está disponible ahora' : 'Picture unavailable right now'}</span>
         </div>
       )}
 
@@ -140,10 +154,11 @@ export default function VisualAidCard({ aid }: { aid: VisualAidData }) {
           {caption}
         </div>
         {putAway ? (
-          <p className="text-sm text-gray-500 italic leading-[var(--bede-line-height,1.625)]">Now tell Bede what you remember, in your own words.</p>
+          <p className="text-sm text-gray-500 italic leading-[var(--bede-line-height,1.625)]">{es ? 'Ahora cuenta a Bede lo que recuerdas, con tus palabras.' : 'Now tell Bede what you remember, in your own words.'}</p>
         ) : (
-          <p className="text-sm text-gray-700 leading-[var(--bede-line-height,1.625)]">{aid.description}</p>
+          <p className="text-sm text-gray-700 leading-[var(--bede-line-height,1.625)]">{es && aid.description_es ? aid.description_es : aid.description}</p>
         )}
+        {aid.source_url && <a href={aid.source_url} target="_blank" rel="noopener noreferrer" className="text-xs underline">{es ? 'Fuente y derechos' : 'Source and rights'}</a>}
       </div>
     </div>
   )

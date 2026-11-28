@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { X, Loader2, Check } from 'lucide-react'
 import Grade8CourseControls, { type Grade8Selection } from './Grade8CourseControls'
 import CurriculumAvailability from './CurriculumAvailability'
-import { getGrade8Release, getCurriculumAvailability } from './api'
+import ClassicalArtsWorkshop from './ClassicalArtsWorkshop'
+import { getGrade8Release, getCurriculumAvailability, getClassicalArtsCatalog, getClassicalArtsLesson } from './api'
 
 import {
   BIBLE_TRANSLATIONS,
@@ -252,6 +253,14 @@ export default function DemoParentSetup({
               </p>
             )}
           </div>
+          <ClassicalArtsWorkshop
+            grade={grade}
+            subjects={subjects}
+            currentUnit={currentUnit}
+            loadList={getClassicalArtsCatalog}
+            loadLesson={getClassicalArtsLesson}
+            onChooseUnit={setCurrentUnit}
+          />
 
           {/* Session context */}
           <div className="flex flex-col gap-3">

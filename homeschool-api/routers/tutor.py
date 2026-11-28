@@ -314,6 +314,16 @@ async def chat(
     if req.session_config.grade8_curriculum and not grade8_enabled():
         raise HTTPException(status_code=409, detail="The Grade 8 curriculum has not been activated by the operator.")
 
+    # Validate the explicit source-bound unit before any stream or model call.
+    # Ordinary units do not read this release or acquire new dependencies.
+    from services.classical_arts_service import context as classical_context, SourceUnavailable
+    try:
+        classical_context(req.session_config, req.current_subject, auth.get("locale", "en"))
+    except SourceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, LookupError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     if role in ("child", "parent") and req.session_config.grade_stage == GradeStage.foundations:
         # K-2 practice: the per-child setting comes from the SAVED config,
         # never the tablet's copy, so a parent's change mid-session (to "off"

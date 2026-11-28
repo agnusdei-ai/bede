@@ -24,6 +24,7 @@ def validate_bundle(bundle, base):
             body=c.canonical(lesson).decode(),
             skills=tuple(lesson["skill_ids"]), stages=(GradeStage(lesson["stage"]),),
             exercises_no_tracked_skill=lesson["exercises_no_tracked_skill"],
+            anti_twaddle=lesson.get("anti_twaddle"),
         ) for lesson in bundle["lessons"]
     ]
     # Warnings also stop this development build for explicit disposition, rather

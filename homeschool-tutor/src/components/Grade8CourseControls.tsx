@@ -27,6 +27,20 @@ export default function Grade8CourseControls({ grade, value, subjects, onChange,
   const [error, setError] = useState(false)
   const week = value?.week ?? 1
   const pathway = value?.pathway ?? 'foundations'
+  const subjectLabels: Record<string, string> = es ? {
+    mathematics: 'Matemáticas', living_books: 'Literatura clásica y lectura',
+    language_arts: 'Escritura y composición', history: 'Historia y geografía',
+    art_music: 'Arte y música', science: 'Ciencias', spanish: 'Español',
+    computing: 'Informática e investigación', nature_study: 'Naturaleza y trabajo práctico',
+    movement_health: 'Movimiento y salud',
+  } : {
+    mathematics: 'Math', living_books: 'Classical literature and reading',
+    language_arts: 'Writing and composition', history: 'History and geography',
+    art_music: 'Art and music', science: 'Science', spanish: 'Spanish',
+    computing: 'Computing and research', nature_study: 'Nature and practical work',
+    movement_health: 'Movement and health',
+  }
+  const lessonSubjects = [...new Set((release?.lessons ?? []).map(lesson => lesson.subject))]
   useEffect(() => {
     let active = true
     setRelease(null)
@@ -64,21 +78,26 @@ export default function Grade8CourseControls({ grade, value, subjects, onChange,
           {Array.from({ length: 36 }, (_, n) => <option key={n + 1} value={n + 1}>{n + 1}</option>)}
         </select>
       </label>
-      <label className="block">{es ? 'Ruta de matemáticas' : 'Mathematics pathway'}
-        <select className="block w-full rounded-lg border p-2" aria-label={es ? 'Ruta de matemáticas' : 'Mathematics pathway'}
+      <label className="block">{es ? 'Matemáticas' : 'Math'}
+        <select className="block w-full rounded-lg border p-2" aria-label={es ? 'Matemáticas' : 'Math'}
           value={pathway} disabled={!release?.runtime_enabled}
           onChange={e => onChange({ ...value, pathway: e.target.value as Grade8Selection['pathway'], lesson_id: null })}>
           <option value="foundations">{es ? 'Fundamentos matemáticos' : 'Foundations'}</option>
           <option value="algebra">{es ? 'Álgebra I' : 'Algebra I'}</option>
         </select>
       </label>
+      <p>{es ? 'Fundamentos y Álgebra I son opciones de matemáticas. Las demás materias se eligen abajo.' : 'Foundations and Algebra I are Math options. Choose the other curriculum subjects below.'}</p>
       <label className="block">{es ? 'Lección específica' : 'Specific lesson'}
         <select className="block w-full rounded-lg border p-2" aria-label={es ? 'Lección específica' : 'Specific curriculum lesson'}
           value={value.lesson_id ?? ''} disabled={!release?.runtime_enabled}
           onChange={e => onChange({ ...value, lesson_id: e.target.value || null })}>
           <option value="">{es ? 'Inicio de cada materia seleccionada' : 'Start of each selected subject'}</option>
-          {(release?.lessons ?? []).map(lesson => <option key={lesson.id} value={lesson.id}
-            disabled={!subjects.includes(lesson.subject)}>{lesson.title}</option>)}
+          {lessonSubjects.map(subject => <optgroup key={subject} label={subjectLabels[subject] ?? subject}
+            disabled={!subjects.includes(subject)}>
+            {(release?.lessons ?? []).filter(lesson => lesson.subject === subject).map(lesson =>
+              <option key={lesson.id} value={lesson.id}
+                disabled={!subjects.includes(subject)}>{lesson.title}</option>)}
+          </optgroup>)}
         </select>
       </label>
       <p>{es ? 'Elige primero la materia de la lección. La semana y la ruta no indican dominio ni avance automático.' : 'Enable the lesson’s subject first. Week and pathway do not imply mastery or automatic advancement.'}</p>

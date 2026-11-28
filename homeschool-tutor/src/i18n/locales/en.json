@@ -332,6 +332,7 @@
     "sexHelpNamed": "Needed so Bede addresses {{name}} with the correct grammatical gender in this language.",
     "sexHelpUnnamed": "Needed so Bede addresses your child with the correct grammatical gender in the configured language.",
     "subjects": "Subjects",
+    "curriculumSubjects": "Curriculum subjects",
     "minutesShort": "{{count}} min",
     "subjectsOverCap": "These subjects need {{over}} min more than the {{cap}}-min session, so the last ones won't be reached. Set the session to {{needed}} min or remove a subject.",
     "voiceVerification": "Voice verification",

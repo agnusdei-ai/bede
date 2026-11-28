@@ -307,8 +307,8 @@ async def create_educator_assessment_record(
     from services.assessment_interop import record_assessment
     try:
         return await record_assessment(db, student_name, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Student not found")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Student not found") from exc
 
 
 @router.delete("/{student_name}/assessment-records/{record_id}", status_code=204)

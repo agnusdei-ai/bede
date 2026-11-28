@@ -65,16 +65,12 @@ beforeEach(() => {
   const fakeTrack = { stop: vi.fn() }
   const fakeStream = { getTracks: () => [fakeTrack] } as unknown as MediaStream
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(navigator as any).mediaDevices = {
     getUserMedia: vi.fn(async () => fakeStream),
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).AudioContext = FakeAudioContext as any
   // requestAnimationFrame/cancelAnimationFrame aren't polyfilled in jsdom by default.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).requestAnimationFrame = vi.fn(() => 1)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(window as any).cancelAnimationFrame = vi.fn()
 })
 
@@ -287,7 +283,6 @@ describe('useVoiceRecorder getUserMedia failure reporting', () => {
   // stuck forever with no event ever telling it to go back to idle.
 
   it('classifies NotAllowedError as permission-denied', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
       throw new DOMException('Permission denied', 'NotAllowedError')
     })
@@ -302,7 +297,6 @@ describe('useVoiceRecorder getUserMedia failure reporting', () => {
   })
 
   it('classifies the legacy PermissionDeniedError name as permission-denied too', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
       throw new DOMException('Permission denied', 'PermissionDeniedError')
     })
@@ -317,7 +311,6 @@ describe('useVoiceRecorder getUserMedia failure reporting', () => {
   })
 
   it('classifies any other getUserMedia failure as unavailable', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
       throw new DOMException('No microphone found', 'NotFoundError')
     })
@@ -332,7 +325,6 @@ describe('useVoiceRecorder getUserMedia failure reporting', () => {
   })
 
   it('does not start recording (isRecording stays false) after a getUserMedia failure', async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
       throw new DOMException('Permission denied', 'NotAllowedError')
     })
@@ -365,7 +357,6 @@ describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream fa
       .fn()
       .mockRejectedValueOnce(new DOMException('Device in use', 'NotReadableError'))
       .mockResolvedValueOnce(fakeStream)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
 
     const onComplete = vi.fn()
@@ -403,7 +394,6 @@ describe('useVoiceRecorder retries fresh getUserMedia when a prewarmed stream fa
     const getUserMedia = vi.fn(async () => {
       throw new DOMException('Device in use', 'NotReadableError')
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
 
     const onError = vi.fn()
@@ -445,7 +435,6 @@ describe('a provisional getUserMedia() failure never reaches the child', () => {
     const getUserMedia = vi.fn(async () => {
       throw new DOMException('blocked', 'NotAllowedError')
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
 
     const onError = vi.fn()
@@ -467,7 +456,6 @@ describe('a provisional getUserMedia() failure never reaches the child', () => {
     const getUserMedia = vi.fn(async () => {
       throw new DOMException('blocked', 'NotAllowedError')
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = getUserMedia
 
     const onError = vi.fn()
@@ -578,7 +566,6 @@ describe('useVoiceRecorder never leaves the microphone running without an owner'
     // idle, and the orphaned recording then blocked every later press.
     const fakeTrack = { stop: vi.fn() }
     let grant: (s: MediaStream) => void = () => {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(
       () => new Promise<MediaStream>((resolve) => { grant = resolve }),
     )
@@ -610,7 +597,6 @@ describe('useVoiceRecorder never leaves the microphone running without an owner'
     const fakeTrack = { stop: vi.fn() }
     const fakeStream = { getTracks: () => [fakeTrack] } as unknown as MediaStream
     let grant: (s: MediaStream) => void = () => {}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(
       () => new Promise<MediaStream>((resolve) => { grant = resolve }),
     )
@@ -628,7 +614,6 @@ describe('useVoiceRecorder never leaves the microphone running without an owner'
     // true from the orphaned graph, which reads as "still recording" while
     // in fact refusing to record anything the child says from here on.
     const secondGetUserMedia = vi.fn(async () => fakeStream)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = secondGetUserMedia
     await act(async () => { await result.current.startRecording() })
     expect(secondGetUserMedia).toHaveBeenCalledTimes(1)
@@ -645,7 +630,6 @@ describe('useVoiceRecorder never leaves the microphone running without an owner'
     // be able to just press again.
     const fakeTrack = { stop: vi.fn() }
     const fakeStream = { getTracks: () => [fakeTrack] } as unknown as MediaStream
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => {
       throw new DOMException('Denied', 'NotAllowedError')
     })
@@ -655,7 +639,6 @@ describe('useVoiceRecorder never leaves the microphone running without an owner'
     await act(async () => { await result.current.startRecording() })
     expect(onError).toHaveBeenLastCalledWith('permission-denied')
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(navigator as any).mediaDevices.getUserMedia = vi.fn(async () => fakeStream)
     await act(async () => { await result.current.startRecording() })
     expect(result.current.isRecording).toBe(true)

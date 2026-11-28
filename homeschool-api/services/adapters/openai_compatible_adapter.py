@@ -285,8 +285,10 @@ class _StreamContext:
         if close is not None:
             try:
                 await close()
-            except Exception:
-                pass
+            except Exception as exc:
+                # Closing a finished stream must never fail the turn, but a
+                # close that keeps failing is a leak worth being able to see.
+                log.debug("Closing the model stream failed: %s", type(exc).__name__)
 
     async def __aiter__(self):
         text_parts: List[str] = []

@@ -162,6 +162,19 @@ export function voiceSpeaks(token: string): Promise<boolean> {
   })
 }
 
+/**
+ * Drops the tool-card marker emoji (📖 🔍 ✨ 🌿 ⚠️) and *stage directions*
+ * from a line before it is spoken.
+ *
+ * The markers are matched as whole characters (`u` flag, alternation). A
+ * character class without `u` matched each emoji's two UTF-16 halves
+ * separately, so any other emoji sharing a first half, such as 😊, lost it
+ * and reached the voice as a lone, unreadable surrogate.
+ */
+export function stripSpokenMarkers(text: string): string {
+  return text.replace(/(?:📖|🔍|✨|🌿|⚠\uFE0F?)\s*/gu, '').replace(/\*[^*]+\*/g, '')
+}
+
 export function useTextToSpeech(token: string | null = null, initialEnabled: boolean = true) {
   const [isSpeaking, setIsSpeaking] = useState(false)
   const [enabled, setEnabled] = useState(initialEnabled)
@@ -267,7 +280,7 @@ export function useTextToSpeech(token: string | null = null, initialEnabled: boo
     // anchor: callers now batch a whole turn's segments (main text + any
     // tool cards) into one string before calling speak(), so a marker
     // emoji can appear mid-string, not just at position 0.
-    const cleanText = text.replace(/[📖🔍✨🌿⚠️]\s*/g, '').replace(/\*[^*]+\*/g, '')
+    const cleanText = stripSpokenMarkers(text)
     const myGeneration = generationRef.current
 
     logDebug(`TTS processQueue start gen=${myGeneration} remaining=${queueRef.current.length} text="${ttsPreview(cleanText)}"`)

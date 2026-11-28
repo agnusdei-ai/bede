@@ -5,7 +5,7 @@
 # error path (a NameError where the code promised a quiet fallback) and a
 # function defined twice. Neither was reachable by the test suite, because
 # no test drove the error path. Widen this only with rules that have zero
-# findings when added, so the gate never starts red.
+# findings when added, so the gate never starts red. Tracked in #924.
 extend-exclude = ["**/node_modules", "**/dist", "**/build"]
 
 [lint]
@@ -13,8 +13,16 @@ extend-exclude = ["**/node_modules", "**/dist", "**/build"]
 # F7: misplaced statements (return outside a function).
 # F82: undefined names. F811: a definition shadowing an unused one.
 select = ["E9", "F63", "F7", "F82", "F811"]
+# Production backend code only (see the per-file-ignores below), added once
+# each had been brought to zero:
+# F401: unused imports. B904: a raise inside `except` without `from`.
+# B905: zip() without strict=. S110/S112: an exception silently passed or
+# skipped, which hides a failure instead of leaving a trace in the logs.
+extend-select = ["F401", "B904", "B905", "S110", "S112"]
 
 [lint.per-file-ignores]
+# The stricter rules above apply only to the API's production code.
+"!homeschool-api/{core,services,routers,models,main.py}{,/**}" = ["F401", "B904", "B905", "S110", "S112"]
 # pytest fixtures are routinely imported into a test module and then named
 # as an argument, which F811 reads as a redefinition.
 "**/tests/**" = ["F811"]

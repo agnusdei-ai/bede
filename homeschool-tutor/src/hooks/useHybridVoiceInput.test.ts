@@ -43,7 +43,6 @@ const {
   // Captures the options useHybridVoiceInput passes to useVoiceRecorder —
   // tests call recorderOptions.current.onError(...) directly to simulate a
   // real getUserMedia failure the way the recorder would report it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recorderOptions: { current: null as any },
   startVoiceStream: vi.fn(),
   pushVoiceStreamChunk: vi.fn(),
@@ -55,7 +54,6 @@ const {
 }))
 
 vi.mock('./useVoiceRecorder', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   useVoiceRecorder: (opts: any) => {
     recorderOptions.current = opts
     return {
@@ -381,7 +379,6 @@ describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
   it('an educator session names its learner when it opens a voice stream', async () => {
     useSessionStore.setState({
       role: 'educator',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sessionConfig: { student_name: 'Sample Learner One' } as any,
     })
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal: vi.fn() }))
@@ -395,7 +392,6 @@ describe('useHybridVoiceInput learner scope (G1 voice binding)', () => {
   it('a parent session sends no learner scope', async () => {
     useSessionStore.setState({
       role: 'parent',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sessionConfig: { student_name: 'Sample Learner One' } as any,
     })
     const { result } = renderHook(() => useHybridVoiceInput({ token: 'tok', onFinal: vi.fn() }))

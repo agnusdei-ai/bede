@@ -21,8 +21,6 @@ a name, school, teacher or date (models/practice.py).
 from __future__ import annotations
 
 import asyncio
-import base64
-import binascii
 import json
 import logging
 

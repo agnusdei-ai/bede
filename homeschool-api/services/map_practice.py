@@ -200,7 +200,7 @@ def _scatter(rng: random.Random, scene: Scene, symbols: list[str], avoid: set) -
     free = [c for c in _all_cells(scene.cols, scene.rows)
             if c not in avoid and scene.at(c) is None and c not in scene.water]
     rng.shuffle(free)
-    for symbol, cell in zip(symbols, free):
+    for symbol, cell in zip(symbols, free, strict=False):  # more free cells than symbols is normal
         scene.items.append((symbol, cell))
 
 
@@ -258,7 +258,7 @@ def _k_birds_eye(rng: random.Random, phase: str) -> Task:
     slots = [0, 1, 2]
     rng.shuffle(slots)
     options = [None, None, None]
-    for order, slot in zip(orders, slots):
+    for order, slot in zip(orders, slots, strict=True):
         options[slot] = overhead(order)
     return Task(overhead(symbols), "birds_eye_match", {}, "scene_choice",
                 options=tuple(options), accept_choice=str(slots[0]), side_view=tuple(symbols))
@@ -310,7 +310,7 @@ def _aligned_scene(rng: random.Random, size: int, reference: str) -> tuple[Scene
     placed: dict[str, str] = {}
     directions = _pick(rng, DIRECTIONS, rng.choice([2, 3]))
     things = _pick(rng, SYMBOLS, len(directions), exclude=(reference,))
-    for direction, thing in zip(directions, things):
+    for direction, thing in zip(directions, things, strict=True):
         scene.items.append((thing, rng.choice(_line(scene, ref, direction))))
         placed[direction] = thing
     return scene, placed

@@ -52,7 +52,7 @@ def _is_sequential(pin: str) -> bool:
     """True if every digit steps by the same +1/-1 from the last, mod 10 —
     catches not just 123456/654321 but wraparound runs like 789012/901234
     that a naive non-modular check would miss."""
-    diffs = {(int(b) - int(a)) % 10 for a, b in zip(pin, pin[1:])}
+    diffs = {(int(b) - int(a)) % 10 for a, b in zip(pin, pin[1:], strict=False)}
     return diffs in ({1}, {9})
 
 

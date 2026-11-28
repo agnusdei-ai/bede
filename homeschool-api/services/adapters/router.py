@@ -270,12 +270,12 @@ def get_default_client(settings: Any = _global_settings) -> Any:
         # A policy denial must NEVER become a fallback to an unqualified
         # external model, even when no configured adapter is available.
         raise
-    except Exception:
+    except Exception as exc:
         # Preserve legacy boot behavior only when Anthropic is permitted.
         # Under school-pilot or explicit COPPA enforcement this must fail
         # closed rather than constructing an unqualified cloud client.
         if not approved_provider("anthropic"):
-            raise PermissionError("COPPA provider qualification required")
+            raise PermissionError("COPPA provider qualification required") from exc
         return build_anthropic_client(
             settings.anthropic_api_key, getattr(settings, "anthropic_workspace_id", "")
         )
@@ -304,7 +304,7 @@ def _failover_error_types() -> tuple:
             anthropic.RateLimitError,
             anthropic.APIConnectionError,
         ]
-    except Exception:
+    except (ImportError, AttributeError):  # SDK not installed, or too old to name these
         pass
     try:
         import openai
@@ -315,7 +315,7 @@ def _failover_error_types() -> tuple:
             openai.RateLimitError,
             openai.APIConnectionError,
         ]
-    except Exception:
+    except (ImportError, AttributeError):  # SDK not installed, or too old to name these
         pass
     _FAILOVER_ERRORS = tuple(types)
     return _FAILOVER_ERRORS
@@ -342,13 +342,13 @@ def _request_error_types() -> tuple:
         import anthropic
 
         types.append(anthropic.BadRequestError)
-    except Exception:
+    except (ImportError, AttributeError):  # SDK not installed, or too old to name it
         pass
     try:
         import openai
 
         types.append(openai.BadRequestError)
-    except Exception:
+    except (ImportError, AttributeError):  # SDK not installed, or too old to name it
         pass
     _REQUEST_ERRORS = tuple(types)
     return _REQUEST_ERRORS
@@ -364,7 +364,7 @@ PROVIDER_FAILURES_ATTR = "bede_provider_failures"
 def _attach_failures(exc: Exception, failures: List[Tuple[str, str]]) -> None:
     try:
         setattr(exc, PROVIDER_FAILURES_ATTR, tuple(failures))
-    except Exception:  # an exception type that refuses attributes keeps its old behaviour
+    except (AttributeError, TypeError):  # an exception type that refuses attributes keeps its old behaviour
         pass
 
 

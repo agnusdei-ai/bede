@@ -4,6 +4,7 @@ import type { TimeOfDay } from '../store/sessionStore'
 import type { MathLesson } from './k2MathTypes'
 import type { MapCell, MapLesson, MapAnswerResult } from './mapPracticeTypes'
 import type { PhonicsLesson, PhonicsAnswerResult } from './k2PhonicsTypes'
+import type { JsonCreationOptions, JsonRequestOptions } from './webauthn'
 export type {
   CounterColor, CountersPiece, MathLesson, MathPiece, MathTask, NumberBondPiece, TenFramePiece,
 } from './k2MathTypes'
@@ -41,7 +42,15 @@ export interface LoginResult {
   mfaMethods: MfaMethod[]
 }
 
-function toLoginResult(data: any): LoginResult {
+/** The login and MFA-completion responses, as the backend sends them. */
+interface LoginResponse {
+  access_token: string
+  role: string
+  mfa_required?: boolean
+  mfa_methods?: MfaMethod[]
+}
+
+function toLoginResult(data: LoginResponse): LoginResult {
   return {
     accessToken: data.access_token,
     role: data.role,
@@ -169,7 +178,7 @@ export async function fetchMfaStatus(token: string): Promise<MfaStatus> {
   return res.json()
 }
 
-async function postJson(path: string, token: string, body?: unknown): Promise<any> {
+async function postJson<T = unknown>(path: string, token: string, body?: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -183,7 +192,8 @@ async function postJson(path: string, token: string, body?: unknown): Promise<an
 }
 
 // Enrollment (requires a full parent session):
-export const webauthnRegisterOptions = (token: string) => postJson('/mfa/webauthn/register/options', token)
+export const webauthnRegisterOptions = (token: string) =>
+  postJson<JsonCreationOptions>('/mfa/webauthn/register/options', token)
 export const webauthnRegisterVerify = (token: string, credential: object, nickname: string) =>
   postJson('/mfa/webauthn/register/verify', token, { credential, nickname })
 
@@ -202,11 +212,12 @@ export async function disableTotp(token: string): Promise<void> {
 }
 
 // Completing a pending login (requires the "parent_pending" token):
-export const webauthnAuthOptions = (pendingToken: string) => postJson('/mfa/webauthn/authenticate/options', pendingToken)
+export const webauthnAuthOptions = (pendingToken: string) =>
+  postJson<JsonRequestOptions>('/mfa/webauthn/authenticate/options', pendingToken)
 export const webauthnAuthVerify = async (pendingToken: string, credential: object): Promise<LoginResult> =>
-  toLoginResult(await postJson('/mfa/webauthn/authenticate/verify', pendingToken, { credential }))
+  toLoginResult(await postJson<LoginResponse>('/mfa/webauthn/authenticate/verify', pendingToken, { credential }))
 export const totpAuthVerify = async (pendingToken: string, code: string): Promise<LoginResult> =>
-  toLoginResult(await postJson('/mfa/totp/authenticate/verify', pendingToken, { code }))
+  toLoginResult(await postJson<LoginResponse>('/mfa/totp/authenticate/verify', pendingToken, { code }))
 
 // Change password (requires a full parent session — the non-emergency
 // counterpart to the recovery flow below):
@@ -340,7 +351,7 @@ export async function fetchRecoveryMethods(): Promise<RecoveryMethods> {
   return res.json()
 }
 
-export async function recoveryWebauthnOptions(): Promise<object> {
+export async function recoveryWebauthnOptions(): Promise<JsonRequestOptions> {
   const res = await fetch(`${BASE}/auth/recovery/webauthn/options`, { method: 'POST' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

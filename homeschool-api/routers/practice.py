@@ -8,6 +8,8 @@ by default, `/practice/educator/*` for teachers (quiz drafting and teacher
 quizzes with answer keys, local model only, nothing stored), `/practice/demo/*`
 for the demo, and the child's delivery route only ever returns approved sets.
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +26,7 @@ from core.deps import (
     require_real_user,
 )
 from core import consent
+from core.log_redaction import exc_summary
 from models.practice import (
     MAX_QUIZ_QUESTIONS,
     GenerateQuizRequest,
@@ -42,6 +45,8 @@ from models.practice import (
 from services import content_screen
 from services.practice import extract, generate, pipeline, progress, store, teacher_quiz
 from services.practice.packs import available_packs
+
+log = logging.getLogger(__name__)
 
 # PRACTICE_COACH_ENABLED switches the whole feature off: every route below
 # answers 403 practice_coach_disabled when it is false. It is a router-wide
@@ -97,21 +102,21 @@ async def _draft_quiz(req: GenerateQuizRequest, local_only: bool = False, before
     try:
         quiz, report = await generate.generate(req, local_only=local_only, before_call=before_call, report=reporter)
     except generate.QuizRefused as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except extract.ConsentRequired as exc:
         raise HTTPException(status_code=409, detail={
             "consent_required": True,
             "provider": exc.provider,
             "message": f"This would be sent to {exc.provider}. Tick the box to agree.",
-        })
+        }) from exc
     except extract.PhotoRejected as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except extract.ReadingUnavailable as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except generate.QuizFailed as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"quiz": quiz.model_dump(mode="json"), "report": report}
 
 
@@ -127,21 +132,21 @@ async def _copy_source(req: QuizSourceRequest, local_only: bool = False, before_
         text, pages_read = await generate.transcribe_source(
             req, local_only=local_only, before_call=before_call, report=report)
     except generate.QuizRefused as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except extract.ConsentRequired as exc:
         raise HTTPException(status_code=409, detail={
             "consent_required": True,
             "provider": exc.provider,
             "message": f"This would be sent to {exc.provider}. Tick the box to agree.",
-        })
+        }) from exc
     except extract.PhotoRejected as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except extract.ReadingUnavailable as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except generate.QuizFailed as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {"text": text, "pages_read": pages_read}
 
 
@@ -278,7 +283,7 @@ async def approve_teacher_quiz(req: TeacherQuizRequest, auth: dict = Depends(req
     try:
         quiz = teacher_quiz.approve(req.quiz)
     except _TEACHER_QUIZ_ERRORS as exc:
-        raise _teacher_quiz_errors(exc)
+        raise _teacher_quiz_errors(exc) from exc
     return {"quiz": quiz.model_dump(mode="json"), "problems": []}
 
 
@@ -288,7 +293,7 @@ async def extract_teacher_quiz(req: ExtractQuizRequest, auth: dict = Depends(req
     try:
         quiz = await teacher_quiz.extract_quiz(req)
     except _TEACHER_QUIZ_ERRORS as exc:
-        raise _teacher_quiz_errors(exc)
+        raise _teacher_quiz_errors(exc) from exc
     return {"quiz": quiz.model_dump(mode="json"), "problems": teacher_quiz.approval_problems(quiz)}
 
 
@@ -299,7 +304,7 @@ async def score_teacher_quiz(req: ScoreSubmissionRequest, auth: dict = Depends(r
     try:
         results = await teacher_quiz.score_submission(req.quiz, req.pages, req.responses, req.upload_consent)
     except _TEACHER_QUIZ_ERRORS as exc:
-        raise _teacher_quiz_errors(exc)
+        raise _teacher_quiz_errors(exc) from exc
     return {
         "results": [r.model_dump(mode="json") for r in results],
         "possible": sum(q.points for q in req.quiz.questions),
@@ -312,7 +317,7 @@ async def finalize_teacher_quiz(req: FinalizeResultsRequest, auth: dict = Depend
     try:
         return teacher_quiz.finalize(req)
     except _TEACHER_QUIZ_ERRORS as exc:
-        raise _teacher_quiz_errors(exc)
+        raise _teacher_quiz_errors(exc) from exc
 
 
 @router.get("/reading-route")
@@ -345,15 +350,15 @@ async def read_assessment(
             "consent_required": True,
             "provider": exc.provider,
             "message": f"These photos would be read by {exc.provider}. Confirm to send them for this upload only.",
-        })
+        }) from exc
     except extract.PhotoRejected as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except extract.ReadingUnavailable as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except extract.ReadingFailed as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     if earlier is not None:
         # A later part of the same upload: the saved reading grows; it is still
         # reviewed as one worksheet.
@@ -361,8 +366,8 @@ async def read_assessment(
         return {**_view(earlier[0].id, "needs_review", assessment), "pages_read": pages_read}
     try:
         record_id = await store.save_assessment(db, student_name, assessment, "needs_review")
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Student not found")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Student not found") from exc
     return {**_view(record_id, "needs_review", assessment), "pages_read": pages_read}
 
 
@@ -380,8 +385,8 @@ async def enter_assessment(
     status = "needs_review" if req.assessment.needs_parent() else "confirmed"
     try:
         record_id = await store.save_assessment(db, student_name, req.assessment, status)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Student not found")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Student not found") from exc
     return await _confirmed_view(db, student_name, record_id, status, req.assessment)
 
 
@@ -470,7 +475,8 @@ async def get_delivery_sets(
     for saved in approved:
         try:
             practice = PracticeSet.model_validate(saved["practice_set"])
-        except Exception:
+        except Exception as exc:
+            log.warning("Skipped saved practice set %s, which no longer validates: %s", saved.get("id"), exc_summary(exc))
             continue
         out.append({
             "id": saved["id"],
@@ -599,15 +605,15 @@ async def demo_read_assessment(
             "consent_required": True,
             "provider": exc.provider,
             "message": f"These photos would be read by {exc.provider}. Confirm to send them for this upload only.",
-        })
+        }) from exc
     except extract.PhotoRejected as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except extract.ReadingUnavailable as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (extract.ScannerUnavailable, extract.UploadBusy) as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except extract.ReadingFailed as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return {**_view(0, "needs_review" if assessment.needs_parent() else "confirmed", assessment),
             "pages_read": pages_read}
 

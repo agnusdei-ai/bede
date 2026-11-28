@@ -36,7 +36,7 @@ UI calls it.
 """
 from __future__ import annotations
 
-from core.log_redaction import exc_text, learner_ref
+from core.log_redaction import exc_summary, exc_text, learner_ref
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -194,7 +194,8 @@ async def summarize(
                             row.subject_area, row.skill_id),
                 _key,
             )
-        except Exception:
+        except Exception as exc:
+            log.warning("Skipped a work-ledger row that could not be read: %s", exc_summary(exc))
             continue
         records.append((row.skill_id, row.subject_area, detail,
                         row.completed_at.replace(microsecond=0).isoformat()))
@@ -224,7 +225,8 @@ async def count_from_source(db, student_name: str, subject_area: str, source: st
         try:
             detail = decrypt_json(row.detail_enc, student_aad(
                 "skill_activity_log", "detail_enc", student_name, row.subject_area, row.skill_id), key)
-        except Exception:
+        except Exception as exc:
+            log.warning("Skipped a work-ledger row that could not be read: %s", exc_summary(exc))
             continue
         if detail.get("source") == source:
             count += 1

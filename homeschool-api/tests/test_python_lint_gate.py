@@ -38,3 +38,28 @@ def test_the_tree_is_clean_and_the_gate_catches_an_undefined_name(tmp_path):
     result = subprocess.run(["ruff", "check", "--config", str(ROOT / "ruff.toml"), str(bad)],
                             cwd=ROOT, capture_output=True, text=True)
     assert result.returncode == 1 and "F821" in result.stdout
+
+
+def test_the_stricter_rules_are_scoped_to_production_code():
+    cfg = (ROOT / "ruff.toml").read_text()
+    for rule in ("F401", "B904", "B905", "S110", "S112"):
+        assert f'"{rule}"' in cfg
+
+
+@pytest.mark.skipif(shutil.which("ruff") is None, reason="ruff not installed")
+@pytest.mark.parametrize("where, caught", [
+    ("homeschool-api/services", True),
+    ("homeschool-api/routers", True),
+    ("homeschool-api/tests", False),
+])
+def test_a_silenced_exception_fails_only_in_production_code(where, caught):
+    """Planted inside the repository, because the per-file scoping is by
+    path; a file in tmp_path would match neither side."""
+    probe = ROOT / where / "_lint_gate_probe.py"
+    probe.write_text("def f():\n    try:\n        return 1\n    except Exception:\n        pass\n")
+    try:
+        result = subprocess.run(["ruff", "check", str(probe)], cwd=ROOT,
+                                capture_output=True, text=True)
+    finally:
+        probe.unlink()
+    assert (result.returncode == 1 and "S110" in result.stdout) is caught

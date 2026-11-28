@@ -108,7 +108,7 @@ def _expected_observation_likelihood(
     for combo in product((0, 1), repeat=len(other_skills)):
         alpha: AttributePattern = {hypothesized_skill: hypothesized_value}
         weight = 1.0
-        for skill_id, value in zip(other_skills, combo):
+        for skill_id, value in zip(other_skills, combo, strict=True):
             p_mastered = prior.get(skill_id, 0.5)
             alpha[skill_id] = value
             weight *= p_mastered if value == 1 else (1.0 - p_mastered)

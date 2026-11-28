@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 
+from core.log_redaction import exc_summary
 from services.diagnostic.skill_map import GradeBand, get_skill
 
 log = logging.getLogger(__name__)
@@ -198,7 +199,8 @@ async def load_recent_math_work(db, student_name: str) -> list[WorkObservation]:
                 assistance=detail.get("assistance"),
                 completed_at=row.completed_at,
             ))
-        except Exception:
+        except Exception as exc:
+            log.warning("Skipped a work-ledger row that could not be read: %s", exc_summary(exc))
             continue
     return observations
 

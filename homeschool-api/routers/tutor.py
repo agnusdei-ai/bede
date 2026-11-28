@@ -4,7 +4,6 @@ import binascii
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sse_starlette.sse import EventSourceResponse
@@ -630,18 +629,18 @@ async def extract_narration(req: NarrationUploadRequest, auth: dict = Depends(re
     ext = req.filename.rsplit(".", 1)[-1].lower() if "." in req.filename else ""
     try:
         raw = base64.b64decode(req.content_base64, validate=True)
-    except (binascii.Error, ValueError):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not read that file")
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not read that file") from exc
     try:
         await file_safety.narration_file(raw, ext)
     except file_safety.FileRejected as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except (file_safety.ScannerUnavailable, file_safety.UploadBusy) as e:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)) from e
     try:
         text = extract_narration_text(req.filename, req.content_base64)
     except UnsupportedNarrationFileError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     return {"text": _sanitize_parent_field(text, max_len=2000) or ""}
 
 

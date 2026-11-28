@@ -41,7 +41,7 @@ export function useTranscriptWords(interim: string): TranscriptWord[] {
 
   useEffect(() => {
     prevWordsRef.current = words
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `words` is
+    // No lint rule needs silencing here, the comment explains the choice: `words` is
     // recomputed fresh from `interim` every render; depending on `interim`
     // (a primitive) rather than `words` (a new array each render) is what
     // actually keeps this effect from re-running redundantly.

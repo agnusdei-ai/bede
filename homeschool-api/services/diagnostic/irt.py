@@ -106,7 +106,7 @@ def estimate_theta_mle(
         score = -(theta - prior_mean) * prior_precision
         information = prior_precision
 
-        for (a, b, c), outcome in zip(normalized, outcomes):
+        for (a, b, c), outcome in zip(normalized, outcomes, strict=True):
             p = p_3pl(theta, a, b, c)
             score += _dp_dtheta(theta, a, b, c) * (outcome - p) / (p * (1.0 - p))
             information += fisher_information(theta, a, b, c)

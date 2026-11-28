@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,9 +18,8 @@ from core.deps import require_educator, require_elevated_parent, require_parent
 from models.schemas import SessionConfig
 from services.assessment_interop import EducatorAssessmentSubmission
 from services.educator_access import (
-    assign_class_roster, authenticate_educator, disable_educator,
-    live_educator, locuto_pod_plan, provision_educator,
-    require_assignment, roster_configs,
+    assign_class_roster, disable_educator,
+    locuto_pod_plan, require_assignment, roster_configs,
 )
 
 router = APIRouter(prefix="/educators", tags=["educators"])
@@ -88,7 +87,7 @@ async def set_class_roster(
     try:
         return await assign_class_roster(db, educator_id, payload.configs)
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/accounts/{educator_id}/disable", status_code=204)
@@ -161,8 +160,8 @@ async def submit_independently_administered_result(
     await require_assignment(db, auth, student_name)
     try:
         return await record_assessment(db, student_name, payload)
-    except LookupError:
-        raise HTTPException(status_code=404, detail="Learner not assigned")
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail="Learner not assigned") from exc
 
 
 @router.get("/me/students/{student_name}/activity")

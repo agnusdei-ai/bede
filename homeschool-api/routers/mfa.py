@@ -100,7 +100,7 @@ async def webauthn_register_options(db: AsyncSession = Depends(get_db), _: dict 
     try:
         return json.loads(await mfa_service.build_registration_options(db))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
 
 @router.post("/webauthn/register/verify")
@@ -114,7 +114,7 @@ async def webauthn_register_verify(
         await mfa_service.verify_and_store_registration(db, json.dumps(req.credential), req.nickname)
     except Exception as e:
         await log_event(AuditEvent.AUTH_FAILURE, role="parent", success=False, detail=f"webauthn register failed: {e}", **audit_from_request(request))
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not verify that security key — please try again")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not verify that security key — please try again") from e
     await log_event(AuditEvent.AUTH_SUCCESS, role="parent", success=True, detail="webauthn key enrolled", **audit_from_request(request))
     return {"success": True}
 
@@ -171,7 +171,7 @@ async def recovery_pin_enroll(
     try:
         await parent_recovery.enroll_recovery_pin(db, req.pin)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     await log_event(
         AuditEvent.AUTH_SUCCESS, role="parent", success=True,
         detail="recovery pin enrolled", **audit_from_request(request),

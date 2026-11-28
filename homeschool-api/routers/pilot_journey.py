@@ -382,12 +382,12 @@ async def decide(
             authorize=authorize, persist=persist, audit=audit,
         )
         await _commit_if_still_assigned(db, ctx)
-    except PermissionError:
+    except PermissionError as exc:
         await db.rollback()
-        raise _NOT_FOUND
-    except (_Conflict, IntegrityError):
+        raise _NOT_FOUND from exc
+    except (_Conflict, IntegrityError) as exc:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="Recommendation already decided or changed")
+        raise HTTPException(status_code=409, detail="Recommendation already decided or changed") from exc
 
     await db.refresh(rec)
     return _render_recommendation(rec, learner)
@@ -514,7 +514,7 @@ async def save_quiz_result(
         from routers.practice import _TEACHER_QUIZ_ERRORS
 
         if isinstance(exc, _TEACHER_QUIZ_ERRORS):
-            raise _quiz_errors(exc)
+            raise _quiz_errors(exc) from exc
         raise
     teacher = await live_educator(db, auth)
     row_id = str(uuid.uuid4())
@@ -540,12 +540,12 @@ async def save_quiz_result(
     db.add(row)
     try:
         await _commit_if_still_assigned(db, ctx)
-    except IntegrityError:
+    except IntegrityError as exc:
         # A concurrent retry of the same save won the insert.
         await db.rollback()
         existing = await _quiz_row(db, learner, submission_id=payload.submission_id)
         if existing is None:
-            raise HTTPException(status_code=409, detail="The result could not be saved. Try again.")
+            raise HTTPException(status_code=409, detail="The result could not be saved. Try again.") from exc
         return _replay(existing, digest, learner)
     return _render_quiz_result(row, learner)
 

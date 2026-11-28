@@ -55,9 +55,9 @@ def _id(value: str) -> str:
         parsed = uuid.UUID(value)
         if parsed.version != 4 or str(parsed) != value:
             raise ValueError("Noncanonical UUID")
-    except (ValueError, AttributeError, TypeError):
+    except (ValueError, AttributeError, TypeError) as exc:
         # No enumeration of absent or malformed learner IDs.
-        raise HTTPException(status_code=404, detail="Record not found")
+        raise HTTPException(status_code=404, detail="Record not found") from exc
     return str(parsed)
 
 

@@ -43,11 +43,10 @@ import hashlib
 import logging
 import os
 import stat
-import time
 from pathlib import Path
 
 from . import capabilities, protocol
-from .framing import FrameError, MAX_BODY_LEN, decode_body, decode_header, encode_frame, HEADER_LEN
+from .framing import FrameError, decode_body, decode_header, encode_frame, HEADER_LEN
 from .peer_auth import PeerAuthError, check_peer, default_allowed_uids
 from .protocol import MsgType, Outcome, RequestBody, ResponseBody
 from core.config import settings
@@ -223,8 +222,8 @@ async def _handle_connection(reader: asyncio.StreamReader, writer: asyncio.Strea
         writer.close()
         try:
             await writer.wait_closed()
-        except Exception:
-            pass
+        except Exception as exc:
+            log.debug("Closing the connection from %s failed: %s", peer_desc, type(exc).__name__)
 
 
 def _is_group_or_world_writable(mode: int) -> bool:
@@ -322,5 +321,5 @@ async def serve(socket_path: str | None = None) -> None:
     finally:
         try:
             Path(path).unlink(missing_ok=True)
-        except Exception:
-            pass
+        except OSError as exc:
+            log.warning("Could not remove the IPC socket at %s: %s", path, type(exc).__name__)

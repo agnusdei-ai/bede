@@ -221,8 +221,10 @@ def _transcribe_sync(audio_bytes: bytes, language: str) -> dict:
             from math import gcd
             g = gcd(16000, sr)
             data = resample_poly(data, 16000 // g, sr // g).astype(np.float32)
-        except Exception:
-            pass
+        except Exception as exc:
+            # Transcription still runs, but on audio at the wrong rate, which
+            # degrades accuracy. That must be visible rather than silent.
+            logger.warning("Resampling %s Hz audio to 16 kHz failed; transcribing as is: %s", sr, type(exc).__name__)
 
     try:
         # beam_size: faster-whisper defaults to 5 (beam search). Greedy

@@ -9,6 +9,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "homeschool-api"))
 from services.classical_arts_service import catalog, lesson, load_release, RELEASE_FILE
+from program_review import render_program_alignment
 
 OUTPUT = ROOT / "generated-artifacts/classical-arts-review/packet.html"
 
@@ -30,7 +31,7 @@ def packet():
     data = load_release()
     digest = sha256(RELEASE_FILE.read_bytes()).hexdigest()
     titles = {unit["id"]: unit["title"] for unit in catalog("12")["units"]}
-    contents = []
+    contents = [render_program_alignment(data)]
     for unit in data["units"]:
         html = ['<details class="unit" id="'+e(unit["id"])+'"><summary>'+e(titles[unit["id"]])
                 +' <small>Grade '+str(unit["min_grade"])+'+ · 3 weeks</small></summary>\n'

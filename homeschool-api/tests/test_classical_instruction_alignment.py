@@ -47,7 +47,7 @@ def test_michelangelo_uses_the_five_finished_frescoes_not_a_museum_drawing(local
 @pytest.mark.parametrize("locale", ["en", "es"])
 @pytest.mark.parametrize("unit,week,required", [
     ("merchant-mercy", 3, {"caesar"}),
-    ("caesar-plutarch", 3, {"north", "merchant"}),
+    ("caesar-plutarch", 3, {"north"}),
     ("macbeth-deliberation", 3, {"merchant", "caesar"}),
     ("henryv-community", 3, {"caesar"}),
     ("tempest-release", 2, {"merchant"}),

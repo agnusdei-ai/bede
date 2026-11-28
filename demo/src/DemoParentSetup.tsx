@@ -256,6 +256,7 @@ export default function DemoParentSetup({
           <ClassicalArtsWorkshop
             grade={grade}
             subjects={subjects}
+            currentUnit={currentUnit}
             loadList={getClassicalArtsCatalog}
             loadLesson={getClassicalArtsLesson}
             onChooseUnit={setCurrentUnit}

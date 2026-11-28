@@ -3,7 +3,7 @@
 ## Exact student content
 
 - Student projection SHA-256:
-  `d0c371e480a35bea067cd64c5e3cb5f296bb4f6a999d59e59a41153e7424fd11`
+  `0d40fad88562bac35c2369f81ff8ed08473755f9751eb789f3254d3fd11420e0`
 - Twelve units, three weeks each; 36 English and 36 Spanish presentations of
   the same bounded weekly records. This is not 72 different lessons or a full
   grade-year curriculum.
@@ -22,7 +22,7 @@
    checksum outputs. Its mandated fixture/development status and pending
    acceptance gates are preserved. The living-books curation declaration is
    propagated, not waived; absent/false declarations fail the regression.
-2. **139 focused Python cases: passed.** The selected suite covers the new
+2. **173 focused Python cases: passed.** The selected suite covers the new
    service/factory regression and existing poetry, native-poetry, catalog and
    data-integrity checks. Each eligible grade, week, support route and language
    is exercised; corrupted/missing data and art bytes fail explicitly.
@@ -33,10 +33,12 @@
 4. **Read-only HTTP slice: passed.** A FastAPI router slice returns real
    catalog/lesson/image responses; grade errors, unknown units/revisions and
    actual JPEG digests are checked without a learner account or model request.
-5. **Six component cases: passed**, three in each product. They cover repeated
+5. **Eighteen component cases: passed**, nine in each product. They cover repeated
    speeches with unique roles, cue/reveal/retry, local typed text, existing
    unit-note callback, review-only activation guard, print-event cleanup and
-   late-response rejection after a newer week.
+   late-response rejection after a newer week or program, program selection,
+   saved-selection restoration, source-version confirmation and explicit
+   failure when an older API ignores program selection.
 6. **Both frontend TypeScript/production builds: passed.** Existing large-chunk
    warnings remain; no unrelated bundler refactor was introduced.
 7. **Visual inspection:** the actual demo component was rendered with static
@@ -67,6 +69,23 @@ The music-reference delta was corroborated against the actual catalog
 metadata, including the continuation identifying **first publication in
 Parthenia in 1613**, distinct from composition “1613 or before.” An automated
 suggestion that confused those two claims was not adopted.
+
+First-party program review exposed real placement differences: Valor lists
+Midsummer in Grade 5 and Caesar in Grade 6; the verified Memoria Press
+products indicate 9+ and 8+ respectively. The bounded units now support the
+actual school placements with concrete guided entry routes. Thirty-four new
+backend cases check program-specific eligibility, direct-route enforcement,
+source/guide distinction, actual tutor-prompt assembly, saved version binding,
+language continuity and both HTTP query routes. The published reading list
+does not establish an exact modern-edition match, classroom calendar or
+whole-course mirror. See `PROGRAM_ALIGNMENT.md` for the factual crosswalk,
+original support and explicit noncoverage.
+
+The younger Caesar route was also reviewed beyond its grade label: its final
+transfer exercise now compares Antony with an original neutral announcement.
+It does not introduce the later-grade Merchant extract as an unassigned
+companion. North remains available as the actual biographical comparison.
+Both languages and the private model's source applicability were checked.
 
 This is text critique and evidence review, not authenticated human acceptance,
 rights adjudication, observed teaching success, or efficacy measurement.

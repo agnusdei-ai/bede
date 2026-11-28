@@ -12,17 +12,19 @@ import json
 import os
 from pathlib import Path
 import re
+from services import classical_program_service as programs
 
 RELEASE_ID = "bede-classical-arts"
 RELEASE_FILE = Path(__file__).resolve().parents[1] / "data/curriculum/classical-arts.json"
 ART_DIR = RELEASE_FILE.parent / "classical-arts-art"
 # Pin the source-bound student projection independently of activation. A valid
 # artifact is inspectable; only the explicit operator flag enables tutoring.
-RELEASE_SHA256 = "d0c371e480a35bea067cd64c5e3cb5f296bb4f6a999d59e59a41153e7424fd11"
+RELEASE_SHA256 = "0d40fad88562bac35c2369f81ff8ed08473755f9751eb789f3254d3fd11420e0"
 PREFIX = "Bede classical arts:"
 NOTE = re.compile(
     r"Bede classical arts: ([a-z][a-z0-9-]{0,63}); week=([1-3]); "
     r"support=(guided|independent|extension)"
+    r"(?:; program=([a-z_]+)(?:; assignment=([a-f0-9]{24}))?)?"
 )
 SUBJECTS = {
     "morning_time", "living_books", "language_arts", "history", "art_music",
@@ -124,6 +126,7 @@ def load_release():
                         {assessment["kind"] for assessment in text["assessments"]}
                     ):
                         raise ValueError("Incomplete independent, delayed, or transfer prompts")
+        programs.validate(data, ids)
     except SourceUnavailable:
         raise
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
@@ -131,16 +134,19 @@ def load_release():
     return data
 
 
-def catalog(grade, locale="en"):
+def catalog(grade, locale="en", program="bede"):
     grade, locale = _grade(grade), _locale(locale)
+    programs.program_id(program)
     data = load_release()
     return {
         "release_id": RELEASE_ID,
         "runtime_enabled": enabled(),
+        "program": programs.view(data, program, locale),
         "units": [
             {"id": unit["id"], "subjects": unit["subjects"], "min_grade": unit["min_grade"],
-             "weeks": unit["weeks"], **unit["localizations"][locale]}
-            for unit in data["units"] if grade >= unit["min_grade"]
+             "weeks": unit["weeks"], **unit["localizations"][locale],
+             "program_match": programs.course_match(data, program, unit, locale)}
+            for unit in data["units"] if programs.eligible(data, program, unit, grade)
         ],
         "scope_note": (
             "Unidades acotadas, no un año completo ni prueba de dominio. "
@@ -152,8 +158,9 @@ def catalog(grade, locale="en"):
     }
 
 
-def lesson(unit_id, grade, week=1, locale="en", support="guided"):
+def lesson(unit_id, grade, week=1, locale="en", support="guided", program="bede"):
     grade, locale = _grade(grade), _locale(locale)
+    programs.program_id(program)
     if type(week) is not int or week not in (1, 2, 3):
         raise ValueError("Choose a unit week from 1–3")
     if support not in ("guided", "independent", "extension"):
@@ -162,8 +169,8 @@ def lesson(unit_id, grade, week=1, locale="en", support="guided"):
     unit = next((item for item in data["units"] if item["id"] == unit_id), None)
     if unit is None:
         raise LookupError("No reviewed classical arts unit has that identifier")
-    if grade < unit["min_grade"]:
-        raise ValueError("This unit is outside the selected grade's coverage")
+    if not programs.eligible(data, program, unit, grade):
+        raise ValueError("This unit is outside the selected grade or verified program coverage")
     row = next(item for item in unit["lessons"] if item["week"] == week)
     text = row["localizations"][locale]
     for image in row["visual_previews"]:
@@ -180,7 +187,16 @@ def lesson(unit_id, grade, week=1, locale="en", support="guided"):
             raise SourceUnavailable("Original Spanish guidance integrity mismatch")
     result = {
         "release_id": RELEASE_ID, "unit_id": unit_id,
+        # Public source/configuration binding, not authentication or a secret.
+        # Both approved languages are in the pinned release. Changing display
+        # or tutoring language must not invalidate an adult's reading assignment.
+        "selection_token": sha256(json.dumps(
+            [RELEASE_SHA256, program, unit_id, grade, week, support],
+            separators=(",", ":"),
+        ).encode()).hexdigest()[:24],
         "title": text["title"], "week": week, "objective": text["objective"],
+        "program": programs.view(data, program, locale),
+        "program_match": programs.course_match(data, program, unit, locale),
         "source": {key: source[key] for key in
                    ("id", "title", "url", "locator", "text", "language", "rights")},
         "companion_sources": [
@@ -188,7 +204,7 @@ def lesson(unit_id, grade, week=1, locale="en", support="guided"):
             for companion in row["companion_sources"]
         ],
         "visual_previews": row["visual_previews"],
-        "steps": [*text["steps"], {
+        "steps": [*text["steps"], *programs.support_step(data, program, grade, week, locale), {
             "label": "Apoyo elegido" if locale == "es" else "Selected support",
             "instruction": text["support"][support],
         }],
@@ -203,8 +219,16 @@ def selection(note):
     match = NOTE.fullmatch(note)
     if match is None:
         raise ValueError("Reload the adult-selected classical arts unit and week")
-    unit, week, support = match.groups()
+    unit, week, support, program, _checked = match.groups()
+    programs.program_id(program or "bede")
     return unit, int(week), support
+
+
+def selection_program(note):
+    """Keep legacy three-value selection callers and saved notes compatible."""
+    if selection(note) is None:
+        return "bede"
+    return NOTE.fullmatch(note).group(4) or "bede"
 
 
 def art_asset(asset_id, digest):
@@ -280,7 +304,10 @@ def context(config, subject, locale="en"):
         return ""
     if not enabled():
         raise SourceUnavailable("This reviewed classical arts release has not been activated for tutoring")
-    public = lesson(unit_id, config.grade, week, locale, support)
+    program = selection_program(config.current_unit)
+    public = lesson(unit_id, config.grade, week, locale, support, program)
+    if program != "bede" and NOTE.fullmatch(config.current_unit).group(5) != public["selection_token"]:
+        raise ValueError("Review this source version, assigned work and edition in the adult setup first")
     return (
         "\n<classical_arts_unit>\n"
         "Use the adult's explicit bounded unit for this subject. Other subjects keep their own routes. "
@@ -291,7 +318,12 @@ def context(config, subject, locale="en"):
         "Respect content notes, adult preview, source rights, and alternative response modes. "
         "Do not record, grade accent/emotion/faith, certify performance, or infer mastery. "
         "A delayed check is not delayed evidence without confirmation of elapsed time. "
-        "No teacher answer key is supplied. Do not claim an image was shown or music played unless it actually was.\n"
+        "No teacher answer key is supplied. Do not claim an image was shown or music played unless it actually was. "
+        "Follow the selected program's Bede preparation step, not a blended or invented publisher sequence. "
+        "Bede weeks are support steps, never evidence of the school's current assignment or calendar. "
+        "A listed course match is not an exact text-edition match, endorsement or full-course coverage. "
+        "Do not substitute historical pagination or editorial wording for the adult's assigned edition. "
+        "For another curriculum, do not invent its placement, guide questions or answers.\n"
         + json.dumps({"content_note": unit["content_note"], "lesson": public}, ensure_ascii=False)
         + "\n</classical_arts_unit>\n"
     )

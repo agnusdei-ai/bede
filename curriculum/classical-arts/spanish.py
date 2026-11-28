@@ -101,7 +101,7 @@ WEEKS = {
          "Ensayen las réplicas de Antonio o anótenlas en silencio. El fragmento termina antes de la respuesta de los ciudadanos; para incluirlos o comparar a Bruto, el adulto debe abrir esas líneas en la edición completa.",
          "¿Qué vuelve persuasiva una repetición y qué haría que estuviera justificada?",
          "Evalúa una estrategia retórica y considera otra interpretación con evidencia.",
-         "Compara estrategias de dos pasajes revisados sin borrar sus diferencias de contexto."),
+         "Compón un anuncio breve y neutral. Compara una estrategia persuasiva con la de Antonio y explica qué evidencia necesitaría cada afirmación."),
     ],
     "macbeth-deliberation": [
         ("Identificar razones contra una acción prevista.",

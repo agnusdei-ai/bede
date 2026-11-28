@@ -14,6 +14,8 @@ import sys
 
 from units import UNITS
 from spanish import WEEKS
+from programs import PROGRAMS, SCHEDULE_NOTE, EDITION_NOTE, PROGRAM_STEPS
+from guided import GUIDED
 from verify_sources import verify, ROOT
 from catalog_additions import art_entries, build_art_assets, music_reference, update_catalogs
 
@@ -32,7 +34,7 @@ PAIRED = {
     ("lamb-midsummer", 3): ["midsummer"],
     ("merchant-mercy", 3): ["caesar"],
     ("everyman-bridge", 2): ["merchant"],
-    ("caesar-plutarch", 2): ["north"], ("caesar-plutarch", 3): ["north", "merchant"],
+    ("caesar-plutarch", 2): ["north"], ("caesar-plutarch", 3): ["north"],
     ("macbeth-deliberation", 3): ["merchant", "caesar"],
     ("henryv-community", 3): ["caesar"],
     ("tempest-release", 2): ["merchant"],
@@ -88,7 +90,7 @@ def rehearsal(source):
     return result
 
 
-def localized(row, language):
+def localized(row, language, guided=None):
     objective, teaching, discussion, independent, transfer = row
     es = language == "es"
     return {
@@ -112,7 +114,7 @@ def localized(row, language):
             {"kind": "transfer", "prompt": transfer},
         ],
         "support": {
-            "guided": ("Divide el pasaje en partes pequeñas; explica vocabulario y registra los apoyos."
+            "guided": guided or ("Divide el pasaje en partes pequeñas; explica vocabulario y registra los apoyos."
                        if es else "Chunk the passage, explain vocabulary, and record any support used."),
             "independent": ("Retira el modelo después de estudiar; conserva solo el apoyo de acceso acordado."
                             if es else "Remove the model after study; retain agreed access supports only."),
@@ -133,7 +135,11 @@ def build():
     # substantive authoring; it cannot confer institutional approval/activation.
     bundle.update(fixture_only=True, sources=[], objectives=[], lessons=[], units=[],
                   evidence=[], gates=[])
-    public = {"release_id": "bede-classical-arts", "units": []}
+    public = {
+        "release_id": "bede-classical-arts", "units": [],
+        "programs": deepcopy(PROGRAMS), "program_schedule_note": SCHEDULE_NOTE,
+        "program_edition_note": EDITION_NOTE, "program_steps": PROGRAM_STEPS,
+    }
     source_records = {}
 
     def register(source):
@@ -168,7 +174,7 @@ def build():
             raise ValueError("Every adopted unit needs three complete weeks in both languages and private models")
         # The guide explicitly distinguishes its original procedures from the
         # adult's separately obtained source. No unverified Everyman text,
-        # Michelangelo image, score or recording is inserted here.
+        # score or recording is inserted; the art assets are verified separately.
         for identifier in set(unit["sources"]) - sources.keys():
             text = unit["note"]+"\n\n"+"\n\n".join(row[1] for row in unit["weeks"])
             sources[identifier] = {
@@ -195,7 +201,12 @@ def build():
         original = {
             "id": unit["id"]+"-instruction", "title": unit["title"]+" — Bede-original teaching",
             "url": "https://agnusdei.ai/", "locator": "Three authored weekly instruction records",
-            "text": json.dumps({"en": unit["weeks"], "es": WEEKS[unit["id"]]}, ensure_ascii=False),
+            "text": json.dumps({
+                "en": unit["weeks"], "es": WEEKS[unit["id"]],
+                "guided_entry_routes": GUIDED.get(unit["id"], []),
+                "program_references": PROGRAMS, "original_program_support": PROGRAM_STEPS,
+                "schedule_note": SCHEDULE_NOTE, "edition_note": EDITION_NOTE,
+            }, ensure_ascii=False),
             "rights": "original", "verification_evidence": {"method": "Bede-original authoring"},
         }
         original_record = register(original)
@@ -234,6 +245,8 @@ def build():
                 usage["uses"] = ["copy", "storage", "retrieval", "model_processing", "tts", "distribution"]
             instructions = [
                 ("explicit_teaching", row[1]),
+                *([("explicit_teaching", GUIDED[unit["id"]][index-1]["en"])]
+                  if unit["id"] in GUIDED else []),
                 ("worked_example", models[unit["id"]][index-1]),
                 ("seminar", row[2]),
                 ("studio", "Mark or draw a located observation; explain which part is inference."),
@@ -279,7 +292,12 @@ def build():
                 "week": index, "source": deepcopy(source),
                 "companion_sources": deepcopy(companion_sources),
                 "visual_previews": art_entries() if unit["id"] == "michelangelo-looking" else [],
-                "localizations": {"en": localized(row, "en"), "es": localized(WEEKS[unit["id"]][index-1], "es")},
+                "localizations": {
+                    language: localized(
+                        row if language == "en" else WEEKS[unit["id"]][index-1], language,
+                        GUIDED[unit["id"]][index-1][language] if unit["id"] in GUIDED else None,
+                    ) for language in ("en", "es")
+                },
                 "rehearsal": rehearsal(source) if source["rights"] != "original" else [],
             })
             if source["rights"] == "original":
@@ -324,7 +342,7 @@ def build():
         domains=["Bounded cross-grade literature, art and music only"],
         calendar_weeks=36, learner_minutes_week=18, adult_minutes_week=15,
         coverage_decisions=["12 bounded three-week units, not a grade/year replacement; minimum grade and adult preview apply.",
-                            "Everyman, art images, scores and recordings remain adult-provided; original guides only."],
+                            "Everyman text, scores and recordings remain adult-provided. Five verified local fresco reproductions accompany the art guide."],
         completion_criteria=["Evidence-grounded responses in each adopted bounded unit; not whole-grade completion."],
         transition_evidence="No effectiveness, retention, credit or readiness for another course is inferred.",
         complete=False,

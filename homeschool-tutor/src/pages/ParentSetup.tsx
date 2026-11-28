@@ -954,6 +954,7 @@ function StudentCard({
         <ClassicalArtsWorkshop
           grade={student.grade}
           subjects={student.selected_subjects}
+          currentUnit={student.current_unit || ''}
           loadList={getClassicalArtsCatalog}
           loadLesson={getClassicalArtsLesson}
           onChooseUnit={(note) => onUpdate({ current_unit: note, expandedContext: true })}

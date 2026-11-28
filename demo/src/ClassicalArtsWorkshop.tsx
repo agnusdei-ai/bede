@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { BookOpen, Printer, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { classicalArtsImageUrl, ClassicalArtsSourcePendingError, type ClassicalArtsCatalog, type ClassicalArtsLesson } from './api'
+import ClassicalProgramPicker, { ClassicalProgramMatch, readClassicalSelection, type ProgramId } from './ClassicalProgramPicker'
 
 function ClassicalArtworkPreview({ url, title, locale }: { url: string | null; title: string; locale: string }) {
   const [failed, setFailed] = useState(false)
@@ -18,7 +19,8 @@ const copy = {
     intro: 'A source-grounded rehearsal for an adult and learner to share. Choose a text, then read and discuss it together.',
     unit: 'Literature or arts unit',
     choose: 'Choose a unit',
-    week: 'Week',
+    week: 'Bede support week',
+    checkAssignment: 'I checked the assigned reading, its edition and this supporting passage.',
     support: 'Instruction style',
     guided: 'Guided',
     independent: 'Independent',
@@ -67,7 +69,8 @@ const copy = {
     intro: 'Un ensayo basado en fuentes para compartir entre una persona adulta y quien aprende. Elijan un texto y léanlo y conversen juntos.',
     unit: 'Unidad de literatura o artes',
     choose: 'Elegir una unidad',
-    week: 'Semana',
+    week: 'Semana de apoyo de Bede',
+    checkAssignment: 'He comprobado la lectura asignada, su edición y este pasaje de apoyo.',
     support: 'Estilo de instrucción',
     guided: 'Con guía',
     independent: 'Independiente',
@@ -116,14 +119,16 @@ const copy = {
 export default function ClassicalArtsWorkshop({
   grade,
   subjects,
+  currentUnit = '',
   loadList,
   loadLesson,
   onChooseUnit,
 }: {
   grade: string
   subjects: string[]
-  loadList: (grade: string, locale: string) => Promise<ClassicalArtsCatalog>
-  loadLesson: (unit: string, grade: string, week: number, locale: string, support: string) => Promise<ClassicalArtsLesson>
+  currentUnit?: string
+  loadList: (grade: string, locale: string, program: string) => Promise<ClassicalArtsCatalog>
+  loadLesson: (unit: string, grade: string, week: number, locale: string, support: string, program: string) => Promise<ClassicalArtsLesson>
   onChooseUnit: (note: string) => void
 }) {
   const { i18n } = useTranslation()
@@ -131,7 +136,10 @@ export default function ClassicalArtsWorkshop({
   const tx = copy[locale]
   const gradeNumber = Number(grade.trim())
   const supportedGrade = Number.isInteger(gradeNumber) && gradeNumber >= 4 && gradeNumber <= 12
-  const catalogKey = `${grade.trim()}|${locale}`
+  const savedSelection = useMemo(() => readClassicalSelection(currentUnit), [currentUnit])
+  const [program, setProgram] = useState<ProgramId>(savedSelection?.program ?? 'bede')
+  const [confirmedToken, setConfirmedToken] = useState(savedSelection?.assignment ?? '')
+  const catalogKey = `${grade.trim()}|${locale}|${program}`
   const instanceId = useId().replace(/:/g, '')
   const printId = `classical-arts-${instanceId}`
   const printClass = `classical-arts-printing-${instanceId}`
@@ -167,16 +175,31 @@ export default function ClassicalArtsWorkshop({
     () => currentUnits.find((item) => item.id === unitId) ?? null,
     [currentUnits, unitId],
   )
-  const lessonKey = `${unitId}|${grade.trim()}|${week}|${locale}|${support}`
+  const lessonKey = `${unitId}|${grade.trim()}|${week}|${locale}|${support}|${program}`
   const currentCatalogError = catalogError && catalogErrorScope === catalogKey
   const currentLessonError = lessonError && lessonErrorScope === lessonKey
   const lessonReady = !!lesson && lessonScope === lessonKey
     && lesson.unit_id === unitId && lesson.week === week
-  const canChoose = currentCatalog?.runtime_enabled === true && !!selectedUnit?.subjects.some((subject) => subjects.includes(subject)) && lessonReady
+  const assignmentChecked = program === 'bede' || (lessonReady && !!lesson?.selection_token && confirmedToken === lesson.selection_token)
+  const canChoose = currentCatalog?.runtime_enabled === true && !!selectedUnit?.subjects.some((subject) => subjects.includes(subject)) && lessonReady && assignmentChecked
   const roles = useMemo(
     () => [...new Set(lesson?.rehearsal.map((line) => line.speaker) ?? [])],
     [lesson],
   )
+
+  useEffect(() => {
+    setProgram(savedSelection?.program ?? 'bede')
+    setConfirmedToken(savedSelection?.assignment ?? '')
+  }, [savedSelection])
+
+  useEffect(() => {
+    if (savedSelection?.program === program && currentCatalog
+      && currentUnits.some((unit) => unit.id === savedSelection.unit)) {
+      setUnitId(savedSelection.unit)
+      setWeek(savedSelection.week)
+      setSupport(savedSelection.support)
+    }
+  }, [savedSelection, program, currentCatalog, currentUnits])
 
   const fetchCatalog = () => {
     const request = ++listRequest.current
@@ -195,8 +218,9 @@ export default function ClassicalArtsWorkshop({
     setCatalogErrorScope('')
     setCatalogPending(false)
     setCanceled(false)
-    loadList(grade, locale).then((data) => {
+    loadList(grade, locale, program).then((data) => {
       if (request !== listRequest.current) return
+      if ((data.program?.id ?? 'bede') !== program) throw new Error('Catalog program did not match the request')
       setCatalog(data)
       setCatalogScope(catalogKey)
     }).catch((error: unknown) => {
@@ -243,7 +267,7 @@ export default function ClassicalArtsWorkshop({
     }
     // Catalog loader is a stable imported API function at both call sites.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grade, locale, loadList, supportedGrade])
+  }, [grade, locale, program, loadList, supportedGrade])
 
   const cancelLessonLoad = () => {
     lessonRequest.current += 1
@@ -264,9 +288,11 @@ export default function ClassicalArtsWorkshop({
     setCanceled(false)
     if (hasLessonSelection) {
       setLessonLoading(true)
-      loadLesson(unitId, grade, week, locale, support).then((data) => {
+      loadLesson(unitId, grade, week, locale, support, program).then((data) => {
         if (request !== lessonRequest.current) return
         if (data.unit_id !== unitId || data.week !== week) throw new Error('Lesson selection did not match the request')
+        if ((data.program?.id ?? 'bede') !== program
+          || (program !== 'bede' && !/^[a-f0-9]{24}$/.test(data.selection_token ?? ''))) throw new Error('Lesson program or source binding did not match the request')
         setLesson(data)
         setLessonScope(lessonKey)
         setRole(data.rehearsal[0]?.speaker ?? '')
@@ -290,7 +316,7 @@ export default function ClassicalArtsWorkshop({
       if (lessonRequest.current === request) lessonRequest.current += 1
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unitId, week, support, grade, locale, loadLesson, generation, currentCatalog, selectedUnit])
+  }, [unitId, week, support, grade, locale, program, loadLesson, generation, currentCatalog, selectedUnit])
 
   useEffect(() => () => {
     lessonRequest.current += 1
@@ -300,7 +326,9 @@ export default function ClassicalArtsWorkshop({
 
   const applyUnit = () => {
     if (selectedUnit && canChoose && lessonReady) {
-      onChooseUnit(`Bede classical arts: ${selectedUnit.id}; week=${week}; support=${support}`)
+      if (program !== 'bede' && !lesson?.selection_token) return
+      const alignment = program === 'bede' ? '' : `; program=${program}; assignment=${lesson?.selection_token}`
+      onChooseUnit(`Bede classical arts: ${selectedUnit.id}; week=${week}; support=${support}${alignment}`)
     }
   }
   const selectedRole = lesson?.rehearsal.filter((line) => line.speaker === role) ?? []
@@ -327,6 +355,7 @@ export default function ClassicalArtsWorkshop({
         </div>
       </div>
 
+      <ClassicalProgramPicker program={program} onChange={setProgram} metadata={currentCatalog?.program} locale={locale} />
       {catalogLoading ? <div role="status" className="rounded-lg bg-white p-3 text-xs text-gray-600">{tx.loadingCatalog}</div> : null}
       {currentCatalogError ? <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
         <p>{catalogPending ? tx.sourcePending : tx.errorCatalog}</p><button type="button" className="mt-2 underline" onClick={fetchCatalog}>{tx.retryLoad}</button>
@@ -373,8 +402,14 @@ export default function ClassicalArtsWorkshop({
         <p className="font-semibold">{selectedUnit.title}</p>
         <p className="text-xs leading-relaxed text-gray-600">{selectedUnit.summary}</p>
         {selectedUnit.content_note && <p className="text-xs leading-relaxed text-gray-600"><strong>{tx.content}:</strong> {selectedUnit.content_note}</p>}
+        <ClassicalProgramMatch match={selectedUnit.program_match} locale={locale} />
+        {program !== 'bede' && lessonReady && lesson && <label className="classical-arts-no-print flex items-start gap-2 py-2 text-xs leading-relaxed">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0" checked={assignmentChecked}
+            onChange={(event) => setConfirmedToken(event.target.checked ? lesson.selection_token ?? '' : '')} />
+          {tx.checkAssignment}
+        </label>}
         <button type="button" onClick={applyUnit} disabled={!canChoose} className="classical-arts-no-print min-h-[42px] rounded-lg bg-navy-600 px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">{tx.use}</button>
-        <p className="text-[0.7rem] leading-relaxed text-gray-500">{!selectedUnit.subjects.some((subject) => subjects.includes(subject)) ? tx.noSubject : lessonReady ? tx.useHelp : tx.lessonNeeded}</p>
+        <p className="text-[0.7rem] leading-relaxed text-gray-500">{!selectedUnit.subjects.some((subject) => subjects.includes(subject)) ? tx.noSubject : !assignmentChecked && lessonReady ? tx.checkAssignment : lessonReady ? tx.useHelp : tx.lessonNeeded}</p>
       </div>}
 
       {lessonLoading && <div role="status" className="rounded-lg bg-white p-3 text-xs text-gray-600">{tx.loadingLesson}</div>}

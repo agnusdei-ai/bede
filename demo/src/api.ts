@@ -486,6 +486,24 @@ export async function getCurriculumAvailability() {
   return res.json()
 }
 
+export interface ClassicalArtsProgram {
+  id: 'bede' | 'valor' | 'memoria_press' | 'other'
+  label: string
+  description: string
+  coverage_note: string
+  schedule_note: string
+  references: Array<{ title: string; url: string; locator: string }>
+}
+
+export interface ClassicalArtsProgramMatch {
+  work: string
+  placement: string
+  reference_isbn: string
+  reference_url: string
+  reference_kind: 'reading_text' | 'study_guide'
+  edition_note: string
+}
+
 export interface ClassicalArtsUnit {
   id: string
   title: string
@@ -494,6 +512,7 @@ export interface ClassicalArtsUnit {
   weeks: number
   summary: string
   content_note: string
+  program_match?: ClassicalArtsProgramMatch | null
 }
 
 export interface ClassicalArtsCatalog {
@@ -501,13 +520,17 @@ export interface ClassicalArtsCatalog {
   runtime_enabled: boolean
   units: ClassicalArtsUnit[]
   scope_note: string
+  program?: ClassicalArtsProgram
 }
 
 export interface ClassicalArtsLesson {
   release_id: string
+  selection_token?: string
   unit_id: string
   title: string
   week: number
+  program?: ClassicalArtsProgram
+  program_match?: ClassicalArtsProgramMatch | null
   objective: string
   companion_sources: Array<ClassicalArtsLesson['source']>
   visual_previews: Array<{ id: string; title: string; title_es: string; image_url: string; source_url: string }>
@@ -545,11 +568,28 @@ function isString(value: unknown): value is string {
   return typeof value === 'string'
 }
 
+function isClassicalProgram(value: unknown): value is ClassicalArtsProgram {
+  return isRecord(value) && isString(value.id)
+    && ['bede', 'valor', 'memoria_press', 'other'].includes(value.id)
+    && ['label', 'description', 'coverage_note', 'schedule_note'].every((key) => isString(value[key]))
+    && Array.isArray(value.references) && value.references.every((ref) => isRecord(ref)
+      && ['title', 'url', 'locator'].every((key) => isString(ref[key]))
+      && isString(ref.url) && ref.url.startsWith('https://'))
+}
+
+function isClassicalMatch(value: unknown): boolean {
+  return value === undefined || value === null || (isRecord(value)
+    && ['work', 'placement', 'reference_isbn', 'reference_url', 'edition_note'].every((key) => isString(value[key]))
+    && (value.reference_kind === 'reading_text' || value.reference_kind === 'study_guide')
+    && isString(value.reference_url) && value.reference_url.startsWith('https://'))
+}
+
 function isClassicalArtsCatalog(value: unknown): value is ClassicalArtsCatalog {
   return isRecord(value)
     && isString(value.release_id)
     && typeof value.runtime_enabled === 'boolean'
     && isString(value.scope_note)
+    && (value.program === undefined || isClassicalProgram(value.program))
     && Array.isArray(value.units)
     && value.units.every((unit) => isRecord(unit)
       && isString(unit.id)
@@ -562,7 +602,7 @@ function isClassicalArtsCatalog(value: unknown): value is ClassicalArtsCatalog {
       && Number.isInteger(unit.weeks)
       && unit.weeks > 0
       && isString(unit.summary)
-      && isString(unit.content_note))
+      && isString(unit.content_note) && isClassicalMatch(unit.program_match))
 }
 
 function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
@@ -573,6 +613,9 @@ function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
     && typeof value.week === 'number'
     && Number.isInteger(value.week)
     && isString(value.objective)
+    && (value.selection_token === undefined || (isString(value.selection_token) && /^[a-f0-9]{24}$/.test(value.selection_token)))
+    && (value.program === undefined || isClassicalProgram(value.program))
+    && isClassicalMatch(value.program_match)
     && isRecord(value.source)
     && isString(value.source.id)
     && isString(value.source.title)
@@ -595,13 +638,14 @@ function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
     && value.rehearsal.every((line) => isRecord(line) && isString(line.speaker) && isString(line.text))
 }
 
-export async function getClassicalArtsCatalog(grade: string, locale: string): Promise<ClassicalArtsCatalog> {
-  const query = new URLSearchParams({ grade, locale })
+export async function getClassicalArtsCatalog(grade: string, locale: string, program = 'bede'): Promise<ClassicalArtsCatalog> {
+  const query = new URLSearchParams({ grade, locale, program })
   const res = await fetch(`${apiBase()}/catalog/classical-arts?${query}`)
   if (res.status === 503) throw new ClassicalArtsSourcePendingError()
   if (!res.ok) throw new Error(`Could not load classical arts (${res.status})`)
   const data: unknown = await res.json()
-  if (!isClassicalArtsCatalog(data)) throw new Error('Invalid classical arts catalog response')
+  if (!isClassicalArtsCatalog(data)
+    || (data.program?.id ?? 'bede') !== program) throw new Error('Invalid classical arts catalog response')
   return data
 }
 
@@ -611,14 +655,17 @@ export async function getClassicalArtsLesson(
   week: number,
   locale: string,
   support: string,
+  program = 'bede',
 ): Promise<ClassicalArtsLesson> {
-  const query = new URLSearchParams({ grade, week: String(week), locale, support })
+  const query = new URLSearchParams({ grade, week: String(week), locale, support, program })
   const res = await fetch(`${apiBase()}/catalog/classical-arts/${encodeURIComponent(unit)}?${query}`)
   if (res.status === 503) throw new ClassicalArtsSourcePendingError()
   if (!res.ok) throw new Error(`Could not load this rehearsal (${res.status})`)
   const data: unknown = await res.json()
   if (!isClassicalArtsLesson(data)
     || data.unit_id !== unit
+    || (data.program?.id ?? 'bede') !== program
+    || (program !== 'bede' && !data.selection_token)
     || data.week !== week) throw new Error('Invalid classical arts lesson response')
   return data
 }

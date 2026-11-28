@@ -37,11 +37,12 @@ async def classical_arts_image(asset_id: str, digest: str):
 @router.get("/classical-arts")
 async def classical_arts_catalog(
     grade: str = Query(pattern=r"^(?:[4-9]|1[0-2])$"), locale: str = "en",
+    program: str = "bede",
 ):
     """Public source-bound unit metadata; no learner records or adult keys."""
     from services.classical_arts_service import SourceUnavailable, catalog
     try:
-        return catalog(grade, locale)
+        return catalog(grade, locale, program)
     except SourceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
@@ -53,10 +54,11 @@ async def classical_arts_lesson(
     unit_id: str, grade: str = Query(pattern=r"^(?:[4-9]|1[0-2])$"),
     week: int = Query(default=1, ge=1, le=3), locale: str = "en",
     support: str = Query(default="guided", pattern=r"^(guided|independent|extension)$"),
+    program: str = "bede",
 ):
     from services.classical_arts_service import SourceUnavailable, lesson
     try:
-        return lesson(unit_id, grade, week, locale, support)
+        return lesson(unit_id, grade, week, locale, support, program)
     except SourceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except LookupError as exc:

@@ -74,7 +74,7 @@ describe('adult-directed classical arts rehearsal', () => {
     render(<ClassicalArtsWorkshop grade="8" subjects={['living_books']} onChooseUnit={onChooseUnit}
       loadList={vi.fn().mockResolvedValue(catalog)} loadLesson={loadLesson} />)
     fireEvent.change(await screen.findByLabelText('Literature or arts unit'), { target: { value: 'review-unit' } })
-    fireEvent.change(screen.getByLabelText('Week'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('Bede support week'), { target: { value: '2' } })
     await screen.findByText('Week 2 purpose')
     await act(async () => resolveLate(lesson(1)))
     expect(screen.queryByText('Week 1 purpose')).toBeNull()

@@ -11,11 +11,11 @@ is made here.
 | Area | Existing selection preserved | Source and actual new instruction | Delivery / limit |
 |---|---|---|---|
 | Lamb → drama | Year 4's Merchant prose selection stays in the catalog | Pinned Gutenberg 573, full Midsummer tale; narrative order, misunderstanding, evidence and comparison with the verified original prologue | `lamb-midsummer`, 3 weeks, grade 4+; guided chunking and a real companion source in week 3. Not a replacement of Merchant |
-| Original scene | Existing narration/reading stays available | Gutenberg 100, Midsummer V.1 prologue and immediate responses; speaker/audience distinction, ambiguity, respectful feedback | `midsummer-scene`, 3 weeks, grade 6+; not a full-play performance |
+| Original scene | Existing narration/reading stays available | Gutenberg 100, Midsummer V.1 prologue and immediate responses; speaker/audience distinction, ambiguity, respectful feedback | `midsummer-scene`, 3 weeks, grade 5+ with concrete guided entry routes; not a full-play performance |
 | Recitation | Existing poetry and separate prayer catalogs remain | Greenwood first stanza; Full Fathom Five song; complete Sonnet 18, each with exact locators/hashes | `shakespeare-songs`, 3 weeks, grade 4+ and existing weekly poetry selection. Sea-song mortality requires preview; oral memorization is optional |
 | Merchant | Year 8 Merchant and Year 4 Lamb Merchant remain | Gutenberg 100, IV.1 Portia's mercy speech; claim/image/qualification analysis | `merchant-mercy`, 3 weeks, grade 8+. Trial outcome requires the adult's full context; do not infer it from this speech. Contextualize antisemitism and coercion without impersonation or assent |
 | Everyman | Year 8 Everyman remains | Original Bede guide for accountable choice, allegorical characterization, and comparison with supplied Merchant passage | `everyman-bridge`, 3 weeks, grade 8+. No Everyman transcription claimed: adult supplies the agreed 1909 edition. Without it, original-allegory practice only |
-| Caesar / Plutarch | Existing Plutarch rotation and North selection remain; no assumed prior Caesar exposure | Intended 1909 North publisher text, one exact clause corroborated against web and PDF; Gutenberg 100 Antony opening III.2; different purposes and limits | `caesar-plutarch`, 3 weeks, grade 8+. Both passages supplied in comparison weeks. North is a translated later biography, not eyewitness evidence. Citizens/Brutus beyond the supplied extract require actual additional text |
+| Caesar / Plutarch | Existing Plutarch rotation and North selection remain; no assumed prior Caesar exposure | Intended 1909 North publisher text, one exact clause corroborated against web and PDF; Gutenberg 100 Antony opening III.2; different purposes and limits | `caesar-plutarch`, 3 weeks, grade 6+ with concrete guided entry routes. Both passages supplied in comparison weeks. North is a translated later biography, not eyewitness evidence. Citizens/Brutus beyond the supplied extract require actual additional text |
 | Macbeth | No forced substitution for Grade 8 books | Gutenberg 100 I.7 deliberation and pressure, ending before the later infant-violence passage; reasons, coercion, qualified argument | `macbeth-deliberation`, 3 weeks, grade 9+, optional adult decision. No diagnosis, gender/courage assessment, graphic reenactment or full-play claim |
 | Henry V | Existing history stays separate | Gutenberg 100 IV.3 bounded speech; audience, rhetoric, promises and evidence | `henryv-community`, 3 weeks, grade 8+. War context; no patriotic agreement or claim that rhetoric establishes historical justice |
 | Tempest | Existing literature selections remain | Gutenberg 100 V.1 Prospero/Ariel exchange and abjuration; restraint, promise, qualification, comparison with supplied mercy speech | `tempest-release`, 3 weeks, grade 8+. Contextualize power, servitude and colonial readings; do not invent unspoken consent or require personal disclosure |
@@ -29,6 +29,24 @@ routes. Grade floors are selection boundaries, not proof of readiness: adults
 preview the material, select a brief extract and may choose guided, independent
 or extension support. Reading aloud, typing, pointing and discussion are
 legitimate routes; no accents, faith, emotion or willingness to act are scored.
+
+## Program-specific placement and tutoring
+
+See [the factual program crosswalk](PROGRAM_ALIGNMENT.md). Both interfaces
+and backend routes distinguish Valor's six verified reading-list matches
+from the two verified Memoria Press products. The same work can have
+different published grade placements. Program-specific original preparation
+reaches the actual tutor prompt; it is not merely a displayed label.
+
+Bede support weeks do not replace a school's or publisher's calendar.
+Assigned modern text/guide editions remain distinct from the supplied
+historical passages. Adult selection is bound to the source release and
+relevant configuration through the existing unit note. Legacy selections,
+both approved languages and unrelated subjects remain supported.
+
+The crosswalk explicitly identifies unmapped works and other publisher
+courses rather than declaring a complete school-year mirror. No proprietary
+questions, teacher keys, quizzes or modern editorial commentary are copied.
 
 ## Exact editions and rights
 

@@ -72,7 +72,7 @@ def test_overrides_do_not_replace_unrelated_subjects_and_activation_is_explicit(
     monkeypatch.setenv("BEDE_CLASSICAL_ARTS_ENABLED", "true")
     note = arts.context(chosen, Subject.living_books, "es")
     assert "PORTIA" in note and "private" not in note.lower()
-    assert "Marquen comparaciones" in note
+    assert "veredicto queda fuera" in note
     assert "one scaffolding question" in note
     assert arts.context(chosen, Subject.art_music) == ""
 

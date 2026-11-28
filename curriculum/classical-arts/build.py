@@ -30,9 +30,12 @@ NOW = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 PAIRED = {
     ("shakespeare-songs", 3): ["greenwood"],
     ("lamb-midsummer", 3): ["midsummer"],
+    ("merchant-mercy", 3): ["caesar"],
     ("everyman-bridge", 2): ["merchant"],
-    ("caesar-plutarch", 2): ["north"], ("caesar-plutarch", 3): ["north"],
+    ("caesar-plutarch", 2): ["north"], ("caesar-plutarch", 3): ["north", "merchant"],
     ("macbeth-deliberation", 3): ["merchant", "caesar"],
+    ("henryv-community", 3): ["caesar"],
+    ("tempest-release", 2): ["merchant"],
     ("tempest-release", 3): ["merchant"],
     ("elizabethan-music", 1): ["greenwood"],
 }
@@ -344,6 +347,15 @@ def build():
     # is spread or serialized into this student-facing result.
     PUBLIC.parent.mkdir(parents=True, exist_ok=True)
     PUBLIC.write_bytes(canonical(public)+b"\n")
+    source_metadata = {}
+    for public_unit in public["units"]:
+        for public_lesson in public_unit["lessons"]:
+            for source in [public_lesson["source"], *public_lesson["companion_sources"],
+                           public_lesson.get("source_es")]:
+                if source:
+                    source_metadata[source["id"]] = {key: value for key, value in source.items() if key != "text"}
+    (ROOT / "curriculum/classical-arts/source-provenance.json").write_text(
+        json.dumps(source_metadata, ensure_ascii=False, indent=2)+"\n")
     update_catalogs()
     print(json.dumps({
         "units": len(public["units"]), "weeks": len(bundle["lessons"]),

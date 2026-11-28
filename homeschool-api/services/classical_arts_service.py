@@ -18,7 +18,7 @@ RELEASE_FILE = Path(__file__).resolve().parents[1] / "data/curriculum/classical-
 ART_DIR = RELEASE_FILE.parent / "classical-arts-art"
 # Pin the source-bound student projection independently of activation. A valid
 # artifact is inspectable; only the explicit operator flag enables tutoring.
-RELEASE_SHA256 = "b721a29cc3f33f7101dc6a2e901c5acd6678bad522899ea5390f66455303e43a"
+RELEASE_SHA256 = "d0c371e480a35bea067cd64c5e3cb5f296bb4f6a999d59e59a41153e7424fd11"
 PREFIX = "Bede classical arts:"
 NOTE = re.compile(
     r"Bede classical arts: ([a-z][a-z0-9-]{0,63}); week=([1-3]); "

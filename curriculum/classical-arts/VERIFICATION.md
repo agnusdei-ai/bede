@@ -3,7 +3,7 @@
 ## Exact student content
 
 - Student projection SHA-256:
-  `b721a29cc3f33f7101dc6a2e901c5acd6678bad522899ea5390f66455303e43a`
+  `d0c371e480a35bea067cd64c5e3cb5f296bb4f6a999d59e59a41153e7424fd11`
 - Twelve units, three weeks each; 36 English and 36 Spanish presentations of
   the same bounded weekly records. This is not 72 different lessons or a full
   grade-year curriculum.
@@ -22,7 +22,7 @@
    checksum outputs. Its mandated fixture/development status and pending
    acceptance gates are preserved. The living-books curation declaration is
    propagated, not waived; absent/false declarations fail the regression.
-2. **111 focused Python cases: passed.** The selected suite covers the new
+2. **139 focused Python cases: passed.** The selected suite covers the new
    service/factory regression and existing poetry, native-poetry, catalog and
    data-integrity checks. Each eligible grade, week, support route and language
    is exercised; corrupted/missing data and art bytes fail explicitly.
@@ -52,10 +52,18 @@
 
 ## Review interpretation
 
-An independent model-assisted source/instruction critique found no concrete
-contradiction in its focused pass. Its prior pass merely restated safeguards
-already present in private adult guidance; those were not accepted as defects.
-The later music-reference delta was corroborated against the actual catalog
+The initial model-assisted source/instruction critique missed two substantive
+mismatches subsequently caught in the whole-change review: English Midsummer
+instructions targeted an unprovided opening exchange, and Michelangelo
+instructions targeted drawings rather than the supplied finished frescoes.
+Both languages, associated private guidance and the packet were reconciled
+with the actual adopted source scope. Regressions now exercise those specific
+relationships. The cross-play audit also supplied the actual named companion
+passages, replaced an unprovided Brutus speech comparison with Antony, and
+kept Merchant's second week within its bounded speech rather than an
+unprovided verdict. Lamb and the prologue are explicitly different episodes.
+
+The music-reference delta was corroborated against the actual catalog
 metadata, including the continuation identifying **first publication in
 Parthenia in 1613**, distinct from composition “1613 or before.” An automated
 suggestion that confused those two claims was not adopted.

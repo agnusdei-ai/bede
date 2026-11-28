@@ -1,108 +1,124 @@
 {
   "greenwood": {
     "id": "greenwood",
-    "language": "en",
-    "locator": "As You Like It II.5, Amiens's first song; snapshot lines 11003–11012",
-    "rights": "public_domain_verified",
-    "text_sha256": "2305700324b1f931d7822849a50be6169a37625b762c37135b9e5233aa8a5268",
     "title": "Amiens: woodland song",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "As You Like It II.5, Amiens's first song; snapshot lines 11003–11012",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "2305700324b1f931d7822849a50be6169a37625b762c37135b9e5233aa8a5268",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "fullfathom": {
     "id": "fullfathom",
-    "language": "en",
-    "locator": "The Tempest I.2, Ariel's sea song and chorus; snapshot lines 117465–117475",
-    "rights": "public_domain_verified",
-    "text_sha256": "d7445cd33a199c7915290e75ccc6c2742c80aaeab5548bebcd94501594471864",
     "title": "Ariel: sea song",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "The Tempest I.2, Ariel's sea song and chorus; snapshot lines 117465–117475",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "d7445cd33a199c7915290e75ccc6c2742c80aaeab5548bebcd94501594471864",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "sonnet18": {
     "id": "sonnet18",
-    "language": "en",
-    "locator": "Sonnets, number 18, complete fourteen lines; snapshot lines 448–464",
-    "rights": "public_domain_verified",
-    "text_sha256": "9c726666bdebb4a3670bba1c19c69acc6e826ca95e994cc55f90f5ed9ae05a8f",
     "title": "Sonnet 18",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "Sonnets, number 18, complete fourteen lines; snapshot lines 448–464",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "9c726666bdebb4a3670bba1c19c69acc6e826ca95e994cc55f90f5ed9ae05a8f",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "lamb": {
     "id": "lamb",
-    "language": "en",
-    "locator": "Tales from Shakespeare, A Midsummer Night's Dream, complete prose tale; snapshot lines 584–1022",
-    "rights": "public_domain_verified",
-    "text_sha256": "a19f615ad87367e6bb7461ca8780c87b106652d841c7d13157bf4139a1c0c7e4",
     "title": "Charles and Mary Lamb: A Midsummer Night's Dream",
     "url": "https://raw.githubusercontent.com/GITenberg/Tales-from-Shakespeare_573/4c7cbbac669bfea38af48f2e20e033607e2ba2c5/573.txt",
+    "locator": "Tales from Shakespeare, A Midsummer Night's Dream, complete prose tale; snapshot lines 584–1022",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "a19f615ad87367e6bb7461ca8780c87b106652d841c7d13157bf4139a1c0c7e4",
     "verification_evidence": {
+      "snapshot_sha256": "69921bcbf8d90a980807a8a40cf3bbb1ec7e6d9bea9326918a12fc4f91ffd475",
       "ebook": "573",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "69921bcbf8d90a980807a8a40cf3bbb1ec7e6d9bea9326918a12fc4f91ffd475",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "midsummer": {
     "id": "midsummer",
-    "language": "en",
-    "locator": "A Midsummer Night's Dream V.1, first prologue and immediate audience responses; snapshot lines 85197–85216",
-    "rights": "public_domain_verified",
-    "text_sha256": "2a66f9fa5719cf16ec5addb4ae3a2196a6b3a3b3bf83cfa46aace0db74cb3096",
     "title": "Punctuation and a performed prologue",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "A Midsummer Night's Dream V.1, first prologue and immediate audience responses; snapshot lines 85197–85216",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "2a66f9fa5719cf16ec5addb4ae3a2196a6b3a3b3bf83cfa46aace0db74cb3096",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "merchant": {
     "id": "merchant",
-    "language": "en",
-    "locator": "The Merchant of Venice IV.1, Portia's mercy speech; not the whole trial outcome; snapshot lines 79556–79578",
-    "rights": "public_domain_verified",
-    "text_sha256": "36e7ad44a5aa54b67fc319e014075bc70606ced3b6a49d0fee3ea7a122be3379",
     "title": "Portia's appeal",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "The Merchant of Venice IV.1, Portia's mercy speech; not the whole trial outcome; snapshot lines 79556–79578",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "36e7ad44a5aa54b67fc319e014075bc70606ced3b6a49d0fee3ea7a122be3379",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
+    }
+  },
+  "caesar": {
+    "id": "caesar",
+    "title": "Antony's public address",
+    "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "Julius Caesar III.2, Antony's opening funeral speech; snapshot lines 60642–60679",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "cc3110e9ad036f0f580f101c42bdb7ae9f0220f69dce93566d28c9fd4bbf02cf",
+    "verification_evidence": {
       "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "ebook": "100",
+      "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "everyman": {
     "id": "everyman",
-    "language": "en",
-    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
-    "rights": "original",
-    "text_sha256": "1d8c94eb5b21754f30fe5c995938a67ed8e5048eebd559ceca91776701b0fd62",
-    "title": "Everyman: allegory to dramatic choice — original Bede guide",
+    "title": "Everyman: de la alegoría a la decisión dramática — guía original de Bede",
     "url": "https://archive.org/details/everymanwithothe00rhys",
+    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
+    "language": "es",
+    "rights": "original",
+    "text_sha256": "453e18002eb79c046036a4d4db3fd2cc551fed027f80aa335064f11ee66776cb",
     "verification_evidence": {
       "method": "Original Bede instruction; no third-party work reproduced",
       "scope": "Not a verified transcription, image, score or audio asset"
@@ -110,92 +126,76 @@
   },
   "north": {
     "id": "north",
-    "language": "en",
-    "locator": "Life of Julius Caesar, opening portrait; sentence within 'Now Caesar immediately wan' paragraph, printed pp. 5–6",
-    "rights": "public_domain_verified",
-    "text_sha256": "ea30c5ca893bc0a73b7e92646aeff22b0b88b2c70d4c95ed4edfcdcbe0877b34",
     "title": "Plutarch, North translation; Tucker Brooke edition (1909)",
     "url": "https://oll.libertyfund.org/titles/north-shakespeare-s-plutarch-vol-i-containing-the-main-sources-of-julius-caesar",
+    "locator": "Life of Julius Caesar, opening portrait; sentence within 'Now Caesar immediately wan' paragraph, printed pp. 5–6",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "ea30c5ca893bc0a73b7e92646aeff22b0b88b2c70d4c95ed4edfcdcbe0877b34",
     "verification_evidence": {
       "method": "Exact sentence matched in OLL web text and publisher-hosted PDF extraction after whitespace normalization only",
       "pdf_sha256": "e17e022b96c996d9bc1cf40a80657dba8beda2e6796c594c39dc9a34d540d6ad",
-      "relationship": "North translation, not a claim of the identical printing Shakespeare owned",
       "rights": "OLL copyright statement: The text is in the public domain",
-      "scope": "Original North text only; not new OLL editorial matter, illustrations or the entire PDF"
-    }
-  },
-  "caesar": {
-    "id": "caesar",
-    "language": "en",
-    "locator": "Julius Caesar III.2, Antony's opening funeral speech; snapshot lines 60642–60679",
-    "rights": "public_domain_verified",
-    "text_sha256": "cc3110e9ad036f0f580f101c42bdb7ae9f0220f69dce93566d28c9fd4bbf02cf",
-    "title": "Antony's public address",
-    "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
-    "verification_evidence": {
-      "ebook": "100",
-      "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "scope": "Original North text only; not new OLL editorial matter, illustrations or the entire PDF",
+      "relationship": "North translation, not a claim of the identical printing Shakespeare owned"
     }
   },
   "macbeth": {
     "id": "macbeth",
-    "language": "en",
-    "locator": "Macbeth I.7, opening deliberation and pressure through Macbeth's refusal; later violent imagery excluded; snapshot lines 72200–72254",
-    "rights": "public_domain_verified",
-    "text_sha256": "2898a94d9a033ec5812516f2b2ceb6c8ddf3908c97dbb4eb5005675f507afebe",
     "title": "Macbeth: reasons and pressure",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "Macbeth I.7, opening deliberation and pressure through Macbeth's refusal; later violent imagery excluded; snapshot lines 72200–72254",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "2898a94d9a033ec5812516f2b2ceb6c8ddf3908c97dbb4eb5005675f507afebe",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "henryv": {
     "id": "henryv",
-    "language": "en",
-    "locator": "Henry V IV.3, bounded St Crispin passage; snapshot lines 40253–40304",
-    "rights": "public_domain_verified",
-    "text_sha256": "c3b76d9a0259b3ec71121c1195cb7b3014716d0a334c86d19303884e45c1acb2",
     "title": "Henry V: membership and memory",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "Henry V IV.3, bounded St Crispin passage; snapshot lines 40253–40304",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "c3b76d9a0259b3ec71121c1195cb7b3014716d0a334c86d19303884e45c1acb2",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "tempest": {
     "id": "tempest",
-    "language": "en",
-    "locator": "The Tempest V.1, Prospero and Ariel through the abjuration; snapshot lines 118981–119043",
-    "rights": "public_domain_verified",
-    "text_sha256": "398591f1ee49931160e856dad9d03dbb167adb1edf489bfec34a1fb849c4e105",
     "title": "The Tempest: restraint and release",
     "url": "https://raw.githubusercontent.com/GITenberg/The-Complete-Works-of-William-Shakespeare_100/c6728ea4a6edd5f1bfabd31324dbd509b2c6f29a/100-0.txt",
+    "locator": "The Tempest V.1, Prospero and Ariel through the abjuration; snapshot lines 118981–119043",
+    "language": "en",
+    "rights": "public_domain_verified",
+    "text_sha256": "398591f1ee49931160e856dad9d03dbb167adb1edf489bfec34a1fb849c4e105",
     "verification_evidence": {
+      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
       "ebook": "100",
       "method": "Contiguous UTF-8 passage from the immutable mirrored snapshot; CRLF normalized to LF only",
-      "primary_site_byte_parity": "Not established while the primary service is unavailable",
-      "snapshot_sha256": "17d47ae375676f7576feb3d931784223865403a18537707f9a567247015d6781",
-      "territory": "United States; no modern translation, annotation, image, score or recording cleared"
+      "territory": "United States; no modern translation, annotation, image, score or recording cleared",
+      "primary_site_byte_parity": "Not established while the primary service is unavailable"
     }
   },
   "michelangelo": {
     "id": "michelangelo",
-    "language": "en",
-    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
-    "rights": "original",
-    "text_sha256": "43833bc3d4ab718035cf5b3bc502a55233b5ebc0b6a0644e2b90f64102f14c9b",
-    "title": "Michelangelo: looking, line, and form — original Bede guide",
+    "title": "Miguel Ángel: observación, línea y forma — guía original de Bede",
     "url": "https://commons.wikimedia.org/wiki/File:Erythraean.jpg",
+    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
+    "language": "es",
+    "rights": "original",
+    "text_sha256": "b8a78e0cce3bb4bd6f3fb62ffe30be2a87bedf211b175cc2a8f148633acdba1a",
     "verification_evidence": {
       "method": "Original Bede instruction; no third-party work reproduced",
       "scope": "Not a verified transcription, image, score or audio asset"
@@ -203,12 +203,12 @@
   },
   "beethoven": {
     "id": "beethoven",
-    "language": "en",
-    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
-    "rights": "original",
-    "text_sha256": "4896e1a4efff5d0e9e759c4c757cdcf3a6d6cc2a5760635d01f4fac95cbc39b5",
-    "title": "Beethoven: phrase, contrast, and form — original Bede guide",
+    "title": "Beethoven: frase, contraste y forma — guía original de Bede",
     "url": "https://agnusdei.ai/",
+    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
+    "language": "es",
+    "rights": "original",
+    "text_sha256": "a41fc09dc4239a0b421e31278f17719c271696385291a0480583870f9ab13d45",
     "verification_evidence": {
       "method": "Original Bede instruction; no third-party work reproduced",
       "scope": "Not a verified transcription, image, score or audio asset"
@@ -216,12 +216,12 @@
   },
   "elizabethan": {
     "id": "elizabethan",
-    "language": "en",
-    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
-    "rights": "original",
-    "text_sha256": "3769e4f671662d6edd8d6c576f74971f39d389479422e8b95602b83fb02a1ffd",
-    "title": "Dowland and Byrd: music in its setting — original Bede guide",
+    "title": "Dowland y Byrd: música y contexto — guía original de Bede",
     "url": "https://agnusdei.ai/",
+    "locator": "Original guide, all three weekly procedures; external works are adult-provided, not reproduced",
+    "language": "es",
+    "rights": "original",
+    "text_sha256": "ba209c62f9e91808feb75cdb4090c86c4351eaf501c097b0c91f27afc51d78ad",
     "verification_evidence": {
       "method": "Original Bede instruction; no third-party work reproduced",
       "scope": "Not a verified transcription, image, score or audio asset"

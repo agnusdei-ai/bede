@@ -85,6 +85,9 @@ def _enc_aads() -> dict[str, dict[str, Callable[[Any], bytes | None]]]:
             "detail_enc": lambda r: student_aad("practice_sets", "detail_enc", r.student_name),
         },
         "practice_evidence_marks": {},
+        "essay_drafts": {
+            "detail_enc": lambda r: student_aad("essay_drafts", "detail_enc", r.student_name, r.id),
+        },
         "educator_roster_assignments": {},
         "session_transcripts": {
             "transcript_enc": lambda r: student_aad("session_transcripts", "transcript_enc", r.student_name),

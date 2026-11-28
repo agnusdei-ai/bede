@@ -913,6 +913,32 @@ class PracticeSetRecord(Base):
     decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class EssayDraft(Base):
+    """One essay a student is writing in Essay Studio (docs/ESSAY_STUDIO.md).
+
+    Everything about the essay — the prompt, the plan, the draft text, the
+    typed and pasted character counts and Bede's latest feedback — is in
+    `detail_enc`, encrypted with the student's own key and bound to this row
+    by its id (generated before insert, so the AAD can carry it). Only what
+    the routes need to list and guard drafts is plaintext: the status, the
+    version every save must match, and the timestamps. Kept until a parent
+    deletes it or the student is deleted, which crypto-shreds it.
+    """
+    __tablename__ = "essay_drafts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    student_name: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="active")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    detail_enc: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False,
+    )
+
+
 class SessionTranscript(Base):
     """Encrypted full session transcript saved at session end for parent review."""
     __tablename__ = "session_transcripts"

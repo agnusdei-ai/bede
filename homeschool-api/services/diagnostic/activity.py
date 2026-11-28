@@ -56,7 +56,7 @@ ASSISTANCE_LEVELS = ("unaided", "with_a_hint", "with_help")
 # Where work was seen, when it was not in a session with Bede.
 # "practice_round": a K-2 practice round's recorded answer (routers/k2_practice.py),
 # counted separately on the parent's mastery summary from Bede's own check-ins.
-ACTIVITY_SOURCES = ("marked_quiz", "practice_round")
+ACTIVITY_SOURCES = ("marked_quiz", "practice_round", "essay_studio")
 
 # Maps the outcome vocabulary every diagnostic in this package already uses
 # onto that factual scale. `incorrect` is deliberately absent: a task that

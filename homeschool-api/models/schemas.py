@@ -660,6 +660,21 @@ class SessionConfig(BaseModel):
             return None
         return value if value in SPRINT_MINUTES_OPTIONS else None
 
+    #: Essay Studio (docs/ESSAY_STUDIO.md): the grade at which this student's
+    #: rhetoric stage begins; grades below it are the logic stage, which
+    #: decides which essay exercises they may start. Classical schools draw
+    #: this line differently, so it is a parent setting with a conservative
+    #: default (None means grade 9). Never reaches a prompt as a label.
+    essay_rhetoric_from_grade: Optional[int] = None
+
+    @field_validator("essay_rhetoric_from_grade", mode="before")
+    @classmethod
+    def _clean_essay_rhetoric_from_grade(cls, value):
+        """Clean, never reject: anything but a whole grade 6-12 means "not set"."""
+        if isinstance(value, bool) or not isinstance(value, int):
+            return None
+        return value if 6 <= value <= 12 else None
+
     #: K-2 practice (docs/K2_PRACTICE.md §4): which practice rounds Bede may
     #: offer this child. "off": none. "approved_only": only practice sets the
     #: parent approved (Practice Coach), so Bede never chooses on its own.

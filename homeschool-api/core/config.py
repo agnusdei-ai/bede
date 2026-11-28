@@ -656,6 +656,10 @@ class Settings(BaseSettings):
     # still needs its own tick, and a set still reaches a child only after a
     # parent approves it. Asked by the setup wizard and setup.sh.
     practice_coach_enabled: bool = True
+    #: Essay Studio (docs/ESSAY_STUDIO.md). When false, drafts are kept only in
+    #: this process's memory for the sign-in that wrote them, never in the
+    #: database, and the studio says so before writing begins.
+    essay_studio_save_drafts: bool = True
 
     # Curriculum Intelligence (services/curriculum/). Off by default; the
     # installers write CURRICULUM_ENGINE_ENABLED=true only on an explicit

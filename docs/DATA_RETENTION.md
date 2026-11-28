@@ -245,6 +245,19 @@ student is deleted, like the work ledger. `delete_all_student_data()`
 removes them with the same transaction and per-student cryptographic
 key destruction; the public demo never creates this table's records.
 
+## Essay Studio drafts (`essay_drafts`)
+
+One row per essay a student writes in Essay Studio (docs/ESSAY_STUDIO.md): the
+task, their model note, position, opposing view, plan, draft, reflection, typed
+and pasted character counts, and Bede's latest coaching note and question, all
+in `detail_enc` under the student's own key, bound to the row's id. Status,
+version and timestamps are plain columns. Kept until a parent deletes the essay
+on the Progress page or the student is deleted (which crypto-shreds it), and
+included in the parent's export. With `ESSAY_STUDIO_SAVE_DRAFTS=false` nothing is
+written here: a draft lives only in the server's memory for the sign-in that
+wrote it, at most 6 hours. When the student asks for coaching, the draft is sent
+to the lesson's own AI provider, with credential-shaped text redacted.
+
 ## The work ledger (`skill_activity_log`)
 
 One row per completed learning activity — what a student actually finished,

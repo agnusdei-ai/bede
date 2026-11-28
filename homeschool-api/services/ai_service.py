@@ -465,6 +465,33 @@ TUTOR_TOOLS = [
         },
     },
     {
+        "name": "invite_essay_studio",
+        "description": (
+            "Grades 6-12 only. Put an Essay Studio card in the lesson: a workspace where the "
+            "student writes an essay (narrative, refutation or thesis) and you coach beside the "
+            "draft. The student chooses to open it. Use it at most once in a session, only when "
+            "the <essay_studio> note offers it, at a natural pause after reading or discussion "
+            "has given them something worth writing about. Send the essay question in the "
+            "student's terms, drawn from today's lesson, never a thesis or an answer. You never "
+            "write any part of the essay."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "The essay question or topic, one short sentence, ending in a question mark when it is a question. Never a thesis, an outline or a sample sentence.",
+                },
+                "exercise": {
+                    "type": "string",
+                    "enum": ["narrative", "refutation", "thesis"],
+                    "description": "The exercise that fits the question. Only one the <essay_studio> note names.",
+                },
+            },
+            "required": ["prompt"],
+        },
+    },
+    {
         "name": "offer_socratic_hint",
         "description": (
             "Give a gentle Socratic hint when a child is stuck — never the answer, "
@@ -3020,6 +3047,68 @@ fill time, and do not mention that anything is recorded.
 </practice>"""
 
 
+def _essay_exercises(config: SessionConfig) -> tuple:
+    from services.essay_studio import exercises_for
+    return exercises_for(config)
+
+
+def essay_studio_card_prompt(tool_input: dict) -> str:
+    """The essay question Bede sent, cleaned and cut to one short line."""
+    return (_sanitize_parent_field(str(tool_input.get("prompt") or ""), 200) or "").strip()
+
+
+def _essay_studio_allowed(
+    config: SessionConfig, subject: Subject, demo_code: Optional[str],
+    history: Optional[List[ChatMessage]], *,
+    time_remaining_seconds: Optional[int] = None, session_id: Optional[str] = None,
+) -> bool:
+    """Whether Bede may offer Essay Studio on this turn (docs/ESSAY_STUDIO.md).
+
+    Checked when the note is built AND when the tool is dispatched. Refused:
+    the public demo; outside grades 6-12; a subject other than Language Arts
+    or Living Books, or one not in today's plan; too little time left in the
+    block to begin; and a second offer in one session.
+    """
+    from services import essay_studio, k2_practice
+    from services.action_governance import MIN_SECONDS_FOR_LONG_FORM_TASK
+
+    if demo_code is not None or essay_studio.stage_band(config) is None:
+        return False
+    if subject not in essay_studio.ESSAY_SUBJECTS or subject not in config.subjects:
+        return False
+    if time_remaining_seconds is not None and time_remaining_seconds < MIN_SECONDS_FOR_LONG_FORM_TASK:
+        return False
+    if k2_practice.was_offered(config.student_name, session_id, "essay_studio"):
+        return False
+    prefix = essay_studio.CARD_PREFIX
+    return not any(m.role == "assistant" and prefix in (m.content or "") for m in (history or []))
+
+
+def _essay_studio_note(
+    config: SessionConfig, subject: Subject, demo_code: Optional[str],
+    history: Optional[List[ChatMessage]], *,
+    time_remaining_seconds: Optional[int] = None, session_id: Optional[str] = None,
+) -> str:
+    from services import essay_studio
+
+    if not _essay_studio_allowed(config, subject, demo_code, history,
+                                 time_remaining_seconds=time_remaining_seconds, session_id=session_id):
+        return ""
+    exercises = ", ".join(essay_studio.exercises_for(config))
+    return f"""
+
+<essay_studio>
+This student may write an essay in Essay Studio today. Exercises they may start: {exercises}
+(narrative tells an event clearly and in order; refutation shows why a claim does not hold;
+thesis argues a general question and answers the other side). The parent's own plan comes
+first: if today's lesson focus or the note on where this subject left off points somewhere
+else, do not offer it. Otherwise, once a reading or discussion has given them something worth
+writing about, you may call `invite_essay_studio` once, with the essay question in their terms
+and the exercise that fits. It is an invitation: the student opens it or not. Never write any
+part of the essay, and never mention that anything is saved or recorded.
+</essay_studio>"""
+
+
 def _phonics_checkin_note(config: SessionConfig, subject: Subject) -> str:
     """
     K-2 Language Arts only: a light nudge to occasionally weave in ONE
@@ -3632,6 +3721,10 @@ async def _build_subject_prompt(
         config, subject, demo_code, history,
         time_remaining_seconds=time_remaining_seconds, session_id=session_id,
     )
+    essay_studio_note = _essay_studio_note(
+        config, subject, demo_code, history,
+        time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+    )
     work_scoring_note = _WORK_SCORING_NOTE
     literacy_note = _literacy_checkin_note(config, subject)
     language_note = _language_checkin_note(config, subject)
@@ -3648,7 +3741,7 @@ async def _build_subject_prompt(
     time_note = _time_remaining_note(time_remaining_seconds)
 
     return f"""CURRENT SUBJECT: {subject_label(subject, locale)}
-{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{practice_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
+{_SUBJECT_CONTEXT[subject]}{faith_note}{lesson_note}{unit_note}{resume_note}{bookmark_note}{catalog_note}{fable_note}{visual_aids_note}{composer_note}{poetry_note}{prayer_recitation_note}{subject_catalog_note}{term_note}{session_position_note}{time_of_day_note}{transition_note}{processing_style_note}{composition_note}{phonics_note}{map_practice_note}{practice_note}{essay_studio_note}{literacy_note}{language_note}{music_so_far_note}{music_note}{work_scoring_note}{diagnostic_note}{guadalupe_note}{faith_tradition_note}{bible_translation_note}{companion_note}{pacing_note}{time_note}{adaptive_instruction_note}"""
 
 
 def _processing_style_note(processing_style: Optional[str]) -> str:
@@ -3729,6 +3822,8 @@ _CARD_PHRASES = {
         "practice_phonics_body": "Let's play with sounds and words. Watch first, then we'll do two together, then it's your turn.",
         "practice_math_title": "Number Time",
         "practice_math_body": "Let's play with counters and numbers. Watch first, then we'll do two together, then it's your turn.",
+        "essay_title": "Essay Studio",
+        "essay_body": "Your ideas. Your words. Bede helps you make them stronger.",
         "hint_with_analogy": "Here's a thought to try: {analogy} ... so with that in mind — {hint}",
         "hint_plain": "Let me ask it this way: {hint}",
     },
@@ -3741,6 +3836,8 @@ _CARD_PHRASES = {
         "practice_phonics_body": "Vamos a jugar con sonidos y palabras. Primero mira, luego hacemos dos juntos y después te toca a ti.",
         "practice_math_title": "Hora de los Números",
         "practice_math_body": "Vamos a jugar con fichas y números. Primero mira, luego hacemos dos juntos y después te toca a ti.",
+        "essay_title": "Estudio de Ensayo",
+        "essay_body": "Tus ideas. Tus palabras. Bede te ayuda a hacerlas más fuertes.",
         "hint_with_analogy": "Aquí va una idea para probar: {analogy} ... y con eso en mente — {hint}",
         "hint_plain": "Déjame preguntarlo de otra manera: {hint}",
     },
@@ -3797,6 +3894,14 @@ def _process_tool_use(tool_name: str, tool_input: dict, locale: str = "en") -> s
         if area not in CARD_PREFIX or f"practice_{area}_title" not in phrases:
             return ""
         return f"{CARD_PREFIX[area]}*{phrases[f'practice_{area}_title']}* — {phrases[f'practice_{area}_body']}"
+
+    if tool_name == "invite_essay_studio":
+        # The card's frame is the server's; the essay question is Bede's,
+        # cleaned like a parent field, and the promise stands in for it
+        # when there is none.
+        from services.essay_studio import CARD_PREFIX as essay_prefix
+        prompt = essay_studio_card_prompt(tool_input)
+        return f"{essay_prefix}*{phrases['essay_title']}* — {prompt or phrases['essay_body']}"
 
     if tool_name == "offer_socratic_hint":
         hint = tool_input["hint_question"]
@@ -5194,6 +5299,7 @@ async def stream_tutor_response(
     # carries does not yet hold this turn's own cards, and an older client
     # sends no session id, so without this a turn could offer one area twice.
     practice_areas_offered_this_turn: set[str] = set()
+    essay_studio_offered_this_turn = False
     final_message = None
 
     # Bounded tool_result loop (see _MAX_TOOL_LOOP_ROUNDS's own comment for
@@ -5489,6 +5595,17 @@ async def stream_tutor_response(
                                     # subject not in today's routine, too little time,
                                     # the demo, or a second offer: dropped, never shown.
                                     log.info("Practice invitation dropped for %s", learner_ref(config.student_name))
+                                elif tc["name"] == "invite_essay_studio" and (
+                                    essay_studio_offered_this_turn
+                                    or tool_input.get("exercise") not in (None, *_essay_exercises(config))
+                                    or not _essay_studio_allowed(
+                                        config, subject, demo_code, history,
+                                        time_remaining_seconds=time_remaining_seconds, session_id=session_id,
+                                    )
+                                ):
+                                    # Outside grades 6-12, another subject, too little time,
+                                    # the demo, an exercise not offered, or a second offer.
+                                    log.info("Essay Studio invitation dropped for %s", learner_ref(config.student_name))
                                 else:
                                     if tc["name"] == "invite_handwriting":
                                         # See LearnerBehaviorCheck's docstring — a minimal,
@@ -5517,6 +5634,13 @@ async def stream_tutor_response(
                                             practice_areas_offered_this_turn.add(tool_input.get("area"))
                                             yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response,
                                                               'area': tool_input.get("area")})
+                                        elif tc["name"] == "invite_essay_studio":
+                                            from services.k2_practice import mark_offered
+                                            mark_offered(config.student_name, session_id, "essay_studio")
+                                            essay_studio_offered_this_turn = True
+                                            yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response,
+                                                              'essay_prompt': essay_studio_card_prompt(tool_input),
+                                                              'exercise': tool_input.get("exercise")})
                                         else:
                                             yield json.dumps({'type': 'tool', 'tool': tc['name'], 'content': tool_response})
                                         # Which field means "this card asked

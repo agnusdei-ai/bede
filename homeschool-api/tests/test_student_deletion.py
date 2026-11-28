@@ -27,6 +27,7 @@ from core.database import (
     EducatorAssessmentEvidence,
     PracticeAssessment,
     PracticeEvidenceMark,
+    EssayDraft,
     PracticeSetRecord,
     EducatorRosterAssignment,
     Base,
@@ -142,6 +143,8 @@ async def _seed_all_tables(db, student_name: str):
         detail_enc=encrypt_json({"practice_set": {}}),
     ))
     db.add(PracticeEvidenceMark(assessment_id=next(_next_id), student_name=student_name))
+    db.add(EssayDraft(id=f"essay-{next(_next_id)}", student_name=student_name, status="active", version=1,
+                      detail_enc=b"x"))
     db.add(ApiUsageEvent(student_name=student_name, model="claude-sonnet-4-6", input_tokens=10, output_tokens=5))
     # Parental consent ledger and per-child pause (core/consent.py, COPPA 312.5/312.6).
     db.add(ConsentRecord(
@@ -168,6 +171,7 @@ async def _row_counts_for(db, student_name: str) -> dict:
         ("practice_assessments", PracticeAssessment),
         ("practice_sets", PracticeSetRecord),
         ("practice_evidence_marks", PracticeEvidenceMark),
+        ("essay_drafts", EssayDraft),
         ("educator_roster_assignments", EducatorRosterAssignment),
         ("child_learner_bindings", ChildLearnerBinding),
         ("child_pins", ChildPin),

@@ -1273,6 +1273,36 @@ mistake, remove the erroneous entry and create a replacement. All records
 are encrypted and included in student-data deletion. Read the full scope and
 limitations in [Assessment Interoperability](ASSESSMENT_INTEROPERABILITY.md).
 
+### Essay Studio (grades 6-12)
+
+Essay Studio is where a student in grades 6 to 12 writes an essay in Language
+Arts or Living Books, with Bede coaching beside the draft. It is built on
+classical writing practice: the student reads a passage from their own book that
+does what the exercise does, says what it does, then writes their own. Bede asks
+questions and points at one thing to work on at a time. **Bede never writes any
+part of the essay**, and nothing Bede says is put into the draft.
+
+- **How it starts.** Bede offers it in the lesson, once a session, when Language
+  Arts or Living Books is in today's plan. The child presses **Start an essay**,
+  or **Continue writing** when they have an unfinished one. There is no menu
+  item for it.
+- **Exercises.** Narrative (tell an event clearly), refutation (show why a claim
+  does not hold) and thesis (argue a general question). In refutation and thesis
+  the student first states the other side fairly, in their own words.
+- **When the rhetoric stage begins** (the setting for each student in grades
+  6-12, default grade 9). Schools differ on this. Before that grade a student can
+  start narrative and refutation; from it, thesis too.
+- **Coaching is practice, not a grade.** It adds nothing to the writing record on
+  the Progress page; narration is still what that reads.
+- **One unfinished essay at a time.** Starting a new one replaces the unfinished
+  one, and Bede asks the child to confirm first.
+- **On the Progress page** you can read your child's essays, see how many
+  characters were pasted in rather than typed, and delete an essay.
+- **Where it is kept.** Essays are stored encrypted with your child's own key and
+  deleted with the rest of their data. If your installation sets
+  `ESSAY_STUDIO_SAVE_DRAFTS=false`, essays are kept only until the child signs out,
+  and the studio says so before they start writing.
+
 ### Turn a graded quiz into practice
 
 When your child brings home a graded quiz or worksheet, open **Pod

@@ -343,10 +343,13 @@ class Settings(BaseSettings):
     # a SECRET_KEY compromise should not also reach family deployments.
     demo_secret_key: str = ""
     # Accept tokens issued before identity domains existed (no domain header,
-    # signed with raw secret_key) until they expire. Self-limiting — no new
-    # ones are ever issued — and exists so deploying P10 doesn't sign every
-    # family out mid-lesson. Safe to set false immediately.
-    legacy_token_grace: bool = True
+    # signed with raw secret_key). It existed so the 2026-08-03 deploy of P10
+    # did not sign families out mid-lesson; every such token expired within
+    # 8 hours of that deploy, so it now accepts nothing a normal token would
+    # not and only keeps a second verification path alive. Off by default
+    # since 2026-11-28; an operator upgrading straight from a pre-August
+    # release can set it true for one day.
+    legacy_token_grace: bool = False
     # How long a management-plane elevation lasts (core/elevation.py, P8).
     # Absolute from the moment of elevation, not a sliding window on use — a
     # sliding window would let one password entry hold administrator rights

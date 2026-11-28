@@ -82,9 +82,9 @@ services:
       - BEDE_GRADE8_CURRICULUM_ENABLED=${BEDE_GRADE8_CURRICULUM_ENABLED:-true}
       - ELEVATION_TTL_MINUTES=${ELEVATION_TTL_MINUTES:-10}
       # LEGACY_TOKEN_GRACE — accept JWTs issued before identity domains
-      # existed (core/identity.py). Only needed for the first deploy after
-      # upgrading; set false once every pre-upgrade token has expired (8h).
-      - LEGACY_TOKEN_GRACE=${LEGACY_TOKEN_GRACE:-true}
+      # existed (core/identity.py). Off by default; only an upgrade straight
+      # from a pre-2026-08-03 release needs it, for one day (8h token max).
+      - LEGACY_TOKEN_GRACE=${LEGACY_TOKEN_GRACE:-false}
       # DEMO_SECRET_KEY — independent signing key for the public demo's
       # identity domain. Irrelevant on a family instance (no demo role in
       # play); listed so the variable behaves the same way everywhere.

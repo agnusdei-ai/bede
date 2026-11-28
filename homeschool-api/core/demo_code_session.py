@@ -259,7 +259,7 @@ async def get_parent_config(code: str) -> dict | None:
         # A row this process cannot read is a row that does not exist, as
         # far as a demo session is concerned — never a 500 on the visitor's
         # first turn.
-        logger.warning("demo parent config could not be decrypted; ignoring")
+        log.warning("demo parent config could not be decrypted; ignoring")
         return None
     return value if isinstance(value, dict) else None
 

@@ -360,7 +360,7 @@ read the log. `GET /admin/status` reports the same facts.
 |---|---|---|
 | `ELEVATION_ENFORCED` | `true` | Require a password step-up for management-plane actions — audit log, AI provider, MFA/recovery changes, permanent student deletion. |
 | `ELEVATION_TTL_MINUTES` | `10` | How long a step-up lasts, absolute from the moment of elevation. |
-| `LEGACY_TOKEN_GRACE` | `true` | Accept JWTs issued before identity domains existed. |
+| `LEGACY_TOKEN_GRACE` | `false` | Accept JWTs issued before identity domains existed. |
 | `DEMO_SECRET_KEY` | unset | Independent signing key for the public demo's identity domain. |
 | `LOCUTO_IPC_ENABLED` | `false` | Run the local-IPC listener that lets a paired `agnusdei-ai/locuto` installation on the same machine talk to Bede. Off by default, and also needs `COMPOSE_PROFILES=locuto`. See below. |
 
@@ -376,12 +376,12 @@ per `ELEVATION_TTL_MINUTES`, not on every management action. Set it to
 or on an existing deployment you've upgraded and want to defer this for
 now.
 
-**`LEGACY_TOKEN_GRACE` should be turned off** after your first deploy on a
-version that has identity domains. It exists only so upgrading doesn't sign
-your family out mid-lesson; once every pre-upgrade token has expired (8
-hours at most), it accepts nothing that a normal token wouldn't, and it
-keeps an alternate signature-verification path alive for no reason. Set it
-to `false` the next day.
+**`LEGACY_TOKEN_GRACE` is off by default** (since 2026-11-28). It exists only
+so an upgrade from a release older than 2026-08-03 doesn't sign your family
+out mid-lesson; if that is your upgrade, set it to `true` for the first day
+and back to `false` the next. Once every pre-upgrade token has expired (8
+hours at most) it accepts nothing a normal token wouldn't, and it keeps an
+alternate signature-verification path alive for no reason.
 
 `DEMO_SECRET_KEY` is only meaningful where the public demo role is reachable
 — a family instance has no demo token to isolate, and `render.yaml` already

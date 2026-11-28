@@ -168,7 +168,8 @@ def _legacy_token(role: str) -> str:
     )
 
 
-def test_a_pre_existing_session_is_not_signed_out_by_the_deploy():
+def test_a_pre_existing_session_is_not_signed_out_while_the_grace_is_on(monkeypatch):
+    monkeypatch.setattr(settings, "legacy_token_grace", True)
     payload = decode_token(_legacy_token("parent"))
     assert payload is not None and payload["role"] == "parent"
 
@@ -247,3 +248,38 @@ def test_the_public_demo_blueprint_gives_the_demo_domain_its_own_key():
     assert env["DEMO_SECRET_KEY"].get("generateValue") is True, (
         "should be generated, not hand-set — a key nobody handles is a key nobody leaks"
     )
+
+
+# ── Expiry is mandatory, and the legacy path is closed by default ─────────
+
+@pytest.mark.parametrize("exp", [None, "9999999999", 9999999999.5, True])
+def test_a_token_without_an_integer_exp_is_rejected(exp):
+    """decode_token used to check expiry only `if "exp" in payload`, so a
+    validly signed token with no exp never expired. Every token this server
+    issues carries an integer exp, so anything else is refused."""
+    payload = {"sub": "parent", "role": "parent"}
+    if exp is not None:
+        payload["exp"] = exp
+    token = _resign(
+        {"alg": "HS256", "typ": "JWT", "dom": identity.FAMILY},
+        payload,
+        identity.signing_key(identity.FAMILY),
+    )
+    assert decode_token(token) is None
+
+
+def test_an_issued_token_still_verifies():
+    from core.security import create_access_token
+    token = create_access_token({"sub": "parent", "role": "parent"})
+    assert decode_token(token)["role"] == "parent"
+
+
+def test_legacy_token_grace_is_off_by_default_in_code_and_compose():
+    """The grace existed for the 2026-08-03 deploy only; every token it was
+    for expired within 8 hours. docs/PRODUCTION_SETUP.md said to turn it off
+    the next day, and the default stayed on for four months."""
+    from pathlib import Path
+    from core.config import Settings
+    assert Settings.model_fields["legacy_token_grace"].default is False
+    compose = (Path(__file__).resolve().parents[2] / "docker-compose.yml").read_text()
+    assert "LEGACY_TOKEN_GRACE=${LEGACY_TOKEN_GRACE:-false}" in compose

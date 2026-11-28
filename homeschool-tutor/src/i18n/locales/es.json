@@ -332,6 +332,7 @@
     "sexHelpNamed": "Necesario para que Bede se dirija a {{name}} con el género gramatical correcto en este idioma.",
     "sexHelpUnnamed": "Necesario para que Bede se dirija a tu hijo con el género gramatical correcto en el idioma configurado.",
     "subjects": "Materias",
+    "curriculumSubjects": "Materias del currículo",
     "minutesShort": "{{count}} min",
     "subjectsOverCap": "Estas materias necesitan {{over}} min más que la sesión de {{cap}} min, así que no se llegará a las últimas. Ponga la sesión en {{needed}} min o quite una materia.",
     "voiceVerification": "Verificación de voz",

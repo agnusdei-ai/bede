@@ -227,7 +227,7 @@ export default function DemoParentSetup({
             }} load={getGrade8Release} />
           <div>
             <span className={label}>
-              {t('parentSetup.subjects', 'Subjects for today')}{' '}
+              {course ? t('parentSetup.curriculumSubjects', 'Curriculum subjects') : t('parentSetup.subjects', 'Subjects for today')}{' '}
               <span className="font-normal text-gray-400">({subjects.length})</span>
             </span>
             <div className="flex flex-wrap gap-1.5">

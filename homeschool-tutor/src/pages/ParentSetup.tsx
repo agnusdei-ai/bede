@@ -960,7 +960,7 @@ function StudentCard({
         />
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label mb-0">{t('parentSetup.subjects')}</label>
+            <label className="label mb-0">{student.grade8_curriculum ? t('parentSetup.curriculumSubjects', 'Curriculum subjects') : t('parentSetup.subjects')}</label>
             <span className={`text-xs ${overSubscribedBy > 0 ? 'text-amber-700 font-medium' : 'text-gray-400'}`}>
               {t('parentSetup.minutesShort', { count: totalMin })} / {t('parentSetup.minutesShort', { count: availableStudyMin })}
             </span>

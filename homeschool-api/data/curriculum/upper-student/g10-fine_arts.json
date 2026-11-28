@@ -141,11 +141,11 @@
   "objectives": [
    "Illuminated Manuscripts: explain and apply this week's idea in the independent and transfer tasks."
   ],
-  "entry_evidence": "Provide an initial letter (e.g., 'A') decorated with vine motifs, gold-leaf simulated ink, and knotwork.",
+  "entry_evidence": "Provide an initial letter (e.g., 'A') decorated with vine motifs, gold-leaf mock ink, and knotwork.",
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Illuminated manuscripts were the medieval solution to book production before the printing press. 'Illumination' refers to the use of bright pigments and gold or silver leaf to 'light up' the page. The decorative elements—initials, borders, and miniatures—were not merely decorative; they served to organize, emphasize, and honor the text. Think of these as the ancient precursor to modern graphic design. The motifs often included intricate knotwork, intertwining vines, and zoomorphic shapes (animal forms). The layout requires a balance between the legibility of the script and the intensity of the surrounding ornamentation. For example, a page might feature a large, gilded initial 'D' that incorporates a small scene of a biblical event inside its curve. This integrates the visual narrative directly into the linguistic one. When you design an initial, you must decide how the image relates to the word it starts. Does the letter 'B' look like a bridge? Does the 'S' resemble a serpent? Observe how the artist uses space to guide the reader's eye from the ornamental letter into the body of the text. Consider the following: How does the choice of color influence the mood of the page? Why would a scribe spend hundreds of hours on a single page? Understanding these elements reveals the manuscript as an object of immense labor and sophisticated visual hierarchy, blending art and communication into a unified physical form.\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Illuminated manuscripts represented the pinnacle of medieval book production, functioning as a bridge between theology and visual aesthetics. The term 'illumination' is derived from the use of brilliant pigments and gold or silver leaf to 'light up' the page, as if the text itself were radiating divine brilliance. These decorative elements—intricate initials, elaborate borders, and vivid miniatures—were never arbitrary; they functioned as visual tools to organize, emphasize, and honor the sacred or historical text, acting as the ancient precursor to modern graphic design. The motifs common to this era included complex Celtic-style knotwork, intertwining acanthus vines, and zoomorphic shapes where animals emerged from abstract geometries. The physical layout of the page required a deliberate, sophisticated balance between the legibility of the script and the visual density of the surrounding ornamentation. For example, a page might feature a large, gilded initial 'D' that incorporates a small scene of a biblical event inside its curve, thereby integrating the visual narrative directly into the linguistic one. When you design an initial, you must consider the relationship between the image and the text: does the form of the letter 'B' echo the structure of a bridge, or does the 'S' mimic the motion of a serpent? Observe how the medieval scribe used negative space to guide the reader's eye from the ornamental letter into the body of the text. Regional styles varied significantly, with Insular art favoring complex, interlaced patterns while Carolingian styles reintroduced structured, classical-inspired lettering. A sophisticated visual hierarchy guides the reader through the text, marking the start of chapters through enlarged, embellished capitals that command attention. Consider the following: How does the specific choice of color influence the emotional tone of the manuscript page? Why would a scribe dedicate hundreds of hours to the decoration of a single folio? Understanding these elements reveals the manuscript as an object of immense labor and sophisticated visual hierarchy, blending fine art and communication into a unified physical form.\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -181,7 +181,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Draw a large initial letter and decorate it with at least two distinct medieval-style motifs (e.g., knotwork or floral).\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Draw a large initial letter and decorate it with at least two distinct medieval-style motifs (e.g., knotwork or floral). Then, write a paragraph (4-6 sentences) analyzing how your chosen motifs and color palette align with the thematic mood of the letter form (e.g., fluid lines for a letter representing a sea-themed word).\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -215,7 +215,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Draw a large initial letter and decorate it with at least two distinct medieval-style motifs (e.g., knotwork or floral).",
+    "prompt": "Draw a large initial letter and decorate it with at least two distinct medieval-style motifs (e.g., knotwork or floral). Then, write a paragraph (4-6 sentences) analyzing how your chosen motifs and color palette align with the thematic mood of the letter form (e.g., fluid lines for a letter representing a sea-themed word).",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -2058,7 +2058,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Examine the following scenario: A sphere is sitting on a white table under a single lamp from the upper right. List the four shadow components (highlight, mid-tone, core shadow, reflected light) in their relative positions on the sphere, and explain why the shadow area closest to the table is less dark than the core shadow center.\nHint 1 (only if needed): Recall the definitions of chiaroscuro as hard contrast and sfumato as smoky blending.\nHint 2 (only if needed): When identifying shadow components, look for the area where light is redirected back onto the object.\nHint 3 (only if needed): Consider how atmospheric perspective uses color temperature to separate foreground from background.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Examine the following scenario: A sphere is sitting on a white table under a single steady lamp from the upper right. List the four shadow components (highlight, mid-tone, core shadow, reflected light) in their relative positions on the sphere, and explain why the shadow area closest to the table is less dark than the core shadow center.\nHint 1 (only if needed): Recall the definitions of chiaroscuro as hard contrast and sfumato as smoky blending.\nHint 2 (only if needed): When identifying shadow components, look for the area where light is redirected back onto the object.\nHint 3 (only if needed): Consider how atmospheric perspective uses color temperature to separate foreground from background.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -2104,7 +2104,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Examine the following scenario: A sphere is sitting on a white table under a single lamp from the upper right. List the four shadow components (highlight, mid-tone, core shadow, reflected light) in their relative positions on the sphere, and explain why the shadow area closest to the table is less dark than the core shadow center.",
+    "prompt": "Examine the following scenario: A sphere is sitting on a white table under a single steady lamp from the upper right. List the four shadow components (highlight, mid-tone, core shadow, reflected light) in their relative positions on the sphere, and explain why the shadow area closest to the table is less dark than the core shadow center.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],

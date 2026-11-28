@@ -690,24 +690,24 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Mesoamerican and Andean civilizations, notably the Maya, Aztec, and Inca, engineered sophisticated systems to manipulate and thrive in challenging environments. Without the reliance on iron tools or draft animals common to Eurasian civilizations, these societies achieved high population density and monumental architecture. The Maya excelled in complex mathematics and astronomy. The Aztecs constructed 'chinampas,' or raised field 'floating' gardens, which allowed them to reclaim fertile land from swampy lake beds, turning water into an agricultural advantage. The Inca, operating in the extreme verticality of the Andes, perfected massive-scale terrace farming, which controlled soil erosion and managed micro-climates at high altitudes. Central to all these systems was the state's ability to mobilize and organize vast labor forces through tribute, such as the Incan 'mita' system, which required citizens to perform public works. This demonstrates that 'advancement' is not defined by specific technological artifacts, but by the efficiency of societal organization in response to environmental conditions. These empires were not isolated; they were highly structured bureaucracies that understood their landscapes deeply. Socratic questions to guide your reflection: 1. In what specific ways does the geography of a region dictate the form that government and labor organization must take to ensure survival? 2. Is it accurate to evaluate a civilization as 'lesser' because it developed tools and technologies different from those found in Europe or Asia, or should we define technological success based on local environmental mastery?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Mesoamerican and Andean civilizations, including the Maya, Aztec, and Inca, engineered sophisticated systems to manipulate and thrive in challenging ecological environments. Without reliance on iron tools or large draft animals prevalent in Eurasian civilizations, these societies achieved high population density and built monumental architecture. The Maya excelled in complex mathematics and astronomy. The Aztecs constructed 'chinampas,' or raised field gardens, which allowed them to reclaim fertile land from swampy lake beds, turning aquatic space into an agricultural advantage. The Inca, operating in the extreme verticality of the Andes, perfected massive-scale terrace farming. These terraces prevented soil erosion and managed delicate micro-climates at high altitudes, enabling year-round productivity. Central to all these systems was the state's capacity to mobilize vast labor forces through structured tribute, such as the Incan 'mita' system, which required citizens to perform public works. This demonstrates that historical advancement is not determined solely by possessing specific metallurgical artifacts, but by the efficiency of societal organization in response to environmental constraints. These empires functioned as highly structured bureaucracies that understood their landscapes intimately. Furthermore, the ability to coordinate thousands of workers for irrigation, road building, and temple construction reflects a highly advanced social hierarchy that prioritized collective stability over individual interest. By analyzing these methods, one observes how distinct environmental pressures force unique evolutionary paths in administrative and agricultural policy. Socratic questions for reflection: 1. In what specific ways does the geography of a region dictate the particular form that government and labor organization must take to ensure long-term survival? 2. Is it objectively accurate to evaluate a civilization as 'lesser' because it developed technical solutions and tools different from those found in Eurasia, or should we define technological success based on local environmental mastery?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Map of Americas",
-     "Diagram of terraces"
+     "Map of the Americas",
+     "Diagram of agricultural terraces"
     ]
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Contrast the agricultural strategies of the Aztecs and the Inca.\nHint 1 (only if needed): Look at how the topography influences their architecture.\nHint 2 (only if needed): Think about labor management as a form of state power.\nHint 3 (only if needed): Consider the role of astronomical observation in agriculture.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Contrast the agricultural strategies of the Aztecs and the Inca, focusing on how they overcame their unique environmental limitations.\nHint 1 (only if needed): Examine how the specific topography of the Andes versus the Mexican lake region dictates the type of construction needed.\nHint 2 (only if needed): Reflect on how a central government might motivate a population to undertake massive public works projects without a modern wage economy.\nHint 3 (only if needed): Consider the role of astronomical observation in determining the cycle of planting and harvest in these regions.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Map of Americas",
-     "Diagram of terraces"
+     "Map of the Americas",
+     "Diagram of agricultural terraces"
     ]
    },
    {
@@ -717,37 +717,37 @@
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Map of Americas",
-     "Diagram of terraces"
+     "Map of the Americas",
+     "Diagram of agricultural terraces"
     ]
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Why was a centralized labor system essential for the success of these civilizations?\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Analyze why a centralized labor system was strictly essential for the survival and expansion of both the Aztec and Inca civilizations. Your response must address the relationship between public work projects and the stability of the state.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Map of Americas",
-     "Diagram of terraces"
+     "Map of the Americas",
+     "Diagram of agricultural terraces"
     ]
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: How do modern city planners handle similar geographic challenges as the Aztecs?\nSchedule the delayed check 7 days later: Name two specific engineering or agricultural innovations discussed this week.\nSupport route: Provide a map showing the locations of Maya, Aztec, and Inca civilizations.\nExtension: Research the 'quipu' system of the Inca and explain its importance.",
+    "instruction": "Transfer task: How do modern urban planning strategies for flood control or hillside development reflect the same logic used by the Aztecs and Inca? Explain the importance of scale and centralized planning.\nSchedule the delayed check 7 days later: Name two specific engineering or agricultural innovations discussed this week and describe how they functioned to increase agricultural yields.\nSupport route: Provide a labeled map showing the geographical locations and primary landscapes of the Maya, Aztec, and Inca civilizations.\nExtension: Research the 'quipu' system of the Inca and explain its importance in maintaining state control over distant labor resources.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Map of Americas",
-     "Diagram of terraces"
+     "Map of the Americas",
+     "Diagram of agricultural terraces"
     ]
    }
   ],
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Contrast the agricultural strategies of the Aztecs and the Inca.",
+    "prompt": "Contrast the agricultural strategies of the Aztecs and the Inca, focusing on how they overcame their unique environmental limitations.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -755,7 +755,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Why was a centralized labor system essential for the success of these civilizations?",
+    "prompt": "Analyze why a centralized labor system was strictly essential for the survival and expansion of both the Aztec and Inca civilizations. Your response must address the relationship between public work projects and the stability of the state.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -763,7 +763,7 @@
    },
    {
     "kind": "delayed",
-    "prompt": "Name two specific engineering or agricultural innovations discussed this week.",
+    "prompt": "Name two specific engineering or agricultural innovations discussed this week and describe how they functioned to increase agricultural yields.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -771,7 +771,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "How do modern city planners handle similar geographic challenges as the Aztecs?",
+    "prompt": "How do modern urban planning strategies for flood control or hillside development reflect the same logic used by the Aztecs and Inca? Explain the importance of scale and centralized planning.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],

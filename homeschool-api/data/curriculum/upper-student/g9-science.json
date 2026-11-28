@@ -2348,7 +2348,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: After running a selection simulation, why can't you claim you have proven evolution?\nHint 1 (only if needed): Identify which environmental variables were held constant or completely ignored in your model.\nHint 2 (only if needed): Consider how real-world factors like migration or genetic mutations might disrupt your simulated trends.\nHint 3 (only if needed): Ensure your conclusion uses language restricted to the specific simulation conditions.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: After running a selection simulation, why can't you claim you have proven evolution?\nHint 1 (only if needed): Identify which environmental variables were held constant or completely ignored in your model.\nHint 2 (only if needed): Consider how real-world factors like migration or genetic mutations might disrupt your mock trends.\nHint 3 (only if needed): Ensure your conclusion uses language restricted to the specific simulation conditions.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4025,7 +4025,7 @@
   "objectives": [
    "Nutrient Cycles and Decomposition: explain and apply this week's idea in the independent and transfer tasks."
   ],
-  "entry_evidence": "Analyze the provided fictional dataset detailing leaf decomposition stages (Fresh, Early Decay, Advanced Decay, Humus) across four different forest floor plots in a simulated paper-based study.",
+  "entry_evidence": "Analyze the provided fictional dataset detailing leaf decomposition stages (Fresh, Early Decay, Advanced Decay, Humus) across four different forest floor plots in a mock paper-based study.",
   "steps": [
    {
     "mode": "explicit_teaching",

@@ -12,7 +12,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Social contract theory poses a fundamental question: what is the true source of political authority and why should we obey a government? Thomas Hobbes, writing amidst the chaos of civil strife in 17th-century England, argued that human nature is fundamentally driven by competitive desires and deep-seated fear. In his theoretical 'state of nature'—a condition lacking any common power, laws, or authority—human interaction inevitably devolves into a conflict he describes as a 'war of all against all.' In this state, life is famously characterized as 'solitary, poor, nasty, brutish, and short.' To escape this perpetual insecurity, individuals rationally agree to enter a covenant, collectively surrendering their natural, unlimited rights to an absolute, sovereign power—the 'Leviathan.' This sovereign, once empowered, holds the authority to enforce peace and order, replacing the constant danger of violent death with the stability of civil obedience. Hobbes posits that political authority is not divinely ordained, but is an artificial construct created by the people to ensure self-preservation. Imagine a group of individuals trapped in a room where every person has the right to take anything they desire; eventually, they would realize that the only way to avoid constant physical struggle is to empower a single guard to distribute resources fairly, even if that means losing the freedom to take whatever they want. For Hobbes, security is the ultimate political virtue. Socratic Questions: 1. If human beings were naturally cooperative rather than inherently competitive, would the absolute authority of a Leviathan be necessary to maintain order? 2. Is the trade-off of absolute personal liberty for guaranteed individual security a logical exchange, or does it invite a greater danger of tyranny?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Social contract theory poses a fundamental question: what is the true source of political authority and why should we obey a government? Thomas Hobbes, writing amidst the chaos of civil strife in 17th-century England, argued that human nature is fundamentally driven by competitive desires and deep-seated fear. In his theoretical 'state of nature'—a condition lacking any common power, laws, or authority—human interaction inevitably devolves into a conflict he describes as a 'war of all against all.' In this state, life is famously characterized as 'solitary, poor, nasty, brutish, and short.' To escape this perpetual insecurity, individuals rationally agree to enter a covenant, collectively surrendering their natural, unlimited rights to an absolute, sovereign power—the 'Leviathan.' This sovereign, once empowered, holds the authority to enforce peace and order, replacing the constant danger of violent death with the stability of civil obedience. Hobbes posits that political authority is not divinely ordained, but is a human-made construct created by the people to ensure self-preservation. Imagine a group of individuals trapped in a room where every person has the right to take anything they desire; eventually, they would realize that the only way to avoid constant physical struggle is to empower a single guard to distribute resources fairly, even if that means losing the freedom to take whatever they want. For Hobbes, security is the ultimate political virtue. Socratic Questions: 1. If human beings were naturally cooperative rather than inherently competitive, would the absolute authority of a Leviathan be necessary to maintain order? 2. Is the trade-off of absolute personal liberty for guaranteed individual security a logical exchange, or does it invite a greater danger of tyranny?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1353,7 +1353,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: Consider the current rise of Artificial Intelligence (AI) in white-collar jobs. How does this 'technological shift' mirror the industrial shift of the 19th century?\nSchedule the delayed check 7 days later: Reflect on the lesson from week 10: How did the move from field to factory change the definition of 'property' for a worker?\nSupport route: Provide a graphic organizer comparing 'Life on a Farm' vs. 'Life in a Factory' across columns of 'Time', 'Tools', and 'Community'.\nExtension: Research and explain the 'Luddite' movement as a case study in worker resistance to technological shifts.",
+    "instruction": "Transfer task: Consider the current rise of AI (AI) in white-collar jobs. How does this 'technological shift' mirror the industrial shift of the 19th century?\nSchedule the delayed check 7 days later: Reflect on the lesson from week 10: How did the move from field to factory change the definition of 'property' for a worker?\nSupport route: Provide a graphic organizer comparing 'Life on a Farm' vs. 'Life in a Factory' across columns of 'Time', 'Tools', and 'Community'.\nExtension: Research and explain the 'Luddite' movement as a case study in worker resistance to technological shifts.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1389,7 +1389,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "Consider the current rise of Artificial Intelligence (AI) in white-collar jobs. How does this 'technological shift' mirror the industrial shift of the 19th century?",
+    "prompt": "Consider the current rise of AI (AI) in white-collar jobs. How does this 'technological shift' mirror the industrial shift of the 19th century?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1421,6 +1421,19 @@
      "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
     ],
     "locator": "Original record: grade 12, history, week 10"
+   },
+   {
+    "title": "An Inquiry into the Nature and Causes of the Wealth of Nations",
+    "creator_editor_translator": "Adam Smith",
+    "edition": "Project Gutenberg eBook #3300",
+    "url": "https://www.gutenberg.org/ebooks/3300",
+    "license": "Public domain in the USA",
+    "attribution": "An Inquiry into the Nature and Causes of the Wealth of Nations, Adam Smith",
+    "notices": [
+     "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
+     "Reference and short quotation only; Bede does not bundle or redistribute the file."
+    ],
+    "locator": "Book I, Chapter 1"
    }
   ],
   "grade": 12,
@@ -1690,6 +1703,19 @@
      "Copyright 2026 Agnus Dei Technologies, LLC. All Rights Reserved."
     ],
     "locator": "Original record: grade 12, history, week 12"
+   },
+   {
+    "title": "The Communist Manifesto",
+    "creator_editor_translator": "Karl Marx",
+    "edition": "Project Gutenberg eBook #61",
+    "url": "https://www.gutenberg.org/ebooks/61",
+    "license": "Public domain in the USA",
+    "attribution": "The Communist Manifesto, Karl Marx",
+    "notices": [
+     "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
+     "Reference and short quotation only; Bede does not bundle or redistribute the file."
+    ],
+    "locator": "Section 1"
    }
   ],
   "grade": 12,
@@ -3610,7 +3636,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "We have explored the foundational pillars of the modern world: fiscal finance (Smith), civil society (Tocqueville), constitutionalism (the U.S. framework), market critiques (Marx), the protection of rights (Locke), and the realities of human ideological struggle (Dickens). These are not isolated historical curiosities but a complex, interconnected ecosystem of ideas. A 'just society' is a moving target that requires constant calibration between the preservation of individual liberty (Locke), the maintenance of stable civil associations (Tocqueville), and the economic necessities of progress (Smith and Marx). As you reflect on this quarter, probe deeper: are rights inherent to our humanity, or are they artificial constructs established by the state? Do markets act primarily as engines for equality, or do they inevitably generate cycles of inequality? There is no single, consensus answer. The objective of this course is not to enforce a specific ideology, but to provide you with the analytical tools to identify these arguments when you encounter them in current events. You are now equipped to see how fiscal policy touches on the rights of the individual, and how constitutional structure shapes the outcome of economic markets. Question 1: Which of the concepts studied this quarter do you find most essential for sustaining a free society, and why? Question 2: How can a government attempt to reconcile the conflicting goals of market efficiency and the widespread human need for social security?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "We have explored the foundational pillars of the modern world: fiscal finance (Smith), civil society (Tocqueville), constitutionalism (the U.S. framework), market critiques (Marx), the protection of rights (Locke), and the realities of human ideological struggle (Dickens). These are not isolated historical curiosities but a complex, interconnected ecosystem of ideas. A 'just society' is a moving target that requires constant calibration between the preservation of individual liberty (Locke), the maintenance of stable civil associations (Tocqueville), and the economic necessities of progress (Smith and Marx). As you reflect on this quarter, probe deeper: are rights inherent to our humanity, or are they human-made constructs established by the state? Do markets act primarily as engines for equality, or do they inevitably generate cycles of inequality? There is no single, consensus answer. The objective of this course is not to enforce a specific ideology, but to provide you with the analytical tools to identify these arguments when you encounter them in current events. You are now equipped to see how fiscal policy touches on the rights of the individual, and how constitutional structure shapes the outcome of economic markets. Question 1: Which of the concepts studied this quarter do you find most essential for sustaining a free society, and why? Question 2: How can a government attempt to reconcile the conflicting goals of market efficiency and the widespread human need for social security?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",

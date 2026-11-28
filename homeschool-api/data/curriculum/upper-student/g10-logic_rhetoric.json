@@ -3996,7 +3996,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Define 'Artificial Intelligence' following the rules of genus and differentia.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Define 'AI' following the rules of genus and differentia.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4028,7 +4028,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Define 'Artificial Intelligence' following the rules of genus and differentia.",
+    "prompt": "Define 'AI' following the rules of genus and differentia.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4646,7 +4646,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Authority in The Prince is grounded not in traditional morality, but in the consequentialist logic of state survival. Machiavelli argues that a ruler's authority is justified by the successful maintenance of the state, which often requires actions contrary to conventional ethics. He utilizes specific rhetorical structures, such as the dichotomy between being feared and being loved, to argue that fear is a more stable foundation for power. We analyze this by interrogating his premises: if we accept his definition of 'success' as merely state stability, his conclusions follow. However, we must identify where he employs fallacies, such as the 'False Dilemma,' where he artificially narrows choices to two options to force a preferred conclusion. By dissecting his internal logic rather than his moral character, we understand the pragmatic mechanism of his claims. For instance, consider a ruler who avoids war to save money but is later invaded due to lack of preparation; the logic here dictates that the initial 'virtue' of thrift led to a failure of state security. Understanding this helps us identify how authors use structured reasoning to advocate for controversial policies. Socratic Questions: 1. If we change the definition of 'state success' to include the flourishing of individual citizens, does his argument for absolute rule still logically follow? 2. Where does his argument rely on emotional persuasion or the fear of chaos rather than factual necessity or established evidence?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Authority in The Prince is grounded not in traditional morality, but in the consequentialist logic of state survival. Machiavelli argues that a ruler's authority is justified by the successful maintenance of the state, which often requires actions contrary to conventional ethics. He utilizes specific rhetorical structures, such as the dichotomy between being feared and being loved, to argue that fear is a more stable foundation for power. We analyze this by interrogating his premises: if we accept his definition of 'success' as merely state stability, his conclusions follow. However, we must identify where he employs fallacies, such as the 'False Dilemma,' where he arbitrarily narrows choices to two options to force a preferred conclusion. By dissecting his internal logic rather than his moral character, we understand the pragmatic mechanism of his claims. For instance, consider a ruler who avoids war to save money but is later invaded due to lack of preparation; the logic here dictates that the initial 'virtue' of thrift led to a failure of state security. Understanding this helps us identify how authors use structured reasoning to advocate for controversial policies. Socratic Questions: 1. If we change the definition of 'state success' to include the flourishing of individual citizens, does his argument for absolute rule still logically follow? 2. Where does his argument rely on emotional persuasion or the fear of chaos rather than factual necessity or established evidence?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",

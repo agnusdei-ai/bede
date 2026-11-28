@@ -3553,7 +3553,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Participate in a 5-minute simulated debate. Write a post-simulation reflection on which rhetorical skill was most challenged.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Participate in a 5-minute mock debate. Write a post-simulation reflection on which rhetorical skill was most challenged.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -3585,7 +3585,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Participate in a 5-minute simulated debate. Write a post-simulation reflection on which rhetorical skill was most challenged.",
+    "prompt": "Participate in a 5-minute mock debate. Write a post-simulation reflection on which rhetorical skill was most challenged.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],

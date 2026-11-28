@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 RELEASE_ID = "bede-upper-2026-reviewed"
-MANIFEST_SHA256 = "ead8593eebab8c9c13ccc4ecc58b43e8f98c56b2dfedeb27ed192e90108ac1a8"
+MANIFEST_SHA256 = "e75584ce1dd882802da4322aaea3ce2f7ead859b2f97846d30d33fe9138dfcf9"
 DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "curriculum" / "upper-student.json"
 GRADES = ("9", "10", "11", "12")
 STRAND_SUBJECT = {

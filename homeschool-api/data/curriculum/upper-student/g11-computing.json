@@ -4011,18 +4011,18 @@
  },
  {
   "id": "g11-year-computing-w31",
-  "title": "Week 31: Ethics of Synthetic Data",
+  "title": "Week 31: Ethics of Generated Data",
   "objective_ids": [
    "g11-year-computing-w31-objective"
   ],
   "objectives": [
-   "Ethics of Synthetic Data: explain and apply this week's idea in the independent and transfer tasks."
+   "Ethics of Generated Data: explain and apply this week's idea in the independent and transfer tasks."
   ],
   "entry_evidence": "Define 'bias' in data collection.",
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Synthetic data involves creating artificial data that mimics the statistical properties of real-world data, serving as a powerful tool to preserve privacy or overcome scarcity in training sets. While it avoids the exposure of actual sensitive records, it introduces distinct ethical challenges. If a generator is trained on an original dataset that contains historical prejudices, it will faithfully replicate and likely amplify those imbalances in the artificial output. Furthermore, because synthetic records lack the messy, unpredictable 'edge cases' found in authentic human behavior, models trained solely on them may fail when encountering the nuances of real life. As a data scientist, your duty is to perform a rigorous bias audit comparing the statistical distributions of the synthetic set against the original source. You must investigate whether the synthetic process assumes independence between variables that are actually linked in reality. Ask yourself: Does this synthetic representation accurately capture the complexity of the population, or does it smooth over minority experiences to favor the majority? How might this hidden distortion influence the final decision-making power of a model? By critically evaluating the lineage and generation method, you protect against the systemic errors that synthetic data often obscures.\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Generated data involves creating generated data that mimics the statistical properties of real-world data, serving as a powerful tool to preserve privacy or overcome scarcity in training sets. While it avoids the exposure of actual sensitive records, it introduces distinct ethical challenges. If a generator is trained on an original dataset that contains historical prejudices, it will faithfully replicate and likely amplify those imbalances in the generated output. Furthermore, because generated records lack the messy, unpredictable 'edge cases' found in authentic human behavior, models trained solely on them may fail when encountering the nuances of real life. As a data scientist, your duty is to perform a rigorous bias audit comparing the statistical distributions of the generated set against the original source. You must investigate whether the Ruffini's-rule process assumes independence between variables that are actually linked in reality. Ask yourself: Does this generated representation accurately capture the complexity of the population, or does it smooth over minority experiences to favor the majority? How might this hidden distortion influence the final decision-making power of a model? By critically evaluating the lineage and generation method, you protect against the systemic errors that generated data often obscures.\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4033,7 +4033,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Identify one ethical risk of using synthetic data that mimics loan applications.\nHint 1 (only if needed): Check the statistical distribution of sensitive attributes (gender, age, location).\nHint 2 (only if needed): Consider whether the synthetic process assumes independence between variables that are actually correlated.\nHint 3 (only if needed): Think about who is being represented or excluded by the synthesis logic.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Identify one ethical risk of using generated data that mimics loan applications.\nHint 1 (only if needed): Check the statistical distribution of sensitive attributes (gender, age, location).\nHint 2 (only if needed): Consider whether the Ruffini's-rule process assumes independence between variables that are actually correlated.\nHint 3 (only if needed): Think about who is being represented or excluded by the synthesis logic.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4055,7 +4055,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Contrast 'Anonymization' with 'Synthetic Data Generation'.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Contrast 'Anonymization' with 'Generated Data Generation'.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4066,7 +4066,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: If a healthcare synthetic dataset is missing minority groups, how will a model trained on it perform?\nSchedule the delayed check 7 days later: Why is synthetic data often used to augment small training sets?\nSupport route: Provide a table comparing properties (mean, variance, category distribution) of a real vs. synthetic dataset to facilitate a side-by-side verification exercise.\nExtension: Explore the concept of differential privacy and its mathematical integration with synthetic data generation to provide formal privacy guarantees.",
+    "instruction": "Transfer task: If a healthcare generated dataset is missing minority groups, how will a model trained on it perform?\nSchedule the delayed check 7 days later: Why is generated data often used to augment small training sets?\nSupport route: Provide a table comparing properties (mean, variance, category distribution) of a real vs. generated dataset to facilitate a side-by-side verification exercise.\nExtension: Explore the concept of differential privacy and its mathematical integration with data generation to provide formal privacy guarantees.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4079,7 +4079,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Identify one ethical risk of using synthetic data that mimics loan applications.",
+    "prompt": "Identify one ethical risk of using generated data that mimics loan applications.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4087,7 +4087,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Contrast 'Anonymization' with 'Synthetic Data Generation'.",
+    "prompt": "Contrast 'Anonymization' with 'Generated Data Generation'.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4095,7 +4095,7 @@
    },
    {
     "kind": "delayed",
-    "prompt": "Why is synthetic data often used to augment small training sets?",
+    "prompt": "Why is generated data often used to augment small training sets?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4103,7 +4103,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "If a healthcare synthetic dataset is missing minority groups, how will a model trained on it perform?",
+    "prompt": "If a healthcare generated dataset is missing minority groups, how will a model trained on it perform?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4125,7 +4125,7 @@
   },
   "sources": [
    {
-    "title": "Ethics of Synthetic Data",
+    "title": "Ethics of Generated Data",
     "creator_editor_translator": "Bede; AI-assisted original authoring with separate AI review",
     "edition": "Original instructional text; no third-party excerpts over 25 words",
     "url": "bede-original:grade11-year/computing/week-31",

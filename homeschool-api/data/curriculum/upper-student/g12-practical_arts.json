@@ -267,12 +267,12 @@
  },
  {
   "id": "g12-year-practical_arts-w03",
-  "title": "Week 3: Simulated Professional Networking",
+  "title": "Week 3: Mock Professional Networking",
   "objective_ids": [
    "g12-year-practical_arts-w03-objective"
   ],
   "objectives": [
-   "Simulated Professional Networking: explain and apply this week's idea in the independent and transfer tasks."
+   "Mock Professional Networking: explain and apply this week's idea in the independent and transfer tasks."
   ],
   "entry_evidence": "List of three professional contacts (fictional) and a brief reason for choosing them.",
   "steps": [
@@ -381,7 +381,7 @@
   },
   "sources": [
    {
-    "title": "Simulated Professional Networking",
+    "title": "Mock Professional Networking",
     "creator_editor_translator": "Bede; AI-assisted original authoring with separate AI review",
     "edition": "Original instructional text; no third-party excerpts over 25 words",
     "url": "bede-original:grade12-year/practical_arts/week-3",
@@ -3731,7 +3731,7 @@
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Simulated conflict scenarios",
+     "Mock conflict scenarios",
      "Notepaper"
     ]
    },
@@ -3742,7 +3742,7 @@
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Simulated conflict scenarios",
+     "Mock conflict scenarios",
      "Notepaper"
     ]
    },
@@ -3753,18 +3753,18 @@
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Simulated conflict scenarios",
+     "Mock conflict scenarios",
      "Notepaper"
     ]
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Analyze a written transcript of a simulated workplace disagreement. Identify two instances where the parties failed to use active listening and propose a better response for each.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Analyze the following transcript: Person A: 'You never finish your work on time!' Person B: 'Well, you never give me clear instructions, so it's your fault!' Identify two instances where the parties failed to use active listening and for each, provide a revised, neutral response that seeks to identify the actual workflow problem.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Simulated conflict scenarios",
+     "Mock conflict scenarios",
      "Notepaper"
     ]
    },
@@ -3775,7 +3775,7 @@
     "materials": [
      "Paper, pencil or accessible response tool",
      "Adult packet kept separate from independent work",
-     "Simulated conflict scenarios",
+     "Mock conflict scenarios",
      "Notepaper"
     ]
    }
@@ -3791,7 +3791,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Analyze a written transcript of a simulated workplace disagreement. Identify two instances where the parties failed to use active listening and propose a better response for each.",
+    "prompt": "Analyze the following transcript: Person A: 'You never finish your work on time!' Person B: 'Well, you never give me clear instructions, so it's your fault!' Identify two instances where the parties failed to use active listening and for each, provide a revised, neutral response that seeks to identify the actual workflow problem.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4667,7 +4667,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "The final synthesis is the moment you step back to view the whole. Over the last nine months, you have developed artifacts for your professional life, simulated your financial future, and analyzed your civic responsibilities. This is not the end of your education, but the beginning of your professional self-reliance. True readiness is not defined by having all the answers, but by possessing the analytical tools to find them when you are stuck. Your portfolio is a testament to the fact that you can identify complex problems, construct evidence-based solutions, and reflect on the outcome. As you present your final work, do so with the confidence of someone who has completed the rigorous work of preparation. Never lose the habit of inquiry; the best professionals are those who remain humble, lifelong students. You are now prepared to manage your own agency, your own budget, and your own role in the community. As you conclude, remember that the portfolio is a living document; it should be updated as your goals and circumstances evolve. Professional maturity is shown by how you integrate these diverse strands into a singular, balanced life plan. Two Socratic questions for you: 1. If you had to summarize your 'life readiness' in three words, what would they be, and how does your portfolio provide tangible evidence for them? 2. How does being responsible for your own 'readiness' change the way you interact with others in a professional environment, and why is this perspective important for your future?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "The final synthesis is the moment you step back to view the whole. Over the last nine months, you have developed artifacts for your professional life, mock your financial future, and analyzed your civic responsibilities. This is not the end of your education, but the beginning of your professional self-reliance. True readiness is not defined by having all the answers, but by possessing the analytical tools to find them when you are stuck. Your portfolio is a testament to the fact that you can identify complex problems, construct evidence-based solutions, and reflect on the outcome. As you present your final work, do so with the confidence of someone who has completed the rigorous work of preparation. Never lose the habit of inquiry; the best professionals are those who remain humble, lifelong students. You are now prepared to manage your own agency, your own budget, and your own role in the community. As you conclude, remember that the portfolio is a living document; it should be updated as your goals and circumstances evolve. Professional maturity is shown by how you integrate these diverse strands into a singular, balanced life plan. Two Socratic questions for you: 1. If you had to summarize your 'life readiness' in three words, what would they be, and how does your portfolio provide tangible evidence for them? 2. How does being responsible for your own 'readiness' change the way you interact with others in a professional environment, and why is this perspective important for your future?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",

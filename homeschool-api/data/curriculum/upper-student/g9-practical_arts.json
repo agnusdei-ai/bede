@@ -3056,7 +3056,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Identify a potential failure point in your garden project (such as tool storage or plant spacing) and design a 5-minute analysis of it using a paper-based layout diagram.\nHint 1 (only if needed): Test your prototype under simulated conditions using your paper diagrams.\nHint 2 (only if needed): Keep your testing small and focused on one variable, such as space or depth.\nHint 3 (only if needed): Record every deviation from your original dimensions in your log.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Identify a potential failure point in your garden project (such as tool storage or plant spacing) and design a 5-minute analysis of it using a paper-based layout diagram.\nHint 1 (only if needed): Test your prototype under mock conditions using your paper diagrams.\nHint 2 (only if needed): Keep your testing small and focused on one variable, such as space or depth.\nHint 3 (only if needed): Record every deviation from your original dimensions in your log.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",

@@ -1109,7 +1109,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Complete a 'Comprehensive Case Study Analysis' for a simulated injury situation. Include: Source assessment, identification of the biomechanical error, a first-aid plan, and a mental wellbeing strategy for recovery.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Complete a 'Comprehensive Case Study Analysis' for a mock injury situation. Include: Source assessment, identification of the biomechanical error, a first-aid plan, and a mental wellbeing strategy for recovery.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1141,7 +1141,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Complete a 'Comprehensive Case Study Analysis' for a simulated injury situation. Include: Source assessment, identification of the biomechanical error, a first-aid plan, and a mental wellbeing strategy for recovery.",
+    "prompt": "Complete a 'Comprehensive Case Study Analysis' for a mock injury situation. Include: Source assessment, identification of the biomechanical error, a first-aid plan, and a mental wellbeing strategy for recovery.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4059,7 +4059,7 @@
   },
   "safety": {
    "hazards": [],
-   "supervision": "Adult supervises; Paper-based; no physical hazard. Supervision for roleplay to ensure no physical contact or simulated injury occurs.",
+   "supervision": "Adult supervises; Paper-based; no physical hazard. Supervision for roleplay to ensure no physical contact or mock injury occurs.",
    "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
    "safer_alternative": "Use the provided invented data, diagrams and paper route."
   },

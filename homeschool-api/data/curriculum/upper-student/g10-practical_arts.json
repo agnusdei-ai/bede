@@ -698,11 +698,11 @@
   "objectives": [
    "Testing and Revision: explain and apply this week's idea in the independent and transfer tasks."
   ],
-  "entry_evidence": "Revision report and modified prototype",
+  "entry_evidence": "Revision report and design modification plan",
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Testing is the systematic process of putting your prototype under the stress of its intended purpose. You are looking for empirical data: Does it hold the weight? Does it tip over? Is it easy to access? A revision report summarizes these findings. You must document both success and failure. If a joint failed, explain why—was the cardboard too thin? Was the slot too wide? Revision is the act of applying this data to improve your design. For example, if you designed a vertical file sorter, testing it might involve filling it with paper. If the sorter collapses when you add the third folder, you have empirical evidence that your base or side walls lack sufficient support. You should not simply add more tape; you should evaluate the structural deficiency. Perhaps you need to add a vertical spine or increase the thickness of the base. Never scrap a design without first recording what you learned; even a 'failed' design teaches you how not to build. The goal is to move from a 'first draft' to a more robust version through deliberate, evidence-based adjustments. Socratic questions: If your prototype passes 4 out of 5 tests, what specific change should be your priority for revision? Why is it better to test to failure rather than just assuming the object will work?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Testing is the systematic process of subjecting a model to the conditions of its intended purpose to gather empirical data. You are not searching for confirmation of success, but for the boundaries of the design's capability. Does it satisfy the ergonomic requirements? Does the structure handle predicted loads? After gathering this data, you must write a revision report. This document should detail your failures as clearly as your successes. A failure is an essential data point: if a cardboard joint buckled under a theoretical load, you have identified a specific structural deficiency. Was the force concentrated in a single point, causing local deformation? Did the adhesive fail, or did the material itself reach its yield point? Once you identify these weak points, revision involves applying targeted engineering solutions. You might introduce vertical structural members to redistribute the load or change the geometry of your supports to increase the moment of inertia. For instance, folding a flat sheet into an L-bracket or a triangle can dramatically increase the force distribution capacity compared to a flat piece. Do not merely add material; evaluate the structural failure to ensure your fix is efficient and sound. Every successful design is the result of such iterative learning cycles, where you move from an initial concept to a robust, validated product. Socratic questions: If your model passes 4 out of 5 criteria, what specific change should be your priority for revision? Why is it better to test to failure on paper rather than just assuming the object will work?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -714,7 +714,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Test your theoretical bin from Week 5 design by listing potential failure points if loaded with 500g and report on planned structural changes.\nHint 1 (only if needed): Create a checklist of three performance criteria your object must meet.\nHint 2 (only if needed): Be objective about which design parts appear flimsy.\nHint 3 (only if needed): Focus your revision on one structural change at a time to isolate variables.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Test your theoretical bin from Week 5 design by listing potential failure points if theoretically loaded with 500g and report on planned structural changes in a paragraph.\nHint 1 (only if needed): Create a checklist of three performance criteria your object must meet.\nHint 2 (only if needed): Be objective about which design parts appear flimsy in your drawings.\nHint 3 (only if needed): Focus your revision on one structural change at a time to isolate variables.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -738,7 +738,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Design a stress test simulation for your project prototype and write a brief revision plan based on the results.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Design a stress test representation for your project, documenting the assumed forces, and write a brief revision plan based on your logical assessment of the model's weak points.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -750,7 +750,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: If a bridge is tested and shows cracks, why should the engineer change the design rather than just 'fix' the cracks?\nSchedule the delayed check 7 days later: What is the primary difference between a 'prototype' and a 'finished product'?\nSupport route: If the design is failing, simplify the project by removing one non-essential component.\nExtension: Compare your prototype against a commercial version of the same item, noting differences in material and structure.",
+    "instruction": "Transfer task: If a bridge is designed on paper and shows signs of structural stress in a theoretical model, why should the engineer change the design rather than just 'fix' the visible issues?\nSchedule the delayed check 7 days later: What is the primary difference between an initial model and a finished product?\nSupport route: If the design is failing, simplify the project by removing one non-essential component to focus on the stability of the main structure.\nExtension: Compare your design against a commercial version of the same item, noting specific differences in material choice, geometry, and structural supports.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -764,7 +764,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Test your theoretical bin from Week 5 design by listing potential failure points if loaded with 500g and report on planned structural changes.",
+    "prompt": "Test your theoretical bin from Week 5 design by listing potential failure points if theoretically loaded with 500g and report on planned structural changes in a paragraph.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -772,7 +772,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Design a stress test simulation for your project prototype and write a brief revision plan based on the results.",
+    "prompt": "Design a stress test representation for your project, documenting the assumed forces, and write a brief revision plan based on your logical assessment of the model's weak points.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -780,7 +780,7 @@
    },
    {
     "kind": "delayed",
-    "prompt": "What is the primary difference between a 'prototype' and a 'finished product'?",
+    "prompt": "What is the primary difference between an initial model and a finished product?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -788,7 +788,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "If a bridge is tested and shows cracks, why should the engineer change the design rather than just 'fix' the cracks?",
+    "prompt": "If a bridge is designed on paper and shows signs of structural stress in a theoretical model, why should the engineer change the design rather than just 'fix' the visible issues?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -804,7 +804,7 @@
   },
   "safety": {
    "hazards": [],
-   "supervision": "Adult supervises; Paper-based design and analysis; no tools or materials handled.",
+   "supervision": "Adult supervises; Paper-based design and analysis; no physical prototype testing or materials handled.",
    "stop_escalation": "Stop distress, unsafe improvisation or personal disclosure; ask a responsible adult.",
    "safer_alternative": "Use the provided invented data, diagrams and paper route."
   },
@@ -840,7 +840,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Textiles are engineered materials composed of fibers, categorized primarily as natural (e.g., cotton, wool) or synthetic (e.g., polyester, nylon). Natural fibers often prioritize absorbency and breathability, whereas synthetic fibers are engineered for superior abrasion resistance, elasticity, and colorfastness. Every woven fabric is constructed from a grid of 'warp' (longitudinal) and 'weft' (transverse) threads. This interlacing creates the weave structure, determining the fabric's strength, drape, and stretch. When designing, you must distinguish between the 'straight grain' (stable, low stretch) and the 'bias' (diagonal, high stretch), as these physical orientations significantly impact the structural integrity of your prototype. For example, a heavy-duty canvas bag relies on a plain, tight weave of strong cotton to withstand the weight of sharp-edged tools, whereas a sheer silk is intentionally woven loosely to create a fluid, elegant drape. When analyzing fabric, look for density; closer spacing between threads usually implies higher durability. Consider also how light interacts with the surface; a smooth, synthetic surface may reflect light as a high 'sheen,' while rougher natural surfaces often appear 'matte.' Evaluating these variables allows you to match the physical performance of a material to the functional requirements of your design. Socratic questions: Why would you prioritize a tighter, heavier weave for a patch on a knee compared to a lightweight summer shirt? How do the inherent properties of fiber, such as moisture absorption, dictate the longevity of a textile when exposed to frequent friction or environmental stress?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Textiles are engineered materials composed of fibers, categorized primarily as natural—such as cotton or wool—or manufactured, such as polyester or nylon. Natural fibers are prized for breathability and comfort, while manufactured fibers are engineered for high-performance traits like abrasion resistance, moisture management, and extreme tensile strength. The core of fabric construction is the weave, the grid created by 'warp' (longitudinal) and 'weft' (transverse) threads. This interlacing creates the mechanical identity of the fabric. A plain weave provides a stable grid, while a twill or satin weave offers different properties related to drape and flexibility. An important engineering concept here is thread count and density; higher density generally translates to higher durability, as there is less space for structural shifting under load. You must also account for the grain of the fabric. The 'straight grain' is highly stable and resists stretching, while the 'bias'—the 45-degree angle—is inherently elastic. This is a critical factor in structural design; using bias-cut fabric for a load-bearing strap would lead to catastrophic warping. When stress-testing textiles, engineers measure how the fabric deforms under a specific force before reaching the point of structural failure. Understanding these interactions allows you to predict the longevity of a textile based on the environmental friction it faces. Socratic questions: Why would you prioritize a tighter, heavier weave for a patch on a knee compared to a lightweight summer shirt? How do the inherent properties of fiber, such as moisture absorption, dictate the longevity of a textile when exposed to frequent friction or environmental stress?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -851,7 +851,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Using the 'Fabric Data Table' below, create a 3-row analysis chart. Identify the sheen (Matte/Glossy), density (High/Low), and texture (Smooth/Coarse) for each. Fabric A: Dense fiber bundles, uniform flat surface (Matte, High density, Smooth). Fabric B: Irregular surface, visible gaps between threads (Matte, Low density, Coarse). Fabric C: Reflective finish, tightly packed synthetic strands (Glossy, High density, Smooth).\nHint 1 (only if needed): Observe the density of thread clusters in the provided images; are they packed tightly together or loosely spaced?\nHint 2 (only if needed): Look for how light reflects off the fabric surface; a high-gloss reflection often indicates smooth, continuous filament fibers.\nHint 3 (only if needed): Compare the 'grain' orientation of the sample to standard stable textiles to estimate how much it might stretch or deform under tension.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Using the 'Fabric Data Table' below, create a 3-row analysis chart. Identify the sheen (Matte/Glossy), density (High/Low), and texture (Smooth/Coarse) for each. Fabric A: Dense fiber bundles, uniform flat surface (Matte, High density, Smooth). Fabric B: Irregular surface, visible gaps between threads (Matte, Low density, Coarse). Fabric C: Reflective finish, tightly packed manufactured strands (Glossy, High density, Smooth).\nHint 1 (only if needed): Observe the density of thread clusters in the provided images; are they packed tightly together or loosely spaced?\nHint 2 (only if needed): Look for how light reflects off the fabric surface; a high-gloss reflection often indicates smooth, continuous filament fibers.\nHint 3 (only if needed): Compare the 'grain' orientation of the sample to standard stable textiles to estimate how much it might stretch or deform under tension.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -873,7 +873,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Analyze three common household textiles: 1) Heavy Canvas (Natural fiber), 2) Muslin (Natural fiber, thin/loose weave), 3) Polyester Mesh (Synthetic fiber, high heat resistance). Create a chart listing: Weave Tightness (High/Low), Fiber Type (Natural/Synthetic), and a logical application for each. Justify your application choice by connecting it to the weave and fiber property.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Analyze three common household textiles: 1) Heavy Canvas (Natural fiber), 2) Muslin (Natural fiber, thin/loose weave), 3) Polyester Mesh (Manufactured fiber, high heat resistance). Create a chart listing: Weave Tightness (High/Low), Fiber Type (Natural/Manufactured), and a logical application for each. Justify your application choice by connecting it to the weave and fiber property.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -884,7 +884,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: You are designing a prototype for a hiking backpack. Based on the fiber properties discussed (Natural vs. Synthetic), explain why you would choose a high-density synthetic fiber for the main compartment and a natural-synthetic blend for the shoulder straps. Consider factors like durability, water resistance, and comfort.\nSchedule the delayed check 7 days later: Why does a 'warp and weft' structure provide more stability than a loose mesh, and how does this relate to the 'bias' of the fabric?\nSupport route: Use the 'Touch-Test' method: Compare a pair of denim jeans (low stretch, tight weave) to a cotton jersey t-shirt (high stretch, knit). Note how the jeans hold their shape even when pulled, while the t-shirt distorts easily.\nExtension: Design a hypothetical testing protocol: Propose a method to rank three fabric samples by elasticity without physical handling. Use a theoretical chart to simulate how you would define 'force' and 'deformation' values for these samples in your documentation.",
+    "instruction": "Transfer task: You are designing a prototype for a hiking backpack. Based on the fiber properties discussed (Natural vs. Manufactured), explain why you would choose a high-density manufactured fiber for the main compartment and a natural-manufactured fiber blend for the shoulder straps. Consider factors like durability, water resistance, and comfort.\nSchedule the delayed check 7 days later: Why does a 'warp and weft' structure provide more stability than a loose mesh, and how does this relate to the 'bias' of the fabric?\nSupport route: Use the 'Touch-Test' method: Compare a pair of denim jeans (low stretch, tight weave) to a cotton jersey t-shirt (high stretch, knit). Note how the jeans hold their shape even when pulled, while the t-shirt distorts easily.\nExtension: Design a hypothetical testing protocol: Propose a method to rank three fabric samples by elasticity without physical handling. Use a theoretical chart to simulate how you would define 'force' and 'deformation' values for these samples in your documentation.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -897,7 +897,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Using the 'Fabric Data Table' below, create a 3-row analysis chart. Identify the sheen (Matte/Glossy), density (High/Low), and texture (Smooth/Coarse) for each. Fabric A: Dense fiber bundles, uniform flat surface (Matte, High density, Smooth). Fabric B: Irregular surface, visible gaps between threads (Matte, Low density, Coarse). Fabric C: Reflective finish, tightly packed synthetic strands (Glossy, High density, Smooth).",
+    "prompt": "Using the 'Fabric Data Table' below, create a 3-row analysis chart. Identify the sheen (Matte/Glossy), density (High/Low), and texture (Smooth/Coarse) for each. Fabric A: Dense fiber bundles, uniform flat surface (Matte, High density, Smooth). Fabric B: Irregular surface, visible gaps between threads (Matte, Low density, Coarse). Fabric C: Reflective finish, tightly packed manufactured strands (Glossy, High density, Smooth).",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -905,7 +905,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Analyze three common household textiles: 1) Heavy Canvas (Natural fiber), 2) Muslin (Natural fiber, thin/loose weave), 3) Polyester Mesh (Synthetic fiber, high heat resistance). Create a chart listing: Weave Tightness (High/Low), Fiber Type (Natural/Synthetic), and a logical application for each. Justify your application choice by connecting it to the weave and fiber property.",
+    "prompt": "Analyze three common household textiles: 1) Heavy Canvas (Natural fiber), 2) Muslin (Natural fiber, thin/loose weave), 3) Polyester Mesh (Manufactured fiber, high heat resistance). Create a chart listing: Weave Tightness (High/Low), Fiber Type (Natural/Manufactured), and a logical application for each. Justify your application choice by connecting it to the weave and fiber property.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -921,7 +921,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "You are designing a prototype for a hiking backpack. Based on the fiber properties discussed (Natural vs. Synthetic), explain why you would choose a high-density synthetic fiber for the main compartment and a natural-synthetic blend for the shoulder straps. Consider factors like durability, water resistance, and comfort.",
+    "prompt": "You are designing a prototype for a hiking backpack. Based on the fiber properties discussed (Natural vs. Manufactured), explain why you would choose a high-density manufactured fiber for the main compartment and a natural-manufactured fiber blend for the shoulder straps. Consider factors like durability, water resistance, and comfort.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1249,7 +1249,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "An ecosystem is a complex web where abiotic factors—such as sunlight, water availability, and soil mineral content—interact with living organisms. When you plan a garden, you are essentially engineering a mini-ecosystem. Effective design begins with careful observation: track where the sun hits at different times of day and identify where water pools after rain. These environmental factors are your site's permanent constraints. By identifying these patterns early, you can select plants that naturally thrive in those zones rather than forcing them into unsuitable conditions. For example, placing moisture-loving ferns in a hot, dry, sunny patch will result in poor growth, whereas utilizing that same patch for native drought-resistant shrubs works with the system. Your objective is to design a space that functions as a balanced machine with inputs—light, water, and labor—and outputs, such as food, habitat, or aesthetic value. By working with the land’s natural tendencies rather than against them, you reduce the need for constant, energy-intensive interventions. Consider how the topography and orientation of your plot create specific microclimates within your own yard. You must also account for how seasons change solar angles, shifting shadows across the year. By treating your garden as a living piece of engineering, you move from merely planting to managing a functional, self-sustaining environment. Socratic Questions: 1. How does your site's specific light orientation dictate the success of particular plant varieties you might choose? 2. What existing non-plant elements, such as rocks, drainage pipes, or windbreaks, currently act as primary constraints in your chosen garden space?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "An ecosystem is a complex web where abiotic factors—such as sunlight, water availability, and soil mineral content—interact with living organisms. When you plan a garden, you are effectively engineering a mini-ecosystem. Effective design begins with rigorous observation: track precisely where the sun hits at different times of day and identify where water pools after rain. These environmental factors act as the site's permanent constraints. By identifying these patterns early, you can select plant species that naturally thrive in those zones rather than attempting to force them into unsuitable microclimates. For example, planting moisture-loving ferns in a high-sun, arid zone is a design failure; conversely, utilizing that patch for native drought-resistant shrubs works with the site’s constraints. Your objective is to design a space that functions as a balanced machine with inputs—light, water, and labor—and outputs, such as food or habitat. You must also account for topography and seasonal solar angles, as these dictate the length and intensity of light exposure. By considering the land’s natural tendencies, you shift from mere planting to managing a functional, self-sustaining piece of environment engineering. Consider how resources are managed; the intersection of drainage and slope defines where nutrients will collect and where erosion may occur, which are vital factors for long-term health. Socratic Questions: 1. How does your site's specific light orientation dictate the success of particular plant varieties you might choose? 2. What existing non-plant elements, such as rocks, drainage pipes, or windbreaks, currently act as primary constraints in your chosen garden space?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1297,7 +1297,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: Look at a public park or neighbor's garden. Identify one 'zone' created by natural or artificial obstacles.\nSchedule the delayed check 7 days later: Reflect on your week 10 map: If you observed a new large obstruction (like a new shed) blocking light, how would you re-zone your garden?\nSupport route: Provide a pre-printed grid paper map with North clearly marked.\nExtension: Design a 'companion planting' strategy based on the specific light zones identified.",
+    "instruction": "Transfer task: Look at a public park or neighbor's garden. Identify one 'zone' created by natural or contrived obstacles.\nSchedule the delayed check 7 days later: Reflect on your week 10 map: If you observed a new large obstruction (like a new shed) blocking light, how would you re-zone your garden?\nSupport route: Provide a pre-printed grid paper map with North clearly marked.\nExtension: Design a 'companion planting' strategy based on the specific light zones identified.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1335,7 +1335,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "Look at a public park or neighbor's garden. Identify one 'zone' created by natural or artificial obstacles.",
+    "prompt": "Look at a public park or neighbor's garden. Identify one 'zone' created by natural or contrived obstacles.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],

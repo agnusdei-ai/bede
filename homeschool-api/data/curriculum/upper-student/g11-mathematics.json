@@ -1337,7 +1337,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "Polynomial division allows us to break down complex polynomials into simpler factors, which is essential for solving equations. Long division follows a process similar to arithmetic long division: divide, multiply, subtract, and bring down. When dividing by a linear term (x - c), we use synthetic division as a more efficient shortcut. Synthetic division organizes coefficients into a list, skipping the variables during calculation, which reduces the potential for sign errors. The key idea is that if the remainder is zero, the divisor is a factor of the dividend. For example, dividing (x^2 - 4) by (x - 2) involves coefficients 1, 0, -4 and the root 2. We bring down 1, multiply by 2 to get 2, add to 0 to get 2, multiply by 2 to get 4, add to -4 to get 0. This reveals the quotient is (x + 2). This method preserves the structural logic of long division but removes the clutter of repeatedly writing variables, allowing you to focus purely on the coefficients. It is vital to remember that synthetic division only works perfectly with divisors of the form (x - c). If the divisor is (x + c), you must use the root -c in your synthetic calculation. Questions for you: 1. Why must we use a zero placeholder for missing powers of x in the dividend? 2. How do you know if a divisor is a factor based on the final remainder in synthetic division?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "Polynomial division allows us to break down complex polynomials into simpler factors, which is essential for solving equations. Long division follows a process similar to arithmetic long division: divide, multiply, subtract, and bring down. When dividing by a linear term (x - c), we use the abbreviated coefficient method as a more efficient shortcut. This method organizes coefficients into a list, skipping the variables during calculation, which reduces the potential for sign errors. The key idea is that if the remainder is zero, the divisor is a factor of the dividend. For example, dividing (x^2 - 4) by (x - 2) involves coefficients 1, 0, -4 and the root 2. We bring down 1, multiply by 2 to get 2, add to 0 to get 2, multiply by 2 to get 4, add to -4 to get 0. This reveals the quotient is (x + 2). This method preserves the structural logic of long division but removes the clutter of repeatedly writing variables, allowing you to focus purely on the coefficients. It is vital to remember that this shortcut only works perfectly with divisors of the form (x - c). If the divisor is (x + c), you must use the root -c in your calculation. By mastering this division, you gain the ability to analyze the roots of a polynomial, which directly determines the x-intercepts of rational functions and helps identify potential vertical asymptotes or points of discontinuity. Questions for you: 1. Why must we use a zero placeholder for missing powers of x in the dividend? 2. How do you know if a divisor is a factor based on the final remainder?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1348,7 +1348,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Divide (x^3 - 1) by (x - 1) using synthetic division.\nHint 1 (only if needed): Include 0 for any missing terms in the dividend.\nHint 2 (only if needed): Ensure the divisor is in x - c form; if it is x + c, use -c.\nHint 3 (only if needed): The last number in your synthetic division result is always the remainder.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Divide (x^3 - 1) by (x - 1) using the abbreviated coefficient method.\nHint 1 (only if needed): Include 0 for any missing terms in the dividend.\nHint 2 (only if needed): Ensure the divisor is in x - c form; if it is x + c, use -c.\nHint 3 (only if needed): The last number in your division result is always the remainder.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1381,7 +1381,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: If a volume of a prism is V = x^3 + 2x^2 - 5x - 6 and the height is x + 1, find the base area formula.\nSchedule the delayed check 7 days later: Describe the steps of synthetic division and why it is faster than long division.\nSupport route: Complete a long division problem side-by-side with a synthetic division problem to verify the logic.\nExtension: Divide a cubic by a quadratic using long division to understand why synthetic division is restricted to linear divisors.",
+    "instruction": "Transfer task: If a volume of a prism is V = x^3 + 2x^2 - 5x - 6 and the height is x + 1, find the base area formula.\nSchedule the delayed check 7 days later: Describe the steps of the abbreviated coefficient method and why it is faster than long division.\nSupport route: Complete a long division problem side-by-side with the abbreviated coefficient division problem to verify the logic.\nExtension: Divide a cubic by a quadratic using long division to understand why the abbreviated coefficient method is restricted to linear divisors.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1394,7 +1394,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Divide (x^3 - 1) by (x - 1) using synthetic division.",
+    "prompt": "Divide (x^3 - 1) by (x - 1) using the abbreviated coefficient method.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1410,7 +1410,7 @@
    },
    {
     "kind": "delayed",
-    "prompt": "Describe the steps of synthetic division and why it is faster than long division.",
+    "prompt": "Describe the steps of the abbreviated coefficient method and why it is faster than long division.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1470,7 +1470,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "The Remainder Theorem states that if you divide a polynomial p(x) by (x - c), the remainder is equal to p(c). This provides a fast way to evaluate polynomials without substitution or long division. If the remainder is 0, the Factor Theorem confirms that (x - c) is a factor of p(x). This is extremely useful for solving equations, as finding one factor allows you to reduce the degree of the polynomial and solve for the remaining roots. For instance, to evaluate p(x) = 2x^3 - 5x + 1 at x = 2, we can simply run synthetic division with root 2; the final value in the division will be p(2). It is a beautiful synthesis of division and function evaluation. Instead of manually plugging in large numbers into exponents, you use the efficiency of synthetic steps to arrive at the function value. This is particularly helpful when testing potential roots for complex polynomials. By checking if the remainder is zero, you quickly identify factors, which helps in factoring polynomials completely. Questions for you: 1. Can you explain why a remainder of zero implies the divisor is a factor? 2. If you know p(3) = 0, what do you automatically know about the factors of p(x) according to the Factor Theorem?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "The Remainder Theorem establishes a profound connection between the division of polynomials and their evaluation. If you divide a polynomial p(x) by a linear divisor of the form (x - c), the remainder is identical to the function value p(c). This technique provides a streamlined, elegant alternative to direct substitution, especially for polynomials of higher degree. Beyond simple evaluation, the Factor Theorem provides a vital corollary: (x - c) is a factor of p(x) if and only if p(c) equals zero. Consider the polynomial p(x) = x^2 + 4x + 3 evaluated at x = -1. By direct substitution, we compute 1 - 4 + 3 = 0. Using the abbreviated division method with root -1, we find the remainder is indeed zero. This relationship allows us to bypass tedious exponentiation in complex expressions by systematically processing the polynomial coefficients. When we reach a remainder of zero, we have successfully identified a root and, consequently, a linear factor of the polynomial. This capability is foundational for solving high-degree equations, as it enables us to reduce the polynomial's degree incrementally. By mastering this relationship, you transition from viewing polynomials as static expressions to understanding them as systems of interconnected factors and roots. This efficiency is the cornerstone of algebraic analysis. Questions for you: 1. If dividing by (x - c) results in a remainder of zero, why must (x - c) be a factor of the original polynomial? 2. Given that p(5) = 0, what can you conclude about the binomial expression (x - 5) in relation to p(x)?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1481,7 +1481,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Evaluate f(x) = 3x^2 - 4x + 2 at x = 2 using the Remainder Theorem.\nHint 1 (only if needed): Use the synthetic division method from last week to find the remainder.\nHint 2 (only if needed): Remember that the last term of the synthetic division is the value of the function at that root.\nHint 3 (only if needed): If the result is 0, then the evaluated point is a root of the polynomial.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Evaluate f(x) = 3x^2 - 4x + 2 at x = 2 using the Remainder Theorem and the abbreviated division method.\nHint 1 (only if needed): Utilize the abbreviated coefficient process to evaluate the function at the specified value.\nHint 2 (only if needed): Remember that the final value obtained from this process is equivalent to the function evaluation at that point.\nHint 3 (only if needed): Consider whether the final remainder is zero to determine if the divisor is a factor.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1503,7 +1503,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Is (x - 3) a factor of f(x) = x^3 - 2x^2 - 5x + 6? Use the Factor Theorem.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Is (x - 3) a factor of f(x) = x^3 - 2x^2 - 5x + 6? Justify your answer using the Factor Theorem and show the abbreviated division process.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1514,7 +1514,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: A company's profit is modeled by p(x) = x^3 - 7x + 6. Are they breaking even (profit=0) at x = 2?\nSchedule the delayed check 7 days later: Explain the relationship between the Remainder Theorem and the Factor Theorem.\nSupport route: Use direct substitution for the first problem to confirm that it equals the synthetic division result.\nExtension: Find all roots of x^3 - 2x^2 - 5x + 6 given that 1 is a root.",
+    "instruction": "Transfer task: A company's profit is modeled by p(x) = x^3 - 7x + 6. Determine if they are breaking even (p(x)=0) at x = 2 using the abbreviated division method.\nSchedule the delayed check 7 days later: Explain the relationship between the Remainder Theorem and the Factor Theorem with an example.\nSupport route: Tiered support: (1) evaluate p(c) by direct substitution first, then repeat with the abbreviated division method and compare the two results; (2) use a pre-drawn three-row division frame with the coefficients already placed, inserting 0 for every missing power; (3) for the factor question, first ask only 'is the final number zero?' before asking what that means for (x - c). Read prompts aloud and allow a scribe for the arithmetic.\nExtension: Given that 1 is a root of x^3 - 2x^2 - 5x + 6, use the abbreviated division method to reduce it to a quadratic, factor that quadratic, and list all three roots; then explain why the method cannot be applied directly to a divisor such as x^2 + 1.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1527,7 +1527,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Evaluate f(x) = 3x^2 - 4x + 2 at x = 2 using the Remainder Theorem.",
+    "prompt": "Evaluate f(x) = 3x^2 - 4x + 2 at x = 2 using the Remainder Theorem and the abbreviated division method.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1535,7 +1535,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Is (x - 3) a factor of f(x) = x^3 - 2x^2 - 5x + 6? Use the Factor Theorem.",
+    "prompt": "Is (x - 3) a factor of f(x) = x^3 - 2x^2 - 5x + 6? Justify your answer using the Factor Theorem and show the abbreviated division process.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1543,7 +1543,7 @@
    },
    {
     "kind": "delayed",
-    "prompt": "Explain the relationship between the Remainder Theorem and the Factor Theorem.",
+    "prompt": "Explain the relationship between the Remainder Theorem and the Factor Theorem with an example.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1551,7 +1551,7 @@
    },
    {
     "kind": "transfer",
-    "prompt": "A company's profit is modeled by p(x) = x^3 - 7x + 6. Are they breaking even (profit=0) at x = 2?",
+    "prompt": "A company's profit is modeled by p(x) = x^3 - 7x + 6. Determine if they are breaking even (p(x)=0) at x = 2 using the abbreviated division method.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -2268,7 +2268,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "This week, we synthesize our work on polynomials, rational expressions, and radical functions. Complex algebraic problems rarely arrive in isolation; they require a multi-step approach involving factoring, division, and identifying domain restrictions. When you encounter a rational function like (x^2 - 4) / (x - 2), your first instinct should be to factor the numerator. Recognizing the common factor (x - 2) allows you to simplify the expression to (x + 2), but you must note the domain restriction x ≠ 2. This creates a 'hole' in the graph rather than a vertical asymptote. Synthetic division is another critical tool, allowing us to evaluate polynomials quickly at specific points or find roots to break down high-degree functions. When solving optimization problems—such as maximizing the area of a shape given a perimeter—you must first build the function model, then restrict its domain based on physical constraints (e.g., length must be positive), and finally analyze its behavior to find the peak. By connecting these concepts, you can model growth, inverse relationships, and magnitudes effectively. Questions for you: 1. How does identifying the roots of a polynomial function provide you with a skeletal structure for sketching its graph? 2. When presented with a complex expression, why is factoring the numerator and denominator the most reliable starting step?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "This week, we synthesize our work on polynomials, rational expressions, and radical functions. Complex algebraic problems rarely arrive in isolation; they require a multi-step approach involving factoring, division, and identifying domain restrictions. When you encounter a rational function like (x^2 - 4) / (x - 2), your first instinct should be to factor the numerator. Recognizing the common factor (x - 2) allows you to simplify the expression to (x + 2), but you must note the domain restriction x ≠ 2. This creates a 'hole' in the graph rather than a vertical asymptote. Ruffini's rule is another critical tool, allowing us to evaluate polynomials quickly at specific points or find roots to break down high-degree functions. When solving optimization problems—such as maximizing the area of a shape given a perimeter—you must first build the function model, then restrict its domain based on physical constraints (e.g., length must be positive), and finally analyze its behavior to find the peak. An essential part of this analysis involves comparing behavior within closed intervals versus open intervals: while open intervals might have a vertex as a maximum, closed intervals require us to check the endpoints as well, as they may house the absolute maximum or minimum value. By connecting these concepts, you can model growth, inverse relationships, and magnitudes effectively. Questions for you: 1. How does identifying the roots of a polynomial function provide you with a skeletal structure for sketching its graph? 2. When presented with a complex expression, why is factoring the numerator and denominator the most reliable starting step?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -2279,7 +2279,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Sketch the behavior of f(x) = (x^2 - 1) / (x - 1) and state the final simplified form of the function.\nHint 1 (only if needed): Always factor polynomials completely before attempting to simplify rational expressions.\nHint 2 (only if needed): Check for domain restrictions such as division by zero before performing any simplification or evaluating functions.\nHint 3 (only if needed): Consider using synthetic division as a shortcut for evaluation when the divisor is a linear factor.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Sketch the behavior of f(x) = (x^2 - 1) / (x - 1) and state the final simplified form of the function.\nHint 1 (only if needed): Always factor polynomials completely before attempting to simplify rational expressions.\nHint 2 (only if needed): Check for domain restrictions such as division by zero before performing any simplification or evaluating functions.\nHint 3 (only if needed): Consider using Ruffini's rule as a shortcut for evaluation when the divisor is a linear factor.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -2301,7 +2301,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Evaluate the function f(x) = 2x^3 - 4x + 5 at x = -1 using synthetic division.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Evaluate the function f(x) = 2x^3 - 4x + 5 at x = -1 using Ruffini's rule.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -2333,7 +2333,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Evaluate the function f(x) = 2x^3 - 4x + 5 at x = -1 using synthetic division.",
+    "prompt": "Evaluate the function f(x) = 2x^3 - 4x + 5 at x = -1 using Ruffini's rule.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],

@@ -16,7 +16,7 @@ function lesson(week = 1): ClassicalArtsLesson {
     release_id: 'fixture', unit_id: 'review-unit', title: 'Review unit', week,
     objective: `Week ${week} purpose`, companion_sources: [], visual_previews: [],
     source: { id: 'fixture', title: 'Original test fixture', url: 'https://example.invalid/fixture',
-      locator: 'Synthetic test dialogue', language: 'en', rights: 'original',
+      locator: 'Sample test dialogue', language: 'en', rights: 'original',
       text: 'First speech.\nPartner cue.\nSecond speech.' },
     steps: [{ label: 'Read', instruction: 'Read together.' }], assessments: [],
     rehearsal: [{ speaker: 'A', text: 'First speech.' }, { speaker: 'B', text: 'Partner cue.' },

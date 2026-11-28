@@ -223,3 +223,20 @@ async def test_disabled_teaching_is_a_conflict_before_any_model_stream(monkeypat
     with pytest.raises(HTTPException) as caught:
         await tutor.chat(req, request, auth={"code": "example-code", "role": "demo_code"}, db=None)
     assert caught.value.status_code == 409
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("grade,week", [("9", 1), ("11", 18), ("12", 36)])
+async def test_subject_prompt_carries_the_selected_lesson(grade, week, monkeypatch):
+    """The upper-grade prompt path must deliver the chosen lesson, not only guidance."""
+    from services.ai_service import _build_subject_prompt
+    set_activation(monkeypatch, True)
+    lesson_id = f"g{grade}-year-mathematics-w{week:02d}"
+    cfg = config(grade=grade, upper_curriculum={"week": week, "lesson_id": lesson_id})
+    prompt = await _build_subject_prompt(cfg, Subject.mathematics)
+    assert f'"id": "{lesson_id}"' in prompt
+    assert "sample practice directions" not in prompt
+    walk(json.loads(prompt[prompt.index("\n{", prompt.index("<reviewed_upper_school_lesson>")) + 1:
+                          prompt.index("\n</reviewed_upper_school_lesson>")]))
+    plain = await _build_subject_prompt(config(grade=grade, upper_curriculum=None), Subject.mathematics)
+    assert "<reviewed_upper_school_lesson>" not in plain and "sample practice directions" in plain

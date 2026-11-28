@@ -93,6 +93,7 @@ export interface SessionConfig {
   faith_emphasis?: string | null
   current_unit?: string | null
   grade8_curriculum?: DemoParentConfig['grade8_curriculum']
+  upper_curriculum?: DemoParentConfig['upper_curriculum']
   companion_mode?: CompanionMode
   bible_translation?: string
   curriculum_resources?: string[]
@@ -131,6 +132,7 @@ export interface DemoParentConfig {
   faith_emphasis?: string
   current_unit?: string
   grade8_curriculum?: { release_id?: 'bede-grade8-2026-accepted'; week: number; pathway: 'foundations' | 'algebra'; lesson_id?: string | null } | null
+  upper_curriculum?: { release_id?: 'bede-upper-2026-reviewed'; week: number; lesson_id?: string | null } | null
   faith_tradition?: string
   bible_translation?: string
   curriculum_resources?: string[]
@@ -474,6 +476,12 @@ export async function getGrade8Release(week: number, pathway: string) {
   if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)
   return { ...await res.json(), atlas_url: `${apiBase()}/catalog/grade8/atlas`,
     visual_source_url: `${apiBase()}/catalog/grade8/visual-source` }
+}
+
+export async function getUpperRelease(grade: string, week: number) {
+  const res = await fetch(`${apiBase()}/catalog/upper/release?grade=${encodeURIComponent(grade)}&week=${week}`)
+  if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)
+  return res.json()
 }
 
 export async function getCurriculumAvailability() {

@@ -20,6 +20,12 @@ export async function getCurriculumAvailability() {
   return res.json()
 }
 
+export async function getUpperRelease(grade: string, week: number) {
+  const res = await fetch(`${BASE}/catalog/upper/release?grade=${encodeURIComponent(grade)}&week=${week}`)
+  if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)
+  return res.json()
+}
+
 export async function getGrade8Release(week: number, pathway: string) {
   const res = await fetch(`${BASE}/catalog/grade8/release?week=${week}&pathway=${encodeURIComponent(pathway)}`)
   if (!res.ok) throw new Error(`Could not load curriculum (${res.status})`)

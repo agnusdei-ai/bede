@@ -80,6 +80,7 @@ services:
       # Separate original Grade 8 student adapter; publication never enables it.
       # Existing institutional corpus/promotion controls are unchanged.
       - BEDE_GRADE8_CURRICULUM_ENABLED=${BEDE_GRADE8_CURRICULUM_ENABLED:-true}
+      - BEDE_UPPER_CURRICULUM_ENABLED=${BEDE_UPPER_CURRICULUM_ENABLED:-true}
       - ELEVATION_TTL_MINUTES=${ELEVATION_TTL_MINUTES:-10}
       # LEGACY_TOKEN_GRACE — accept JWTs issued before identity domains
       # existed (core/identity.py). Off by default; only an upgrade straight

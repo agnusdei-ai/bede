@@ -2403,6 +2403,11 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
         authored = context(config, subject)
         if authored:
             return authored
+    if getattr(config, "upper_curriculum", None):
+        from services.upper_curriculum_service import context as upper_context
+        authored = upper_context(config, subject)
+        if authored:
+            return authored
     if config.current_unit:
         return ""  # Parent already specified the unit — catalog note not needed
     try:

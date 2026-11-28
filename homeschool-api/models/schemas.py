@@ -415,6 +415,14 @@ class Grade8CurriculumSelection(BaseModel):
     lesson_id: Optional[str] = Field(default=None, min_length=1, max_length=120)
 
 
+class UpperCurriculumSelection(BaseModel):
+    """Adult-selected Grades 9-12 week (grade comes from the learner plan), never inferred mastery."""
+    model_config = {"extra": "forbid"}
+    release_id: Literal["bede-upper-2026-reviewed"] = "bede-upper-2026-reviewed"
+    week: int = Field(ge=1, le=36, strict=True)
+    lesson_id: Optional[str] = Field(default=None, min_length=1, max_length=120)
+
+
 class SessionConfig(BaseModel):
     student_name: str = Field(..., min_length=1, max_length=50)
     # What an adult wants the learner called: a corrected spelling or a
@@ -462,12 +470,22 @@ class SessionConfig(BaseModel):
     faith_emphasis: Optional[str] = None     # Scripture or virtue focus
     current_unit: Optional[str] = None       # e.g. "Ancient Egypt", "Fractions"
     grade8_curriculum: Optional[Grade8CurriculumSelection] = None
+    upper_curriculum: Optional[UpperCurriculumSelection] = None
 
     @model_validator(mode="after")
     def _validate_grade8_curriculum(self):
         course_subjects = {Subject.spanish, Subject.computing, Subject.movement_health}
-        if course_subjects.intersection(self.subjects) and self.grade8_curriculum is None:
-            raise ValueError("Grade 8 course subjects require an explicit adult-selected curriculum")
+        if self.grade8_curriculum is not None and self.upper_curriculum is not None:
+            raise ValueError("Choose one curriculum release for a learner plan")
+        if (course_subjects.intersection(self.subjects) and self.grade8_curriculum is None
+                and self.upper_curriculum is None):
+            raise ValueError("Course subjects require an explicit adult-selected curriculum")
+        if self.upper_curriculum is not None:
+            from services.upper_curriculum_service import validate_selection as validate_upper, lesson as upper_lesson
+            validate_upper(self.upper_curriculum, self.grade)
+            if self.upper_curriculum.lesson_id:
+                if upper_lesson(self.upper_curriculum.lesson_id)["subject"] not in {s.value for s in self.subjects}:
+                    raise ValueError("Enable the selected lesson's subject in the adult plan")
         if self.grade8_curriculum is not None:
             from services.grade8_curriculum_service import validate_selection, load, STRAND_SUBJECT
             validate_selection(self.grade8_curriculum, self.grade)
@@ -1064,6 +1082,7 @@ class DemoParentConfigRequest(BaseModel):
     faith_emphasis: Optional[str] = Field(None, max_length=500)
     current_unit: Optional[str] = Field(None, max_length=200)
     grade8_curriculum: Optional[Grade8CurriculumSelection] = None
+    upper_curriculum: Optional[UpperCurriculumSelection] = None
     faith_tradition: Optional[str] = Field(None, max_length=60)
     bible_translation: Optional[str] = Field(None, max_length=40)
     curriculum_resources: Optional[List[str]] = None

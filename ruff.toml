@@ -1,0 +1,21 @@
+# Python lint gate (.github/workflows/python-lint.yml).
+#
+# Deliberately narrow: only rules that find real defects, never style.
+# Added 2026-11-28 after a code-health audit found an undefined name on an
+# error path (a NameError where the code promised a quiet fallback) and a
+# function defined twice. Neither was reachable by the test suite, because
+# no test drove the error path. Widen this only with rules that have zero
+# findings when added, so the gate never starts red.
+extend-exclude = ["**/node_modules", "**/dist", "**/build"]
+
+[lint]
+# E9: syntax errors. F63: bad comparisons (`is` with a literal).
+# F7: misplaced statements (return outside a function).
+# F82: undefined names. F811: a definition shadowing an unused one.
+select = ["E9", "F63", "F7", "F82", "F811"]
+
+[lint.per-file-ignores]
+# pytest fixtures are routinely imported into a test module and then named
+# as an argument, which F811 reads as a redefinition.
+"**/tests/**" = ["F811"]
+"**/test_*.py" = ["F811"]

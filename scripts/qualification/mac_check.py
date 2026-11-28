@@ -42,6 +42,10 @@ import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # annotation only; the harness imports httpx at run time
+    import httpx
 
 # Environment first: qualconfig and the preflight read it at import time.
 PROXY_PORT = 8765          # the browser-facing origin (also WEBAUTHN_ORIGIN)

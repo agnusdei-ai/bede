@@ -1,0 +1,26 @@
+name: Python lint
+
+# Defect-only lint gate: undefined names, shadowed definitions, syntax and
+# misplaced-statement errors (rules in ruff.toml). Added 2026-11-28 after an
+# audit found a NameError on an error path no test drove. Runs on every push
+# and pull request with no path filter, like nomenclature.yml, so a change
+# cannot skip it. A red result means fix the code, never narrow the rules.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ruff:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Install ruff (pinned)
+        run: python3 -m pip install --user "ruff==0.16.9"
+      - name: Check every Python file
+        run: python3 -m ruff check .

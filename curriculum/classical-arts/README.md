@@ -1,85 +1,95 @@
-# Classical literature and arts: source-independent integration
+# Classical literature and arts
 
-## Current state
+## Delivery status
 
-**Local implementation draft; not released, reviewed, or learner-ready.**
-Project Gutenberg-dependent source verification is queued at the owner's
-direction. No alternate edition has been adopted to bypass that wait.
-The original prose in `units.py` drafts twelve three-week units (36 distinct
-weekly teaching sequences). It is not a completed source-bound curriculum,
-Spanish release, factory result, accepted year, or efficacy evaluation.
+Twelve bounded three-week units, **36 weekly lesson records**, with English and
+general Spanish teaching, independent/delayed/transfer prompts and accessible
+read/typed rehearsal. This is a cross-grade supplement, not twelve full years
+or a replacement for the accepted Grade 8 year or upper-school authoring.
 
-The demo and enrolled Parent Setup surfaces now have matching adult-directed
-workshop components for grades 4–12. Source-backed lessons are unavailable
-until their exact release is reviewed. These local changes have not been
-pushed, merged, or deployed. The accepted Grade 8 year is unchanged.
+The static student projection is source-bound and inspectable in both adult
+setup interfaces. Tutoring remains **off by default**. A valid source digest is
+not deployment permission, owner adoption, Pilot GO or evidence of efficacy.
+No production activation is performed by this increment.
 
-## Completed source-independent implementation
+The new setting is `BEDE_CLASSICAL_ARTS_ENABLED`; its default is false.
+It controls this supplement, not the accepted Grade 8 release or shared K–12
+availability. Those existing settings and content remain unchanged.
 
-- Unit/week/support selection uses the existing adult editable unit-note and
-  parent-save flow. Choosing a unit does not silently save it.
-- Rehearsal supports unique roles, ordered partner cues, hidden role text,
-  reveal/retry, self-read and typed participation. Drafts stay on the page;
-  no microphone, recordings, accent/emotion assessment, or new learner-data
-  store is added.
-- Both English and Spanish interface states are provided. Exact English
-  source passages must be labeled as such rather than presented as a verified
-  Spanish translation.
-- Fetches are selection-scoped, stale requests are invalidated, failures are
-  visible, and an adult cannot apply a unit before its current lesson is loaded
-  and a corresponding subject is selected.
-- Public source-only API routes are declared and added explicitly to the
-  existing public-route inventory. They do not access learner records.
-- The backend checks the pinned release digest, every declared week, source
-  passage digests, exact rehearsal containment, localized instruction, and
-  exclusion of private adult fields. No runtime fetching or quote reconstruction
-  is possible.
-- Tutor preparation recognizes only an explicit, bounded adult unit-note
-  format. Nonmatching notes and subjects keep their existing delivery routes.
-  The existing session locale is passed through rather than inventing another
-  language setting.
-- The unverified release fails with HTTP 503 before streaming or a model call;
-  the UI explains that source verification is pending.
+See [CROSSWALK.md](CROSSWALK.md) for the adopted/nonadopted scope and rights.
 
-## Source-release handoff
+## What the tutor actually uses
 
-The release adapter is `homeschool-api/services/classical_arts_service.py`.
-Its intentionally empty pinned digest is a closed source-release boundary,
-not an assertion that a corpus exists. Do not fill it merely to make the UI
-look available.
+- Both Parent Setup interfaces load the same `/catalog/classical-arts` service.
+  They scope requests by grade/locale, filter age floors, and require a current
+  unit/week/support response and matching selected subject before applying it.
+- Applying writes the existing editable unit note, not a new database record:
+  `Bede classical arts: merchant-mercy; week=2; support=guided`.
+  The existing parent save remains necessary.
+- With the explicit operator activation setting enabled, that note supplies
+  verified text, paired comparison sources and the selected original teaching
+  before inference. Unrelated subjects and ordinary adult overrides retain
+  their established routes. Missing/corrupt sources fail visibly before inference.
+- Shakespeare is also connected to the existing grade-filtered weekly poetry
+  path for grades 4–12. Spanish sessions use Spanish inquiry around the labeled
+  English original; they do not invent a published Spanish translation.
+- The Grade 8 art/music rotation selects Michelangelo/Beethoven only within the
+  activated increment. Other legacy rotations remain unchanged. Dowland and
+  Byrd are delivered through their explicit historical-music unit.
+- Five exact Michelangelo fresco details are bundled locally as small faithful
+  derivatives with pinned input/output hashes. Adult preview and explicit
+  Michelangelo-unit selection precede tool display. There is no runtime image
+  search or external image request for these assets. Decorative artistic nudity
+  and historical religious/classical subject matter are disclosed.
+- Composer biographies, movement context and inquiry notes are original
+  guidance with bibliographic references. They contain no recording or score.
+  The tutor does not claim that unavailable music is playing.
 
-When Project Gutenberg returns:
+## Rehearsal and privacy
 
-1. Verify the actual chosen editions, precise passage locators, asset rights,
-   and source bytes. Maintenance pages are not source assets.
-2. Finish the original teaching, differentiated support, delayed/transfer
-   prompts, source comparisons, and separate private adult models and keys
-   through the existing production contract/factory.
-3. Complete and separately review every adopted unit/week and localized
-   instruction. Reconcile the art/composer plan and actual rotations;
-   present reproductions, scores, recordings, and translations as different
-   rights decisions. Do not invent playback or first-hand source exposure.
-4. Produce the public student projection with exact source text/digests and
-   role cues; keep adult keys and original authoring history private where
-   required. Pin the reviewed projection in a source-release change.
-5. Integrate with current main, including the already-merged Math selector
-   update and any reviewed upper-school work. This checkout predates that
-   Math merge; do not revert it during integration.
-6. Follow the task's review and authorized publication requirements. Learner
-   and browser evaluation remain distinct from code compilation.
+Roles are unique; repeated speeches stay in source order. Spoken cues are exact
+contiguous slices, with stage directions kept in the source view rather than
+read as a character's speech. Cue-only, reveal/retry, optional typed response
+and print are page-local. There is no microphone capture, recording, accent/
+emotion score, performance certification or additional learner-data store.
+Academic interpretation is separate from optional devotional formation.
 
-## Checks performed
+## Authoring and reproducibility
 
-Both frontend TypeScript checks and production builds passed with the existing
-workspace dependency cache. Python syntax parsing, repository nomenclature,
-and whitespace checks passed. These checks establish code/build integrity,
-not learner effectiveness or successful end-to-end teaching. No learner,
-browser, or automated test suite was run during this source-independent batch.
+`verify_sources.py` verifies pinned GITenberg snapshots of Gutenberg ebooks
+100 and 573 and a bounded North passage against the intended publisher's
+preserved web/PDF texts. It reads operator-fetched research files from the
+ignored `generated-artifacts/classical-arts-sources` directory, not the network.
+Current primary Gutenberg byte parity is **not established**.
 
-## Scope
+`build.py` uses the existing production contract and factory. Run it with the
+repository's authoring dependencies and ImageMagick available, after placing the
+verified source inputs and private adult models in the ignored directories
+named by the script. Image derivatives use orientation, proportional resize,
+sRGB and metadata removal only; full originals stay out of Git.
 
-This increment belongs to the existing Shakespeare/classical-arts task.
-Do not duplicate Grades 9–12 full-year authoring already running separately,
-replace the accepted Grade 8 year, infer Valor affiliation, publish private
-keys, or call the 36 draft teaching sequences a complete K–12 literature
-curriculum.
+The authoring bundle has 36 separate private adult models and rubrics; those
+are not copied into the public projection. Student fields are projected
+explicitly, not by deleting a few keys from a private object.
+
+The development factory requires `fixture_only: true` and pending gate records.
+Those fields are preserved; a successful structural build does not approve
+the curriculum or promote it to an institutional corpus. The optional
+`anti_twaddle` declaration now reaches the existing living-books curation rule;
+missing/false values still fail. It is not a waiver or quality certificate.
+
+Source-use permissions cover verified educational copying, distribution,
+adaptation, storage, retrieval, processing and TTS; **training remains denied**.
+Rights permission is separate from operational release authorization. Public
+domain findings are territory-qualified and do not clear modern translations,
+annotations, recordings or arbitrary reproductions.
+
+## Verification limits
+
+Focused Python and component checks, HTTP route slices, exact hashes, compiler
+builds, and model-assisted source/instruction critique are recorded in the
+review handoff. They do not establish successful real-learner teaching,
+physical-device behavior, classroom suitability for every learner, or efficacy.
+Everyman requires the adult's agreed edition; music requires an actual lawful
+source for source-specific claims. If absent, record original-method practice
+only, not evidence of having studied the unavailable work.

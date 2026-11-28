@@ -129,7 +129,7 @@ UNITS = [
               "Support one comparison with a located detail from each source.",
               "Identify how an original announcement could persuade an audience without adding new evidence."),
              ("Evaluate rhetoric without equating persuasion with truth.",
-              "Use cue-only rehearsal for Antony and the citizens. Separate the speech's factual claims, framing, and audience reaction. For a Brutus comparison the adult opens the cited complete edition; do not substitute Antony's voice for Brutus.",
+              "Use cue-only rehearsal for Antony or annotate his speech silently. The supplied extract stops before the citizens respond; the adult must open those lines or Brutus's speech in the cited complete edition before comparing them. Do not invent a crowd reaction or substitute Antony's voice for Brutus.",
               "What makes a repeated claim persuasive, and what would make it justified?",
               "Prepare a short argument evaluating one rhetorical move and a counterreading.",
               "Compare a speaker's persuasive technique with a different reviewed play, naming the limits of the comparison.")]),

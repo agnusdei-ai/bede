@@ -6,16 +6,19 @@ Until an exact source-verified release is reviewed and pinned, requests fail
 explicitly. Ordinary catalog and accepted Grade 8 routes remain unchanged.
 """
 from copy import deepcopy
+from datetime import date
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import re
 
 RELEASE_ID = "bede-classical-arts"
 RELEASE_FILE = Path(__file__).resolve().parents[1] / "data/curriculum/classical-arts.json"
-# Set only in a separately reviewed source-release change. Empty intentionally
-# means the Gutenberg-dependent release has not been verified or published.
-RELEASE_SHA256 = ""
+ART_DIR = RELEASE_FILE.parent / "classical-arts-art"
+# Pin the source-bound student projection independently of activation. A valid
+# artifact is inspectable; only the explicit operator flag enables tutoring.
+RELEASE_SHA256 = "b721a29cc3f33f7101dc6a2e901c5acd6678bad522899ea5390f66455303e43a"
 PREFIX = "Bede classical arts:"
 NOTE = re.compile(
     r"Bede classical arts: ([a-z][a-z0-9-]{0,63}); week=([1-3]); "
@@ -32,6 +35,15 @@ PRIVATE_FIELDS = {
 
 class SourceUnavailable(ValueError):
     """The intended, reviewed source release is not available."""
+
+
+def enabled():
+    value = os.environ.get("BEDE_CLASSICAL_ARTS_ENABLED", "false").strip().lower()
+    if value in ("true", "1"):
+        return True
+    if value in ("false", "0"):
+        return False
+    raise ValueError("BEDE_CLASSICAL_ARTS_ENABLED must be true or false")
 
 
 def _reject_private(value):
@@ -88,19 +100,19 @@ def load_release():
                     if not unit["localizations"][language][key]:
                         raise ValueError("Incomplete localized unit")
             for row in unit["lessons"]:
-                source = row["source"]
-                if source["rights"] not in ("public_domain_verified", "original"):
-                    raise ValueError("Source rights are not verified")
-                if not all(source.get(k) for k in ("id", "title", "url", "locator", "text", "language")):
-                    raise ValueError("Source or exact locator is missing")
-                if not source["url"].startswith("https://"):
-                    raise ValueError("Source links must use HTTPS")
-                if sha256(source["text"].encode()).hexdigest() != source["text_sha256"]:
-                    raise ValueError("Source passage integrity mismatch")
-                if not source.get("verification_evidence"):
-                    raise ValueError("Missing exact-edition verification evidence")
+                for source in [row["source"], *row["companion_sources"], *([row["source_es"]] if "source_es" in row else [])]:
+                    if source["rights"] not in ("public_domain_verified", "original"):
+                        raise ValueError("Source rights are not verified")
+                    if not all(source.get(k) for k in ("id", "title", "url", "locator", "text", "language")):
+                        raise ValueError("Source or exact locator is missing")
+                    if not source["url"].startswith("https://"):
+                        raise ValueError("Source links must use HTTPS")
+                    if sha256(source["text"].encode()).hexdigest() != source["text_sha256"]:
+                        raise ValueError("Source passage integrity mismatch")
+                    if not source.get("verification_evidence"):
+                        raise ValueError("Missing exact-edition verification evidence")
                 for cue in row["rehearsal"]:
-                    if not cue["speaker"] or not cue["text"] or cue["text"] not in source["text"]:
+                    if not cue["speaker"] or not cue["text"] or cue["text"] not in row["source"]["text"]:
                         raise ValueError("Rehearsal text is not in the verified source")
                 for language in ("en", "es"):
                     text = row["localizations"][language]
@@ -124,6 +136,7 @@ def catalog(grade, locale="en"):
     data = load_release()
     return {
         "release_id": RELEASE_ID,
+        "runtime_enabled": enabled(),
         "units": [
             {"id": unit["id"], "subjects": unit["subjects"], "min_grade": unit["min_grade"],
              "weeks": unit["weeks"], **unit["localizations"][locale]}
@@ -153,11 +166,28 @@ def lesson(unit_id, grade, week=1, locale="en", support="guided"):
         raise ValueError("This unit is outside the selected grade's coverage")
     row = next(item for item in unit["lessons"] if item["week"] == week)
     text = row["localizations"][locale]
+    for image in row["visual_previews"]:
+        try:
+            art_asset(image["id"], image["asset_sha256"])
+        except LookupError as exc:
+            raise SourceUnavailable("A required local art reproduction is unavailable") from exc
+    source = row["source"]
+    if locale == "es" and source["rights"] == "original":
+        source = row["source_es"]
+        if source["language"] != "es" or source["rights"] != "original":
+            raise SourceUnavailable("Original Spanish guidance is unavailable")
+        if sha256(source["text"].encode()).hexdigest() != source["text_sha256"]:
+            raise SourceUnavailable("Original Spanish guidance integrity mismatch")
     result = {
         "release_id": RELEASE_ID, "unit_id": unit_id,
         "title": text["title"], "week": week, "objective": text["objective"],
-        "source": {key: row["source"][key] for key in
+        "source": {key: source[key] for key in
                    ("id", "title", "url", "locator", "text", "language", "rights")},
+        "companion_sources": [
+            {key: companion[key] for key in ("id", "title", "url", "locator", "text", "language", "rights")}
+            for companion in row["companion_sources"]
+        ],
+        "visual_previews": row["visual_previews"],
         "steps": [*text["steps"], {
             "label": "Apoyo elegido" if locale == "es" else "Selected support",
             "instruction": text["support"][support],
@@ -177,8 +207,68 @@ def selection(note):
     return unit, int(week), support
 
 
+def art_asset(asset_id, digest):
+    from services.catalog_service import get_visual_aid
+    allowed = {"michelangelo_"+name for name in ("erythraean", "jeremiah", "cumaean", "delphic", "persian")}
+    if asset_id not in allowed or not re.fullmatch("[0-9a-f]{64}", digest):
+        raise LookupError("Unknown reviewed art asset")
+    record = get_visual_aid(asset_id)
+    if not record or record.get("asset_sha256") != digest:
+        raise LookupError("Unknown reviewed art revision")
+    try:
+        raw = (ART_DIR / (asset_id+".jpg")).read_bytes()
+        if len(raw) > 1048576 or sha256(raw).hexdigest() != digest:
+            raise ValueError("Art asset integrity mismatch")
+        return raw
+    except (OSError, ValueError) as exc:
+        raise SourceUnavailable("The reviewed local art asset is unavailable") from exc
+
+
+def recitations_for_grade(grade):
+    """Verified additions to the existing weekly poetry selection, never K–3."""
+    if not enabled() or str(grade).strip() not in {str(n) for n in range(4, 13)}:
+        return []
+    unit = next(item for item in load_release()["units"] if item["id"] == "shakespeare-songs")
+    return [row["source"] for row in unit["lessons"]]
+
+
+def recitation_note(config, locale="en", today=None):
+    if config.current_unit:
+        return ""
+    sources = recitations_for_grade(config.grade)
+    if not sources:
+        return ""
+    week = (today or date.today()).isocalendar()[1]
+    source = sources[(week + max(1, config.current_term)-1) % len(sources)]
+    instruction = (
+        "Texto literario original en inglés; no se proporciona una traducción publicada. "
+        "Conduce la conversación, el vocabulario y la narración en español. Cita solo las líneas exactas. "
+        "El adulto revisa antes el contenido: la canción marina imagina una muerte; puede elegir la canción "
+        "del bosque o una actividad original distinta y declarar el alcance cambiado. "
+        "Escoge un fragmento breve; invita a leer, señalar, escribir o narrar sin exigir actuación ni memoria. "
+        "Pregunta por una imagen o repetición y espera la respuesta; no entregues una interpretación terminada."
+        if locale == "es" else
+        "English literary original, given VERBATIM. Discuss a short located image, turn or repetition, "
+        "one scaffolding question at a time. Stage directions are not spoken lines. "
+        "Adult preview: the sea song imagines a father's death; the adult may choose the woodland song "
+        "or original-method practice instead and declare changed scope. Reading, pointing, typing and "
+        "discussion are valid; no required performance or devotional assent. Do not supply a completed interpretation."
+    )
+    return (
+        "\n<poetry_co_study>\n"+instruction+"\n"
+        + json.dumps({key: source[key] for key in ("title", "url", "locator", "text", "language")}, ensure_ascii=False)
+        + "\n</poetry_co_study>\n"
+    )
+
+
+def spanish_recitation(config, today=None):
+    return recitation_note(config, "es", today)
+
+
 def context(config, subject, locale="en"):
     selected = selection(config.current_unit)
+    if selected is None and not config.current_unit and subject.value in ("morning_time", "living_books"):
+        recitations_for_grade(config.grade)  # Pre-stream source-integrity check.
     if selected is None or subject.value not in SUBJECTS:
         return ""
     unit_id, week, support = selected
@@ -188,6 +278,8 @@ def context(config, subject, locale="en"):
         raise ValueError("The selected unit is not available for this grade")
     if subject.value not in unit["subjects"]:
         return ""
+    if not enabled():
+        raise SourceUnavailable("This reviewed classical arts release has not been activated for tutoring")
     public = lesson(unit_id, config.grade, week, locale, support)
     return (
         "\n<classical_arts_unit>\n"

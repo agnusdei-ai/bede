@@ -15,12 +15,23 @@ Routes:
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from core.deps import require_real_user
 from services.catalog_service import get_book, get_books, get_years, search_books
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
+
+@router.get("/classical-arts/assets/{asset_id}/{digest}.jpg")
+async def classical_arts_image(asset_id: str, digest: str):
+    from services.classical_arts_service import art_asset, SourceUnavailable
+    try:
+        return Response(art_asset(asset_id, digest), media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=31536000, immutable"})
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except SourceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.get("/classical-arts")

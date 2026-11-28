@@ -40,6 +40,10 @@ export interface ChatMessage {
 
 export interface VisualAidData {
   id: string
+  image_url?: string
+  source_url?: string
+  title_es?: string
+  description_es?: string
   title: string
   creator: string
   year: string
@@ -494,6 +498,7 @@ export interface ClassicalArtsUnit {
 
 export interface ClassicalArtsCatalog {
   release_id: string
+  runtime_enabled: boolean
   units: ClassicalArtsUnit[]
   scope_note: string
 }
@@ -504,6 +509,8 @@ export interface ClassicalArtsLesson {
   title: string
   week: number
   objective: string
+  companion_sources: Array<ClassicalArtsLesson['source']>
+  visual_previews: Array<{ id: string; title: string; title_es: string; image_url: string; source_url: string }>
   source: {
     id: string
     title: string
@@ -516,6 +523,11 @@ export interface ClassicalArtsLesson {
   steps: Array<{ label: string; instruction: string }>
   assessments: Array<{ kind: string; prompt: string }>
   rehearsal: Array<{ speaker: string; text: string }>
+}
+
+export function classicalArtsImageUrl(path: string): string | null {
+  if (!/^\/catalog\/classical-arts\/assets\/[a-z0-9_]+\/[0-9a-f]{64}\.jpg$/.test(path)) return null
+  try { return `${apiBase()}${path}` } catch { return null }
 }
 
 export class ClassicalArtsSourcePendingError extends Error {
@@ -536,6 +548,7 @@ function isString(value: unknown): value is string {
 function isClassicalArtsCatalog(value: unknown): value is ClassicalArtsCatalog {
   return isRecord(value)
     && isString(value.release_id)
+    && typeof value.runtime_enabled === 'boolean'
     && isString(value.scope_note)
     && Array.isArray(value.units)
     && value.units.every((unit) => isRecord(unit)
@@ -568,6 +581,12 @@ function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
     && isString(value.source.text)
     && isString(value.source.language)
     && isString(value.source.rights)
+    && Array.isArray(value.companion_sources)
+    && value.companion_sources.every((source) => isRecord(source)
+      && ['id', 'title', 'url', 'locator', 'text', 'language', 'rights'].every((key) => isString(source[key])))
+    && Array.isArray(value.visual_previews)
+    && value.visual_previews.every((image) => isRecord(image)
+      && ['id', 'title', 'title_es', 'image_url', 'source_url'].every((key) => isString(image[key])))
     && Array.isArray(value.steps)
     && value.steps.every((step) => isRecord(step) && isString(step.label) && isString(step.instruction))
     && Array.isArray(value.assessments)

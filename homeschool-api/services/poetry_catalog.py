@@ -34,7 +34,7 @@ teaching guidance below).
 """
 from datetime import date
 
-from models.schemas import GradeStage, CURATED_GRADES, grade_to_stage
+from models.schemas import GradeStage, CURATED_GRADES, VALID_GRADES, grade_to_stage
 
 
 def _entry(title: str, poet: str, source: str, grades: set, text: str) -> dict:
@@ -150,7 +150,13 @@ _COLLECTION = [
 
 
 def _entries_for_grade(grade: str) -> list[dict]:
-    return [e for e in _COLLECTION if grade in e["grades"]]
+    from services.classical_arts_service import recitations_for_grade
+    additions = [
+        {**_entry(source["title"], "William Shakespeare", source["locator"]+"; "+source["url"],
+                  {grade}, source["text"]), "classical": True}
+        for source in recitations_for_grade(grade)
+    ]
+    return [e for e in _COLLECTION if grade in e["grades"]] + additions
 
 
 def _entries_for_stage(stage: GradeStage) -> list[dict]:
@@ -161,7 +167,7 @@ def _entries_for(grade: "str | None", stage: GradeStage) -> list[dict]:
     """Grade-specific entries when the exact grade is known and recognized
     (CURATED_GRADES), otherwise the broader stage band — covers sessions
     that only have a stage (e.g. an unset/guest config)."""
-    if grade and grade.strip().upper() in CURATED_GRADES:
+    if grade and grade.strip().upper() in VALID_GRADES:
         entries = _entries_for_grade(grade.strip().upper())
         if entries:
             return entries
@@ -206,11 +212,18 @@ def poetry_note(
     entry = poem_for_week(grade, stage, week_salt, today)
     if not entry:
         return ""
+    rotation = (
+        "the verified Shakespeare additions to the weekly poetry rotation. Adult preview is required: "
+        "the sea song imagines a father's death; the adult may choose the woodland song or an original alternative "
+        "and record that changed scope. Shakespeare is not being labeled a Catholic hymn or prayer"
+        if entry.get("classical") else
+        "a weekly rotation of Catholic verse and hymn-texts"
+    )
     return f"""
 
 <poetry_co_study>
-This week's poem is "{entry['title']}" by {entry['poet']} ({entry['source']}) — part of a
-weekly rotation of Catholic verse and hymn-texts, per Mater Amabilis practice of a steady
+This week's poem is "{entry['title']}" by {entry['poet']} ({entry['source']}) — part of
+{rotation}, per Mater Amabilis practice of a steady
 poetry habit. The text below is given VERBATIM. When you read, quote, or teach any line of
 this poem, use EXACTLY the text below — never recite it from memory and never paraphrase a
 line you present as the poem itself.

@@ -74,6 +74,10 @@ LESSON = obj(
     assessments=arr(ASSESSMENT, 1), access=ACCESS, safety=SAFETY,
     outputs=arr(OUTPUT, 2),
 )
+# Optional, explicit existing catalog/curation declaration. Absent remains
+# unknown, not true; this does not waive the living-books formation rule.
+LESSON["properties"]["anti_twaddle"] = {"type": "boolean"}
+
 UNIT = obj(id=TEXT, version=POS, title=TEXT, lesson_refs=arr(REF, 1),
            prerequisites=arr(TEXT), objective_ids=arr(TEXT, 1),
            culminating_task=TEXT, synthesis_reteaching=TEXT, adult_minutes=POS)

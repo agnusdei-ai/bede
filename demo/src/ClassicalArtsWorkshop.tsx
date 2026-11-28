@@ -1,7 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { BookOpen, Printer, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { ClassicalArtsSourcePendingError, type ClassicalArtsCatalog, type ClassicalArtsLesson } from './api'
+import { classicalArtsImageUrl, ClassicalArtsSourcePendingError, type ClassicalArtsCatalog, type ClassicalArtsLesson } from './api'
+
+function ClassicalArtworkPreview({ url, title, locale }: { url: string | null; title: string; locale: string }) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => setFailed(false), [url])
+  return !url || failed ? <p role="status">{locale === 'es' ? 'Imagen no disponible' : 'Image unavailable'}</p>
+    : <img src={url} alt={title} loading="lazy" onError={() => setFailed(true)} className="max-h-96 w-full object-contain" />
+}
 
 type Support = 'guided' | 'independent' | 'extension'
 
@@ -165,7 +172,7 @@ export default function ClassicalArtsWorkshop({
   const currentLessonError = lessonError && lessonErrorScope === lessonKey
   const lessonReady = !!lesson && lessonScope === lessonKey
     && lesson.unit_id === unitId && lesson.week === week
-  const canChoose = !!selectedUnit?.subjects.some((subject) => subjects.includes(subject)) && lessonReady
+  const canChoose = currentCatalog?.runtime_enabled === true && !!selectedUnit?.subjects.some((subject) => subjects.includes(subject)) && lessonReady
   const roles = useMemo(
     () => [...new Set(lesson?.rehearsal.map((line) => line.speaker) ?? [])],
     [lesson],
@@ -334,6 +341,7 @@ export default function ClassicalArtsWorkshop({
         <p role="status" className="rounded-lg bg-white p-3 text-xs text-gray-600">{tx.empty}</p>
       )}
       {currentCatalog?.scope_note && <p className="text-xs leading-relaxed text-gray-600"><strong>{tx.scope}:</strong> {currentCatalog.scope_note}</p>}
+      {currentCatalog && !currentCatalog.runtime_enabled && <p role="status" className="text-xs leading-relaxed text-amber-800">{locale === 'es' ? 'Vista de revisión. La tutoría con estas unidades todavía no está activada.' : 'Review preview. Tutoring with these units has not been activated.'}</p>}
 
       {currentCatalog && currentUnits.length > 0 && (
         <div className="classical-arts-no-print grid gap-3 sm:grid-cols-2">
@@ -393,6 +401,19 @@ export default function ClassicalArtsWorkshop({
             <blockquote className="mt-1 whitespace-pre-wrap border-l-2 border-sage-400 pl-3 font-serif text-sm leading-relaxed">{lesson.source.text}</blockquote>
             <a className="mt-3 inline-block text-xs font-medium underline" href={lesson.source.url} target="_blank" rel="noopener noreferrer">{tx.sourceLink}</a>
             <p className="mt-1 text-[0.7rem] text-gray-500">{tx.sourceRights}: {lesson.source.rights}</p>
+            {lesson.visual_previews.length > 0 && <details className="classical-arts-no-print mt-4">
+              <summary className="cursor-pointer text-sm font-semibold">{locale === 'es' ? 'Revisar las cinco imágenes · contienen desnudos artísticos decorativos' : 'Preview the five images · includes decorative artistic nudity'}</summary>
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">{lesson.visual_previews.map((image) => <figure key={image.id}>
+                <ClassicalArtworkPreview url={classicalArtsImageUrl(image.image_url)} title={locale === 'es' ? image.title_es : image.title} locale={locale} />
+                <figcaption className="mt-1 text-xs"><a href={image.source_url} target="_blank" rel="noopener noreferrer" className="underline">{locale === 'es' ? image.title_es : image.title}</a></figcaption>
+              </figure>)}</div>
+            </details>}
+            {lesson.companion_sources.map((source) => <div key={source.id} className="mt-4 border-t border-navy-100 pt-3">
+              <h6 className="text-xs font-semibold">{source.title}{locale === 'es' && source.language === 'en' ? ` (${tx.sourceEnglish})` : ''}</h6>
+              <p className="text-xs">{source.locator}</p>
+              <blockquote className="mt-2 whitespace-pre-wrap border-l-2 border-navy-300 pl-3 font-serif text-sm leading-relaxed">{source.text}</blockquote>
+              <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-xs underline">{tx.sourceLink}</a>
+            </div>)}
           </section>
           {lesson.assessments.length > 0 && <section>
             <h5 className="font-semibold">{tx.assessment}</h5>

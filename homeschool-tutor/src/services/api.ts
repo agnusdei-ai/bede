@@ -32,6 +32,7 @@ export interface ClassicalArtsUnit {
 
 export interface ClassicalArtsCatalog {
   release_id: string
+  runtime_enabled: boolean
   units: ClassicalArtsUnit[]
   scope_note: string
 }
@@ -42,6 +43,8 @@ export interface ClassicalArtsLesson {
   title: string
   week: number
   objective: string
+  companion_sources: Array<ClassicalArtsLesson['source']>
+  visual_previews: Array<{ id: string; title: string; title_es: string; image_url: string; source_url: string }>
   source: {
     id: string
     title: string
@@ -54,6 +57,10 @@ export interface ClassicalArtsLesson {
   steps: Array<{ label: string; instruction: string }>
   assessments: Array<{ kind: string; prompt: string }>
   rehearsal: Array<{ speaker: string; text: string }>
+}
+
+export function classicalArtsImageUrl(path: string): string | null {
+  return /^\/catalog\/classical-arts\/assets\/[a-z0-9_]+\/[0-9a-f]{64}\.jpg$/.test(path) ? `${BASE}${path}` : null
 }
 
 export class ClassicalArtsSourcePendingError extends Error {
@@ -74,6 +81,7 @@ function isClassicalArtsString(value: unknown): value is string {
 function isClassicalArtsCatalog(value: unknown): value is ClassicalArtsCatalog {
   return isClassicalArtsRecord(value)
     && isClassicalArtsString(value.release_id)
+    && typeof value.runtime_enabled === 'boolean'
     && isClassicalArtsString(value.scope_note)
     && Array.isArray(value.units)
     && value.units.every((unit) => isClassicalArtsRecord(unit)
@@ -106,6 +114,12 @@ function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
     && isClassicalArtsString(value.source.text)
     && isClassicalArtsString(value.source.language)
     && isClassicalArtsString(value.source.rights)
+    && Array.isArray(value.companion_sources)
+    && value.companion_sources.every((source) => isClassicalArtsRecord(source)
+      && ['id', 'title', 'url', 'locator', 'text', 'language', 'rights'].every((key) => isClassicalArtsString(source[key])))
+    && Array.isArray(value.visual_previews)
+    && value.visual_previews.every((image) => isClassicalArtsRecord(image)
+      && ['id', 'title', 'title_es', 'image_url', 'source_url'].every((key) => isClassicalArtsString(image[key])))
     && Array.isArray(value.steps)
     && value.steps.every((step) => isClassicalArtsRecord(step) && isClassicalArtsString(step.label) && isClassicalArtsString(step.instruction))
     && Array.isArray(value.assessments)

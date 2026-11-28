@@ -482,6 +482,128 @@ export async function getCurriculumAvailability() {
   return res.json()
 }
 
+export interface ClassicalArtsUnit {
+  id: string
+  title: string
+  subjects: string[]
+  min_grade: number
+  weeks: number
+  summary: string
+  content_note: string
+}
+
+export interface ClassicalArtsCatalog {
+  release_id: string
+  units: ClassicalArtsUnit[]
+  scope_note: string
+}
+
+export interface ClassicalArtsLesson {
+  release_id: string
+  unit_id: string
+  title: string
+  week: number
+  objective: string
+  source: {
+    id: string
+    title: string
+    url: string
+    locator: string
+    text: string
+    language: string
+    rights: string
+  }
+  steps: Array<{ label: string; instruction: string }>
+  assessments: Array<{ kind: string; prompt: string }>
+  rehearsal: Array<{ speaker: string; text: string }>
+}
+
+export class ClassicalArtsSourcePendingError extends Error {
+  constructor() {
+    super('Classical arts source verification is pending (503)')
+    this.name = 'ClassicalArtsSourcePendingError'
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === 'string'
+}
+
+function isClassicalArtsCatalog(value: unknown): value is ClassicalArtsCatalog {
+  return isRecord(value)
+    && isString(value.release_id)
+    && isString(value.scope_note)
+    && Array.isArray(value.units)
+    && value.units.every((unit) => isRecord(unit)
+      && isString(unit.id)
+      && isString(unit.title)
+      && Array.isArray(unit.subjects)
+      && unit.subjects.every(isString)
+      && typeof unit.min_grade === 'number'
+      && Number.isInteger(unit.min_grade)
+      && typeof unit.weeks === 'number'
+      && Number.isInteger(unit.weeks)
+      && unit.weeks > 0
+      && isString(unit.summary)
+      && isString(unit.content_note))
+}
+
+function isClassicalArtsLesson(value: unknown): value is ClassicalArtsLesson {
+  return isRecord(value)
+    && isString(value.release_id)
+    && isString(value.unit_id)
+    && isString(value.title)
+    && typeof value.week === 'number'
+    && Number.isInteger(value.week)
+    && isString(value.objective)
+    && isRecord(value.source)
+    && isString(value.source.id)
+    && isString(value.source.title)
+    && isString(value.source.url)
+    && isString(value.source.locator)
+    && isString(value.source.text)
+    && isString(value.source.language)
+    && isString(value.source.rights)
+    && Array.isArray(value.steps)
+    && value.steps.every((step) => isRecord(step) && isString(step.label) && isString(step.instruction))
+    && Array.isArray(value.assessments)
+    && value.assessments.every((item) => isRecord(item) && isString(item.kind) && isString(item.prompt))
+    && Array.isArray(value.rehearsal)
+    && value.rehearsal.every((line) => isRecord(line) && isString(line.speaker) && isString(line.text))
+}
+
+export async function getClassicalArtsCatalog(grade: string, locale: string): Promise<ClassicalArtsCatalog> {
+  const query = new URLSearchParams({ grade, locale })
+  const res = await fetch(`${apiBase()}/catalog/classical-arts?${query}`)
+  if (res.status === 503) throw new ClassicalArtsSourcePendingError()
+  if (!res.ok) throw new Error(`Could not load classical arts (${res.status})`)
+  const data: unknown = await res.json()
+  if (!isClassicalArtsCatalog(data)) throw new Error('Invalid classical arts catalog response')
+  return data
+}
+
+export async function getClassicalArtsLesson(
+  unit: string,
+  grade: string,
+  week: number,
+  locale: string,
+  support: string,
+): Promise<ClassicalArtsLesson> {
+  const query = new URLSearchParams({ grade, week: String(week), locale, support })
+  const res = await fetch(`${apiBase()}/catalog/classical-arts/${encodeURIComponent(unit)}?${query}`)
+  if (res.status === 503) throw new ClassicalArtsSourcePendingError()
+  if (!res.ok) throw new Error(`Could not load this rehearsal (${res.status})`)
+  const data: unknown = await res.json()
+  if (!isClassicalArtsLesson(data)
+    || data.unit_id !== unit
+    || data.week !== week) throw new Error('Invalid classical arts lesson response')
+  return data
+}
+
 export function decodeExpiry(token: string): number | null {
   try {
     const [, payloadB64] = token.split('.')

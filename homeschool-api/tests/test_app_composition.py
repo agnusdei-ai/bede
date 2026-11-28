@@ -218,6 +218,8 @@ GUARDS = {
     ('GET', '/catalog/grade8/atlas'): 'PUBLIC',
     ('GET', '/catalog/grade8/release'): 'PUBLIC',
     ('GET', '/catalog/curriculum-availability'): 'PUBLIC',
+    ('GET', '/catalog/classical-arts'): 'PUBLIC',
+    ('GET', '/catalog/classical-arts/{unit_id}'): 'PUBLIC',
     ('GET', '/catalog/grade8/visual-source'): 'PUBLIC',
     ('GET', '/catalog/search'): 'require_real_user',
     ('GET', '/catalog/years'): 'require_real_user',

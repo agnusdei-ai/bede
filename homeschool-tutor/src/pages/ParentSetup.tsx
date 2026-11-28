@@ -12,7 +12,8 @@ import { DEFAULT_MASTERY_CYCLE_DAYS } from '../utils/masteryCycle'
 import VoiceEnrollment from '../components/VoiceEnrollment'
 import Grade8CourseControls from '../components/Grade8CourseControls'
 import CurriculumAvailability from '../components/CurriculumAvailability'
-import { getGrade8Release, getCurriculumAvailability } from '../services/api'
+import ClassicalArtsWorkshop from '../components/ClassicalArtsWorkshop'
+import { getGrade8Release, getCurriculumAvailability, getClassicalArtsCatalog, getClassicalArtsLesson } from '../services/api'
 import ChildPinSettings from '../components/ChildPinSettings'
 import ParentSecuritySettings from '../components/ParentSecuritySettings'
 import DeviceSettings from '../components/DeviceSettings'
@@ -950,6 +951,13 @@ function StudentCard({
               : student.selected_subjects.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)),
           })}
           load={getGrade8Release} />
+        <ClassicalArtsWorkshop
+          grade={student.grade}
+          subjects={student.selected_subjects}
+          loadList={getClassicalArtsCatalog}
+          loadLesson={getClassicalArtsLesson}
+          onChooseUnit={(note) => onUpdate({ current_unit: note, expandedContext: true })}
+        />
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="label mb-0">{t('parentSetup.subjects')}</label>

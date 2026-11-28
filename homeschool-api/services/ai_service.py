@@ -2381,7 +2381,7 @@ def _infer_year(config: SessionConfig) -> "int | None":
         return None
 
 
-def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
+def _get_catalog_context(config: SessionConfig, subject: Subject, locale: str = "en") -> str:
     """
     Return a brief catalog note if a curriculum year can be inferred and no
     explicit current_unit is set. Imports lazily to avoid circular dependency.
@@ -2399,12 +2399,18 @@ def _get_catalog_context(config: SessionConfig, subject: Subject) -> str:
     for this subject. Both are metadata/orientation only, never the
     underlying books' actual text — same rule either catalog follows.
     """
+    from services.classical_arts_service import context as classical_context, PREFIX as classical_prefix
+    classical_selection = bool(config.current_unit and config.current_unit.startswith(classical_prefix))
+    if classical_selection:
+        authored = classical_context(config, subject, locale)
+        if authored:
+            return authored
     if getattr(config, "grade8_curriculum", None):
         from services.grade8_curriculum_service import context
         authored = context(config, subject)
         if authored:
             return authored
-    if config.current_unit:
+    if config.current_unit and not classical_selection:
         return ""  # Parent already specified the unit — catalog note not needed
     try:
         from services.catalog_service import get_catalog_note, get_catechism_note, get_subject_plan
@@ -3544,7 +3550,7 @@ async def _build_subject_prompt(
     # bookmark whenever a resume note fires keeps the prompt unambiguous
     # without touching bookmark storage/fade logic at all.
     bookmark_note = "" if resume_note else _bookmark_note(bookmark, today=local_date)
-    catalog_note = _get_catalog_context(config, subject)
+    catalog_note = _get_catalog_context(config, subject, locale)
     fable_note = _fable_of_the_week_note(config, subject, today=local_date)
     visual_aids_note = _get_visual_aids_context(subject, config, history, today=local_date)
     composer_note = _get_composer_context(subject, config, today=local_date)

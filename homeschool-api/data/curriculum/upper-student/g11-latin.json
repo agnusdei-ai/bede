@@ -1332,7 +1332,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Translate the first sentence of Chapter 1 of Book 6: 'Multis de causis Caesar, maioribus castellis munitis, proximis diebus, ad bellum Gallicum se accingere constituit.'\nHint 1 (only if needed): First, identify the subject 'Caesar' and the final verb 'constituit' to anchor the sentence structure.\nHint 2 (only if needed): Recognize the ablative absolute 'maioribus castellis munitis' as a descriptive phrase and translate it as a subordinate clause.\nHint 3 (only if needed): Translate the prepositional phrase 'ad bellum Gallicum' and the infinitive 'se accingere' which serves as the object of Caesar's decision.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Translate the opening clause of Book 6, chapter 1: 'Multis de causis Caesar maiorem Galliae motum exspectans per Marcum Silanum, Gaium Antistium Reginum, Titum Sextium legatos delectum habere instituit.'\nHint 1 (only if needed): First, identify the subject 'Caesar' and the final verb 'constituit' to anchor the sentence structure.\nHint 2 (only if needed): Recognize the ablative absolute 'maioribus castellis munitis' as a descriptive phrase and translate it as a subordinate clause.\nHint 3 (only if needed): Translate the prepositional phrase 'ad bellum Gallicum' and the infinitive 'se accingere' which serves as the object of Caesar's decision.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1354,7 +1354,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Analyze Caesar's use of the phrase 'maioribus castellis munitis' in the opening sentence. Why does he emphasize this act of fortification before describing his decision to prepare for war? Provide a two-sentence argument.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Analyze the phrase 'maiorem Galliae motum exspectans' in the opening of Book 6. Why does Caesar state his expectation of unrest before reporting the levy? Give a two-sentence argument.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1378,7 +1378,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Translate the first sentence of Chapter 1 of Book 6: 'Multis de causis Caesar, maioribus castellis munitis, proximis diebus, ad bellum Gallicum se accingere constituit.'",
+    "prompt": "Translate the opening clause of Book 6, chapter 1: 'Multis de causis Caesar maiorem Galliae motum exspectans per Marcum Silanum, Gaium Antistium Reginum, Titum Sextium legatos delectum habere instituit.'",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1386,7 +1386,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Analyze Caesar's use of the phrase 'maioribus castellis munitis' in the opening sentence. Why does he emphasize this act of fortification before describing his decision to prepare for war? Provide a two-sentence argument.",
+    "prompt": "Analyze the phrase 'maiorem Galliae motum exspectans' in the opening of Book 6. Why does Caesar state his expectation of unrest before reporting the levy? Give a two-sentence argument.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -2463,7 +2463,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapter 40"
+    "locator": "Appendix II, Rules of Syntax (pp. 261-264)"
    }
   ],
   "grade": 11,
@@ -4503,7 +4503,7 @@
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "This week, we move from reading to creating. Using the principles in D'Ooge's Chapter 45, we focus on Latin prose composition. The goal is not just to translate from English to Latin, but to think in Latin structures. Caesar’s style is known for 'concision'—using the fewest words possible to convey maximum meaning. To emulate this, avoid unnecessary adjectives. Use participles to condense relative clauses (e.g., 'the man who is fighting' becomes 'the fighting man'). Place the most important word at the start of the sentence for emphasis. Use the ablative absolute to provide context ('The battle finished, Caesar departed') instead of long 'when' clauses. By limiting your word count, you force yourself to choose the most precise verbs and nouns, mimicking the sharp, efficient rhythm of Caesar's own commentaries. In Latin, the verb is often the anchor of the sentence; placing it strategically can change the weight of the statement. When you construct a sentence, think of your subject, the action, and the outcome as a logical sequence. Concision reflects authority; by stripping away the ornamental, the writer demonstrates command over the language and the subject matter. Socratic Questions: 1. Why does a shorter, more direct sentence often carry more authority in Latin than a complex, subordinate-heavy one? 2. How can the placement of the verb at the end of a sentence create anticipation and increase the impact of your argument?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "This week, we move from reading to creating. Using the rules of syntax summarized in D'Ooge's Appendix II, we focus on Latin prose composition. The goal is not just to translate from English to Latin, but to think in Latin structures. Caesar’s style is known for 'concision'—using the fewest words possible to convey maximum meaning. To emulate this, avoid unnecessary adjectives. Use participles to condense relative clauses (e.g., 'the man who is fighting' becomes 'the fighting man'). Place the most important word at the start of the sentence for emphasis. Use the ablative absolute to provide context ('The battle finished, Caesar departed') instead of long 'when' clauses. By limiting your word count, you force yourself to choose the most precise verbs and nouns, mimicking the sharp, efficient rhythm of Caesar's own commentaries. In Latin, the verb is often the anchor of the sentence; placing it strategically can change the weight of the statement. When you construct a sentence, think of your subject, the action, and the outcome as a logical sequence. Concision reflects authority; by stripping away the ornamental, the writer demonstrates command over the language and the subject matter. Socratic Questions: 1. Why does a shorter, more direct sentence often carry more authority in Latin than a complex, subordinate-heavy one? 2. How can the placement of the verb at the end of a sentence create anticipation and increase the impact of your argument?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4633,7 +4633,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapter 45"
+    "locator": "Appendix II, Rules of Syntax (pp. 261-264)"
    }
   ],
   "grade": 11,
@@ -4817,7 +4817,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Analyze the passage in Book 8, Chapter 27. Identify one gerundive construction and explain how it contributes to Caesar's framing of himself as a leader bound by duty rather than ambition. (Book 8, Chapter 27: 'Quod cum ad se perferri videret, ut rei frumentariae rationem haberet, omnia sublevanda existimavit.')\nHint 1 (only if needed): Review your notes on subjunctive, gerundive, and rhetorical devices.\nHint 2 (only if needed): Focus on how Caesar's narrative voice evolves across the final chapters.\nHint 3 (only if needed): Consider the overall purpose of the Commentaries as you look at this finale.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Read Book 8, chapter 27, then analyze this Bede model sentence (written in the style of the Gallic War, not quoted from it): 'Quod cum ad se perferri videret, ut rei frumentariae rationem haberet, omnia sublevanda existimavit.' Identify the gerundive and explain how it frames a commander as bound by duty rather than ambition. Remember that Book 8 was written by Aulus Hirtius.\nHint 1 (only if needed): Review your notes on subjunctive, gerundive, and rhetorical devices.\nHint 2 (only if needed): Focus on how Caesar's narrative voice evolves across the final chapters.\nHint 3 (only if needed): Consider the overall purpose of the Commentaries as you look at this finale.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4853,7 +4853,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: Explain how a modern historical document (such as a political press release) might be written differently today compared to Caesar's Commentaries.\nSchedule the delayed check 7 days later: Why is it important to analyze the rhetorical 'layering' of an ancient text like Caesar's?\nSupport route: A conceptual map linking specific grammatical constructions (subjunctive, gerundive) to their corresponding rhetorical functions (necessity, subjectivity).\nExtension: Develop a thesis statement that compares Caesar's 'De Bello Gallico' to a modern memoir, focusing on the construction of the 'author-hero' persona.",
+    "instruction": "Transfer task: Explain how a modern historical document (such as a political press release) might be written differently today compared to Caesar's Commentaries.\nSchedule the delayed check 7 days later: Why is it important to analyze the rhetorical 'layering' of an ancient text like Caesar's?\nSupport route: Tiered support: (1) give a bank of six short Latin sentences, each containing one gerundive or passive periphrastic, with the gerundive underlined, and ask only 'what must be done, and by whom?'; (2) provide a two-column chart (construction | effect on how the commander appears) with the first row completed; (3) allow the learner to answer orally before writing.\nExtension: Find two gerundive or passive periphrastic constructions in Book 8, chapters 1-10, translate each, and write a paragraph on whether Hirtius uses them to present the commander as acting from duty, then compare that persona with one modern political or military memoir chosen with an adult.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4867,7 +4867,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Analyze the passage in Book 8, Chapter 27. Identify one gerundive construction and explain how it contributes to Caesar's framing of himself as a leader bound by duty rather than ambition. (Book 8, Chapter 27: 'Quod cum ad se perferri videret, ut rei frumentariae rationem haberet, omnia sublevanda existimavit.')",
+    "prompt": "Read Book 8, chapter 27, then analyze this Bede model sentence (written in the style of the Gallic War, not quoted from it): 'Quod cum ad se perferri videret, ut rei frumentariae rationem haberet, omnia sublevanda existimavit.' Identify the gerundive and explain how it frames a commander as bound by duty rather than ambition. Remember that Book 8 was written by Aulus Hirtius.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],

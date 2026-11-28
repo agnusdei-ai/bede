@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Loader2, Check } from 'lucide-react'
 import Grade8CourseControls, { type Grade8Selection } from './Grade8CourseControls'
+import UpperCourseControls, { UPPER_GRADES, type UpperSelection } from './UpperCourseControls'
 import CurriculumAvailability from './CurriculumAvailability'
-import { getGrade8Release, getCurriculumAvailability } from './api'
+import { getGrade8Release, getUpperRelease, getCurriculumAvailability } from './api'
 
 import {
   BIBLE_TRANSLATIONS,
@@ -92,7 +93,10 @@ export default function DemoParentSetup({
     initial?.subjects ?? [...COMPANION_MODES[2].subjects],
   )
   const [currentUnit, setCurrentUnit] = useState(initial?.current_unit ?? '')
-  const [course, setCourse] = useState<Grade8Selection | null>(initial?.grade8_curriculum ?? null)
+  const [grade8Course, setCourse] = useState<Grade8Selection | null>(initial?.grade8_curriculum ?? null)
+  const [upperCourse, setUpperCourse] = useState<UpperSelection | null>(initial?.upper_curriculum ?? null)
+  const isUpper = UPPER_GRADES.includes(grade.trim())
+  const course = grade.trim() === '8' ? grade8Course : isUpper ? upperCourse : null
   const [lessonFocus, setLessonFocus] = useState(initial?.lesson_focus ?? '')
   const [faithEmphasis, setFaithEmphasis] = useState(initial?.faith_emphasis ?? '')
   const [faithTradition, setFaithTradition] = useState(initial?.faith_tradition ?? '')
@@ -145,7 +149,8 @@ export default function DemoParentSetup({
       subjects,
       companion_mode: companion,
       current_unit: currentUnit.trim() || undefined,
-      grade8_curriculum: grade.trim() === '8' ? course : null,
+      grade8_curriculum: grade.trim() === '8' ? grade8Course : null,
+      upper_curriculum: isUpper ? upperCourse : null,
       lesson_focus: lessonFocus.trim() || undefined,
       faith_emphasis: faithSubjectOn ? faithEmphasis.trim() || undefined : undefined,
       faith_tradition: faithSubjectOn ? faithTradition.trim() || undefined : undefined,
@@ -219,11 +224,16 @@ export default function DemoParentSetup({
 
           {/* Subjects */}
           <CurriculumAvailability grade={grade} load={getCurriculumAvailability} />
-          <Grade8CourseControls grade={grade} value={course} subjects={subjects}
+          <Grade8CourseControls grade={grade} value={grade8Course} subjects={subjects}
             onChange={next => {
               setCourse(next)
               if (!next) setSubjects(prev => prev.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)))
             }} load={getGrade8Release} />
+          <UpperCourseControls grade={grade} value={upperCourse} subjects={subjects}
+            onChange={next => {
+              setUpperCourse(next)
+              if (!next) setSubjects(prev => prev.filter(s => !['spanish', 'computing', 'movement_health'].includes(s)))
+            }} load={getUpperRelease} />
           <div>
             <span className={label}>
               {course ? t('parentSetup.curriculumSubjects', 'Curriculum subjects') : t('parentSetup.subjects', 'Subjects for today')}{' '}

@@ -40,6 +40,7 @@ export interface SessionConfig {
   faith_emphasis?: string
   current_unit?: string
   grade8_curriculum?: { release_id?: 'bede-grade8-2026-accepted'; week: number; pathway: 'foundations' | 'algebra'; lesson_id?: string | null } | null
+  upper_curriculum?: { release_id?: 'bede-upper-2026-reviewed'; week: number; lesson_id?: string | null } | null
   // Optional, short label for the family's own church tradition (e.g.
   // "Baptist", "Catholic", "Non-denominational") — mirrors the backend's
   // SessionConfig.faith_tradition. Set in ParentSetup.tsx's optional

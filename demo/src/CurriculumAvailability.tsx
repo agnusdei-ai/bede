@@ -5,6 +5,7 @@ type GradeRelease = {
   grade: string
   default_route: 'catalog_guided' | 'grade_specific_practice'
   accepted_full_year: { release_id: string; runtime_enabled: boolean } | null
+  reviewed_full_year?: { release_id: string; runtime_enabled: boolean } | null
 }
 type Availability = { contract_version: number; grades: GradeRelease[] }
 
@@ -27,7 +28,10 @@ export default function CurriculumAvailability({ grade, load }: {
             || !['catalog_guided', 'grade_specific_practice'].includes(row.default_route)
             || (row.accepted_full_year !== null
               && (typeof row.accepted_full_year?.runtime_enabled !== 'boolean'
-                || typeof row.accepted_full_year?.release_id !== 'string')))) {
+                || typeof row.accepted_full_year?.release_id !== 'string'))
+            || (row.reviewed_full_year != null
+              && (typeof row.reviewed_full_year.runtime_enabled !== 'boolean'
+                || typeof row.reviewed_full_year.release_id !== 'string')))) {
           throw new Error('Invalid curriculum availability')
         }
         if (active && current === request) { setData(value); setError(false) }
@@ -48,6 +52,10 @@ export default function CurriculumAvailability({ grade, load }: {
         ? row.accepted_full_year.runtime_enabled
           ? (es ? 'Año completo aceptado disponible; selección a cargo del adulto.' : 'Accepted full year available; adult selection required.')
           : (es ? 'Año completo aceptado; no está activo en este entorno.' : 'Accepted full year; not active in this runtime.')
+        : row.reviewed_full_year
+          ? row.reviewed_full_year.runtime_enabled
+            ? (es ? 'Año completo revisado disponible; selección a cargo del adulto.' : 'Reviewed full year available; adult selection required.')
+            : (es ? 'Año completo revisado; no está activo en este entorno.' : 'Reviewed full year; not active in this runtime.')
         : row.default_route === 'catalog_guided'
           ? (es ? 'Orientación basada en el catálogo; no es una versión completa del año.' : 'Catalog-guided instruction; not a complete authored-year release.')
           : (es ? 'Práctica por grado; el año completo aún no está publicado.' : 'Grade-specific practice; the full year is not published yet.')

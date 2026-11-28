@@ -137,7 +137,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 1-10"
+    "locator": "Appendix III, Reviews (pp. 265-282)"
    }
   ],
   "grade": 10,
@@ -283,7 +283,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 11-15"
+    "locator": "Lessons XXVII-XXIX, present-system passive (pp. 68-75)"
    }
   ],
   "grade": 10,
@@ -429,7 +429,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 16-20"
+    "locator": "Lesson XXXV, Passive Perfects of the Indicative (pp. 88-90)"
    }
   ],
   "grade": 10,
@@ -575,7 +575,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 21-25"
+    "locator": "Lesson LX, Deponent Verbs (pp. 146-147)"
    }
   ],
   "grade": 10,
@@ -721,7 +721,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 26-30"
+    "locator": "Lesson LXVI, The Participles: tenses and declension (pp. 161-164)"
    }
   ],
   "grade": 10,
@@ -867,7 +867,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 31-35"
+    "locator": "Lesson XXXV, perfect passive forms (pp. 88-90); Lesson LXVI, The Participles (pp. 161-164)"
    }
   ],
   "grade": 10,
@@ -1013,7 +1013,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 36-40"
+    "locator": "Lesson LXVII, Ablative Absolute (pp. 164-166)"
    }
   ],
   "grade": 10,
@@ -1159,7 +1159,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 41-45"
+    "locator": "Lesson XXXVII, accusative subject of an infinitive (pp. 93-96); Lesson LXXII, Indirect Statements (pp. 177-180)"
    }
   ],
   "grade": 10,
@@ -1191,7 +1191,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Translate the sentence: 'Dicit se velle.'\nHint 1 (only if needed): Focus on the case endings of the phrase acting as the modifier to identify the ablative absolute.\nHint 2 (only if needed): Consider that the ablative absolute requires two elements in the ablative case, but one is not always a participle.\nHint 3 (only if needed): Think about what other types of words can serve as a predicate in an ablative absolute construction when a participle is absent.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Translate the sentence: 'Dīcit sē venīre velle.'\nHint 1 (only if needed): Focus on the case endings of the phrase acting as the modifier to identify the ablative absolute.\nHint 2 (only if needed): Consider that the ablative absolute requires two elements in the ablative case, but one is not always a participle.\nHint 3 (only if needed): Think about what other types of words can serve as a predicate in an ablative absolute construction when a participle is absent.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -1237,7 +1237,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Translate the sentence: 'Dicit se velle.'",
+    "prompt": "Translate the sentence: 'Dīcit sē venīre velle.'",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -1305,7 +1305,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 46-50"
+    "locator": "Lessons LXXVII-LXXIX, reviews of agreement, the ablative and the syntax of verbs (pp. 189-193)"
    }
   ],
   "grade": 10,
@@ -1451,7 +1451,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 51-55"
+    "locator": "Lesson XXXVIII, the Relative Pronoun (pp. 97-101); Lesson LI, hic, iste, ille (pp. 128-130)"
    }
   ],
   "grade": 10,
@@ -1597,7 +1597,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 56-60"
+    "locator": "Lesson LXI, The Subjunctive Mood: indicative and subjunctive compared (pp. 148-152)"
    }
   ],
   "grade": 10,
@@ -1738,7 +1738,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 61-65"
+    "locator": "Lesson LXII, The Subjunctive of Purpose (pp. 152-153); Lesson LXIV, substantive clauses of purpose (pp. 156-159)"
    }
   ],
   "grade": 10,
@@ -1879,7 +1879,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 66-70"
+    "locator": "Lesson LXVIII, Subjunctive of Result (pp. 167-168)"
    }
   ],
   "grade": 10,
@@ -2020,7 +2020,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Chapters 71-75"
+    "locator": "Lessons LXIII-LXIV, sequence of tenses; perfect and pluperfect subjunctive (pp. 153-159)"
    }
   ],
   "grade": 10,
@@ -3956,7 +3956,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Identify three instances of historical present tense in Chapter 2 and describe how they change the speed of the narrative compared to the perfect tense sentences in Chapter 1.\nHint 1 (only if needed): Focus on the verb forms in the first three sentences.\nHint 2 (only if needed): Note where Caesar switches from the perfect tense to the present tense.\nHint 3 (only if needed): Consider why an author would want to make a report seem like it is happening now.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: In Book 8, chapter 4, identify three verbs in the historical present and contrast them with the past tenses 'permanserant' and 'esset moratus' in the same chapter. How does the shift change the speed of the narrative?\nHint 1 (only if needed): Focus on the verb forms in the first three sentences.\nHint 2 (only if needed): Note where Caesar switches from the perfect tense to the present tense.\nHint 3 (only if needed): Consider why an author would want to make a report seem like it is happening now.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4006,7 +4006,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Identify three instances of historical present tense in Chapter 2 and describe how they change the speed of the narrative compared to the perfect tense sentences in Chapter 1.",
+    "prompt": "In Book 8, chapter 4, identify three verbs in the historical present and contrast them with the past tenses 'permanserant' and 'esset moratus' in the same chapter. How does the shift change the speed of the narrative?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4106,7 +4106,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Identify the type of conditional in this sentence from Chapter 12: 'Si Caesar non advenisset, milites victi essent.'\nHint 1 (only if needed): Check the mood of the verb in the 'si' clause.\nHint 2 (only if needed): Remember that contrary-to-fact uses the subjunctive, while simple fact uses the indicative.\nHint 3 (only if needed): Look for the 'would' indicator in your English translation for the apodosis.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Identify the type of conditional in this Bede model sentence (written in the style of the Gallic War, not quoted from it): 'Si Caesar non advenisset, milites victi essent.'\nHint 1 (only if needed): Check the mood of the verb in the 'si' clause.\nHint 2 (only if needed): Remember that contrary-to-fact uses the subjunctive, while simple fact uses the indicative.\nHint 3 (only if needed): Look for the 'would' indicator in your English translation for the apodosis.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4152,7 +4152,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Identify the type of conditional in this sentence from Chapter 12: 'Si Caesar non advenisset, milites victi essent.'",
+    "prompt": "Identify the type of conditional in this Bede model sentence (written in the style of the Gallic War, not quoted from it): 'Si Caesar non advenisset, milites victi essent.'",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4544,7 +4544,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Translate this sentence from Chapter 43: 'Hostes a nostris pulsi sunt.' Then suggest a more active way to phrase this in English.\nHint 1 (only if needed): Focus on the main verb first; does it require an active or passive subject?\nHint 2 (only if needed): Identify passive constructions (often including 'a' + ablative) and consider if active voice is more concise in English.\nHint 3 (only if needed): Look for adjectives that provide little essential information and test if the sentence improves by removing them.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Translate this Bede model sentence (written in the style of the Gallic War, not quoted from it): 'Hostes a nostris pulsi sunt.' Then suggest a more active way to phrase this in English.\nHint 1 (only if needed): Focus on the main verb first; does it require an active or passive subject?\nHint 2 (only if needed): Identify passive constructions (often including 'a' + ablative) and consider if active voice is more concise in English.\nHint 3 (only if needed): Look for adjectives that provide little essential information and test if the sentence improves by removing them.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4590,7 +4590,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Translate this sentence from Chapter 43: 'Hostes a nostris pulsi sunt.' Then suggest a more active way to phrase this in English.",
+    "prompt": "Translate this Bede model sentence (written in the style of the Gallic War, not quoted from it): 'Hostes a nostris pulsi sunt.' Then suggest a more active way to phrase this in English.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -4960,18 +4960,18 @@
  },
  {
   "id": "g10-year-latin-w35",
-  "title": "Week 35: Caesar: Final Reading Passage",
+  "title": "Week 35: Book VIII Close: Reading Chapters 54-55",
   "objective_ids": [
    "g10-year-latin-w35-objective"
   ],
   "objectives": [
-   "Caesar: Final Reading Passage: explain and apply this week's idea in the independent and transfer tasks."
+   "Book VIII Close: Reading Chapters 54-55: explain and apply this week's idea in the independent and transfer tasks."
   ],
-  "entry_evidence": "Grammar guide completed last week.",
+  "entry_evidence": "Identify the main verb and its tense in one sentence of chapter 53.",
   "steps": [
    {
     "mode": "explicit_teaching",
-    "instruction": "You are now approaching the end of your Latin II journey. Fluency is the ability to read and understand the thought of the author without constantly resorting to the dictionary. As you read the final chapters of Book VIII, do not just translate; observe. Notice the rhythm of the sentences. Notice how the vocabulary choices align with the gravity of the events described. A great translation is one that brings the Roman voice into your own mind. As you practice your oral translation, focus on your intonation. A Roman commander speaks with authority; emphasize the verbs that drive the action. For instance, notice how the active voice verbs propel the narrative forward in descriptions of troop movement, whereas passive verbs often highlight the conditions or surroundings. Does your voice reflect the urgency of the moment? Read it aloud. Latin is meant to be heard. Consider the alliteration in lines where urgency is stressed—how do the sounds reflect the tone of the passage? If you read 'Caesar exercitum eduxit' with a slow, deliberate tone, does it change the impact compared to reading it with a rapid, staccato pace? Consider these questions: First, how do the specific verb tenses in this passage establish a timeline of the final skirmish? Second, in what way does the author's choice of word placement draw the reader's attention to the commander's resolve?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
+    "instruction": "You are now approaching the end of your Latin II journey. Fluency is the ability to follow an author's thought without constantly resorting to the dictionary. Book VIII of the Gallic War was not written by Caesar: his officer Aulus Hirtius completed the account, and in this edition it ends at chapter 55. These last two chapters leave the battlefield for politics. The Senate decrees that two legions be sent to a war against Parthia, one from Pompey and one from Caesar; Caesar sends them, places his remaining legions in winter quarters among the Belgae and the Aedui, and sets out for Italy, where he learns the two legions have been kept in Italy instead. Notice how much of the narrative runs in the historical present: 'Fit deinde senatus consultum', 'iubet tradi', 'mittit', 'distribuit', 'collocat', 'deducit', 'cognoscit'. The present tense makes past events feel immediate, as if reported as they happen. Read aloud, and let your voice follow the verbs. Then look at how the closing sentence of chapter 55 presents Caesar's choice: he decides to endure everything while any hope remains of settling the dispute by law rather than by war. Questions to consider: First, which verbs in chapter 54 are historical presents, and which are true past tenses? Second, how does Hirtius use word order and the phrase 'iure potius disceptandi quam belli gerendi' to shape how a reader judges Caesar at the end of the book?\nEntry check: ask for a fresh example of the stated prerequisite. If missing, teach it first; age or week number is not evidence of readiness.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -4982,7 +4982,7 @@
    },
    {
     "mode": "practice",
-    "instruction": "Guided task: Read the first two sentences of Chapter 56 aloud. What is the tone of the opening, and what grammatical clue establishes it?\nHint 1 (only if needed): Read the sentence through twice before looking up words.\nHint 2 (only if needed): Focus on the main verb to ground your understanding.\nHint 3 (only if needed): Use your knowledge of 'cum' and 'ut' clauses to bridge the meaning.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
+    "instruction": "Guided task: Read the first two sentences of chapter 54 aloud. What is the tone of the opening, and which verb forms establish it?\nHint 1 (only if needed): Read the sentence through twice before looking up words.\nHint 2 (only if needed): Focus on the main verb to ground your understanding.\nHint 3 (only if needed): Use your knowledge of 'cum' and 'ut' clauses to bridge the meaning.\nAsk what is known and how the learner could check the result. Fade prompts; record hints separately.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -5004,7 +5004,7 @@
    },
    {
     "mode": "studio",
-    "instruction": "Independent task: Translate the final paragraph of Book 8 in writing, then read it aloud to evaluate the cadence.\nWork on a fresh page using permitted access supports, not the model or adult key.",
+    "instruction": "Independent task: Translate the final sentence of chapter 55 ('Hoc facto quamquam nulli erat dubium ... quam belli gerendi.') in writing, then read the Latin aloud and describe its cadence.\nWork on a fresh page using permitted access supports, not the model or adult key.",
     "minutes": 25,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -5015,7 +5015,7 @@
    },
    {
     "mode": "exit",
-    "instruction": "Transfer task: How does reading a classic text aloud change your emotional connection to the subject matter?\nSchedule the delayed check 7 days later: Explain the 'sentence skeleton' technique as if teaching it to a younger student.\nSupport route: Provide a transcript of the passage with the main verbs underlined to assist the learner in maintaining the structural flow.\nExtension: Memorize the last sentence of Book 8 and recite it with proper Latin accentuation to capture the formal tone.",
+    "instruction": "Transfer task: How does reading a classic text aloud change your emotional connection to the subject matter?\nSchedule the delayed check 7 days later: Explain the 'sentence skeleton' technique as if teaching it to a younger student.\nSupport route: Provide a transcript of the passage with the main verbs underlined to assist the learner in maintaining the structural flow.\nExtension: Memorize the final sentence of chapter 55 and recite it with correct Latin accentuation, then explain in two sentences how it prepares a reader for the Civil War.",
     "minutes": 15,
     "materials": [
      "Paper, pencil or accessible response tool",
@@ -5028,7 +5028,7 @@
   "assessments": [
    {
     "kind": "guided",
-    "prompt": "Read the first two sentences of Chapter 56 aloud. What is the tone of the opening, and what grammatical clue establishes it?",
+    "prompt": "Read the first two sentences of chapter 54 aloud. What is the tone of the opening, and which verb forms establish it?",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -5036,7 +5036,7 @@
    },
    {
     "kind": "independent",
-    "prompt": "Translate the final paragraph of Book 8 in writing, then read it aloud to evaluate the cadence.",
+    "prompt": "Translate the final sentence of chapter 55 ('Hoc facto quamquam nulli erat dubium ... quam belli gerendi.') in writing, then read the Latin aloud and describe its cadence.",
     "supports": [
      "Enlarged print, generous spacing, quiet setting and breaks. Read instructions aloud; permit a verbatim scribe for reasoning unless transcription is the specific construct. Do not give content hints on independent checks."
     ],
@@ -5074,7 +5074,7 @@
   },
   "sources": [
    {
-    "title": "Caesar: Final Reading Passage",
+    "title": "Book VIII Close: Reading Chapters 54-55",
     "creator_editor_translator": "Bede; AI-assisted original authoring with separate AI review",
     "edition": "Original instructional text; no third-party excerpts over 25 words",
     "url": "bede-original:grade10-year/latin/week-35",
@@ -5096,7 +5096,7 @@
      "Project Gutenberg file header: created from print editions not protected by U.S. copyright. USA public-domain determination only; check local law elsewhere.",
      "Reference and short quotation only; Bede does not bundle or redistribute the file."
     ],
-    "locator": "Book 8, Chapters 56-end"
+    "locator": "Book VIII (by Aulus Hirtius), chapters 54-55, the end of the book"
    }
   ],
   "grade": 10,

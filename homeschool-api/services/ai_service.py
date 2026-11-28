@@ -3526,11 +3526,18 @@ async def _build_subject_prompt(
     lesson_note = f"\nParent's note for today: {lesson_raw}" if lesson_raw else ""
     unit_note = f"\nCurrent unit of study: {unit_raw}" if unit_raw else ""
     if config.grade.strip() in DEMO_UPPER_GRADES:
+        # The adult-selected reviewed Grades 9-12 lesson is the only curriculum
+        # source on this path; without it the guidance stays sample practice.
+        upper_lesson = ""
+        if config.upper_curriculum:
+            from services.upper_curriculum_service import context as upper_context
+            upper_lesson = upper_context(config, subject)
         # Do not inherit K-8 catalogs, probe IDs, or term/mastery targets
         # through the compatibility stage used by existing session tools.
         return (
             f"CURRENT SUBJECT: {subject_label(subject, locale)}\n"
             f"{upper_school_guidance(config)}{faith_note}{lesson_note}{unit_note}"
+            f"{upper_lesson}"
             f"{_faith_tradition_note(config, subject)}"
             f"{_bible_translation_note(config, subject)}"
             f"{_lesson_resume_note(config, subject, locale)}"

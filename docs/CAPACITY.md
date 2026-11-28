@@ -134,8 +134,8 @@ the result.
 
 | Run | Browser sessions supported | At 10 browsers | API clients supported | What failed first |
 |---|---|---|---|---|
-| Shipped pool (5 + 5) | 8 | **FAIL** | 8 | the database pool |
-| Raised pool (20 + 20, NON-DEFAULT) | 10 | PASS | 32 | the database pool, again, at 48 |
+| Old default pool (5 + 5) | 8 | **FAIL** | 8 | the database pool |
+| Raised pool (20 + 20, now the default) | 10 | PASS | 32 | the database pool, again, at 48 |
 
 The failure is a cliff, not a slope. Up to 8 sessions every turn's first words
 arrived in about 1.6 seconds (the stub's own 1.5 plus Bede's overhead); at 10
@@ -174,10 +174,11 @@ counts against the sign-in bucket (`core/middleware.py`,
 
 ## The database pool setting
 
-`DB_POOL_SIZE` and `DB_MAX_OVERFLOW` (default 5 and 5, the values the engine
-always used) are settable in `.env`. Do not raise them without a capacity run
-that shows the pool binding, and keep their sum below your database's
-connection limit.
+`DB_POOL_SIZE` and `DB_MAX_OVERFLOW` default to 20 and 20 (owner decision
+2026-11-28, from the runs above: 5 + 5, the engine's old values, failed at 10
+learners and 20 + 20 passed). They are settable in `.env`. Keep their sum below
+your database's connection limit; Postgres ships with 100. A capacity run with
+any other value is labelled NON-DEFAULT.
 
 ## Running it on your own machine
 
